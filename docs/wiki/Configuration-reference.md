@@ -71,6 +71,10 @@ All are validated by `cmake --build build --target check-config`. Packages insta
 | [examples/dofscroll-multi-device.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-multi-device.conf) | Both device profiles in one file |
 | [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/modes) | Example modes |
 
+## Text and encoding
+
+All text is UTF-8. A leading BOM is accepted and never written; LF is written, CRLF is accepted. Names in `[app:*]` and `[device:*]` may contain any Unicode text (spaces, umlauts, CJK, emoji, `#` `;` `=` `[` `]`); only control characters are refused. Matching is case-insensitive for ASCII letters only, and text is not normalized (write macOS names in NFC). Invalid UTF-8 in a file gives a warning with `file:line`; the rest of the file is still used. See docs/encoding.md.
+
 ## Vendor driver settings
 
 `spacenavd` applies its own sensitivity, dead zone, inversion and axis swap (`/etc/spnavrc`) before dofscroll sees any value. Keep it at the defaults and tune in dofscroll. If you changed it, adjust the mixes or run "Learn axes" in the tray. Programs that read the SpaceMouse themselves (Blender, CAD) get input twice unless you switch dofscroll off for them with `ENABLED = 0` or `MODE = off` in an `[app:*]` section.

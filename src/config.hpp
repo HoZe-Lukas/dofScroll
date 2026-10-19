@@ -159,8 +159,9 @@ struct ProfileSet {
     // against a device override). Signature unchanged.
     void setSectionFromSettings(size_t i, const Settings &s);
     static constexpr size_t npos = static_cast<size_t>(-1);
-    // Pattern valid? (non-empty after trim, no ']' and no line break -
-    // otherwise it does not survive save+load). *out = trimmed pattern.
+    // Pattern valid? (non-empty after trim, at most kMaxPatternBytes, no control
+    // character or line break - otherwise it does not survive save+load; ']' is fine).
+    // *out = trimmed pattern.
     static bool normalizePattern(const std::string &pattern, std::string *out);
     // Finds/creates a section, returns its index. Invalid pattern (see
     // normalizePattern) -> npos, the caller MUST check. The pattern is trimmed.
