@@ -43,7 +43,10 @@ TRAY   := $(BIN_DIR)/dofscroll-tray
 export DAEMON TRAY
 
 # gemeinsamer Kern (auch von den Tests gelinkt)
-CORE_SRC   := src/config.cpp src/dsp.cpp src/device_count.cpp src/modes.cpp src/seed.cpp
+# every src/*.cpp except the two programs and the X11/uinput/active-window backends
+# (wildcard on purpose: new core files need no Makefile edit)
+CORE_SRC   := $(filter-out src/dofscroll.cpp src/dofscroll_tray.cpp src/output.cpp \
+              src/output_x11.cpp src/output_uinput.cpp src/activewin.cpp, $(wildcard src/*.cpp))
 DAEMON_SRC := src/dofscroll.cpp src/output.cpp src/output_x11.cpp \
               src/output_uinput.cpp src/activewin.cpp $(CORE_SRC)
 TRAY_SRC   := src/dofscroll_tray.cpp
