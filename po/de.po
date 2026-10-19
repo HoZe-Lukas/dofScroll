@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: dofscroll\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 09:01+0200\n"
+"POT-Creation-Date: 2026-10-19 09:11+0200\n"
 "PO-Revision-Date: 2026-10-19 00:00+0000\n"
 "Last-Translator: Lukas Hois-Zelinka\n"
 "Language-Team: German\n"
@@ -240,7 +240,7 @@ msgstr "Klick-Taste verwenden"
 msgid "Click button (left mouse button)"
 msgstr "Klick-Taste (linke Maustaste)"
 
-#: src/dofscroll_tray.cpp:822 src/dofscroll_tray.cpp:2463
+#: src/dofscroll_tray.cpp:822 src/dofscroll_tray.cpp:2464
 msgid "Restart daemon"
 msgstr "Daemon neu starten"
 
@@ -278,7 +278,7 @@ msgstr "+ hoch: Heben / Drücken"
 msgid "Twist the cap"
 msgstr "Kappe drehen"
 
-#: src/dofscroll_tray.cpp:1185 src/axis_wizard.hpp:44
+#: src/dofscroll_tray.cpp:1185 src/axis_wizard.hpp:80
 msgid "Tilt forward/back"
 msgstr "Kippen vor/zurück"
 
@@ -286,7 +286,7 @@ msgstr "Kippen vor/zurück"
 msgid "+ right: push sideways"
 msgstr "+ rechts: seitlich schieben"
 
-#: src/dofscroll_tray.cpp:1187 src/axis_wizard.hpp:45
+#: src/dofscroll_tray.cpp:1187 src/axis_wizard.hpp:81
 msgid "Tilt sideways"
 msgstr "Seitlich kippen"
 
@@ -719,34 +719,125 @@ msgstr "Kopieren"
 msgid "Close"
 msgstr "Schließen"
 
-#: src/dofscroll_tray.cpp:2457
+#: src/dofscroll_tray.cpp:2458
 msgid "Determining status..."
 msgstr "Status wird ermittelt..."
 
-#: src/dofscroll_tray.cpp:2461
+#: src/dofscroll_tray.cpp:2462
 msgid "Settings…"
 msgstr "Einstellungen…"
 
-#: src/dofscroll_tray.cpp:2462
+#: src/dofscroll_tray.cpp:2463
 msgid "Open config file"
 msgstr "Konfigurationsdatei öffnen"
 
-#: src/dofscroll_tray.cpp:2464
+#: src/dofscroll_tray.cpp:2465
 msgid "Show log..."
 msgstr "Log anzeigen..."
 
-#: src/dofscroll_tray.cpp:2466
+#: src/dofscroll_tray.cpp:2467
 msgid "Quit"
 msgstr "Beenden"
 
-#: src/axis_wizard.hpp:44
+#: src/axis_wizard.hpp:80
 msgid "Push forward/back"
 msgstr "Schieben vor/zurück"
 
-#: src/axis_wizard.hpp:45
+#: src/axis_wizard.hpp:81
 msgid "Push sideways"
 msgstr "Seitlich schieben"
 
-#: src/axis_wizard.hpp:46
+#: src/axis_wizard.hpp:82
 msgid "Twist"
 msgstr "Drehen"
+
+#: src/axis_wizard.hpp:206
+msgid ""
+"No sustained movement detected (only short deflections) - please move "
+"steadily and a little longer."
+msgstr ""
+"Keine anhaltende Bewegung erkannt (nur kurze Ausschläge) - bitte gleichmäßig "
+"und etwas länger bewegen."
+
+#: src/axis_wizard.hpp:208
+msgid "No movement detected - please move the cap after \"Start\"."
+msgstr "Keine Bewegung erkannt - bitte die Kappe nach „Start“ bewegen."
+
+#: src/axis_wizard.hpp:218
+#, c-format
+msgid "Too weak (peak %d on %s, required %d) - please move more firmly."
+msgstr ""
+"Zu schwach (Spitze %d auf %s, erforderlich %d) - bitte kräftiger bewegen."
+
+#: src/axis_wizard.hpp:224
+#, c-format
+msgid ""
+"Ambiguous: %s %d and %s %d are almost equally strong - please repeat and "
+"move more cleanly in only one direction."
+msgstr ""
+"Mehrdeutig: %s %d und %s %d sind fast gleich stark - bitte wiederholen und "
+"sauberer nur in eine Richtung bewegen."
+
+#: src/axis_wizard.hpp:232
+#, c-format
+msgid "Detected: %s%s (peak %d), second-strongest axis: %s %d."
+msgstr "Erkannt: %s%s (Spitze %d), zweitstärkste Achse: %s %d."
+
+#: src/axis_wizard.hpp:235
+#, c-format
+msgid "Detected: %s%s (peak %d)."
+msgstr "Erkannt: %s%s (Spitze %d)."
+
+#: src/axis_wizard.hpp:237
+msgid ""
+"Close call - repeat if necessary and move more cleanly in only one direction."
+msgstr ""
+"Knappes Ergebnis - bei Bedarf wiederholen und sauberer nur in eine Richtung "
+"bewegen."
+
+#: src/axis_wizard.hpp:277
+#, c-format
+msgid "Step \"%s\" is required and must not be skipped."
+msgstr "Der Schritt „%s“ ist erforderlich und darf nicht übersprungen werden."
+
+#: src/axis_wizard.hpp:284
+#, c-format
+msgid "Step \"%s\" has no valid result (too weak)."
+msgstr "Der Schritt „%s“ hat kein gültiges Ergebnis (zu schwach)."
+
+#: src/axis_wizard.hpp:286
+#, c-format
+msgid "Step \"%s\" has no valid result (ambiguous)."
+msgstr "Der Schritt „%s“ hat kein gültiges Ergebnis (mehrdeutig)."
+
+#: src/axis_wizard.hpp:287
+#, c-format
+msgid "Step \"%s\" has no valid result."
+msgstr "Der Schritt „%s“ hat kein gültiges Ergebnis."
+
+#: src/axis_wizard.hpp:302
+#, c-format
+msgid ""
+"Axis %s was detected for \"%s\" and for \"%s\" - contradictory (two "
+"different channels would use the same axis), please repeat the steps."
+msgstr ""
+"Achse %s wurde für „%s“ und für „%s“ erkannt - widersprüchlich (zwei "
+"verschiedene Kanäle würden dieselbe Achse nutzen), bitte die Schritte "
+"wiederholen."
+
+#: src/axis_wizard.hpp:307
+#, c-format
+msgid ""
+"Axis %s was detected for \"%s\" and for \"%s\" - contradictory; it is used "
+"only once in the mix, please repeat the steps."
+msgstr ""
+"Achse %s wurde für „%s“ und für „%s“ erkannt - widersprüchlich; sie wird im "
+"Mix nur einmal verwendet, bitte die Schritte wiederholen."
+
+#: src/axis_wizard.hpp:313
+#, c-format
+msgid ""
+"For \"%s\" lift/press (y) was strongest - probably pressed down too hard."
+msgstr ""
+"Bei „%s“ war Heben/Drücken (y) am stärksten - vermutlich zu stark nach unten "
+"gedrückt."
