@@ -36,7 +36,7 @@ by the current user, opened without following links; invalid lines and files are
 warning in the log (`Button modes: ...`). The folder is checked about once a second and reloaded
 when its contents change.
 
-On the first start of the interface the two examples `latch-nav` and `next-mode` are copied into a
+On the first start of the interface the three examples `latch-nav`, `next-mode` and `prev-mode` are copied into a
 missing `buttons/` folder (never overwriting anything). Without the interface:
 
     mkdir -p -m 0700 ~/.config/dofscroll/buttons
