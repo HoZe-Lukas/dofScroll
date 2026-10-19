@@ -37,10 +37,13 @@ per-device profiles.
   macOS Gatekeeper blocks the first start: right-click > Open, or Privacy & Security > Open
   Anyway, or `xattr -dr com.apple.quarantine`. See [installation.md](installation.md).
 - **Stuck-key safety net:** the daemon releases every key and button it holds when the device
-  has been quiet for 250 ms, has a stale-input watchdog, and the GTK tray has "Release all
+  has been quiet for 250 ms, has a stale-input watchdog, and both trays have "Release all
   keys" (`dofscroll --release-keys`). See [troubleshooting.md](troubleshooting.md).
 - **Output pauses while the own session is not the active one** (several users on one PC),
   with `session=inactive|active` in the status file.
+- Qt interface: settings saves notify the daemon on Linux, Windows and macOS; device list and
+  factory button count from the daemon's live feed (Profiles and Axes pages); hardened runtime
+  directory and mode request file handling.
 - Windows and macOS daemons (raw HID / IOHID), device database, `dofscroll-hidprobe`.
 - Security review and fixes, UTF-8 policy for all text and paths, English-only check in CI,
   documentation of the vendor-driver principle, wiki sources in `docs/wiki`.
@@ -51,7 +54,6 @@ per-device profiles.
   macOS DMG is ad-hoc signed and not notarized.
 - The Qt interface was not checked on Windows or macOS desktops. On Linux the GTK tray is still
   the documented default.
-- "Release all keys" is only in the GTK tray; use `dofscroll --release-keys` otherwise.
 - The session pause was tested with fake probes only; no second user session was available. The
   Windows and macOS probes are compile-checked only.
 - On Linux `spacenavd` reports one merged device, so two mice with different modes at once are

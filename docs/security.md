@@ -687,6 +687,13 @@ The daemon writes two files into `$XDG_RUNTIME_DIR` (private, `0700`, owned by t
   profile description) go through `sanitizeForLog` (no line breaks/control characters). Warnings
   that quote file content (config and mode parse warnings) are logged without that filter, so a
   config or mode file can put control characters into the log (review F7).
+- **Runtime path allow-list (all platforms):** every runtime file path is built by one function
+  (`src/platform/runtime_path.hpp`): the directory must be absolute and free of `.`, `..`, empty
+  parts and control characters, and the file name comes from a fixed list (log, status, suspend
+  heartbeat). Windows (`%LOCALAPPDATA%\dofscroll`) and macOS (`~/Library/Caches/dofscroll`) use the
+  same rule; these two are CI-verified only. The mode request file (`dofscroll-mode-request`) is read by
+  the daemon under the same checks (owner, no symlink, size bound). The interface reads the status
+  file bounded, without following symlinks and only if owned by the current user.
 - **Trust model:** the tray reads the files and treats their content as foreign data
   (size/permission/owner check, display only as text). Whoever can manipulate the files can
   already act as the user (A2); they contain no secrets except the name of the active program.

@@ -42,7 +42,7 @@ Every user-visible feature must work on Linux, Windows and macOS. A feature is "
 |---|---|
 | W9 | Verify device descriptors and factory button counts on real hardware |
 | W7 / W8 | Follow-up security fixes; keep documentation in sync |
-| Later | "Release all keys" in the Qt tray; signed installers |
+| Later | Signed installers |
 
 Decisions: version 0.1 is released without waiting for the Qt interface (Windows and macOS daemons configured by file at first); the Qt interface and unsigned installers shipped with 0.1.0-beta.1 after all. Installers are unsigned and not notarized. Known limitation: on Linux `spacenavd` reports one merged device, so two mice with different modes at once need direct HID access.
 

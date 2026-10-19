@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 14:08+0200\n"
+"POT-Creation-Date: 2026-10-19 14:51+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -165,8 +165,8 @@ msgstr ""
 msgid "Scroll horizontal"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:265 src/ui/qt/pages/axes_page.cpp:80
-#: src/ui/qt/pages/axes_page.cpp:404
+#: src/dofscroll_tray.cpp:265 src/ui/qt/pages/axes_page.cpp:66
+#: src/ui/qt/pages/axes_page.cpp:405
 msgid "Zoom"
 msgstr ""
 
@@ -416,52 +416,52 @@ msgstr ""
 msgid "(off)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1408 src/ui/model/axes_model.hpp:259
+#: src/dofscroll_tray.cpp:1408 src/ui/model/axes_model.hpp:266
 msgid ""
 "Pull the cap toward you, then push it forward - level, without tilting. "
 "Toward you first!"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1410 src/ui/model/axes_model.hpp:261
+#: src/dofscroll_tray.cpp:1410 src/ui/model/axes_model.hpp:268
 msgid "Toward you = positive (scroll down)."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1411 src/ui/model/axes_model.hpp:262
+#: src/dofscroll_tray.cpp:1411 src/ui/model/axes_model.hpp:269
 msgid ""
 "Tilt the cap toward you, then forward (tilt the top, without pushing). "
 "Toward you first!"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1413 src/ui/model/axes_model.hpp:264
+#: src/dofscroll_tray.cpp:1413 src/ui/model/axes_model.hpp:271
 msgid "Tilting toward you = positive (scroll down). Optional - can be skipped."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1414 src/ui/model/axes_model.hpp:265
+#: src/dofscroll_tray.cpp:1414 src/ui/model/axes_model.hpp:272
 msgid ""
 "Push the cap to the right and back - level, without tilting. Right first!"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1415 src/ui/model/axes_model.hpp:266
+#: src/dofscroll_tray.cpp:1415 src/ui/model/axes_model.hpp:273
 msgid "Right = positive (scroll right)."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1416 src/ui/model/axes_model.hpp:267
+#: src/dofscroll_tray.cpp:1416 src/ui/model/axes_model.hpp:274
 msgid "Tilt the cap sideways: tilt to the right and back. Right first!"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1417 src/ui/model/axes_model.hpp:268
+#: src/dofscroll_tray.cpp:1417 src/ui/model/axes_model.hpp:275
 msgid "Tilting right = positive (scroll right). Optional - can be skipped."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1418 src/ui/model/axes_model.hpp:269
+#: src/dofscroll_tray.cpp:1418 src/ui/model/axes_model.hpp:276
 msgid "Twist the cap clockwise (seen from above) and back. Clockwise first!"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1419 src/ui/model/axes_model.hpp:270
+#: src/dofscroll_tray.cpp:1419 src/ui/model/axes_model.hpp:277
 msgid "Clockwise = positive (zoom in)."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1451 src/ui/qt/pages/axes_page.cpp:402
+#: src/dofscroll_tray.cpp:1451 src/ui/qt/pages/axes_page.cpp:403
 msgid "Detected mapping:"
 msgstr ""
 
@@ -472,7 +472,7 @@ msgid ""
 "direction switches (\"Invert direction\") to normal."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1459 src/ui/qt/pages/axes_page.cpp:409
+#: src/dofscroll_tray.cpp:1459 src/ui/qt/pages/axes_page.cpp:410
 msgid "The mapping is incomplete and cannot be applied."
 msgstr ""
 
@@ -491,11 +491,11 @@ msgstr ""
 msgid "Step %d of %d: %s%s"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1476 src/ui/qt/pages/axes_page.cpp:390
+#: src/dofscroll_tray.cpp:1476 src/ui/qt/pages/axes_page.cpp:391
 msgid " (optional)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1477 src/ui/qt/pages/axes_page.cpp:384
+#: src/dofscroll_tray.cpp:1477 src/ui/qt/pages/axes_page.cpp:385
 msgid "Result"
 msgstr ""
 
@@ -504,11 +504,11 @@ msgstr ""
 msgid "Measuring - move now! %.1f s left"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1504 src/ui/qt/pages/axes_page.cpp:420
+#: src/dofscroll_tray.cpp:1504 src/ui/qt/pages/axes_page.cpp:421
 msgid "Measurement complete"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1508 src/ui/qt/pages/axes_page.cpp:421
+#: src/dofscroll_tray.cpp:1508 src/ui/qt/pages/axes_page.cpp:422
 msgid "Ready - click \"Start\", then move (3 s)"
 msgstr ""
 
@@ -516,7 +516,7 @@ msgstr ""
 msgid "No connection to spacenavd"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1514 src/ui/qt/pages/axes_page.cpp:426
+#: src/dofscroll_tray.cpp:1514 src/ui/qt/pages/axes_page.cpp:427
 msgid "Skipped."
 msgstr ""
 
@@ -528,7 +528,7 @@ msgstr ""
 msgid "_Start"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1581 src/ui/model/axes_model.hpp:389
+#: src/dofscroll_tray.cpp:1581 src/ui/model/axes_model.hpp:396
 #, c-format
 msgid ""
 "The twist axis %s is listed under \"Zoom must dominate against\" for zoom - "
@@ -806,8 +806,8 @@ msgstr ""
 msgid "Determining status..."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2742 src/ui/model/tray_menu_model.hpp:86
-#: src/ui/qt/pages/profiles_page.cpp:238 src/ui/qt/pages/profiles_page.cpp:241
+#: src/dofscroll_tray.cpp:2742 src/ui/model/tray_menu_model.hpp:87
+#: src/ui/qt/pages/profiles_page.cpp:254 src/ui/qt/pages/profiles_page.cpp:257
 msgid "Mode"
 msgstr ""
 
@@ -831,48 +831,48 @@ msgstr ""
 msgid "Quit"
 msgstr ""
 
-#: src/ui/model/axes_model.hpp:220
+#: src/ui/model/axes_model.hpp:227
 msgid "Daemon not running"
 msgstr ""
 
-#: src/ui/model/axes_model.hpp:221
+#: src/ui/model/axes_model.hpp:228
 msgid "Waiting for the live feed"
 msgstr ""
 
-#: src/ui/model/axes_model.hpp:222
+#: src/ui/model/axes_model.hpp:229
 msgid "Connected"
 msgstr ""
 
-#: src/ui/model/axes_model.hpp:223
+#: src/ui/model/axes_model.hpp:230
 msgid "The daemon speaks an incompatible live feed version"
 msgstr ""
 
-#: src/ui/model/axes_model.hpp:233
+#: src/ui/model/axes_model.hpp:240
 msgid "Update dofscroll and the settings window to the same version."
 msgstr ""
 
-#: src/ui/model/axes_model.hpp:235
+#: src/ui/model/axes_model.hpp:242
 msgid ""
 "The daemon is running but sends no data: check that the SpaceMouse is "
 "connected and that LIVE_FEED is not set to 0 in [global]."
 msgstr ""
 
-#: src/ui/model/axes_model.hpp:240
+#: src/ui/model/axes_model.hpp:247
 msgid ""
 "Start the daemon, for example with: systemctl --user start dofscroll.service"
 msgstr ""
 
-#: src/ui/model/axes_model.hpp:241
+#: src/ui/model/axes_model.hpp:248
 msgid "Start the daemon: run dofscroll.exe (it has no window)."
 msgstr ""
 
-#: src/ui/model/axes_model.hpp:243
+#: src/ui/model/axes_model.hpp:250
 msgid ""
 "Start the daemon: run dofscroll, or load its LaunchAgent (see the macOS "
 "installation notes)."
 msgstr ""
 
-#: src/ui/model/axes_model.hpp:336
+#: src/ui/model/axes_model.hpp:343
 msgid "Connection to the daemon lost - measurement aborted."
 msgstr ""
 
@@ -962,7 +962,7 @@ msgstr ""
 msgid "%1 SpaceMice connected, only '%2' is reported"
 msgstr ""
 
-#: src/ui/model/tray_controller.hpp:70
+#: src/ui/model/tray_controller.hpp:71
 msgid "No log file: the runtime directory is not available"
 msgstr ""
 
@@ -1015,7 +1015,7 @@ msgstr ""
 msgid "Not available here: the focused program cannot be detected"
 msgstr ""
 
-#: src/ui/qt/pages/add_app_dialog.cpp:79 src/ui/qt/pages/profiles_page.cpp:576
+#: src/ui/qt/pages/add_app_dialog.cpp:79 src/ui/qt/pages/profiles_page.cpp:592
 msgid "Match string:"
 msgstr ""
 
@@ -1025,7 +1025,7 @@ msgid "Add"
 msgstr ""
 
 #: src/ui/qt/pages/add_app_dialog.cpp:90
-#: src/ui/qt/pages/add_device_dialog.cpp:64 src/ui/qt/pages/axes_page.cpp:280
+#: src/ui/qt/pages/add_device_dialog.cpp:64 src/ui/qt/pages/axes_page.cpp:273
 msgid "Cancel"
 msgstr ""
 
@@ -1098,144 +1098,144 @@ msgstr ""
 msgid "No connected device was reported. You can still type the device name."
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:74
+#: src/ui/qt/pages/axes_page.cpp:60
 msgid "Live axis values"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:75
+#: src/ui/qt/pages/axes_page.cpp:61
 msgid ""
 "Live values of the six axes as the daemon reads them (before any "
 "processing). The thin marker is the peak."
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:78 src/ui/qt/pages/axes_page.cpp:402
+#: src/ui/qt/pages/axes_page.cpp:64 src/ui/qt/pages/axes_page.cpp:403
 msgid "Scroll V"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:79 src/ui/qt/pages/axes_page.cpp:403
+#: src/ui/qt/pages/axes_page.cpp:65 src/ui/qt/pages/axes_page.cpp:404
 msgid "Scroll H"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:162 src/ui/qt/pages/profiles_page.cpp:252
+#: src/ui/qt/pages/axes_page.cpp:150 src/ui/qt/pages/profiles_page.cpp:268
 msgid "Mode:"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:164
+#: src/ui/qt/pages/axes_page.cpp:152
 msgid "disabled"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:165
+#: src/ui/qt/pages/axes_page.cpp:153
 msgid "navigation mode"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:166
+#: src/ui/qt/pages/axes_page.cpp:154
 msgid "zooming"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:167
+#: src/ui/qt/pages/axes_page.cpp:155
 msgid "idle"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:169
+#: src/ui/qt/pages/axes_page.cpp:157
 msgid "paused"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:219
+#: src/ui/qt/pages/axes_page.cpp:212
 msgid "Axes / assistant"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:231
+#: src/ui/qt/pages/axes_page.cpp:224
 msgid "Pause"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:233
+#: src/ui/qt/pages/axes_page.cpp:226
 msgid "Freeze the display to read the values."
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:234
+#: src/ui/qt/pages/axes_page.cpp:227
 msgid "Reset peaks"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:235
+#: src/ui/qt/pages/axes_page.cpp:228
 msgid "Clear the peak markers and the bar scale."
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:236
+#: src/ui/qt/pages/axes_page.cpp:229
 msgid "Axis assistant..."
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:237
+#: src/ui/qt/pages/axes_page.cpp:230
 msgid "Learn which axis does what by moving the cap, step by step."
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:281
+#: src/ui/qt/pages/axes_page.cpp:274
 msgid "Leave the assistant without changing anything."
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:282
+#: src/ui/qt/pages/axes_page.cpp:275
 msgid "Back"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:283
+#: src/ui/qt/pages/axes_page.cpp:276
 msgid "Skip"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:284 src/ui/qt/pages/axes_page.cpp:434
+#: src/ui/qt/pages/axes_page.cpp:277 src/ui/qt/pages/axes_page.cpp:435
 msgid "Start"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:285
+#: src/ui/qt/pages/axes_page.cpp:278
 msgid "Next"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:286
+#: src/ui/qt/pages/axes_page.cpp:279
 msgid "Apply"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:287
+#: src/ui/qt/pages/axes_page.cpp:280
 msgid "Write the detected axis mixes into the [global] settings."
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:333 src/ui/qt/pages/axes_page.cpp:339
-#: src/ui/qt/pages/axes_page.cpp:411
+#: src/ui/qt/pages/axes_page.cpp:326 src/ui/qt/pages/axes_page.cpp:332
+#: src/ui/qt/pages/axes_page.cpp:412
 msgid "Error: %1"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:346
+#: src/ui/qt/pages/axes_page.cpp:339
 msgid "Axis mixes saved to [global]."
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:347
+#: src/ui/qt/pages/axes_page.cpp:340
 msgid "Axis mixes saved to [global]. %1"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:372
+#: src/ui/qt/pages/axes_page.cpp:373
 msgid "Daemon:"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:386
+#: src/ui/qt/pages/axes_page.cpp:387
 msgid "Step %1 of %2: %3%4"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:406
+#: src/ui/qt/pages/axes_page.cpp:407
 msgid ""
 "\"Apply\" sets these axis mixes in the [global] settings and resets the "
 "direction switches to normal. \"Cancel\" changes nothing."
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:412
+#: src/ui/qt/pages/axes_page.cpp:413
 msgid "Warning: %1"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:419
+#: src/ui/qt/pages/axes_page.cpp:420
 msgid "Measuring - move now! %1 s left"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:422
+#: src/ui/qt/pages/axes_page.cpp:423
 msgid "No connection to the daemon"
 msgstr ""
 
-#: src/ui/qt/pages/axes_page.cpp:434
+#: src/ui/qt/pages/axes_page.cpp:435
 msgid "Measure again"
 msgstr ""
 
@@ -1270,7 +1270,7 @@ msgstr ""
 msgid "Invalid value: "
 msgstr ""
 
-#: src/ui/qt/pages/channels_page.cpp:215 src/ui/qt/pages/profiles_page.cpp:611
+#: src/ui/qt/pages/channels_page.cpp:215 src/ui/qt/pages/profiles_page.cpp:627
 msgid "Saved."
 msgstr ""
 
@@ -1433,7 +1433,7 @@ msgstr ""
 msgid "Edit"
 msgstr ""
 
-#: src/ui/qt/pages/modes_page.cpp:80 src/ui/qt/pages/profiles_page.cpp:463
+#: src/ui/qt/pages/modes_page.cpp:80 src/ui/qt/pages/profiles_page.cpp:479
 msgid "Open the mode file in your default editor"
 msgstr ""
 
@@ -1563,140 +1563,140 @@ msgstr ""
 msgid "Could not create the modes folder."
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:81
+#: src/ui/qt/pages/profiles_page.cpp:95
 msgid "Profiles"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:83
+#: src/ui/qt/pages/profiles_page.cpp:97
 msgid "Add application..."
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:84
+#: src/ui/qt/pages/profiles_page.cpp:98
 msgid "Create a profile for a program, matched by its window class or name"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:85
+#: src/ui/qt/pages/profiles_page.cpp:99
 msgid "Add device..."
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:86
+#: src/ui/qt/pages/profiles_page.cpp:100
 msgid "Create a profile for a connected device"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:87
+#: src/ui/qt/pages/profiles_page.cpp:101
 msgid "Rename..."
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:88
+#: src/ui/qt/pages/profiles_page.cpp:102
 msgid "Change the match string of this profile"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:89 src/ui/qt/pages/profiles_page.cpp:495
+#: src/ui/qt/pages/profiles_page.cpp:103 src/ui/qt/pages/profiles_page.cpp:511
 msgid "Remove"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:90
+#: src/ui/qt/pages/profiles_page.cpp:104
 msgid "Delete this profile and its settings"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:106
+#: src/ui/qt/pages/profiles_page.cpp:120
 msgid "Save"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:107
+#: src/ui/qt/pages/profiles_page.cpp:121
 msgid "Write the configuration and tell the daemon to reload it"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:156 src/ui/qt/pages/profiles_page.cpp:213
-#: src/ui/qt/pages/profiles_page.cpp:246
+#: src/ui/qt/pages/profiles_page.cpp:170 src/ui/qt/pages/profiles_page.cpp:229
+#: src/ui/qt/pages/profiles_page.cpp:262
 msgid "Default mode"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:217
+#: src/ui/qt/pages/profiles_page.cpp:233
 msgid ""
 "Settings of the default mode. Device and application profiles inherit from "
 "it unless they choose another mode or override a value."
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:222
+#: src/ui/qt/pages/profiles_page.cpp:238
 msgid ""
 "This profile names a mode that is not installed; it behaves like the default "
 "mode until you choose another one."
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:242
+#: src/ui/qt/pages/profiles_page.cpp:258
 msgid "The mode that applies while this profile is active"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:248
+#: src/ui/qt/pages/profiles_page.cpp:264
 msgid "not installed"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:259 src/ui/qt/pages/profiles_page.cpp:314
-#: src/ui/qt/pages/profiles_page.cpp:332 src/ui/qt/pages/profiles_page.cpp:347
-#: src/ui/qt/pages/profiles_page.cpp:361 src/ui/qt/pages/profiles_page.cpp:424
-#: src/ui/qt/pages/profiles_page.cpp:432 src/ui/qt/pages/profiles_page.cpp:507
-#: src/ui/qt/pages/profiles_page.cpp:513 src/ui/qt/pages/profiles_page.cpp:534
-#: src/ui/qt/pages/profiles_page.cpp:554 src/ui/qt/pages/profiles_page.cpp:567
-#: src/ui/qt/pages/profiles_page.cpp:584 src/ui/qt/pages/profiles_page.cpp:600
+#: src/ui/qt/pages/profiles_page.cpp:275 src/ui/qt/pages/profiles_page.cpp:330
+#: src/ui/qt/pages/profiles_page.cpp:348 src/ui/qt/pages/profiles_page.cpp:363
+#: src/ui/qt/pages/profiles_page.cpp:377 src/ui/qt/pages/profiles_page.cpp:440
+#: src/ui/qt/pages/profiles_page.cpp:448 src/ui/qt/pages/profiles_page.cpp:523
+#: src/ui/qt/pages/profiles_page.cpp:529 src/ui/qt/pages/profiles_page.cpp:550
+#: src/ui/qt/pages/profiles_page.cpp:570 src/ui/qt/pages/profiles_page.cpp:583
+#: src/ui/qt/pages/profiles_page.cpp:600 src/ui/qt/pages/profiles_page.cpp:616
 msgid "Unsaved changes"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:271
+#: src/ui/qt/pages/profiles_page.cpp:287
 msgid "Button bindings"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:273
+#: src/ui/qt/pages/profiles_page.cpp:289
 msgid ""
 "Each button can switch the mode or hold the navigation mode (arrow keys "
 "instead of scrolling)."
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:285 src/ui/qt/pages/profiles_page.cpp:457
+#: src/ui/qt/pages/profiles_page.cpp:301 src/ui/qt/pages/profiles_page.cpp:473
 msgid "Button"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:289
+#: src/ui/qt/pages/profiles_page.cpp:305
 msgid "(above this device's button count)"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:290
+#: src/ui/qt/pages/profiles_page.cpp:306
 msgid "(not a valid action)"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:296
+#: src/ui/qt/pages/profiles_page.cpp:312
 msgid "Action of button"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:309
+#: src/ui/qt/pages/profiles_page.cpp:325
 msgid "Key of button"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:323
+#: src/ui/qt/pages/profiles_page.cpp:339
 msgid "Mode of button"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:356
+#: src/ui/qt/pages/profiles_page.cpp:372
 msgid "Unbind"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:356
+#: src/ui/qt/pages/profiles_page.cpp:372
 msgid "Inherit"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:357
+#: src/ui/qt/pages/profiles_page.cpp:373
 msgid "Remove this binding"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:358
+#: src/ui/qt/pages/profiles_page.cpp:374
 msgid "Remove this profile's own binding and use the inherited one"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:372
+#: src/ui/qt/pages/profiles_page.cpp:388
 msgid "Advanced: let dofscroll send keys or clicks"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:377
+#: src/ui/qt/pages/profiles_page.cpp:393
 msgid ""
 "A mapping that is the same everywhere is usually better set in the vendor "
 "driver (see docs/modes.md, \"Buttons and the vendor driver\"). Bindings that "
@@ -1704,101 +1704,105 @@ msgid ""
 "that profile."
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:392
+#: src/ui/qt/pages/profiles_page.cpp:408
 msgid "Navigation and click buttons"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:407
+#: src/ui/qt/pages/profiles_page.cpp:423
 msgid "Enabled"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:415
+#: src/ui/qt/pages/profiles_page.cpp:431
 msgid "Button number:"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:446
+#: src/ui/qt/pages/profiles_page.cpp:462
 msgid "Vertical scroll:"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:447
+#: src/ui/qt/pages/profiles_page.cpp:463
 msgid "Horizontal scroll:"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:448
+#: src/ui/qt/pages/profiles_page.cpp:464
 msgid "Twist:"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:452
+#: src/ui/qt/pages/profiles_page.cpp:468
 msgid "This mode binds no buttons."
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:454
+#: src/ui/qt/pages/profiles_page.cpp:470
 msgid "Button bindings of this mode:"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:460
+#: src/ui/qt/pages/profiles_page.cpp:476
 msgid "These settings come from the mode file and are read-only here."
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:461
+#: src/ui/qt/pages/profiles_page.cpp:477
 msgid "Edit mode file"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:464
+#: src/ui/qt/pages/profiles_page.cpp:480
 msgid ""
 "Built-in modes have no file; duplicate the mode on the Modes page to edit it"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:475
+#: src/ui/qt/pages/profiles_page.cpp:491
 msgid "Overrides for this profile"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:482
+#: src/ui/qt/pages/profiles_page.cpp:498
 msgid ""
 "Channel values that only apply to this profile. Everything else is "
 "inherited; change shared values on the Channels page."
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:492
+#: src/ui/qt/pages/profiles_page.cpp:508
 msgid "Inherited value:"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:496
+#: src/ui/qt/pages/profiles_page.cpp:512
 msgid "Remove this override and inherit the value again"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:523
+#: src/ui/qt/pages/profiles_page.cpp:539
 msgid "Setting to override"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:525
+#: src/ui/qt/pages/profiles_page.cpp:541
 msgid "Add override"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:576
+#: src/ui/qt/pages/profiles_page.cpp:592
 msgid "Rename profile"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:592
+#: src/ui/qt/pages/profiles_page.cpp:608
 msgid "Remove profile"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:593
+#: src/ui/qt/pages/profiles_page.cpp:609
 msgid "Remove the profile \"%1\" and all its settings?"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:607
+#: src/ui/qt/pages/profiles_page.cpp:623
 msgid "Not saved:"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:609
+#: src/ui/qt/pages/profiles_page.cpp:625
 msgid "Saved. The daemon was not notified:"
 msgstr ""
 
-#: src/ui/qt/qt_action_runner.cpp:17
+#: src/ui/qt/qt_action_runner.cpp:22
 msgid "Does not exist: %1"
 msgstr ""
 
-#: src/ui/qt/qt_action_runner.cpp:21
+#: src/ui/qt/qt_action_runner.cpp:26
 msgid "No application could open %1"
+msgstr ""
+
+#: src/ui/qt/qt_action_runner.cpp:48
+msgid "Cannot run %1"
 msgstr ""
