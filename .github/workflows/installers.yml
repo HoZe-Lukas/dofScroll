@@ -77,7 +77,7 @@ jobs:
           # every program runs with a time limit, so that a hang fails the step instead of the job
           function Invoke-Limited($file, $argList, $label) {
             Write-Output "run: $label"
-            $pr = Start-Process -FilePath $file -ArgumentList $argList -PassThru -NoNewWindow
+            $pr = Start-Process -FilePath $file -ArgumentList $argList -PassThru -WindowStyle Hidden
             if (-not $pr.WaitForExit(120000)) { Stop-Process -Id $pr.Id -Force; throw "$label timed out" }
             if ($pr.ExitCode -ne 0) { throw "$label failed: exit code $($pr.ExitCode)" }
           }
