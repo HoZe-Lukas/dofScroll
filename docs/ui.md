@@ -58,10 +58,22 @@ The program list comes from implementations of `src/platform/running_apps.hpp` f
 ## Tray menu
 
 Status line, "Mode" submenu (the global mode), "Enabled", "Settings...", "Open config file",
-"Show log...", "Open modes folder", "Release all keys", "Quit". "Release all keys" starts
+"Show log...", "Open modes folder", "Release all keys", "Restart daemon", "Restart interface",
+"Quit". "Release all keys" starts
 `dofscroll --release-keys` as a separate process (the daemon binary next to the interface, else
 `dofscroll` from `PATH`), like the GTK tray; the same command works in a terminal (see
 [troubleshooting.md](troubleshooting.md#a-key-or-scrolling-gets-stuck)).
+
+"Restart daemon" releases held keys first (as "Release all keys"), then restarts the daemon:
+on Linux `systemctl --user restart dofscroll.service` when the unit is active, on macOS
+`launchctl kickstart -k gui/<uid>/io.github.dofscroll.daemon` when the LaunchAgent is loaded; on
+Windows (and when the service manager does not manage the daemon) it stops the process (Windows:
+`scripts\stop-daemon.ps1`) and starts the `dofscroll` binary next to the interface. "Restart
+interface" restarts this program: under `dofscroll-ui.service` through
+`systemctl --user restart dofscroll-ui.service`, otherwise it starts a copy of itself with
+`--restart` (which waits up to 8 seconds for the old instance to release the single-instance
+lock) and quits. No shell is involved; the command lines are built in
+`src/ui/model/restart_plan.hpp`. Untested on real desktops for Windows and macOS.
 
 ## Reload and runtime files
 

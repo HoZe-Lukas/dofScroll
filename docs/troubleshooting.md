@@ -175,14 +175,16 @@ If a key still hangs, recover in this order:
 
 1. Tray menu: **Release all keys**. It runs `dofscroll --release-keys`.
 2. In a terminal: `dofscroll --release-keys`.
-3. `systemctl --user restart dofscroll.service` (the unit also runs `--release-keys` when the
+3. Tray menu **Restart daemon** (releases the keys, then restarts), or
+   `systemctl --user restart dofscroll.service` (the unit also runs `--release-keys` when the
    daemon stops).
 
 To report it, collect the log of the time around the incident
 (`journalctl --user -u dofscroll.service --since "-15min"`) and look for `Device list changed`,
 `Profile:`, `Output paused`, `safety release` and `Mode` lines. Note whether the daemon was
 restarted after the last update: an old daemon binary keeps running until the service is
-restarted.
+restarted (Linux packages try to do that on upgrade; see the upgrade section of
+[installation.md](installation.md#upgrade)).
 
 ### Scrolling happens in another user's session
 

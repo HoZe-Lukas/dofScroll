@@ -22,6 +22,12 @@ public:
     // Emergency exit for a stuck key or button: runs `dofscroll --release-keys` as a separate process
     // (argv, no shell; see release_keys.hpp). Does not wait for it. false + *err if it did not start.
     virtual bool releaseKeys(std::string *err) = 0;
+    // Restarts the daemon (service manager if it manages it, otherwise stop + start; see
+    // restart_plan.hpp). The caller releases held keys first. false + *err on failure.
+    virtual bool restartDaemon(std::string *err) = 0;
+    // Starts a replacement of this UI process (or asks the service manager to). true: the caller
+    // quits this process now (harmless when the service manager restarts it anyway).
+    virtual bool restartInterface(std::string *err) = 0;
 };
 
 // The reload callback of the SettingsModel (and of every page that saves): one requestReload per
@@ -34,7 +40,7 @@ inline std::function<bool(std::string *err)> reloadVia(ActionRunner &runner) {
 // Records the calls and returns the configured result (tests).
 class RecordingActionRunner : public ActionRunner {
 public:
-    enum class Kind { OpenPath, SetAutostart, RequestReload, ReleaseKeys };
+    enum class Kind { OpenPath, SetAutostart, RequestReload, ReleaseKeys, RestartDaemon, RestartInterface };
     struct Call {
         Kind kind;
         std::string path;     // OpenPath
@@ -52,6 +58,8 @@ public:
     }
     bool requestReload(std::string *err) override { return rec({Kind::RequestReload, "", false}, err); }
     bool releaseKeys(std::string *err) override { return rec({Kind::ReleaseKeys, "", false}, err); }
+    bool restartDaemon(std::string *err) override { return rec({Kind::RestartDaemon, "", false}, err); }
+    bool restartInterface(std::string *err) override { return rec({Kind::RestartInterface, "", false}, err); }
     int count(Kind k) const {
         int n = 0;
         for (const auto &c : calls) n += c.kind == k;

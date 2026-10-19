@@ -13,6 +13,7 @@ Fix release for beta.1; full notes: [docs/release-notes-0.1.0-beta.2.md](https:/
 - Fixed: `dofscroll-ui.service` exited immediately under systemd (lock file in a read-only path), so start at login did not work with the Qt interface on Linux
 - `dofscroll-ui --help` prints the usage instead of starting a second instance
 - Code of conduct, install smoke test for the Linux packages in CI
+- Added: tray items "Restart daemon" and "Restart interface"; `dofscroll-ui.service` pulls in the daemon (`Wants=`); the Windows installer stops and restarts the interface on update; Linux packages restart running user units on upgrade (best effort). See [Installation](Installation)
 
 ## 0.1.0-beta.1 (pre-release)
 

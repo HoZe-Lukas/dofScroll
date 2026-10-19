@@ -47,7 +47,7 @@ int main() {
     // ---- no status file: not running, default mode checked, all modes listed ----
     c.refresh(now);
     assert(c.icon() == TrayController::Icon::NotRunning);
-    assert(c.menu().entries.size() == 14);
+    assert(c.menu().entries.size() == 16);
     const TrayEntry &modeMenu = c.menu().entries[4];
     assert(modeMenu.kind == TrayEntry::Kind::Submenu && modeMenu.children.size() == 4);  // normal, off, timeline, mine
     int checked = 0;
@@ -117,8 +117,23 @@ int main() {
     bool opened = false, quit = false;
     c.hooks().openSettings = [&] { opened = true; };
     c.hooks().quit = [&] { quit = true; };
-    assert(c.perform(c.menu().entries[7]) && opened && c.perform(c.menu().entries[13]) && quit);
+    assert(c.perform(c.menu().entries[7]) && opened && c.perform(c.menu().entries[15]) && quit);
     assert(c.perform(c.menu().entries[11]) && runner.count(Kind::ReleaseKeys) == 1);  // Release all keys
+    // Restart daemon: keys released first, then the restart
+    runner.calls.clear();
+    assert(c.menu().entries[12].action == TrayAction::RestartDaemon && c.perform(c.menu().entries[12]));
+    assert(runner.calls.size() == 2 && runner.calls[0].kind == Kind::ReleaseKeys &&
+           runner.calls[1].kind == Kind::RestartDaemon);
+    // Restart interface: starts the replacement, then quits this process
+    runner.calls.clear();
+    quit = false;
+    assert(c.menu().entries[13].action == TrayAction::RestartInterface && c.perform(c.menu().entries[13]) &&
+           runner.count(Kind::RestartInterface) == 1 && quit);
+    runner.result = false;
+    quit = false;
+    assert(!c.perform(c.menu().entries[13]) && !quit);  // failed start: stay alive
+    assert(!c.perform(c.menu().entries[12]));
+    runner.result = true;
 
     // no runtime directory: no log, no mode request, but no crash
     TrayController::Paths np = p;

@@ -22,6 +22,19 @@ including the "Tested on" table and the known limitations.
 - Install smoke test in CI: the Linux packages are installed in fresh containers and started.
   Results per distribution are in [installation.md](installation.md); anything not listed there
   is untested.
+- **Tray items "Restart daemon" and "Restart interface"** (Qt interface, all OSes), next to
+  "Release all keys". "Restart daemon" releases held keys first, then restarts the daemon (systemd
+  on Linux, launchd on macOS, stop and start on Windows). "Restart interface" restarts the
+  interface itself; a restarted instance waits for the old one's single-instance lock. See
+  [ui.md](ui.md).
+- **`dofscroll-ui.service` has `Wants=dofscroll.service`**: starting only the interface starts
+  the daemon too.
+- **Windows installer** stops a running `dofscroll-ui.exe` of the install before replacing files
+  and starts it again after an interactive update (new script `scripts\stop-ui.ps1`).
+- **Linux packages** restart the running user units (`dofscroll.service`, `dofscroll-ui.service`,
+  `dofscroll-tray.service`) of logged-in users after an upgrade, best effort: RPM `%post` / DEB
+  `postinst`, upgrade only, never fails the transaction, never touches the configuration.
+- **macOS and upgrade docs:** upgrade steps per OS in [installation.md](installation.md#upgrade).
 
 ## Upgrading from 0.1.0-beta.1
 

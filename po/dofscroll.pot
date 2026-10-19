@@ -1806,3 +1806,15 @@ msgstr ""
 #: src/ui/qt/qt_action_runner.cpp:48
 msgid "Cannot run %1"
 msgstr ""
+
+#: src/ui/model/tray_menu_model.hpp
+msgid "Restart interface"
+msgstr ""
+
+#: src/ui/qt/qt_action_runner.cpp
+msgid "Cannot restart the daemon through the service manager"
+msgstr ""
+
+#: src/ui/qt/qt_action_runner.cpp
+msgid "Cannot restart the interface through the service manager"
+msgstr ""

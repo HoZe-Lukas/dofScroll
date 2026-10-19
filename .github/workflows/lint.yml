@@ -64,7 +64,7 @@ jobs:
         run: actionlint -color
 
       - name: shellcheck (scripts)
-        run: shellcheck --severity=warning --external-sources scripts/*.sh scripts/pre-commit
+        run: shellcheck --severity=warning --external-sources scripts/*.sh scripts/pre-commit packaging/cpack/postinst
 
       - name: English-only check (translations in po/ are the only exception)
         run: sh scripts/check-english.sh

@@ -75,6 +75,7 @@ jobs:
           ./packaging/windows/uninstall-autostart.ps1 -Name $name
           if (Test-Path $lnk) { throw 'shortcut still present after uninstall' }
           ./packaging/windows/stop-daemon.ps1 -WhatIf
+          ./packaging/windows/stop-ui.ps1 -WhatIf
       - name: Daemon smoke test (once dofscroll.exe is built)
         id: smoke
         shell: pwsh
@@ -166,6 +167,7 @@ jobs:
           ./packaging/windows/uninstall-autostart.ps1 -Name $name
           if (Test-Path $lnk) { throw 'shortcut still present after uninstall' }
           ./packaging/windows/stop-daemon.ps1 -WhatIf
+          ./packaging/windows/stop-ui.ps1 -WhatIf
       - name: Daemon smoke test (once dofscroll.exe is built)
         id: smoke
         shell: pwsh
