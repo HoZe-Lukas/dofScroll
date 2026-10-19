@@ -104,6 +104,14 @@ jobs:
     needs: [build-test, sanitizers, cppcheck, secret-scan]
     uses: ./.github/workflows/linux-packages.yml
 
+  # Install smoke test of the packages in fresh containers (linux-smoke.yml). Informational: the
+  # release job does NOT need it, so it never blocks publishing.
+  linux-smoke:
+    name: Linux install smoke test (tags only, informational)
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux-packages]
+    uses: ./.github/workflows/linux-smoke.yml
+
   # Unsigned Windows (installer + ZIP) and macOS (DMG) packages, built on the GitHub runners
   # (jobs package-windows and package-macos in installers.yml; also run by installers-dry-run.yml).
   installers:

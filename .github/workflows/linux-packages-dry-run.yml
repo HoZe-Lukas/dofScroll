@@ -13,6 +13,8 @@ on:
     paths:
       - ".github/workflows/linux-packages.yml"
       - ".github/workflows/linux-packages-dry-run.yml"
+      - ".github/workflows/linux-smoke.yml"
+      - "scripts/smoke-install.sh"
       - "packaging/cpack/**"
       - "packaging/linux/**"
       - "systemd/**"
@@ -30,3 +32,8 @@ concurrency:
 jobs:
   packages:
     uses: ./.github/workflows/linux-packages.yml
+
+  # Install smoke test in fresh distribution containers. Only the build distributions can fail it.
+  smoke:
+    needs: packages
+    uses: ./.github/workflows/linux-smoke.yml

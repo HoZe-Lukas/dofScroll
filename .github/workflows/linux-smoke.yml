@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#
+# Reusable workflow: install smoke test for the Linux packages built by linux-packages.yml. Each
+# distribution is a fresh container: it installs the RPM or DEB with the distribution package
+# manager and runs `dofscroll --version`, `dofscroll --help` and, if present, `dofscroll-ui
+# --version` headless (QT_QPA_PLATFORM=offscreen). Only Rocky 9 (RPM) and Debian 12 (DEB), the
+# build distributions, can fail the workflow; every other distribution is continue-on-error: it
+# reports but never blocks. ci.yml does NOT list this workflow in the `needs` of the release job,
+# so a smoke failure never blocks publishing.
+name: linux-smoke
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+# Third-party actions are pinned to full commit SHAs (tag in the comment).
+#   actions/checkout          = v7.0.1
+#   actions/download-artifact = v8.0.2
+
+jobs:
+  smoke:
+    name: smoke ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { kind: rpm, image: "rockylinux:9",  artifact: packages-rpm-tgz, experimental: false }
+          - { kind: rpm, image: "rockylinux:10", artifact: packages-rpm-tgz, experimental: true }
+          - { kind: rpm, image: "fedora:42",     artifact: packages-rpm-tgz, experimental: true }
+          - { kind: deb, image: "debian:12",     artifact: packages-deb,     experimental: false }
+          - { kind: deb, image: "debian:13",     artifact: packages-deb,     experimental: true }
+          - { kind: deb, image: "ubuntu:24.04",  artifact: packages-deb,     experimental: true }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: ${{ matrix.artifact }}
+          path: pkgs
+      - name: Install in a fresh ${{ matrix.image }} container
+        env:
+          IMAGE: ${{ matrix.image }}
+          KIND: ${{ matrix.kind }}
+        run: |
+          mkdir -p out
+          set +e
+          docker run --rm -v "$PWD/pkgs:/pkgs:ro" -v "$PWD/scripts:/scripts:ro" -v "$PWD/out:/out" \
+            "$IMAGE" sh /scripts/smoke-install.sh "$KIND" /pkgs /out "$IMAGE"
+          rc=$?
+          {
+            echo "| image | package | result | detail |"
+            echo "|---|---|---|---|"
+            cat out/summary.md 2>/dev/null || echo "| $IMAGE | $KIND | FAILED | container did not finish |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$rc" -ne 0 ]; then
+            echo "::warning::install smoke test failed on $IMAGE (see the summary)"
+          fi
+          exit "$rc"

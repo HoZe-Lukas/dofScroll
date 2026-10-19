@@ -15,6 +15,15 @@ Decision for version 0.1: **all Windows and macOS packages are unsigned**.
 | macOS | `dofscroll-<v>-macos-arm64.dmg` | job `package-macos` in `installers.yml` |
 | all | `SHA256SUMS.txt` over every file above | job `release` in `ci.yml` |
 
+Install smoke test: after packaging, `linux-smoke.yml` (called by `ci.yml` as job `linux-smoke` and
+by `linux-packages-dry-run.yml`) downloads `packages-rpm-tgz` and `packages-deb` and installs them
+in fresh containers (Rocky 9, Rocky 10, Fedora 42; Debian 12, Debian 13, Ubuntu 24.04), then runs
+`dofscroll --version`, `dofscroll --help` and `dofscroll-ui --version` (offscreen) via
+`scripts/smoke-install.sh`. Only Rocky 9 and Debian 12 are required entries; the others are
+`continue-on-error`. The `release` job does not list `linux-smoke` in `needs`, so the smoke test never
+gates publishing: read its summary before announcing a release. Per-distro verdicts are in the job
+summary.
+
 `ci.yml` calls `installers.yml` (job `installers`, tags only); the `release` job needs it, so a
 tag only produces a release when every package was built. The same reusable workflow runs from
 `installers-dry-run.yml` (manual `workflow_dispatch`, and on pull requests that touch installer
