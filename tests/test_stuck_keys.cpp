@@ -25,7 +25,7 @@ static int failures = 0;
     std::fprintf(stderr, __VA_ARGS__); std::fprintf(stderr, "\n"); } } while (0)
 
 // Records everything: what is held right now and how much output was produced.
-struct Rec {
+struct StuckRec {
     std::set<int> keys;   // currently held keys
     std::set<int> mouse;  // currently held mouse buttons
     int wheels = 0;       // wheelV/wheelH calls
@@ -35,9 +35,9 @@ struct Rec {
     int output() const { return wheels + taps; }
 };
 
-struct RecOutput : Output {
-    Rec *r;
-    explicit RecOutput(Rec *rec) : r(rec) {}
+struct StuckOutput : Output {
+    StuckRec *r;
+    explicit StuckOutput(StuckRec *rec) : r(rec) {}
     const char *name() const override { return "rec"; }
     bool init(std::string *) override { return true; }
     void wheelV(int n) override { if (n) ++r->wheels; }
@@ -53,19 +53,19 @@ struct RecOutput : Output {
     void flush() override {}
 };
 
-struct FakeWindow : ActiveWindowProvider {
+struct StuckWindow : ActiveWindowProvider {
     std::string cls;
     bool init() override { return true; }
     std::string poll() override { return cls; }
 };
 
-struct FakeReload : ReloadListener {
+struct StuckReload : ReloadListener {
     bool pending = false;
     bool init(std::string *) override { return true; }
     bool pollReload() override { bool p = pending; pending = false; return p; }
 };
 
-struct TestSource : FakeInputSource {
+struct StuckSource : FakeInputSource {
     std::vector<DeviceInfo> list;
     std::vector<DeviceInfo> devices() const override { return list; }
 };
@@ -75,17 +75,17 @@ static void writeFile(const std::string &p, const std::string &text) {
     f << text;
 }
 
-struct Rig {
+struct StuckRig {
     std::string dir, conf;
-    Rec rec;
-    TestSource src;
-    FakeWindow win;
-    FakeReload reload;
+    StuckRec rec;
+    StuckSource src;
+    StuckWindow win;
+    StuckReload reload;
     bool suspend = false;
     int64_t now = 10'000'000'000;
     std::unique_ptr<DaemonCore> core;
 
-    explicit Rig(const std::string &config,
+    explicit StuckRig(const std::string &config,
                  const std::vector<std::pair<std::string, std::string>> &modeFiles = {})
         : dir(tu::makeTempDir("dofscroll-stuck-test")) {
         conf = dir + "/dofscroll.conf";
@@ -104,9 +104,9 @@ struct Rig {
         deps.reload = &reload;
         deps.paths.configDir = dir;
         deps.paths.runtimeDir = dir;
-        Rec *rp = &rec;
+        StuckRec *rp = &rec;
         deps.makeOutput = [rp](const std::string &, std::string *) {
-            return std::unique_ptr<Output>(new RecOutput(rp));
+            return std::unique_ptr<Output>(new StuckOutput(rp));
         };
         deps.clock = [this] { return now; };
         deps.suspendRequested = [this] { return suspend; };
@@ -114,7 +114,7 @@ struct Rig {
         assert(core->initialize());
         assert(core->reader().connect());
     }
-    ~Rig() { tu::removeAll(dir); }
+    ~StuckRig() { tu::removeAll(dir); }
 
     void pump() {
         InputEvent e;
@@ -157,7 +157,7 @@ static const char *const KEYBIND_CONF = "[global]\nTICK_HZ = 250\nBUTTON_1 = key
 
 // --- device list changes --------------------------------------------------------------
 static void testDevicesChangedMidMotion() {
-    Rig r(NAV_CONF);
+    StuckRig r(NAV_CONF);
     r.move();
     r.run(0.3);
     CHECK(r.rec.output() > 0, "motion must produce output");
@@ -169,7 +169,7 @@ static void testDevicesChangedMidMotion() {
 }
 
 static void testDevicesChangedMidButtonHold() {
-    Rig r(KEYBIND_CONF);
+    StuckRig r(KEYBIND_CONF);
     r.src.pushButton(0, 0, true);
     r.run(0.1);
     CHECK(r.rec.keys.count(KEY_UP), "button must hold the key");
@@ -182,7 +182,7 @@ static void testDevicesChangedMidButtonHold() {
 }
 
 static void testDevicesChangedMidNavHold() {
-    Rig r(NAV_CONF);
+    StuckRig r(NAV_CONF);
     r.src.pushButton(0, 0, true);
     r.move();
     r.run(0.3);
@@ -195,7 +195,7 @@ static void testDevicesChangedMidNavHold() {
 
 // --- profile / program changes ----------------------------------------------------------
 static void testProgramChangeMidNavHold() {
-    Rig r(NAV_CONF);
+    StuckRig r(NAV_CONF);
     r.src.pushButton(0, 0, true);
     r.move();
     r.run(0.2);
@@ -211,7 +211,7 @@ static void testProgramChangeMidNavHold() {
 }
 
 static void testProgramChangeMidKeyHold() {
-    Rig r("[global]\nBUTTON_1 = key:up\n[app:plain]\nBUTTON_1 = none\n");
+    StuckRig r("[global]\nBUTTON_1 = key:up\n[app:plain]\nBUTTON_1 = none\n");
     r.src.pushButton(0, 0, true);
     r.run(0.1);
     CHECK(r.rec.keys.count(KEY_UP), "key held");
@@ -222,7 +222,7 @@ static void testProgramChangeMidKeyHold() {
 
 // --- suspend heartbeat --------------------------------------------------------------------
 static void testSuspendMidMotionAndResume() {
-    Rig r(NAV_CONF);
+    StuckRig r(NAV_CONF);
     r.move();
     r.run(0.2);
     r.suspend = true;
@@ -235,7 +235,7 @@ static void testSuspendMidMotionAndResume() {
 }
 
 static void testSuspendMidButtonHold() {
-    Rig r(KEYBIND_CONF);
+    StuckRig r(KEYBIND_CONF);
     r.src.pushButton(0, 0, true);
     r.run(0.1);
     r.suspend = true;
@@ -249,7 +249,7 @@ static void testSuspendMidButtonHold() {
 
 // --- config reload / modes ------------------------------------------------------------------
 static void testReloadMidHold() {
-    Rig r(KEYBIND_CONF);
+    StuckRig r(KEYBIND_CONF);
     r.src.pushButton(0, 0, true);
     r.run(0.1);
     CHECK(r.rec.keys.count(KEY_UP), "key held");
@@ -262,7 +262,7 @@ static void testReloadMidHold() {
 }
 
 static void testModeSwitchMidHold() {
-    Rig r("[global]\nTICK_HZ = 250\nMODE = alpha\n",
+    StuckRig r("[global]\nTICK_HZ = 250\nMODE = alpha\n",
           {{"alpha.conf", "BUTTON_1 = key:up\nBUTTON_2 = mode:next\n"},
            {"beta.conf", "BUTTON_2 = mode:next\n"}});
     r.run(0.1);
@@ -279,7 +279,7 @@ static void testModeSwitchMidHold() {
 }
 
 static void testEnabledToggle() {
-    Rig r("[global]\nTICK_HZ = 250\nBUTTON_1 = key:up\n[app:off]\nENABLED = 0\n");
+    StuckRig r("[global]\nTICK_HZ = 250\nBUTTON_1 = key:up\n[app:off]\nENABLED = 0\n");
     r.src.pushButton(0, 0, true);
     r.move();
     r.run(0.15);
@@ -295,7 +295,7 @@ static void testEnabledToggle() {
 
 // --- nav button / custom channels / stale watchdog -----------------------------------------------
 static void testNavButtonReleasedMidMotion() {
-    Rig r(NAV_CONF);
+    StuckRig r(NAV_CONF);
     r.src.pushButton(0, 0, true);
     r.move();
     r.run(0.2);
@@ -311,7 +311,7 @@ static void testNavButtonReleasedMidMotion() {
 }
 
 static void testCustomChannelStaysDeflected() {
-    Rig r("[global]\nTICK_HZ = 250\nMODE = keysmode\n",
+    StuckRig r("[global]\nTICK_HZ = 250\nMODE = keysmode\n",
           {{"keysmode.conf", "V_ACTION = keys:up,down\nH_ACTION = keys:left,right\n"}});
     r.run(0.1);
     r.move();
@@ -327,7 +327,7 @@ static void testCustomChannelStaysDeflected() {
 }
 
 static void testStaleWatchdogWithNav() {
-    Rig r(NAV_CONF);
+    StuckRig r(NAV_CONF);
     r.src.pushButton(0, 0, true);
     r.move();
     r.run(0.3);
@@ -338,7 +338,7 @@ static void testStaleWatchdogWithNav() {
 }
 
 static void testZoomCtrlSilentSource() {
-    Rig r("[global]\nTICK_HZ = 250\n");
+    StuckRig r("[global]\nTICK_HZ = 250\n");
     r.src.pushMotion(0, 82, 144, 90, 35, 350, 111);  // twist
     r.run(0.2);
     CHECK(r.rec.keys.count(static_cast<int>(Key::Ctrl)), "zoom holds Ctrl");
@@ -349,7 +349,7 @@ static void testZoomCtrlSilentSource() {
 // --- safety net --------------------------------------------------------------------------------
 // The output desynchronises from the runner (a lost key-up): the safety net must clear it.
 static void testSafetyNetReleasesOutput() {
-    Rig r(KEYBIND_CONF);
+    StuckRig r(KEYBIND_CONF);
     r.src.pushButton(0, 0, true);
     r.run(0.1);
     r.rec.keys.insert(static_cast<int>(Key::Ctrl));  // a key the output holds but the runner does not know
@@ -363,7 +363,7 @@ static void testSafetyNetReleasesOutput() {
 
 // A held button is activity, however long it lasts: the net must not break click-and-hold.
 static void testSafetyNetKeepsLegitimateHold() {
-    Rig r(KEYBIND_CONF);
+    StuckRig r(KEYBIND_CONF);
     r.src.pushButton(0, 0, true);
     r.run(2.0);
     CHECK(r.rec.keys.count(KEY_UP), "legitimate hold must survive the safety net");
