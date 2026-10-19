@@ -73,8 +73,12 @@ UI DESIGN REQUIREMENTS (maintainer, 2026-10-19; they apply to the pages stage):
   [global]. The mode choice exists only for device and application profiles and is a DROPDOWN
   (QComboBox, exactly one mode): first entry "Default mode" (clears MODE), then built-ins and mode
   files by display name.
-- General settings (start at login, language) and the axes/wizard page are separate entries
-  outside the profile tree.
+- Things that are the same in every mode are always available as their own top-level entries and
+  are NOT part of a profile's page: "Channels" (mix, sensitivity, deadzone, curve, smoothing, sign,
+  zoom options, edited in [global]), "General" (start at login, language) and "Axes / assistant".
+  The profile tree (Default mode, devices, applications) shows only what depends on the profile's
+  mode. Per-profile overrides of channel values stay possible (the config format supports them):
+  they live in a collapsed "Overrides for this profile" section, off by default.
 - Visual quality matters: clear grouping, sensible defaults, short helper texts, consistent
   spacing, keyboard navigation, light/dark theme friendly, no wall of sliders.
 
