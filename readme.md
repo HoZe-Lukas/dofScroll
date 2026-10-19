@@ -13,19 +13,28 @@ It consists of two programs:
 | `dofscroll` | Background daemon. Reads the SpaceMouse, produces the input events. |
 | `dofscroll-tray` | Tray icon with a settings window. Writes the same config file and tells the daemon to reload. Optional. |
 
-## Status
+## Status and testing
 
-| System | Status |
+Everything below was verified by the maintainer on real hardware unless it says otherwise.
+"Not tested" means the code builds (and the unit tests pass in CI) but it has not been run there.
+
+| Platform | Status |
 |---|---|
-| Linux, X11 | Works. Developed and tested on RHEL 9. |
-| Linux, Wayland | Uses the uinput backend. Needs a udev rule. Active-window profiles work only with `kdotool` (KDE). Less tested. |
+| RHEL 9, X11, KDE Plasma | **Tested**, with the SpaceMouse Pro and the SpaceMouse Compact. |
+| Other Linux distributions (Debian, Ubuntu, Fedora, ...) | Not tested. The RPM, DEB and TGZ packages are built by CI but have not been installed and run on those systems. |
+| Linux, Wayland | Not tested. Uses the uinput backend and needs a udev rule; active-window profiles work only with `kdotool` (KDE). |
 | Windows | In development, not usable yet. See [docs/work-plan.md](docs/work-plan.md). |
 | macOS | In development, not usable yet. See [docs/work-plan.md](docs/work-plan.md). |
 
+| Device | Status |
+|---|---|
+| SpaceMouse Pro | Tested (RHEL 9, X11, KDE Plasma). |
+| SpaceMouse Compact | Tested (RHEL 9, X11, KDE Plasma). |
+| SpaceMouse Wireless, Pro Wireless, Enterprise, SpaceNavigator and other models | Not tested. The factory button count comes from vendor information, see [docs/devices.md](docs/devices.md). |
+
 Supported devices: models that `spacenavd` supports. The factory button count is known for
-SpaceMouse Pro, Pro Wireless, Compact, Wireless, Enterprise and SpaceNavigator (see
-[docs/devices.md](docs/devices.md)). Real hardware behavior is verified only by the maintainer
-on the devices he owns.
+SpaceMouse Pro, Pro Wireless, Compact, Wireless, Enterprise and SpaceNavigator. Automated tests
+(CI) run on Rocky Linux 9 only; the Windows and macOS runners are added with the ports.
 
 ## Download and install
 
