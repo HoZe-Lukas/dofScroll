@@ -1,0 +1,74 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
+# Configuration reference
+
+The source ([src/config.cpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/config.cpp)) is the reference; the full text is [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
+
+## File and format
+
+| Item | Value |
+|---|---|
+| Config file | `~/.config/dofscroll/dofscroll.conf` (`$XDG_CONFIG_HOME` is used if it is an absolute path) |
+| Mode files | `~/.config/dofscroll/modes/*.conf`, see [Modes](Modes) |
+| Legacy paths | `~/.config/spnav-scroll/spnav-scroll.conf` and `~/.config/spnav-scroll.conf`, read only if the new file is missing |
+| Windows | `%APPDATA%\dofscroll\dofscroll.conf`, same format (unverified on hardware) |
+
+Format: `KEY = value`, sections `[name]`, comments with `#` or `;`. Keys are case-sensitive and upper case. The daemon reloads on `SIGHUP` and when the file changes; only `BACKEND` needs a restart. The tray rewrites the file without keeping comments (atomically, keeping the file mode).
+
+Limits: file up to 1 MiB, line up to 8 KiB, 256 sections, 512 keys per section, 12 mix terms, 64 curve points. Duplicate key in one section: the last wins. Invalid values are rejected with a message in the log.
+
+## Channels
+
+Three channels, each with its own axis mix, sensitivity, dead zone, direction, curve and smoothing: `SCROLL_V` (vertical), `SCROLL_H` (horizontal) and `ZOOM` (twist).
+
+| Key | Default V / H / ZOOM | Meaning |
+|---|---|---|
+| `<CH>_MIX` | `z + rx` / `x - rz` / `ry` | Sum of `[+-][weight*]axis`; axes `x y z rx ry rz`, e.g. `0.5*rx + z` |
+| `<CH>_SENS` | `5` / `3` / `5` | Sensitivity 0 to 255; `0` switches the channel off |
+| `<CH>_DEADZONE` | `30` / `20` / `40` | Dead zone in raw sensor units |
+| `<CH>_SIGN` | `1` | `1` or `-1`: direction |
+| `<CH>_CURVE` | `1.0` | Exponent 0.1 to 10, or a point list such as `0:0 50:0.1 200:1 350:3` (input after dead zone : factor, ascending, linear interpolation) |
+| `<CH>_SMOOTH_MS` | `0` | Low-pass time constant in ms, 0 to 500; `0` is off |
+
+The seeded config uses different values than these built-in defaults; it is a starting point. Older key names (`SCROLL_SENSITIVITY_X/Y`, `SCROLL_DEADZONE_X/Y`, `ZOOM_SENSITIVITY`, `INVERT_X/Y`, `ZOOM_INVERT`, `RESPONSE_CURVE`) are still accepted and mapped to the keys above.
+
+## Zoom, backend, buttons
+
+| Key | Default | Meaning |
+|---|---|---|
+| `ZOOM_LATERAL` | `x z rx rz` | Axes the twist must dominate to enter zoom |
+| `ZOOM_ENTER_MS` | `40` | How long the twist must dominate before zoom latches |
+| `ZOOM_EXIT_RATIO` | `1.5` | Zoom ends when another axis exceeds the twist by this factor (at least 1.0) |
+| `BACKEND` | `auto` | `auto`, `x11` or `uinput`; `auto` picks uinput under Wayland, else X11; if the chosen backend fails the other is tried; needs a restart |
+| `TICK_HZ` | `250` | Tick rate 30 to 1000 |
+| `ENABLED` | `1` | `0` switches all output off and releases held keys |
+| `MODE` | `normal` | Active mode, see [Modes](Modes) |
+| `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | Older keys: raw button index that turns X/Y into arrow keys while held |
+| `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | Older keys: raw button index passed through as the left mouse button |
+| `BUTTON_<n>` | none | Action of button `n`, see [Buttons](Buttons) |
+
+## Sections and precedence
+
+| Section | Applies when |
+|---|---|
+| `[global]` | Always; base values |
+| `[device:<text>]` | The device name reported by `spacenavd` contains `<text>` (case-insensitive substring) |
+| `[app:<text>]` | The active window's class contains `<text>` (case-insensitive substring) |
+
+Precedence, lowest to highest: `[global]` < matching `[device:*]` < overrides of the active mode < matching `[app:*]`. See [Profiles](Profiles). `BACKEND` is read from `[global]` at start.
+
+## Example files
+
+All are validated by `cmake --build build --target check-config`. Packages install them in `/usr/share/dofscroll/examples/`.
+
+| File | Content |
+|---|---|
+| [examples/default/dofscroll.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/default/dofscroll.conf) | Initial config seeded by the tray |
+| [examples/dofscroll-pro.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-pro.conf) | SpaceMouse Pro, buttons off |
+| [examples/dofscroll-compact.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-compact.conf) | SpaceMouse Compact, both buttons active |
+| [examples/dofscroll-multi-device.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-multi-device.conf) | Both device profiles in one file |
+| [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/modes) | Example modes |
+
+## Vendor driver settings
+
+`spacenavd` applies its own sensitivity, dead zone, inversion and axis swap (`/etc/spnavrc`) before dofscroll sees any value. Keep it at the defaults and tune in dofscroll. If you changed it, adjust the mixes or run "Learn axes" in the tray. Programs that read the SpaceMouse themselves (Blender, CAD) get input twice unless you switch dofscroll off for them with `ENABLED = 0` or `MODE = off` in an `[app:*]` section.

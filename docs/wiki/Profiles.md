@@ -1,0 +1,51 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
+# Profiles for programs and devices
+
+Profiles are sections in `dofscroll.conf` that override only the keys they list. Full text: [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
+
+| Section | Applies when |
+|---|---|
+| `[global]` | Always |
+| `[device:<text>]` | The device name from `spacenavd` contains `<text>` (case-insensitive substring) |
+| `[app:<text>]` | The active window's class contains `<text>` (case-insensitive substring) |
+
+## Precedence
+
+```
+[global]  <  matching [device:*]  <  active mode's overrides  <  matching [app:*]
+```
+
+All device sections are applied before all app sections, each in file order, so a later matching section wins. The mode is chosen by `MODE` from the resolved profile (global, device or app). An app section can select a mode and still has the last word over that mode's overrides.
+
+## Example
+
+```
+[global]
+SCROLL_V_SENS = 5
+
+[device:SpaceMouse Pro]
+SCROLL_V_SENS = 8
+
+[app:firefox]
+ZOOM_SENS = 12
+SCROLL_V_CURVE = 0:0 200:1 350:3
+
+[app:blender]
+ENABLED = 0                # 3D programs read the device themselves
+
+[app:resolve]
+MODE = timeline
+```
+
+## Finding the program name
+
+On X11, run `xprop WM_CLASS` and click the window. The daemon logs every profile switch (`journalctl --user -u dofscroll.service`). On Windows the key is the lower-cased executable name (for example `firefox.exe`); on macOS the bundle identifier or app name. Both are unverified on hardware.
+
+## Limits
+
+- Program profiles need an active-window query: always on X11, on Wayland only with `kdotool` (KDE). Otherwise only `[global]` and `[device:*]` apply.
+- With two SpaceMice connected, `spacenavd` reports only one device, so `[device:*]` applies to both. Direct HID access (Windows, macOS ports) lifts this, but is unverified on hardware.
+- 3D programs that read the device directly get doubled input; switch dofscroll off for them with `ENABLED = 0` or `MODE = off`.
+
+See also [Configuration reference](Configuration-reference), [Modes](Modes).
