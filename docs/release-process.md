@@ -17,7 +17,7 @@ Decision for version 0.1: **all Windows and macOS packages are unsigned**.
 
 Install smoke test: after packaging, `linux-smoke.yml` (called by `ci.yml` as job `linux-smoke` and
 by `linux-packages-dry-run.yml`) downloads `packages-rpm-tgz` and `packages-deb` and installs them
-in fresh containers (Rocky 9, Rocky 10, Fedora 42; Debian 12, Debian 13, Ubuntu 24.04), then runs
+in fresh containers (Rocky 9, `rockylinux/rockylinux:10`, Fedora 42; Debian 12, Debian 13, Ubuntu 24.04), then runs
 `dofscroll --version`, `dofscroll --help` and `dofscroll-ui --version` (offscreen) via
 `scripts/smoke-install.sh`. Only Rocky 9 and Debian 12 are required entries; the others are
 `continue-on-error`. The `release` job does not list `linux-smoke` in `needs`, so the smoke test never

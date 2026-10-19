@@ -82,20 +82,19 @@ runs `dofscroll --version`, `dofscroll --help` and, if the package contains it, 
 scrolling, not a desktop session, not a SpaceMouse. The table lists what the smoke test covers;
 any other distribution is untested.
 
-| Distribution | Package | Smoke test |
+| Distribution | Package | Smoke test result (dry run of 2026-10-19) |
 |---|---|---|
-| Rocky Linux 9 (with EPEL) | RPM | covered, build distribution |
-| Debian 12 | DEB | covered, build distribution |
-| Rocky Linux 10 | RPM | covered, informational (result may be a failure) |
-| Fedora 42 | RPM | covered, informational |
-| Debian 13 | DEB | covered, informational |
-| Ubuntu 24.04 | DEB | covered, informational |
+| Rocky Linux 9 (with EPEL) | RPM | installs, `--version` runs (daemon and UI); build distribution |
+| Debian 12 | DEB | installs, `--version` runs (daemon and UI); build distribution |
+| Fedora 42 | RPM | installs, `--version` runs (daemon and UI) |
+| Debian 13 | DEB | installs, `--version` runs (daemon and UI) |
+| Ubuntu 24.04 | DEB | installs, `--version` runs (daemon and UI) |
+| Rocky Linux 10 (with EPEL and CRB) | RPM | does not install: `nothing provides spacenavd` (not in the EL 10 repositories used); install `spacenavd` from another source first |
 | everything else (Alma, openSUSE, Arch, older releases, ...) | | untested |
 
-"Informational" entries report their result in the job summary of the `linux-smoke` run but never
-block a release; a failure there (for example a missing `spacenavd` in that release's
-repositories) means the package does not install there without extra steps. Check the latest run
-of `linux-packages-dry-run` for the current result before relying on one of them.
+Only Rocky 9 and Debian 12 can fail the smoke test; the other entries are informational: they
+report in the job summary of the `linux-smoke` run and never block a release. The table is a
+snapshot; check the latest `linux-packages-dry-run` run before relying on a row.
 
 ### TGZ
 
