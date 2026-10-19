@@ -50,8 +50,14 @@ Not part of W1: tray / settings UI (package W3), installer and code signing (W4)
   behavior, unverified in practice.
 - Ctrl + wheel zoom is application specific. Whether it behaves as on Linux in browsers, Office,
   CAD or image tools is unverified.
-- A daemon that is ended abnormally cannot release keys it holds; `dofscroll.exe --release-keys`
-  (same as on Linux) sends releases for every key and mouse buttons 1-3.
+- A daemon that is ended abnormally (Task Manager, crash) cannot release keys it holds;
+  `dofscroll.exe --release-keys` (same as on Linux) sends releases for the keys and mouse buttons
+  1-3 (never a bare Alt or Win key-up, which would open the menu bar or the Start menu). A normal
+  daemon start does not do a blanket release; it only releases what it pressed itself, so keys the
+  user holds are not touched. On log-off or shutdown the daemon releases its keys synchronously
+  (WM_ENDSESSION, bounded to 3 s). `stop-daemon.ps1` asks the daemon to quit through the event
+  `Local\dofscroll-quit` first, ends it after a timeout, then runs `--release-keys`.
+  Compile/link only in CI, unverified on hardware: the end-session handling and the event.
 
 ## Active window caveats (unverified)
 

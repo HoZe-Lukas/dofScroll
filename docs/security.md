@@ -736,8 +736,12 @@ Known gaps, stated plainly:
   (a file owned by another account cannot be created on the runner).
 - Only the final path component is protected against links (as on Linux): a symlinked or
   junctioned *parent* directory is followed. This is covered by the same argument as S8/A2.
-- Windows hardening flags: MSVC enables `/GS`, `/DYNAMICBASE` and `/NXCOMPAT` by default;
-  control-flow guard (`/guard:cf`) is not enabled yet; the `-fstack-protector`/`-pie`/`relro` set of the
+- Windows hardening flags (`cmake/windows.cmake`): MSVC builds use `/GS`, `/guard:cf` (control-flow
+  guard is not a default), `/DYNAMICBASE`, `/NXCOMPAT`, `/HIGHENTROPYVA` and `/DEPENDENTLOADFLAG:0x800`
+  (system32-only DLL search); MinGW builds use `--dynamicbase`, `--nxcompat`, `--high-entropy-va` and
+  `-fstack-protector-strong`. `main` also calls `SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32)`
+  first. The application manifest is `asInvoker`, long-path aware, UTF-8 code page. These flags are
+  compile/link-checked by the CI runners only; the `-fstack-protector`/`-pie`/`relro` set of the
   Linux build is not applicable. The hardening check script is Linux-only.
 - macOS: the sandbox/entitlement story (hardened runtime, notarization) belongs to packaging
   (package W4), not to this layer.

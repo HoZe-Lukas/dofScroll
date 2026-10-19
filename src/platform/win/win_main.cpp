@@ -38,6 +38,7 @@
 #include "../../output.hpp"
 #include "../fs.hpp"
 #include "../platform.hpp"
+#include "win_objects.hpp"
 #include "win_output.hpp"
 #include "win_paths.hpp"
 
@@ -50,6 +51,10 @@ const char *const LOG = "[dofscroll] ";
 
 DaemonCore *g_core = nullptr;
 HWND g_hwnd = nullptr;
+std::atomic<bool> g_finished{false};  // DaemonCore::run() returned (keys released)
+
+// How long WM_ENDSESSION waits for the core to release the held keys before Windows goes on.
+constexpr DWORD kEndSessionWaitMs = 3000;
 
 std::string narrow(const std::wstring &w) {
     if (w.empty()) return std::string();
@@ -103,8 +108,9 @@ void printHelp() {
         "  --version       print the version\n"
         "\n"
         "The daemon has no window. Reload the configuration: the settings program signals the\n"
-        "named event Local\\dofscroll-reload (also automatic when the files change). Quit: end the\n"
-        "process in Task Manager or log off (held keys are released).\n");
+        "named event Local\\dofscroll-reload (also automatic when the files change). Quit: log off,\n"
+        "or run packaging\\windows\\stop-daemon.ps1 (it signals Local\\dofscroll-quit; held keys are\n"
+        "released). Ending the process in Task Manager cannot release them: run --release-keys.\n");
 }
 
 // ---- log file mirror -----------------------------------------------------------------------------
@@ -236,7 +242,13 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_QUERYENDSESSION:
         return TRUE;
     case WM_ENDSESSION:
-        if (wp && g_core) g_core->requestQuit();
+        // Session is really ending: release the keys synchronously (the core does it when run()
+        // returns), but never block the shutdown for more than a bounded time.
+        if (wp && g_core) {
+            g_core->requestQuit();
+            const ULONGLONG t0 = ::GetTickCount64();
+            while (!g_finished && ::GetTickCount64() - t0 < kEndSessionWaitMs) ::Sleep(10);
+        }
         return 0;
     case WM_CLOSE:
     case WM_DESTROY:
@@ -275,6 +287,13 @@ int releaseKeysAndExit() {
 }  // namespace
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
+    // First thing: DLLs are only loaded from system32 (no DLL planting through the working
+    // directory or the executable's folder). The link flags cover the implicit imports; this
+    // covers LoadLibrary calls and delay loads.
+    ::SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32);
+    // Be notified of the session end early, so keys are released before other programs close.
+    ::SetProcessShutdownParameters(0x4FF, 0);
+
     bool debug = false;
     {
         int argc = 0;
@@ -303,18 +322,24 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         if (argv) ::LocalFree(argv);
     }
 
+    // One daemon per logon session (two would send every event twice). Created BEFORE the log is
+    // opened and trimmed, so a second instance never touches the first one's log.
+    HANDLE single = ::CreateMutexW(nullptr, FALSE, widen(singleInstanceMutexName()).c_str());
+    if (!single) {
+        const DWORD e = ::GetLastError();
+        std::cerr << LOG << "ERROR: cannot create the single-instance mutex (error " << e << ") - exiting" << std::endl;
+        return 1;
+    }
+    if (::GetLastError() == ERROR_ALREADY_EXISTS) {
+        std::cerr << LOG << "another dofscroll instance is already running - exiting" << std::endl;
+        return 1;
+    }
+
     const PlatformPaths paths = platformPaths();
 
     // Also mirror log lines into the log file (deliberately never destroyed).
     std::cerr.rdbuf(new TeeLogBuf(std::cerr.rdbuf(), paths.runtimeDir, debug ? kLogMaxLinesDebug : kLogMaxLines,
                                   debug ? kLogKeepLinesDebug : kLogKeepLines));
-
-    // One daemon per logon session (two would send every event twice).
-    HANDLE single = ::CreateMutexW(nullptr, FALSE, widen(singleInstanceMutexName()).c_str());
-    if (single && ::GetLastError() == ERROR_ALREADY_EXISTS) {
-        std::cerr << LOG << "another dofscroll instance is already running - exiting" << std::endl;
-        return 1;
-    }
 
     // Deliberately never destroyed: the detached reader thread accesses these until exit.
     std::string ilog;
@@ -361,21 +386,35 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     g_hwnd = createMessageWindow();
 
     // The core ticks on its own thread; this thread pumps messages (session end, close).
-    std::atomic<bool> finished{false};
     const DWORD mainThread = ::GetCurrentThreadId();
-    std::thread runner([core, &finished, mainThread] {
+    std::thread runner([core, mainThread] {
         core->run();
-        finished = true;
+        g_finished = true;
         ::PostThreadMessageW(mainThread, WM_QUIT, 0, 0);  // wake the pump
+    });
+    // stop-daemon.ps1 signals this event to end the daemon cleanly (keys are released by run()).
+    std::string qerr;
+    HANDLE quitEvt = static_cast<HANDLE>(createPrivateEvent(quitEventName(), &qerr));
+    if (!quitEvt) std::cerr << LOG << "WARNING: quit event not available: " << qerr << std::endl;
+    std::thread quitWatcher([core, quitEvt] {
+        while (!g_finished) {
+            if (quitEvt && ::WaitForSingleObject(quitEvt, 250) == WAIT_OBJECT_0) {
+                core->requestQuit();
+                return;
+            }
+            if (!quitEvt) ::Sleep(250);
+        }
     });
     if (g_hwnd) {
         MSG msg;
-        while (!finished && ::GetMessageW(&msg, nullptr, 0, 0) > 0) {
+        while (!g_finished && ::GetMessageW(&msg, nullptr, 0, 0) > 0) {
             ::TranslateMessage(&msg);
             ::DispatchMessageW(&msg);
         }
     }
     if (g_core) g_core->requestQuit();
     runner.join();
+    quitWatcher.join();
+    if (quitEvt) ::CloseHandle(quitEvt);
     return 0;
 }

@@ -42,6 +42,8 @@ int main() {
     assert(std::strncmp(reloadEventName(), "Local\\", 6) == 0);
     assert(std::strncmp(singleInstanceMutexName(), "Local\\", 6) == 0);
     assert(std::strcmp(reloadEventName(), singleInstanceMutexName()) != 0);
+    assert(std::strncmp(quitEventName(), "Local\\", 6) == 0);
+    assert(std::strcmp(quitEventName(), reloadEventName()) != 0);
 
     // descriptor search path
     {

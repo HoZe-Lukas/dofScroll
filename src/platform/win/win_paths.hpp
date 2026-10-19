@@ -55,6 +55,8 @@ inline bool isUwpHostExe(const std::string &exeLower) { return exeLower == "appl
 
 // Kernel object names. "Local\" = the session's namespace: one daemon per logon session.
 inline const char *reloadEventName() { return "Local\\dofscroll-reload"; }
+// Set by stop-daemon.ps1 to ask the daemon to quit (it then releases its keys itself).
+inline const char *quitEventName() { return "Local\\dofscroll-quit"; }
 inline const char *singleInstanceMutexName() { return "Local\\dofscroll-single-instance"; }
 
 // Directories searched (first existing wins) for the devices/*.conf descriptions: an explicit

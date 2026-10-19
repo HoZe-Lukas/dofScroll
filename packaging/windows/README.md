@@ -10,7 +10,7 @@ rights; all act on the current user only.
 |---|---|
 | `install-autostart.ps1 -ExePath <path>` | Starts the daemon at logon: value `dofscroll` under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. `-Startup` creates a shortcut in the Startup folder instead. Idempotent. |
 | `uninstall-autostart.ps1` | Removes the Run value and/or the Startup shortcut. |
-| `stop-daemon.ps1` | Ends the daemon of the current session (before replacing the exe). |
+| `stop-daemon.ps1` | Stops the daemon at `-ExePath` (current session only): asks it to quit through its event, ends it after a timeout, then runs `--release-keys`. |
 
 All three accept `-WhatIf` (or `-DryRun`) to print the actions without doing them.
 

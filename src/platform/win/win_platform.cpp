@@ -24,6 +24,7 @@
 #include "../platform.hpp"
 #include "../fs.hpp"
 #include "win_hid_input.hpp"
+#include "win_objects.hpp"
 #include "win_output.hpp"
 #include "win_paths.hpp"
 
@@ -102,24 +103,8 @@ public:
         if (ev_) ::CloseHandle(ev_);
     }
     bool init(std::string *err) override {
-        const std::wstring name = widen(reloadEventName());
-        SECURITY_ATTRIBUTES sa{};
-        PSECURITY_DESCRIPTOR sd = nullptr;
-        const std::wstring sddl = privateObjectSddl();
-        if (!sddl.empty() &&
-            ::ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl.c_str(), SDDL_REVISION_1, &sd, nullptr)) {
-            sa.nLength = sizeof sa;
-            sa.lpSecurityDescriptor = sd;
-        }
-        // auto-reset: one SetEvent = one reload, consumed by the first successful wait
-        ev_ = ::CreateEventW(sd ? &sa : nullptr, FALSE, FALSE, name.c_str());
-        const DWORD e = ::GetLastError();
-        if (sd) ::LocalFree(sd);
-        if (!ev_) {
-            if (err) *err = "CreateEvent(" + std::string(reloadEventName()) + "): " + lastErrorText(e);
-            return false;
-        }
-        return true;
+        ev_ = static_cast<HANDLE>(createPrivateEvent(reloadEventName(), err));
+        return ev_ != nullptr;
     }
     bool pollReload() override {
         return ev_ && ::WaitForSingleObject(ev_, 0) == WAIT_OBJECT_0;
@@ -172,6 +157,36 @@ private:
 };
 
 }  // namespace
+
+// ---- named kernel objects ---------------------------------------------------------------------------
+
+void *createPrivateEvent(const char *name, std::string *err) {
+    const std::wstring sddl = privateObjectSddl();
+    PSECURITY_DESCRIPTOR sd = nullptr;
+    if (sddl.empty() ||
+        !::ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl.c_str(), SDDL_REVISION_1, &sd, nullptr)) {
+        const DWORD e = ::GetLastError();
+        if (err) *err = "cannot build the access control list for " + std::string(name) + ": " + lastErrorText(e);
+        return nullptr;  // fail closed: never create the event with the default (inheriting) ACL
+    }
+    SECURITY_ATTRIBUTES sa{};
+    sa.nLength = sizeof sa;
+    sa.lpSecurityDescriptor = sd;
+    // auto-reset: one SetEvent = one wake-up, consumed by the first successful wait
+    HANDLE ev = ::CreateEventW(&sa, FALSE, FALSE, widen(name).c_str());
+    const DWORD e = ::GetLastError();
+    ::LocalFree(sd);
+    if (!ev) {
+        if (err) *err = "CreateEvent(" + std::string(name) + "): " + lastErrorText(e);
+        return nullptr;
+    }
+    if (e == ERROR_ALREADY_EXISTS) {  // not ours: its ACL and owner are unknown
+        ::CloseHandle(ev);
+        if (err) *err = std::string(name) + " already exists (another process owns it)";
+        return nullptr;
+    }
+    return ev;
+}
 
 PlatformPaths platformPaths() {
     std::map<std::string, std::string> env;
