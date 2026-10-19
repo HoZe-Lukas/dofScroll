@@ -22,7 +22,7 @@ Everything below was verified by the maintainer on real hardware unless it says 
 |---|---|
 | RHEL 9, X11, KDE Plasma | **Tested**, with the SpaceMouse Pro and the SpaceMouse Compact. |
 | Other Linux distributions (Debian, Ubuntu, Fedora, ...) | Not tested. The RPM, DEB and TGZ packages are built by CI but have not been installed and run on those systems. |
-| Linux, Wayland | Not tested. Uses the uinput backend and needs a udev rule; active-window profiles work only with `kdotool` (KDE). |
+| Linux, Wayland | Not tested. Uses the uinput backend and needs a udev rule that you install yourself (not installed by default, see [installation.md](docs/installation.md)); active-window profiles work only with `kdotool` (KDE). |
 | Windows | In development, not usable yet. See [docs/work-plan.md](docs/work-plan.md). |
 | macOS | In development, not usable yet. See [docs/work-plan.md](docs/work-plan.md). |
 
@@ -72,6 +72,18 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 | [docs/releasing.md](docs/releasing.md) | How a release is made |
 | [docs/work-plan.md](docs/work-plan.md) | Roadmap and the Windows/macOS ports |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, pull requests, adding a mode or language |
+
+## Security notes
+
+- **Mode files are code-like.** A mode file can press any key from the key list (including Ctrl,
+  Alt and Super, and chords such as Ctrl+W through the zoom channel) while a button is held or an
+  axis is deflected. Only use mode files from sources you trust and read them first: look for
+  `key:`, `keys:`, `zoom` and `mode:`. The daemon warns at load time about modifier-capable
+  bindings. Details in [docs/modes.md](docs/modes.md#safety-and-sharing-modes). `ENABLED`,
+  `BACKEND` and `TICK_HZ` are not allowed in mode files.
+- **The uinput udev rule is opt-in.** Packages do not enable `/dev/uinput` access. Only Wayland
+  users need it; see [docs/installation.md](docs/installation.md).
+- Threat model, hardening and open points: [docs/security.md](docs/security.md).
 
 ## Architecture in short
 

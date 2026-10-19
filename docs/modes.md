@@ -27,8 +27,8 @@ Format: `KEY = value`, no sections, `#` and `;` comments.
     BUTTON_2 = key:home
     SCROLL_H_SENS = 4                           # any profile key is an override
 
-`MODE` is not allowed inside a mode file. Any other key from [configuration.md](configuration.md)
-is a settings override. The overrides are applied after the device profile and before the app
+`MODE`, `ENABLED`, `BACKEND` and `TICK_HZ` are not allowed inside a mode file (the daemon rejects
+them with a warning). Any other key from [configuration.md](configuration.md) is a settings override. The overrides are applied after the device profile and before the app
 profile.
 
 Limits: up to 64 mode files, each up to 64 KiB, up to 128 overrides per file, regular files only.
@@ -111,6 +111,33 @@ For video editing (for example in DaVinci Resolve, whose behavior is not verifie
     ZOOM_SENS = 1         # single frames
 
 The timeline must have keyboard focus. Reverse the twist with `ZOOM_SIGN = -1`.
+
+## Safety and sharing modes
+
+A mode file is code-like. While a device button is held or an axis is deflected, it can press
+any key on the list in [Key names](#key-names), including modifiers (Ctrl, Alt, Super), function
+keys, Delete and Enter. Chords are reachable: Ctrl is held while a channel zooms, so a `keys:`
+action on another channel can send Ctrl+W or Ctrl+Q, and `key:ctrl` plus `key:alt` on two buttons
+combine with a third key. A mode file cannot type arbitrary text or send codes outside the key list,
+and every effect needs the physical device to be moved or pressed.
+
+Only use mode files from sources you trust, and read a file before you copy it into
+`~/.config/dofscroll/modes/`. When you review one, look for:
+
+- `key:` bindings, especially `ctrl`, `alt`, `super`, `shift`, `delete`, `esc`, `enter` and `f1` to `f12`.
+- `keys:<negative>,<positive>` actions on `V_ACTION`, `H_ACTION` or `TWIST_ACTION`, especially
+  letters and digits, or in combination with a `zoom` channel (Ctrl is held then).
+- `zoom` on any channel, because it holds Ctrl.
+- `mode:` bindings that switch to another mode, and the other files such a mode points to.
+- Settings overrides that change sensitivities, signs or button behavior.
+
+The daemon warns at load time (in the log) about modifier-capable bindings, but the warning does not
+replace reading the file. If you share a mode, say what keys it presses.
+
+A mode that turns output off or ignores the device (for example the built-in `off`) leaves the
+device inactive. To get out of it, use the tray menu "Mode", a `mode:next` or `mode:<id>` binding
+(put it in the main config so it stays available in every mode, or in the mode itself), or edit
+`MODE` in the config and reload.
 
 ## Add your own mode
 

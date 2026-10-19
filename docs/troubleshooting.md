@@ -71,7 +71,8 @@ and does not start them. Log in graphically or start them by hand. After
 
 `BACKEND = auto` picks uinput under Wayland. The user needs write access to `/dev/uinput`.
 
-1. Install the udev rule, see [installation.md](installation.md#2-first-time-setup) and
+1. The packages do not install the udev rule. Enable it yourself as described in
+   [installation.md](installation.md#2-first-time-setup) and
    [packaging/README-uinput.md](../packaging/README-uinput.md). The rule uses `uaccess`, so the
    user of the active local session gets an ACL.
 2. `sudo udevadm control --reload && sudo udevadm trigger`, then log out and in.
@@ -85,7 +86,7 @@ Do not add yourself to the `input` group. It gives access to all keyboards (reas
 
 | | X11 | Wayland |
 |---|---|---|
-| Backend | XTest | uinput (needs the udev rule) |
+| Backend | XTest | uinput (needs the opt-in udev rule) |
 | `[app:*]` profiles | Yes (`WM_CLASS`) | Only with `kdotool` on KDE. Native Wayland windows may not be found. |
 
 Without an active-window query only `[global]` and `[device:*]` apply. To force a backend, set
