@@ -13,6 +13,11 @@
 #include <QTreeWidget>
 #include <QVBoxLayout>
 
+#include "config.hpp"
+#include "modes.hpp"
+#include "pages/profiles_page.hpp"
+#include "platform_hooks.hpp"
+#include "platform/running_apps.hpp"
 #include "ui_i18n.hpp"
 
 namespace {
@@ -23,6 +28,16 @@ enum { kRoleStackIndex = Qt::UserRole + 1, kRoleDefault = Qt::UserRole + 2 };
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setWindowTitle(QStringLiteral("dofscroll"));
     resize(900, 520);
+    std::vector<std::string> warnings;
+    std::string err;
+    const std::string cfg = spn::defaultConfigPath();
+    if (!settings_.load(cfg, &warnings, &err)) settings_.setProfiles(spn::ProfileSet(), cfg);
+    settings_.setModes(spn::loadModes(spn::modesDir(), nullptr), spn::modesDir());
+    ctx_.settings = &settings_;
+    ctx_.runner = &runner_;
+    ctx_.runningApps = [] { return spn::makeRunningAppsProvider(); };
+    ctx_.activeWindow = dofscroll_ui::makeActiveWindowPoll();
+
     auto *split = new QSplitter(this);
     nav_ = new QTreeWidget(split);
     nav_->setHeaderHidden(true);
@@ -37,24 +52,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         QWidget *w = (name == T("Modes")) ? modesPage() : placeholder(name);
         it->setData(0, kRoleStackIndex, stack_->addWidget(w));
     }
-    // Profiles group: only what depends on the profile's mode lives below it.
-    auto *group = new QTreeWidgetItem(nav_, QStringList(T("Profiles")));
-    group->setData(0, kRoleKind, 2);
-    struct Profile {
-        const char *label;
-        bool isDefault;
-    };
-    const Profile profiles[] = {{"Default mode", true},
-                                {"Device profile (placeholder)", false},
-                                {"Application profile (placeholder)", false}};
-    for (const Profile &p : profiles) {
-        auto *it = new QTreeWidgetItem(group, QStringList(T(p.label)));
-        it->setData(0, kRoleKind, 1);
-        it->setData(0, kRoleDefault, p.isDefault);
+    // Registered pages (see pages/page_registry.cpp): the Profiles page brings its own tree.
+    for (const PageEntry &e : pageRegistry()) {
+        auto *it = new QTreeWidgetItem(nav_, QStringList(T(e.title)));
+        it->setData(0, kRoleKind, 0);
+        QWidget *w = e.create(ctx_, stack_);
+        if (std::string(e.id) == "profiles") profilesPage_ = w;
+        it->setData(0, kRoleStackIndex, stack_->addWidget(w));
     }
-    group->setExpanded(true);
-    profilePage_ = new QWidget;
-    stack_->addWidget(profilePage_);
 
     connect(nav_, &QTreeWidget::currentItemChanged, this, [this] { onSelectionChanged(); });
     setCentralWidget(split);
@@ -100,44 +105,16 @@ void MainWindow::onSelectionChanged() {
     const int kind = it->data(0, kRoleKind).toInt();
     if (kind == 0)
         stack_->setCurrentIndex(it->data(0, kRoleStackIndex).toInt());
-    else if (kind == 1)
-        rebuildProfilePage(it);
-}
-
-// Model-driven rebuild: the content depends on the selected profile and its mode.
-void MainWindow::rebuildProfilePage(QTreeWidgetItem *profile) {
-    const bool isDefault = profile->data(0, kRoleDefault).toBool();
-    auto *page = new QWidget;
-    auto *l = new QVBoxLayout(page);
-    modeSelectorVisible_ = !isDefault;
-    if (!isDefault) {  // no mode selector for the default mode
-        auto *combo = new QComboBox(page);
-        combo->addItem(T("Default mode"));  // first entry, then the other modes
-        l->addWidget(combo);
-        connect(combo, QOverload<int>::of(&QComboBox::activated), this,
-                [this, profile] { rebuildProfilePage(profile); });
-    }
-    l->addWidget(new QLabel(T("Button bindings and channel actions: not implemented yet")));
-    if (!isDefault) l->addWidget(new QPushButton(T("Edit mode file"), page));
-    auto *ov = new QGroupBox(T("Overrides for this profile"), page);
-    ov->setCheckable(true);
-    ov->setChecked(false);  // off by default; the Channels page is the normal place
-    l->addWidget(ov);
-    l->addStretch(1);
-
-    const int idx = stack_->indexOf(profilePage_);
-    stack_->removeWidget(profilePage_);
-    delete profilePage_;
-    profilePage_ = page;
-    stack_->insertWidget(idx, page);
-    stack_->setCurrentWidget(page);
 }
 
 int MainWindow::pageCount() const { return nav_->topLevelItemCount(); }
 
 int MainWindow::profileCount() const {
-    const QTreeWidgetItem *g = nav_->topLevelItem(nav_->topLevelItemCount() - 1);
-    return g ? g->childCount() : 0;
+    const auto *p = qobject_cast<const ProfilesPage *>(profilesPage_);
+    return p ? p->profileCount() : 0;
 }
 
-bool MainWindow::profilePageHasModeSelector() const { return modeSelectorVisible_; }
+bool MainWindow::profilePageHasModeSelector() const {
+    const auto *p = qobject_cast<const ProfilesPage *>(profilesPage_);
+    return p && p->modeSelectorVisible();
+}

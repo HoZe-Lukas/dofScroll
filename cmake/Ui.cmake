@@ -20,13 +20,58 @@ if(DOFSCROLL_UI)
     src/ui/qt/tray.cpp
     src/ui/qt/tray.hpp
     src/ui/qt/ui_i18n.hpp
+    src/ui/qt/platform_hooks.cpp
+    src/ui/qt/platform_hooks.hpp
+    src/ui/qt/qt_action_runner.hpp
+    src/ui/qt/pages/page_registry.cpp
+    src/ui/qt/pages/page_registry.hpp
+    src/ui/qt/pages/profiles_page.cpp
+    src/ui/qt/pages/profiles_page.hpp
+    src/ui/qt/pages/add_app_dialog.cpp
+    src/ui/qt/pages/add_app_dialog.hpp
+    src/ui/qt/pages/add_device_dialog.cpp
+    src/ui/qt/pages/add_device_dialog.hpp
     src/ui/qt/resources.qrc)
   set_target_properties(dofscroll-ui PROPERTIES AUTOMOC ON AUTORCC ON
                         WIN32_EXECUTABLE ON MACOSX_BUNDLE OFF)
-  target_include_directories(dofscroll-ui PRIVATE src/ui/qt)
+  target_include_directories(dofscroll-ui PRIVATE src/ui/qt src/ui/qt/pages)
   target_compile_features(dofscroll-ui PRIVATE cxx_std_17)
   target_compile_definitions(dofscroll-ui PRIVATE DOFSCROLL_VERSION="${PROJECT_VERSION}")
-  target_link_libraries(dofscroll-ui PRIVATE Qt6::Widgets)
+  target_link_libraries(dofscroll-ui PRIVATE Qt6::Widgets dofscroll_core)
+
+  # Platform seams the pages use (running-programs list, foreground program for "capture next
+  # focused program"). Each OS adds its provider when it is available in this tree; otherwise a
+  # stub keeps the UI linkable and the page shows a "not available" note.
+  set(DOFSCROLL_UI_RUNNING_APPS_STUB ON)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+      pkg_check_modules(DOFSCROLL_UI_X11 QUIET IMPORTED_TARGET x11)
+    endif()
+    if(DOFSCROLL_UI_X11_FOUND)
+      target_sources(dofscroll-ui PRIVATE src/platform/linux/running_apps_x11.cpp src/activewin.cpp)
+      target_link_libraries(dofscroll-ui PRIVATE PkgConfig::DOFSCROLL_UI_X11)
+      target_compile_definitions(dofscroll-ui PRIVATE DOFSCROLL_UI_X11=1)
+      set(DOFSCROLL_UI_RUNNING_APPS_STUB OFF)
+    endif()
+  elseif(WIN32)
+    if(EXISTS ${CMAKE_SOURCE_DIR}/src/platform/win/running_apps_win.cpp)
+      target_sources(dofscroll-ui PRIVATE src/platform/win/running_apps_win.cpp)
+      target_link_libraries(dofscroll-ui PRIVATE user32 version dwmapi)
+      set(DOFSCROLL_UI_RUNNING_APPS_STUB OFF)
+    endif()
+  elseif(APPLE)
+    if(EXISTS ${CMAKE_SOURCE_DIR}/src/platform/mac/running_apps_mac.mm AND CMAKE_OBJCXX_COMPILER)
+      target_sources(dofscroll-ui PRIVATE src/platform/mac/running_apps_mac.mm
+                     src/platform/mac/mac_activewin.mm)
+      target_link_libraries(dofscroll-ui PRIVATE "-framework AppKit")
+      target_compile_definitions(dofscroll-ui PRIVATE DOFSCROLL_UI_MAC_AW=1)
+      set(DOFSCROLL_UI_RUNNING_APPS_STUB OFF)
+    endif()
+  endif()
+  if(DOFSCROLL_UI_RUNNING_APPS_STUB)
+    target_compile_definitions(dofscroll-ui PRIVATE DOFSCROLL_UI_RUNNING_APPS_STUB=1)
+  endif()
   if(TARGET Qt6::Svg)
     target_link_libraries(dofscroll-ui PRIVATE Qt6::Svg)
   endif()

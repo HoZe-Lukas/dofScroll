@@ -6,6 +6,12 @@
 #pragma once
 #include <QMainWindow>
 
+#include <memory>
+
+#include "pages/page_registry.hpp"
+#include "qt_action_runner.hpp"
+#include "ui/model/settings_model.hpp"
+
 class QStackedWidget;
 class QTreeWidget;
 class QTreeWidgetItem;
@@ -25,10 +31,11 @@ private slots:
 private:
     QWidget *modesPage();
     QWidget *placeholder(const QString &title);
-    void rebuildProfilePage(QTreeWidgetItem *profile);
 
     QTreeWidget *nav_;
     QStackedWidget *stack_;
-    QWidget *profilePage_ = nullptr;
-    bool modeSelectorVisible_ = false;
+    spn::ui::SettingsModel settings_;
+    QtActionRunner runner_;
+    PageContext ctx_;
+    QWidget *profilesPage_ = nullptr;
 };
