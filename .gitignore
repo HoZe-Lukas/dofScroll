@@ -3,3 +3,4 @@ dofscroll-tray
 build/
 build-asan/
 build-*/
+*~
