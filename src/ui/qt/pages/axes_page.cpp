@@ -53,16 +53,17 @@ std::string feedRuntimeDir() {
 const char *wizardTranslate(const char *msgid) {
     static std::unordered_map<std::string, std::string> cache;
     auto it = cache.find(msgid);
-    if (it == cache.end()) it = cache.emplace(msgid, T(msgid).toStdString()).first;
+    if (it == cache.end()) it = cache.emplace(msgid, T(msgid).toUtf8().toStdString()).first;
     return it->second.c_str();
 }
 
 class QtStrings : public StringProvider {
 public:
-    std::string tr(const char *source) const override { return T(source).toStdString(); }
+    std::string tr(const char *source) const override { return T(source).toUtf8().toStdString(); }
 };
 
-QString qs(const std::string &s) { return QString::fromStdString(s); }
+// Untrusted UTF-8 (config path errors, feed text) -> QString; invalid bytes are replaced.
+QString qs(const std::string &s) { return QString::fromUtf8(sanitizeUtf8(s).c_str()); }
 
 }  // namespace
 
@@ -78,7 +79,7 @@ public:
         setAccessibleName(T("Live axis values"));
         setToolTip(T("Live values of the six axes as the daemon reads them (before any processing). "
                      "The thin marker is the peak."));
-        for (int i = 0; i < AX_COUNT; i++) axisLabel_[i] = QString::fromLatin1(axisName(Axis(i)));
+        for (int i = 0; i < AX_COUNT; i++) axisLabel_[i] = QString::fromUtf8(axisName(Axis(i)));
         chanLabel_[0] = T("Scroll V");
         chanLabel_[1] = T("Scroll H");
         chanLabel_[2] = T("Zoom");
@@ -163,7 +164,7 @@ protected:
 
         // Mode line.
         const LiveSample &s = vm_->shown();
-        status_ = T("Mode:") + QLatin1Char(' ') + (live ? QString::fromStdString(s.mode) : QStringLiteral("-"));
+        status_ = T("Mode:") + QLatin1Char(' ') + (live ? qs(truncateUtf8(s.mode, 64)) : QStringLiteral("-"));
         if (live) {
             if (!s.enabled) status_ += QStringLiteral("  |  ") + T("disabled");
             if (s.nav) status_ += QStringLiteral("  |  ") + T("navigation mode");
@@ -474,7 +475,7 @@ struct SelfTestConn : FeedConn {
 int axesPageSelfTest() {
     SelfTestConn *conn = nullptr;
     AxesPageEnv env;
-    env.configPath = QStringLiteral("axes-selftest-does-not-exist.conf").toStdString();
+    env.configPath = std::string("axes-selftest-does-not-exist.conf");
     env.connector = [&conn](std::string *) -> std::unique_ptr<FeedConn> {
         auto c = std::make_unique<SelfTestConn>();
         conn = c.get();

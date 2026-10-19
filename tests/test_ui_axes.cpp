@@ -80,6 +80,25 @@ void measure(FakeFeed &f, AxesSession &s, int64_t &t, int axis, int first, int v
 }
 }  // namespace
 
+static void testUtf8() {
+    const std::string dev = "SpaceMouse \xC3\xBC \xE7\xA9\xBA\xE9\x97\xB4 \xF0\x9F\x96\xB1 \"x\"";
+    assert(sanitizeUtf8(dev) == dev);  // valid Unicode, spaces and symbols stay
+    assert(sanitizeUtf8("a\xFF" "b") == "a\xEF\xBF\xBD" "b");
+    assert(sanitizeUtf8("\xC0\x80") == "\xEF\xBF\xBD\xEF\xBF\xBD");  // overlong
+    assert(sanitizeUtf8("\xED\xA0\x80").size() == 9);                  // surrogate
+    assert(sanitizeUtf8("\xE7\xA9") == "\xEF\xBF\xBD\xEF\xBF\xBD");  // truncated sequence
+    assert(sanitizeUtf8("a\nb") == "a\xEF\xBF\xBD" "b");
+    // truncation never splits a sequence ("ue" is 2 bytes, the CJK characters 3, the emoji 4)
+    for (size_t n = 0; n < dev.size() + 2; n++) {
+        const std::string t = truncateUtf8(dev, n);
+        assert(t.size() <= n && sanitizeUtf8(t) == t && dev.compare(0, t.size(), t) == 0);
+    }
+    // a Unicode mode/device text goes through the live feed model untouched or sanitized
+    LiveSample s;
+    s.mode = "normal";
+    assert(sanitizeUtf8(s.mode) == "normal");
+}
+
 static void testScaling() {
     assert(axisFullScale(0) == 350 && axisFullScale(350) == 350 && axisFullScale(351) == 512);
     assert(axisFullScale(100000) == 100000 && axisFullScale(1 << 30) == 100000);
@@ -235,6 +254,7 @@ static void testWizardEdgeCases() {
 }
 
 int main() {
+    testUtf8();
     testScaling();
     testPeakHoldAndPause();
     testConnection();

@@ -23,6 +23,50 @@
 
 namespace spn::ui {
 
+// ---- UTF-8 text from outside (feed, config, errors) ------------------------------------------------
+
+// Length of the valid UTF-8 sequence at s[i] (1..4), 0 if invalid (overlong, surrogate, > U+10FFFF).
+inline size_t utf8SeqLen(const std::string &s, size_t i) {
+    const auto b = [&](size_t k) { return static_cast<unsigned char>(s[k]); };
+    const unsigned c = b(i);
+    size_t n = c < 0x80 ? 1 : (c >= 0xC2 && c <= 0xDF) ? 2 : (c >= 0xE0 && c <= 0xEF) ? 3
+               : (c >= 0xF0 && c <= 0xF4) ? 4 : 0;
+    if (n == 0 || i + n > s.size()) return 0;
+    for (size_t k = 1; k < n; k++)
+        if ((b(i + k) & 0xC0) != 0x80) return 0;
+    if (n == 3 && ((c == 0xE0 && b(i + 1) < 0xA0) || (c == 0xED && b(i + 1) > 0x9F))) return 0;
+    if (n == 4 && ((c == 0xF0 && b(i + 1) < 0x90) || (c == 0xF4 && b(i + 1) > 0x8F))) return 0;
+    return n;
+}
+
+// Untrusted text to valid UTF-8: invalid bytes become U+FFFD, control characters (except none)
+// become U+FFFD too; never throws.
+inline std::string sanitizeUtf8(const std::string &s) {
+    std::string out;
+    out.reserve(s.size());
+    for (size_t i = 0; i < s.size();) {
+        const size_t n = utf8SeqLen(s, i);
+        const unsigned char c = static_cast<unsigned char>(s[i]);
+        if (n == 0 || (n == 1 && (c < 0x20 || c == 0x7F))) {
+            out += "\xEF\xBF\xBD";
+            i++;
+        } else {
+            out.append(s, i, n);
+            i += n;
+        }
+    }
+    return out;
+}
+
+// Cuts to at most maxBytes without splitting a multi-byte sequence (input is sanitized first).
+inline std::string truncateUtf8(const std::string &text, size_t maxBytes) {
+    const std::string s = sanitizeUtf8(text);
+    if (s.size() <= maxBytes) return s;
+    size_t cut = maxBytes;
+    while (cut > 0 && (static_cast<unsigned char>(s[cut]) & 0xC0) == 0x80) cut--;
+    return s.substr(0, cut);
+}
+
 // ---- bar scaling -------------------------------------------------------------------------------
 
 // Full-scale value of the bars: the smallest step that holds `peak` (devices stay near +-350).
