@@ -96,6 +96,7 @@ jobs:
             Get-Process -Name 'dofscroll' -ErrorAction SilentlyContinue | ForEach-Object { Write-Output "before upgrade: pid $($_.Id) session $($_.SessionId) path $($_.Path)" }
             & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dir 'scripts\stop-daemon.ps1') -ExePath $exe -WhatIf
             Invoke-Limited $setup "/S /AUTOSTART=1 /D=$dir" 'silent upgrade (stops a running daemon, starts it again)'
+            Get-Content -LiteralPath (Join-Path $env:TEMP 'dofscroll-installer.log') -ErrorAction SilentlyContinue
             Get-Process -Name 'dofscroll' -ErrorAction SilentlyContinue | ForEach-Object { Write-Output "after upgrade: pid $($_.Id) path $($_.Path)" }
             if ($was) {
               Start-Sleep -Seconds 3

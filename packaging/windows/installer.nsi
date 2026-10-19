@@ -97,8 +97,13 @@ Section "dofscroll (required)" SecMain
   ; The script comes from this installer, like stop-ui.ps1: an update of an older install uses the new one.
   StrCpy $DaemonWasRunning "0"
   File "/oname=$PLUGINSDIR\stop-daemon.ps1" "${STAGE}\scripts\stop-daemon.ps1"
-  nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-daemon.ps1" -ExePath "$INSTDIR\dofscroll.exe"'
+  nsExec::ExecToStack 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-daemon.ps1" -ExePath "$INSTDIR\dofscroll.exe"'
   Pop $0
+  Pop $1
+  ; the output of the stop script goes to a small log, for support and for the CI check
+  FileOpen $2 "$TEMP\dofscroll-installer.log" w
+  FileWrite $2 "stop-daemon exit code $0$\r$\n$1$\r$\n"
+  FileClose $2
   StrCmp $0 "10" 0 +2
     StrCpy $DaemonWasRunning "1"
   SetOutPath "$INSTDIR"
