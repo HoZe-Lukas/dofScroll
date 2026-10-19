@@ -1,28 +1,330 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// PLATZHALTER - wird durch die echte Implementierung ersetzt (Schnittstelle: modes.hpp).
+// Mode files: parser, action grammar, built-in modes and the bounded directory loader.
+// See modes.hpp for the file format and the contract.
 #include "modes.hpp"
 
+#include <dirent.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <algorithm>
+#include <cctype>
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+
+#include "config.hpp"
+
 namespace spn {
+
+namespace {
+
+constexpr size_t kMaxModeFiles = 64;
+constexpr size_t kMaxModeFileBytes = 64 * 1024;
+constexpr size_t kMaxModeOverrides = 128;
+constexpr size_t kMaxDirEntries = 4096;  // readdir cap (names inspected), against huge directories
+constexpr int kMaxModeButton = 31;       // highest binding index in a mode file
+constexpr size_t kMaxLabel = 64;
+constexpr size_t kMaxDescription = 256;
+constexpr size_t kMaxModeLine = 4096;
+
+std::string trim(const std::string &s) {
+    size_t a = 0, b = s.size();
+    while (a < b && std::isspace(static_cast<unsigned char>(s[a]))) a++;
+    while (b > a && std::isspace(static_cast<unsigned char>(s[b - 1]))) b--;
+    return s.substr(a, b - a);
+}
+
+std::string lower(std::string s) {
+    for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+
+std::string upper(std::string s) {
+    for (char &c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    return s;
+}
+
+bool fail(std::string *err, const std::string &msg) {
+    if (err) *err = msg;
+    return false;
+}
+
+// Display text: control characters dropped, length capped.
+std::string cleanText(const std::string &s, size_t cap) {
+    std::string out;
+    for (unsigned char c : s) {
+        if (c < 0x20 || c == 0x7f) continue;
+        out += static_cast<char>(c);
+        if (out.size() >= cap) break;
+    }
+    return out;
+}
+
+ModeDef builtinMode(const std::string &id, const std::string &label, const std::string &desc) {
+    ModeDef m;
+    m.id = id;
+    m.label = label;
+    m.description = desc;
+    m.builtin = true;
+    return m;
+}
+
+std::vector<ModeDef> builtinModes() {
+    std::vector<ModeDef> v;
+    v.push_back(builtinMode("normal", "Normal", "Scroll, zoom and navigation as configured"));
+    ModeDef off = builtinMode("off", "Off", "Sends nothing");
+    off.v.type = off.h.type = off.twist.type = ChannelActionType::None;
+    v.push_back(off);
+    ModeDef tl = builtinMode("timeline", "Timeline", "Sideways = scrub, twist = single frames");
+    tl.v.type = ChannelActionType::None;
+    tl.h.type = tl.twist.type = ChannelActionType::Keys;
+    tl.h.neg = tl.twist.neg = Key::Left;
+    tl.h.pos = tl.twist.pos = Key::Right;
+    v.push_back(tl);
+    return v;
+}
+
+// Parses one mode file's text into *out (id already set). Problems -> warnings; returns false
+// only if the whole file must be rejected (too many overrides).
+bool parseModeText(const std::string &text, const std::string &file, ModeDef *out,
+                   std::vector<std::string> *warnings) {
+    auto warn = [&](size_t line, const std::string &msg) {
+        if (warnings && warnings->size() < 200)
+            warnings->push_back(file + ":" + std::to_string(line) + ": " + msg);
+    };
+    size_t pos = 0, lineno = 0;
+    while (pos < text.size()) {
+        size_t nl = text.find('\n', pos);
+        if (nl == std::string::npos) nl = text.size();
+        std::string raw = text.substr(pos, nl - pos);
+        pos = nl + 1;
+        lineno++;
+        if (lineno == 1 && raw.compare(0, 3, "\xEF\xBB\xBF") == 0) raw.erase(0, 3);
+        if (raw.size() > kMaxModeLine) { warn(lineno, "line too long - ignored"); continue; }
+        std::string line = trim(raw);
+        if (line.empty() || line[0] == '#' || line[0] == ';') continue;
+        if (line[0] == '[') { warn(lineno, "sections are not supported in mode files - ignored"); continue; }
+        const size_t eq = line.find('=');
+        if (eq == std::string::npos) { warn(lineno, "line without '=' ignored"); continue; }
+        const std::string key = upper(trim(line.substr(0, eq)));
+        std::string value = line.substr(eq + 1);
+        const std::string tv = trim(value);
+        if (!tv.empty() && tv[0] == '#') {
+            value.clear();
+        } else {
+            for (size_t p = 1; p < value.size(); p++)
+                if (value[p] == '#' && std::isspace(static_cast<unsigned char>(value[p - 1]))) {
+                    value.resize(p);
+                    break;
+                }
+        }
+        value = trim(value);
+        if (key.empty()) { warn(lineno, "line without key ignored"); continue; }
+
+        std::string err;
+        if (key == "NAME") {
+            out->label = cleanText(value, kMaxLabel);
+        } else if (key == "DESCRIPTION") {
+            out->description = cleanText(value, kMaxDescription);
+        } else if (key == "V_ACTION" || key == "H_ACTION" || key == "TWIST_ACTION") {
+            ChannelAction a;
+            if (!parseChannelAction(value, &a, &err)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
+            (key == "V_ACTION" ? out->v : key == "H_ACTION" ? out->h : out->twist) = a;
+        } else if (key == "MODE") {
+            warn(lineno, "MODE is not allowed in a mode file - line ignored");
+        } else if (key.compare(0, 7, "BUTTON_") == 0) {
+            const std::string num = key.substr(7);
+            if (num.empty() || num.size() > 2 || num.find_first_not_of("0123456789") != std::string::npos ||
+                std::atoi(num.c_str()) > kMaxModeButton) {
+                warn(lineno, key + ": button index must be 0.." + std::to_string(kMaxModeButton) + " - line ignored");
+                continue;
+            }
+            ButtonBinding b;
+            b.button = std::atoi(num.c_str());
+            if (!parseButtonAction(value, &b.type, &b.key, &err)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
+            bool replaced = false;
+            for (ButtonBinding &e : out->buttons)
+                if (e.button == b.button) { e = b; replaced = true; }
+            if (!replaced) out->buttons.push_back(b);
+        } else {
+            Settings probe;
+            if (!applyKey(probe, key, value, &err)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
+            if (out->overrides.size() >= kMaxModeOverrides) {
+                warn(lineno, "too many settings overrides (max. " + std::to_string(kMaxModeOverrides) + ") - file ignored");
+                return false;
+            }
+            out->overrides.emplace_back(key, value);
+        }
+    }
+    return true;
+}
+
+// Sorted names of "<id>.conf" entries (valid ids only). Scans at most kMaxDirEntries entries.
+// false if the directory cannot be opened.
+bool listConfNames(const std::string &dir, std::vector<std::string> *names, bool *capped) {
+    DIR *d = ::opendir(dir.c_str());
+    if (!d) return false;
+    *capped = false;
+    size_t seen = 0;
+    while (struct dirent *e = ::readdir(d)) {
+        if (++seen > kMaxDirEntries) { *capped = true; break; }
+        const std::string n = e->d_name;
+        if (n.size() <= 5 || n.compare(n.size() - 5, 5, ".conf") != 0) continue;
+        if (!validModeId(n.substr(0, n.size() - 5))) continue;
+        names->push_back(n);
+    }
+    ::closedir(d);
+    std::sort(names->begin(), names->end());
+    return true;
+}
+
+}  // namespace
 
 const ModeDef *ModeSet::find(const std::string &id) const {
     for (const ModeDef &m : modes)
         if (m.id == id) return &m;
     return nullptr;
 }
-bool validModeId(const std::string &id) { return !id.empty() && id.size() <= 32 && id.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_-") == std::string::npos; }
-bool parseChannelAction(const std::string &, ChannelAction *, std::string *) { return false; }
-bool parseButtonAction(const std::string &, ButtonActionType *, Key *, std::string *) { return false; }
-std::string modesDir() { return ""; }
-ModeSet loadModes(const std::string &, std::vector<std::string> *) {
-    ModeSet s;
-    ModeDef n;
-    n.id = "normal";
-    n.label = "Normal";
-    n.builtin = true;
-    s.modes.push_back(n);
+
+bool validModeId(const std::string &id) {
+    return !id.empty() && id.size() <= 32 &&
+           id.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_-") == std::string::npos;
+}
+
+bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err) {
+    const std::string t = lower(trim(text));
+    ChannelAction a;
+    if (t == "default") a.type = ChannelActionType::Default;
+    else if (t == "none") a.type = ChannelActionType::None;
+    else if (t == "wheel_v") a.type = ChannelActionType::WheelV;
+    else if (t == "wheel_h") a.type = ChannelActionType::WheelH;
+    else if (t == "zoom") a.type = ChannelActionType::Zoom;
+    else if (t.compare(0, 5, "keys:") == 0) {
+        const std::string rest = t.substr(5);
+        const size_t comma = rest.find(',');
+        if (comma == std::string::npos || rest.find(',', comma + 1) != std::string::npos)
+            return fail(err, "keys:<neg>,<pos> expects exactly two key names");
+        if (!parseKeyName(trim(rest.substr(0, comma)), &a.neg))
+            return fail(err, "unknown key '" + trim(rest.substr(0, comma)) + "'");
+        if (!parseKeyName(trim(rest.substr(comma + 1)), &a.pos))
+            return fail(err, "unknown key '" + trim(rest.substr(comma + 1)) + "'");
+        a.type = ChannelActionType::Keys;
+    } else {
+        return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos>");
+    }
+    if (out) *out = a;
+    return true;
+}
+
+bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key, std::string *err) {
+    const std::string t = lower(trim(text));
+    ButtonActionType ty;
+    Key k = Key::Space;
+    if (t == "none") ty = ButtonActionType::None;
+    else if (t == "click") ty = ButtonActionType::Click;
+    else if (t == "rightclick") ty = ButtonActionType::RightClick;
+    else if (t == "middleclick") ty = ButtonActionType::MiddleClick;
+    else if (t == "nav") ty = ButtonActionType::Nav;
+    else if (t.compare(0, 4, "key:") == 0) {
+        const std::string name = trim(t.substr(4));
+        if (!parseKeyName(name, &k)) return fail(err, "unknown key '" + name + "'");
+        ty = ButtonActionType::Key;
+    } else {
+        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name>");
+    }
+    if (type) *type = ty;
+    if (key) *key = k;
+    return true;
+}
+
+std::string modesDir() {
+    // legacyConfigPath() is "<config base dir>/spnav-scroll.conf"; strip the file name.
+    const std::string p = legacyConfigPath();
+    const size_t slash = p.rfind('/');
+    const std::string base = slash == std::string::npos ? "." : p.substr(0, slash);
+    return base + "/dofscroll/modes";
+}
+
+ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
+    ModeSet set;
+    set.modes = builtinModes();
+    auto warnAll = [&](const std::string &m) {
+        if (warnings && warnings->size() < 200) warnings->push_back(m);
+    };
+
+    std::vector<std::string> names;
+    bool capped = false;
+    if (!listConfNames(dir, &names, &capped)) return set;  // missing directory is no error
+    if (capped) warnAll(dir + ": too many entries - only the first " + std::to_string(kMaxDirEntries) + " were inspected");
+    if (names.size() > kMaxModeFiles) {
+        warnAll(dir + ": too many mode files (max. " + std::to_string(kMaxModeFiles) + ") - the rest is ignored");
+        names.resize(kMaxModeFiles);
+    }
+
+    const int dfd = ::open(dir.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (dfd < 0) { warnAll(dir + ": " + std::strerror(errno)); return set; }
+    for (const std::string &n : names) {
+        const std::string path = dir + "/" + n;
+        const int fd = ::openat(dfd, n.c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
+        if (fd < 0) { warnAll(path + ": " + std::strerror(errno) + " - ignored"); continue; }
+        struct stat st;
+        if (::fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
+            warnAll(path + ": not a regular file - ignored");
+            ::close(fd);
+            continue;
+        }
+        if (st.st_uid != ::geteuid()) {
+            warnAll(path + ": not owned by the current user - ignored");
+            ::close(fd);
+            continue;
+        }
+        if (static_cast<size_t>(st.st_size) > kMaxModeFileBytes) {
+            warnAll(path + ": file too large (max. " + std::to_string(kMaxModeFileBytes) + " bytes) - ignored");
+            ::close(fd);
+            continue;
+        }
+        std::string text;
+        char buf[8192];
+        bool bad = false;
+        for (;;) {
+            const ssize_t r = ::read(fd, buf, sizeof buf);
+            if (r < 0) { if (errno == EINTR) continue; bad = true; break; }
+            if (r == 0) break;
+            text.append(buf, static_cast<size_t>(r));
+            if (text.size() > kMaxModeFileBytes) { bad = true; break; }  // grew while reading
+        }
+        ::close(fd);
+        if (bad) { warnAll(path + ": unreadable or too large - ignored"); continue; }
+
+        ModeDef m;
+        m.id = n.substr(0, n.size() - 5);
+        if (!parseModeText(text, path, &m, warnings)) continue;
+        if (m.label.empty()) m.label = m.id;
+        bool replaced = false;
+        for (ModeDef &e : set.modes)
+            if (e.id == m.id) { e = m; replaced = true; break; }
+        if (!replaced) set.modes.push_back(m);
+    }
+    ::close(dfd);
+    return set;
+}
+
+std::string modesStamp(const std::string &dir) {
+    std::vector<std::string> names;
+    bool capped = false;
+    if (!listConfNames(dir, &names, &capped)) return "";
+    std::string s = "modes";
+    for (const std::string &n : names) {
+        struct stat st;
+        if (::fstatat(AT_FDCWD, (dir + "/" + n).c_str(), &st, AT_SYMLINK_NOFOLLOW) != 0) continue;
+        s += "|" + n + ":" + std::to_string(static_cast<long long>(st.st_mtim.tv_sec)) + "." +
+             std::to_string(static_cast<long long>(st.st_mtim.tv_nsec)) + ":" +
+             std::to_string(static_cast<long long>(st.st_size));
+    }
     return s;
 }
-std::string modesStamp(const std::string &) { return ""; }
 
 }  // namespace spn

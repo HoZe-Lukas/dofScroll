@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Benannte Tasten fuer Ausgabe (Output) und Modus-Dateien (modes.hpp). Eine Quelle der
-// Wahrheit: Kennung (Enum), Name in Config/Modus-Dateien. Die Zuordnung zu X11-Keysyms bzw.
-// Linux-KEY_*-Codes steht je Backend (output_x11.cpp, output_uinput.cpp) und MUSS jeden
-// Eintrag abdecken (static_assert auf kKeyCount).
-// Reihenfolge der ersten fuenf Eintraege ist fest (bestehender Code indiziert damit).
+// Named keys for output and mode files (modes.hpp). Single source of truth: identifier (enum)
+// and name in config/mode files. The mapping to X11 keysyms or Linux KEY_* codes lives in each
+// backend (output_x11.cpp, output_uinput.cpp) and MUST cover every entry (static_assert on
+// kKeyCount).
+// The order of the first five entries is fixed (existing code indexes with it).
 #pragma once
 #include <cstddef>
 #include <string>
@@ -29,7 +29,7 @@ enum class Key {
 #define X(id, name) id,
     SPN_KEY_LIST(X)
 #undef X
-    Count_  // nur fuer kKeyCount
+    Count_  // only for kKeyCount
 };
 constexpr size_t kKeyCount = static_cast<size_t>(Key::Count_);
 
@@ -42,7 +42,7 @@ inline const char *keyName(Key k) {
     return names[static_cast<size_t>(k)];
 }
 
-// Name (klein geschrieben, getrimmt) -> Key. false, wenn unbekannt.
+// Name (lower case, trimmed) -> Key. false if unknown.
 inline bool parseKeyName(const std::string &name, Key *out) {
     for (size_t i = 0; i < kKeyCount; ++i) {
         if (name == keyName(static_cast<Key>(i))) {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Implementierung des Konfigurationssystems, siehe config.hpp fuer das
-// Dateiformat und den Vertrag.
+// Implementation of the configuration system; see config.hpp for the
+// file format and the contract.
 #include "config.hpp"
 #include "modes.hpp"
 
@@ -26,7 +26,7 @@ namespace spn {
 
 namespace {
 
-// ---------------------------------------------------------------- Helfer
+// ---------------------------------------------------------------- Helpers
 
 std::string trim(const std::string &s) {
     size_t a = 0, b = s.size();
@@ -50,7 +50,7 @@ bool setErr(std::string *err, const std::string &msg) {
     return false;
 }
 
-// Kuerzeste Darstellung, die beim Zurueckparsen exakt denselben double ergibt.
+// Shortest representation that parses back to exactly the same double.
 std::string fmtNum(double v) {
     char buf[64];
     for (int prec = 6; prec <= 17; prec++) {
@@ -71,7 +71,7 @@ bool parseDouble(const std::string &text, double *out) {
     return true;
 }
 
-// Ganzzahl; "5" und "5.0" sind ok, "5.5" nicht.
+// Integer; "5" and "5.0" are ok, "5.5" is not.
 bool parseInt(const std::string &text, long *out) {
     double v;
     if (!parseDouble(text, &v)) return false;
@@ -95,8 +95,8 @@ bool axisFromName(const std::string &name, Axis *out) {
     return false;
 }
 
-// Teilt an Leerraum/Komma. Mehr als `max` Tokens -> *over = true und Abbruch
-// (kein unbegrenztes Wachstum).
+// Splits at whitespace/comma. More than `max` tokens -> *over = true and abort
+// (no unbounded growth).
 std::vector<std::string> splitList(const std::string &text, size_t max, bool *over) {
     std::vector<std::string> out;
     std::string cur;
@@ -123,14 +123,14 @@ bool parseLateral(const std::string &text, std::vector<Axis> *out, std::string *
     std::vector<Axis> res;
     bool over;
     std::vector<std::string> toks = splitList(text, kMaxLateralAxes * 4, &over);
-    if (over) return setErr(err, "zu viele Achsen (max. " + std::to_string(kMaxLateralAxes) + ")");
+    if (over) return setErr(err, "too many axes (max. " + std::to_string(kMaxLateralAxes) + ")");
     for (const std::string &tok : toks) {
         Axis a;
-        if (!axisFromName(tok, &a)) return setErr(err, "unbekannte Achse '" + tok + "'");
+        if (!axisFromName(tok, &a)) return setErr(err, "unknown axis '" + tok + "'");
         if (std::find(res.begin(), res.end(), a) == res.end()) res.push_back(a);
     }
     if (res.size() > kMaxLateralAxes)
-        return setErr(err, "zu viele Achsen (max. " + std::to_string(kMaxLateralAxes) + ")");
+        return setErr(err, "too many axes (max. " + std::to_string(kMaxLateralAxes) + ")");
     *out = res;
     return true;
 }
@@ -144,18 +144,18 @@ std::string lateralToString(const std::vector<Axis> &v) {
     return s;
 }
 
-// CURVE: eine Zahl (Exponent) ODER Punktliste "in:faktor in:faktor".
+// CURVE: a number (exponent) OR a point list "in:factor in:factor".
 bool parseCurve(const std::string &text, ChannelCfg *c, std::string *err) {
     bool over;
     std::vector<std::string> toks = splitList(text, kMaxCurvePoints, &over);
-    if (over) return setErr(err, "CURVE: zu viele Punkte (max. " + std::to_string(kMaxCurvePoints) + ")");
-    if (toks.empty()) return setErr(err, "CURVE: Wert fehlt");
+    if (over) return setErr(err, "CURVE: too many points (max. " + std::to_string(kMaxCurvePoints) + ")");
+    if (toks.empty()) return setErr(err, "CURVE: value missing");
     bool any_colon = false;
     for (const std::string &t : toks) any_colon |= (t.find(':') != std::string::npos);
     if (!any_colon) {
         double v;
         if (toks.size() != 1 || !parseDouble(toks[0], &v))
-            return setErr(err, "CURVE: Zahl oder Punktliste 'in:faktor ...' erwartet");
+            return setErr(err, "CURVE: number or point list 'in:factor ...' expected");
         c->curve_exp = std::min(10.0, std::max(0.1, v));
         c->curve_points.clear();
         return true;
@@ -166,12 +166,12 @@ bool parseCurve(const std::string &text, ChannelCfg *c, std::string *err) {
         double in, f;
         if (p == std::string::npos || !parseDouble(t.substr(0, p), &in) ||
             !parseDouble(t.substr(p + 1), &f))
-            return setErr(err, "CURVE: ungueltiger Punkt '" + t + "'");
-        if (in < 0 || f < 0) return setErr(err, "CURVE: Punkt '" + t + "' darf nicht negativ sein");
-        // Obergrenzen: sonst Schrittrate/Klickflut bzw. Ueberlauf (siehe docs/security.md S2).
-        if (in > 100000 || f > 100) return setErr(err, "CURVE: Punkt '" + t + "' ausserhalb des erlaubten Bereichs (Faktor <= 100)");
+            return setErr(err, "CURVE: invalid point '" + t + "'");
+        if (in < 0 || f < 0) return setErr(err, "CURVE: Punkt '" + t + "' must not be negative");
+        // Upper bounds: otherwise step-rate/click flood or overflow (see docs/security.md S2).
+        if (in > 100000 || f > 100) return setErr(err, "CURVE: Punkt '" + t + "' outside the allowed range (factor <= 100)");
         if (!pts.empty() && in <= pts.back().first)
-            return setErr(err, "CURVE: Eingaben muessen aufsteigend sein ('" + t + "')");
+            return setErr(err, "CURVE: inputs must be ascending ('" + t + "')");
         pts.emplace_back(in, f);
     }
     c->curve_points = pts;
@@ -188,8 +188,8 @@ std::string curveToString(const ChannelCfg &c) {
     return s;
 }
 
-// Setzt ein Kanal-Feld anhand des Suffixes (MIX, SENS, ...). false + err bei Fehler,
-// *known = false wenn Suffix nicht existiert.
+// Sets a channel field by suffix (MIX, SENS, ...). false + err on error,
+// *known = false if the suffix does not exist.
 bool applyChannel(ChannelCfg &c, const std::string &suffix, const std::string &value,
                   std::string *err, bool *known) {
     *known = true;
@@ -197,23 +197,23 @@ bool applyChannel(ChannelCfg &c, const std::string &suffix, const std::string &v
     double d;
     if (suffix == "MIX") return parseMix(value, &c.mix, err);
     if (suffix == "SENS") {
-        if (!parseInt(value, &n)) return setErr(err, "Ganzzahl erwartet");
+        if (!parseInt(value, &n)) return setErr(err, "integer expected");
         c.sensitivity = static_cast<int>(std::clamp(n, 0L, 255L));
         return true;
     }
     if (suffix == "DEADZONE") {
-        if (!parseInt(value, &n)) return setErr(err, "Ganzzahl erwartet");
+        if (!parseInt(value, &n)) return setErr(err, "integer expected");
         c.deadzone = static_cast<int>(std::max(n, 0L));
         return true;
     }
     if (suffix == "SIGN") {
-        if (!parseInt(value, &n) || (n != 1 && n != -1)) return setErr(err, "1 oder -1 erwartet");
+        if (!parseInt(value, &n) || (n != 1 && n != -1)) return setErr(err, "1 or -1 expected");
         c.sign = static_cast<int>(n);
         return true;
     }
     if (suffix == "CURVE") return parseCurve(value, &c, err);
     if (suffix == "SMOOTH_MS") {
-        if (!parseDouble(value, &d)) return setErr(err, "Zahl erwartet");
+        if (!parseDouble(value, &d)) return setErr(err, "number expected");
         c.smooth_ms = std::clamp(d, 0.0, 500.0);
         return true;
     }
@@ -221,7 +221,7 @@ bool applyChannel(ChannelCfg &c, const std::string &suffix, const std::string &v
     return false;
 }
 
-// Die eigentliche Logik, arbeitet direkt auf s (Aufrufer sorgt fuer Atomaritaet).
+// The actual logic, works directly on s (the caller ensures atomicity).
 bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &value,
                   std::string *err) {
     const std::string key = upper(trim(keyIn));
@@ -229,53 +229,67 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
     double d;
     bool b;
 
-    // --- globale Keys
+    // --- global keys
     if (key == "ZOOM_LATERAL") return parseLateral(value, &s.zoom_lateral, err);
     if (key == "ZOOM_ENTER_MS") {
-        if (!parseInt(value, &n)) return setErr(err, "Ganzzahl erwartet");
+        if (!parseInt(value, &n)) return setErr(err, "integer expected");
         s.zoom_enter_ms = static_cast<int>(std::max(n, 0L));
         return true;
     }
     if (key == "ZOOM_EXIT_RATIO") {
-        if (!parseDouble(value, &d)) return setErr(err, "Zahl erwartet");
+        if (!parseDouble(value, &d)) return setErr(err, "number expected");
         s.zoom_exit_ratio = std::min(kMaxZoomExitRatio, std::max(1.0, d));
         return true;
     }
     if (key == "BACKEND") {
         std::string v = lower(trim(value));
         if (v != "auto" && v != "x11" && v != "uinput")
-            return setErr(err, "auto, x11 oder uinput erwartet");
+            return setErr(err, "auto, x11 or uinput expected");
         s.backend = v;
         return true;
     }
     if (key == "TICK_HZ") {
-        if (!parseInt(value, &n)) return setErr(err, "Ganzzahl erwartet");
+        if (!parseInt(value, &n)) return setErr(err, "integer expected");
         s.tick_hz = static_cast<int>(std::clamp(n, 30L, 1000L));
         return true;
     }
     if (key == "MODE") {
         std::string v = lower(trim(value));
-        if (!validModeId(v)) return setErr(err, "Modus-Kennung erwartet ([a-z0-9_-], max. 32 Zeichen)");
+        if (!validModeId(v)) return setErr(err, "mode id expected ([a-z0-9_-], max. 32 characters)");
         s.mode = v;
         return true;
     }
     if (key == "ENABLED") {
-        if (!parseBool(value, &b)) return setErr(err, "0/1 erwartet");
+        if (!parseBool(value, &b)) return setErr(err, "0/1 expected");
         s.enabled = b;
         return true;
     }
+    if (key.compare(0, 7, "BUTTON_") == 0) {
+        const std::string num = key.substr(7);
+        long bn = 0;
+        if (num.empty() || num.size() > 3 || num.find_first_not_of("0123456789") != std::string::npos ||
+            (bn = std::strtol(num.c_str(), nullptr, 10)) < 1 || bn > kMaxButtons)
+            return setErr(err, "BUTTON_<n> needs n in 1.." + std::to_string(kMaxButtons));
+        ButtonActionType bt;
+        Key bk = Key::Space;
+        if (!parseButtonAction(value, &bt, &bk, err)) return false;
+        std::string canon = lower(trim(value));
+        if (bt == ButtonActionType::Key) canon = std::string("key:") + keyName(bk);
+        s.buttons[static_cast<int>(bn)] = canon;
+        return true;
+    }
     if (key == "NAV_BUTTON" || key == "CLICK_BUTTON") {
-        if (!parseInt(value, &n) || n < 0) return setErr(err, "Button-Nummer >= 0 erwartet");
+        if (!parseInt(value, &n) || n < 0) return setErr(err, "button number >= 0 expected");
         (key == "NAV_BUTTON" ? s.nav_button : s.click_button) = static_cast<int>(n);
         return true;
     }
     if (key == "NAV_BUTTON_ENABLED" || key == "CLICK_BUTTON_ENABLED") {
-        if (!parseBool(value, &b)) return setErr(err, "0/1 erwartet");
+        if (!parseBool(value, &b)) return setErr(err, "0/1 expected");
         (key == "NAV_BUTTON_ENABLED" ? s.nav_button_enabled : s.click_button_enabled) = b;
         return true;
     }
 
-    // --- Legacy-Keys
+    // --- legacy keys
     if (key == "SCROLL_SENSITIVITY_Y") return applyKeyImpl(s, "SCROLL_V_SENS", value, err);
     if (key == "SCROLL_SENSITIVITY_X") return applyKeyImpl(s, "SCROLL_H_SENS", value, err);
     if (key == "ZOOM_SENSITIVITY") return applyKeyImpl(s, "ZOOM_SENS", value, err);
@@ -284,20 +298,20 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
     if (key == "INVERT_Y") return applyKeyImpl(s, "SCROLL_V_SIGN", value, err);
     if (key == "INVERT_X") return applyKeyImpl(s, "SCROLL_H_SIGN", value, err);
     if (key == "ZOOM_INVERT") {
-        if (!parseBool(value, &b)) return setErr(err, "0/1 erwartet");
+        if (!parseBool(value, &b)) return setErr(err, "0/1 expected");
         s.zoom.sign = b ? -1 : 1;
         return true;
     }
     if (key == "RESPONSE_CURVE") {
-        if (!parseDouble(value, &d)) return setErr(err, "Zahl erwartet");
+        if (!parseDouble(value, &d)) return setErr(err, "number expected");
         for (ChannelCfg *c : {&s.scroll_v, &s.scroll_h, &s.zoom}) {
             c->curve_exp = std::min(10.0, std::max(0.1, d));
-            c->curve_points.clear();  // sonst haette der Exponent keine Wirkung
+            c->curve_points.clear();  // otherwise the exponent would have no effect
         }
         return true;
     }
 
-    // --- Kanal-Keys (PREFIX_SUFFIX)
+    // --- channel keys (PREFIX_SUFFIX)
     struct Pref { const char *name; ChannelCfg Settings::*cfg; };
     static const Pref prefs[] = {{"SCROLL_V_", &Settings::scroll_v},
                                  {"SCROLL_H_", &Settings::scroll_h},
@@ -308,11 +322,11 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
         bool known = false;
         bool ok = applyChannel(s.*(p.cfg), key.substr(len), value, err, &known);
         if (known) {
-            if (!ok && err && err->empty()) *err = "ungueltiger Wert";
+            if (!ok && err && err->empty()) *err = "invalid value";
             return ok;
         }
     }
-    return setErr(err, "unbekannter Key '" + keyIn + "'");
+    return setErr(err, "unknown key '" + keyIn + "'");
 }
 
 bool containsCI(const std::string &haystack, const std::string &needle) {
@@ -330,7 +344,7 @@ bool parseMix(const std::string &text, Mix *out, std::string *err) {
     size_t i = 0;
     auto skipws = [&] { while (i < n && std::isspace(static_cast<unsigned char>(text[i]))) i++; };
     skipws();
-    if (i >= n) { if (out) *out = m; return true; }  // leer = Kanal liefert 0
+    if (i >= n) { if (out) *out = m; return true; }  // empty = channel yields 0
     bool first = true;
     while (true) {
         skipws();
@@ -340,28 +354,28 @@ bool parseMix(const std::string &text, Mix *out, std::string *err) {
             i++;
             skipws();
         } else if (!first) {
-            return setErr(err, "'+' oder '-' zwischen den Termen erwartet");
+            return setErr(err, "'+' or '-' expected between terms");
         }
         double weight = 1.0;
         if (i < n && (std::isdigit(static_cast<unsigned char>(text[i])) || text[i] == '.')) {
             char *end = nullptr;
             weight = std::strtod(text.c_str() + i, &end);
             if (end == text.c_str() + i || !std::isfinite(weight) || weight > 100.0)
-                return setErr(err, "ungueltiges Gewicht (0..100)");
+                return setErr(err, "invalid weight (0..100)");
             i = static_cast<size_t>(end - text.c_str());
             skipws();
-            if (i >= n || text[i] != '*') return setErr(err, "'*' nach dem Gewicht erwartet");
+            if (i >= n || text[i] != '*') return setErr(err, "'*' expected after the weight");
             i++;
             skipws();
         }
         size_t a = i;
         while (i < n && std::isalpha(static_cast<unsigned char>(text[i]))) i++;
-        if (a == i) return setErr(err, "Achsenname erwartet");
+        if (a == i) return setErr(err, "axis name expected");
         std::string name = text.substr(a, i - a);
         Axis ax;
-        if (!axisFromName(name, &ax)) return setErr(err, "unbekannte Achse '" + name + "'");
+        if (!axisFromName(name, &ax)) return setErr(err, "unknown axis '" + name + "'");
         if (m.terms.size() >= kMaxMixTerms)
-            return setErr(err, "zu viele Terme (max. " + std::to_string(kMaxMixTerms) + ")");
+            return setErr(err, "too many terms (max. " + std::to_string(kMaxMixTerms) + ")");
         m.terms.push_back({ax, sign * weight});
         skipws();
         if (i >= n) break;
@@ -411,7 +425,7 @@ bool applyKey(Settings &s, const std::string &key, const std::string &value, std
     Settings tmp = s;
     std::string e;
     if (!applyKeyImpl(tmp, key, value, &e)) {
-        if (err) *err = e.empty() ? "ungueltiger Wert" : e;
+        if (err) *err = e.empty() ? "invalid value" : e;
         return false;
     }
     s = std::move(tmp);
@@ -442,13 +456,22 @@ std::vector<KV> allKeys(const Settings &s) {
     kv.emplace_back("NAV_BUTTON_ENABLED", s.nav_button_enabled ? "1" : "0");
     kv.emplace_back("CLICK_BUTTON", std::to_string(s.click_button));
     kv.emplace_back("CLICK_BUTTON_ENABLED", s.click_button_enabled ? "1" : "0");
+    for (const auto &b : s.buttons) kv.emplace_back("BUTTON_" + std::to_string(b.first), b.second);
     return kv;
 }
 
 std::vector<KV> diffKeys(const Settings &base, const Settings &s) {
-    std::vector<KV> a = allKeys(base), b = allKeys(s), out;
-    for (size_t i = 0; i < a.size() && i < b.size(); i++)
-        if (a[i].second != b[i].second) out.push_back(b[i]);
+    // Matched by key name: the BUTTON_<n> entries vary in number.
+    std::unordered_map<std::string, std::string> a;
+    for (const KV &p : allKeys(base)) a[p.first] = p.second;
+    std::vector<KV> out;
+    for (const KV &p : allKeys(s)) {
+        auto it = a.find(p.first);
+        if (it == a.end() || it->second != p.second) out.push_back(p);
+    }
+    // A binding present in base but absent in s can only be expressed as an explicit "none".
+    for (const auto &b : base.buttons)
+        if (!s.buttons.count(b.first)) out.emplace_back("BUTTON_" + std::to_string(b.first), "none");
     return out;
 }
 
@@ -457,7 +480,7 @@ std::vector<KV> diffKeys(const Settings &base, const Settings &s) {
 ProfileSet::ProfileSet() { sections.push_back(Section()); }
 
 static void applyKvList(Settings &s, const std::vector<KV> &kv) {
-    for (const KV &p : kv) applyKey(s, p.first, p.second, nullptr);  // Fehler: ueberspringen
+    for (const KV &p : kv) applyKey(s, p.first, p.second, nullptr);  // error: skip
 }
 
 Settings ProfileSet::sectionSettings(size_t i) const {
@@ -469,12 +492,18 @@ Settings ProfileSet::sectionSettings(size_t i) const {
 }
 
 Settings ProfileSet::resolve(const std::string &device_name, const std::string &wm_class) const {
+    return resolve(device_name, wm_class, nullptr);
+}
+
+Settings ProfileSet::resolve(const std::string &device_name, const std::string &wm_class,
+                             const std::vector<KV> *mode_overrides) const {
     Settings s;
     if (sections.empty()) return s;
     applyKvList(s, sections[0].kv);
     for (size_t i = 1; i < sections.size(); i++)
         if (sections[i].kind == Section::DEVICE && containsCI(device_name, sections[i].pattern))
             applyKvList(s, sections[i].kv);
+    if (mode_overrides) applyKvList(s, *mode_overrides);
     for (size_t i = 1; i < sections.size(); i++)
         if (sections[i].kind == Section::APP && containsCI(wm_class, sections[i].pattern))
             applyKvList(s, sections[i].kv);
@@ -491,27 +520,36 @@ void ProfileSet::setSectionFromSettings(size_t i, const Settings &s) {
             sections[i].kv = diffKeys(base, s);
             return;
         }
-        // APP: Aufloesung ist global -> Geraete -> Programme. Ein Wert, den ein
-        // Geraeteabschnitt (einzeln oder alle kumuliert) auf etwas anderes setzt als
-        // s will, muss explizit geschrieben werden, auch wenn s dem global-Wert
-        // entspricht - sonst gewinnt der Geraetewert.
-        const std::vector<KV> want = allKeys(s), glob = allKeys(base);
-        std::vector<std::vector<KV>> devs;
+        // APP: resolution is global -> devices -> (mode) -> apps. A value that a
+        // device section (alone or all accumulated) sets to something other than
+        // what s wants must be written explicitly, even if s equals the global
+        // value - otherwise the device value wins.
+        const std::vector<KV> want = allKeys(s);
+        auto toMap = [](const std::vector<KV> &v) {
+            std::unordered_map<std::string, std::string> m;
+            for (const KV &p : v) m[p.first] = p.second;
+            return m;
+        };
+        const auto glob = toMap(allKeys(base));
+        std::vector<std::unordered_map<std::string, std::string>> devs;
         Settings all = base;
         for (size_t j = 1; j < sections.size(); j++) {
             if (sections[j].kind != Section::DEVICE) continue;
             Settings d = base;
             applyKvList(d, sections[j].kv);
             applyKvList(all, sections[j].kv);
-            devs.push_back(allKeys(d));
+            devs.push_back(toMap(allKeys(d)));
         }
-        devs.push_back(allKeys(all));
+        devs.push_back(toMap(allKeys(all)));
         std::vector<KV> out;
-        for (size_t k = 0; k < want.size() && k < glob.size(); k++) {
-            bool need = want[k].second != glob[k].second;
-            for (size_t d = 0; !need && d < devs.size(); d++)
-                if (k < devs[d].size() && devs[d][k].second != want[k].second) need = true;
-            if (need) out.push_back(want[k]);
+        for (const KV &w : want) {
+            auto g = glob.find(w.first);
+            bool need = g == glob.end() || g->second != w.second;
+            for (size_t d = 0; !need && d < devs.size(); d++) {
+                auto it = devs[d].find(w.first);
+                if (it != devs[d].end() && it->second != w.second) need = true;
+            }
+            if (need) out.push_back(w);
         }
         sections[i].kv = out;
     }
@@ -531,7 +569,7 @@ static std::string indexKey(Section::Kind kind, const std::string &pattern) {
 void ProfileSet::rebuildIndex() const {
     idx_.clear();
     for (size_t i = 1; i < sections.size(); i++)
-        idx_.emplace(indexKey(sections[i].kind, sections[i].pattern), i);  // erster gewinnt
+        idx_.emplace(indexKey(sections[i].kind, sections[i].pattern), i);  // first wins
     idx_n_ = sections.size();
 }
 
@@ -547,7 +585,7 @@ size_t ProfileSet::find(Section::Kind kind, const std::string &pattern) const {
         if (i > 0 && i < sections.size() && sections[i].kind == kind &&
             lower(sections[i].pattern) == key.substr(1))
             return i;
-        rebuildIndex();  // veraltet (sections von aussen veraendert)
+        rebuildIndex();  // stale (sections modified from outside)
         it = idx_.find(key);
         if (it != idx_.end()) return it->second;
     }
@@ -572,17 +610,17 @@ size_t ProfileSet::findOrAdd(Section::Kind kind, const std::string &pattern) {
 void ProfileSet::remove(size_t i) {
     if (i == 0 || i >= sections.size()) return;
     sections.erase(sections.begin() + static_cast<long>(i));
-    idx_n_ = static_cast<size_t>(-1);  // Indizes verschoben -> lazy neu aufbauen
+    idx_n_ = static_cast<size_t>(-1);  // indices shifted -> rebuild lazily
 }
 
-// ---------------------------------------------------------------- Datei
+// ---------------------------------------------------------------- File
 
 
 namespace {
 
 bool isAbs(const char *p) { return p && p[0] == '/'; }
 
-// Liest ab fd bis EOF in *out, hoechstens `cap` Bytes. *toobig = true wenn mehr da ist.
+// Reads from fd to EOF into *out, at most `cap` bytes. *toobig = true if there is more.
 bool readBounded(int fd, size_t cap, std::string *out, bool *toobig, int *err) {
     *toobig = false;
     char buf[16384];
@@ -599,7 +637,7 @@ bool readBounded(int fd, size_t cap, std::string *out, bool *toobig, int *err) {
     }
 }
 
-// Legt alle Verzeichniskomponenten mit Modus 0700 an (bestehende bleiben unberuehrt).
+// Creates all directory components with mode 0700 (existing ones stay untouched).
 bool mkdirs0700(const std::string &dir, std::string *emsg) {
     size_t i = 0;
     while (i <= dir.size()) {
@@ -624,7 +662,7 @@ void randomSuffix(char out[17]) {
         int fd = ::open("/dev/urandom", O_RDONLY | O_CLOEXEC);
         n = fd >= 0 ? ::read(fd, r, sizeof r) : -1;
         if (fd >= 0) ::close(fd);
-        if (n != static_cast<ssize_t>(sizeof r)) {  // letzter Ausweg: Zeit + PID
+        if (n != static_cast<ssize_t>(sizeof r)) {  // last resort: time + PID
             struct timespec ts;
             ::clock_gettime(CLOCK_REALTIME, &ts);
             unsigned long long v = static_cast<unsigned long long>(ts.tv_nsec) * 6364136223846793005ULL ^
@@ -635,12 +673,12 @@ void randomSuffix(char out[17]) {
     for (int k = 0; k < 8; k++) std::snprintf(out + 2 * k, 3, "%02x", r[k]);
 }
 
-// Prueft ein Roh-Paar einer Sektion vor dem Schreiben.
+// Checks a raw pair of a section before writing.
 bool validPair(const KV &p, std::string *why) {
     const std::string &k = p.first, &v = p.second;
-    if (k.empty() || k[0] == '[' || k[0] == '#' || k[0] == ';') { *why = "ungueltiger Key '" + k + "'"; return false; }
+    if (k.empty() || k[0] == '[' || k[0] == '#' || k[0] == ';') { *why = "invalid key '" + k + "'"; return false; }
     if (k.find_first_of("\r\n=") != std::string::npos || v.find_first_of("\r\n") != std::string::npos) {
-        *why = "Key/Wert mit Zeilenumbruch oder '=' im Key: '" + k + "'";
+        *why = "key/value with line break or '=' in key: '" + k + "'";
         return false;
     }
     Settings probe;
@@ -653,10 +691,10 @@ bool validPair(const KV &p, std::string *why) {
 
 namespace {
 
-// Basis-Konfigurationsverzeichnis (ohne abschliessenden Slash).
+// Base config directory (without trailing slash).
 std::string configBaseDir() {
     const char *xdg = std::getenv("XDG_CONFIG_HOME");
-    if (isAbs(xdg)) return xdg;  // relativ -> ignorieren (XDG-Spec)
+    if (isAbs(xdg)) return xdg;  // relative -> ignore (XDG spec)
     const char *home = std::getenv("HOME");
     if (home && *home) return std::string(home) + "/.config";
     struct passwd *pw = ::getpwuid(::getuid());
@@ -671,10 +709,10 @@ bool lexists(const std::string &p) {
 
 }  // namespace
 
-// Aeltester Ort (vor dem Umzug in einen eigenen Ordner), Name des Projekts damals "spnav-scroll".
+// Oldest location (before the move into its own folder); the project was then named "spnav-scroll".
 std::string legacyConfigPath() { return configBaseDir() + "/spnav-scroll.conf"; }
 
-// Vorheriger Ort (eigener Ordner, Projektname "spnav-scroll").
+// Previous location (own folder, project name "spnav-scroll").
 std::string previousConfigPath() { return configBaseDir() + "/spnav-scroll/spnav-scroll.conf"; }
 
 static std::string newConfigDir() { return configBaseDir() + "/dofscroll"; }
@@ -683,9 +721,9 @@ std::string defaultConfigPath() {
     const std::string np = newConfigDir() + "/dofscroll.conf";
     if (lexists(np)) return np;
     const std::string pp = previousConfigPath();
-    if (lexists(pp)) return pp;  // Fallback bis zur Migration
+    if (lexists(pp)) return pp;  // fallback until migration
     const std::string lp = legacyConfigPath();
-    if (lexists(lp)) return lp;  // Fallback bis zur Migration
+    if (lexists(lp)) return lp;  // fallback until migration
     return np;
 }
 
@@ -696,30 +734,30 @@ bool migrateLegacyConfig(std::string *log) {
     };
     const std::string dir = newConfigDir();
     const std::string np = dir + "/dofscroll.conf";
-    // Quelle: zuerst der vorherige Ort, sonst der aelteste.
+    // Source: the previous location first, otherwise the oldest.
     const std::string lp = lexists(previousConfigPath()) ? previousConfigPath() : legacyConfigPath();
     if (lexists(np)) return true;
     struct stat lst;
-    if (::lstat(lp.c_str(), &lst) != 0) return fail("keine alte Konfiguration zu migrieren (" + lp + ")");
+    if (::lstat(lp.c_str(), &lst) != 0) return fail("no old configuration to migrate (" + lp + ")");
     const bool isLink = S_ISLNK(lst.st_mode);
     if (!isLink && !S_ISREG(lst.st_mode))
-        return fail(lp + ": weder regulaere Datei noch Symlink - nicht migriert");
+        return fail(lp + ": neither regular file nor symlink - not migrated");
 
-    // Vorbereitung vor dem Anlegen des Verzeichnisses (damit bei Fehlern nichts liegen bleibt).
+    // Preparation before creating the directory (so nothing is left behind on errors).
     std::string linkTarget, content;
     mode_t mode = 0600;
     if (isLink) {
         std::string l(4096, '\0');
         ssize_t n = ::readlink(lp.c_str(), &l[0], l.size());
         if (n <= 0 || static_cast<size_t>(n) >= l.size())
-            return fail(lp + ": Symlink nicht lesbar");
+            return fail(lp + ": symlink not readable");
         l.resize(static_cast<size_t>(n));
         if (l[0] == '/') {
             linkTarget = l;
         } else {
             size_t slash = lp.rfind('/');
             linkTarget = (slash == std::string::npos ? std::string() : lp.substr(0, slash + 1)) + l;
-            if (linkTarget[0] != '/') {  // relatives Basisverzeichnis -> absolut machen
+            if (linkTarget[0] != '/') {  // relative base directory -> make absolute
                 char *cwd = ::getcwd(nullptr, 0);
                 if (cwd) { linkTarget = std::string(cwd) + "/" + linkTarget; std::free(cwd); }
             }
@@ -728,25 +766,25 @@ bool migrateLegacyConfig(std::string *log) {
         }
         struct stat tst;
         if (::stat(linkTarget.c_str(), &tst) == 0 && !S_ISREG(tst.st_mode))
-            return fail(lp + ": Symlink-Ziel ist keine regulaere Datei - nicht migriert");
+            return fail(lp + ": symlink target is not a regular file - not migrated");
     } else {
         int fd = ::open(lp.c_str(), O_RDONLY | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC);
         if (fd < 0) return fail(lp + ": " + std::strerror(errno));
         struct stat st;
         if (::fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
             ::close(fd);
-            return fail(lp + ": keine regulaere Datei - nicht migriert");
+            return fail(lp + ": not a regular file - not migrated");
         }
         if (st.st_size > 0 && static_cast<size_t>(st.st_size) > kMaxConfigBytes) {
             ::close(fd);
-            return fail(lp + ": Datei zu gross (max. " + std::to_string(kMaxConfigBytes) + " Bytes) - nicht migriert");
+            return fail(lp + ": file too large (max. " + std::to_string(kMaxConfigBytes) + " bytes) - not migrated");
         }
         bool toobig = false;
         int rerr = 0;
         bool rok = readBounded(fd, kMaxConfigBytes, &content, &toobig, &rerr);
         ::close(fd);
         if (!rok) return fail(lp + ": " + std::strerror(rerr));
-        if (toobig) return fail(lp + ": Datei zu gross (max. " + std::to_string(kMaxConfigBytes) + " Bytes) - nicht migriert");
+        if (toobig) return fail(lp + ": file too large (max. " + std::to_string(kMaxConfigBytes) + " bytes) - not migrated");
         mode = st.st_mode & 0777;
     }
 
@@ -756,12 +794,12 @@ bool migrateLegacyConfig(std::string *log) {
     if (dfd < 0) return fail(dir + ": " + std::strerror(errno));
     struct DirGuard { int fd; ~DirGuard() { ::close(fd); } } guard{dfd};
     const char *base = "dofscroll.conf";
-    const std::string okMsg = "Konfiguration nach " + np + " migriert; die alte Datei " + lp +
-                              " bleibt unveraendert und kann entfernt werden";
+    const std::string okMsg = "configuration migrated to " + np + "; the old file " + lp +
+                              " is left unchanged and can be removed";
 
     if (isLink) {
         if (::symlinkat(linkTarget.c_str(), dfd, base) != 0) {
-            if (errno == EEXIST) return true;  // parallel migriert
+            if (errno == EEXIST) return true;  // migrated in parallel
             return fail(np + ": " + std::strerror(errno));
         }
         (void)::fsync(dfd);
@@ -784,7 +822,7 @@ bool migrateLegacyConfig(std::string *log) {
     while (off < content.size()) {
         ssize_t n = ::write(fd, content.data() + off, content.size() - off);
         if (n < 0 && errno == EINTR) continue;
-        if (n <= 0) { m = tmp + ": Schreiben fehlgeschlagen: " + std::strerror(n < 0 ? errno : EIO); break; }
+        if (n <= 0) { m = tmp + ": write failed: " + std::strerror(n < 0 ? errno : EIO); break; }
         off += static_cast<size_t>(n);
     }
     if (m.empty() && ::fchmod(fd, mode) != 0) m = tmp + ": chmod: " + std::strerror(errno);
@@ -792,7 +830,7 @@ bool migrateLegacyConfig(std::string *log) {
     if (::close(fd) != 0 && m.empty()) m = tmp + ": close: " + std::strerror(errno);
     bool exists = false;
     if (m.empty() && ::linkat(dfd, tmp.c_str(), dfd, base, 0) != 0) {
-        if (errno == EEXIST) exists = true;  // jemand war schneller: nicht ueberschreiben
+        if (errno == EEXIST) exists = true;  // someone was faster: do not overwrite
         else m = np + ": " + std::strerror(errno);
     }
     (void)::unlinkat(dfd, tmp.c_str(), 0);
@@ -810,28 +848,28 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
     auto warn = [&](size_t line, const std::string &msg) {
         if (!warnings) return;
         if (nwarn == kMaxWarnings) {
-            warnings->push_back(path + ": weitere Warnungen unterdrueckt");
+            warnings->push_back(path + ": further warnings suppressed");
             nwarn++;
         }
         if (nwarn > kMaxWarnings) return;
         nwarn++;
         warnings->push_back(path + ":" + std::to_string(line) + ": " + msg);
     };
-    // Einmal oeffnen, dann nur noch ueber den fd arbeiten (kein stat/open-Race).
+    // Open once, then work only through the fd (no stat/open race).
     int fd = ::open(path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
     if (fd < 0) {
         int e = errno;
-        if (e == ENOENT) { if (out) *out = ps; return true; }  // fehlende Datei = Defaults
+        if (e == ENOENT) { if (out) *out = ps; return true; }  // missing file = defaults
         if (warnings) warnings->push_back(path + ": " + std::strerror(e));
         return false;
     }
     struct stat st;
     if (::fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
         ::close(fd);
-        if (warnings) warnings->push_back(path + ": keine regulaere Datei");
+        if (warnings) warnings->push_back(path + ": not a regular file");
         return false;
     }
-    const std::string tooBigMsg = path + ": Datei zu gross (max. " + std::to_string(kMaxConfigBytes) + " Bytes)";
+    const std::string tooBigMsg = path + ": file too large (max. " + std::to_string(kMaxConfigBytes) + " bytes)";
     if (st.st_size > 0 && static_cast<size_t>(st.st_size) > kMaxConfigBytes) {
         ::close(fd);
         if (warnings) warnings->push_back(tooBigMsg);
@@ -851,7 +889,7 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
         return false;
     }
 
-    long cur = 0;  // aktuelle Sektion, -1 = unbekannte/ueberzaehlige Sektion (Keys ignorieren)
+    long cur = 0;  // current section, -1 = unknown/surplus section (ignore keys)
     size_t lineno = 0;
     size_t pos = 0;
     while (pos < data.size()) {
@@ -865,21 +903,21 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
         pos = nl + 1;
         lineno++;
         if (tooLong) {
-            warn(lineno, "Zeile zu lang (max. " + std::to_string(kMaxLineBytes) + " Bytes) - ignoriert");
-            // War es ein Sektionskopf, duerfen die Keys danach nicht der alten Sektion zufallen.
+            warn(lineno, "line too long (max. " + std::to_string(kMaxLineBytes) + " bytes) - ignored");
+            // If it was a section header, the keys after it must not fall into the old section.
             size_t q = lstart;
             while (q < nl && std::isspace(static_cast<unsigned char>(data[q]))) q++;
             if (q < nl && data[q] == '[') cur = -1;
             continue;
         }
         if (lineno == 1 && raw.compare(0, 3, "\xEF\xBB\xBF") == 0) raw.erase(0, 3);  // UTF-8-BOM
-        std::string line = trim(raw);  // entfernt auch CR
+        std::string line = trim(raw);  // also removes CR
         if (line.empty() || line[0] == '#' || line[0] == ';') continue;
 
         if (line[0] == '[') {
             size_t close = line.find(']');
             if (close == std::string::npos) {
-                warn(lineno, "Sektionskopf ohne ']' - Sektion ignoriert");
+                warn(lineno, "section header without ']' - section ignored");
                 cur = -1;
                 continue;
             }
@@ -892,17 +930,17 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
                 std::string pat = trim(name.substr(name.find(':') + 1));
                 const Section::Kind kind = dev ? Section::DEVICE : Section::APP;
                 if (pat.empty()) {
-                    warn(lineno, "Sektion ohne Muster - ignoriert");
+                    warn(lineno, "section without pattern - ignored");
                     cur = -1;
                 } else if (ps.find(kind, pat) == ProfileSet::npos && ps.sections.size() >= kMaxSections) {
-                    warn(lineno, "zu viele Sektionen (max. " + std::to_string(kMaxSections) + ") - Sektion ignoriert");
+                    warn(lineno, "too many sections (max. " + std::to_string(kMaxSections) + ") - section ignored");
                     cur = -1;
                 } else {
                     size_t idx = ps.findOrAdd(kind, pat);
                     cur = idx == ProfileSet::npos ? -1 : static_cast<long>(idx);
                 }
             } else {
-                warn(lineno, "unbekannte Sektion '[" + name + "]' - ignoriert");
+                warn(lineno, "unknown section '[" + name + "]' - ignored");
                 cur = -1;
             }
             continue;
@@ -910,13 +948,13 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
 
         size_t eq = line.find('=');
         if (eq == std::string::npos) {
-            warn(lineno, "Zeile ohne '=' ignoriert: " + line);
+            warn(lineno, "line without '=' ignored: " + line);
             continue;
         }
-        if (cur < 0) continue;  // Sektion war ungueltig, Warnung gab es schon
+        if (cur < 0) continue;  // section was invalid, warning already issued
         std::string key = upper(trim(line.substr(0, eq)));
         std::string value = line.substr(eq + 1);
-        // Zeilenendkommentar: ' #' (oder '#' direkt am Wertanfang)
+        // Trailing comment: ' #' (or '#' right at the start of the value)
         std::string tv = trim(value);
         if (!tv.empty() && tv[0] == '#') {
             value.clear();
@@ -929,21 +967,21 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
             }
         }
         value = trim(value);
-        if (key.empty()) { warn(lineno, "Zeile ohne Key ignoriert"); continue; }
+        if (key.empty()) { warn(lineno, "line without key ignored"); continue; }
         Settings probe;
         std::string err;
         if (!applyKey(probe, key, value, &err)) {
-            warn(lineno, key + ": " + err + " - Zeile ignoriert");
+            warn(lineno, key + ": " + err + " - line ignored");
             continue;
         }
         std::vector<KV> &kv = ps.sections[static_cast<size_t>(cur)].kv;
-        // Duplikate zusammenfassen: letzter Wert gewinnt, Position des letzten Vorkommens.
+        // Merge duplicates: last value wins, position of the last occurrence.
         auto dup = std::find_if(kv.begin(), kv.end(), [&](const KV &e) { return e.first == key; });
         if (dup != kv.end()) {
             kv.erase(dup);
         } else if (kv.size() >= kMaxKeysPerSection) {
-            warn(lineno, "zu viele Keys in der Sektion (max. " + std::to_string(kMaxKeysPerSection) +
-                             ") - Zeile ignoriert");
+            warn(lineno, "too many keys in the section (max. " + std::to_string(kMaxKeysPerSection) +
+                             ") - line ignored");
             continue;
         }
         kv.emplace_back(key, value);
@@ -954,9 +992,9 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
 
 bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *err) {
     std::ostringstream os;
-    os << "# dofscroll Konfiguration - wird vom Tray-Programm geschrieben.\n"
-       << "# Hinweis: Kommentare in dieser Datei bleiben beim Speichern NICHT erhalten.\n"
-       << "# Sektionen: [global], [device:NAME], [app:NAME] - nur ueberschriebene Keys.\n\n";
+    os << "# dofscroll configuration - written by the tray program.\n"
+       << "# Note: comments in this file are NOT preserved when saving.\n"
+       << "# Sections: [global], [device:NAME], [app:NAME] - overridden keys only.\n\n";
     os << "[global]\n";
     for (const KV &p : allKeys(ps.sectionSettings(0)))
         os << p.first << " = " << p.second << "\n";
@@ -964,17 +1002,17 @@ bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *er
         const Section &sec = ps.sections[i];
         std::string np;
         if (!ProfileSet::normalizePattern(sec.pattern, &np) || np != sec.pattern)
-            return setErr(err, "ungueltiges Sektionsmuster '" + sec.pattern +
-                                   "' (leer, ']' oder Zeilenumbruch / Leerraum am Rand)");
+            return setErr(err, "invalid section pattern '" + sec.pattern +
+                                   "' (empty, ']' or line break / leading or trailing whitespace)");
         os << "\n[" << (sec.kind == Section::DEVICE ? "device:" : "app:") << sec.pattern << "]\n";
         for (const KV &p : sec.kv) {
             std::string why;
-            if (!validPair(p, &why)) return setErr(err, "Sektion '" + sec.pattern + "': " + why);
+            if (!validPair(p, &why)) return setErr(err, "section '" + sec.pattern + "': " + why);
             os << p.first << " = " << p.second << "\n";
         }
     }
 
-    // Symlink aufloesen: temp neben dem echten Ziel, damit der Link erhalten bleibt.
+    // Resolve symlink: temp next to the real target, so the link is preserved.
     std::string real = path;
     bool resolved = false;
     for (int depth = 0; depth <= 16; depth++) {
@@ -985,7 +1023,7 @@ bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *er
         ssize_t n = ::readlink(real.c_str(), &l[0], l.size());
         if (n < 0) return setErr(err, real + ": " + std::strerror(errno));
         l.resize(static_cast<size_t>(n));
-        if (l.empty()) return setErr(err, real + ": leerer Symlink");
+        if (l.empty()) return setErr(err, real + ": empty symlink");
         if (l[0] == '/') {
             real = l;
         } else {
@@ -993,7 +1031,7 @@ bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *er
             real = (slash == std::string::npos ? std::string() : real.substr(0, slash + 1)) + l;
         }
     }
-    if (!resolved) return setErr(err, path + ": " + std::strerror(ELOOP) + " (mehr als 16 Symlinks)");
+    if (!resolved) return setErr(err, path + ": " + std::strerror(ELOOP) + " (more than 16 symlinks)");
 
     std::string dir, base;
     {
@@ -1001,12 +1039,12 @@ bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *er
         if (slash == std::string::npos) { dir = "."; base = real; }
         else { dir = slash == 0 ? "/" : real.substr(0, slash); base = real.substr(slash + 1); }
     }
-    if (base.empty() || base == "." || base == "..") return setErr(err, real + ": ungueltiger Dateiname");
+    if (base.empty() || base == "." || base == "..") return setErr(err, real + ": invalid file name");
     if (dir != "." && dir != "/") {
         std::string emsg;
         if (!mkdirs0700(dir, &emsg)) return setErr(err, emsg);
     }
-    // Verzeichnis einmal oeffnen; temp-Datei, Rename und fsync gehen alle ueber dieses Handle.
+    // Open the directory once; temp file, rename and fsync all go through this handle.
     int dfd = ::open(dir.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (dfd < 0) return setErr(err, dir + ": " + std::strerror(errno));
     struct DirGuard { int fd; ~DirGuard() { ::close(fd); } } guard{dfd};
@@ -1014,8 +1052,8 @@ bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *er
     mode_t mode = 0600;
     struct stat est;
     if (::fstatat(dfd, base.c_str(), &est, AT_SYMLINK_NOFOLLOW) == 0) {
-        if (!S_ISREG(est.st_mode)) return setErr(err, real + ": keine regulaere Datei");
-        mode = est.st_mode & 0777;  // setuid/setgid/sticky nie uebernehmen
+        if (!S_ISREG(est.st_mode)) return setErr(err, real + ": not a regular file");
+        mode = est.st_mode & 0777;  // never carry over setuid/setgid/sticky
     }
 
     std::string tmp;
@@ -1035,7 +1073,7 @@ bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *er
     while (off < data.size()) {
         ssize_t n = ::write(fd, data.data() + off, data.size() - off);
         if (n < 0 && errno == EINTR) continue;
-        if (n <= 0) { m = tmp + ": Schreiben fehlgeschlagen: " + std::strerror(n < 0 ? errno : EIO); break; }
+        if (n <= 0) { m = tmp + ": write failed: " + std::strerror(n < 0 ? errno : EIO); break; }
         off += static_cast<size_t>(n);
     }
     if (m.empty() && ::fchmod(fd, mode) != 0) m = tmp + ": chmod: " + std::strerror(errno);
@@ -1046,7 +1084,7 @@ bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *er
         (void)::unlinkat(dfd, tmp.c_str(), 0);
         return setErr(err, m);
     }
-    (void)::fsync(dfd);  // Verzeichniseintrag sichern (best effort)
+    (void)::fsync(dfd);  // persist the directory entry (best effort)
     return true;
 }
 
