@@ -223,7 +223,7 @@ Probe probeBounded(const Found &f, const std::atomic<bool> &running, std::string
         job->done = true;
         job->cv.notify_all();
     });
-    HANDLE native = th.native_handle();
+    HANDLE native = reinterpret_cast<HANDLE>(th.native_handle());
     std::unique_lock<std::mutex> lk(job->mu);
     int waited = 0;
     while (!job->done && running && waited < kProbeTimeoutMs) {

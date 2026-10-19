@@ -366,7 +366,8 @@ static void testSecurityHardening() {
 
     // shipped example modes: no chord warning
     std::string src = __FILE__;
-    src = src.substr(0, src.rfind('/')) + "/../examples/modes";
+    src.erase(src.find_last_of("/\\"));
+    src += "/../examples/modes";
     w.clear();
     ms = loadModes(src, &w);
     assert(ms.find("browse-keys"));

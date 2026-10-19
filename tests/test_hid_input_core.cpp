@@ -151,12 +151,12 @@ int main() {
         std::vector<uint8_t> shortRep = {1, 0x10};  // one payload byte: no s16 axis fits
         assert(bc.onReport(bid, shortRep.data(), shortRep.size(), &bev) == 0 && bev.empty());
         assert(bc.onReport(bid, shortRep.data(), 1, &bev) == 0);  // length 1
-        std::vector<uint8_t> big(65536, 0xFF);  // oversized, all ones, every known report id
+        std::vector<uint8_t> bigRep(65536, 0xFF);  // oversized, all ones, every known report id
         for (unsigned rid = 0; rid < 256; ++rid) {
-            big[0] = static_cast<uint8_t>(rid);
-            bc.onReport(bid, big.data(), big.size(), &bev);
-            bc.onReport(bid, big.data(), 7, &bev);
-            bc.onReport(bid, big.data(), 2, &bev);
+            bigRep[0] = static_cast<uint8_t>(rid);
+            bc.onReport(bid, bigRep.data(), bigRep.size(), &bev);
+            bc.onReport(bid, bigRep.data(), 7, &bev);
+            bc.onReport(bid, bigRep.data(), 2, &bev);
         }
         std::vector<uint8_t> zero(64, 0);
         for (unsigned rid = 0; rid < 256; ++rid) {
@@ -166,23 +166,23 @@ int main() {
         uint32_t seed = 12345;  // deterministic garbage
         for (int i = 0; i < 2000; ++i) {
             std::vector<uint8_t> g(seed % 40);
-            for (uint8_t &b : g) {
+            for (uint8_t &gb : g) {
                 seed = seed * 1664525u + 1013904223u;
-                b = static_cast<uint8_t>(seed >> 24);
+                gb = static_cast<uint8_t>(seed >> 24);
             }
             seed = seed * 1664525u + 1013904223u;
             bc.onReport(bid, g.data(), g.size(), &bev);
         }
         for (const InputEvent &e : bev)
             if (e.type == InputEventType::Motion)
-                for (int a : e.axes) assert(a >= -kHidAxisLimit && a <= kHidAxisLimit);
-        assert(bc.onReport(bid + 99, big.data(), big.size(), &bev) == 0);  // unknown device id
+                for (int ax : e.axes) assert(ax >= -kHidAxisLimit && ax <= kHidAxisLimit);
+        assert(bc.onReport(bid + 99, bigRep.data(), bigRep.size(), &bev) == 0);  // unknown device id
         // a descriptor with a huge offset must not overflow the bounds check
         HidDescriptor evil = mk(kCompact);
         evil.axes[0].offset = 0xFFFFFFFFu;
         evil.buttonOffset = 0xFFFFFFFFu;
         HidDecoded dec;
-        (void)decodeHidReport(evil, big.data(), 16, dec);
+        (void)decodeHidReport(evil, bigRep.data(), 16, dec);
         assert(!dec.axisSet[0] && !dec.buttonsSet);
     }
 
