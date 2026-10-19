@@ -9,8 +9,8 @@
 // Linux (this file): the user units dofscroll.service and dofscroll-tray.service,
 //   queried with `systemctl --user is-enabled`, changed with `enable`/`disable`
 //   (never --now: the option only affects the next login).
-// Windows (planned): a Startup entry (per-user Run key or Startup folder shortcut).
-// macOS (planned): a LaunchAgent plist in ~/Library/LaunchAgents.
+// Windows: per-user Run key values, see src/platform/autostart_platform.hpp (W18).
+// macOS: LaunchAgent plists in ~/Library/LaunchAgents, same place (W18).
 // The Windows and macOS trays map their native state onto the same State values and reuse
 // ui(): Enabled/Disabled for entry present/absent, NotFound if the program is not installed
 // (no executable path to register), Error for failures.

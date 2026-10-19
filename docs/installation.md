@@ -123,6 +123,12 @@ Do these steps once per machine. Steps 1 and 5 need root.
    if the units are masked, static, enabled only until reboot, or unknown to systemd (for
    example when the tray runs from a build folder instead of an installed package).
 
+   The Qt UI (`dofscroll-ui`) uses the same switch through `src/platform/autostart_platform.hpp`
+   (`queryAutostart`, `setAutostart`) on all three systems; it handles the daemon and the UI
+   together: "enabled" only if both start at login, a mix is shown as partial and ticking the box
+   repairs it. If the UI is not installed, only the daemon is switched. On Linux the UI has its
+   own unit `dofscroll-ui.service` (installed when the UI is built).
+
 5. Optional, only for Wayland or if you set `BACKEND = uinput`: activate the udev rule for
    `/dev/uinput`.
    The package deliberately does not activate the rule (it makes `/dev/uinput` accessible to the
@@ -288,7 +294,9 @@ Only for testers: the Windows daemon is built by CI (MSVC and MinGW-w64 jobs of
    (same format as on Linux), logs are in `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
 3. Optional autostart for the current user, no administrator rights:
    `powershell -ExecutionPolicy Bypass -File packaging-windows\install-autostart.ps1 -ExePath <full path to dofscroll.exe>`;
-   remove it with `uninstall-autostart.ps1`.
+   remove it with `uninstall-autostart.ps1`. The UI's "Start at login" switch does the same
+   without a script: it writes the values `dofscroll` and `dofscroll-ui` (quoted full paths of
+   the two programs next to each other) under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 4. If the 3Dconnexion driver is installed, disable its per-application navigation for the programs
    you test, otherwise scrolling is doubled ([port-windows.md](port-windows.md)).
 
