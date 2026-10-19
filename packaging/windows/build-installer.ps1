@@ -95,9 +95,13 @@ if ($magick) {
 }
 
 $setup = Join-Path $OutDir "$base-setup.exe"
-$hasUiArg = if ($hasUi) { @('/DHAS_UI') } else { @() }
 $nsi = Join-Path $root 'packaging\windows\installer.nsi'
-& makensis /V2 "/DVERSION=$version" "/DSTAGE=$stage" "/DOUTFILE=$setup" @hasUiArg @icoArg $nsi
+$nsisArgs = @('/V2', "/DVERSION=$version", "/DSTAGE=$stage", "/DOUTFILE=$setup")
+if ($hasUi) { $nsisArgs += '/DHAS_UI' }
+$nsisArgs += $icoArg
+$nsisArgs += $nsi
+Write-Output ("makensis " + ($nsisArgs -join ' '))
+& makensis $nsisArgs
 if ($LASTEXITCODE -ne 0) { throw "makensis failed ($LASTEXITCODE)" }
 
 $zip = Join-Path $OutDir "$base-portable.zip"
