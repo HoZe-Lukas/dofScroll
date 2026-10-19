@@ -34,9 +34,9 @@ AddDeviceDialog::AddDeviceDialog(PageContext &ctx, const std::vector<std::string
     search_->setPlaceholderText(T("Search by name or vendor:product"));
     search_->setClearButtonEnabled(true);
     search_->setAccessibleName(T("Search"));
-    auto *refresh = new QPushButton(T("Refresh"), this);
+    auto *refreshBtn = new QPushButton(T("Refresh"), this);
     top->addWidget(search_, 1);
-    top->addWidget(refresh);
+    top->addWidget(refreshBtn);
     l->addLayout(top);
 
     list_ = new QTreeWidget(this);
@@ -66,7 +66,7 @@ AddDeviceDialog::AddDeviceDialog(PageContext &ctx, const std::vector<std::string
     l->addWidget(buttons_);
 
     connect(search_, &QLineEdit::textChanged, this, [this] { refill(); });
-    connect(refresh, &QPushButton::clicked, this, [this] { refresh(); });
+    connect(refreshBtn, &QPushButton::clicked, this, [this] { refresh(); });
     connect(list_, &QTreeWidget::currentItemChanged, this, [this] {
         const QTreeWidgetItem *it = list_->currentItem();
         if (it) manual_->setText(it->data(0, kRoleName).toString());
@@ -78,8 +78,8 @@ AddDeviceDialog::AddDeviceDialog(PageContext &ctx, const std::vector<std::string
     connect(buttons_, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons_, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
-    setTabOrder(search_, refresh);
-    setTabOrder(refresh, list_);
+    setTabOrder(search_, refreshBtn);
+    setTabOrder(refreshBtn, list_);
     setTabOrder(list_, manual_);
 
     validate();
