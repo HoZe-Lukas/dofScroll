@@ -65,13 +65,16 @@ static bool overviewSelfTest(MainWindow &w) {
         check(w.overviewCardsFit(), "cards keep their height after a resize");
         check(w.overviewCardsFillWidth(), "cards share the width after a resize");
     }
-    // ... and wrap: more columns in a wide window than in a narrow one, never fewer than one
+    // ... and wrap: more columns in a wide window than in a narrow one, never fewer than one. The
+    // window manager or a small screen may limit the size, so compare the widths actually reached.
     w.resize(1500, 820);
     settle();
-    const int wideColumns = w.overviewColumns();
+    const int wideColumns = w.overviewColumns(), wideWidth = w.width();
     w.resize(720, 460);
     settle();
-    check(wideColumns > w.overviewColumns() && w.overviewColumns() >= 1, "cards wrap to fewer columns in a narrow window");
+    check(w.overviewColumns() >= 1 && wideColumns >= w.overviewColumns(), "cards never wrap to more columns in a narrower window");
+    if (wideWidth - w.width() >= 400)
+        check(wideColumns > w.overviewColumns(), "cards wrap to fewer columns in a narrow window");
     w.resize(960, 560);
     // the cards open their profile: section 1 is the device profile, 3 the last program profile
     for (size_t section : {size_t(1), size_t(3)}) {

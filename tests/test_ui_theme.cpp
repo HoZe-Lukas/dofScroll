@@ -15,7 +15,7 @@
 
 using namespace spn::ui;
 
-static bool near(double a, double b, double eps = 0.01) { return std::fabs(a - b) < eps; }
+static bool closeTo(double a, double b, double eps = 0.01) { return std::fabs(a - b) < eps; }
 
 static void testSetting() {
     assert(themeFromId("light") == Theme::Light && themeFromId("dark") == Theme::Dark);
@@ -56,11 +56,11 @@ static void testUpdateKeepsTheOtherSetting() {
 
 static void testContrastMath() {
     const Rgb black{0, 0, 0}, white{255, 255, 255};
-    assert(near(contrastRatio(black, white), 21.0) && near(contrastRatio(white, black), 21.0));
-    assert(near(contrastRatio(white, white), 1.0));
-    assert(near(relativeLuminance(white), 1.0) && near(relativeLuminance(black), 0.0));
+    assert(closeTo(contrastRatio(black, white), 21.0) && closeTo(contrastRatio(white, black), 21.0));
+    assert(closeTo(contrastRatio(white, white), 1.0));
+    assert(closeTo(relativeLuminance(white), 1.0) && closeTo(relativeLuminance(black), 0.0));
     // a known mid grey: #777777 on white is about 4.48:1
-    assert(near(contrastRatio({0x77, 0x77, 0x77}, white), 4.48, 0.05));
+    assert(closeTo(contrastRatio({0x77, 0x77, 0x77}, white), 4.48, 0.05));
 }
 
 static void testThemesAreReadable() {
