@@ -102,6 +102,7 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
         std::string raw = text.substr(pos, nl - pos);
         pos = nl + 1;
         lineno++;
+        if (raw.find('\0') != std::string::npos) { warn(lineno, "line contains a NUL byte - ignored"); continue; }
         if (lineno == 1 && raw.compare(0, 3, "\xEF\xBB\xBF") == 0) raw.erase(0, 3);
         if (raw.size() > kMaxModeLine) { warn(lineno, "line too long - ignored"); continue; }
         std::string line = trim(raw);
@@ -153,6 +154,9 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
             for (ButtonBinding &e : out->buttons)
                 if (e.button == b.button) { e = b; replaced = true; }
             if (!replaced) out->buttons.push_back(b);
+        } else if (key == "ENABLED" || key == "BACKEND" || key == "TICK_HZ") {
+            // Process-level settings: a mode must not be able to switch the daemon off or change them.
+            warn(lineno, key + " is not allowed in a mode file (global setting) - line ignored");
         } else {
             Settings probe;
             if (!applyKey(probe, key, value, &err)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
@@ -164,6 +168,40 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
         }
     }
     return true;
+}
+
+bool isModifierKey(Key k) { return k == Key::Ctrl || k == Key::Alt || k == Key::Shift || k == Key::Super; }
+
+// Navigation-like keys: Ctrl+<these> is not a destructive shortcut (Ctrl+arrows, Ctrl+PageUp, Ctrl+plus).
+bool isNavKey(Key k) {
+    switch (k) {
+        case Key::Up: case Key::Down: case Key::Left: case Key::Right: case Key::Space: case Key::Enter:
+        case Key::Esc: case Key::Home: case Key::End: case Key::PageUp: case Key::PageDown: case Key::Minus:
+        case Key::Plus: case Key::KpPlus: case Key::KpMinus:
+            return true;
+        default:
+            return false;
+    }
+}
+
+// Describes how a mode can press shortcut chords (empty = nothing notable). Loaded anyway.
+std::string chordRisk(const ModeDef &m) {
+    std::vector<std::string> why;
+    for (const ButtonBinding &b : m.buttons)
+        if (b.type == ButtonActionType::Key && isModifierKey(b.key))
+            why.push_back("BUTTON_" + std::to_string(b.button) + " presses " + keyName(b.key));
+    bool hasRiskyKeys = false, hasZoom = false;
+    for (const ChannelAction *a : {&m.v, &m.h, &m.twist}) {
+        if (a->type == ChannelActionType::Zoom) hasZoom = true;
+        if (a->type != ChannelActionType::Keys) continue;
+        if (!isNavKey(a->neg) || !isNavKey(a->pos)) hasRiskyKeys = true;
+        if (isModifierKey(a->neg) || isModifierKey(a->pos))
+            why.push_back(std::string("a keys: channel presses ") + keyName(isModifierKey(a->neg) ? a->neg : a->pos));
+    }
+    if (hasRiskyKeys && hasZoom) why.push_back("zoom holds Ctrl while a keys: channel fires non-navigation keys");
+    std::string out;
+    for (const std::string &w : why) out += (out.empty() ? "" : "; ") + w;
+    return out;
 }
 
 // Sorted names of "<id>.conf" entries (valid ids only). Scans at most kMaxDirEntries entries.
@@ -313,6 +351,8 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
         m.id = n.substr(0, n.size() - 5);
         if (!parseModeText(text, path, &m, warnings)) continue;
         if (m.label.empty()) m.label = m.id;
+        const std::string risk = chordRisk(m);
+        if (!risk.empty()) warnAll("mode " + m.id + " can press shortcut chords (" + risk + ") - read the file before use");
         bool replaced = false;
         for (ModeDef &e : set.modes)
             if (e.id == m.id) { e = m; replaced = true; break; }
