@@ -63,6 +63,12 @@ void LiveFeedServer::publish(const LiveSample &sample, int64_t nowNs) {
         nextAccept_ = nowNs + opt_.acceptIntervalNs;
         acceptNew(true);
     }
+    if (!haveInfo_ || sample.devicesRev != infoRev_) {
+        haveInfo_ = true;
+        infoRev_ = sample.devicesRev;
+        infoFrame_ = encodeLiveDevices(sample.devices);
+        for (Client &c : clients_) c.needInfo = true;
+    }
     if (clients_.empty() || nowNs < nextFrame_) return;
     const int64_t period = 1000000000LL / opt_.hz;
     nextFrame_ = (nowNs - nextFrame_ > period) ? nowNs + period : nextFrame_ + period;
@@ -74,6 +80,17 @@ void LiveFeedServer::publish(const LiveSample &sample, int64_t nowNs) {
     for (size_t i = 0; i < clients_.size();) {
         Client &c = clients_[i];
         bool alive = flush(c);
+        if (alive) {
+            if (alive && c.needInfo && c.pending.empty()) {
+                const long w = c.conn->write(infoFrame_.data(), infoFrame_.size());
+                if (w < 0) {
+                    alive = false;
+                } else {
+                    if (static_cast<size_t>(w) < infoFrame_.size()) c.pending.assign(infoFrame_.begin() + w, infoFrame_.end());
+                    c.needInfo = false;
+                }
+            }
+        }
         if (alive) {
             if (!c.pending.empty()) {  // still busy with the previous frame: drop this one
                 dropped_++;
@@ -114,6 +131,7 @@ LiveFeedClient::LiveFeedClient(Connector connector, const LiveFeedClientOptions 
     : connector_(std::move(connector)), opt_(opt), backoff_(opt.reconnectMinNs) {}
 
 void LiveFeedClient::drop(int64_t nowNs, const std::string &why, State st) {
+    infoTotal_ += parser_.infoCount();
     conn_.reset();
     parser_.reset();
     err_ = why;

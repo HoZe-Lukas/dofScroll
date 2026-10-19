@@ -47,5 +47,8 @@ Not yet. Both ports exist as CI-built daemons configured by file and have not be
 **A key got stuck. What now?**
 Run `dofscroll --release-keys` or restart the service. This can happen after SIGKILL under X11, a known limitation, see [Security](Security).
 
+**Can two users share one PC with a 3D mouse?**
+Yes: each user runs their own daemon and a daemon pauses its output while its own session is not the active one (fast user switching, remote desktop); this is untested with a second real session, see [Security](Security).
+
 **How can I help verify a device?**
 Run `dofscroll-hidprobe --guided` and attach the report to an issue, see [Devices](Devices).

@@ -26,6 +26,7 @@
 #include "modes.hpp"
 #include "output.hpp"
 #include "platform/platform.hpp"
+#include "platform/session_monitor.hpp"
 
 namespace spn {
 
@@ -56,6 +57,10 @@ struct DaemonDeps {
     std::function<std::string()> modesDir;
     // Optional: true while the tray pauses the output (default: never).
     std::function<bool()> suspendRequested;
+    // Optional: tells whether this daemon's own login session is the active one (see
+    // platform/session_monitor.hpp). Polled about once per second; while it reports "not active"
+    // the core behaves like suspended. Default: always active. Must outlive the core.
+    SessionMonitor *sessionMonitor = nullptr;
     // Optional status file hooks (body = "key=value" lines without "updated", see common.hpp).
     std::function<void(const std::string &body, int64_t nowNs)> writeStatus;
     std::function<void()> removeStatus;
@@ -87,6 +92,7 @@ public:
     DeviceReader(InputSource *src, std::function<int64_t()> clock, bool debug);
 
     std::string deviceName() const;
+    std::vector<DeviceInfo> deviceList() const;  // snapshot taken at the last publishDeviceInfo()
 
     // Starts the detached reader thread (connect with backoff, then event loop). Detached:
     // the process teardown cleans it up, the owner must never be destroyed before exit.
@@ -103,6 +109,7 @@ private:
     bool debug_;
     mutable std::mutex name_mutex_;
     std::string dev_name_;
+    std::vector<DeviceInfo> dev_list_;
     int delay_ms_ = 500;
 
     void publishDeviceInfo();
@@ -162,6 +169,8 @@ private:
     // Loop state (formerly locals of run())
     int64_t next_win_poll_ = 0, next_cfg_poll_ = 0, next_debug_ = 0, next_susp_poll_ = 0;
     int64_t next_devcount_ = 0;
+    int64_t next_session_poll_ = 0;
+    bool session_active_ = true;
     bool suspended_ = false, prev_enabled_ = true, prev_idle_ = false;
     uint64_t seen_generation_ = 0;
     int devices_seen_ = 0;

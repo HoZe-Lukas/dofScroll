@@ -107,34 +107,26 @@ The UI needs the six axis values, the button state and the daemon's interpretati
 daemon owns the device, so it publishes a feed (`LIVE_FEED = 1`, default). Code in `src/live_feed/`,
 security notes in `security.md` section 10.
 
-- Protocol v1 (`live_feed_protocol.hpp`): one-way daemon -> client, binary little-endian frames with
+- Protocol v2 (`live_feed_protocol.hpp`): one-way daemon -> client, binary little-endian frames with
   a header (`"DFLV"`, version, type, payload length) and a fixed sample payload (seq, 6 axes, button
-  mask, channel outputs v/h/zoom after DSP, flags, mode id). Frames are at most 86 bytes; version
-  changes are incompatible and detected by the client. No command channel.
+  mask, channel outputs v/h/zoom after DSP, flags, mode id). Version changes are incompatible: a
+  client that sees another version stops with the state `Incompatible` and the error "protocol
+  version mismatch (...)" (v1 peers have no device info frame). No command channel.
+- Device info frame (type 2), sent right after connect and on every device-list change: at most 8
+  devices, each with id, USB vendor:product (0 = unknown), reported button count, the factory
+  button count (`factoryButtonCount(name, reported)` from `device_db.hpp`: the number the UI
+  uses for configurable buttons), axis count and a UTF-8 name of at most 64 bytes. The encoder
+  sanitizes (invalid bytes and control characters become `?`, truncation at a code point
+  boundary); the client treats all of it as untrusted and ends the stream on invalid UTF-8, control
+  characters, counts out of range, inconsistent lengths or more than 8 devices. Frames are at most
+  601 bytes. The UI model (`LiveFeedModel::devices()`) exposes the list; without a feed the Profiles
+  page falls back to the `device=` line of the status file.
 - Transport behind one interface (`live_feed.hpp`: `FeedListener`, `FeedConn`): Unix domain socket
   `live.sock` in the runtime directory (Linux, macOS), named pipe `\\.\pipe\dofscroll-live-<sid>`
   (Windows).
 - `LiveFeedServer` is fed by `DaemonDeps::liveFeed` once per tick, rate limits to 30 Hz, only works
   while a client is connected and never blocks. `LiveFeedClient` (toolkit-free, reconnecting) and
-  `src/ui/model/live_feed_model.hpp` (latest sample, min/max/peak tracking) serve the UI.
-
-## Live feed
-
-The UI needs the six axis values, the button state and the daemon's interpretation at about 30 Hz
-(axes view, axis assistant). On Linux the GTK tray can read libspnav itself; on Windows and macOS the
-daemon owns the device, so it publishes a feed (`LIVE_FEED = 1`, default). Code in `src/live_feed/`,
-security notes in `security.md` section 10.
-
-- Protocol v1 (`live_feed_protocol.hpp`): one-way daemon -> client, binary little-endian frames with
-  a header (`"DFLV"`, version, type, payload length) and a fixed sample payload (seq, 6 axes, button
-  mask, channel outputs v/h/zoom after DSP, flags, mode id). Frames are at most 86 bytes; version
-  changes are incompatible and detected by the client. No command channel.
-- Transport behind one interface (`live_feed.hpp`: `FeedListener`, `FeedConn`): Unix domain socket
-  `live.sock` in the runtime directory (Linux, macOS), named pipe `\\.\pipe\dofscroll-live-<sid>`
-  (Windows).
-- `LiveFeedServer` is fed by `DaemonDeps::liveFeed` once per tick, rate limits to 30 Hz, only works
-  while a client is connected and never blocks. `LiveFeedClient` (toolkit-free, reconnecting) and
-  `src/ui/model/live_feed_model.hpp` (latest sample, min/max/peak tracking) serve the UI.
+  `src/ui/model/live_feed_model.hpp` (latest sample, min/max/peak tracking, device list) serve the UI.
 
 ## Open points
 

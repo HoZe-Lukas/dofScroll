@@ -25,9 +25,7 @@
 #include "ui/model/settings_model.hpp"
 #include "ui/model/suspend_heartbeat.hpp"
 #include "ui_i18n.hpp"
-#if defined(__APPLE__)
-#include "platform/mac/mac_paths.hpp"
-#endif
+#include "feed_dir.hpp"
 
 using namespace spn;
 using namespace spn::ui;
@@ -35,19 +33,6 @@ using namespace spn::ui;
 namespace {
 
 // ---- helpers --------------------------------------------------------------------------------
-
-// Directory of the live feed socket (the pipe name on Windows carries the user SID, no directory).
-std::string feedRuntimeDir() {
-#if defined(_WIN32)
-    return std::string();
-#elif defined(__APPLE__)
-    const char *home = std::getenv("HOME");
-    return macPaths(home ? home : "").runtimeDir;
-#else
-    const char *rt = std::getenv("XDG_RUNTIME_DIR");
-    return rt && *rt ? rt : "";
-#endif
-}
 
 // Translator for the wizard header (it formats msgids through a plain C hook). The cache keeps
 // the returned pointers valid.
@@ -160,7 +145,9 @@ protected:
 
         // Mode line.
         const LiveSample &s = vm_->shown();
-        status_ = T("Mode:") + QLatin1Char(' ') + (live ? qs(truncateUtf8(s.mode, 64)) : QStringLiteral("-"));
+        status_.clear();
+        if (!vm_->deviceLabel().empty()) status_ = qs(truncateUtf8(vm_->deviceLabel(), 96)) + QStringLiteral("  |  ");
+        status_ += T("Mode:") + QLatin1Char(' ') + (live ? qs(truncateUtf8(s.mode, 64)) : QStringLiteral("-"));
         if (live) {
             if (!s.enabled) status_ += QStringLiteral("  |  ") + T("disabled");
             if (s.nav) status_ += QStringLiteral("  |  ") + T("navigation mode");
@@ -187,7 +174,7 @@ AxesPage::AxesPage(const UiContext &ctx, const AxesPageEnv &env, QWidget *parent
     : QWidget(parent), ctx_(ctx), connector_(env.connector) {
     wiz::trHook() = &wizardTranslate;  // wizard messages are built toolkit-free
     if (!connector_) {
-        const std::string dir = ctx_.runtimeDir.empty() ? feedRuntimeDir() : ctx_.runtimeDir;
+        const std::string dir = ctx_.runtimeDir.empty() ? dofscroll_ui::feedRuntimeDir() : ctx_.runtimeDir;
         connector_ = [dir](std::string *err) { return connectFeed(dir, err); };
     }
     client_ = std::make_unique<LiveFeedClient>(connector_);

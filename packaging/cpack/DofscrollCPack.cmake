@@ -26,4 +26,15 @@ set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_PACKAGE_DEPENDS "spacenavd")
 
+# The Qt interface is part of the same package when the build found Qt6 (single package, no
+# subpackage: the GTK tray ships in that package too). RPM names the Qt GUI runtime explicitly
+# (it carries the xcb platform plugin, which rpm's library scan cannot see); DEB gets the
+# libqt6* packages from SHLIBDEPS and the plugin lives in libqt6gui6.
+if(TARGET dofscroll-ui AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  set(CPACK_RPM_PACKAGE_REQUIRES "spacenavd, qt6-qtbase-gui")
+  if(TARGET Qt6::Svg)  # the icon is an SVG: needs the Qt SVG image plugin at run time
+    string(APPEND CPACK_RPM_PACKAGE_REQUIRES ", qt6-qtsvg")
+  endif()
+endif()
+
 include(CPack)

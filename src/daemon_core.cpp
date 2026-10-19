@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Platform-independent daemon core (see daemon_core.hpp).
 #include "daemon_core.hpp"
+#include "device_db.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -32,6 +33,7 @@ constexpr int64_t ACTIVEWIN_POLL_NS = 100'000'000;
 constexpr int64_t CONFIG_POLL_NS = 1'000'000'000;
 // Check the tray's heartbeat (pause output) ~20x/s.
 constexpr int64_t SUSPEND_POLL_NS = 50'000'000;
+constexpr int64_t SESSION_POLL_NS = 1'000'000'000;  // session activity: about once per second
 // --debug output ~10x/s.
 constexpr int64_t DEBUG_PERIOD_NS = 100'000'000;
 // Recount attached 3Dconnexion devices (additionally on every (re)connect).
@@ -85,6 +87,11 @@ std::string DeviceReader::deviceName() const {
     return dev_name_;
 }
 
+std::vector<DeviceInfo> DeviceReader::deviceList() const {
+    std::lock_guard<std::mutex> lk(name_mutex_);
+    return dev_list_;
+}
+
 void DeviceReader::start() {
     std::thread t(&DeviceReader::loop, this);
     t.detach();
@@ -107,6 +114,7 @@ void DeviceReader::publishDeviceInfo() {
     {
         std::lock_guard<std::mutex> lk(name_mutex_);
         dev_name_ = name;
+        dev_list_ = devs;
     }
     dev_generation.fetch_add(1, std::memory_order_release);
 }
@@ -431,6 +439,22 @@ void DaemonCore::updateProfile(int64_t now_ns) {
         next_devcount_ = 0;  // recount right after a (re)connect
         std::string name = reader_.deviceName();
         warn_buttons_ = true;
+        if (d_.liveFeed) {
+            live_.devices.clear();
+            for (const DeviceInfo &di : reader_.deviceList()) {
+                if (live_.devices.size() >= kLiveMaxDevices) break;
+                LiveDevice ld;
+                ld.id = static_cast<uint8_t>(di.id);
+                ld.vendor = static_cast<uint16_t>(di.vendor);
+                ld.product = static_cast<uint16_t>(di.product);
+                ld.reportedButtons = di.reportedButtons;
+                ld.factoryButtons = factoryButtonCount(di.name, di.reportedButtons);
+                ld.axes = di.axes;
+                ld.name = di.name;
+                live_.devices.push_back(std::move(ld));
+            }
+            live_.devicesRev++;
+        }
         if (name != device_) {
             device_ = name;
             need_resolve = true;
@@ -519,6 +543,18 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
                                             : "Output active again") << std::endl;
         }
     }
+    // Several users on one PC: the daemon of a background session must not act on the shared device.
+    if (d_.sessionMonitor && now_ns >= next_session_poll_) {
+        next_session_poll_ = now_ns + SESSION_POLL_NS;
+        std::string detail;
+        const bool active = d_.sessionMonitor->isActive(&detail);
+        if (active != session_active_) {
+            session_active_ = active;
+            std::cerr << LOG << (active ? "session active: output resumed" : "session inactive: output paused")
+                      << std::endl;
+            if (d_.debug) std::cerr << LOG << "session: " << sanitizeForLog(detail) << std::endl;
+        }
+    }
     // Profile with ENABLED=0 (e.g. [app:blender]): same treatment, no output.
     const bool enabled = settings_.enabled;
     if (enabled != prev_enabled_) {
@@ -527,13 +563,14 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
         else std::cerr << LOG << "Control disabled (profile " << sanitizeForLog(match_desc_)
                        << ")" << std::endl;
     }
-    const bool idle = suspended_ || !enabled;
+    const bool idle = suspended_ || !enabled || !session_active_;
     if (idle) {
         fresh = false;
         raw = RawAxes{};
         buttons = 0;
         if (!prev_idle_) {  // release everything held on entering suspend/disabled
             runner_->releaseAll();
+            output_->releaseAll();
             output_->flush();
         }
     }
@@ -544,7 +581,8 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
                            "\napp=" + sanitizeForLog(wm_class_) + "\nmode=" + sanitizeForLog(runner_->mode().id) +
                            "\nenabled=" + (enabled ? "1" : "0") +
                            "\npaused=" + (suspended_ ? "1" : "0") +
-                           "\ndevices_seen=" + std::to_string(devices_seen_) + "\n",
+                           "\ndevices_seen=" + std::to_string(devices_seen_) +
+                           "\nsession=" + (session_active_ ? "active" : "inactive") + "\n",
                        now_ns);
 
     // --- Channels, buttons, output (see mode_runner.hpp) ------------------

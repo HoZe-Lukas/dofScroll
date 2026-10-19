@@ -96,85 +96,13 @@ jobs:
       - name: Scan tree for secrets
         run: sh scripts/secret-scan.sh 4b825dc642cb6eb9a060e54bf8d69288fbee4904 HEAD
 
-  package-rpm:
-    name: package RPM + TGZ (tags only)
+  # RPM, DEB and TGZ (with the Qt interface where the distribution has Qt6), built in distribution
+  # containers by linux-packages.yml; also run by linux-packages-dry-run.yml.
+  linux-packages:
+    name: Linux packages (tags only)
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build-test, sanitizers, cppcheck, secret-scan]
-    runs-on: ubuntu-latest
-    container: rockylinux:9
-    timeout-minutes: 30
-    steps:
-      - name: Install dependencies
-        run: |
-          dnf install -y epel-release
-          dnf install -y gcc-c++ make cmake git gettext pkgconf-pkg-config spacenavd rpm-build cpio \
-            libspnav-devel libX11-devel libXtst-devel gtk3-devel libappindicator-gtk3-devel
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-      - name: Build
-        run: cmake --build build -j4
-      - name: Package
-        run: cd build && cpack -G "RPM;TGZ"
-      - name: Scan packages for build or staging paths
-        run: |
-          mkdir -p /tmp/scan/rpm /tmp/scan/tgz
-          for f in build/dofscroll-*.rpm; do (cd /tmp/scan/rpm && rpm2cpio "$GITHUB_WORKSPACE/$f" | cpio -idm --quiet); done
-          for f in build/dofscroll-*.tar.gz; do tar xzf "$f" -C /tmp/scan/tgz; done
-          if grep -rIn -e _CPack_Packages -e /__w/ -e "$GITHUB_WORKSPACE" /tmp/scan; then
-            echo "package contains a staging, build or source path" >&2; exit 1
-          fi
-          grep -rh '^ExecStart=' /tmp/scan | sort -u
-          if grep -rh '^ExecStart=' /tmp/scan | grep -v '^ExecStart=/usr/bin/'; then
-            echo "a packaged unit has an ExecStart outside /usr/bin" >&2; exit 1
-          fi
-          test -z "$(find /tmp/scan -path '*/usr/lib/udev/*' -type f)"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
-        with:
-          name: packages-rpm-tgz
-          path: |
-            build/dofscroll-*.rpm
-            build/dofscroll-*.tar.gz
-          if-no-files-found: error
-
-  package-deb:
-    name: package DEB (tags only)
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-test, sanitizers, cppcheck, secret-scan]
-    runs-on: ubuntu-latest
-    container: debian:12
-    timeout-minutes: 30
-    steps:
-      - name: Install dependencies
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends g++ make cmake git ca-certificates gettext file \
-            pkg-config dpkg-dev libspnav-dev libx11-dev libxtst-dev libgtk-3-dev \
-            libayatana-appindicator3-dev
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-      - name: Build
-        run: cmake --build build -j4
-      - name: Package
-        run: cd build && cpack -G DEB
-      - name: Scan package for build or staging paths
-        run: |
-          mkdir -p /tmp/scan
-          for f in build/dofscroll*.deb; do dpkg-deb -x "$f" /tmp/scan; done
-          if grep -rIn -e _CPack_Packages -e /__w/ -e "$GITHUB_WORKSPACE" /tmp/scan; then
-            echo "package contains a staging, build or source path" >&2; exit 1
-          fi
-          grep -rh '^ExecStart=' /tmp/scan | sort -u
-          if grep -rh '^ExecStart=' /tmp/scan | grep -v '^ExecStart=/usr/bin/'; then
-            echo "a packaged unit has an ExecStart outside /usr/bin" >&2; exit 1
-          fi
-          test -z "$(find /tmp/scan -path '*/usr/lib/udev/*' -type f)"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
-        with:
-          name: packages-deb
-          path: build/dofscroll*.deb
-          if-no-files-found: error
+    uses: ./.github/workflows/linux-packages.yml
 
   # Unsigned Windows (installer + ZIP) and macOS (DMG) packages, built on the GitHub runners
   # (jobs package-windows and package-macos in installers.yml; also run by installers-dry-run.yml).
@@ -187,7 +115,7 @@ jobs:
   release:
     name: publish GitHub release (tags only)
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [package-rpm, package-deb, installers]
+    needs: [linux-packages, installers]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

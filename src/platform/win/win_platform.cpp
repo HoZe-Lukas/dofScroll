@@ -23,6 +23,7 @@
 
 #include "../platform.hpp"
 #include "../fs.hpp"
+#include "win_activewin.hpp"
 #include "win_hid_input.hpp"
 #include "win_objects.hpp"
 #include "win_output.hpp"
@@ -85,48 +86,6 @@ private:
     HANDLE ev_ = nullptr;
 };
 
-// ---- active window: foreground window -> executable name -----------------------------------------
-
-class ForegroundWindowProvider : public ActiveWindowProvider {
-public:
-    bool init() override { return true; }
-    std::string poll() override {
-        HWND hw = ::GetForegroundWindow();
-        if (!hw) return "";  // no foreground window (lock screen, desktop switch)
-        DWORD pid = 0;
-        ::GetWindowThreadProcessId(hw, &pid);
-        if (!pid) return "";
-        if (pid == cached_pid_ && ::GetTickCount64() - cached_at_ < 1000) return cached_;
-        std::string name = exeOfProcess(pid);
-        cached_pid_ = pid;
-        cached_at_ = ::GetTickCount64();
-        cached_ = name;
-        return name;
-    }
-
-private:
-    static std::string exeOfProcess(DWORD pid) {
-        // PROCESS_QUERY_LIMITED_INFORMATION also works for most processes of other users and for
-        // protected ones; elevated/system processes can still deny it -> empty = default profile.
-        HANDLE h = ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-        if (!h) return "";
-        std::vector<wchar_t> buf(32768);
-        DWORD n = static_cast<DWORD>(buf.size());
-        std::string out;
-        if (::QueryFullProcessImageNameW(h, 0, buf.data(), &n) && n > 0)
-            out = exeNameLower(narrow(std::wstring(buf.data(), n)));
-        ::CloseHandle(h);
-        // UWP apps run inside ApplicationFrameHost.exe (the frame) - the real app is a child
-        // window's process; resolving it is not implemented, so the default profile applies.
-        if (isUwpHostExe(out)) return "";
-        return out;
-    }
-
-    DWORD cached_pid_ = 0;
-    ULONGLONG cached_at_ = 0;
-    std::string cached_;
-};
-
 }  // namespace
 
 // ---- named kernel objects ---------------------------------------------------------------------------
@@ -164,7 +123,7 @@ void *createPrivateEvent(const char *name, std::string *err) {
 std::unique_ptr<ReloadListener> makeReloadListener() { return std::make_unique<EventReloadListener>(); }
 
 std::unique_ptr<ActiveWindowProvider> makeActiveWindowProvider() {
-    return std::make_unique<ForegroundWindowProvider>();
+    return makeWinForegroundProvider();
 }
 
 std::unique_ptr<InputSource> makeInputSource(const std::string &backend, std::string *log) {

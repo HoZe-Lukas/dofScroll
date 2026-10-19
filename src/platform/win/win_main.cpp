@@ -40,6 +40,7 @@
 #include "../fs.hpp"
 #include "../platform.hpp"
 #include "../suspend_probe.hpp"
+#include "../session_monitor.hpp"
 #include "win_objects.hpp"
 #include "win_output.hpp"
 #include "win_paths.hpp"
@@ -381,6 +382,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         deps.removeStatus = [statusPath] { fs::removeFile(statusPath); };
     }
     deps.liveFeed = makeLiveFeedSink(paths.runtimeDir);  // UI data feed, see src/live_feed/
+    deps.sessionMonitor = makeSessionMonitor().release();  // lives until exit
     deps.debug = debug;
 
     DaemonCore *core = new DaemonCore(std::move(deps));

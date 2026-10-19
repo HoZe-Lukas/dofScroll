@@ -86,7 +86,9 @@ if(DOFSCROLL_UI)
     endif()
   elseif(WIN32)
     if(EXISTS ${CMAKE_SOURCE_DIR}/src/platform/win/running_apps_win.cpp)
-      target_sources(dofscroll-ui PRIVATE src/platform/win/running_apps_win.cpp)
+      target_sources(dofscroll-ui PRIVATE src/platform/win/running_apps_win.cpp
+                     src/platform/win/win_activewin.cpp)
+      target_compile_definitions(dofscroll-ui PRIVATE DOFSCROLL_UI_WIN_AW=1)
       target_link_libraries(dofscroll-ui PRIVATE user32 version dwmapi)
       set(DOFSCROLL_UI_RUNNING_APPS_STUB OFF)
     endif()
@@ -118,4 +120,17 @@ if(DOFSCROLL_UI)
   endif()
 
   install(TARGETS dofscroll-ui RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # Desktop integration (freedesktop): menu entry and icon. The user unit
+    # dofscroll-ui.service is installed by cmake/Systemd.cmake. The German catalog goes next to
+    # the binary because dofscroll-ui looks for dofscroll_<lang>.qm in its own directory.
+    install(FILES packaging/linux/dofscroll.desktop
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+    install(FILES icons/dofscroll-tray.svg RENAME dofscroll.svg
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
+    if(DOFSCROLL_LCONVERT)
+      install(FILES $<TARGET_FILE_DIR:dofscroll-ui>/dofscroll_de.qm
+              DESTINATION ${CMAKE_INSTALL_BINDIR})
+    endif()
+  endif()
 endif()

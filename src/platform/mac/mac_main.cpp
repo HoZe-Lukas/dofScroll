@@ -351,6 +351,7 @@ int main(int argc, char **argv) {
     deps.removeStatus = [status] { status->remove(); };
     deps.suspendRequested = FileSuspendProbe(paths.runtimeDir);  // UI axis assistant pauses the output
     deps.liveFeed = makeLiveFeedSink(paths.runtimeDir);  // UI data feed, see src/live_feed/
+    deps.sessionMonitor = makeSessionMonitor().release();  // lives until exit
     deps.debug = debug;
 
     DaemonCore *core = new DaemonCore(std::move(deps));
