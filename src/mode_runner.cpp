@@ -172,7 +172,7 @@ void ModeRunner::tickLegacy(const Settings &s, const RawAxes &raw, uint32_t butt
             if (nh != 0) out_->wheelH(nh);
         }
     }
-    info_ = Info{rate_h, rate_v, twist, lateral, zooming, nav_active};
+    info_ = Info{rate_h, rate_v, twist, lateral, zooming, nav_active, rate_zoom};
 }
 
 // Custom path: the channels follow the mode's actions. Ctrl is global to the output, so a
@@ -246,7 +246,7 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
     emit(av, tv, nv, 1);
     emit(ah, th, nh, 1);
     emit(at, tt, nt, -1);
-    info_ = Info{rate_h, rate_v, twist, lateral, zooming, nav_active};
+    info_ = Info{rate_h, rate_v, twist, lateral, zooming, nav_active, rate_zoom};
 }
 
 }  // namespace spn

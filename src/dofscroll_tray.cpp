@@ -107,6 +107,21 @@ static void reloadDaemon() {
     spawnDetached({"systemctl", "--user", "kill", "-s", "HUP", "dofscroll.service"});
 }
 
+// Emergency exit for a stuck key or button: a separate `dofscroll --release-keys` process
+// releases everything through its own output connection (independent of the daemon's state).
+static void releaseAllKeys() {
+    // Prefer the daemon binary next to the tray's own binary (same build/install), else PATH.
+    std::string daemon = "dofscroll";
+    char self[4096];
+    const ssize_t n = readlink("/proc/self/exe", self, sizeof self - 1);
+    if (n > 0) {
+        self[n] = '\0';
+        const std::string cand = std::string(self).substr(0, std::string(self).rfind('/') + 1) + "dofscroll";
+        if (access(cand.c_str(), X_OK) == 0) daemon = cand;
+    }
+    spawnDetached({daemon, "--release-keys"});
+}
+
 static void restartDaemon() {
     spawnDetached({"systemctl", "--user", "restart", "dofscroll.service"});
 }
@@ -2634,6 +2649,8 @@ static void showLogWindow() {
 
 static void onShowLog(GtkMenuItem *, gpointer) { showLogWindow(); }
 
+static void onReleaseKeys(GtkMenuItem *, gpointer) { releaseAllKeys(); }
+
 static void onRestartDaemon(GtkMenuItem *, gpointer) {
     flushPending();
     restartDaemon();
@@ -2730,6 +2747,7 @@ int main(int argc, char **argv) {
     addMenuItem(menu, _("Settings…"), G_CALLBACK(onSettings));
     addMenuItem(menu, _("Open config file"), G_CALLBACK(onOpenConfig));
     addMenuItem(menu, _("Restart daemon"), G_CALLBACK(onRestartDaemon));
+    addMenuItem(menu, _("Release all keys"), G_CALLBACK(onReleaseKeys));
     addMenuItem(menu, _("Show log..."), G_CALLBACK(onShowLog));
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
     addMenuItem(menu, _("Quit"), G_CALLBACK(onQuit));

@@ -473,6 +473,28 @@ void DaemonCore::updateProfile(int64_t now_ns) {
     }
 }
 
+// Safety net: see SAFETY_QUIET_NS. Runs after the runner's tick, so the activity it looks at
+// already went through the stale watchdog, the suspend/ENABLED gating and the dead zones.
+void DaemonCore::safetyNet(int64_t now_ns, uint32_t buttons) {
+    if (buttons != 0 || runner_->axesActive()) {
+        quiet_since_ = now_ns;
+        safety_done_ = false;
+        return;
+    }
+    if (safety_done_ || now_ns - quiet_since_ < SAFETY_QUIET_NS) return;
+    safety_done_ = true;
+    const bool held = runner_->holdsAnything();
+    runner_->releaseAll();
+    output_->releaseAll();  // also clears what the output holds if the runner lost track
+    output_->flush();
+    if (held && (!safety_logged_ || now_ns - last_safety_log_ >= SAFETY_LOG_INTERVAL_NS)) {
+        safety_logged_ = true;
+        last_safety_log_ = now_ns;
+        std::cerr << LOG << "safety release: keys/buttons were still held without any input, released"
+                  << std::endl;
+    }
+}
+
 void DaemonCore::tickOnce(int64_t now_ns, double dt) {
     // --- Read inputs ------------------------------------------------------
     bool fresh = (clock_() - reader_.last_motion_ns.load(std::memory_order_acquire)) <= STALE_NS;
@@ -527,6 +549,7 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
 
     // --- Channels, buttons, output (see mode_runner.hpp) ------------------
     runner_->tick(settings_, raw, buttons, fresh, dt);
+    safetyNet(now_ns, buttons);
     {
         const std::string req = runner_->takeSwitchRequest();
         if (!req.empty()) switchMode(req);

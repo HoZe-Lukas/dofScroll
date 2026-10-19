@@ -17,6 +17,7 @@
 // releaseAll() (suspend, ENABLED=0, exit).
 #pragma once
 #include <bitset>
+#include <cmath>
 #include <cstdint>
 
 #include "common.hpp"
@@ -30,6 +31,9 @@ namespace spn {
 
 class ModeRunner {
 public:
+    // Rates (steps/s) below this count as "no deflection" (smoothing tails without dead zone).
+    static constexpr double kRateEpsilon = 1e-3;
+
     // out must outlive the runner. Starts in a legacy-path "normal" mode.
     explicit ModeRunner(Output *out);
 
@@ -59,8 +63,18 @@ public:
     struct Info {  // for --debug
         double rate_h = 0, rate_v = 0, twist = 0, lateral = 0;
         bool zooming = false, nav = false;
+        double rate_zoom = 0;
     };
     const Info &info() const { return info_; }
+
+    // Something is held on the output (a key or a mouse button).
+    bool holdsAnything() const { return keys_held_.any() || mouse_held_ != 0; }
+    // An axis channel is outside its dead zone (its rate after smoothing, dead zone and
+    // curve is not zero), or the zoom detector is latched. Used by the daemon's safety net.
+    bool axesActive() const {
+        return std::fabs(info_.rate_h) > kRateEpsilon || std::fabs(info_.rate_v) > kRateEpsilon ||
+               std::fabs(info_.rate_zoom) > kRateEpsilon || info_.zooming;
+    }
 
 private:
     Output *out_;
