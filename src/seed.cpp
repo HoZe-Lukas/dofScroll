@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "config.hpp"
+#include "modes.hpp"
 
 namespace spn {
 namespace {
@@ -118,15 +119,14 @@ bool endsWith(const std::string &s, const std::string &suf) {
 }  // namespace
 
 bool seedDefaults(std::string *log) {
-    // <base>/spnav-scroll/spnav-scroll.conf -> <base>/dofscroll
     const std::string prev = previousConfigPath();
-    if (prev.empty()) return false;
-    const std::string cfgDir = dirName(dirName(prev)) + "/dofscroll";
+    const std::string modesPath = modesDir();  // <base>/dofscroll/modes
+    if (prev.empty() || modesPath.empty()) return false;
+    const std::string cfgDir = dirName(modesPath);
     const std::string cfgFile = cfgDir + "/dofscroll.conf";
-    const std::string modesDir = cfgDir + "/modes";
 
     const bool needCfg = !lexists(cfgFile) && !lexists(prev) && !lexists(legacyConfigPath());
-    const bool needModes = !lexists(modesDir);
+    const bool needModes = !lexists(modesPath);
     if (!needCfg && !needModes) return false;
 
     const std::string ex = findExamplesDir();
@@ -151,10 +151,10 @@ bool seedDefaults(std::string *log) {
         }
         std::sort(names.begin(), names.end());
         if (names.size() > kMaxModeFiles) names.resize(kMaxModeFiles);
-        if (!names.empty() && ::mkdir(modesDir.c_str(), 0700) == 0) {
+        if (!names.empty() && ::mkdir(modesPath.c_str(), 0700) == 0) {
             int cnt = 0;
             for (const auto &n : names)
-                if (copyFile(srcModes + "/" + n, modesDir + "/" + n)) ++cnt;
+                if (copyFile(srcModes + "/" + n, modesPath + "/" + n)) ++cnt;
             if (cnt) msg += std::string(msg.empty() ? "" : ", ") + std::to_string(cnt) + " mode file(s)";
         }
     }
