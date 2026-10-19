@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
         const bool avail = QSystemTrayIcon::isSystemTrayAvailable();
         std::printf("self-test: entries=%d profiles=%d tray-available=%d\n", w.pageCount(),
                     w.profileCount(), avail ? 1 : 0);
-        return (w.pageCount() == 4 && w.profileCount() == 3) ? 0 : 1;
+        return (w.pageCount() == 5 && w.profileCount() == 3) ? 0 : 1;
     }
 
     // Single-instance guard in a per-user directory (QLockFile detects stale locks itself).

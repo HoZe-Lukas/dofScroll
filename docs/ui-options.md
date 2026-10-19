@@ -57,6 +57,11 @@ A `QSplitter`: navigation tree on the far left, a stacked settings area on the r
 - Always-available top-level entries (identical in every mode): **Channels** (mix, sensitivity,
   deadzone, curve, smoothing, sign, zoom options), **General** (start at login, language) and
   **Axes / assistant**.
+- **Modes** (mode management, also mode-independent): a list of all modes (built-in and file
+  modes, warnings shown per mode) with the buttons New mode, Duplicate, Import file..., Edit
+  (opens the file in the default editor), Delete (file modes only, with confirmation) and Open
+  modes folder, plus a permanent hint that mode files can press any key and should only come
+  from trusted sources. A thin placeholder for now; the logic comes from the `ModeCatalog` model.
 - A **Profiles** group below them: "Default mode" (the `[global]` section) at the top, then the
   device and application profiles. Only what depends on the profile's mode lives here.
 - The profile page is model-driven and rebuilt whenever the selected profile or its mode

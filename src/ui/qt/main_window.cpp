@@ -4,7 +4,9 @@
 
 #include <QComboBox>
 #include <QGroupBox>
+#include <QHBoxLayout>
 #include <QLabel>
+#include <QListWidget>
 #include <QPushButton>
 #include <QSplitter>
 #include <QStackedWidget>
@@ -28,11 +30,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     split->setStretchFactor(1, 1);
 
     // Mode-independent pages: always available as their own entries.
-    const QStringList pages = {T("Channels"), T("General"), T("Axes / assistant")};
+    const QStringList pages = {T("Channels"), T("Modes"), T("General"), T("Axes / assistant")};
     for (const QString &name : pages) {
         auto *it = new QTreeWidgetItem(nav_, QStringList(name));
         it->setData(0, kRoleKind, 0);
-        it->setData(0, kRoleStackIndex, stack_->addWidget(placeholder(name)));
+        QWidget *w = (name == T("Modes")) ? modesPage() : placeholder(name);
+        it->setData(0, kRoleStackIndex, stack_->addWidget(w));
     }
     // Profiles group: only what depends on the profile's mode lives below it.
     auto *group = new QTreeWidgetItem(nav_, QStringList(T("Profiles")));
@@ -65,6 +68,29 @@ QWidget *MainWindow::placeholder(const QString &title) {
     auto *todo = new QLabel(T("not implemented yet"));
     todo->setAlignment(Qt::AlignCenter);
     l->addWidget(todo, 1);
+    return w;
+}
+
+// Thin placeholder: the list and the actions will be driven by the ModeCatalog model.
+QWidget *MainWindow::modesPage() {
+    auto *w = new QWidget;
+    auto *l = new QVBoxLayout(w);
+    l->addWidget(new QLabel(QStringLiteral("<b>") + T("Modes") + QStringLiteral("</b>")));
+    auto *hint = new QLabel(T("Mode files can press any key. Only use mode files from trusted "
+                              "sources."));
+    hint->setWordWrap(true);
+    l->addWidget(hint);
+    auto *row = new QHBoxLayout;
+    auto *list = new QListWidget(w);  // built-in and file modes, warnings per mode
+    list->addItem(T("not implemented yet"));
+    row->addWidget(list, 1);
+    auto *buttons = new QVBoxLayout;
+    for (const QString &b : {T("New mode"), T("Duplicate"), T("Import file..."), T("Edit"),
+                             T("Delete"), T("Open modes folder")})
+        buttons->addWidget(new QPushButton(b, w));
+    buttons->addStretch(1);
+    row->addLayout(buttons);
+    l->addLayout(row, 1);
     return w;
 }
 

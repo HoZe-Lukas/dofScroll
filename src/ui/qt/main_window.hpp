@@ -23,6 +23,7 @@ private slots:
     void onSelectionChanged();
 
 private:
+    QWidget *modesPage();
     QWidget *placeholder(const QString &title);
     void rebuildProfilePage(QTreeWidgetItem *profile);
 

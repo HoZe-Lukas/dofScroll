@@ -76,7 +76,7 @@ jobs:
       - name: Install Qt6 (aqtinstall, pinned version)
         uses: jurplel/install-qt-action@d325aaf2a8baeeda41ad0b5d39f84a6af9bcf005  # v4.3.0
         with:
-          version: "6.8.3"
+          version: "6.9.3"  # 6.8.x links the AGL framework, which the macOS 15 SDK dropped
           cache: true
       - name: Configure and build the UI target
         run: |
