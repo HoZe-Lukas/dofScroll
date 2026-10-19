@@ -682,7 +682,8 @@ hold on both. What the layer guarantees, and what it does not, per OS:
 
 | Property | Linux / macOS (POSIX) | Windows |
 |---|---|---|
-| No symlink at the final path component (mode files, HID descriptors, seeding sources, new files) | `O_NOFOLLOW`, `O_EXCL` | `FILE_FLAG_OPEN_REPARSE_POINT`, then the reparse tag is checked: symlinks and junctions are refused; `CREATE_NEW` for new files |
+| No symlink at the final path component (mode files, HID descriptors, seeding sources, new files) | `O_NOFOLLOW`, `O_EXCL` | `FILE_FLAG_OPEN_REPARSE_POINT`, then **any** reparse tag is refused (symlinks, junctions, mount points, cloud placeholders, dedup/WOF stubs); only `writeFileReplace` follows a symbolic link (and only that tag) so a symlinked config keeps its link; `CREATE_NEW` for new files |
+| Names Windows resolves to something else | not applicable | refused in every entry point of the layer (`windowsPathHazard`, `src/platform/path_rules.hpp`): reserved device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1-9`, `LPT1-9`, `CONIN$`, `CONOUT$`, also with an extension or trailing spaces, also the superscript digit forms), alternate data streams (`:`), trailing dots/spaces, `\\?\` and `\\.\` prefixes, drive-relative `C:name`, `* ? < > " |` and control characters. Mode ids reject the reserved stems on **all** OSes (`validModeId`), so a mode `con` can never become `con.conf` |
 | Regular file only (no FIFO/device/directory), size cap checked on the open handle | `fstat` + `S_ISREG`, `O_NONBLOCK` | `GetFileInformationByHandle` + `GetFileType == FILE_TYPE_DISK` |
 | Mode files owned by the current user | `st_uid == geteuid()` | owner SID equals the user's token SID or `BUILTIN\Administrators` (files written by an elevated process are owned by that group) |
 | Private directories/files (`0700`/`0600`) | `mkdir(.., 0700)`, `O_CREAT, 0600` | explicit protected DACL (current user + SYSTEM, nothing inherited); if the descriptor cannot be built the object inherits the ACL of `%APPDATA%`, which is already limited to the user, SYSTEM and Administrators |
@@ -693,6 +694,20 @@ hold on both. What the layer guarantees, and what it does not, per OS:
 | Legacy-config migration (`spnav-scroll` names) | yes (Linux and macOS) | not applicable, never shipped there |
 
 Known gaps, stated plainly:
+
+- **Administrators-owned files are accepted on Windows.** The "owned by the current user" check
+  for mode files also accepts the `BUILTIN\Administrators` owner, because files written by an
+  elevated process are owned by that group. Any local administrator can already act as the user,
+  so this adds no capability, but it is weaker than the POSIX `st_uid == geteuid()` check.
+- **No held directory handle on Windows.** `DirHandle` keeps only the directory path; files in it
+  are opened by path (there is no `openat`). A directory replaced between listing and opening mode
+  files is not detected. Closing it would need `NtCreateFile` with a root directory handle, which
+  is not used here.
+- Cloud placeholders (OneDrive "files on demand") and other reparse points are refused, so a
+  configuration or mode directory inside a cloud-synced folder that uses placeholders must be
+  made available offline first.
+- Normal UNC paths (`\\server\share\...`) are accepted, the verbatim forms are not; network
+  shares have different ACL semantics and the private-DACL guarantees are not checked there.
 
 - The Windows code is compiled with MSVC and MinGW and its pure logic and the file operations are
   exercised by `test_fs` and the other tests on the GitHub `windows-latest` runner (and locally
