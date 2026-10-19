@@ -128,7 +128,8 @@ the owner.
 - `~DEFAULT_BRANCH` in `conditions.ref_name.include` is the documented token for the default
   branch. Status check `context` strings must equal the job names exactly; they are not
   bound to an app (`integration_id` omitted), which GitHub accepts.
-- `sha_pinning_required` in `PUT /actions/permissions` exists in the OpenAPI description but is
-  new; if the API rejects it the script reports it and the other settings are unaffected.
+- `sha_pinning_required` is set to false on purpose: with it on, GitHub also rejects actions that
+  other actions call by tag internally (jurplel/install-qt-action calls setup-python@v5), and the
+  Qt jobs failed in "Set up job". Our own workflows still pin every action to a full SHA.
 - Whether `anthropics/claude-code-action` works without its GitHub app installed, and whether it
   can check out and read a fork PR head on an `@claude` comment, was not tested.
