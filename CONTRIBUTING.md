@@ -99,6 +99,10 @@ UI strings are English in the source and translated with gettext; translations l
 4. When you add or change UI strings in the source, keep them English and re-extract the
    template so translators see the new entries.
 
+## Code of conduct
+
+Be kind and respectful; see `CODE_OF_CONDUCT.md`.
+
 ## Security
 
 Please report security problems privately to the maintainer rather than in a public issue. The
