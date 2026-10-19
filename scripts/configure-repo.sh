@@ -138,6 +138,7 @@ call "Actions: allow-list" PUT "/actions/permissions/selected-actions" '{
   "verified_allowed": false,
   "patterns_allowed": [
     "anthropics/claude-code-action@*",
+    "jurplel/install-qt-action@*",
     "oven-sh/setup-bun@*"
   ]
 }'
