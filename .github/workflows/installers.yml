@@ -117,7 +117,7 @@ jobs:
           for z in dist-installers/*.zip; do unzip -q "$z" -d "$RUNNER_TEMP/scan"; done
           ws="$GITHUB_WORKSPACE"
           sh scripts/scan-package-paths.sh "$RUNNER_TEMP/scan" \
-            "$ws" "${ws//\\//}" "_CPack_Packages" "D:\\a\\" "D:/a/" "C:\\Users\\runneradmin" 'C:/Users/runneradmin'
+            "$ws" "${ws//\\//}" "_CPack_Packages" "C:\\Users\\runneradmin" 'C:/Users/runneradmin'
       - name: List the result
         shell: bash
         run: |
