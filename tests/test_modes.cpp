@@ -365,9 +365,8 @@ static void testSecurityHardening() {
     assert(!hasWarning(w, "mode safe"));
 
     // shipped example modes: no chord warning
-    std::string src = __FILE__;
-    src.erase(src.find_last_of("/\\"));
-    src += "/../examples/modes";
+    const std::string src =
+        (std::filesystem::path(__FILE__).parent_path() / ".." / "examples" / "modes").string();
     w.clear();
     ms = loadModes(src, &w);
     assert(ms.find("browse-keys"));
