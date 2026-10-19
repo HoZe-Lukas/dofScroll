@@ -92,10 +92,12 @@ int main() {
 
     // wait until gone: succeeds as soon as the job is gone, gives up after maxTries sleeps
     int polls = 0, sleeps = 0;
-    assert(waitUntilGone([&] { return ++polls < 4; }, [&] { sleeps++; }));
+    const bool gone = waitUntilGone([&] { return ++polls < 4; }, [&] { sleeps++; });
+    assert(gone);
     assert(polls == 4 && sleeps == 3);
     polls = sleeps = 0;
-    assert(!waitUntilGone([&] { polls++; return true; }, [&] { sleeps++; }, 5));
+    const bool never = waitUntilGone([&] { polls++; return true; }, [&] { sleeps++; }, 5);
+    assert(!never);
     assert(sleeps == 5 && polls == 6);
     assert(waitUntilGone([] { return false; }, [] { assert(false); }));
 
