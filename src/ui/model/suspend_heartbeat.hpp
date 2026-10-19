@@ -24,7 +24,7 @@ class SuspendHeartbeat {
 public:
     static constexpr int64_t kIntervalNs = 200LL * 1000000;  // well inside SUSPEND_MAX_AGE_MS (600 ms)
 
-    explicit SuspendHeartbeat(std::string runtimeDir) : path_(suspendFilePathIn(runtimeDir)) {}
+    explicit SuspendHeartbeat(const std::string &runtimeDir) : path_(suspendFilePathIn(runtimeDir)) {}
     SuspendHeartbeat(const SuspendHeartbeat &) = delete;
     SuspendHeartbeat &operator=(const SuspendHeartbeat &) = delete;
     ~SuspendHeartbeat() { stop(); }
