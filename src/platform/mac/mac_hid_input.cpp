@@ -16,6 +16,7 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/hid/IOHIDLib.h>
+#include <dlfcn.h>
 
 #include <atomic>
 #include <chrono>
@@ -38,9 +39,11 @@ namespace {
 
 const char *const LOG = "[dofscroll] ";
 
-// IOHIDRequestType value of kIOHIDRequestTypeListenEvent (PostEvent = 0, ListenEvent = 1). The
-// enumerator is not visible through IOHIDLib.h with the runner's SDK in C++, the function is.
-const IOHIDRequestType kListenEvent = static_cast<IOHIDRequestType>(1);
+// Input Monitoring: IOHIDCheckAccess / IOHIDRequestAccess (macOS 10.15+) are looked up with dlsym. The
+// runner's SDK does not expose the declarations through IOHIDLib.h in C++, and dlsym also keeps the binary
+// loadable on older systems (no permission check there). IOHIDRequestType kIOHIDRequestTypeListenEvent = 1
+// (PostEvent = 0); IOHIDAccessType granted = 0, denied = 1, unknown = 2.
+constexpr uint32_t kListenEvent = 1;
 
 bool cfInt(CFTypeRef t, int64_t *out) {
     if (!t || CFGetTypeID(t) != CFNumberGetTypeID()) return false;
@@ -133,11 +136,16 @@ private:
     void checkPermission() {
         if (permissionChecked_) return;
         permissionChecked_ = true;
-        if (__builtin_available(macOS 10.15, *)) {
-            const MacAccess a = macAccessFromInt(static_cast<int>(IOHIDCheckAccess(kListenEvent)));
-            if (a == MacAccess::Granted) return;
-            std::cerr << LOG << "WARNING: " << macPermissionMessage(a) << std::endl;
-            if (a == MacAccess::Unknown) (void)IOHIDRequestAccess(kListenEvent);
+        using CheckFn = uint32_t (*)(uint32_t);
+        using RequestFn = bool (*)(uint32_t);
+        const CheckFn check = reinterpret_cast<CheckFn>(dlsym(RTLD_DEFAULT, "IOHIDCheckAccess"));
+        if (!check) return;  // macOS before 10.15: no Input Monitoring permission
+        const MacAccess a = macAccessFromInt(static_cast<int>(check(kListenEvent)));
+        if (a == MacAccess::Granted) return;
+        std::cerr << LOG << "WARNING: " << macPermissionMessage(a) << std::endl;
+        if (a == MacAccess::Unknown) {
+            const RequestFn request = reinterpret_cast<RequestFn>(dlsym(RTLD_DEFAULT, "IOHIDRequestAccess"));
+            if (request) (void)request(kListenEvent);
         }
     }
 
