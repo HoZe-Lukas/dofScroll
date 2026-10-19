@@ -61,6 +61,8 @@ find_package(Threads REQUIRED)
 
 # ---- flags ------------------------------------------
 add_library(dofscroll_flags INTERFACE)
+# One version for every binary: the project version (daemon and UI print the same number).
+target_compile_definitions(dofscroll_flags INTERFACE DOFSCROLL_VERSION="${PROJECT_VERSION}")
 if(MSVC)
   target_compile_options(dofscroll_flags INTERFACE /W4 /utf-8 /permissive- /EHsc)
   target_compile_definitions(dofscroll_flags INTERFACE _CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN)

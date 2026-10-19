@@ -32,7 +32,10 @@ using namespace spn;
 
 namespace {
 
-const char *const VERSION = "dofscroll 2.0";
+#ifndef DOFSCROLL_VERSION
+#define DOFSCROLL_VERSION "unknown"
+#endif
+const char *const VERSION = "dofscroll " DOFSCROLL_VERSION;
 const char *const LOG = "[dofscroll] ";
 
 // Set by the quit signal handlers; the core's requestQuit() is a lock-free atomic store.
