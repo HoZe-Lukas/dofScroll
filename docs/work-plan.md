@@ -78,7 +78,7 @@ compile on their runner). Toolkit-free logic is shared; platform parts are small
 | Active window / application profiles | `profile_match` | done | PR #3 | PR #4 |
 | Settings UI (Qt6) | `src/ui/model/` | W3 (GTK tray exists) | W3 | W3 |
 | Mode management in the UI (new, duplicate, import, edit) | ModeCatalog | W3 | W3 | W3 |
-| Running-program picker + capture next focus | `app_picker_model` | PR `feat/w3-app-picker` | **W17 (open)** | **W17 (open)** |
+| Running-program picker + capture next focus | `app_picker_model` | PR `feat/w3-app-picker` | W17 (compile-checked) | W17 (compile-checked) |
 | Start at login (daemon + UI) | `autostart.hpp` contract | GTK done, Qt W3 | W18 (open) | W18 (open) |
 | Open file/folder/log in the default app | `ActionRunner` | W3 | W3 | W3 |
 | Live axes view and wizard (data feed from the daemon) | model | W3 (stage 3) | W3 (stage 3) | W3 (stage 3) |
@@ -87,7 +87,7 @@ compile on their runner). Toolkit-free logic is shared; platform parts are small
 Open packages created by this rule:
 | Id | Package | Files | Depends on | Status |
 |---|---|---|---|---|
-| W17 | Running-program picker for Windows (`EnumWindows` + process executable name, same string as the foreground provider) and macOS (`NSWorkspace` runningApplications, regular apps, bundle id or name as the foreground provider reports), plus the device list from the HID backends | `src/platform/win/running_apps_win.cpp`, `src/platform/mac/running_apps_mac.mm`, tests, CMake hooks in `cmake/windows.cmake`, `cmake/macos.cmake` | picker PR and port PRs merged | open |
+| W17 | Running-program picker for Windows (`EnumWindows` + process executable name, same string as the foreground provider) and macOS (`NSWorkspace` runningApplications, regular apps, bundle id or name as the foreground provider reports), plus the device list from the HID backends | `src/platform/win/running_apps_win.cpp`, `src/platform/mac/running_apps_mac.mm`, tests, CMake hooks in `cmake/windows.cmake`, `cmake/macos.cmake` | picker PR and port PRs merged | done (compile-checked on the Windows/macOS runners; real-desktop behaviour unverified) |
 | W18 | Start-at-login implementations behind `src/autostart.hpp`: Windows (Startup entry or scheduled task for daemon and UI), macOS (LaunchAgents for daemon and UI), Linux Qt UI unit | `src/platform/win/`, `src/platform/mac/`, `src/platform/linux/` autostart files, packaging | W3 core, port PRs merged | open |
 
 Order that avoids conflicts: W0b touches core files and is merged first; W1/W2 start now with

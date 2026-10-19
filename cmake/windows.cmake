@@ -67,3 +67,16 @@ if(DOFSCROLL_BUILD_DAEMON)
   install(DIRECTORY devices/ DESTINATION bin/devices FILES_MATCHING PATTERN "*.conf")
   install(DIRECTORY examples/ DESTINATION bin/examples)
 endif()
+
+# W17: running-programs provider (src/platform/win/running_apps_win.cpp, already in WIN_SRC through
+# the glob above) needs the version resource and DWM libraries; self-test runs it on the runner.
+if(DOFSCROLL_BUILD_DAEMON)
+  target_link_libraries(dofscroll PRIVATE version dwmapi)
+  if(BUILD_TESTING)
+    add_executable(running_apps_selftest ${CMAKE_SOURCE_DIR}/tests/selftest_running_apps.cpp
+      ${CMAKE_SOURCE_DIR}/src/platform/win/running_apps_win.cpp)
+    target_link_libraries(running_apps_selftest PRIVATE dofscroll_core user32 version dwmapi)
+    set_target_properties(running_apps_selftest PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+    add_test(NAME running_apps_selftest COMMAND running_apps_selftest)
+  endif()
+endif()

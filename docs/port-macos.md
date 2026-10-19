@@ -50,6 +50,14 @@ The bundle identifier (for example `com.apple.Safari`) is the string `[app:*]` s
 matched against; apps without one fall back to the localized name. Profile patterns are matched
 case-insensitively as substrings by the shared matcher.
 
+### Running programs (picker)
+
+`src/platform/mac/running_apps_mac.mm` lists `NSWorkspace.runningApplications` with activation
+policy regular; the match string is the same lower-cased bundle identifier (or name) as the active
+application provider. Called from a thread without a running `NSApplication` the list can be a
+stale snapshot. Compile-checked and smoke-tested by `running_apps_selftest`; unverified on a
+real desktop.
+
 ### Reload
 
 The tray (or `requestReload()`) writes the config atomically and then connects to the daemon's
