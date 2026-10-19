@@ -6,6 +6,8 @@ The source (`src/config.cpp`, `src/config.hpp`) is the reference. This page desc
 
 ## File and location
 
+The file is UTF-8 (a BOM is accepted, never written; LF written, CRLF accepted); names may contain any Unicode text, see [encoding.md](encoding.md).
+
 | Item | Value |
 |---|---|
 | Config file | `~/.config/dofscroll/dofscroll.conf` (`$XDG_CONFIG_HOME` is used if it is an absolute path) |

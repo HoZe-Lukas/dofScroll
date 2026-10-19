@@ -6,6 +6,8 @@ The source ([src/config.cpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/s
 
 ## File and format
 
+The file is UTF-8 (a BOM is accepted, never written; LF written, CRLF accepted); names may contain any Unicode text, matched with ASCII-only case folding. See docs/encoding.md.
+
 | Item | Value |
 |---|---|
 | Config file | `~/.config/dofscroll/dofscroll.conf` (`$XDG_CONFIG_HOME` is used if it is an absolute path) |

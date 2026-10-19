@@ -39,6 +39,8 @@ open (`Text file busy`); stop it before rebuilding.
 
 ## Rules
 
+- Text is UTF-8 everywhere (BOM read, never written, LF written); case-insensitive matching folds ASCII only; never use `isalpha`/`tolower` on UTF-8 bytes (use `src/utf8.hpp`); see `docs/encoding.md`.
+
 - English everywhere (code, comments, docs, logs, commits). Only `po/*.po` has other languages.
   UI strings are English in the source and translated through gettext.
 - New files carry the SPDX header (`GPL-3.0-or-later`, copyright line as in existing files).
