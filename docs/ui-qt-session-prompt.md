@@ -79,6 +79,12 @@ UI DESIGN REQUIREMENTS (maintainer, 2026-10-19; they apply to the pages stage):
   The profile tree (Default mode, devices, applications) shows only what depends on the profile's
   mode. Per-profile overrides of channel values stay possible (the config format supports them):
   they live in a collapsed "Overrides for this profile" section, off by default.
+- A "Modes" entry (also always available) manages the mode files in the modes directory: list of
+  all modes (built-in and file) with their loader warnings, New mode (template with the syntax
+  documented in comments), Duplicate (also from built-ins), Import file... (validated before it
+  is copied, warnings shown first), Edit (default editor), Delete (file modes only; removing a file
+  that overrides a built-in restores the built-in), Open modes folder, and a permanent hint that
+  mode files can press any key and should come from trusted sources.
 - Visual quality matters: clear grouping, sensible defaults, short helper texts, consistent
   spacing, keyboard navigation, light/dark theme friendly, no wall of sliders.
 
