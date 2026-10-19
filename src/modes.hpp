@@ -14,8 +14,8 @@
 //   V_ACTION = none                                 # vertical channel   (SCROLL_V)
 //   H_ACTION = keys:left,right                      # horizontal channel (SCROLL_H)
 //   TWIST_ACTION = keys:left,right                  # twist channel      (ZOOM)
-//   BUTTON_0 = key:space                            # button 0 holds the space bar
-//   BUTTON_1 = click
+//   BUTTON_1 = key:space                            # button 1 holds the space bar
+//   BUTTON_2 = click
 //   SCROLL_H_SENS = 4                               # any settings key (applyKey)
 //
 // Channel actions:  default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos>
@@ -23,6 +23,8 @@
 //   dominance detection). zoom = hold Ctrl + mouse wheel. keys:<neg>,<pos> = key presses
 //   (neg for negative, pos for positive deflection; rate proportional to the deflection),
 //   key names from keys.hpp.
+// Buttons are numbered from 1 (BUTTON_1 .. BUTTON_32), exactly like BUTTON_<n> in the main config;
+// BUTTON_0 is rejected. Internally button n is device bit n-1 (spnav_event_button.bnum).
 // Button actions: none | click | rightclick | middleclick | nav | key:<name>
 //   click/rightclick/middleclick = hold the mouse button while the button is held;
 //   key = hold the key; nav = while held, the V/H channels send arrow keys instead of scroll.
@@ -41,7 +43,7 @@
 
 namespace spn {
 
-enum class ChannelActionType { Default, None, WheelV, WheelH, Zoom, Keys };
+enum class ChannelActionType { Default, Off, WheelV, WheelH, Zoom, Keys };
 struct ChannelAction {
     ChannelActionType type = ChannelActionType::Default;
     Key neg = Key::Up, pos = Key::Down;  // only for Keys
@@ -50,10 +52,10 @@ struct ChannelAction {
     }
 };
 
-enum class ButtonActionType { None, Click, RightClick, MiddleClick, Nav, Key };
+enum class ButtonActionType { Unbound, Click, RightClick, MiddleClick, Nav, Key };
 struct ButtonBinding {
-    int button = 0;                       // button index (spnav_event_button.bnum), 0..31
-    ButtonActionType type = ButtonActionType::None;
+    int button = 1;                       // button number, 1-based (device bit index = button - 1), 1..32
+    ButtonActionType type = ButtonActionType::Unbound;
     Key key = Key::Space;                 // only for Key
 };
 

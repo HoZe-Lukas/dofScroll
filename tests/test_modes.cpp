@@ -44,7 +44,7 @@ static void testGrammar() {
     std::string err;
     ChannelAction a;
     assert(parseChannelAction("default", &a, &err) && a.type == ChannelActionType::Default);
-    assert(parseChannelAction(" NONE ", &a, &err) && a.type == ChannelActionType::None);
+    assert(parseChannelAction(" NONE ", &a, &err) && a.type == ChannelActionType::Off);
     assert(parseChannelAction("wheel_v", &a, &err) && a.type == ChannelActionType::WheelV);
     assert(parseChannelAction("wheel_h", &a, &err) && a.type == ChannelActionType::WheelH);
     assert(parseChannelAction("zoom", &a, &err) && a.type == ChannelActionType::Zoom);
@@ -61,7 +61,7 @@ static void testGrammar() {
 
     ButtonActionType t;
     Key k;
-    assert(parseButtonAction("none", &t, &k, &err) && t == ButtonActionType::None);
+    assert(parseButtonAction("none", &t, &k, &err) && t == ButtonActionType::Unbound);
     assert(parseButtonAction("click", &t, &k, &err) && t == ButtonActionType::Click);
     assert(parseButtonAction("RightClick", &t, &k, &err) && t == ButtonActionType::RightClick);
     assert(parseButtonAction("middleclick", &t, &k, &err) && t == ButtonActionType::MiddleClick);
@@ -82,10 +82,10 @@ static void testBuiltins() {
     assert(none.modes.size() == 3 && none.normal().id == "normal" && none.normal().builtin);
     assert(none.normal().allDefaultChannels() && none.normal().buttons.empty());
     const ModeDef *off = none.find("off");
-    assert(off && off->v.type == ChannelActionType::None && off->h.type == ChannelActionType::None &&
-           off->twist.type == ChannelActionType::None);
+    assert(off && off->v.type == ChannelActionType::Off && off->h.type == ChannelActionType::Off &&
+           off->twist.type == ChannelActionType::Off);
     const ModeDef *tl = none.find("timeline");
-    assert(tl && tl->v.type == ChannelActionType::None);
+    assert(tl && tl->v.type == ChannelActionType::Off);
     assert(tl->h.type == ChannelActionType::Keys && tl->h.neg == Key::Left && tl->h.pos == Key::Right);
     assert(tl->twist == tl->h);
     assert(!none.find("nope"));
@@ -102,9 +102,9 @@ static void testParser() {
               "V_ACTION = none\n"
               "H_ACTION = keys:left,right\n"
               "twist_action = keys:Left,Right\n"
-              "BUTTON_0 = key:space\n"
-              "BUTTON_1 = click\n"
-              "BUTTON_1 = rightclick\n"  // later wins
+              "BUTTON_1 = key:space\n"
+              "BUTTON_2 = click\n"
+              "BUTTON_2 = rightclick\n"  // later wins
               "SCROLL_H_SENS = 4\n"
               "zoom_sens = 7 # note\n");
     std::vector<std::string> w;
@@ -112,11 +112,11 @@ static void testParser() {
     assert(w.empty());
     const ModeDef *m = ms.find("resolve");
     assert(m && !m->builtin && m->label == "DaVinci Resolve" && m->description == "Edit page");
-    assert(m->v.type == ChannelActionType::None && m->h.type == ChannelActionType::Keys);
+    assert(m->v.type == ChannelActionType::Off && m->h.type == ChannelActionType::Keys);
     assert(m->twist.neg == Key::Left && m->twist.pos == Key::Right);
     assert(m->buttons.size() == 2);
-    assert(m->buttons[0].button == 0 && m->buttons[0].type == ButtonActionType::Key && m->buttons[0].key == Key::Space);
-    assert(m->buttons[1].button == 1 && m->buttons[1].type == ButtonActionType::RightClick);
+    assert(m->buttons[0].button == 1 && m->buttons[0].type == ButtonActionType::Key && m->buttons[0].key == Key::Space);
+    assert(m->buttons[1].button == 2 && m->buttons[1].type == ButtonActionType::RightClick);
     assert(m->overrides.size() == 2 && m->overrides[0].first == "SCROLL_H_SENS" && m->overrides[0].second == "4");
     assert(m->overrides[1].first == "ZOOM_SENS" && m->overrides[1].second == "7");
     assert(!m->allDefaultChannels());
@@ -134,7 +134,7 @@ static void testParser() {
 
     // a file named like a built-in replaces it (normal stays at index 0)
     clearDir();
-    writeFile("normal.conf", "NAME = My normal\nBUTTON_2 = nav\n");
+    writeFile("normal.conf", "NAME = My normal\nBUTTON_3 = nav\n");
     writeFile("timeline.conf", "H_ACTION = zoom\n");
     ms = loadModes(g_dir, &w);
     assert(ms.modes.size() == 3 && ms.normal().id == "normal" && !ms.normal().builtin);
@@ -147,8 +147,8 @@ static void testGrammarErrors() {
     writeFile("bad.conf",
               "V_ACTION = flying\n"           // 1: invalid action
               "H_ACTION = keys:left\n"        // 2
-              "BUTTON_0 = key:nonsense\n"     // 3
-              "BUTTON_32 = click\n"           // 4: index out of range
+              "BUTTON_1 = key:nonsense\n"     // 3
+              "BUTTON_33 = click\n"           // 4: number out of range
               "BUTTON_x = click\n"            // 5
               "BUTTON_ = click\n"             // 6
               "NO_SUCH_KEY = 1\n"             // 7
@@ -158,12 +158,14 @@ static void testGrammarErrors() {
               "no equals sign\n"              // 11
               " = value\n"                    // 12
               "NAME = ok\x01\x02name\n"       // control characters are dropped
-              "TWIST_ACTION = zoom\n");
+              "TWIST_ACTION = zoom\n"
+              "BUTTON_0 = click\n");         // 13: buttons are numbered from 1
     std::vector<std::string> w;
     ModeSet ms = loadModes(g_dir, &w);
     const ModeDef *m = ms.find("bad");
     assert(m);  // the file survives, bad lines are skipped
-    assert(w.size() == 12);
+    assert(w.size() == 13);
+    assert(hasWarning(w, "buttons are numbered from 1"));
     assert(hasWarning(w, "bad.conf:1:") && hasWarning(w, "bad.conf:9:") && hasWarning(w, "MODE"));
     assert(m->v.type == ChannelActionType::Default && m->h.type == ChannelActionType::Default);
     assert(m->twist.type == ChannelActionType::Zoom);
@@ -174,7 +176,7 @@ static void testGrammarErrors() {
     clearDir();
     writeFile("crlf.conf", "V_ACTION = none\r\nH_ACTION = wheel_h");
     ms = loadModes(g_dir, &w);
-    assert(ms.find("crlf")->v.type == ChannelActionType::None && ms.find("crlf")->h.type == ChannelActionType::WheelH);
+    assert(ms.find("crlf")->v.type == ChannelActionType::Off && ms.find("crlf")->h.type == ChannelActionType::WheelH);
 }
 
 static void testLimits() {
@@ -219,7 +221,7 @@ static void testLimits() {
     writeFile("long.conf", "NAME = " + std::string(5000, 'a') + "\nV_ACTION = none\n");
     w.clear();
     ms = loadModes(g_dir, &w);
-    assert(ms.find("long") && ms.find("long")->v.type == ChannelActionType::None && hasWarning(w, "too long"));
+    assert(ms.find("long") && ms.find("long")->v.type == ChannelActionType::Off && hasWarning(w, "too long"));
 }
 
 static void testFileTypes() {

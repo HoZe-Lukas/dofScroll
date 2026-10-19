@@ -41,7 +41,7 @@
 #include <X11/Xlib.h>
 #include <spnav.h>
 
-// Xlib defines None as a macro, which clashes with ChannelActionType::None (modes.hpp).
+// Xlib defines None as a macro, which clashes with ChannelActionType::Off (modes.hpp).
 #undef None
 
 #include "activewin.hpp"

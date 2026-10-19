@@ -79,9 +79,9 @@ void ModeRunner::syncKeys(const std::bitset<kKeyCount> &want) {
 ModeRunner::Wanted ModeRunner::bindings(uint32_t buttons) const {
     Wanted w;
     for (const ButtonBinding &b : mode_.buttons) {
-        if (!buttonHeld(buttons, b.button)) continue;
+        if (!buttonHeld(buttons, b.button - 1)) continue;  // bindings are 1-based
         switch (b.type) {
-        case ButtonActionType::None: break;
+        case ButtonActionType::Unbound: break;
         case ButtonActionType::Click: w.mouse |= 1u << 1; break;
         case ButtonActionType::MiddleClick: w.mouse |= 1u << 2; break;
         case ButtonActionType::RightClick: w.mouse |= 1u << 3; break;
@@ -191,11 +191,11 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
         acc_h_.reset();
         nt = acc_zoom_.add(rate_zoom, dt);
     } else {
-        if (tt == ChannelActionType::Zoom || tt == ChannelActionType::None) acc_zoom_.reset();
+        if (tt == ChannelActionType::Zoom || tt == ChannelActionType::Off) acc_zoom_.reset();
         else nt = stepOrReset(acc_zoom_, rate_zoom, dt);
-        if (tv != ChannelActionType::None) nv = stepOrReset(acc_v_, rate_v, dt);
+        if (tv != ChannelActionType::Off) nv = stepOrReset(acc_v_, rate_v, dt);
         else acc_v_.reset();
-        if (th != ChannelActionType::None) nh = stepOrReset(acc_h_, rate_h, dt);
+        if (th != ChannelActionType::Off) nh = stepOrReset(acc_h_, rate_h, dt);
         else acc_h_.reset();
     }
 
@@ -208,7 +208,7 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
     auto emit = [&](const ChannelAction &a, ChannelActionType t, int n, int sgn) {
         if (n == 0) return;
         switch (t) {
-        case ChannelActionType::None:
+        case ChannelActionType::Off:
         case ChannelActionType::Default: break;
         case ChannelActionType::Zoom: out_->wheelV(sgn * n); break;
         case ChannelActionType::WheelV:

@@ -25,7 +25,7 @@ constexpr size_t kMaxModeFiles = 64;
 constexpr size_t kMaxModeFileBytes = 64 * 1024;
 constexpr size_t kMaxModeOverrides = 128;
 constexpr size_t kMaxDirEntries = 4096;  // readdir cap (names inspected), against huge directories
-constexpr int kMaxModeButton = 31;       // highest binding index in a mode file
+constexpr int kMaxModeButton = 32;       // highest button number in a mode file (1-based)
 constexpr size_t kMaxLabel = 64;
 constexpr size_t kMaxDescription = 256;
 constexpr size_t kMaxModeLine = 4096;
@@ -76,10 +76,10 @@ std::vector<ModeDef> builtinModes() {
     std::vector<ModeDef> v;
     v.push_back(builtinMode("normal", "Normal", "Scroll, zoom and navigation as configured"));
     ModeDef off = builtinMode("off", "Off", "Sends nothing");
-    off.v.type = off.h.type = off.twist.type = ChannelActionType::None;
+    off.v.type = off.h.type = off.twist.type = ChannelActionType::Off;
     v.push_back(off);
     ModeDef tl = builtinMode("timeline", "Timeline", "Sideways = scrub, twist = single frames");
-    tl.v.type = ChannelActionType::None;
+    tl.v.type = ChannelActionType::Off;
     tl.h.type = tl.twist.type = ChannelActionType::Keys;
     tl.h.neg = tl.twist.neg = Key::Left;
     tl.h.pos = tl.twist.pos = Key::Right;
@@ -137,9 +137,13 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
             warn(lineno, "MODE is not allowed in a mode file - line ignored");
         } else if (key.compare(0, 7, "BUTTON_") == 0) {
             const std::string num = key.substr(7);
-            if (num.empty() || num.size() > 2 || num.find_first_not_of("0123456789") != std::string::npos ||
+            if (num == "0") {
+                warn(lineno, key + ": buttons are numbered from 1 - line ignored");
+                continue;
+            }
+            if (num.empty() || num.size() > 2 || std::atoi(num.c_str()) < 1 || num.find_first_not_of("0123456789") != std::string::npos ||
                 std::atoi(num.c_str()) > kMaxModeButton) {
-                warn(lineno, key + ": button index must be 0.." + std::to_string(kMaxModeButton) + " - line ignored");
+                warn(lineno, key + ": button number must be 1.." + std::to_string(kMaxModeButton) + " - line ignored");
                 continue;
             }
             ButtonBinding b;
@@ -198,7 +202,7 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
     const std::string t = lower(trim(text));
     ChannelAction a;
     if (t == "default") a.type = ChannelActionType::Default;
-    else if (t == "none") a.type = ChannelActionType::None;
+    else if (t == "none") a.type = ChannelActionType::Off;
     else if (t == "wheel_v") a.type = ChannelActionType::WheelV;
     else if (t == "wheel_h") a.type = ChannelActionType::WheelH;
     else if (t == "zoom") a.type = ChannelActionType::Zoom;
@@ -223,7 +227,7 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
     const std::string t = lower(trim(text));
     ButtonActionType ty;
     Key k = Key::Space;
-    if (t == "none") ty = ButtonActionType::None;
+    if (t == "none") ty = ButtonActionType::Unbound;
     else if (t == "click") ty = ButtonActionType::Click;
     else if (t == "rightclick") ty = ButtonActionType::RightClick;
     else if (t == "middleclick") ty = ButtonActionType::MiddleClick;

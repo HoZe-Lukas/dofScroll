@@ -236,12 +236,12 @@ A **mode** decides what the three channels and the device buttons do. Modes are 
     V_ACTION = none                   # vertical channel   (SCROLL_V)
     H_ACTION = keys:left,right        # horizontal channel (SCROLL_H)
     TWIST_ACTION = keys:left,right    # twist channel      (ZOOM)
-    BUTTON_0 = key:space              # button 0 holds the space key
-    BUTTON_1 = click
+    BUTTON_1 = key:space              # button 1 holds the space key
+    BUTTON_2 = click
     SCROLL_H_SENS = 4                 # any settings key (same keys as in a profile)
 
 - **Channel actions** (`V_ACTION`, `H_ACTION`, `TWIST_ACTION`): `default` | `none` | `wheel_v` | `wheel_h` | `zoom` | `keys:<neg>,<pos>`. `default` is the channel's normal behavior (V: `wheel_v`, H: `wheel_h`, twist: `zoom` with dominance detection). `zoom` = hold Ctrl + mouse wheel. `keys:<neg>,<pos>` sends key presses (`<neg>` on negative, `<pos>` on positive deflection; rate follows the deflection like in nav mode, so dead zone, curve, smoothing and sensitivity of the respective channel apply). Key names come from `src/keys.hpp` (ctrl, shift, alt, super, arrows, space, enter, esc, tab, F1–F12, a–z, 0–9, …).
-- **Button actions** (`BUTTON_<n>`): `none` | `click` | `rightclick` | `middleclick` | `nav` | `key:<name>`. Mouse-button actions and `key:` hold the button/key as long as the device button is held; `nav` sends arrow keys for the V/H channels instead of scrolling while held. `<n>` must be below the **factory button count** of the device model (see "Button count").
+- **Button actions** (`BUTTON_<n>`): `none` | `click` | `rightclick` | `middleclick` | `nav` | `key:<name>`. Mouse-button actions and `key:` hold the button/key as long as the device button is held; `nav` sends arrow keys for the V/H channels instead of scrolling while held. Buttons are numbered from **1** (`BUTTON_1` is the first button), in mode files and in the main config alike; `BUTTON_0` is rejected with "buttons are numbered from 1". `<n>` must not exceed the **factory button count** of the device model (see "Button count"); at most 32 in a mode file.
 - **Everything else** is a settings override with the same keys as in a profile (e.g. `SCROLL_H_SENS`, `ZOOM_SIGN`).
 - A mode whose three channel actions are all `default` runs in the normal path (including dominance-based zoom and `NAV_BUTTON`/`CLICK_BUTTON` from the settings); its button bindings apply in addition.
 - On a mode change, suspend, `ENABLED = 0` and daemon exit, keys and buttons held by a mode are released.
