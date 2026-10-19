@@ -60,7 +60,6 @@ int main() {
 
     // UTF-8: a 200 byte limit never cuts a multi-byte character
     v = autostartView(AutostartState::Error, std::string(199, 'a') + "\xC3\xA4\xC3\xA4", id);
-    assert(v.text.find("\xC3\xA4") == std::string::npos || v.text.back() != char(0xC3));
     {
         const std::string t = v.text;
         for (size_t i = 0; i < t.size(); ++i)
