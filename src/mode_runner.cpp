@@ -98,7 +98,8 @@ ModeRunner::Wanted ModeRunner::bindings(const Settings &s, uint32_t buttons) con
         case ButtonActionType::Unbound:
         case ButtonActionType::ModeSwitch:
         case ButtonActionType::ToggleNav:
-        case ButtonActionType::ToggleMode: break;  // act on the press edge, see tick()
+        case ButtonActionType::ToggleMode:
+        case ButtonActionType::ButtonMode: break;  // act on the press edge, see tick(); ButtonMode is expanded by the daemon core
         case ButtonActionType::Click: w.mouse |= 1u << 1; break;
         case ButtonActionType::MiddleClick: w.mouse |= 1u << 2; break;
         case ButtonActionType::RightClick: w.mouse |= 1u << 3; break;

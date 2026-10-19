@@ -124,6 +124,11 @@ struct Rig {
         tu::removeAll(dir);
     }
 
+    void writeButtonMode(const std::string &file, const std::string &text) {
+        std::filesystem::create_directory(dir + "/buttons");
+        writeFile(dir + "/buttons/" + file, text);
+    }
+
     void pump() {
         InputEvent e;
         while (src.wait(&e, 0) == WaitResult::Event) core->reader().handle(e);
@@ -453,6 +458,83 @@ static void testConfigButtonsAndNormalFile() {
     CHECK(!n.rec.mouse.empty() && n.rec.mouse[0] == "+1", "normal.conf applies at startup");
 }
 
+// buttonmode:<id>: expanded at runtime, same button mode on several buttons, unknown ids do nothing,
+// edits are picked up, the mode file still wins over the profile, the config stays as written.
+static void testButtonModes() {
+    const std::string conf = std::string(BASE_CONF) + "BUTTON_1 = buttonmode:rc\nBUTTON_2 = buttonmode:rc\n"
+                             "BUTTON_3 = buttonmode:nope\n";
+    Rig r(conf);
+    r.writeButtonMode("rc.conf", "NAME = Right\nACTION = rightclick\n");
+    r.reload.pending = true;
+    r.run(0.1);
+    auto press = [&](int b) {
+        r.rec.mouse.clear();
+        r.src.pushButton(0, b, true);
+        r.run(0.1);
+        r.src.pushButton(0, b, false);
+        r.run(0.1);
+    };
+    press(0);
+    CHECK(!r.rec.mouse.empty() && r.rec.mouse[0] == "+3", "button mode in the profile (right click)");
+    press(1);
+    CHECK(!r.rec.mouse.empty() && r.rec.mouse[0] == "+3", "the same button mode on a second button");
+    press(2);
+    CHECK(r.rec.mouse.empty(), "unknown button mode: the button does nothing");
+
+    // editing the file is picked up without a reload request (directory stamp)
+    r.writeButtonMode("rc.conf", "NAME = Left\nACTION = click\n");
+    r.run(1.3);
+    press(0);
+    CHECK(!r.rec.mouse.empty() && r.rec.mouse[0] == "+1", "edited button mode is picked up (%s)",
+          r.rec.mouse.empty() ? "nothing" : r.rec.mouse[0].c_str());
+    // a button mode created later resolves the formerly unknown id
+    r.writeButtonMode("nope.conf", "ACTION = middleclick\n");
+    r.run(1.3);
+    press(2);
+    CHECK(!r.rec.mouse.empty() && r.rec.mouse[0] == "+2", "a new button mode file is picked up");
+
+    // the expansion is runtime only: the config file is untouched
+    std::ifstream f(r.conf);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    CHECK(ss.str() == conf, "the config keeps buttonmode:<id>");
+
+    // a mode file binding wins over the profile; a button mode also works inside a mode file
+    Rig m(std::string(BASE_CONF) + "MODE = alpha\nBUTTON_1 = buttonmode:rc\n",
+          {{"alpha.conf", "BUTTON_1 = click\nBUTTON_2 = buttonmode:rc\nBUTTON_3 = buttonmode:gone\n"}});
+    m.writeButtonMode("rc.conf", "ACTION = rightclick\n");
+    m.reload.pending = true;
+    m.run(0.1);
+    m.src.pushButton(0, 0, true);
+    m.run(0.1);
+    m.src.pushButton(0, 0, false);
+    m.run(0.1);
+    CHECK(!m.rec.mouse.empty() && m.rec.mouse[0] == "+1", "the mode file binding wins over buttonmode: of the profile");
+    m.rec.mouse.clear();
+    m.src.pushButton(0, 1, true);
+    m.run(0.1);
+    m.src.pushButton(0, 1, false);
+    m.run(0.1);
+    CHECK(!m.rec.mouse.empty() && m.rec.mouse[0] == "+3", "buttonmode: inside a mode file");
+    m.rec.mouse.clear();
+    m.src.pushButton(0, 2, true);
+    m.run(0.1);
+    m.src.pushButton(0, 2, false);
+    m.run(0.1);
+    CHECK(m.rec.mouse.empty(), "unknown button mode in a mode file: nothing");
+
+    // a button mode with toggle:nav works through the expansion as well
+    Rig n(std::string(BASE_CONF) + "BUTTON_1 = buttonmode:latch\n");
+    n.writeButtonMode("latch.conf", "ACTION = toggle:nav\n");
+    n.reload.pending = true;
+    n.run(0.1);
+    n.src.pushButton(0, 0, true);
+    n.run(0.1);
+    n.src.pushButton(0, 0, false);
+    n.run(0.1);
+    CHECK(n.core->runner().navLatched(), "buttonmode with toggle:nav latches navigation");
+}
+
 static void testLogSanitized() {
     std::ostringstream cap;
     std::streambuf *old = std::cerr.rdbuf(cap.rdbuf());
@@ -469,6 +551,7 @@ static void testLogSanitized() {
 }
 
 int main() {
+    testButtonModes();
     testLogSanitized();
     testModeVsAppPrecedence();
     testConfigButtonsAndNormalFile();

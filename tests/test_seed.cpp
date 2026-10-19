@@ -109,6 +109,25 @@ int main() {
         assert(countTmp(cfg + "/dofscroll") == 0 && countTmp(modes) == 0);
     }
 
+    // button modes: a missing buttons/ directory is seeded from examples/buttons once, never overwritten
+    {
+        const std::string buttons = cfg + "/dofscroll/buttons";
+        mkdir1(ex + "/buttons");
+        put(ex + "/buttons/latch.conf", "ACTION = toggle:nav\n");
+        put(ex + "/buttons/nextm.conf", "ACTION = mode:next\n");
+        put(ex + "/buttons/skip.txt", "x\n");
+        assert(!exists(buttons));
+        assert(spn::seedDefaults(&log) && log.find("button mode") != std::string::npos);
+        assert(get(buttons + "/latch.conf") == "ACTION = toggle:nav\n" && exists(buttons + "/nextm.conf"));
+        assert(!exists(buttons + "/skip.txt") && countTmp(cfg + "/dofscroll") == 0);
+        put(buttons + "/latch.conf", "mine\n");
+        assert(!spn::seedDefaults(&log));
+        assert(get(buttons + "/latch.conf") == "mine\n");
+        // a removed file is not brought back while the directory exists
+        spn::fs::removeFile(buttons + "/nextm.conf");
+        assert(!spn::seedDefaults(&log) && !exists(buttons + "/nextm.conf"));
+    }
+
     tu::removeAll(root);
     std::puts("test_seed OK");
     return 0;

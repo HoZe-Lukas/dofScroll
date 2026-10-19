@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "conf_dir.hpp"
 #include "config.hpp"
 #include "platform/fs.hpp"
 #include "platform/path_rules.hpp"
@@ -19,10 +20,7 @@ namespace spn {
 
 namespace {
 
-constexpr size_t kMaxModeFiles = 64;
-constexpr size_t kMaxModeFileBytes = 64 * 1024;
 constexpr size_t kMaxModeOverrides = 128;
-constexpr size_t kMaxDirEntries = 4096;  // readdir cap (names inspected), against huge directories
 constexpr int kMaxModeButton = 32;       // highest button number in a mode file (1-based)
 constexpr size_t kMaxLabel = 64;
 constexpr size_t kMaxDescription = 256;
@@ -198,20 +196,6 @@ std::string chordRisk(const ModeDef &m) {
     return out;
 }
 
-// Sorted names of "<id>.conf" entries (valid ids only). Scans at most kMaxDirEntries entries.
-// false if the directory cannot be opened.
-bool listConfNames(const std::string &dir, std::vector<std::string> *names, bool *capped) {
-    std::vector<std::string> all;
-    if (!fs::listDir(dir, kMaxDirEntries, &all, capped)) return false;
-    for (const std::string &n : all) {
-        if (n.size() <= 5 || n.compare(n.size() - 5, 5, ".conf") != 0) continue;
-        if (!validModeId(n.substr(0, n.size() - 5))) continue;
-        names->push_back(n);
-    }
-    std::sort(names->begin(), names->end());
-    return true;
-}
-
 }  // namespace
 
 const ModeDef *ModeSet::find(const std::string &id) const {
@@ -297,6 +281,12 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
         ty = ButtonActionType::ToggleMode;
         if (modeId) *modeId = id;
     }
+    else if (t.compare(0, 11, "buttonmode:") == 0) {
+        const std::string id = trim(t.substr(11));
+        if (!validModeId(id)) return fail(err, "buttonmode:<id> needs a button mode id ([a-z0-9_-], max. 32 characters)");
+        ty = ButtonActionType::ButtonMode;
+        if (modeId) *modeId = id;
+    }
     else if (t.compare(0, 4, "key:") == 0) {
         const std::string name = trim(t.substr(4));
         if (!parseKeyName(name, &k)) return fail(err, "unknown key '" + name + "'");
@@ -307,7 +297,7 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
         ty = ButtonActionType::ModeSwitch;
         if (modeId) *modeId = id;
     } else {
-        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | toggle:nav | toggle:mode:<id>");
+        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | toggle:nav | toggle:mode:<id> | buttonmode:<id>");
     }
     if (type) *type = ty;
     if (key) *key = k;
@@ -329,49 +319,11 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
         if (warnings && warnings->size() < 200) warnings->push_back(m);
     };
 
-    std::vector<std::string> names;
-    bool capped = false;
-    if (!listConfNames(dir, &names, &capped)) return set;  // missing directory is no error
-    if (capped) warnAll(dir + ": too many entries - only the first " + std::to_string(kMaxDirEntries) + " were inspected");
-    if (names.size() > kMaxModeFiles) {
-        warnAll(dir + ": too many mode files (max. " + std::to_string(kMaxModeFiles) + ") - the rest is ignored");
-        names.resize(kMaxModeFiles);
-    }
-
-    fs::ReadOptions opt;
-    opt.refuseLinks = true;
-    opt.requireOwner = true;
-    fs::DirHandle dh;
-    std::string derr;
-    if (!dh.open(dir, &derr)) { warnAll(dir + ": " + derr); return set; }
-    for (const std::string &n : names) {
-        const std::string path = dir + "/" + n;
-        std::string text;
-        const fs::ReadResult rr = dh.readFileBounded(n, kMaxModeFileBytes, opt, &text);
-        switch (rr.status) {
-        case fs::ReadStatus::Ok:
-            break;
-        case fs::ReadStatus::NotFound:
-        case fs::ReadStatus::OpenFailed:
-            warnAll(path + ": " + rr.sysError + " - ignored");
-            continue;
-        case fs::ReadStatus::NotRegular:
-            warnAll(path + ": not a regular file - ignored");
-            continue;
-        case fs::ReadStatus::NotOwned:
-            warnAll(path + ": not owned by the current user - ignored");
-            continue;
-        case fs::ReadStatus::TooLargeBySize:
-            warnAll(path + ": file too large (max. " + std::to_string(kMaxModeFileBytes) + " bytes) - ignored");
-            continue;
-        case fs::ReadStatus::TooLargeWhileReading:
-        case fs::ReadStatus::ReadFailed:
-            warnAll(path + ": unreadable or too large - ignored");
-            continue;
-        }
-
+    for (const confdir::Entry &e : confdir::readConfDir(dir, "mode files", warnAll)) {
+        const std::string &path = e.path;
+        const std::string &text = e.text;
         ModeDef m;
-        m.id = n.substr(0, n.size() - 5);
+        m.id = e.id;
         if (!parseModeText(text, path, &m, warnings)) continue;
         if (m.label.empty()) m.label = m.id;
         const std::string risk = chordRisk(m);
@@ -398,19 +350,6 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
     return set;
 }
 
-std::string modesStamp(const std::string &dir) {
-    std::vector<std::string> names;
-    bool capped = false;
-    if (!listConfNames(dir, &names, &capped)) return "";
-    std::string s = "modes";
-    for (const std::string &n : names) {
-        fs::FileInfo fi;
-        if (!fs::lstatPath(dir + "/" + n, &fi)) continue;
-        s += "|" + n + ":" + std::to_string(static_cast<long long>(fi.mtimeNs / 1'000'000'000)) + "." +
-             std::to_string(static_cast<long long>(fi.mtimeNs % 1'000'000'000)) + ":" +
-             std::to_string(static_cast<long long>(fi.size));
-    }
-    return s;
-}
+std::string modesStamp(const std::string &dir) { return confdir::stamp(dir, "modes"); }
 
 }  // namespace spn

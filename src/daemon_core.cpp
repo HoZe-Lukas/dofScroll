@@ -249,11 +249,22 @@ void DaemonCore::loadModeSet() {
         std::cerr << LOG << "Modes: " << sanitizeForLog(w, 512) << std::endl;
 }
 
+void DaemonCore::loadButtonModeSet() {
+    button_modes_stamp_ = buttonModesStamp(button_modes_dir_);  // before reading, like the other stamps
+    std::vector<std::string> warnings;
+    button_modes_ = loadButtonModes(button_modes_dir_, &warnings);
+    warned_button_modes_.clear();
+    for (const std::string &w : warnings)
+        std::cerr << LOG << "Button modes: " << sanitizeForLog(w, 512) << std::endl;
+}
+
 bool DaemonCore::initialize() {
     config_path_ = d_.configPath ? d_.configPath() : d_.paths.configDir + "/dofscroll.conf";
     loadConfig();
     modes_dir_ = d_.modesDir ? d_.modesDir() : d_.paths.configDir + "/modes";
     loadModeSet();
+    button_modes_dir_ = d_.buttonModesDir ? d_.buttonModesDir() : d_.paths.configDir + "/buttons";
+    loadButtonModeSet();
     clearModeRequest(d_.paths.runtimeDir);  // a request left over from before this start is stale
     // First resolution without device/program, so BACKEND/TICK_HZ from [global] are
     // known at startup.
@@ -318,10 +329,19 @@ bool DaemonCore::selectMode(Settings &next, bool force) {
             std::cerr << LOG << "Mode " << sanitizeForLog(m->id) << ": " << sanitizeForLog(err) << std::endl;
     }
     next = profiles_.resolve(device_, wm_class_, &m->overrides);
+    // buttonmode:<id> references are replaced by the action of that button mode; at runtime only,
+    // the config and the mode files keep the reference.
+    std::set<std::string> missing;
+    expandSettings(next, button_modes_, &missing);
+    const ModeDef active = expandMode(*m, button_modes_, &missing);
+    for (const std::string &id : missing)
+        if (warned_button_modes_.insert(id).second)
+            std::cerr << LOG << "WARNING: unknown button mode '" << sanitizeForLog(id)
+                      << "', the button does nothing" << std::endl;
     // The very first activation also applies "normal" (a file mode may override the built-in).
     if (!force && mode_applied_ && runner_->mode().id == m->id) return false;
     mode_applied_ = true;
-    runner_->setMode(*m);
+    runner_->setMode(active);
     std::cerr << LOG << "Mode: " << sanitizeForLog(m->id)
               << (runner_->legacyPath() ? " (default channels)" : "") << std::endl;
     return true;
@@ -420,6 +440,7 @@ void DaemonCore::updateProfile(int64_t now_ns) {
         std::cerr << LOG << "Reload requested: reloading config and modes" << std::endl;
         loadConfig();
         loadModeSet();
+        loadButtonModeSet();
         // Runtime mode request of the tray (src/mode_request.hpp): applied like a button switch,
         // after the reload cleared the previous override.
         const std::string req = takeModeRequest(d_.paths.runtimeDir);
@@ -454,6 +475,12 @@ void DaemonCore::updateProfile(int64_t now_ns) {
         if (modesStamp(modes_dir_) != modes_stamp_) {
             std::cerr << LOG << "Modes changed, reloading" << std::endl;
             loadModeSet();
+            need_resolve = true;
+            modes_changed = true;
+        }
+        if (buttonModesStamp(button_modes_dir_) != button_modes_stamp_) {
+            std::cerr << LOG << "Button modes changed, reloading" << std::endl;
+            loadButtonModeSet();
             need_resolve = true;
             modes_changed = true;
         }

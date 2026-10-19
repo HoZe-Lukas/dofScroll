@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "config.hpp"
+#include "button_modes.hpp"
 #include "modes.hpp"
 #include "platform/fs.hpp"
 #include "platform/path_rules.hpp"
@@ -65,14 +66,14 @@ void removeTempDir(const std::string &dir) {
     fs::removeDir(dir);
 }
 
-// Cleans up "modes.tmp.*" directories that an interrupted earlier run left behind.
-void removeStaleModeTemps(const std::string &cfgDir) {
+// Cleans up "<name>.tmp.*" directories that an interrupted earlier run left behind.
+void removeStaleTemps(const std::string &cfgDir, const std::string &name) {
     std::vector<std::string> stale, names;
     bool capped = false;
     if (fs::listDir(cfgDir, 0, &names, &capped)) {
         for (const std::string &n : names) {
             fs::FileInfo fi;
-            if (n.rfind("modes.tmp.", 0) == 0 && fs::lstatPath(cfgDir + "/" + n, &fi) && fi.isDir)
+            if (n.rfind(name + ".tmp.", 0) == 0 && fs::lstatPath(cfgDir + "/" + n, &fi) && fi.isDir)
                 stale.push_back(cfgDir + "/" + n);
         }
     }
@@ -108,6 +109,37 @@ bool endsWith(const std::string &s, const std::string &suf) {
     return s.size() >= suf.size() && s.compare(s.size() - suf.size(), suf.size(), suf) == 0;
 }
 
+// Copies the *.conf files of srcDir into a new directory dstPath (named name under cfgDir), all at
+// once: the complete set is published by one rename, so an interrupted run never leaves a partial
+// directory that would count as "already seeded". Returns the number of files copied.
+int seedDirectory(const std::string &srcDir, const std::string &cfgDir, const std::string &name,
+                  const std::string &dstPath) {
+    std::vector<std::string> names;
+    std::vector<std::string> all;
+    bool capped = false;
+    if (fs::listDir(srcDir, 0, &all, &capped)) {
+        for (const std::string &n : all) {
+            if (n.empty() || n[0] == '.' || !endsWith(n, ".conf")) continue;
+            fs::FileInfo fi;
+            // lstat + regular-file check rejects symlinks
+            if (!fs::lstatPath(srcDir + "/" + n, &fi) || !fi.isFile) continue;
+            names.push_back(n);
+        }
+    }
+    std::sort(names.begin(), names.end());
+    if (names.size() > kMaxModeFiles) names.resize(kMaxModeFiles);
+    if (names.empty()) return 0;
+    removeStaleTemps(cfgDir, name);
+    const std::string tmpDir = cfgDir + "/" + name + ".tmp." + std::to_string(fs::processId());
+    if (fs::mkdirPrivate(tmpDir, nullptr) != fs::MkdirResult::Created) return 0;
+    int cnt = 0;
+    for (const auto &n : names)
+        if (copyFile(srcDir + "/" + n, tmpDir + "/" + n)) ++cnt;
+    if (cnt > 0 && fs::renamePath(tmpDir, dstPath)) return cnt;
+    removeTempDir(tmpDir);
+    return 0;
+}
+
 }  // namespace
 
 bool seedDefaults(std::string *log) {
@@ -119,7 +151,9 @@ bool seedDefaults(std::string *log) {
 
     const bool needCfg = !lexists(cfgFile) && !lexists(prev) && !lexists(legacyConfigPath());
     const bool needModes = !lexists(modesPath);
-    if (!needCfg && !needModes) return false;
+    const std::string buttonsPath = buttonModesDir();  // <base>/dofscroll/buttons
+    const bool needButtons = !lexists(buttonsPath);
+    if (!needCfg && !needModes && !needButtons) return false;
 
     const std::string ex = findExamplesDir();
     if (ex.empty()) return false;
@@ -128,36 +162,12 @@ bool seedDefaults(std::string *log) {
     std::string msg;
     if (needCfg && copyFile(ex + "/default/dofscroll.conf", cfgFile)) msg += "default config";
     if (needModes) {
-        const std::string srcModes = ex + "/modes";
-        std::vector<std::string> names;
-        std::vector<std::string> all;
-        bool capped = false;
-        if (fs::listDir(srcModes, 0, &all, &capped)) {
-            for (const std::string &n : all) {
-                if (n.empty() || n[0] == '.' || !endsWith(n, ".conf")) continue;
-                fs::FileInfo fi;
-                // lstat + regular-file check rejects symlinks
-                if (!fs::lstatPath(srcModes + "/" + n, &fi) || !fi.isFile) continue;
-                names.push_back(n);
-            }
-        }
-        std::sort(names.begin(), names.end());
-        if (names.size() > kMaxModeFiles) names.resize(kMaxModeFiles);
-        if (!names.empty()) {
-            removeStaleModeTemps(cfgDir);
-            const std::string tmpDir = cfgDir + "/modes.tmp." + std::to_string(fs::processId());
-            if (fs::mkdirPrivate(tmpDir, nullptr) == fs::MkdirResult::Created) {
-                int cnt = 0;
-                for (const auto &n : names)
-                    if (copyFile(srcModes + "/" + n, tmpDir + "/" + n)) ++cnt;
-                // Publish the complete set in one step: an interrupted run never leaves a partial
-                // modes/ directory that would be treated as "already seeded".
-                if (cnt > 0 && fs::renamePath(tmpDir, modesPath))
-                    msg += std::string(msg.empty() ? "" : ", ") + std::to_string(cnt) + " mode file(s)";
-                else
-                    removeTempDir(tmpDir);
-            }
-        }
+        const int cnt = seedDirectory(ex + "/modes", cfgDir, "modes", modesPath);
+        if (cnt > 0) msg += std::string(msg.empty() ? "" : ", ") + std::to_string(cnt) + " mode file(s)";
+    }
+    if (needButtons) {
+        const int cnt = seedDirectory(ex + "/buttons", cfgDir, "buttons", buttonsPath);
+        if (cnt > 0) msg += std::string(msg.empty() ? "" : ", ") + std::to_string(cnt) + " button mode file(s)";
     }
     if (msg.empty()) return false;
     if (log) *log = "seeded " + msg + " into " + cfgDir + " from " + ex;

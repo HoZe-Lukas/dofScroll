@@ -149,6 +149,7 @@ int main(int argc, char **argv) {
     deps.makeOutput = [](const std::string &b, std::string *l) { return makeOutput(b, l); };
     deps.configPath = [] { return defaultConfigPath(); };  // includes the legacy-path fallback
     deps.modesDir = [] { return modesDir(); };
+    deps.buttonModesDir = [] { return buttonModesDir(); };
     deps.suspendRequested = [suspend] { return (*suspend)(); };
     deps.sessionMonitor = makeSessionMonitor().release();  // never destroyed (see above)
     deps.writeStatus = [status](const std::string &b, int64_t n) { status->update(b, n); };

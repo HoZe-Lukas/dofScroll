@@ -68,6 +68,16 @@ static void testGrammar() {
     }
     assert(ChannelAction() == ChannelAction());
 
+    // buttonmode:<id> in button actions: accepted syntactically (existence is checked at runtime)
+    {
+        ButtonActionType bt;
+        Key bk;
+        std::string bm;
+        assert(parseButtonAction("buttonmode:latch-nav", &bt, &bk, &err, &bm) && bt == ButtonActionType::ButtonMode &&
+               bm == "latch-nav");
+        assert(!parseButtonAction("buttonmode:Bad Id", &bt, &bk, &err, &bm) && !err.empty());
+    }
+
     // step: same grammar as keys:, own type, compared and warned like keys:
     assert(parseChannelAction("step:pageup,pagedown", &a, &err) && a.type == ChannelActionType::Step &&
            a.neg == Key::PageUp && a.pos == Key::PageDown);

@@ -193,6 +193,7 @@ inline std::string buttonActionText(const ButtonBinding &b) {
         case ButtonActionType::ModeSwitch: return "mode:" + b.mode;
         case ButtonActionType::ToggleNav: return "toggle:nav";
         case ButtonActionType::ToggleMode: return "toggle:mode:" + b.mode;
+        case ButtonActionType::ButtonMode: return "buttonmode:" + b.mode;
     }
     return "none";
 }
@@ -206,7 +207,7 @@ inline std::string modeTemplate(const ModeDef &m) {
     t += "# A file of the same name replaces the built-in mode. Documentation: docs/modes.md\n";
     t += "# Channel actions: default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos> | step:<neg>,<pos> (keys may be chords: ctrl+pageup)\n";
     t += "# Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next |\n";
-    t += "#                 toggle:nav | toggle:mode:<id>\n";
+    t += "#                 toggle:nav | toggle:mode:<id> | buttonmode:<id>\n";
     t += "# Buttons are numbered from 1: BUTTON_1 = key:space\n\n";
     t += "NAME = " + (m.label.empty() ? m.id : m.label) + "\n";
     if (!m.description.empty()) t += "DESCRIPTION = " + m.description + "\n";

@@ -90,12 +90,12 @@ struct ChannelAction {
     }
 };
 
-enum class ButtonActionType { Unbound, Click, RightClick, MiddleClick, Nav, Key, ModeSwitch, ToggleNav, ToggleMode };
+enum class ButtonActionType { Unbound, Click, RightClick, MiddleClick, Nav, Key, ModeSwitch, ToggleNav, ToggleMode, ButtonMode };
 struct ButtonBinding {
     int button = 1;                       // button number, 1-based (device bit index = button - 1), 1..32
     ButtonActionType type = ButtonActionType::Unbound;
     Key key = Key::Space;                 // only for Key
-    std::string mode;                     // ModeSwitch: target id or "next"; ToggleMode: target id
+    std::string mode;                     // ModeSwitch: target id or "next"; ToggleMode: target id; ButtonMode: button mode id
 };
 
 struct ModeDef {
@@ -124,7 +124,7 @@ struct ModeSet {
 bool validModeId(const std::string &id);
 
 bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err);
-// modeId (optional) receives the target of mode:<id> / mode:next / toggle:mode:<id>. Only the syntax of the id is
+// modeId (optional) receives the target of mode:<id> / mode:next / toggle:mode:<id> and the button mode id of buttonmode:<id>. Only the syntax of the id is
 // checked here; existence is checked by loadModes (the parser does not know the mode set).
 bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key, std::string *err,
                        std::string *modeId = nullptr);

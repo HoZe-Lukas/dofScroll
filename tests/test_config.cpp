@@ -611,6 +611,18 @@ static void testAuditFixes() {
         assert(s.zoom_lateral.size() == 6);
     }
 
+    // BUTTON_<n> = buttonmode:<id>: syntax checked, text kept (lower case), round trip through allKeys
+    {
+        Settings s;
+        std::string err;
+        assert(applyKey(s, "BUTTON_3", " ButtonMode:Latch-Nav ", &err) && s.buttons[3] == "buttonmode:latch-nav");
+        assert(!applyKey(s, "BUTTON_4", "buttonmode:", &err) && !err.empty());
+        assert(!applyKey(s, "BUTTON_4", "buttonmode:a b", &err));
+        Settings t;
+        for (const KV &kv : allKeys(s)) assert(applyKey(t, kv.first, kv.second, &err));
+        assert(t.buttons[3] == "buttonmode:latch-nav");
+    }
+
     // STEP_TRIGGER: default, parsing, clamping, round trip through allKeys
     {
         Settings s;
