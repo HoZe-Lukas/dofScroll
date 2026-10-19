@@ -166,6 +166,17 @@ To report it, collect the log of the time around the incident
 restarted after the last update: an old daemon binary keeps running until the service is
 restarted.
 
+### Scrolling happens in another user's session
+
+The 3D mouse is one shared device, so a second logged-in user's daemon also receives its events.
+Each daemon pauses its output while its own session is not the active one (status file
+`session=inactive`, log `session inactive: output paused`). If scrolling still reaches the wrong
+session, check the journal of both users for that line. On Linux the session is found through
+`XDG_SESSION_ID` and `/run/systemd/sessions/<id>`: if the variable is missing (for example a
+service started outside the login session) or the file is unreadable, the daemon assumes it is
+active. A locked screen is not detected on Windows and macOS. See
+[security.md](security.md#12-several-users-on-one-pc).
+
 ### Config changes do not apply
 
 The daemon reloads when the file changes. Force it: `systemctl --user kill -s HUP dofscroll.service`.

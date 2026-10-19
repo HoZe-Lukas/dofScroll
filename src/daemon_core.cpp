@@ -32,6 +32,7 @@ constexpr int64_t ACTIVEWIN_POLL_NS = 100'000'000;
 constexpr int64_t CONFIG_POLL_NS = 1'000'000'000;
 // Check the tray's heartbeat (pause output) ~20x/s.
 constexpr int64_t SUSPEND_POLL_NS = 50'000'000;
+constexpr int64_t SESSION_POLL_NS = 1'000'000'000;  // session activity: about once per second
 // --debug output ~10x/s.
 constexpr int64_t DEBUG_PERIOD_NS = 100'000'000;
 // Recount attached 3Dconnexion devices (additionally on every (re)connect).
@@ -519,6 +520,18 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
                                             : "Output active again") << std::endl;
         }
     }
+    // Several users on one PC: the daemon of a background session must not act on the shared device.
+    if (d_.sessionMonitor && now_ns >= next_session_poll_) {
+        next_session_poll_ = now_ns + SESSION_POLL_NS;
+        std::string detail;
+        const bool active = d_.sessionMonitor->isActive(&detail);
+        if (active != session_active_) {
+            session_active_ = active;
+            std::cerr << LOG << (active ? "session active: output resumed" : "session inactive: output paused")
+                      << std::endl;
+            if (d_.debug) std::cerr << LOG << "session: " << sanitizeForLog(detail) << std::endl;
+        }
+    }
     // Profile with ENABLED=0 (e.g. [app:blender]): same treatment, no output.
     const bool enabled = settings_.enabled;
     if (enabled != prev_enabled_) {
@@ -527,13 +540,14 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
         else std::cerr << LOG << "Control disabled (profile " << sanitizeForLog(match_desc_)
                        << ")" << std::endl;
     }
-    const bool idle = suspended_ || !enabled;
+    const bool idle = suspended_ || !enabled || !session_active_;
     if (idle) {
         fresh = false;
         raw = RawAxes{};
         buttons = 0;
         if (!prev_idle_) {  // release everything held on entering suspend/disabled
             runner_->releaseAll();
+            output_->releaseAll();
             output_->flush();
         }
     }
@@ -544,7 +558,8 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
                            "\napp=" + sanitizeForLog(wm_class_) + "\nmode=" + sanitizeForLog(runner_->mode().id) +
                            "\nenabled=" + (enabled ? "1" : "0") +
                            "\npaused=" + (suspended_ ? "1" : "0") +
-                           "\ndevices_seen=" + std::to_string(devices_seen_) + "\n",
+                           "\ndevices_seen=" + std::to_string(devices_seen_) +
+                           "\nsession=" + (session_active_ ? "active" : "inactive") + "\n",
                        now_ns);
 
     // --- Channels, buttons, output (see mode_runner.hpp) ------------------
