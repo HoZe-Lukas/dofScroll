@@ -224,7 +224,7 @@ void DaemonCore::loadConfig() {
         profiles_ = std::move(ps);
     }
     for (const std::string &w : warnings)
-        std::cerr << LOG << "Config: " << w << std::endl;
+        std::cerr << LOG << "Config: " << sanitizeForLog(w, 512) << std::endl;
 }
 
 void DaemonCore::loadModeSet() {
@@ -233,7 +233,7 @@ void DaemonCore::loadModeSet() {
     std::vector<std::string> warnings;
     modes_ = loadModes(modes_dir_, &warnings);
     for (const std::string &w : warnings)
-        std::cerr << LOG << "Modes: " << sanitizeForLog(w) << std::endl;
+        std::cerr << LOG << "Modes: " << sanitizeForLog(w, 512) << std::endl;
 }
 
 bool DaemonCore::initialize() {

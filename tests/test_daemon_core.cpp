@@ -7,6 +7,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <iostream>
+#include <sstream>
 #include <string>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -353,7 +355,23 @@ static void testConfigButtonsAndNormalFile() {
     CHECK(!n.rec.mouse.empty() && n.rec.mouse[0] == "+1", "normal.conf applies at startup");
 }
 
+static void testLogSanitized() {
+    std::ostringstream cap;
+    std::streambuf *old = std::cerr.rdbuf(cap.rdbuf());
+    {
+        Rig r(std::string("[global]\n\x1b]0;PWN\x07=1\nSCROLL_V_SENS = 2\n"),
+              {{"m.conf", "\x1b[2J=1\nENABLED = 0\n"}});
+    }
+    std::cerr.rdbuf(old);
+    const std::string out = cap.str();
+    CHECK(out.find("PWN") != std::string::npos, "config warning logged");
+    CHECK(out.find('\x1b') == std::string::npos && out.find('\x07') == std::string::npos,
+          "control characters must not reach the log");
+    CHECK(out.find("ENABLED is not allowed") != std::string::npos, "mode ENABLED rejection logged");
+}
+
 int main() {
+    testLogSanitized();
     testModeVsAppPrecedence();
     testConfigButtonsAndNormalFile();
     testModeSwitchButton();
