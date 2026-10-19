@@ -11,8 +11,8 @@ It consists of two programs:
 | Program | Task |
 |---|---|
 | `dofscroll` | Background daemon. Reads the SpaceMouse, produces the input events. |
-| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Channels, General, Axes, Modes, Profiles). Writes the same config file and tells the daemon to reload. Optional, see [docs/ui.md](docs/ui.md). |
-| `dofscroll-tray` | Linux GTK tray icon with a settings window, the fallback when the Qt interface is not installed. Optional; run it or `dofscroll-ui`, not both. |
+| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Channels, General, Axes, Modes, Profiles). Writes the same config file and tells the daemon to reload. The default interface, see [docs/ui.md](docs/ui.md). |
+| `dofscroll-tray` | Linux GTK tray icon with a settings window, kept for one more release as the fallback when the Qt interface is not installed (#43). Run it or `dofscroll-ui`, not both. |
 
 ## Design principle
 
@@ -44,8 +44,8 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
 - Windows and macOS: never run with a real device. The Windows installer is not code-signed
   (SmartScreen warns) and the macOS DMG is only ad-hoc signed and not notarized (Gatekeeper
   blocks the first start). Notes in [docs/installation.md](docs/installation.md).
-- The Qt interface has not been checked on Windows or macOS desktops; on Linux the GTK tray is
-  still the documented default.
+- The Qt interface has not been checked on Windows or macOS desktops; on Linux the Qt interface is
+  now the documented default and the GTK tray the fallback.
 - Pausing output while the own session is not the active one (several users on one PC) was
   unit-tested with fake probes only; no second user session was available. The Windows and macOS
   probes are compile-checked only.
@@ -76,9 +76,9 @@ Release notes: [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-bet
 
 1. `sudo systemctl enable --now spacenavd`
 2. Enable the user services (after the setup step in the installation guide):
-   `systemctl --user enable --now dofscroll.service dofscroll-tray.service`
-   (or `dofscroll-ui.service` instead of the tray for the Qt interface). "Start at login" in the
-   interface switches autostart on and off.
+   `systemctl --user enable --now dofscroll.service dofscroll-ui.service`
+   (the Qt interface is the default; `dofscroll-tray.service` instead for the GTK fallback).
+   "Start at login" in the interface switches autostart on and off.
 3. Plug in the SpaceMouse. Push the cap: the window under the pointer scrolls. Twist: it zooms
    (Ctrl + scroll).
 4. Right-click the tray icon, open "Settings..." and adjust sensitivity, dead zone and direction.

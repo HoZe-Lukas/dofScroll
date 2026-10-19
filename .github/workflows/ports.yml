@@ -5,6 +5,10 @@
 # the platform daemon once cmake/windows.cmake / cmake/macos.cmake exist. ci.yml stays the Linux
 # workflow. These jobs are the only place where Windows/macOS code is compiled and tested; they
 # cannot verify behavior with real hardware.
+#
+# The second Windows toolchain (MinGW-w64) runs only after a merge (push to main, tags, on demand),
+# not for pull requests: MSVC already checks every PR and the two jobs take about the same time in
+# parallel, so MinGW only costs runner minutes there. A MinGW-only break shows up on main (#40).
 name: ports
 
 # Work-in-progress branch pushes do not run this workflow (they only produced failure mails):
@@ -114,6 +118,7 @@ jobs:
 
   windows-mingw:
     name: Windows (MinGW-w64) build + ctest
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: windows-latest
     timeout-minutes: 30
     env:

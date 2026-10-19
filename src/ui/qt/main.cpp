@@ -19,6 +19,7 @@
 #include "pages/modes_page.hpp"
 #include "qt_action_runner.hpp"
 #include "tray.hpp"
+#include "ui/model/first_start.hpp"
 #include "ui/model/instance_paths.hpp"
 #include "ui/model/restart_plan.hpp"
 #include "ui/model/ui_settings.hpp"
@@ -157,6 +158,9 @@ int main(int argc, char **argv) {
         return spn::ui::kExitLockFailure;
     }
     QFile::remove(raiseMarker);  // stale request of an earlier start
+
+    // First start, as the GTK tray does (src/ui/model/first_start.hpp).
+    std::fputs(spn::ui::runFirstStart().text("dofscroll-ui").c_str(), stderr);
 
     MainWindow window(ctx);
     window.setWindowIcon(icon);

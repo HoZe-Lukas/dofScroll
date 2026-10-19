@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+// First start of the interface: seeding the example configuration, never overwriting, log text.
+#include <cassert>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <string>
+
+#include "platform/fs.hpp"
+#include "testutil.hpp"
+#include "ui/model/first_start.hpp"
+
+static void put(const std::string &p, const std::string &c) { std::ofstream(p, std::ios::binary) << c; }
+static std::string get(const std::string &p) {
+    std::ifstream f(p, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(f), {});
+}
+
+int main() {
+    const std::string root = tu::makeTempDir("dofscroll-first-start"), ex = root + "/ex";
+    std::filesystem::create_directories(root + "/cfg");
+    std::filesystem::create_directories(ex + "/default");
+    std::filesystem::create_directories(ex + "/modes");
+    put(ex + "/default/dofscroll.conf", "[global]\nSENSITIVITY = 7\n");
+    put(ex + "/modes/timeline.conf", "NAME = Timeline\n");
+    const std::string cfg = tu::useConfigBase(root + "/cfg");
+    tu::setEnv("DOFSCROLL_EXAMPLES", ex);
+    const std::string conf = cfg + "/dofscroll/dofscroll.conf", mode = cfg + "/dofscroll/modes/timeline.conf";
+
+    // a fresh account: the example configuration and modes appear
+    spn::ui::FirstStart r = spn::ui::runFirstStart();
+    assert(r.seeded && !r.migrated);
+    assert(spn::fs::pathExists(conf) && spn::fs::pathExists(mode));
+    assert(get(conf) == "[global]\nSENSITIVITY = 7\n");
+    const std::string t = r.text("dofscroll-ui");
+    assert(t.find("dofscroll-ui: config migration: not needed or not possible") == 0);
+    assert(t.find("dofscroll-ui: seeded defaults: ") != std::string::npos && t.back() == '\n');
+
+    // a second start changes nothing, and the user's own edits are never overwritten
+    put(conf, "[global]\nSENSITIVITY = 99\n");
+    put(mode, "NAME = Mine\n");
+    r = spn::ui::runFirstStart();
+    assert(!r.seeded);
+    assert(get(conf) == "[global]\nSENSITIVITY = 99\n" && get(mode) == "NAME = Mine\n");
+    assert(r.text("x").find("seeded defaults") == std::string::npos);
+
+    // text(): no seeding line without seeding, the migration log is appended
+    spn::ui::FirstStart f;
+    f.migrated = true;
+    f.migrateLog = "moved old.conf";
+    assert(f.text("p") == "p: config migration: done - moved old.conf\n");
+    f.seeded = true;
+    f.seedLog = "default config";
+    assert(f.text("p") == "p: config migration: done - moved old.conf\np: seeded defaults: default config\n");
+
+    std::filesystem::remove_all(root);
+    return 0;
+}
