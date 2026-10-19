@@ -14,6 +14,7 @@ public:
     bool openPath(const std::string &path, std::string *err) override;
     bool setAutostart(bool enable, std::string *err) override;
     bool requestReload(std::string *err) override;
+    bool releaseKeys(std::string *err) override;
 };
 
 // Translates the models' English source strings through the loaded Qt catalog.

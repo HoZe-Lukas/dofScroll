@@ -12,7 +12,8 @@
 //   5 "Enabled" check item (ENABLED of [global])
 //   6 separator
 //   7 Settings...   8 Open config file   9 Show log...   10 Open modes folder
-//   11 separator    12 Quit
+//   11 Release all keys (emergency: runs `dofscroll --release-keys`)
+//   12 separator    13 Quit
 #pragma once
 #include <functional>
 #include <string>
@@ -25,7 +26,7 @@
 
 namespace spn::ui {
 
-enum class TrayAction { None, SetMode, ToggleEnabled, OpenSettings, OpenConfig, OpenLog, OpenModesFolder, Quit };
+enum class TrayAction { None, SetMode, ToggleEnabled, OpenSettings, OpenConfig, OpenLog, OpenModesFolder, ReleaseAllKeys, Quit };
 
 struct TrayEntry {
     enum class Kind { Info, Separator, Item, Radio, Check, Submenu } kind = Kind::Item;
@@ -104,6 +105,7 @@ inline TrayMenu buildTrayMenu(const TrayMenuInput &in, const StringProvider &s) 
     m.entries.push_back(item("Open config file", TrayAction::OpenConfig));
     m.entries.push_back(item("Show log...", TrayAction::OpenLog));
     m.entries.push_back(item("Open modes folder", TrayAction::OpenModesFolder));
+    m.entries.push_back(item("Release all keys", TrayAction::ReleaseAllKeys));
     m.entries.push_back(sep());
     m.entries.push_back(item("Quit", TrayAction::Quit));
     return m;
@@ -140,6 +142,7 @@ inline bool performTrayAction(const TrayEntry &entry, ActionRunner &runner, cons
             return true;
         case TrayAction::OpenConfig: return runner.openPath(h.configPath, err);
         case TrayAction::OpenModesFolder: return runner.openPath(h.modesDir, err);
+        case TrayAction::ReleaseAllKeys: return runner.releaseKeys(err);
     }
     return true;
 }

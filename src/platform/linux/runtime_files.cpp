@@ -8,12 +8,14 @@
 #include <ctime>
 #include <deque>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include "../../common.hpp"
+#include "../runtime_path.hpp"
 
 namespace spn {
 
@@ -23,22 +25,53 @@ const char *const LOG = "[dofscroll] ";
 constexpr int64_t STATUS_REFRESH_NS = 1'000'000'000;
 }  // namespace
 
-bool runtimeDirTrusted(const std::string &dir) {
-    struct stat ds;
-    if (dir.empty() || stat(dir.c_str(), &ds) != 0 || !S_ISDIR(ds.st_mode)) return false;
-    return ds.st_uid == geteuid() && (ds.st_mode & 022) == 0;
+namespace {
+std::string fileName(RuntimeFile f, bool tmp) {
+    std::string n = runtimeFileName(f);
+    if (tmp) n += ".tmp." + std::to_string(static_cast<long long>(getpid()));
+    return n;
 }
+}  // namespace
+
+RuntimeDir::RuntimeDir(const std::string &dir) {
+    if (!runtimeDirLexicallyValid(dir)) return;  // defense in depth, the checks below are the real ones
+    const int fd = ::open(dir.c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (fd < 0) return;
+    struct stat ds;
+    if (fstat(fd, &ds) != 0 || !S_ISDIR(ds.st_mode) || ds.st_uid != geteuid() || (ds.st_mode & 022) != 0) {
+        ::close(fd);
+        return;
+    }
+    fd_ = fd;
+}
+RuntimeDir::~RuntimeDir() {
+    if (fd_ >= 0) ::close(fd_);
+}
+int RuntimeDir::open(RuntimeFile f, int flags, mode_t mode, bool tmp) const {
+    return fd_ < 0 ? -1 : ::openat(fd_, fileName(f, tmp).c_str(), flags, mode);
+}
+bool RuntimeDir::unlink(RuntimeFile f, bool tmp) const {
+    return fd_ >= 0 && ::unlinkat(fd_, fileName(f, tmp).c_str(), 0) == 0;
+}
+bool RuntimeDir::rename(RuntimeFile from, RuntimeFile to) const {
+    return fd_ >= 0 && ::renameat(fd_, fileName(from, true).c_str(), fd_, fileName(to, false).c_str()) == 0;
+}
+bool RuntimeDir::lstat(RuntimeFile f, struct stat *st) const {
+    return fd_ >= 0 && ::fstatat(fd_, fileName(f, false).c_str(), st, AT_SYMLINK_NOFOLLOW) == 0;
+}
+
+bool runtimeDirTrusted(const std::string &dir) { return RuntimeDir(dir).ok(); }
 
 // Trust rule: the file must belong to the effective user and must not be accessible
 // to group/others; the runtime dir itself must belong to the effective user and must
 // not be group/other-writable (checked once) - otherwise the mechanism is ignored.
 SuspendProbe::SuspendProbe(const std::string &dir)
-    : path_(dir.empty() ? std::string() : dir + "/dofscroll-suspend"), dir_ok_(runtimeDirTrusted(dir)) {}
+    : dir_(std::make_shared<RuntimeDir>(dir)) {}
 
 bool SuspendProbe::operator()() const {
-    if (path_.empty() || !dir_ok_) return false;
+    if (!dir_->ok()) return false;
     struct stat st;
-    if (lstat(path_.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) return false;
+    if (!dir_->lstat(RuntimeFile::SuspendFile, &st) || !S_ISREG(st.st_mode)) return false;
     if (st.st_uid != geteuid() || (st.st_mode & 077) != 0) return false;
     timespec now{};
     clock_gettime(CLOCK_REALTIME, &now);
@@ -60,10 +93,9 @@ namespace {
 class TeeLogBuf : public std::streambuf {
 public:
     TeeLogBuf(std::streambuf *orig, const std::string &dir, size_t max_lines, size_t keep_lines)
-        : orig_(orig), max_lines_(max_lines), keep_lines_(keep_lines) {
-        const std::string path = runtimeFilePath(dir, "dofscroll.log");
-        if (path.empty() || !runtimeDirTrusted(dir)) return;
-        int fd = ::open(path.c_str(), O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK, 0600);
+        : orig_(orig), max_lines_(max_lines), keep_lines_(keep_lines), rd_(std::make_unique<RuntimeDir>(dir)) {
+        if (!rd_->ok()) return;
+        int fd = rd_->open(RuntimeFile::LogFile, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK, 0600);
         if (fd < 0) return;
         struct stat st;
         if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_uid != geteuid() ||
@@ -73,7 +105,6 @@ public:
         }
         fd_ = fd;
         size_ = (size_t)st.st_size;
-        path_ = path;
         loadExisting();  // a restart (Restart=always) must not lose the log
     }
 
@@ -117,7 +148,7 @@ private:
     int fd_ = -1;
     size_t size_ = 0;
     std::string pending_;
-    std::string path_;
+    std::unique_ptr<RuntimeDir> rd_;
     std::deque<std::string> lines_;  // mirror of the file content (without \n)
     std::string partial_;            // line not yet terminated
     bool at_line_start_ = true;      // next character starts a line (timestamp)
@@ -127,7 +158,7 @@ private:
             if (size_ > kLogMaxBytes) rewrite();  // too long (old version): clear
             return;
         }
-        int rfd = ::open(path_.c_str(), O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK);
+        int rfd = rd_->open(RuntimeFile::LogFile, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK, 0);
         if (rfd < 0) return;
         std::string data(size_, '\0');
         ssize_t n = ::pread(rfd, &data[0], data.size(), 0);
@@ -149,9 +180,8 @@ private:
 
     // Rewrites lines_ atomically (temp + rename) and reopens the append descriptor.
     void rewrite() {
-        const std::string tmp = path_ + ".tmp";
-        ::unlink(tmp.c_str());
-        int tfd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
+        rd_->unlink(RuntimeFile::LogFile, true);
+        int tfd = rd_->open(RuntimeFile::LogFile, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600, true);
         if (tfd < 0) { disable(); return; }
         std::string out;
         for (const std::string &l : lines_) { out += l; out += '\n'; }
@@ -165,13 +195,13 @@ private:
             left -= (size_t)w;
         }
         ::close(tfd);
-        if (!ok || ::rename(tmp.c_str(), path_.c_str()) != 0) {
-            ::unlink(tmp.c_str());
+        if (!ok || !rd_->rename(RuntimeFile::LogFile, RuntimeFile::LogFile)) {
+            rd_->unlink(RuntimeFile::LogFile, true);
             disable();
             return;
         }
         if (fd_ >= 0) ::close(fd_);
-        fd_ = ::open(path_.c_str(), O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK);
+        fd_ = rd_->open(RuntimeFile::LogFile, O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK, 0);
         if (fd_ < 0) { disable(); return; }
         size_ = out.size();
     }
@@ -227,10 +257,10 @@ std::streambuf *makeTeeLogBuf(std::streambuf *orig, const std::string &dir, bool
 // directory (O_EXCL|O_NOFOLLOW, 0600) + rename. Errors are never fatal, logged once.
 // Without a trusted runtime directory nothing happens.
 StatusWriter::StatusWriter(const std::string &dir)
-    : path_(runtimeDirTrusted(dir) ? runtimeFilePath(dir, "dofscroll-status") : std::string()) {}
+    : dir_(std::make_shared<RuntimeDir>(dir)) {}
 
 void StatusWriter::update(const std::string &body, int64_t now_ns) {
-    if (path_.empty()) return;
+    if (!dir_->ok()) return;
     if (body == last_body_ && now_ns < next_refresh_ns_) return;
     last_body_ = body;
     next_refresh_ns_ = now_ns + STATUS_REFRESH_NS;
@@ -244,15 +274,15 @@ void StatusWriter::update(const std::string &body, int64_t now_ns) {
 }
 
 void StatusWriter::remove() {
-    if (!path_.empty() && wrote_) ::unlink(path_.c_str());
+    if (dir_->ok() && wrote_) dir_->unlink(RuntimeFile::StatusFile);
 }
 
     bool StatusWriter::write(const std::string &text) {
-        const std::string tmp = path_ + ".tmp." + std::to_string((long long)getpid());
-        int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
+        const RuntimeFile f = RuntimeFile::StatusFile;
+        int fd = dir_->open(f, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600, true);
         if (fd < 0 && errno == EEXIST) {  // leftover of an earlier run with the same PID
-            ::unlink(tmp.c_str());
-            fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
+            dir_->unlink(f, true);
+            fd = dir_->open(f, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600, true);
         }
         if (fd < 0) return false;
         const char *p = text.data();
@@ -270,9 +300,9 @@ void StatusWriter::remove() {
         }
         int e = errno;
         if (::close(fd) != 0 && ok) { ok = false; e = errno; }
-        if (ok && ::rename(tmp.c_str(), path_.c_str()) != 0) { ok = false; e = errno; }
+        if (ok && !dir_->rename(f, f)) { ok = false; e = errno; }
         if (!ok) {
-            ::unlink(tmp.c_str());
+            dir_->unlink(f, true);
             errno = e;
             return false;
         }

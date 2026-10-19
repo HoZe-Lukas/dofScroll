@@ -85,7 +85,7 @@ static void testTrayMenu() {
     in.globalMode = "off";
     in.globalEnabled = false;
     TrayMenu m = buildTrayMenu(in, id);
-    assert(m.entries.size() == 13);
+    assert(m.entries.size() == 14);
     assert(m.entries[0].kind == TrayEntry::Kind::Info && m.entries[0].text == "Profile: app:firefox  |  Mode: Timeline");
     assert(m.entries[1].visible && !m.entries[2].visible);
     const TrayEntry &mode = m.entries[4];
@@ -93,12 +93,12 @@ static void testTrayMenu() {
     assert(mode.children[0].arg == "normal" && !mode.children[0].checked);
     assert(mode.children[1].checked && mode.children[2].text == "Timeline (timeline)");
     assert(m.entries[5].kind == TrayEntry::Kind::Check && !m.entries[5].checked);
-    assert(m.entries[7].action == TrayAction::OpenSettings && m.entries[12].action == TrayAction::Quit);
+    assert(m.entries[7].action == TrayAction::OpenSettings && m.entries[11].action == TrayAction::ReleaseAllKeys && m.entries[13].action == TrayAction::Quit && m.entries[11].text == "Release all keys");
     assert(m.title == "dofscroll - Profile: app:firefox  |  Mode: timeline");
 
     // No status, no modes.
     TrayMenu e = buildTrayMenu(TrayMenuInput(), id);
-    assert(e.entries.size() == 13 && e.entries[4].children.empty());
+    assert(e.entries.size() == 14 && e.entries[4].children.empty());
     assert(e.entries[0].text == "Daemon not running / no status data" && !e.entries[1].visible);
 
     // Actions.
@@ -115,10 +115,11 @@ static void testTrayMenu() {
     assert(performTrayAction(mode.children[2], rr, h, &err) && mset == "timeline");
     assert(performTrayAction(m.entries[5], rr, h, &err) && en == 1);  // was unchecked
     assert(performTrayAction(m.entries[7], rr, h, &err) && opened == 1);
-    assert(performTrayAction(m.entries[12], rr, h, &err) && quit == 1);
+    assert(performTrayAction(m.entries[13], rr, h, &err) && quit == 1);
     assert(performTrayAction(m.entries[9], rr, h, &err));  // showLog unset: skipped
     assert(performTrayAction(m.entries[8], rr, h, &err) && performTrayAction(m.entries[10], rr, h, &err));
     assert(rr.count(RecordingActionRunner::Kind::OpenPath) == 2);
+    assert(performTrayAction(m.entries[11], rr, h, &err) && rr.count(RecordingActionRunner::Kind::ReleaseKeys) == 1);
     assert(rr.calls[0].path == "/c/dofscroll.conf" && rr.calls[1].path == "/c/modes");
     rr.result = false;
     assert(!performTrayAction(m.entries[8], rr, h, &err) && err == "failed");

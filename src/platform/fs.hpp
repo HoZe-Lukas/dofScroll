@@ -41,6 +41,8 @@ enum class ReadStatus {
 struct ReadOptions {
     bool refuseLinks = false;   // POSIX: O_NOFOLLOW; Windows: reparse points are refused
     bool requireOwner = false;  // owner must be the current user (Windows: or Administrators)
+    bool requirePrivate = false;  // POSIX: no group/other permission bits (Windows: private ACL comes from the
+                                  // directory, nothing extra is checked); refused as NotOwned
 };
 struct ReadResult {
     ReadStatus status = ReadStatus::Ok;
@@ -79,6 +81,11 @@ bool createFileExclusive(const std::string &path, const std::string &data);
 // resolved first so the link survives, the mode of an existing file is kept, new files are 0600.
 // On failure *err holds a one-line message.
 bool writeFileReplace(const std::string &path, const std::string &data, std::string *err);
+
+// Creates the file empty (user-only) or sets its modification time to now, never following a link at
+// the final name. false when the path is a link, a directory, another user's file or the call fails.
+// Used for heartbeat files: the content is irrelevant, the age is the message.
+bool touchFilePrivate(const std::string &path);
 
 bool removeFile(const std::string &path);          // unlink (never follows a link at the end)
 bool removeDir(const std::string &path);           // rmdir (empty directories only)

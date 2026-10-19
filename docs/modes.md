@@ -81,6 +81,12 @@ valid id only) and asks the daemon to reload; the daemon applies it after re-rea
 modes, then deletes the file. Like a button switch it lasts until the next reload, a restart or
 another switch (so toggling "Enabled" or saving the config drops it).
 
+The request file is treated as untrusted input: the writer never follows a link (it removes
+whatever is at the name and creates the file exclusively, user-only); the daemon opens it without
+following links, requires the current user as owner and no group/other permissions (POSIX), reads at
+most 64 bytes, accepts only a valid mode id (`[a-z0-9_-]{1,32}`) that is a loaded mode, ignores a
+request older than 30 seconds (a reload that never arrived) and removes the file in every case.
+
 A binding in the active mode for a button wins over a `BUTTON_<n>` binding in the main config for
 the same button.
 

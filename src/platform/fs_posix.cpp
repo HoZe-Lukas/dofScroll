@@ -88,6 +88,11 @@ ReadResult readAt(int dirfd, const std::string &path, size_t cap, const ReadOpti
         r.status = ReadStatus::NotOwned;
         return r;
     }
+    if (opt.requirePrivate && (st.st_mode & 077) != 0) {
+        ::close(fd);
+        r.status = ReadStatus::NotOwned;
+        return r;
+    }
     if (st.st_size > 0 && static_cast<size_t>(st.st_size) > cap) {
         ::close(fd);
         r.status = ReadStatus::TooLargeBySize;
@@ -159,6 +164,17 @@ bool createFileExclusive(const std::string &path, const std::string &data) {
     // complete file (a kill in between leaves only the temp file).
     if (ok && ::link(tmp.c_str(), path.c_str()) != 0) ok = false;
     ::unlink(tmp.c_str());
+    return ok;
+}
+
+bool touchFilePrivate(const std::string &path) {
+    // O_NOFOLLOW: a link at the final name is refused; O_NONBLOCK: a FIFO cannot hang the open.
+    const int fd = ::open(path.c_str(), O_WRONLY | O_CREAT | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK, 0600);
+    if (fd < 0) return false;
+    struct stat st;
+    bool ok = ::fstat(fd, &st) == 0 && S_ISREG(st.st_mode) && st.st_uid == ::geteuid() && (st.st_mode & 077) == 0;
+    if (ok) ok = ::futimens(fd, nullptr) == 0;
+    ::close(fd);
     return ok;
 }
 

@@ -20,6 +20,7 @@
 #include "pages/page_registry.hpp"
 #include "pages/profiles_page.hpp"
 #include "platform/fs.hpp"
+#include "ui/model/runtime_files.hpp"
 #include "ui_i18n.hpp"
 
 namespace {
@@ -40,7 +41,7 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     // Configuration, status and the page context (everything the pages share).
     std::vector<std::string> warnings;
     std::string err;
-    if (!ctx_.reload) ctx_.reload = [this](std::string *e) { return ctx_.runner->requestReload(e); };
+    if (!ctx_.reload && ctx_.runner) ctx_.reload = spn::ui::reloadVia(*ctx_.runner);
     if (!settings_.load(ctx_.configPath, &warnings, &err)) settings_.setProfiles(spn::ProfileSet(), ctx_.configPath);
     settings_.setReloadCallback(ctx_.reload);
     ctx_.settings = &settings_;
@@ -67,15 +68,8 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
 
 // Reads the daemon's status file (bounded, owner checked) into the status model.
 void MainWindow::updateStatus() {
-    const std::string path = spn::statusFilePath();
     std::string text;
-    bool ok = false;
-    if (!path.empty()) {
-        spn::fs::ReadOptions opt;
-        opt.refuseLinks = true;
-        opt.requireOwner = true;
-        ok = spn::fs::readFileBounded(path, spn::kStatusMaxBytes, opt, &text).ok();
-    }
+    const bool ok = spn::ui::readStatusFile(ctx_.runtimeDir, &text);  // the daemon's directory on every OS
     status_.update(text, ok, static_cast<int64_t>(std::time(nullptr)));
 }
 

@@ -61,6 +61,11 @@ inline std::string runtimeFilePath(const std::string &dir, const char *name) {
     if (dir.empty()) return "";
     return dir + "/" + name;
 }
+// The file names are fixed, only the directory differs per OS (PlatformPaths::runtimeDir): daemon and
+// UI both build the paths here, so they cannot drift apart.
+inline std::string statusFilePathIn(const std::string &dir) { return runtimeFilePath(dir, "dofscroll-status"); }
+inline std::string logFilePathIn(const std::string &dir) { return runtimeFilePath(dir, "dofscroll.log"); }
+inline std::string suspendFilePathIn(const std::string &dir) { return runtimeFilePath(dir, "dofscroll-suspend"); }
 constexpr size_t kLogMaxBytes = 256 * 1024;
 constexpr size_t kLogMaxLines = 300, kLogKeepLines = 200;
 constexpr size_t kLogMaxLinesDebug = 2000, kLogKeepLinesDebug = 1500;

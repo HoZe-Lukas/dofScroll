@@ -21,7 +21,10 @@ struct UiContext {
     std::string configPath;   // <config dir>/dofscroll.conf
     std::string modesDir;     // <config dir>/modes
     std::string runtimeDir;   // status, log and mode request; may be empty
-    // Reloads the daemon's configuration (SIGHUP on Linux); defaults to runner->requestReload.
+    // Reloads the daemon's configuration after an atomic save; defaults to runner->requestReload.
+    // Real channel per OS (src/platform/<os>/client_*.cpp): Linux `systemctl --user kill -s HUP
+    // dofscroll.service`, Windows the named event Local\dofscroll-reload, macOS a connection to
+    // <runtimeDir>/reload.sock. Pages save through ctx.settings (which calls it), never directly.
     std::function<bool(std::string *err)> reload;
     // Shared models, owned by the MainWindow (outlive the pages).
     spn::ui::SettingsModel *settings = nullptr;  // edit through it, then save()
@@ -37,5 +40,6 @@ inline UiContext makeUiContext(spn::ui::ActionRunner *runner) {
     c.configPath = spn::defaultConfigPath();  // as the daemon: includes the legacy-path fallback
     c.modesDir = p.configDir + "/modes";
     c.runtimeDir = p.runtimeDir;
+    if (runner) c.reload = spn::ui::reloadVia(*runner);
     return c;
 }

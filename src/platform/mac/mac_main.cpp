@@ -34,6 +34,7 @@
 #include "../../output.hpp"
 #include "../fs.hpp"
 #include "../platform.hpp"
+#include "../suspend_probe.hpp"
 #include "mac_output.hpp"
 #include "mac_paths.hpp"
 #include "mac_power.hpp"
@@ -115,7 +116,7 @@ public:
           maxLines_(debug ? kLogMaxLinesDebug : kLogMaxLines),
           keepLines_(debug ? kLogKeepLinesDebug : kLogKeepLines) {
         if (!prepareRuntimeDir(dir)) return;
-        path_ = dir + "/dofscroll.log";
+        path_ = logFilePathIn(dir);
         if (!openAppend()) return;
         struct stat st;
         if (::fstat(fd_, &st) != 0 || !S_ISREG(st.st_mode) || st.st_uid != ::geteuid() || (st.st_mode & 077) != 0) {
@@ -228,7 +229,7 @@ private:
 class StatusWriter {
 public:
     StatusWriter(const std::string &dir, std::string permissionsLine)
-        : path_(prepareRuntimeDir(dir) ? dir + "/dofscroll-status" : std::string()), perm_(std::move(permissionsLine)) {}
+        : path_(prepareRuntimeDir(dir) ? statusFilePathIn(dir) : std::string()), perm_(std::move(permissionsLine)) {}
 
     // Called from the permission watcher thread: the next update() rewrites the file.
     void setPermissions(std::string line) {
@@ -348,6 +349,7 @@ int main(int argc, char **argv) {
     deps.modesDir = [paths] { return paths.configDir + "/modes"; };
     deps.writeStatus = [status](const std::string &b, int64_t n) { status->update(b, n); };
     deps.removeStatus = [status] { status->remove(); };
+    deps.suspendRequested = FileSuspendProbe(paths.runtimeDir);  // UI axis assistant pauses the output
     deps.liveFeed = makeLiveFeedSink(paths.runtimeDir);  // UI data feed, see src/live_feed/
     deps.sessionMonitor = makeSessionMonitor().release();  // lives until exit
     deps.debug = debug;
