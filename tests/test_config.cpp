@@ -861,9 +861,9 @@ static void testButtonsAndModes() {
     std::string err;
     Settings s;
     assert(applyKey(s, "BUTTON_1", "Click", &err) && s.buttons.at(1) == "click");
-    assert(applyKey(s, "button_64", " KEY: Space ", &err) && s.buttons.at(64) == "key:space");
+    assert(applyKey(s, "button_32", " KEY: Space ", &err) && s.buttons.at(32) == "key:space");
     assert(applyKey(s, "BUTTON_3", "nav", &err) && applyKey(s, "BUTTON_3", "none", &err) && s.buttons.at(3) == "none");
-    for (const char *bad : {"BUTTON_0", "BUTTON_65", "BUTTON_", "BUTTON_x", "BUTTON_-1", "BUTTON_0001", "BUTTON_1000"})
+    for (const char *bad : {"BUTTON_0", "BUTTON_33", "BUTTON_64", "BUTTON_65", "BUTTON_", "BUTTON_x", "BUTTON_-1", "BUTTON_0001", "BUTTON_1000"})
         assert(!applyKey(s, bad, "click", &err));
     assert(!applyKey(s, "BUTTON_2", "key:nonsense", &err));
     assert(!applyKey(s, "BUTTON_2", "", &err));
@@ -938,7 +938,25 @@ static void testButtonsAndModes() {
     std::remove(path.c_str());
 }
 
+// App section can unbind a button inherited from global (round trip through setSectionFromSettings).
+static void testAppUnbind() {
+    ProfileSet ps;
+    ps.sections[0].kv = {{"BUTTON_1", "click"}, {"BUTTON_2", "key:space"}};
+    Section a;
+    a.kind = Section::APP;
+    a.pattern = "x";
+    ps.sections.push_back(a);
+    Settings s = ps.sectionSettings(1);
+    assert(s.buttons.count(1) && s.buttons.count(2));
+    s.buttons.erase(1);
+    ps.setSectionFromSettings(1, s);
+    Settings r = ps.resolve("", "x");
+    assert(r.buttons.at(1) == "none" && r.buttons.at(2) == "key:space");
+    assert(ps.resolve("", "other").buttons.at(1) == "click");
+}
+
 int main() {
+    testAppUnbind();
     testUpperBounds();
     testMix();
     testDefaultsAndApplyKey();

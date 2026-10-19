@@ -251,7 +251,30 @@ static void testModeSwitchRequest() {
     CHECK(o.count("-space") == 1, "space released on mode change");
 }
 
+// BUTTON_<n> from the resolved Settings works; the mode's binding for the same n wins.
+static void testSettingsButtons() {
+    Rec o;
+    ModeRunner r(&o);
+    Settings s;
+    s.buttons[1] = "key:space";
+    s.buttons[2] = "rightclick";
+    run(r, s, RawAxes{}, 1u << 0, 0.02);
+    CHECK(o.count("+space") == 1, "settings BUTTON_1 holds space");
+    run(r, s, RawAxes{}, 0, 0.02);
+    CHECK(o.count("-space") == 1, "released");
+    run(r, s, RawAxes{}, 1u << 1, 0.02);
+    CHECK(o.count("+m3") == 1, "settings BUTTON_2 right click");
+    run(r, s, RawAxes{}, 0, 0.02);
+    ModeDef m = mode("m");
+    m.buttons.push_back(bind(1, ButtonActionType::Click));  // button 2 -> left click
+    r.setMode(m);
+    o.clear();
+    run(r, s, RawAxes{}, 1u << 1, 0.02);
+    CHECK(o.count("+m1") == 1 && o.count("+m3") == 0, "mode binding overrides settings");
+}
+
 int main() {
+    testSettingsButtons();
     testModeSwitchRequest();
     testLegacyBindings();
     testLegacyNavAndClick();

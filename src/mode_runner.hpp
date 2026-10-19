@@ -82,7 +82,7 @@ private:
         uint8_t mouse = 0;
         bool nav = false;
     };
-    Wanted bindings(uint32_t buttons) const;
+    Wanted bindings(const Settings &s, uint32_t buttons) const;
     void syncMouse(uint8_t want);
     void syncKeys(const std::bitset<kKeyCount> &want);
     void resetState();
