@@ -96,7 +96,7 @@ upsert_ruleset() {
 }
 
 # --- repository options -------------------------------------------------------------------
-call "repository options: squash-only merges, auto-merge, delete head branches, no wiki/projects" \
+call "repository options: squash-only merges, auto-merge, delete head branches, wiki on, no projects" \
   PATCH "" '{
   "allow_squash_merge": true,
   "allow_merge_commit": false,
@@ -106,7 +106,7 @@ call "repository options: squash-only merges, auto-merge, delete head branches, 
   "allow_update_branch": true,
   "squash_merge_commit_title": "PR_TITLE",
   "squash_merge_commit_message": "PR_BODY",
-  "has_wiki": false,
+  "has_wiki": true,
   "has_projects": false
 }'
 

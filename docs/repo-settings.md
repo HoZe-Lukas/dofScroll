@@ -71,7 +71,7 @@ REPO=owner/name scripts/configure-repo.sh   # another repository
 ```
 
 It is idempotent. It sets: squash-only merges, auto-merge allowed, head branches deleted after
-merge, wiki and projects off; secret scanning with push protection; Dependabot alerts and
+merge, projects off, wiki on; secret scanning with push protection; Dependabot alerts and
 security updates; private vulnerability reporting; Actions with a read-only default token,
 selected actions only plus mandatory SHA pinning, approval for all outside contributors; and it
 creates or updates the rulesets named `main` and `release tags` from `.github/rulesets/`.
