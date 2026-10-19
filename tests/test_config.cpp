@@ -303,10 +303,12 @@ static void testSaveLoad() {
     assert(settingsEq(back.resolve("", "fire fox"), app));
     assert(settingsEq(back.resolve("spacemouse pro", ""), dev));
     // header contains a comment note
-    std::ifstream f(p);
-    std::string first;
-    std::getline(f, first);
-    assert(!first.empty() && first[0] == '#');
+    {  // scoped: an open stream would keep the file from being removed on Windows
+        std::ifstream f(p);
+        std::string first;
+        std::getline(f, first);
+        assert(!first.empty() && first[0] == '#');
+    }
     // the temp file must not be left over
     std::string tmp = p + ".tmp." + std::to_string(tu::pid());
     assert(!std::ifstream(tmp));
