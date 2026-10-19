@@ -9,6 +9,9 @@ set(DOFSCROLL_UNITS dofscroll)
 if(DOFSCROLL_BUILD_TRAY)
   list(APPEND DOFSCROLL_UNITS dofscroll-tray)
 endif()
+if(TARGET dofscroll-ui)  # Qt UI unit, switched with the daemon by "Start at login" (W18)
+  list(APPEND DOFSCROLL_UNITS dofscroll-ui)
+endif()
 
 # Developer units (symlink flow, `install-user-links`): binaries are linked to /usr/local/bin.
 set(DOFSCROLL_BINDIR /usr/local/bin)

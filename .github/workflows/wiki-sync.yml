@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+name: wiki-sync
+
+on:
+  push:
+    branches: [main]
+    paths: ["docs/wiki/**"]
+  workflow_dispatch:
+
+# No default token rights; the single job below asks for what it needs.
+permissions: {}
+
+concurrency:
+  group: wiki-sync
+  cancel-in-progress: false
+
+# Third-party actions are pinned to full commit SHAs (tag in the comment).
+#   actions/checkout = v4.2.2
+
+jobs:
+  wiki-sync:
+    name: wiki-sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write   # pushing to the wiki repository
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Sync docs/wiki to the GitHub wiki
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          rc=0
+          sh scripts/sync-wiki.sh --push || rc=$?
+          if [ "$rc" -eq 3 ]; then
+            echo "::notice title=Wiki not available::The wiki repository does not exist yet or is not accessible. Create the first wiki page in the browser, then re-run this workflow."
+            exit 0
+          fi
+          exit "$rc"

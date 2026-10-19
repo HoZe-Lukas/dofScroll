@@ -78,6 +78,13 @@ switched off (`/dev/null`): it would never be rotated.
 `LimitLoadToSessionType Aqua`) and bootstraps it into `gui/<uid>`. A LaunchDaemon (system level) is
 not suitable: it has no GUI session and cannot post events to the user's session.
 
+The UI's "Start at login" switch (`src/platform/mac/autostart_mac.cpp`, W18) writes the plists of
+`io.github.dofscroll.daemon` and `io.github.dofscroll.ui` (paths XML-escaped, atomic, mode 0644) or
+removes them; launchd loads them at the next login and nothing running is stopped. The
+bootout / wait until gone / bootstrap sequence of the install script exists as `setAgents(...,
+applyNow=true)` for installers (argument vectors, no shell). ctest `autostart_mac_render` renders
+into a temporary directory only. Compile and runner test only, not tried on a real Mac.
+
 ## Permissions
 
 - **Input Monitoring** is needed to read HID input (`IOHIDCheckAccess` / `IOHIDRequestAccess`).

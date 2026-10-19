@@ -79,7 +79,7 @@ compile on their runner). Toolkit-free logic is shared; platform parts are small
 | Settings UI (Qt6) | `src/ui/model/` | W3 (GTK tray exists) | W3 | W3 |
 | Mode management in the UI (new, duplicate, import, edit) | ModeCatalog | W3 | W3 | W3 |
 | Running-program picker + capture next focus | `app_picker_model` | PR `feat/w3-app-picker` | W17 (compile-checked) | W17 (compile-checked) |
-| Start at login (daemon + UI) | `autostart.hpp` contract | GTK done, Qt W3 | W18 (open) | W18 (open) |
+| Start at login (daemon + UI) | `autostart.hpp` contract | GTK done, Qt W3 | W18 (done, compile-checked) | W18 (done, compile-checked) |
 | Open file/folder/log in the default app | `ActionRunner` | W3 | W3 | W3 |
 | Live axes view and wizard (data feed from the daemon) | model | W3 (stage 3) | W3 (stage 3) | W3 (stage 3) |
 | Installers/packages | CPack/CI | RPM, DEB, TGZ done | W4 | W4 |
