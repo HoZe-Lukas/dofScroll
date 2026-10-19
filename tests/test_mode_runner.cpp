@@ -55,7 +55,7 @@ static ChannelAction act(ChannelActionType t, Key neg = Key::Up, Key pos = Key::
 }
 static ButtonBinding bind(int b, ButtonActionType t, Key k = Key::Space) {
     ButtonBinding x;
-    x.button = b;
+    x.button = b + 1;  // the helper takes the device bit index; bindings are 1-based
     x.type = t;
     x.key = k;
     return x;
@@ -122,7 +122,7 @@ static void testCustomChannels() {
         Rec o;
         ModeRunner r(&o);
         ModeDef m = mode("t");
-        m.v = act(ChannelActionType::None);
+        m.v = act(ChannelActionType::Off);
         m.h = act(ChannelActionType::Keys, Key::Left, Key::Right);
         r.setMode(m);
         CHECK(!r.legacyPath(), "custom path");
@@ -170,7 +170,7 @@ static void testCustomChannels() {
         Rec o;
         ModeRunner r(&o);
         ModeDef m = mode("off");
-        m.v = m.h = m.twist = act(ChannelActionType::None);
+        m.v = m.h = m.twist = act(ChannelActionType::Off);
         r.setMode(m);
         Settings sc;
         sc.click_button_enabled = true;
@@ -182,7 +182,7 @@ static void testCustomChannels() {
         Rec o;
         ModeRunner r(&o);
         ModeDef m = mode("t");
-        m.v = act(ChannelActionType::None);
+        m.v = act(ChannelActionType::Off);
         r.setMode(m);
         run(r, s, axis(AX_RY, 300), 0, 0.5);
         CHECK(o.count("+ctrl") == 1 && o.wv < 0, "twist default zooms in");
