@@ -48,7 +48,8 @@ VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
   !define MUI_UNICON "${APP_ICO}"
 !endif
 !define MUI_ABORTWARNING
-!define MUI_FINISHPAGE_RUN "$INSTDIR\dofscroll.exe"
+!define MUI_FINISHPAGE_RUN
+!define MUI_FINISHPAGE_RUN_FUNCTION StartDaemonFromFinish
 !define MUI_FINISHPAGE_RUN_TEXT "Start the dofscroll daemon now"
 
 !insertmacro MUI_PAGE_LICENSE "${STAGE}\LICENSE"
@@ -62,6 +63,14 @@ VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
 
 Var AutostartFlag
 Var UiWasRunning
+Var DaemonWasRunning
+Var DaemonStarted
+
+; Finish-page box "Start the dofscroll daemon now": not again when the update already restarted it.
+Function StartDaemonFromFinish
+  StrCmp $DaemonStarted "1" +2
+    Exec '"$INSTDIR\dofscroll.exe"'
+FunctionEnd
 
 Function .onInit
   ; Silent installs: /AUTOSTART=1 selects the autostart section (default: off).
@@ -83,9 +92,20 @@ Section "dofscroll (required)" SecMain
   Pop $0
   StrCmp $0 "10" 0 +2
     StrCpy $UiWasRunning "1"
-  ; Stop a running daemon of this install (an update replaces dofscroll.exe).
-  IfFileExists "$INSTDIR\scripts\stop-daemon.ps1" 0 +2
-    nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\scripts\stop-daemon.ps1" -ExePath "$INSTDIR\dofscroll.exe"'
+  ; Stop a running daemon of this install (an update replaces dofscroll.exe). Exit code 10 = it was
+  ; running; it is started again after the update, also for silent installs (see "-restart daemon").
+  ; The script comes from this installer, like stop-ui.ps1: an update of an older install uses the new one.
+  StrCpy $DaemonWasRunning "0"
+  File "/oname=$PLUGINSDIR\stop-daemon.ps1" "${STAGE}\scripts\stop-daemon.ps1"
+  nsExec::ExecToStack 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-daemon.ps1" -ExePath "$INSTDIR\dofscroll.exe"'
+  Pop $0
+  Pop $1
+  ; the output of the stop script goes to a small log, for support and for the CI check
+  FileOpen $2 "$TEMP\dofscroll-installer.log" w
+  FileWrite $2 "stop-daemon exit code $0$\r$\n$1$\r$\n"
+  FileClose $2
+  StrCmp $0 "10" 0 +2
+    StrCpy $DaemonWasRunning "1"
   SetOutPath "$INSTDIR"
   File /r "${STAGE}\*.*"
   WriteUninstaller "$INSTDIR\uninstall.exe"
@@ -120,6 +140,17 @@ Section "-silent autostart"
   ${If} ${Silent}
   ${AndIf} $AutostartFlag == "1"
     WriteRegStr HKCU "${RUN_KEY}" "${RUN_NAME}" '"$INSTDIR\dofscroll.exe"'
+  ${EndIf}
+SectionEnd
+
+; Update with the daemon running before (silent or interactive): start it again, daemon first, then
+; the interface. A fresh install starts nothing here (the finish-page box or the autostart entry does).
+Section "-restart daemon"
+  StrCpy $DaemonStarted "0"
+  ${If} $DaemonWasRunning == "1"
+    IfFileExists "$INSTDIR\dofscroll.exe" 0 +3
+      Exec '"$INSTDIR\dofscroll.exe"'
+      StrCpy $DaemonStarted "1"
   ${EndIf}
 SectionEnd
 

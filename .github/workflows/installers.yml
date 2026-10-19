@@ -16,6 +16,7 @@ permissions:
 # Third-party actions are pinned to full commit SHAs (tag in the comment).
 #   actions/checkout          = v4.2.2
 #   actions/upload-artifact   = v4.6.2
+#   actions/cache             = v6.1.0
 #   Qt: aqtinstall 3.1.19 via pip (same Qt versions as ui.yml)
 
 jobs:
@@ -34,21 +35,24 @@ jobs:
         continue-on-error: true   # without Qt the daemon-only package is built (name contains -daemon-only)
         shell: bash
         run: |
-          python -m pip install "aqtinstall==3.1.19"
-          python -m aqt install-qt windows desktop 6.8.3 win64_msvc2022_64 -O "$RUNNER_TEMP/Qt"
+          retry() { for i in 1 2 3; do "$@" && return 0; echo "::warning::attempt $i/3 failed: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
+          retry python -m pip install "aqtinstall==3.1.19"
+          retry python -m aqt install-qt windows desktop 6.8.3 win64_msvc2022_64 -O "$RUNNER_TEMP/Qt"
           root="$RUNNER_TEMP/Qt/6.8.3/msvc2022_64"
           test -f "$root/bin/windeployqt.exe"
           echo "QT_ROOT_DIR=$root" >> "$GITHUB_ENV"
           echo "CMAKE_PREFIX_PATH=$root" >> "$GITHUB_ENV"
           echo "$root/bin" >> "$GITHUB_PATH"
-      - name: Install NSIS
+      - name: Cache the NSIS download
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ runner.temp }}/nsis-cache
+          key: nsis-3.11-c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1
+      - name: Install NSIS (pinned zip, SHA-256 checked, no package feed)
         shell: pwsh
-        run: |
-          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
-            $nsis = "${env:ProgramFiles(x86)}\NSIS"
-            if (-not (Test-Path "$nsis\makensis.exe")) { choco install nsis -y --no-progress; if ($LASTEXITCODE -ne 0) { throw 'NSIS install failed' } }
-            "$nsis" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-          }
+        env:
+          NSIS_MIRROR_URL: ${{ vars.NSIS_MIRROR_URL }}   # optional fallback, same file (same SHA-256)
+        run: ./scripts/install-nsis.ps1 -MirrorUrl "$env:NSIS_MIRROR_URL"
       - name: Configure
         shell: pwsh
         env:
@@ -73,7 +77,7 @@ jobs:
           # every program runs with a time limit, so that a hang fails the step instead of the job
           function Invoke-Limited($file, $argList, $label) {
             Write-Output "run: $label"
-            $pr = Start-Process -FilePath $file -ArgumentList $argList -PassThru -NoNewWindow
+            $pr = Start-Process -FilePath $file -ArgumentList $argList -PassThru -WindowStyle Hidden
             if (-not $pr.WaitForExit(120000)) { Stop-Process -Id $pr.Id -Force; throw "$label timed out" }
             if ($pr.ExitCode -ne 0) { throw "$label failed: exit code $($pr.ExitCode)" }
           }
@@ -81,7 +85,22 @@ jobs:
           Write-Output "=== round trip in: $dir"
           # one argument string: /D= must be last and unquoted, even with spaces in the path
           Invoke-Limited $setup "/S /AUTOSTART=1 /D=$dir" 'silent install'
-          if ($twice) { Invoke-Limited $setup "/S /AUTOSTART=1 /D=$dir" 'silent upgrade (stops a running daemon first)' }
+          if ($twice) {
+            # a running daemon must be running again after the silent upgrade (the CI runner has no
+            # device; if the daemon exits on its own here, the check is skipped with a warning)
+            $exe = Join-Path $dir 'dofscroll.exe'
+            $d = Start-Process -FilePath $exe -PassThru -WindowStyle Hidden
+            Start-Sleep -Seconds 3
+            $was = -not $d.HasExited
+            if (-not $was) { Write-Output "::warning::the daemon does not stay running on this runner: restart check skipped" }
+            Invoke-Limited $setup "/S /AUTOSTART=1 /D=$dir" 'silent upgrade (stops a running daemon, starts it again)'
+            if ($was) {
+              Start-Sleep -Seconds 3
+              $now = @(Get-Process -Name 'dofscroll' -ErrorAction SilentlyContinue | Where-Object { $_.Path -and [string]::Equals($_.Path, $exe, [System.StringComparison]::OrdinalIgnoreCase) })
+              if ($now.Count -ne 1) { throw "daemon not running exactly once after the silent upgrade: $($now.Count)" }
+              if ($now[0].Id -eq $d.Id) { throw 'daemon was not restarted by the upgrade' }
+            }
+          }
           Get-ChildItem $dir | Select-Object -ExpandProperty Name
           foreach ($f in 'dofscroll.exe', 'uninstall.exe', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'devices', 'examples', 'icons', 'scripts\install-autostart.ps1') {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "missing after install: $f" }
@@ -108,8 +127,17 @@ jobs:
           if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\dofscroll') { throw 'uninstall entry still present' }
           Remove-Item -LiteralPath $dir -Recurse -Force
           }
-          Test-RoundTrip (Join-Path $env:RUNNER_TEMP 'dofscroll-inst') $false
-          Test-RoundTrip (Join-Path $env:RUNNER_TEMP $odd) $true
+          try {
+            Test-RoundTrip (Join-Path $env:RUNNER_TEMP 'dofscroll-inst') $true
+            Test-RoundTrip (Join-Path $env:RUNNER_TEMP $odd) $true
+          } catch {
+            Write-Output "::error::installer test failed: $($_.Exception.Message)"
+            Write-Output $_.ScriptStackTrace
+            Get-Content -LiteralPath (Join-Path $env:TEMP 'dofscroll-installer.log') -ErrorAction SilentlyContinue
+            exit 1
+          }
+          # the step must not end with the exit code of a native command run above
+          $global:LASTEXITCODE = 0
       - name: Scan packages for runner or staging paths
         shell: bash
         run: |
@@ -144,8 +172,9 @@ jobs:
         continue-on-error: true   # without Qt the daemon-only package is built (name contains -daemon-only)
         run: |
           python3 -m venv "$RUNNER_TEMP/aqt-venv"   # the runner's Python is externally managed
-          "$RUNNER_TEMP/aqt-venv/bin/python" -m pip install "aqtinstall==3.1.19"
-          "$RUNNER_TEMP/aqt-venv/bin/python" -m aqt install-qt mac desktop 6.9.3 clang_64 -O "$RUNNER_TEMP/Qt"   # 6.8.x links AGL, dropped in the macOS 15 SDK
+          retry() { for i in 1 2 3; do "$@" && return 0; echo "::warning::attempt $i/3 failed: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
+          retry "$RUNNER_TEMP/aqt-venv/bin/python" -m pip install "aqtinstall==3.1.19"
+          retry "$RUNNER_TEMP/aqt-venv/bin/python" -m aqt install-qt mac desktop 6.9.3 clang_64 -O "$RUNNER_TEMP/Qt"   # 6.8.x links AGL, dropped in the macOS 15 SDK
           root="$RUNNER_TEMP/Qt/6.9.3/macos"
           test -x "$root/bin/macdeployqt"
           echo "QT_ROOT_DIR=$root" >> "$GITHUB_ENV"

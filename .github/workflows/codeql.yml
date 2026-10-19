@@ -40,8 +40,9 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          dnf install -y epel-release
-          dnf install -y gcc-c++ make cmake git gettext pkgconf-pkg-config spacenavd \
+          retry() { for i in 1 2 3; do timeout 600 "$@" && return 0; echo "::warning::attempt $i/3 failed or timed out: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
+          retry dnf install -y epel-release
+          retry dnf install -y gcc-c++ make cmake git gettext pkgconf-pkg-config spacenavd \
             libspnav-devel libX11-devel libXtst-devel gtk3-devel libappindicator-gtk3-devel
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:

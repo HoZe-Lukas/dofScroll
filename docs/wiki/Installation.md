@@ -72,7 +72,7 @@ Details: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/mai
 Upgrade per OS (A package or installer never touches your config):
 
 - Linux: install the newer package over the old one. The package restarts the running user units of logged-in users on upgrade (best effort, never fails the upgrade). Otherwise run `systemctl --user daemon-reload` and restart `dofscroll.service` and `dofscroll-ui.service` (or the tray unit), or use the tray items "Restart daemon" and "Restart interface".
-- Windows: run the new installer; it stops the daemon and a running `dofscroll-ui.exe` first and starts the interface again afterwards (interactive installs only).
-- macOS: quit the interface (tray, Quit), stop the daemon, replace `dofscroll.app`, start both again.
+- Windows: run the new installer; it stops the daemon and a running `dofscroll-ui.exe` first, then starts the daemon again if it was running (also for silent `/S` installs) and the interface (interactive installs only).
+- macOS: quit the interface (tray, Quit), stop the daemon, replace `dofscroll.app`, start both again (a loaded LaunchAgent: `launchctl kickstart -k gui/$(id -u)/io.github.dofscroll.daemon`).
 
 Uninstall: `systemctl --user disable --now dofscroll.service dofscroll-tray.service`, then `sudo dnf remove dofscroll` (or `sudo apt remove dofscroll`), and remove `/etc/udev/rules.d/70-dofscroll-uinput.rules` if you added it. Delete `~/.config/dofscroll` to drop your settings.
