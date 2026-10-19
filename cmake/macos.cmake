@@ -50,3 +50,11 @@ if(DOFSCROLL_BUILD_DAEMON)
   # <prefix>/bin/../share/dofscroll/devices is the second search location of the daemon.
   install(DIRECTORY ${CMAKE_SOURCE_DIR}/devices DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll)
 endif()
+
+# W18: renders the LaunchAgent plists into a temporary directory (nothing is loaded into launchd)
+if(BUILD_TESTING)
+  add_executable(autostart_mac_render tests/autostart_mac_render.cpp src/platform/mac/autostart_mac.cpp)
+  target_link_libraries(autostart_mac_render PRIVATE dofscroll_core)
+  set_target_properties(autostart_mac_render PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+  add_test(NAME autostart_mac_render COMMAND autostart_mac_render)
+endif()
