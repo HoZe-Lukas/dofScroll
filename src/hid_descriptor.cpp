@@ -2,10 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "hid_descriptor.hpp"
 
-#include <dirent.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include "platform/fs.hpp"
 
 #include <algorithm>
 #include <cerrno>
@@ -201,46 +198,37 @@ bool parseHidDescriptor(const std::string &text, HidDescriptor &out, std::string
 }
 
 bool loadHidDescriptorFile(const std::string &path, HidDescriptor &out, std::string &err) {
-    int fd = ::open(path.c_str(), O_RDONLY | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC);
-    if (fd < 0) { err = std::strerror(errno); return false; }
-    struct stat st;
-    if (::fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
-        ::close(fd);
+    fs::ReadOptions opt;
+    opt.refuseLinks = true;
+    std::string data;
+    const fs::ReadResult rr = fs::readFileBounded(path, kMaxDescriptorBytes, opt, &data);
+    switch (rr.status) {
+    case fs::ReadStatus::Ok:
+        break;
+    case fs::ReadStatus::NotFound:
+    case fs::ReadStatus::OpenFailed:
+    case fs::ReadStatus::ReadFailed:
+        err = rr.sysError;
+        return false;
+    case fs::ReadStatus::NotRegular:
+    case fs::ReadStatus::NotOwned:
         err = "not a regular file";
         return false;
-    }
-    if (st.st_size < 0 || static_cast<size_t>(st.st_size) > kMaxDescriptorBytes) {
-        ::close(fd);
+    case fs::ReadStatus::TooLargeBySize:
+    case fs::ReadStatus::TooLargeWhileReading:
         err = "file too large (max " + std::to_string(kMaxDescriptorBytes) + " bytes)";
         return false;
     }
-    std::string data;
-    char buf[4096];
-    for (;;) {
-        ssize_t n = ::read(fd, buf, sizeof buf);
-        if (n < 0 && errno == EINTR) continue;
-        if (n <= 0) break;
-        data.append(buf, static_cast<size_t>(n));
-        if (data.size() > kMaxDescriptorBytes) {
-            ::close(fd);
-            err = "file too large (max " + std::to_string(kMaxDescriptorBytes) + " bytes)";
-            return false;
-        }
-    }
-    ::close(fd);
     return parseHidDescriptor(data, out, err);
 }
 
 bool loadHidDescriptorDir(const std::string &dir, std::vector<HidDescriptor> &out,
                           std::vector<std::string> &errors) {
-    DIR *dp = ::opendir(dir.c_str());
-    if (!dp) return false;
-    std::vector<std::string> names;
-    while (struct dirent *e = ::readdir(dp)) {
-        std::string n = e->d_name;
+    std::vector<std::string> all, names;
+    bool capped = false;
+    if (!fs::listDir(dir, 0, &all, &capped)) return false;
+    for (const std::string &n : all)
         if (n.size() > 5 && n.compare(n.size() - 5, 5, ".conf") == 0) names.push_back(n);
-    }
-    ::closedir(dp);
     std::sort(names.begin(), names.end());
     if (names.size() > kMaxDescriptorFiles) {
         errors.push_back(dir + ": too many files, only the first " + std::to_string(kMaxDescriptorFiles) +

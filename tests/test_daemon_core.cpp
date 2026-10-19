@@ -6,14 +6,14 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <string>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <vector>
 
 #include "daemon_core.hpp"
 #include "platform/fake_input.hpp"
+#include "testutil.hpp"
 
 using namespace spn;
 
@@ -87,15 +87,12 @@ struct Rig {
     std::unique_ptr<DaemonCore> core;
 
     std::vector<std::string> status;
-    explicit Rig(const std::string &config, const std::vector<std::pair<std::string, std::string>> &modeFiles = {}) {
-        char tmpl[] = "/tmp/dofscroll-core-test-XXXXXX";
-        char *d = mkdtemp(tmpl);
-        assert(d);
-        dir = d;
+    explicit Rig(const std::string &config, const std::vector<std::pair<std::string, std::string>> &modeFiles = {})
+        : dir(tu::makeTempDir("dofscroll-core-test")) {
         conf = dir + "/dofscroll.conf";
         writeFile(conf, config);
         if (!modeFiles.empty()) {
-            assert(mkdir((dir + "/modes").c_str(), 0700) == 0);
+            assert(std::filesystem::create_directory(dir + "/modes"));
             for (const auto &f : modeFiles) writeFile(dir + "/modes/" + f.first, f.second);
         }
         DeviceInfo di;
@@ -119,9 +116,7 @@ struct Rig {
         assert(core->reader().connect());
     }
     ~Rig() {
-        unlink(conf.c_str());
-        if (std::system(("rm -rf '" + dir + "/modes'").c_str()) != 0) {}
-        rmdir(dir.c_str());
+        tu::removeAll(dir);
     }
 
     void pump() {

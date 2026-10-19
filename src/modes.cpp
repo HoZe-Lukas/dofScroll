@@ -4,10 +4,6 @@
 // See modes.hpp for the file format and the contract.
 #include "modes.hpp"
 
-#include <dirent.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include <algorithm>
 #include <cctype>
@@ -16,6 +12,8 @@
 #include <cstring>
 
 #include "config.hpp"
+#include "platform/fs.hpp"
+#include "platform/path_rules.hpp"
 
 namespace spn {
 
@@ -169,18 +167,13 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
 // Sorted names of "<id>.conf" entries (valid ids only). Scans at most kMaxDirEntries entries.
 // false if the directory cannot be opened.
 bool listConfNames(const std::string &dir, std::vector<std::string> *names, bool *capped) {
-    DIR *d = ::opendir(dir.c_str());
-    if (!d) return false;
-    *capped = false;
-    size_t seen = 0;
-    while (struct dirent *e = ::readdir(d)) {
-        if (++seen > kMaxDirEntries) { *capped = true; break; }
-        const std::string n = e->d_name;
+    std::vector<std::string> all;
+    if (!fs::listDir(dir, kMaxDirEntries, &all, capped)) return false;
+    for (const std::string &n : all) {
         if (n.size() <= 5 || n.compare(n.size() - 5, 5, ".conf") != 0) continue;
         if (!validModeId(n.substr(0, n.size() - 5))) continue;
         names->push_back(n);
     }
-    ::closedir(d);
     std::sort(names->begin(), names->end());
     return true;
 }
@@ -194,8 +187,11 @@ const ModeDef *ModeSet::find(const std::string &id) const {
 }
 
 bool validModeId(const std::string &id) {
+    // Reserved Windows device names (con, nul, com1, ...) are refused on every OS: "<id>.conf"
+    // would resolve to the device on Windows, and mode directories are copied between systems.
     return !id.empty() && id.size() <= 32 &&
-           id.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_-") == std::string::npos;
+           id.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_-") == std::string::npos &&
+           !isReservedDeviceStem(id);
 }
 
 bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err) {
@@ -274,40 +270,37 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
         names.resize(kMaxModeFiles);
     }
 
-    const int dfd = ::open(dir.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (dfd < 0) { warnAll(dir + ": " + std::strerror(errno)); return set; }
+    fs::ReadOptions opt;
+    opt.refuseLinks = true;
+    opt.requireOwner = true;
+    fs::DirHandle dh;
+    std::string derr;
+    if (!dh.open(dir, &derr)) { warnAll(dir + ": " + derr); return set; }
     for (const std::string &n : names) {
         const std::string path = dir + "/" + n;
-        const int fd = ::openat(dfd, n.c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
-        if (fd < 0) { warnAll(path + ": " + std::strerror(errno) + " - ignored"); continue; }
-        struct stat st;
-        if (::fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
-            warnAll(path + ": not a regular file - ignored");
-            ::close(fd);
-            continue;
-        }
-        if (st.st_uid != ::geteuid()) {
-            warnAll(path + ": not owned by the current user - ignored");
-            ::close(fd);
-            continue;
-        }
-        if (static_cast<size_t>(st.st_size) > kMaxModeFileBytes) {
-            warnAll(path + ": file too large (max. " + std::to_string(kMaxModeFileBytes) + " bytes) - ignored");
-            ::close(fd);
-            continue;
-        }
         std::string text;
-        char buf[8192];
-        bool bad = false;
-        for (;;) {
-            const ssize_t r = ::read(fd, buf, sizeof buf);
-            if (r < 0) { if (errno == EINTR) continue; bad = true; break; }
-            if (r == 0) break;
-            text.append(buf, static_cast<size_t>(r));
-            if (text.size() > kMaxModeFileBytes) { bad = true; break; }  // grew while reading
+        const fs::ReadResult rr = dh.readFileBounded(n, kMaxModeFileBytes, opt, &text);
+        switch (rr.status) {
+        case fs::ReadStatus::Ok:
+            break;
+        case fs::ReadStatus::NotFound:
+        case fs::ReadStatus::OpenFailed:
+            warnAll(path + ": " + rr.sysError + " - ignored");
+            continue;
+        case fs::ReadStatus::NotRegular:
+            warnAll(path + ": not a regular file - ignored");
+            continue;
+        case fs::ReadStatus::NotOwned:
+            warnAll(path + ": not owned by the current user - ignored");
+            continue;
+        case fs::ReadStatus::TooLargeBySize:
+            warnAll(path + ": file too large (max. " + std::to_string(kMaxModeFileBytes) + " bytes) - ignored");
+            continue;
+        case fs::ReadStatus::TooLargeWhileReading:
+        case fs::ReadStatus::ReadFailed:
+            warnAll(path + ": unreadable or too large - ignored");
+            continue;
         }
-        ::close(fd);
-        if (bad) { warnAll(path + ": unreadable or too large - ignored"); continue; }
 
         ModeDef m;
         m.id = n.substr(0, n.size() - 5);
@@ -318,7 +311,6 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
             if (e.id == m.id) { e = m; replaced = true; break; }
         if (!replaced) set.modes.push_back(m);
     }
-    ::close(dfd);
     // Mode switch targets can only be checked once all files are loaded.
     for (ModeDef &m : set.modes) {
         auto &bs = m.buttons;
@@ -341,11 +333,11 @@ std::string modesStamp(const std::string &dir) {
     if (!listConfNames(dir, &names, &capped)) return "";
     std::string s = "modes";
     for (const std::string &n : names) {
-        struct stat st;
-        if (::fstatat(AT_FDCWD, (dir + "/" + n).c_str(), &st, AT_SYMLINK_NOFOLLOW) != 0) continue;
-        s += "|" + n + ":" + std::to_string(static_cast<long long>(st.st_mtim.tv_sec)) + "." +
-             std::to_string(static_cast<long long>(st.st_mtim.tv_nsec)) + ":" +
-             std::to_string(static_cast<long long>(st.st_size));
+        fs::FileInfo fi;
+        if (!fs::lstatPath(dir + "/" + n, &fi)) continue;
+        s += "|" + n + ":" + std::to_string(static_cast<long long>(fi.mtimeNs / 1'000'000'000)) + "." +
+             std::to_string(static_cast<long long>(fi.mtimeNs % 1'000'000'000)) + ":" +
+             std::to_string(static_cast<long long>(fi.size));
     }
     return s;
 }

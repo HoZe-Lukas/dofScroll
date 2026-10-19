@@ -2,18 +2,22 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Tests for src/modes.cpp - plain assert tests, no framework.
 #undef NDEBUG
+#ifndef _WIN32
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
 
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
 
 #include "config.hpp"
 #include "modes.hpp"
+#include "testutil.hpp"
 
 using namespace spn;
 
@@ -25,7 +29,8 @@ static void writeFile(const std::string &name, const std::string &content) {
 }
 
 static void clearDir() {
-    assert(system(("rm -rf '" + g_dir + "' && mkdir -p '" + g_dir + "'").c_str()) == 0);
+    tu::removeAll(g_dir);
+    assert(std::filesystem::create_directories(g_dir));
 }
 
 static bool hasWarning(const std::vector<std::string> &w, const std::string &needle) {
@@ -38,6 +43,10 @@ static void testIds() {
     assert(validModeId("timeline") && validModeId("a_b-9") && validModeId(std::string(32, 'a')));
     assert(!validModeId("") && !validModeId(std::string(33, 'a')) && !validModeId("Upper") &&
            !validModeId("a b") && !validModeId("../x") && !validModeId("a.b"));
+    // reserved Windows device names are not mode ids on any OS (con.conf would be the console)
+    for (const char *r : {"con", "prn", "aux", "nul", "com1", "com9", "lpt1", "lpt9"}) assert(!validModeId(r));
+    assert(validModeId("console") && validModeId("com0") && validModeId("com10") && validModeId("lpt") &&
+           validModeId("con-1") && validModeId("nul_") && validModeId("aux2"));
 }
 
 static void testGrammar() {
@@ -228,17 +237,26 @@ static void testFileTypes() {
     clearDir();
     writeFile("real.conf", "V_ACTION = none\n");
     writeFile("target.txt", "V_ACTION = wheel_v\n");
+#ifndef _WIN32
     assert(symlink((g_dir + "/target.txt").c_str(), (g_dir + "/link.conf").c_str()) == 0);
     assert(symlink("does-not-exist", (g_dir + "/dangling.conf").c_str()) == 0);
-    assert(mkdir((g_dir + "/dir.conf").c_str(), 0700) == 0);
     assert(mkfifo((g_dir + "/fifo.conf").c_str(), 0600) == 0);  // must not block
+#endif
+    assert(std::filesystem::create_directory(g_dir + "/dir.conf"));
     std::vector<std::string> w;
     ModeSet ms = loadModes(g_dir, &w);
     assert(ms.find("real"));
-    assert(!ms.find("link") && !ms.find("dangling") && !ms.find("dir") && !ms.find("fifo"));
-    assert(hasWarning(w, "link.conf") && hasWarning(w, "fifo.conf") && hasWarning(w, "dir.conf"));
+    assert(!ms.find("dir"));
+    assert(hasWarning(w, "dir.conf"));
+#ifndef _WIN32
+    assert(!ms.find("link") && !ms.find("dangling") && !ms.find("fifo"));
+    assert(hasWarning(w, "link.conf") && hasWarning(w, "fifo.conf"));
+#endif
 
-    // foreign owner: only testable as root (chown needs privilege)
+    // foreign owner: only testable as root (chown needs privilege); POSIX only
+#ifdef _WIN32
+    std::cout << "test_modes: foreign-owner check skipped (Windows)\n";
+#else
     if (geteuid() == 0) {
         clearDir();
         writeFile("mine.conf", "V_ACTION = none\n");
@@ -250,6 +268,7 @@ static void testFileTypes() {
     } else {
         std::cout << "test_modes: foreign-owner check skipped (not root)\n";
     }
+#endif
 }
 
 static void testStamp() {
@@ -315,7 +334,7 @@ static void testModeSwitchBinding() {
 }
 
 int main() {
-    g_dir = "/tmp/test_modes." + std::to_string(::getpid());
+    g_dir = tu::tmpRoot() + "/test_modes." + std::to_string(tu::pid());
     testIds();
     testGrammar();
     testBuiltins();
@@ -326,7 +345,7 @@ int main() {
     testStamp();
     testResolveWithMode();
     testModeSwitchBinding();
-    assert(system(("rm -rf '" + g_dir + "'").c_str()) == 0);
+    tu::removeAll(g_dir);
     std::cout << "test_modes: all tests passed\n";
     return 0;
 }

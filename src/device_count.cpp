@@ -4,8 +4,10 @@
 
 #include <cctype>
 #include <cstddef>
+#ifdef __linux__
 #include <fcntl.h>
 #include <unistd.h>
+#endif
 
 namespace spn {
 
@@ -39,6 +41,9 @@ int countSpaceMiceInText(const std::string &text) {
 }
 
 int countSpaceMice() {
+#ifndef __linux__
+    return -1;  // /proc/bus/input exists on Linux only; other OSes enumerate HID devices themselves
+#else
     int fd = ::open("/proc/bus/input/devices", O_RDONLY | O_CLOEXEC);
     if (fd < 0) return -1;
     std::string text;
@@ -50,6 +55,7 @@ int countSpaceMice() {
     }
     ::close(fd);
     return countSpaceMiceInText(text);
+#endif
 }
 
 }  // namespace spn
