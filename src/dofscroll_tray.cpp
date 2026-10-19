@@ -2060,25 +2060,11 @@ static gboolean onTermSignal(gpointer) {
 
 static void onSettings(GtkMenuItem *, gpointer) { showSettingsWindow(); }
 
-static void onOpenConfig(GtkMenuItem *, gpointer) {
-    flushPending();
-    // xdg-open fails on non-existent files -> create it with the current (default)
-    // values if needed (saveProfiles creates the directory).
-    std::string path = cfgPath();
-    if (access(path.c_str(), F_OK) != 0) {
-        ProfileSet ps;
-        spn::loadProfiles(path, &ps, nullptr);
-        ps.setSectionFromSettings(0, ps.sectionSettings(0));
-        std::string err;
-        if (!spn::saveProfiles(path, ps, &err)) {
-            fprintf(stderr, "dofscroll-tray: cannot create %s: %s\n", path.c_str(), err.c_str());
-            return;
-        }
-        path = cfgPath();  // possibly a new path after creating
-    }
+// Opens a file or folder with the default application, outside the tray's sandbox.
+static void openWithDefaultApp(const std::string &path) {
+    std::string open_path = path;
     // Absolute path: a relative path / one starting with '-' (e.g. XDG_CONFIG_HOME="-x")
     // would be read as an option by xdg-open.
-    std::string open_path = path;
     if (open_path.empty() || open_path[0] != '/') {
         char cwd[4096];
         open_path = (getcwd(cwd, sizeof(cwd)) ? std::string(cwd) : std::string()) + "/" + open_path;
@@ -2096,6 +2082,25 @@ static void onOpenConfig(GtkMenuItem *, gpointer) {
     } else {
         spawnDetached({"xdg-open", open_path});
     }
+}
+
+static void onOpenConfig(GtkMenuItem *, gpointer) {
+    flushPending();
+    // xdg-open fails on non-existent files -> create it with the current (default)
+    // values if needed (saveProfiles creates the directory).
+    std::string path = cfgPath();
+    if (access(path.c_str(), F_OK) != 0) {
+        ProfileSet ps;
+        spn::loadProfiles(path, &ps, nullptr);
+        ps.setSectionFromSettings(0, ps.sectionSettings(0));
+        std::string err;
+        if (!spn::saveProfiles(path, ps, &err)) {
+            fprintf(stderr, "dofscroll-tray: cannot create %s: %s\n", path.c_str(), err.c_str());
+            return;
+        }
+        path = cfgPath();  // possibly a new path after creating
+    }
+    openWithDefaultApp(path);
 }
 
 // ---------------------------------------------------------------------------
@@ -2255,6 +2260,38 @@ static void onModeMenuPick(GtkCheckMenuItem *item, gpointer) {
     scheduleApply();
 }
 
+// Opens an existing mode file, or first creates an editable copy of a built-in mode (never
+// overwrites). The new file shows up in the submenu through the modes-directory stamp.
+static void onModeEdit(GtkMenuItem *item, gpointer) {
+    const char *id = static_cast<const char *>(g_object_get_data(G_OBJECT(item), "mode-id"));
+    if (!id) return;
+    const std::string dir = spn::modesDir();
+    const std::string path = spn::modelist::modeFilePath(dir, id);
+    if (path.empty()) return;
+    if (access(path.c_str(), F_OK) != 0) {
+        const spn::ModeSet ms = spn::loadModes(dir, nullptr);
+        const spn::ModeDef *m = ms.find(id);
+        if (!m) return;
+        std::string err;
+        if (!spn::modelist::createModeFile(dir, id, spn::modelist::modeTemplate(*m), nullptr, &err) &&
+            access(path.c_str(), F_OK) != 0) {
+            fprintf(stderr, "dofscroll-tray: cannot create %s: %s\n", path.c_str(), err.c_str());
+            return;
+        }
+    }
+    openWithDefaultApp(path);
+}
+
+static void onModesFolder(GtkMenuItem *, gpointer) {
+    const std::string dir = spn::modesDir();
+    if (dir.empty()) return;
+    if (mkdir(dir.c_str(), 0700) != 0 && errno != EEXIST) {
+        fprintf(stderr, "dofscroll-tray: cannot create %s: %s\n", dir.c_str(), strerror(errno));
+        return;
+    }
+    openWithDefaultApp(dir);
+}
+
 // Rebuilds the submenu if the modes directory or the global mode changed (cheap check,
 // called from the 1 s status tick).
 static void updateModeMenu() {
@@ -2295,6 +2332,26 @@ static void updateModeMenu() {
         g_signal_connect(item, "toggled", G_CALLBACK(onModeMenuPick), nullptr);
         gtk_menu_shell_append(GTK_MENU_SHELL(modeMenu.sub), item);
         gtk_widget_show(item);
+    }
+    auto appendItem = [](GtkWidget *w) {
+        gtk_menu_shell_append(GTK_MENU_SHELL(modeMenu.sub), w);
+        gtk_widget_show(w);
+    };
+    appendItem(gtk_separator_menu_item_new());
+    for (const auto &e : spn::modelist::buildEditEntries(ms)) {
+        const std::string name = displayText(e.text, 50);
+        const std::string label =
+            e.has_file ? std::string(_("Edit mode file:")) + " " + name
+                       : std::string(_("Create editable copy of")) + " " + name + "...";
+        GtkWidget *item = gtk_menu_item_new_with_label(label.c_str());
+        g_object_set_data_full(G_OBJECT(item), "mode-id", g_strdup(e.id.c_str()), g_free);
+        g_signal_connect(item, "activate", G_CALLBACK(onModeEdit), nullptr);
+        appendItem(item);
+    }
+    {
+        GtkWidget *item = gtk_menu_item_new_with_label(_("Open modes folder"));
+        g_signal_connect(item, "activate", G_CALLBACK(onModesFolder), nullptr);
+        appendItem(item);
     }
     modeMenu.rebuilding = false;
 }

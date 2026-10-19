@@ -119,3 +119,20 @@ The timeline must have keyboard focus. Reverse the twist with `ZOOM_SIGN = -1`.
 3. Select it with `MODE = <id>` in a profile, from the tray "Mode" menu, or with a `mode:<id>`
    button action.
 4. Check `journalctl --user -u dofscroll.service` for warnings about skipped lines.
+
+## Editing modes from the tray
+
+The tray "Mode" submenu lists, below the mode choices, one entry per mode:
+
+- `Edit mode file: <name>` opens the mode's file in the default editor.
+- `Create editable copy of <name>...` appears for built-in modes that have no file yet (normal,
+  off, timeline). It writes a commented template `<id>.conf` with the built-in's name, description
+  and channel actions into the modes folder (mode 0600, never overwriting an existing file) and
+  opens it. A file of the same name replaces the built-in mode.
+- `Open modes folder` opens the folder in the file manager.
+
+The editor is started outside the tray's sandbox, like "Open config file". After saving, the
+daemon reloads the modes by itself and the new entry appears in the menu within about a second.
+
+The example modes (`timeline`, `browse-keys`, `cycle-modes`) are good starting points: copy one and
+change it.
