@@ -135,15 +135,12 @@ call "Actions: selected actions only" PUT "/actions/permissions" '{
   "sha_pinning_required": false
 }'
 # GitHub-owned actions (actions/*, github/*) are allowed as a group; the rest is listed.
-# oven-sh/setup-bun is used internally by anthropics/claude-code-action (composite action).
 call "Actions: allow-list" PUT "/actions/permissions/selected-actions" '{
   "github_owned_allowed": true,
   "verified_allowed": false,
   "patterns_allowed": [
-    "anthropics/claude-code-action@*",
     "jurplel/install-qt-action@*",
-    "jurplel/install-qt-action/action@*",
-    "oven-sh/setup-bun@*"
+    "jurplel/install-qt-action/action@*"
   ]
 }'
 call "Actions: approval required for ALL outside contributors' workflow runs" PUT \
