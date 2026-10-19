@@ -74,3 +74,6 @@ if ($procs.Count -gt 0 -and (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
     }
 }
 Write-Output "stop-daemon: $($procs.Count) process(es)"
+# exit code 10: a daemon was running (the installer starts it again after an update)
+if ($procs.Count -gt 0) { exit 10 }
+exit 0

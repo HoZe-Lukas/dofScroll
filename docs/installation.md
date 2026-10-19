@@ -367,10 +367,12 @@ are in [work-plan.md](work-plan.md); how the packages are built is in
    `dofscroll`, and the uninstaller removes both.
 
 **Upgrade:** run the new installer over the old one (same folder). It stops the daemon (releasing held
-keys) and a running `dofscroll-ui.exe` of that install before replacing the files, then starts
-the interface again if it was running (interactive installs only; a silent `/S` install does not
-start anything). Start the daemon again from the finish page, the tray or the Start menu. The tray
-items **Restart daemon** and **Restart interface** restart the programs without the installer.
+keys) and a running `dofscroll-ui.exe` of that install before replacing the files. If the daemon was
+running, the installer starts it again afterwards, also for a silent `/S` install, then the
+interface if that was running too (interactive installs only). The finish-page box "Start the
+dofscroll daemon now" does not start a second daemon. A fresh install, or an update with the daemon
+stopped before, starts nothing on its own. The tray items **Restart daemon** and **Restart
+interface** restart the programs without the installer.
 
 **Uninstall:** Settings > Apps > dofscroll, or the Start menu entry "Uninstall dofscroll". It stops
 the daemon and removes the program folder, the Start menu entries and the autostart value; your
@@ -396,8 +398,9 @@ The ZIP needs no installation: unpack it, start `dofscroll.exe`, and use
    close the interface, stop the daemon (`launchctl bootout gui/$(id -u)/io.github.dofscroll.daemon`
    if autostart is installed, otherwise quit the process), drag the new `dofscroll.app` over the old
    one in Applications, grant the permissions again if macOS asks, then start the app (and the
-   daemon: log in again or `launchctl bootstrap` / run `install-launchagent.sh`). Your
-   configuration stays. The tray items **Restart daemon** (`launchctl kickstart -k`) and **Restart
+   daemon: log in again or `launchctl bootstrap` / run `install-launchagent.sh`; if the LaunchAgent
+   is still loaded, `launchctl kickstart -k gui/$(id -u)/io.github.dofscroll.daemon` starts the new
+   binary). Your configuration stays. The tray items **Restart daemon** (`launchctl kickstart -k`) and **Restart
    interface** are for restarts without an upgrade; the app does not detect a newer app on disk.
 6. **Uninstall:** run `.../launchagent/uninstall-launchagent.sh`, then move the app to the Trash.
    Configuration in `~/Library/Application Support/dofscroll` stays.

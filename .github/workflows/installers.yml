@@ -85,7 +85,22 @@ jobs:
           Write-Output "=== round trip in: $dir"
           # one argument string: /D= must be last and unquoted, even with spaces in the path
           Invoke-Limited $setup "/S /AUTOSTART=1 /D=$dir" 'silent install'
-          if ($twice) { Invoke-Limited $setup "/S /AUTOSTART=1 /D=$dir" 'silent upgrade (stops a running daemon first)' }
+          if ($twice) {
+            # a running daemon must be running again after the silent upgrade (the CI runner has no
+            # device; if the daemon exits on its own here, the check is skipped with a warning)
+            $exe = Join-Path $dir 'dofscroll.exe'
+            $d = Start-Process -FilePath $exe -PassThru -WindowStyle Hidden
+            Start-Sleep -Seconds 3
+            $was = -not $d.HasExited
+            if (-not $was) { Write-Output "::warning::the daemon does not stay running on this runner: restart check skipped" }
+            Invoke-Limited $setup "/S /AUTOSTART=1 /D=$dir" 'silent upgrade (stops a running daemon, starts it again)'
+            if ($was) {
+              Start-Sleep -Seconds 3
+              $now = @(Get-Process -Name 'dofscroll' -ErrorAction SilentlyContinue | Where-Object { $_.Path -and [string]::Equals($_.Path, $exe, [System.StringComparison]::OrdinalIgnoreCase) })
+              if ($now.Count -ne 1) { throw "daemon not running exactly once after the silent upgrade: $($now.Count)" }
+              if ($now[0].Id -eq $d.Id) { throw 'daemon was not restarted by the upgrade' }
+            }
+          }
           Get-ChildItem $dir | Select-Object -ExpandProperty Name
           foreach ($f in 'dofscroll.exe', 'uninstall.exe', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'devices', 'examples', 'icons', 'scripts\install-autostart.ps1') {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "missing after install: $f" }
