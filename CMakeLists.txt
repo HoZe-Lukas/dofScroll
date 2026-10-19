@@ -31,7 +31,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
-# Like the Makefile (-O2, no NDEBUG): the tests rely on assert(), which NDEBUG would remove.
+# -O2 without NDEBUG: the tests rely on assert(), which NDEBUG would remove.
 set(CMAKE_CXX_FLAGS_RELEASE "-O2" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g" CACHE STRING "" FORCE)
 
@@ -46,7 +46,7 @@ include(CTest)
 find_package(PkgConfig REQUIRED)
 find_package(Threads REQUIRED)
 
-# ---- flags (mirrors the Makefile) ------------------------------------------
+# ---- flags ------------------------------------------
 add_library(dofscroll_flags INTERFACE)
 target_compile_options(dofscroll_flags INTERFACE -Wall -Wextra)
 if(DOFSCROLL_WERROR)
@@ -76,7 +76,7 @@ if(DOFSCROLL_SANITIZE)
   target_link_options(dofscroll_flags INTERFACE -fsanitize=address,undefined)
 endif()
 
-# ---- sources (glob, like the Makefile) --------------------------------------
+# ---- sources (globbed: new files need no CMake edit) --------------------------------------
 file(GLOB ALL_SRC CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.cpp)
 set(PROGRAM_SRC ${CMAKE_SOURCE_DIR}/src/dofscroll.cpp ${CMAKE_SOURCE_DIR}/src/dofscroll_tray.cpp)
 file(GLOB BACKEND_SRC CONFIGURE_DEPENDS
@@ -142,7 +142,7 @@ if(BUILD_TESTING)
                     COMMENT "Validating example configs" VERBATIM)
 endif()
 
-# ---- quality gates and helper targets (parity with the former Makefile) -----
+# ---- quality gates and helper targets -----
 # check-fast: -Werror build + tests; check: + ASan/UBSan, cppcheck, hardening check.
 # They configure/build in <build>/check-werror and <build>/check-asan.
 option(DOFSCROLL_REQUIRE_ASAN "check: missing libasan/libubsan is an error (CI)" OFF)
