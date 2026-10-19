@@ -73,7 +73,7 @@ static bool overviewSelfTest(MainWindow &w) {
     w.resize(720, 460);
     settle();
     check(w.overviewColumns() >= 1 && wideColumns >= w.overviewColumns(), "cards never wrap to more columns in a narrower window");
-    if (wideWidth - w.width() >= 400)
+    if (wideWidth - w.width() >= 400 && w.width() <= 800 && wideColumns >= 2)  // 3 cards need ~780 px
         check(wideColumns > w.overviewColumns(), "cards wrap to fewer columns in a narrow window");
     w.resize(960, 560);
     // the cards open their profile: section 1 is the device profile, 3 the last program profile
