@@ -11,7 +11,8 @@ It consists of two programs:
 | Program | Task |
 |---|---|
 | `dofscroll` | Background daemon. Reads the SpaceMouse, produces the input events. |
-| `dofscroll-tray` | Tray icon with a settings window. Writes the same config file and tells the daemon to reload. Optional. |
+| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Channels, General, Axes, Modes, Profiles). Writes the same config file and tells the daemon to reload. Optional, see [docs/ui.md](docs/ui.md). |
+| `dofscroll-tray` | Linux GTK tray icon with a settings window, the fallback when the Qt interface is not installed. Optional; run it or `dofscroll-ui`, not both. |
 
 ## Design principle
 
@@ -19,16 +20,16 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 
 ## Status and testing
 
-Everything below was verified by the maintainer on real hardware unless it says otherwise.
-"Not tested" means the code builds (and the unit tests pass in CI) but it has not been run there.
+This is the **0.1.0-beta.1** state of `main`. Only one setup was verified by the maintainer on
+real hardware; everything else is built and unit-tested by CI but has not been run on a device.
 
 | Platform | Status |
 |---|---|
-| RHEL 9, X11, KDE Plasma | **Tested**, with the SpaceMouse Pro and the SpaceMouse Compact. |
-| Other Linux distributions (Debian, Ubuntu, Fedora, ...) | Not tested. The RPM, DEB and TGZ packages are built by CI but have not been installed and run on those systems. |
-| Linux, Wayland | Not tested. Uses the uinput backend and needs a udev rule that you install yourself (not installed by default, see [installation.md](docs/installation.md)); active-window profiles work only with `kdotool` (KDE). |
-| Windows | In development, not usable yet. See [docs/work-plan.md](docs/work-plan.md). |
-| macOS | In development, not usable yet. See [docs/work-plan.md](docs/work-plan.md). |
+| RHEL 9, X11, KDE Plasma | **Tested** with the SpaceMouse Pro and the SpaceMouse Compact. |
+| Other Linux distributions (Debian, Ubuntu, Fedora, ...) | Not tested. The RPM, DEB and TGZ packages are built by CI but have not been installed and run there. |
+| Linux, Wayland | Not tested. Uses the uinput backend and needs a udev rule that you install yourself (opt-in, see [installation.md](docs/installation.md)); active-window profiles work only with `kdotool` (KDE). |
+| Windows | Daemon, Qt interface and an unsigned installer/ZIP are built by CI. **Not run on hardware.** |
+| macOS | Daemon, Qt interface and an unsigned, not notarized DMG (Apple silicon) are built by CI. **Not run on hardware.** |
 
 | Device | Status |
 |---|---|
@@ -36,9 +37,28 @@ Everything below was verified by the maintainer on real hardware unless it says 
 | SpaceMouse Compact | Tested (RHEL 9, X11, KDE Plasma). |
 | SpaceMouse Wireless, Pro Wireless, Enterprise, SpaceNavigator and other models | Not tested. The factory button count comes from vendor information, see [docs/devices.md](docs/devices.md). |
 
-Supported devices: models that `spacenavd` supports. The factory button count is known for
-SpaceMouse Pro, Pro Wireless, Compact, Wireless, Enterprise and SpaceNavigator. Automated tests
-(CI) run on Rocky Linux 9 only; the Windows and macOS runners are added with the ports.
+Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, not real devices.
+
+### Known limitations
+
+- Windows and macOS: never run with a real device. The Windows installer is not code-signed
+  (SmartScreen warns) and the macOS DMG is only ad-hoc signed and not notarized (Gatekeeper
+  blocks the first start). Notes in [docs/installation.md](docs/installation.md).
+- The Qt interface has not been checked on Windows or macOS desktops; on Linux the GTK tray is
+  still the documented default.
+- The tray entry "Release all keys" exists only in the GTK tray; use `dofscroll --release-keys`
+  otherwise.
+- Pausing output while the own session is not the active one (several users on one PC) was
+  unit-tested with fake probes only; no second user session was available. The Windows and macOS
+  probes are compile-checked only.
+- On Linux `spacenavd` reports one merged device, so two mice with different modes at once are
+  not possible.
+- Wayland: not tested; the uinput udev rule is opt-in; active-window profiles need `kdotool`.
+- Supported devices: models that `spacenavd` supports (Linux) or that report a known HID layout
+  (Windows, macOS); the factory button count is known for SpaceMouse Pro, Pro Wireless, Compact,
+  Wireless, Enterprise and SpaceNavigator.
+
+Release notes: [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md).
 
 ## Download and install
 
@@ -47,7 +67,10 @@ SpaceMouse Pro, Pro Wireless, Compact, Wireless, Enterprise and SpaceNavigator. 
 2. Download the package for your system plus `SHA256SUMS.txt`.
 3. Verify: `sha256sum -c --ignore-missing SHA256SUMS.txt`
 4. Install: `sudo dnf install ./dofscroll-*.rpm` (RHEL family, needs EPEL) or
-   `sudo apt install ./dofscroll_*.deb` (Debian family).
+   `sudo apt install ./dofscroll_*.deb` (Debian family). Linux packages contain the Qt interface
+   (`dofscroll-ui`) when Qt6 was available at build time, and always the GTK tray.
+   Windows: unsigned `-setup.exe` or portable ZIP (SmartScreen: More info, Run anyway). macOS:
+   unsigned DMG (right-click > Open). Details per system: [docs/installation.md](docs/installation.md).
 5. Follow the first-time setup in [docs/installation.md](docs/installation.md). The user units
    are not installed where systemd looks for them on every distribution, so do not skip it.
 
@@ -56,9 +79,11 @@ SpaceMouse Pro, Pro Wireless, Compact, Wireless, Enterprise and SpaceNavigator. 
 1. `sudo systemctl enable --now spacenavd`
 2. Enable the user services (after the setup step in the installation guide):
    `systemctl --user enable --now dofscroll.service dofscroll-tray.service`
+   (or `dofscroll-ui.service` instead of the tray for the Qt interface). "Start at login" in the
+   interface switches autostart on and off.
 3. Plug in the SpaceMouse. Push the cap: the window under the pointer scrolls. Twist: it zooms
    (Ctrl + scroll).
-4. Right-click the tray icon, open "Settings" and adjust sensitivity, dead zone and direction.
+4. Right-click the tray icon, open "Settings..." and adjust sensitivity, dead zone and direction.
    Changes apply immediately.
 
 If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
@@ -68,12 +93,14 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 | Document | Content |
 |---|---|
 | [docs/installation.md](docs/installation.md) | Install from a release, first-time setup, upgrade, uninstall, build from source |
+| [docs/ui.md](docs/ui.md) | The Qt interface: pages, mode dropdown, profiles, running-program picker, tray |
 | [docs/configuration.md](docs/configuration.md) | Config file, all keys, profiles, precedence, examples |
 | [docs/modes.md](docs/modes.md) | Modes, button actions, key names, buttons versus the vendor driver (always-the-same button mappings belong in the driver) |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common problems, logs, status files |
 | [docs/devices.md](docs/devices.md) | Device descriptions |
 | [docs/security.md](docs/security.md) | Threat model, systemd hardening, uinput permissions |
 | [docs/releasing.md](docs/releasing.md) | How a release is made |
+| [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) | Draft release notes of 0.1.0-beta.1 |
 | [docs/work-plan.md](docs/work-plan.md) | Roadmap and the Windows/macOS ports |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, pull requests, adding a mode or language |
 
@@ -101,6 +128,9 @@ reading and never written; case-insensitive matching folds ASCII letters only. D
 - A reader thread stores the newest raw axis values. The main thread runs a fixed tick
   (`TICK_HZ`, default 250 Hz) and turns them into events, so scrolling is even and does not
   depend on the driver's event rate.
+- The daemon pauses its output while its own session is not the active one (several users on one
+  PC) and has a safety net that releases keys and buttons it still holds when the device is
+  quiet, see [docs/troubleshooting.md](docs/troubleshooting.md).
 - The daemon reloads its config on `SIGHUP` and when the file changes. It reconnects to
   `spacenavd` by itself. It never needs root.
 - The source code in `src/` is the reference for behavior. The headers are the contracts.

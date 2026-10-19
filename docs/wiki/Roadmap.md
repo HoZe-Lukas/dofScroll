@@ -4,7 +4,7 @@
 
 Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons](Buttons).
 
-Source of truth: [docs/work-plan.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/work-plan.md) (state as of 2026-10-19). If this page and the work plan differ, the work plan wins.
+Source of truth: [docs/work-plan.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/work-plan.md) (state as of the 0.1.0-beta.1 documentation pass). If this page and the work plan differ, the work plan wins.
 
 ## Parity rule
 
@@ -20,26 +20,30 @@ Every user-visible feature must work on Linux, Windows and macOS. A feature is "
 - 1-based `BUTTON_<n>` numbering everywhere
 - CMake build, CPack packages (RPM, DEB, TGZ), CI with sanitizers, cppcheck, secret scan, release workflow
 - Security review report and first fixes
+- Qt6 interface `dofscroll-ui`: Channels, General, Axes, Modes and Profiles pages, navigation, running-program picker, tray, start at login
+- Linux packages include the Qt interface when Qt6 is available at build time (GTK fallback otherwise)
+- Unsigned Windows installer and ZIP and macOS DMG built by CI
+- Stuck-key safety net, `--release-keys`, and pausing output while the own session is not the active one
 
 ## Implemented, CI-verified, hardware-unverified
 
 - **Windows port (W1):** raw HID input, `SendInput` output, foreground-window provider, named-event reload, no-console daemon, per-user autostart script. Manual tests: [port-windows-checklist.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-windows-checklist.md).
 - **macOS port (W2):** IOHID input, CGEvent output, NSWorkspace provider, LaunchAgent, permission handling. Manual tests: [port-macos-checklist.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-macos-checklist.md).
 
-## In progress
+## Not verified yet
 
-- **Qt6 interface (W3):** one tray and settings window for all three systems (skeleton `dofscroll-ui`, navigation, running-program picker model). The GTK tray stays on Linux until the Qt interface has parity.
+- Everything on Windows and macOS (daemon, interface, installers) on real hardware and desktops
+- The Qt interface on Windows and macOS desktops; on Linux the GTK tray is still the documented default
+- Packages on Debian, Ubuntu and Fedora; Wayland
 
 ## Planned
 
 | Package | Content |
 |---|---|
-| W4 | Unsigned installers including Qt: Windows per-user installer and ZIP, macOS app/dmg, Linux UI subpackage |
 | W9 | Verify device descriptors and factory button counts on real hardware |
-| W17 | Running-program picker for Windows and macOS |
-| W18 | Start at login on Windows and macOS (and the Qt UI on Linux) |
 | W7 / W8 | Follow-up security fixes; keep documentation in sync |
+| Later | "Release all keys" in the Qt tray; signed installers |
 
-Decisions: version 0.1 is released without waiting for the Qt interface (Windows and macOS daemons configured by file); the shared interface follows in 0.2. 0.1 installers are unsigned and not notarized. Known limitation: on Linux `spacenavd` reports one merged device, so two mice with different modes at once need direct HID access.
+Decisions: version 0.1 is released without waiting for the Qt interface (Windows and macOS daemons configured by file at first); the Qt interface and unsigned installers shipped with 0.1.0-beta.1 after all. Installers are unsigned and not notarized. Known limitation: on Linux `spacenavd` reports one merged device, so two mice with different modes at once need direct HID access.
 
 Pick up work through the claiming rules in the work plan; see [Development](Development).

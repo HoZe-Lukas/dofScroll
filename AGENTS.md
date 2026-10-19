@@ -8,14 +8,15 @@ User documentation is in `readme.md` and `docs/`; this file only gives the short
 dofscroll: a C++17 bridge for a 3Dconnexion SpaceMouse, two processes. The daemon
 (`src/dofscroll.cpp`) reads the device through `spacenavd`/`libspnav` and produces scroll, zoom,
 key and mouse-button events through X11/XTest or uinput. The tray (`src/dofscroll_tray.cpp`, GTK3
-+ AppIndicator) writes the same config file and triggers a live reload with SIGHUP. Windows and
-macOS ports are in development (`docs/work-plan.md`).
++ AppIndicator) writes the same config file and triggers a live reload with SIGHUP. The Qt6 interface
+(`src/ui/`, `dofscroll-ui`) does the same on all three systems. Windows and macOS daemons are built by CI,
+not run on hardware (`docs/work-plan.md`).
 
 ## Layout
 
 | Path | Purpose |
 |---|---|
-| `src/` | Sources. Headers are the contract. Shared logic: `config`, `dsp`, `modes`, `seed`, `device_db`; output: `output*`; platform code in `src/platform/` |
+| `src/` | Sources (UI: `src/ui/model` toolkit-free, `src/ui/qt` Qt6 views). Headers are the contract. Shared logic: `config`, `dsp`, `modes`, `seed`, `device_db`; output: `output*`; platform code in `src/platform/` |
 | `tests/` | Unit and scenario tests (`tests/test_*.cpp`, plain `assert`) |
 | `examples/` | Example configs (CI-validated), `default/` (seeded on first start), `modes/` |
 | `devices/` | Device descriptions, format in `docs/devices.md` |
@@ -23,7 +24,7 @@ macOS ports are in development (`docs/work-plan.md`).
 | `systemd/`, `packaging/`, `icons/` | Unit templates (`*.service.in`, rendered by CMake), udev rule and CPack config, tray icon |
 | `cmake/`, `CMakeLists.txt` | Build, quality gates, install and helper targets |
 | `scripts/` | Pre-commit hook, secret scan, hardening check |
-| `docs/` | `installation`, `configuration`, `modes`, `troubleshooting` (user docs); `security`, `releasing`, `work-plan`, `port-*`, `windows-mac`, `devices` |
+| `docs/` | `installation`, `configuration`, `modes`, `ui`, `troubleshooting` (user docs, plus `release-notes-*`); `security`, `releasing`, `work-plan`, `port-*`, `windows-mac`, `devices` |
 
 ## Build and test
 
