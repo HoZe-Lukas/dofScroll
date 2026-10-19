@@ -1,0 +1,133 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#
+# Reusable workflow: builds the Linux packages in distribution containers and uploads them as
+# artifacts (packages-rpm-tgz, packages-deb). It never creates a release: ci.yml calls it for
+# tags and its release job attaches the artifacts; linux-packages-dry-run.yml calls it on demand.
+# The packages contain the Qt interface (dofscroll-ui) when the distribution provides Qt6; if the
+# Qt install fails the package is GTK-only and the job log and summary say so (no failure).
+name: linux-packages
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+# Third-party actions are pinned to full commit SHAs (tag in the comment).
+#   actions/checkout        = v4.2.2
+#   actions/upload-artifact = v4.6.2
+
+jobs:
+  package-rpm:
+    name: package RPM + TGZ (Rocky 9)
+    runs-on: ubuntu-latest
+    container: rockylinux:9
+    timeout-minutes: 30
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf install -y epel-release
+          dnf install -y gcc-c++ make cmake git gettext pkgconf-pkg-config spacenavd rpm-build cpio \
+            desktop-file-utils libspnav-devel libX11-devel libXtst-devel gtk3-devel \
+            libappindicator-gtk3-devel
+      - name: Install Qt6 (optional, without it the package is GTK-only)
+        id: qt
+        continue-on-error: true
+        run: |
+          dnf install -y qt6-qtbase-devel qt6-qtsvg-devel qt6-linguist
+          echo "qt=yes" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build -j4
+      - name: Package
+        run: cd build && cpack -G "RPM;TGZ"
+      - name: Scan packages
+        run: |
+          mkdir -p /tmp/scan/rpm /tmp/scan/tgz
+          for f in build/dofscroll-*.rpm; do (cd /tmp/scan/rpm && rpm2cpio "$GITHUB_WORKSPACE/$f" | cpio -idm --quiet); done
+          for f in build/dofscroll-*.tar.gz; do tar xzf "$f" -C /tmp/scan/tgz; done
+          if grep -rIn -e _CPack_Packages -e /__w/ -e "$GITHUB_WORKSPACE" /tmp/scan; then
+            echo "package contains a staging, build or source path" >&2; exit 1
+          fi
+          grep -rh '^ExecStart=' /tmp/scan | sort -u
+          if grep -rh '^ExecStart=' /tmp/scan | grep -v '^ExecStart=/usr/bin/'; then
+            echo "a packaged unit has an ExecStart outside /usr/bin" >&2; exit 1
+          fi
+          test -z "$(find /tmp/scan -path '*/usr/lib/udev/*' -type f)"
+          echo "--- RPM requires:"; rpm -qp --requires build/dofscroll-*.rpm
+          echo "--- RPM files:"; rpm -qlp build/dofscroll-*.rpm
+          if [ -x /tmp/scan/rpm/usr/bin/dofscroll-ui ]; then
+            desktop-file-validate /tmp/scan/rpm/usr/share/applications/dofscroll.desktop
+            test -f /tmp/scan/rpm/usr/share/icons/hicolor/scalable/apps/dofscroll.svg
+            grep -q '^Conflicts=dofscroll-tray.service' /tmp/scan/rpm/usr/lib/systemd/user/dofscroll-ui.service
+            echo "::notice::RPM contains the Qt interface (dofscroll-ui)"
+            echo "RPM: Qt interface included" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::notice::RPM is GTK-only: Qt6 was not available in Rocky 9 (qt install: ${{ steps.qt.outcome }})"
+            echo "RPM: GTK-only (no Qt6)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: packages-rpm-tgz
+          path: |
+            build/dofscroll-*.rpm
+            build/dofscroll-*.tar.gz
+          if-no-files-found: error
+
+  package-deb:
+    name: package DEB (Debian 12)
+    runs-on: ubuntu-latest
+    container: debian:12
+    timeout-minutes: 30
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends g++ make cmake git ca-certificates gettext file \
+            pkg-config dpkg-dev desktop-file-utils libspnav-dev libx11-dev libxtst-dev libgtk-3-dev \
+            libayatana-appindicator3-dev
+      - name: Install Qt6 (optional, without it the package is GTK-only)
+        id: qt
+        continue-on-error: true
+        run: |
+          apt-get install -y --no-install-recommends qt6-base-dev libqt6svg6-dev qt6-l10n-tools \
+            libgl1-mesa-dev
+          echo "qt=yes" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build -j4
+      - name: Package
+        run: cd build && cpack -G DEB
+      - name: Scan package
+        run: |
+          mkdir -p /tmp/scan
+          for f in build/dofscroll*.deb; do dpkg-deb -x "$f" /tmp/scan; done
+          if grep -rIn -e _CPack_Packages -e /__w/ -e "$GITHUB_WORKSPACE" /tmp/scan; then
+            echo "package contains a staging, build or source path" >&2; exit 1
+          fi
+          grep -rh '^ExecStart=' /tmp/scan | sort -u
+          if grep -rh '^ExecStart=' /tmp/scan | grep -v '^ExecStart=/usr/bin/'; then
+            echo "a packaged unit has an ExecStart outside /usr/bin" >&2; exit 1
+          fi
+          test -z "$(find /tmp/scan -path '*/usr/lib/udev/*' -type f)"
+          for f in build/dofscroll*.deb; do dpkg-deb -f "$f" Depends; done
+          if [ -x /tmp/scan/usr/bin/dofscroll-ui ]; then
+            desktop-file-validate /tmp/scan/usr/share/applications/dofscroll.desktop
+            test -f /tmp/scan/usr/share/icons/hicolor/scalable/apps/dofscroll.svg
+            grep -q '^Conflicts=dofscroll-tray.service' /tmp/scan/usr/lib/systemd/user/dofscroll-ui.service
+            echo "::notice::DEB contains the Qt interface (dofscroll-ui)"
+            echo "DEB: Qt interface included" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::notice::DEB is GTK-only: Qt6 was not available in Debian 12 (qt install: ${{ steps.qt.outcome }})"
+            echo "DEB: GTK-only (no Qt6)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: packages-deb
+          path: build/dofscroll*.deb
+          if-no-files-found: error

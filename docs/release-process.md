@@ -10,7 +10,7 @@ Decision for version 0.1: **all Windows and macOS packages are unsigned**.
 
 | OS | File | Built by |
 |---|---|---|
-| Linux | `dofscroll-<v>-Linux.rpm`, `.deb`, `.tar.gz` | jobs `package-rpm`, `package-deb` in `ci.yml` |
+| Linux | `dofscroll-<v>-Linux.rpm`, `.deb`, `.tar.gz` | jobs `package-rpm`, `package-deb` in `linux-packages.yml` (called by `ci.yml`; dry run: `linux-packages-dry-run.yml`) |
 | Windows | `dofscroll-<v>-windows-x64-setup.exe` (per-user installer) and `dofscroll-<v>-windows-x64-portable.zip` | job `package-windows` in `installers.yml` |
 | macOS | `dofscroll-<v>-macos-arm64.dmg` | job `package-macos` in `installers.yml` |
 | all | `SHA256SUMS.txt` over every file above | job `release` in `ci.yml` |
