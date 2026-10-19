@@ -29,6 +29,7 @@
 #include "../../config.hpp"
 #include "../../daemon_core.hpp"
 #include "../../log_sanitize.hpp"
+#include "../../live_feed/live_feed.hpp"
 #include "../../modes.hpp"
 #include "../../output.hpp"
 #include "../fs.hpp"
@@ -347,6 +348,7 @@ int main(int argc, char **argv) {
     deps.modesDir = [paths] { return paths.configDir + "/modes"; };
     deps.writeStatus = [status](const std::string &b, int64_t n) { status->update(b, n); };
     deps.removeStatus = [status] { status->remove(); };
+    deps.liveFeed = makeLiveFeedSink(paths.runtimeDir);  // UI data feed, see src/live_feed/
     deps.debug = debug;
 
     DaemonCore *core = new DaemonCore(std::move(deps));
