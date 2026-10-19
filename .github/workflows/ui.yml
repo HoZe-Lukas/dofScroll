@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#
+# Qt6 user interface (dofscroll-ui): builds only that target on Linux, Windows and macOS and runs
+# its offscreen self-test. Not a required check (experimental). Qt sources, see docs/ui-options.md.
+name: ui
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Third-party actions are pinned to full commit SHAs (tag in the comment).
+#   actions/checkout        = v4.2.2
+#   jurplel/install-qt-action = v4.3.0
+
+jobs:
+  ui-linux:
+    runs-on: ubuntu-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Install Qt6 (distribution packages)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build g++ \
+            qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev libgl1-mesa-dev
+      - name: Configure and build the UI target
+        run: |
+          cmake -S . -B build -G Ninja -DDOFSCROLL_UI=ON -DDOFSCROLL_CORE_ONLY=ON
+          cmake --build build --target dofscroll-ui
+      - name: Self-test
+        run: |
+          build/dofscroll-ui --version
+          build/dofscroll-ui --self-test
+
+  ui-windows:
+    runs-on: windows-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Install Qt6 (aqtinstall, pinned version)
+        uses: jurplel/install-qt-action@d325aaf2a8baeeda41ad0b5d39f84a6af9bcf005  # v4.3.0
+        with:
+          version: "6.8.3"
+          arch: win64_msvc2022_64
+          modules: ""
+          cache: true
+      - name: Configure and build the UI target
+        run: |
+          cmake -S . -B build -DDOFSCROLL_UI=ON
+          cmake --build build --config Release --target dofscroll-ui
+      - name: Self-test
+        shell: bash
+        run: |
+          export PATH="$QT_ROOT_DIR/bin:$PATH"
+          build/Release/dofscroll-ui.exe --version
+          build/Release/dofscroll-ui.exe --self-test
+
+  ui-macos:
+    runs-on: macos-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Install Qt6 (aqtinstall, pinned version)
+        uses: jurplel/install-qt-action@d325aaf2a8baeeda41ad0b5d39f84a6af9bcf005  # v4.3.0
+        with:
+          version: "6.9.3"  # 6.8.x links the AGL framework, which the macOS 15 SDK dropped
+          cache: true
+      - name: Configure and build the UI target
+        run: |
+          cmake -S . -B build -DDOFSCROLL_UI=ON
+          cmake --build build --target dofscroll-ui
+      - name: Self-test
+        run: |
+          build/dofscroll-ui --version
+          build/dofscroll-ui --self-test

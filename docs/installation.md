@@ -262,6 +262,14 @@ Other targets: `check-fast` (-Werror build and tests), `check` (adds sanitizers,
 hardening check), `check-config` (validates the example configs), `lint`, `install-udev`,
 `uninstall` (uses `install_manifest.txt`).
 
+### Qt interface (experimental)
+
+An optional Qt6 interface (`dofscroll-ui`, skeleton only) is built when Qt6 Widgets is found
+(CMake option `DOFSCROLL_UI`). Linux: install the distribution's Qt6 development packages
+(Debian family: `qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev`). Windows and macOS builds
+bundle the Qt libraries. Details and decisions: `docs/ui-options.md`. `dofscroll-ui --self-test`
+checks that the window can be created.
+
 ## 5. Windows and macOS
 
 The Windows and macOS ports are in development and there is no installer yet. Nothing else in this
