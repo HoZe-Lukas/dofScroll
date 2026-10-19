@@ -156,7 +156,8 @@ elseif(APPLE AND EXISTS ${CMAKE_SOURCE_DIR}/cmake/macos.cmake)
   include(${CMAKE_SOURCE_DIR}/cmake/macos.cmake)
 endif()
 
-add_subdirectory(tools/hidprobe)  # optional diagnostic, option DOFSCROLL_HIDPROBE (see there)
+include(cmake/Ui.cmake)  # optional Qt6 UI (dofscroll-ui), see docs/ui-options.md
+add_subdirectory(tools/hidprobe) # optional diagnostic, option DOFSCROLL_HIDPROBE (see there)
 
 # ---- tests ------------------------------------------------------------------
 file(GLOB TEST_SRC CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/tests/test_*.cpp)
