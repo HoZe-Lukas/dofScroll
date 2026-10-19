@@ -86,19 +86,19 @@ int main() {
 
     // permission tracking: log on change, reminder rate limited, nothing when all is fine
     {
-        PermissionTracker t(600);
-        PermissionTracker::Result r = t.update(true, true, 1000);
-        assert(!r.changed && !r.log);
-        r = t.update(false, true, 1005);  // revoked
-        assert(r.changed && r.log);
-        r = t.update(false, true, 1010);  // still missing, too early for a reminder
-        assert(!r.changed && !r.log);
-        r = t.update(false, true, 1005 + 600);
-        assert(!r.changed && r.log);
-        r = t.update(true, true, 1700);  // granted again
-        assert(r.changed && r.log);
-        PermissionTracker t2;
-        assert(t2.update(false, false, 5).log);  // missing at the first check is reported
+        PermissionTracker pt(600);
+        PermissionTracker::Result pr = pt.update(true, true, 1000);
+        assert(!pr.changed && !pr.log);
+        pr = pt.update(false, true, 1005);  // revoked
+        assert(pr.changed && pr.log);
+        pr = pt.update(false, true, 1010);  // still missing, too early for a reminder
+        assert(!pr.changed && !pr.log);
+        pr = pt.update(false, true, 1005 + 600);
+        assert(!pr.changed && pr.log);
+        pr = pt.update(true, true, 1700);  // granted again
+        assert(pr.changed && pr.log);
+        PermissionTracker pt2;
+        assert(pt2.update(false, false, 5).log);  // missing at the first check is reported
     }
 
     std::puts("test_mac_paths: ok");
