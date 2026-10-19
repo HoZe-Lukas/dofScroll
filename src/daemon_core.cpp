@@ -9,6 +9,7 @@
 #include <thread>
 
 #include "log_sanitize.hpp"
+#include "mode_request.hpp"
 #include "platform/fs.hpp"
 #include "profile_match.hpp"
 
@@ -241,6 +242,7 @@ bool DaemonCore::initialize() {
     loadConfig();
     modes_dir_ = d_.modesDir ? d_.modesDir() : d_.paths.configDir + "/modes";
     loadModeSet();
+    clearModeRequest(d_.paths.runtimeDir);  // a request left over from before this start is stale
     // First resolution without device/program, so BACKEND/TICK_HZ from [global] are
     // known at startup.
     settings_ = profiles_.resolve("", "");
@@ -384,6 +386,18 @@ void DaemonCore::updateProfile(int64_t now_ns) {
         std::cerr << LOG << "Reload requested: reloading config and modes" << std::endl;
         loadConfig();
         loadModeSet();
+        // Runtime mode request of the tray (src/mode_request.hpp): applied like a button switch,
+        // after the reload cleared the previous override.
+        const std::string req = takeModeRequest(d_.paths.runtimeDir);
+        if (!req.empty()) {
+            if (modes_.find(req)) {
+                mode_override_ = req;
+                std::cerr << LOG << "Mode requested: " << sanitizeForLog(req) << std::endl;
+            } else {
+                std::cerr << LOG << "WARNING: requested mode '" << sanitizeForLog(req)
+                          << "' is not loaded" << std::endl;
+            }
+        }
         need_resolve = true;
         modes_changed = true;
         next_cfg_poll_ = now_ns + CONFIG_POLL_NS;

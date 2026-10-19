@@ -21,6 +21,22 @@ if(DOFSCROLL_UI)
     src/ui/qt/tray.hpp
     src/ui/qt/ui_i18n.hpp
     src/ui/qt/resources.qrc)
+  # Tray + Modes page: ActionRunner, platform bridge (paths, reload request), pages, registry.
+  target_sources(dofscroll-ui PRIVATE
+    src/ui/qt/qt_action_runner.cpp src/ui/qt/qt_action_runner.hpp src/ui/qt/platform_bridge.cpp
+    src/ui/qt/ui_context.hpp
+    src/ui/qt/pages/page_registry.cpp src/ui/qt/pages/page_registry.hpp
+    src/ui/qt/pages/modes_page.cpp src/ui/qt/pages/modes_page.hpp)
+  # The toolkit-free models use the core library (config, modes, fs); the autostart code of the
+  # current OS comes from src/platform/<os>/ (self-contained, no input/output backends).
+  target_link_libraries(dofscroll-ui PRIVATE dofscroll_core)
+  if(WIN32)
+    target_sources(dofscroll-ui PRIVATE src/platform/win/autostart_win.cpp)
+  elseif(APPLE)
+    target_sources(dofscroll-ui PRIVATE src/platform/mac/autostart_mac.cpp)
+  else()
+    target_sources(dofscroll-ui PRIVATE src/platform/linux/autostart_linux.cpp)
+  endif()
   set_target_properties(dofscroll-ui PROPERTIES AUTOMOC ON AUTORCC ON
                         WIN32_EXECUTABLE ON MACOSX_BUNDLE OFF)
   target_include_directories(dofscroll-ui PRIVATE src/ui/qt)

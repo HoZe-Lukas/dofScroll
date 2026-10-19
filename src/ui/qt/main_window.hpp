@@ -6,6 +6,8 @@
 #pragma once
 #include <QMainWindow>
 
+#include "ui_context.hpp"
+
 class QStackedWidget;
 class QTreeWidget;
 class QTreeWidgetItem;
@@ -14,7 +16,8 @@ class QWidget;
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(const UiContext &ctx, QWidget *parent = nullptr);
+    void bringToFront();                      // show, un-minimize, raise and activate (every OS)
     int pageCount() const;                    // top-level navigation entries
     int profileCount() const;                 // entries below "Profiles"
     bool profilePageHasModeSelector() const;  // false for the default mode
@@ -23,10 +26,10 @@ private slots:
     void onSelectionChanged();
 
 private:
-    QWidget *modesPage();
     QWidget *placeholder(const QString &title);
     void rebuildProfilePage(QTreeWidgetItem *profile);
 
+    UiContext ctx_;
     QTreeWidget *nav_;
     QStackedWidget *stack_;
     QWidget *profilePage_ = nullptr;
