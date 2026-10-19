@@ -73,3 +73,61 @@ jobs:
         run: cmake --build build --parallel 4
       - name: Test
         run: ctest --test-dir build --output-on-failure
+      - name: Packaging scripts parse (sh -n)
+        run: |
+          for f in packaging/macos/*.sh; do sh -n "$f"; done
+      - name: shellcheck (if available)
+        run: |
+          if command -v shellcheck >/dev/null 2>&1; then
+            shellcheck packaging/macos/*.sh
+          else
+            echo "shellcheck is not installed on this runner: skipped"
+          fi
+      - name: LaunchAgent plist renders and lints
+        run: |
+          sh packaging/macos/install-launchagent.sh --daemon "$PWD/packaging/macos/install-launchagent.sh" \
+            --dry-run --no-load > "$RUNNER_TEMP/agent.plist"
+          cat "$RUNNER_TEMP/agent.plist"
+          plutil -lint "$RUNNER_TEMP/agent.plist"
+          if grep -q '@' "$RUNNER_TEMP/agent.plist"; then
+            echo "unsubstituted placeholder in the rendered plist" >&2
+            exit 1
+          fi
+      - name: LaunchAgent install/uninstall round trip (only if a GUI launchd domain exists)
+        run: |
+          if ! launchctl print "gui/$(id -u)" >/dev/null 2>&1; then
+            echo "no gui/$(id -u) launchd domain on this runner: round trip skipped"
+            exit 0
+          fi
+          label=io.github.dofscroll.daemon
+          plist="$HOME/Library/LaunchAgents/$label.plist"
+          # /usr/bin/true stands in for the daemon: only the plist/launchctl handling is tested
+          sh packaging/macos/install-launchagent.sh --daemon /usr/bin/true --no-load
+          test -f "$plist"
+          plutil -lint "$plist"
+          # idempotent
+          sh packaging/macos/install-launchagent.sh --daemon /usr/bin/true --no-load
+          sh packaging/macos/uninstall-launchagent.sh
+          test ! -e "$plist"
+          sh packaging/macos/uninstall-launchagent.sh
+      - name: Daemon smoke test (once the daemon target exists)
+        run: |
+          if [ -x build/dofscroll ]; then
+            build/dofscroll --version
+          else
+            echo "build/dofscroll does not exist yet (daemon not part of this build): skipped"
+          fi
+      - name: Stage daemon artifact
+        run: |
+          if [ -x build/dofscroll ]; then
+            mkdir -p stage
+            cp build/dofscroll stage/
+            cp -R devices examples stage/
+          fi
+      - name: Upload daemon artifact
+        if: hashFiles('stage/dofscroll') != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: dofscroll-macos
+          path: stage
+          if-no-files-found: error
