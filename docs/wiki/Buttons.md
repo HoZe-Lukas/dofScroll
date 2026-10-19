@@ -26,7 +26,7 @@ BUTTON_3 = mode:next
 BUTTON_2 = key:space
 ```
 
-Actions: `none`, `click`, `rightclick`, `middleclick`, `nav`, `key:<name>`, `mode:<id>`, `mode:next`. Details are on the [Modes](Modes) page. `BUTTON_<n>` works in the main config (in any section) and in mode files; a binding in the active mode wins over the main config for the same button.
+Actions: `none`, `click`, `rightclick`, `middleclick`, `nav`, `key:<name>`, `mode:<id>`, `mode:next`, `toggle:nav`, `toggle:mode:<id>`. Details are on the [Modes](Modes) page. `BUTTON_<n>` works in the main config (in any section) and in mode files; a binding in the active mode wins over the main config for the same button.
 
 ## Factory button counts
 

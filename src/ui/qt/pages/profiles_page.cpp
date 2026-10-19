@@ -334,7 +334,7 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
                 queueRebuild();
             });
             arg = kc;
-        } else if (row.binding.kind == BindingKind::Mode) {
+        } else if (row.binding.kind == BindingKind::Mode || row.binding.kind == BindingKind::ToggleMode) {
             auto *mc = new QComboBox(box);
             mc->setAccessibleName(T("Mode of button") + QStringLiteral(" %1").arg(row.number));
             std::vector<std::string> ids = offered;
@@ -343,7 +343,7 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
             mc->setCurrentIndex(std::max(0, mc->findData(qs8(row.binding.arg))));
             connect(mc, &QComboBox::activated, this, [this, section, row, mc](int) {
                 std::string err;
-                Binding b{BindingKind::Mode, mc->currentData().toString().toUtf8().toStdString()};
+                Binding b{row.binding.kind, mc->currentData().toString().toUtf8().toStdString()};
                 if (applyBinding(*ctx_.settings, section, row.number, b, &err))
                     setStatus(T("Unsaved changes"));
                 else

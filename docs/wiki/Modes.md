@@ -61,8 +61,10 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 | `key:<name>` | Holds the key while the button is held |
 | `mode:<id>` | Switches to mode `<id>` on press |
 | `mode:next` | Switches to the next loaded mode in alphabetical order of id (built-ins included), wrapping around |
+| `toggle:nav` | Every press switches the navigation mode on or off (latched `nav`) |
+| `toggle:mode:<id>` | First press switches to mode `<id>`, the next press goes back to the profile's mode |
 
-A mode binding wins over a `BUTTON_<n>` binding in the main config. A switch by `mode:` lasts until the daemon restarts, the config or modes reload, or another switch happens; held keys and buttons are released on every switch. An unknown mode id in a mode file is dropped with a warning.
+Toggle state is shown in the tray ("Navigation mode on") and cleared by a reload (also the tray's "Release all keys"), a restart, suspend or `ENABLED = 0`, and any mode change. A mode binding wins over a `BUTTON_<n>` binding in the main config. A switch by `mode:` lasts until the daemon restarts, the config or modes reload, or another switch happens; held keys and buttons are released on every switch. An unknown mode id in a mode file is dropped with a warning.
 
 Key names are lower case: `ctrl shift alt super`, `up down left right home end pageup pagedown insert delete`, `space enter esc tab backspace`, `f1`-`f12`, `a`-`z`, `0`-`9`, `plus minus kp_plus kp_minus`.
 

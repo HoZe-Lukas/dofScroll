@@ -161,6 +161,7 @@ private:
     std::string modes_dir_, modes_stamp_;
     Settings settings_;
     std::string match_desc_, backend_cfg_, device_, wm_class_;
+    std::string toggled_mode_;   // the part of mode_override_ that came from toggle:mode:<id>
     std::string mode_override_;  // runtime mode switch by a button; cleared on reload
     bool mode_applied_ = false;  // selectMode activated a mode at least once
     std::string warned_mode_;  // unknown mode id already warned about
@@ -192,6 +193,8 @@ private:
     void applyProfile(bool modes_changed);
     void checkButtons();
     void switchMode(const std::string &target);
+    // Status "toggle=": what button toggles hold at the moment, e.g. "nav" or "nav mode:timeline"; empty if none.
+    std::string toggleState() const;
     void safetyNet(int64_t now_ns, uint32_t buttons);
 };
 

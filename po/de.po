@@ -1987,3 +1987,15 @@ msgstr "Der Daemon kann nicht über den Dienstmanager neu gestartet werden"
 #: src/ui/qt/qt_action_runner.cpp
 msgid "Cannot restart the interface through the service manager"
 msgstr "Die Oberfläche kann nicht über den Dienstmanager neu gestartet werden"
+
+#: src/ui/model/status_model.hpp:100
+msgid "Navigation mode on"
+msgstr "Navigationsmodus an"
+
+#: src/ui/model/binding_editor_model.hpp:36
+msgid "Navigation mode on/off (press to switch)"
+msgstr "Navigationsmodus an/aus (Taste drücken zum Umschalten)"
+
+#: src/ui/model/binding_editor_model.hpp:37
+msgid "Toggle mode (press again to go back)"
+msgstr "Modus umschalten (erneut drücken für zurück)"

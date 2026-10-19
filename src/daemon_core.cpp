@@ -221,6 +221,8 @@ DaemonCore::FileStamp DaemonCore::statFile(const std::string &path) {
 
 void DaemonCore::loadConfig() {
     mode_override_.clear();  // a reload drops the button-selected mode
+    toggled_mode_.clear();
+    if (runner_) runner_->clearToggles();  // ... and the toggled navigation mode
     // Take the stamp before reading: if the file changes while reading, it is
     // noticed at the next check.
     stamp_ = statFile(config_path_);
@@ -238,6 +240,8 @@ void DaemonCore::loadConfig() {
 
 void DaemonCore::loadModeSet() {
     mode_override_.clear();
+    toggled_mode_.clear();
+    if (runner_) runner_->clearToggles();
     modes_stamp_ = modesStamp(modes_dir_);  // before reading, like the config stamp
     std::vector<std::string> warnings;
     modes_ = loadModes(modes_dir_, &warnings);
@@ -372,7 +376,20 @@ void DaemonCore::checkButtons() {
 // Button-triggered mode switch: "next" cycles through all modes in alphabetical id order.
 void DaemonCore::switchMode(const std::string &target) {
     std::string id = target;
-    if (target == "next") {
+    if (target.compare(0, 7, "toggle:") == 0) {
+        // toggle:mode:<id>: the second press (the switch is in effect and <id> is the effective
+        // mode) drops the switch and returns to the mode that profile resolution gives.
+        id = target.substr(7);
+        if (!modes_.find(id)) return;
+        if (mode_override_ == id && runner_->mode().id == id) {
+            mode_override_.clear();
+            toggled_mode_.clear();
+            std::cerr << LOG << "Mode toggled off, back to the profile's mode" << std::endl;
+            applyProfile(true);
+            tick_period_ = periodFor(settings_.tick_hz);
+            return;
+        }
+    } else if (target == "next") {
         std::vector<std::string> ids;
         for (const ModeDef &m : modes_.modes) ids.push_back(m.id);
         std::sort(ids.begin(), ids.end());
@@ -381,9 +398,18 @@ void DaemonCore::switchMode(const std::string &target) {
     }
     if (!modes_.find(id)) return;
     mode_override_ = id;
+    toggled_mode_ = target.compare(0, 7, "toggle:") == 0 ? id : std::string();
     std::cerr << LOG << "Mode switched to " << sanitizeForLog(id) << std::endl;
     applyProfile(true);  // force: releases everything held, applies the mode's overrides
     tick_period_ = periodFor(settings_.tick_hz);
+}
+
+std::string DaemonCore::toggleState() const {
+    std::string t;
+    if (runner_->navLatched()) t = "nav";
+    if (!mode_override_.empty() && mode_override_ == toggled_mode_)
+        t += (t.empty() ? "" : " ") + std::string("mode:") + mode_override_;
+    return t;
 }
 
 // --- Profile inputs: config, modes, device, active program ------------------
@@ -570,6 +596,7 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
         buttons = 0;
         if (!prev_idle_) {  // release everything held on entering suspend/disabled
             runner_->releaseAll();
+            runner_->clearToggles();
             output_->releaseAll();
             output_->flush();
         }
@@ -579,6 +606,7 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
     if (d_.writeStatus)
         d_.writeStatus("profile=" + sanitizeForLog(match_desc_) + "\ndevice=" + sanitizeForLog(device_) +
                            "\napp=" + sanitizeForLog(wm_class_) + "\nmode=" + sanitizeForLog(runner_->mode().id) +
+                           "\ntoggle=" + toggleState() +
                            "\nenabled=" + (enabled ? "1" : "0") +
                            "\npaused=" + (suspended_ ? "1" : "0") +
                            "\ndevices_seen=" + std::to_string(devices_seen_) +

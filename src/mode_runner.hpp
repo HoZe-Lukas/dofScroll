@@ -19,6 +19,7 @@
 #include <bitset>
 #include <cmath>
 #include <cstdint>
+#include <vector>
 
 #include "common.hpp"
 #include "config.hpp"
@@ -42,12 +43,20 @@ public:
     const ModeDef &mode() const { return mode_; }
     // Target of a mode:<id> / mode:next binding whose button was pressed in the last tick
     // (press edge only); empty if none. Reading clears it. The caller performs the switch.
+    // A toggle:mode:<id> press is reported as "toggle:<id>": the caller switches to <id>, or, if
+    // <id> is already the effective mode because of such a switch, drops the switch.
     std::string takeSwitchRequest() {
         std::string r;
         r.swap(switch_request_);
         return r;
     }
     bool legacyPath() const { return legacy_; }
+    // toggle:nav state: the navigation mode is latched on (a press of the button flips it).
+    bool navLatched() const { return nav_latched_; }
+    // Clears the toggle:nav latch. Called on reload, "Release all keys", suspend/disabled and an
+    // unplugged device; releaseAll() (also used by the safety net) leaves it alone, and setMode()
+    // clears it.
+    void clearToggles() { nav_latched_ = false; }
 
     // One tick. raw/buttons are already zeroed by the caller while suspended or disabled;
     // fresh = the device state is recent enough to count for nav (stale watchdog).
@@ -82,6 +91,7 @@ private:
     bool legacy_ = true;
     uint32_t prev_buttons_ = 0;
     std::string switch_request_;
+    bool nav_latched_ = false;
 
     Channel ch_v_, ch_h_, ch_zoom_;
     StepAccumulator acc_v_, acc_h_, acc_zoom_;
@@ -97,6 +107,9 @@ private:
         bool nav = false;
     };
     Wanted bindings(const Settings &s, uint32_t buttons) const;
+    // Bindings that act on the press edge (mode switches and toggles): the mode's own, then
+    // BUTTON_<n> of the resolved profile for buttons the mode does not bind.
+    std::vector<ButtonBinding> edgeBindings(const Settings &s) const;
     void syncMouse(uint8_t want);
     void syncKeys(const std::bitset<kKeyCount> &want);
     void resetState();

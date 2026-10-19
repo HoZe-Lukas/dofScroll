@@ -23,6 +23,7 @@ namespace spn::ui {
 
 struct DaemonStatus {
     std::string profile, device, app, mode;
+    std::string toggle;  // what button toggles hold: "nav", "mode:<id>", both separated by a space, or empty
     bool enabled = true, paused = false;
     int devices_seen = 0;
     bool has_updated = false;
@@ -46,6 +47,7 @@ inline DaemonStatus parseStatus(const std::string &text) {
         else if (k == "device") d.device = v;
         else if (k == "app") d.app = v;
         else if (k == "mode") d.mode = v;
+        else if (k == "toggle") d.toggle = v;
         else if (k == "enabled") d.enabled = v != "0";
         else if (k == "paused") d.paused = v == "1";
         else if (k == "devices_seen") d.devices_seen = int(std::strtol(v.c_str(), nullptr, 10));
@@ -96,6 +98,8 @@ public:
         if (!status_.enabled) t += s.tr(" (disabled)");
         const std::string &mode = modeLabel.empty() ? status_.mode : modeLabel;
         if (!mode.empty()) t += "  |  " + format(s.tr("Mode: %1"), {clean(mode, 40)});
+        // "nav" is a whole word of the space separated list (not a part of a mode id)
+        if ((" " + status_.toggle + " ").find(" nav ") != std::string::npos) t += "  |  " + s.tr("Navigation mode on");
         return t;
     }
     std::string infoLine(const StringProvider &s) const {

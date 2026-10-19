@@ -251,6 +251,86 @@ static void testModeSwitchRequest() {
     CHECK(o.count("-space") == 1, "space released on mode change");
 }
 
+static void testToggleNav() {
+    RunnerRec o;
+    ModeRunner r(&o);
+    ModeDef m = mode("normal");
+    m.buttons = {bind(2, ButtonActionType::ToggleNav)};
+    r.setMode(m);
+    Settings s;
+    CHECK(!r.navLatched(), "off at the start");
+    run(r, s, axis(AX_Z, 300), 0, 0.3);
+    CHECK(o.wv != 0 && o.count("tap:down") == 0, "scroll before the toggle");
+    o.clear();
+    run(r, s, RawAxes{}, 1u << 2, 0.1);  // press, held for many ticks: one flip only
+    CHECK(r.navLatched(), "press latches nav");
+    run(r, s, RawAxes{}, 0, 0.02);       // released: the latch stays
+    CHECK(r.navLatched(), "release keeps the latch");
+    run(r, s, axis(AX_Z, 300), 0, 0.5);
+    CHECK(o.count("tap:down") > 0 && o.wv == 0, "arrow keys while latched");
+    run(r, s, RawAxes{}, 1u << 2, 0.1);  // second press
+    CHECK(!r.navLatched(), "second press unlatches");
+    o.clear();
+    run(r, s, RawAxes{}, 0, 0.02);
+    run(r, s, axis(AX_Z, 300), 0, 0.3);
+    CHECK(o.wv != 0 && o.count("tap:down") == 0, "scroll again after the second press");
+    // the safety net's releaseAll() keeps the latch; clearToggles() and a mode change clear it
+    run(r, s, RawAxes{}, 1u << 2, 0.02);
+    run(r, s, RawAxes{}, 0, 0.02);
+    CHECK(r.navLatched(), "latched again");
+    r.releaseAll();
+    CHECK(r.navLatched(), "releaseAll keeps the latch");
+    r.clearToggles();
+    CHECK(!r.navLatched(), "clearToggles clears it");
+    run(r, s, RawAxes{}, 1u << 2, 0.02);
+    run(r, s, RawAxes{}, 0, 0.02);
+    CHECK(r.navLatched(), "latched once more");
+    r.setMode(m);
+    CHECK(!r.navLatched(), "a mode change clears it");
+}
+
+// A held nav button and the latch are ORed; toggle:nav also works as BUTTON_<n> of the settings.
+static void testToggleNavFromSettings() {
+    RunnerRec o;
+    ModeRunner r(&o);
+    Settings s;
+    s.buttons[3] = "toggle:nav";
+    run(r, s, RawAxes{}, 1u << 2, 0.02);
+    run(r, s, RawAxes{}, 0, 0.02);
+    CHECK(r.navLatched(), "settings BUTTON_3 = toggle:nav latches");
+    // the mode's own binding for the same button wins
+    RunnerRec o2;
+    ModeRunner r2(&o2);
+    ModeDef m = mode("normal");
+    m.buttons = {bind(2, ButtonActionType::Key, Key::Space)};
+    r2.setMode(m);
+    run(r2, s, RawAxes{}, 1u << 2, 0.02);
+    run(r2, s, RawAxes{}, 0, 0.02);
+    CHECK(!r2.navLatched(), "mode binding wins over the settings toggle");
+}
+
+static void testToggleModeRequest() {
+    RunnerRec o;
+    ModeRunner r(&o);
+    ModeDef m = mode("normal");
+    ButtonBinding b = bind(1, ButtonActionType::ToggleMode);
+    b.mode = "timeline";
+    m.buttons = {b};
+    r.setMode(m);
+    Settings s;
+    run(r, s, RawAxes{}, 1u << 1, 0.1);
+    CHECK(r.takeSwitchRequest() == "toggle:timeline", "press requests the toggle");
+    run(r, s, RawAxes{}, 1u << 1, 0.1);
+    CHECK(r.takeSwitchRequest().empty(), "holding does not repeat");
+    // mode:<id> from the settings requests a switch too (it did not before)
+    RunnerRec o2;
+    ModeRunner r2(&o2);
+    Settings s2;
+    s2.buttons[1] = "mode:timeline";
+    run(r2, s2, RawAxes{}, 1u << 0, 0.1);
+    CHECK(r2.takeSwitchRequest() == "timeline", "settings BUTTON_1 = mode:timeline requests the switch");
+}
+
 // BUTTON_<n> from the resolved Settings works; the mode's binding for the same n wins.
 static void testSettingsButtons() {
     RunnerRec o;
@@ -276,6 +356,9 @@ static void testSettingsButtons() {
 int main() {
     testSettingsButtons();
     testModeSwitchRequest();
+    testToggleNav();
+    testToggleNavFromSettings();
+    testToggleModeRequest();
     testLegacyBindings();
     testLegacyNavAndClick();
     testCustomChannels();

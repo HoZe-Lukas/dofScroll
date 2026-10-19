@@ -146,7 +146,14 @@ inline bool performTrayAction(const TrayEntry &entry, ActionRunner &runner, cons
             return true;
         case TrayAction::OpenConfig: return runner.openPath(h.configPath, err);
         case TrayAction::OpenModesFolder: return runner.openPath(h.modesDir, err);
-        case TrayAction::ReleaseAllKeys: return runner.releaseKeys(err);
+        case TrayAction::ReleaseAllKeys: {
+            // Also a reload request: the daemon clears its toggle state (toggle:nav, toggle:mode)
+            // on a reload; the separate --release-keys process cannot reach it.
+            const bool ok = runner.releaseKeys(err);
+            std::string ignored;
+            runner.requestReload(&ignored);
+            return ok;
+        }
         case TrayAction::RestartDaemon: {
             // Keys first (a failure here must not block the restart: the daemon releases on quit).
             std::string ignored;

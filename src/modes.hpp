@@ -25,7 +25,8 @@
 //   key names from keys.hpp.
 // Buttons are numbered from 1 (BUTTON_1 .. BUTTON_32), exactly like BUTTON_<n> in the main config;
 // BUTTON_0 is rejected. Internally button n is device bit n-1 (spnav_event_button.bnum).
-// Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next
+// Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next |
+//                 toggle:nav | toggle:mode:<id>
 //   click/rightclick/middleclick = hold the mouse button while the button is held;
 //   key = hold the key; nav = while held, the V/H channels send arrow keys instead of scroll.
 //   mode:<id> = switch to the mode <id> when the button is PRESSED (not on release);
@@ -36,6 +37,13 @@
 //   All held keys/buttons are released on every switch; the status file "mode=" line
 //   shows the effective mode. An id that matches no loaded mode is rejected with a
 //   warning when the modes are loaded (the binding is dropped); "next" is always valid.
+//   toggle:nav = on every PRESS the navigation mode (arrow keys instead of scroll) is switched on
+//   or off, like holding a nav button but latched. toggle:mode:<id> = the first press switches to
+//   the mode <id> (like mode:<id>), the next press while <id> is the effective mode drops that
+//   switch and returns to the mode that profile resolution gives. Both are state that is cleared
+//   by a reload (also "Release all keys" in the tray), and by entering suspend/disabled; the
+//   status file shows it in the "toggle=" line. "next" is not valid in
+//   toggle:mode:<id> (there is no single mode to return from).
 // A mode whose three channel actions are all "default" runs on the normal path (incl.
 // dominance-based zoom, NAV_BUTTON/CLICK_BUTTON from the settings).
 //
@@ -60,12 +68,12 @@ struct ChannelAction {
     }
 };
 
-enum class ButtonActionType { Unbound, Click, RightClick, MiddleClick, Nav, Key, ModeSwitch };
+enum class ButtonActionType { Unbound, Click, RightClick, MiddleClick, Nav, Key, ModeSwitch, ToggleNav, ToggleMode };
 struct ButtonBinding {
     int button = 1;                       // button number, 1-based (device bit index = button - 1), 1..32
     ButtonActionType type = ButtonActionType::Unbound;
     Key key = Key::Space;                 // only for Key
-    std::string mode;                     // only for ModeSwitch: target id or "next"
+    std::string mode;                     // ModeSwitch: target id or "next"; ToggleMode: target id
 };
 
 struct ModeDef {
@@ -94,7 +102,7 @@ struct ModeSet {
 bool validModeId(const std::string &id);
 
 bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err);
-// modeId (optional) receives the target of mode:<id> / mode:next. Only the syntax of the id is
+// modeId (optional) receives the target of mode:<id> / mode:next / toggle:mode:<id>. Only the syntax of the id is
 // checked here; existence is checked by loadModes (the parser does not know the mode set).
 bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key, std::string *err,
                        std::string *modeId = nullptr);
