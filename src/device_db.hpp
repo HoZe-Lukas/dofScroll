@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Device model facts that do not depend on what the hardware or spacenavd reports.
+// Factory button counts per 3Dconnexion model.
 #pragma once
-
 #include <string>
 
 namespace spn {
 
-// Number of buttons the device model has as shipped (factory specification), looked up by the
-// device name that spacenavd reports (e.g. "3Dconnexion SpaceMouse Pro"). The UI and the
-// validation of BUTTON_<n> bindings MUST use this instead of the reported button count.
-// Unknown model -> `reportedButtons` (fallback).
-int factoryButtonCount(const std::string &deviceName, int reportedButtons);
+// Returns the number of physical buttons of the device model identified by the
+// reported device name (case-insensitive substring match against a table of
+// models whose counts were verified against official/manufacturer product
+// pages). For unknown models, or when the name is empty, the count reported by
+// the driver (`reported`) is returned unchanged. The result is never negative.
+int factoryButtonCount(const std::string &deviceName, int reported);
 
 }  // namespace spn
