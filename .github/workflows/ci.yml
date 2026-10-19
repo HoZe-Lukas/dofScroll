@@ -125,7 +125,9 @@ jobs:
             echo "package contains a staging, build or source path" >&2; exit 1
           fi
           grep -rh '^ExecStart=' /tmp/scan | sort -u
-          ! grep -rh '^ExecStart=' /tmp/scan | grep -v '^ExecStart=/usr/bin/'
+          if grep -rh '^ExecStart=' /tmp/scan | grep -v '^ExecStart=/usr/bin/'; then
+            echo "a packaged unit has an ExecStart outside /usr/bin" >&2; exit 1
+          fi
           test -z "$(find /tmp/scan -path '*/usr/lib/udev/*' -type f)"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
@@ -164,7 +166,9 @@ jobs:
             echo "package contains a staging, build or source path" >&2; exit 1
           fi
           grep -rh '^ExecStart=' /tmp/scan | sort -u
-          ! grep -rh '^ExecStart=' /tmp/scan | grep -v '^ExecStart=/usr/bin/'
+          if grep -rh '^ExecStart=' /tmp/scan | grep -v '^ExecStart=/usr/bin/'; then
+            echo "a packaged unit has an ExecStart outside /usr/bin" >&2; exit 1
+          fi
           test -z "$(find /tmp/scan -path '*/usr/lib/udev/*' -type f)"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
