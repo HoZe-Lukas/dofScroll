@@ -1,10 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #
-# CMake build for dofscroll, equivalent to the Makefile (which stays supported).
+# CMake build for dofscroll.
 #
 #   cmake -S . -B build && cmake --build build -j4 && ctest --test-dir build
-#   cmake --build build --target check          # config validation + all tests
+#   cmake --build build --target check-fast     # -Werror build + tests (pre-commit gate)
+#   cmake --build build --target check          # + ASan/UBSan, cppcheck, hardening check
+#   cmake --build build --target check-config   # validate the example configs
+#   cmake --build build --target check-deps     # report missing packages
+#   cmake --build build --target install-user-links | install-udev | uninstall
 #   cmake --install build --prefix /usr         # or: cpack --config build/CPackConfig.cmake
 #
 # Options: DOFSCROLL_TRAY (ON, needs GTK3 + appindicator), DOFSCROLL_HARDEN (ON),
@@ -26,6 +30,10 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
+
+# Like the Makefile (-O2, no NDEBUG): the tests rely on assert(), which NDEBUG would remove.
+set(CMAKE_CXX_FLAGS_RELEASE "-O2" CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g" CACHE STRING "" FORCE)
 
 option(DOFSCROLL_TRAY     "Build the GTK tray (needs gtk3 + appindicator)" ON)
 option(DOFSCROLL_HARDEN   "Enable hardening compiler/linker flags" ON)
@@ -112,7 +120,7 @@ if(BUILD_TESTING)
     add_executable(${name} ${t})
     target_link_libraries(${name} PRIVATE dofscroll_core)
     set_target_properties(${name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
-    add_test(NAME ${name} COMMAND ${name})
+    add_test(NAME ${name} COMMAND ${name} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
     set_tests_properties(${name} PROPERTIES ENVIRONMENT
       "UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1;ASAN_OPTIONS=halt_on_error=1:detect_leaks=1")
     list(APPEND TEST_TARGETS ${name})
@@ -132,9 +140,35 @@ if(BUILD_TESTING)
   endforeach()
   add_custom_target(check-config ${CHECK_CONFIG_COMMANDS} DEPENDS check_config
                     COMMENT "Validating example configs" VERBATIM)
-  add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-                    DEPENDS check-config ${TEST_TARGETS} COMMENT "Running all tests")
 endif()
+
+# ---- quality gates and helper targets (parity with the former Makefile) -----
+# check-fast: -Werror build + tests; check: + ASan/UBSan, cppcheck, hardening check.
+# They configure/build in <build>/check-werror and <build>/check-asan.
+option(DOFSCROLL_REQUIRE_ASAN "check: missing libasan/libubsan is an error (CI)" OFF)
+set(CHECK_COMMON -DSRC=${CMAKE_SOURCE_DIR} -DBIN=${CMAKE_BINARY_DIR}
+    -DWITH_TRAY=${DOFSCROLL_TRAY} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER})
+if(DOFSCROLL_REQUIRE_ASAN)
+  list(APPEND CHECK_COMMON -DREQUIRE_ASAN=1)
+endif()
+add_custom_target(check-fast COMMAND ${CMAKE_COMMAND} -DMODE=fast ${CHECK_COMMON}
+                  -P ${CMAKE_SOURCE_DIR}/cmake/Check.cmake
+                  COMMENT "Quick gate: -Werror build + tests" USES_TERMINAL VERBATIM)
+add_custom_target(check COMMAND ${CMAKE_COMMAND} -DMODE=full ${CHECK_COMMON}
+                  -P ${CMAKE_SOURCE_DIR}/cmake/Check.cmake
+                  COMMENT "Full gate: werror, tests, ASan/UBSan, cppcheck, hardening"
+                  USES_TERMINAL VERBATIM)
+add_custom_target(check-deps COMMAND ${CMAKE_COMMAND} -DWITH_TRAY=${DOFSCROLL_TRAY}
+                  -DCXX=${CMAKE_CXX_COMPILER} -P ${CMAKE_SOURCE_DIR}/cmake/CheckDeps.cmake
+                  USES_TERMINAL VERBATIM)
+add_custom_target(install-user-links COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_SOURCE_DIR}
+                  -DBIN=${CMAKE_BINARY_DIR} -P ${CMAKE_SOURCE_DIR}/cmake/InstallUserLinks.cmake
+                  USES_TERMINAL VERBATIM)
+add_custom_target(install-udev COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_SOURCE_DIR}
+                  -P ${CMAKE_SOURCE_DIR}/cmake/InstallUdev.cmake USES_TERMINAL VERBATIM)
+add_custom_target(uninstall COMMAND ${CMAKE_COMMAND}
+                  -DMANIFEST=${CMAKE_BINARY_DIR}/install_manifest.txt
+                  -P ${CMAKE_SOURCE_DIR}/cmake/Uninstall.cmake USES_TERMINAL VERBATIM)
 
 # ---- install ----------------------------------------------------------------
 install(TARGETS dofscroll RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
