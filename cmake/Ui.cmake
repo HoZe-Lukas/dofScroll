@@ -13,13 +13,17 @@ endif()
 if(DOFSCROLL_UI)
   find_package(Qt6 REQUIRED COMPONENTS Widgets)
   find_package(Qt6 QUIET COMPONENTS Svg)   # SVG icon rendering; optional
-  # Platform autostart implementation (one interface, src/platform/autostart_platform.hpp)
+  # Client side of the platform layer (platformPaths, requestReload; shared with the daemon, no
+  # input backends) and platform autostart implementation (one interface, src/platform/autostart_platform.hpp)
   if(WIN32)
     set(DOFSCROLL_UI_AUTOSTART_SRC src/platform/win/autostart_win.cpp)
+    set(DOFSCROLL_UI_CLIENT_SRC src/platform/win/client_win.cpp)
   elseif(APPLE)
     set(DOFSCROLL_UI_AUTOSTART_SRC src/platform/mac/autostart_mac.cpp)
+    set(DOFSCROLL_UI_CLIENT_SRC src/platform/mac/client_mac.cpp)
   else()
     set(DOFSCROLL_UI_AUTOSTART_SRC src/platform/linux/autostart_linux.cpp)
+    set(DOFSCROLL_UI_CLIENT_SRC src/platform/linux/client_linux.cpp)
   endif()
   qt_add_executable(dofscroll-ui
     src/ui/qt/main.cpp
@@ -31,7 +35,6 @@ if(DOFSCROLL_UI)
     src/ui/qt/ui_context.hpp
     src/ui/qt/qt_action_runner.cpp
     src/ui/qt/qt_action_runner.hpp
-    src/ui/qt/platform_bridge.cpp
     src/ui/qt/pages/page_registry.cpp
     src/ui/qt/pages/page_registry.hpp
     src/ui/qt/pages/axes_page.cpp
@@ -52,6 +55,7 @@ if(DOFSCROLL_UI)
     src/ui/qt/platform_hooks.cpp
     src/ui/qt/platform_hooks.hpp
     ${DOFSCROLL_UI_AUTOSTART_SRC}
+    ${DOFSCROLL_UI_CLIENT_SRC}
     src/ui/qt/resources.qrc)
   # The toolkit-free models use the core library (config, modes, fs); the autostart code of the
   # current OS comes from src/platform/<os>/ (self-contained, no input/output backends).
