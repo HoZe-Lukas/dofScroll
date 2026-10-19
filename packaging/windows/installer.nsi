@@ -62,6 +62,9 @@ Function .onInit
   ; Silent installs: /AUTOSTART=1 selects the autostart section (default: off).
   ${GetParameters} $0
   ${GetOptions} $0 "/AUTOSTART=" $1
+  FileOpen $2 "$TEMP\dofscroll-oninit.txt" w
+  FileWrite $2 "params=[$0] autostart=[$1]"
+  FileClose $2
   ${If} $1 == "1"
     !insertmacro SelectSection ${SecAutostart}
   ${EndIf}
