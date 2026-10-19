@@ -256,6 +256,16 @@ hardening check), `check-config` (validates the example configs), `lint`, `insta
 
 ## 5. Windows and macOS
 
-The Windows and macOS ports are in development and there is no installer yet. Nothing in this
+The Windows and macOS ports are in development and there is no installer yet. Nothing else in this
 guide applies to them. The plan and the state of each work package are in
 [work-plan.md](work-plan.md).
+
+### macOS (experimental)
+
+Build from source (`cmake -S . -B build && cmake --build build -j4`, Xcode command line tools and
+CMake), then install the per-user LaunchAgent with
+`sh packaging/macos/install-launchagent.sh --daemon "$PWD/build/dofscroll"`. You must grant the
+binary **Input Monitoring** and **Accessibility** in System Settings > Privacy & Security. There
+is no signed or notarized package, no tray and no settings window yet. It has not been tested with
+a real SpaceMouse; see [port-macos.md](port-macos.md) and
+[packaging/macos/README.md](../packaging/macos/README.md).

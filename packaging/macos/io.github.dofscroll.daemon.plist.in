@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
+<!-- Template of the per-user LaunchAgent. install-launchagent.sh replaces the two placeholders
+     (daemon path and log directory, written between at-signs below) with absolute paths; launchd
+     does not expand "~" or "$HOME". -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>io.github.dofscroll.daemon</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>@DAEMON_PATH@</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <!-- Restart after a crash, but not after a clean exit (e.g. the user quit it). -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <!-- Interactive: the daemon posts input events and must not be throttled as a background job. -->
+    <key>ProcessType</key>
+    <string>Interactive</string>
+    <key>LimitLoadToSessionType</key>
+    <string>Aqua</string>
+    <key>StandardOutPath</key>
+    <string>@LOG_DIR@/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>@LOG_DIR@/launchd.err.log</string>
+</dict>
+</plist>
