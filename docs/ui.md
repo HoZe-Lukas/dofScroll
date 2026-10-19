@@ -15,16 +15,23 @@ in the [readme](../readme.md).
 
 ## Window layout
 
-The window has a navigation tree on the left and the selected page on the right. Entries that do
-not depend on the active mode are always available:
+The window has no sidebar or tree. Vertical tabs on the left pick a category; where a category has
+several pages, horizontal tabs on top of the content pick the page (a category with one page shows
+no tab bar). A status bar at the bottom shows the daemon state (the same line as the tray's first
+entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registry
+(`pageFactories()`) says which category a page belongs to:
 
-| Page | Content |
-|---|---|
-| Channels | Scroll, zoom and the other output channels: sensitivity, dead zone, direction, curve preview |
-| General | Output on/off, global mode, "Start at login", read-only status of the daemon |
-| Axes | Live bars of the six axes and the axis assistant (wizard) that detects which axis does what |
-| Modes | The available modes (built-in and files in the modes folder): new, duplicate, import, edit, delete; a reminder that mode files can press any key |
-| Profiles | Per-device and per-program profiles, see below |
+| Category | Page (tab) | Content |
+|---|---|---|
+| Profiles | Profiles | Per-device and per-program profiles, see below |
+| Profiles | Channels | Scroll, zoom and the other output channels: sensitivity, dead zone, direction, curve preview |
+| Modes | Modes | The available modes (built-in and files in the modes folder): new, duplicate, import, edit, delete; a reminder that mode files can press any key |
+| Device | Axes | Live bars of the six axes and the axis assistant (wizard) that detects which axis does what |
+| Settings | General | Output on/off, global mode, "Start at login", read-only status of the daemon |
+
+This is the first step of the redesign (#52): the pages are unchanged, only their place moved.
+`dofscroll-ui --screenshots <dir>` renders every page at three window sizes into PNG files (use
+`QT_QPA_PLATFORM=offscreen` on a machine without a display); CI attaches them to the UI job.
 
 While the Axes page is open the daemon pauses its output, so moving the cap does not scroll the
 window you look at. The page shows as many button cells as the factory button count of the

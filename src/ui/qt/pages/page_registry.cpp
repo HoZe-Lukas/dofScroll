@@ -11,14 +11,14 @@
 #include "pages/profiles_page.hpp"
 #include "ui_i18n.hpp"
 
-// One line per page, in navigation order; each page declares its factory in its own header.
+// One line per page, in tab order; each page declares its factory in its own header.
 const std::vector<PageFactory> &pageFactories() {
     static const std::vector<PageFactory> factories = {
-        {"channels", "Channels", createChannelsPage},
-        {"general", "General", createGeneralPage},
-        {"axes", "Axes", createAxesPage},
-        {"modes", "Modes", makeModesPage},
-        {"profiles", "Profiles", createProfilesPage},
+        {"profiles", "Profiles", "profiles", createProfilesPage},
+        {"channels", "Channels", "profiles", createChannelsPage},
+        {"modes", "Modes", "modes", makeModesPage},
+        {"axes", "Axes", "device", createAxesPage},
+        {"general", "General", "settings", createGeneralPage},
     };
     return factories;
 }

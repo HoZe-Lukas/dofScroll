@@ -20,6 +20,7 @@ concurrency:
 
 # Third-party actions are pinned to full commit SHAs (tag in the comment).
 #   actions/checkout        = v4.2.2
+#   actions/upload-artifact = v4.6.2
 #   jurplel/install-qt-action = v4.3.0
 
 jobs:
@@ -42,6 +43,13 @@ jobs:
         run: |
           build/dofscroll-ui --version
           build/dofscroll-ui --self-test
+      - name: Screenshots of every page (three window sizes)
+        run: build/dofscroll-ui --screenshots ui-screenshots
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: ui-screenshots
+          path: ui-screenshots/*.png
+          if-no-files-found: error
 
   ui-windows:
     runs-on: windows-latest

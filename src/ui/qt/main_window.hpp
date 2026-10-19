@@ -1,22 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Settings window shell. Left: navigation tree (pages from the registry: Channels, General, Axes,
-// Modes, and a "Profiles" group with Default mode + device/application profiles). Right: stacked
-// area. The window owns the shared models (settings, status, modes) and completes the UiContext
-// it gets from main() with them. The profile page is rebuilt whenever the selected profile or
-// its mode changes.
+// Settings window shell. Left: vertical tabs for the categories (Profiles, Modes, Device,
+// Settings; src/ui/model/navigation_model.hpp). Right: the selected category, with horizontal tabs
+// for its pages when it has more than one (the pages come from the registry). Bottom: a status bar
+// with the daemon state. The window owns the shared models (settings, status, modes) and completes
+// the UiContext it gets from main() with them.
 #pragma once
 #include <QMainWindow>
+#include <QString>
+#include <vector>
 
 #include "qt_action_runner.hpp"
 #include "ui/model/mode_catalog.hpp"
+#include "ui/model/navigation_model.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/status_model.hpp"
 #include "ui_context.hpp"
 
+class QLabel;
 class QStackedWidget;
-class QTreeWidget;
-class QTreeWidgetItem;
+class QTabBar;
 class QWidget;
 
 class MainWindow : public QMainWindow {
@@ -25,12 +28,14 @@ public:
     explicit MainWindow(const UiContext &base, QWidget *parent = nullptr);
     ~MainWindow() override;  // destroys the pages before the models they reference
     void bringToFront();                      // show, un-minimize, raise and activate (every OS)
-    int pageCount() const;                    // top-level navigation entries
-    int profileCount() const;                 // entries below "Profiles"
+    int pageCount() const;                    // pages in all categories
+    int categoryCount() const;                // left tabs
+    // Selects a page by registry id ("channels", "axes", ...): its category and its tab. False if unknown.
+    bool showPage(const QString &pageId);
+    // Page ids in navigation order (category by category).
+    std::vector<std::string> pageIds() const;
+    int profileCount() const;                 // profiles listed on the Profiles page
     bool profilePageHasModeSelector() const;  // false for the default mode
-
-private slots:
-    void onSelectionChanged();
 
 private:
     void updateStatus();
@@ -41,7 +46,9 @@ private:
     spn::ui::ModeCatalog modes_;
     QtStrings strings_;
     UiContext ctx_;
-    QTreeWidget *nav_;
-    QStackedWidget *stack_;
+    std::vector<spn::ui::NavCategory> nav_;
+    QTabBar *categoryBar_ = nullptr;
+    QStackedWidget *categories_ = nullptr;
+    QLabel *statusLabel_ = nullptr;
     QWidget *profilesPage_ = nullptr;  // the "Profiles" page from the registry
 };

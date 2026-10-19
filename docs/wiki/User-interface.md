@@ -6,13 +6,15 @@
 
 ## Pages
 
-| Page | Content |
-|---|---|
-| Channels | Scroll, zoom and other output channels: sensitivity, dead zone, direction, curve preview |
-| General | Output on/off, global mode, "Start at login", daemon status |
-| Axes | Live bars of the six axes, axis assistant (output pauses while it is open) |
-| Modes | Built-in and file modes: new, duplicate, import, edit, delete |
-| Profiles | Device and application profiles, per-profile mode dropdown, overrides, button bindings |
+Vertical tabs on the left pick a category, horizontal tabs on top pick the page inside it. The status bar at the bottom shows the daemon state.
+
+| Category | Page (tab) | Content |
+|---|---|---|
+| Profiles | Profiles | Device and application profiles, per-profile mode dropdown, overrides, button bindings |
+| Profiles | Channels | Scroll, zoom and other output channels: sensitivity, dead zone, direction, curve preview |
+| Modes | Modes | Built-in and file modes: new, duplicate, import, edit, delete |
+| Device | Axes | Live bars of the six axes, axis assistant (output pauses while it is open) |
+| Settings | General | Output on/off, global mode, "Start at login", daemon status |
 
 ## Profiles and the program picker
 
