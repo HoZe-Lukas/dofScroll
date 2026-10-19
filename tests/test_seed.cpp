@@ -58,7 +58,9 @@ int main() {
     put(ex + "/modes/skip.txt", "x\n");
     put(ex + "/modes/big.conf", std::string(70 * 1024, 'x'));
     put(root + "/secret", "secret\n");
+#ifndef _WIN32
     assert(::symlink((root + "/secret").c_str(), (ex + "/modes/link.conf").c_str()) == 0);
+#endif
 
     assert(spn::seedDefaults(&log));
     assert(!log.empty());
