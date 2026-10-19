@@ -531,6 +531,12 @@ std::string envVar(const wchar_t *name) {
 }
 }  // namespace
 
+std::string getEnvUtf8(const char *name) {
+    std::wstring w;
+    for (const char *c = name; *c; ++c) w += static_cast<wchar_t>(*c);  // names are ASCII
+    return envVar(w.c_str());
+}
+
 std::string userConfigBase() { return windowsConfigBase(envVar(L"APPDATA"), envVar(L"USERPROFILE")); }
 
 size_t lastSeparator(const std::string &p) { return p.find_last_of("/\\"); }
