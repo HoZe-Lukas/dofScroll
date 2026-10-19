@@ -65,17 +65,23 @@ inline std::string makeTempDir(const std::string &prefix) {
 // rm -rf (symlinks are removed, not followed).
 inline void removeAll(const std::string &p) {
     std::error_code ec;
-    stdfs::remove_all(p, ec);
+    stdfs::remove_all(stdfs::u8path(p), ec);  // u8path: UTF-8 names also on Windows
 }
 
 inline bool exists(const std::string &p) {
     std::error_code ec;
-    return stdfs::symlink_status(p, ec).type() != stdfs::file_type::not_found && !ec;
+    return stdfs::symlink_status(stdfs::u8path(p), ec).type() != stdfs::file_type::not_found && !ec;
 }
 
 inline void setEnv(const char *name, const std::string &value) {
 #ifdef _WIN32
-    ::_putenv_s(name, value.c_str());
+    // wide variant: the value may be non-ASCII UTF-8 (the narrow one would use the ANSI code page)
+    std::wstring wn, wv;
+    for (const char *c = name; *c; ++c) wn += static_cast<wchar_t>(*c);
+    const int n = ::MultiByteToWideChar(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), nullptr, 0);
+    wv.assign(static_cast<size_t>(n > 0 ? n : 0), L'\0');
+    if (n > 0) ::MultiByteToWideChar(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), &wv[0], n);
+    ::_wputenv_s(wn.c_str(), wv.c_str());
 #else
     ::setenv(name, value.c_str(), 1);
 #endif
