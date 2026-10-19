@@ -68,6 +68,10 @@ not exist is shown with a warning instead of being changed silently.
   program you switch to. A manual entry with validation is the fallback.
 - Per profile you can override values (collapsed by default); "Remove" on an override makes the
   profile inherit the value again.
+- "Effective values" (device and program profiles) lists every channel setting with the value that
+  applies and where it comes from, written out: built-in default, global settings, this device
+  profile, the mode, or this program profile (precedence as above). "Reset" removes the value the
+  profile sets itself.
 - Button bindings: a button is bound to a key, a mode switch or `nav`. Remember the principle: a
   binding that is the same everywhere and always belongs in the vendor driver, see
   [modes.md](modes.md#buttons-and-the-vendor-driver).

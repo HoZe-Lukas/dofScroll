@@ -2083,3 +2083,39 @@ msgstr "+%1 weitere"
 #: src/ui/qt/pages/overview_page.cpp
 msgid "Uses the default settings"
 msgstr "Verwendet die Standardeinstellungen"
+
+#: src/ui/model/effective_model.hpp
+msgid "Effective values"
+msgstr "Wirksame Werte"
+
+#: src/ui/model/effective_model.hpp
+msgid "The value that applies in this profile and where it comes from."
+msgstr "Der Wert, der in diesem Profil gilt, und woher er kommt."
+
+#: src/ui/model/effective_model.hpp
+msgid "Reset"
+msgstr "Zurücksetzen"
+
+#: src/ui/model/effective_model.hpp
+msgid "Remove the value of this profile and inherit it again"
+msgstr "Wert dieses Profils entfernen und wieder erben"
+
+#: src/ui/model/effective_model.hpp
+msgid "built-in default"
+msgstr "eingebauter Standardwert"
+
+#: src/ui/model/effective_model.hpp
+msgid "from the global settings"
+msgstr "aus den globalen Einstellungen"
+
+#: src/ui/model/effective_model.hpp
+msgid "from this device profile"
+msgstr "aus diesem Geräteprofil"
+
+#: src/ui/model/effective_model.hpp
+msgid "from this program profile"
+msgstr "aus diesem Programmprofil"
+
+#: src/ui/model/effective_model.hpp
+msgid "from mode \"%1\""
+msgstr "aus dem Modus „%1“"

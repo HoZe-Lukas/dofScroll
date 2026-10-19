@@ -53,6 +53,7 @@ private:
     QWidget *buildButtonSettings(size_t section);
     QWidget *buildModeInfo(size_t section);
     QWidget *buildOverrides(size_t section);
+    QWidget *buildEffective(size_t section);
 
     const UiContext &ctx_;
     ProfilesEnv env_;

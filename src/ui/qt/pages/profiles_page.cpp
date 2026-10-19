@@ -31,6 +31,7 @@
 #include "add_device_dialog.hpp"
 #include "feed_dir.hpp"
 #include "ui/model/binding_editor_model.hpp"
+#include "ui/model/effective_model.hpp"
 #include "ui/model/key_list.hpp"
 #include "ui/model/profile_tree_model.hpp"
 #include "platform_hooks.hpp"
@@ -254,6 +255,7 @@ void ProfilesPage::rebuildContent() {
     }
     if (layout.modeInfo) l->addWidget(buildModeInfo(section));
     if (layout.overridesSection) l->addWidget(buildOverrides(section));
+    if (layout.overridesSection) l->addWidget(buildEffective(section));
     l->addStretch(1);
 
     QWidget *old = scroll_->takeWidget();
@@ -494,6 +496,43 @@ QWidget *ProfilesPage::buildModeInfo(size_t section) {
         if (!ctx_.settings->editModeFile(section, *ctx_.runner, &err)) setStatus(qs8(err));
     });
     l->addWidget(edit, 0, Qt::AlignLeft);
+    return box;
+}
+
+QWidget *ProfilesPage::buildEffective(size_t section) {
+    auto *box = new QGroupBox(T("Effective values"));
+    auto *outer = new QVBoxLayout(box);
+    outer->addWidget(wrapLabel(T("The value that applies in this profile and where it comes from.")));
+    auto *grid = new QGridLayout;
+    grid->setColumnStretch(2, 1);
+    int row = 0;
+    for (const EffectiveRow &r : effectiveRows(*ctx_.settings, section, *ctx_.strings)) {
+        auto *key = new QLabel(qs8(r.key), box);
+        auto *val = new QLabel(qs8(r.value), box);
+        auto *src = new QLabel(qs8(r.sourceText), box);
+        key->setAccessibleName(qs8(r.key));
+        val->setAccessibleName(qs8(r.key) + QStringLiteral(" = ") + qs8(r.value));
+        src->setAccessibleName(qs8(r.key) + QStringLiteral(": ") + qs8(r.sourceText));
+        grid->addWidget(key, row, 0);
+        grid->addWidget(val, row, 1);
+        grid->addWidget(src, row, 2);
+        if (r.canReset) {
+            auto *reset = new QToolButton(box);
+            reset->setText(T("Reset"));
+            reset->setToolTip(T("Remove the value of this profile and inherit it again"));
+            reset->setAccessibleName(T("Reset") + QLatin1Char(' ') + qs8(r.key));
+            const std::string k = r.key;
+            connect(reset, &QToolButton::clicked, this, [this, section, k] {
+                ctx_.settings->clearOverride(section, k);
+                setStatus(T("Unsaved changes"));
+                updateButtons();
+                queueRebuild();
+            });
+            grid->addWidget(reset, row, 3);
+        }
+        ++row;
+    }
+    outer->addLayout(grid);
     return box;
 }
 

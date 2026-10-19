@@ -1914,3 +1914,39 @@ msgstr ""
 #: src/ui/qt/pages/overview_page.cpp
 msgid "Uses the default settings"
 msgstr ""
+
+#: src/ui/model/effective_model.hpp
+msgid "Effective values"
+msgstr ""
+
+#: src/ui/model/effective_model.hpp
+msgid "The value that applies in this profile and where it comes from."
+msgstr ""
+
+#: src/ui/model/effective_model.hpp
+msgid "Reset"
+msgstr ""
+
+#: src/ui/model/effective_model.hpp
+msgid "Remove the value of this profile and inherit it again"
+msgstr ""
+
+#: src/ui/model/effective_model.hpp
+msgid "built-in default"
+msgstr ""
+
+#: src/ui/model/effective_model.hpp
+msgid "from the global settings"
+msgstr ""
+
+#: src/ui/model/effective_model.hpp
+msgid "from this device profile"
+msgstr ""
+
+#: src/ui/model/effective_model.hpp
+msgid "from this program profile"
+msgstr ""
+
+#: src/ui/model/effective_model.hpp
+msgid "from mode \"%1\""
+msgstr ""
