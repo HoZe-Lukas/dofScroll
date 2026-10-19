@@ -68,29 +68,30 @@ jobs:
           $dir = Join-Path $env:RUNNER_TEMP 'dofscroll-inst'
           $setup = (Get-ChildItem dist-installers -Filter '*-setup.exe' | Select-Object -First 1).FullName
           $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-          $p = Start-Process -FilePath $setup -ArgumentList '/S', '/AUTOSTART=1', "/D=$dir" -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "installer exit code $($p.ExitCode)" }
+          # every program runs with a time limit, so that a hang fails the step instead of the job
+          function Invoke-Limited($file, $argList, $label) {
+            Write-Output "run: $label"
+            $pr = Start-Process -FilePath $file -ArgumentList $argList -PassThru -NoNewWindow
+            if (-not $pr.WaitForExit(120000)) { Stop-Process -Id $pr.Id -Force; throw "$label timed out" }
+            if ($pr.ExitCode -ne 0) { throw "$label failed: exit code $($pr.ExitCode)" }
+          }
+          Invoke-Limited $setup @('/S', '/AUTOSTART=1', "/D=$dir") 'silent install'
           Get-ChildItem $dir | Select-Object -ExpandProperty Name
           foreach ($f in 'dofscroll.exe', 'uninstall.exe', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'devices', 'examples', 'icons', 'scripts\install-autostart.ps1') {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "missing after install: $f" }
           }
           $v = (Get-ItemProperty -Path $runKey -Name 'dofscroll').dofscroll
           if ($v -ne ('"' + (Join-Path $dir 'dofscroll.exe') + '"')) { throw "unexpected Run value: $v" }
-          $out = Join-Path $env:RUNNER_TEMP 'ver.txt'
-          $d = Start-Process -FilePath (Join-Path $dir 'dofscroll.exe') -ArgumentList '--version' -Wait -PassThru -NoNewWindow -RedirectStandardOutput $out
-          Get-Content $out
-          if ($d.ExitCode -ne 0) { throw "dofscroll.exe --version failed: $($d.ExitCode)" }
+          Invoke-Limited (Join-Path $dir 'dofscroll.exe') @('--version') 'dofscroll.exe --version'
           $ui = Join-Path $dir 'dofscroll-ui.exe'
           if (Test-Path $ui) {
             # the Qt runtime comes from the install folder, not from the runner's Qt
             $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -notmatch 'Qt' }) -join ';'
             $env:QT_QPA_PLATFORM = 'offscreen'
-            $u = Start-Process -FilePath $ui -ArgumentList '--self-test' -Wait -PassThru -NoNewWindow
-            if ($u.ExitCode -ne 0) { throw "dofscroll-ui.exe --self-test failed: $($u.ExitCode)" }
+            Invoke-Limited $ui @('--self-test') 'dofscroll-ui.exe --self-test'
           }
-          # _?= keeps the uninstaller in place so that Start-Process -Wait really waits for it
-          $x = Start-Process -FilePath (Join-Path $dir 'uninstall.exe') -ArgumentList '/S', "_?=$dir" -Wait -PassThru
-          if ($x.ExitCode -ne 0) { throw "uninstaller exit code $($x.ExitCode)" }
+          # _?= keeps the uninstaller in place so that the wait really waits for it
+          Invoke-Limited (Join-Path $dir 'uninstall.exe') @('/S', "_?=$dir") 'silent uninstall'
           if (Get-ItemProperty -Path $runKey -Name 'dofscroll' -ErrorAction SilentlyContinue) { throw 'autostart value still present after uninstall' }
           if (Test-Path (Join-Path $dir 'dofscroll.exe')) { throw 'dofscroll.exe still present after uninstall' }
           if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\dofscroll') { throw 'uninstall entry still present' }
