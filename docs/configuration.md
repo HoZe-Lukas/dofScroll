@@ -62,7 +62,7 @@ in the tray.
 | `LIVE_FEED` | `1` | `0` disables the live data feed to the UI (axes view, axis assistant); with `1` it only runs while a UI is connected. See `security.md`. |
 | `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | Button that turns X/Y into arrow keys while held. |
 | `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | Older key: button that is passed through as the left mouse button. A click that is the same everywhere is better set in the vendor driver, see [modes.md](modes.md#buttons-and-the-vendor-driver). |
-| `BUTTON_<n>` | none | Action of button `n`, same values as in mode files, see [modes.md](modes.md). |
+| `BUTTON_<n>` | none | Action of button `n`, same values as in mode files, see [modes.md](modes.md). `buttonmode:<id>` uses a named button behavior from `buttons/<id>.conf`, see [button-modes.md](button-modes.md). |
 
 `NAV_BUTTON` and `CLICK_BUTTON` are older keys. They take the raw button index as `spacenavd`
 reports it, and the log shows the index of every pressed button in `--debug` mode. New setups

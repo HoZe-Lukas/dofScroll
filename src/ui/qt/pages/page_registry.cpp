@@ -5,6 +5,7 @@
 #include <QWidget>
 
 #include "pages/axes_page.hpp"
+#include "pages/button_modes_page.hpp"
 #include "pages/channels_page.hpp"
 #include "pages/general_page.hpp"
 #include "pages/modes_page.hpp"
@@ -19,6 +20,7 @@ const std::vector<PageFactory> &pageFactories() {
         {"profiles", "Profiles", "profiles", createProfilesPage},
         {"channels", "Channels", "profiles", createChannelsPage},
         {"modes", "Modes", "modes", makeModesPage},
+        {"buttonmodes", "Button modes", "modes", createButtonModesPage},
         {"axes", "Axes", "device", createAxesPage},
         {"general", "General", "settings", createGeneralPage},
     };

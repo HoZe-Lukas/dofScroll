@@ -3,7 +3,7 @@
 // Editor logic for one button binding (BUTTON_<n>): splits the action text into a kind plus an
 // argument (key name or mode id) and composes it back, and lists the choices for the view.
 // Actions: none, click, rightclick, middleclick, nav, key:<name>, mode:<id>, mode:next, toggle:nav,
-// toggle:mode:<id>.
+// toggle:mode:<id>, buttonmode:<id>.
 #pragma once
 #include <cctype>
 #include <string>
@@ -15,7 +15,7 @@
 
 namespace spn::ui {
 
-enum class BindingKind { None, Click, RightClick, MiddleClick, Nav, Key, Mode, ModeNext, ToggleNav, ToggleMode };
+enum class BindingKind { None, Click, RightClick, MiddleClick, Nav, Key, Mode, ModeNext, ToggleNav, ToggleMode, ButtonMode };
 
 struct BindingKindInfo {
     BindingKind kind;
@@ -24,6 +24,7 @@ struct BindingKindInfo {
     bool needsKey;       // argument is a key name
     bool needsMode;      // argument is a mode id
     bool advanced;       // plain key/mouse mapping: better done in the vendor driver, shown behind "Advanced"
+    bool buttonMode = false;  // argument is a button mode id; chosen from the button modes, not listed as an action
 };
 
 inline const std::vector<BindingKindInfo> &bindingKinds() {
@@ -39,7 +40,8 @@ inline const std::vector<BindingKindInfo> &bindingKinds() {
         {BindingKind::Click, "click", "Left click", false, false, true},
         {BindingKind::RightClick, "rightclick", "Right click", false, false, true},
         {BindingKind::MiddleClick, "middleclick", "Middle click", false, false, true},
-        {BindingKind::Key, "key", "Press key", true, false, true}};
+        {BindingKind::Key, "key", "Press key", true, false, true},
+        {BindingKind::ButtonMode, "buttonmode", "Button mode", false, false, false, true}};
     return k;
 }
 
@@ -69,7 +71,7 @@ inline bool isAdvancedIn(BindingContext c, BindingKind kind) {
 inline std::vector<BindingKindInfo> bindingKindsFor(BindingContext c, bool advancedOpen) {
     std::vector<BindingKindInfo> out;
     for (const BindingKindInfo &k : bindingKinds())
-        if (c == BindingContext::Specific || advancedOpen || !k.advanced) out.push_back(k);
+        if (!k.buttonMode && (c == BindingContext::Specific || advancedOpen || !k.advanced)) out.push_back(k);
     return out;
 }
 
@@ -90,7 +92,7 @@ inline bool parseBinding(const std::string &text, Binding *out) {
     *out = Binding();
     const std::string t = lowerTrim(text);
     for (const BindingKindInfo &k : bindingKinds()) {
-        if (!k.needsKey && !k.needsMode && t == k.prefix) {
+        if (!k.needsKey && !k.needsMode && !k.buttonMode && t == k.prefix) {
             out->kind = k.kind;
             return true;
         }
@@ -100,6 +102,13 @@ inline bool parseBinding(const std::string &text, Binding *out) {
         if (!parseKeyName(t.substr(4), &key)) return false;
         out->kind = BindingKind::Key;
         out->arg = keyName(key);
+        return true;
+    }
+    if (t.rfind("buttonmode:", 0) == 0) {
+        const std::string id = t.substr(11);
+        if (!validModeId(id)) return false;
+        out->kind = BindingKind::ButtonMode;
+        out->arg = id;
         return true;
     }
     if (t.rfind("toggle:mode:", 0) == 0) {
@@ -123,7 +132,7 @@ inline bool parseBinding(const std::string &text, Binding *out) {
 inline std::string composeBinding(const Binding &b) {
     for (const BindingKindInfo &k : bindingKinds()) {
         if (k.kind != b.kind) continue;
-        if (k.needsKey || k.needsMode)
+        if (k.needsKey || k.needsMode || k.buttonMode)
             return b.arg.empty() ? std::string() : std::string(k.prefix) + ":" + b.arg;
         return k.prefix;
     }

@@ -82,6 +82,7 @@ table in `src/device_db.cpp`). The count is not the one `spacenavd` reports.
 | `mode:next` | Switches to the next loaded mode in alphabetical order of id, built-ins included, wrapping around. |
 | `toggle:nav` | Every press switches the navigation mode on or off (arrow keys instead of scrolling), like a held `nav` button but latched. A held `nav` button and the latch add up. |
 | `toggle:mode:<id>` | The first press switches to mode `<id>`, the next press goes back to the mode the profile gives. `next` is not allowed. |
+| `buttonmode:<id>` | Behaves like the `ACTION` of the button mode file `buttons/<id>.conf`, see [button-modes.md](button-modes.md). Not nestable. An unknown id does nothing. |
 
 Toggles are state that only exists while the daemon runs. The status file shows it in the `toggle=` line
 (`nav`, `mode:<id>`, or both) and the tray shows "Navigation mode on" next to the mode. The state is cleared by

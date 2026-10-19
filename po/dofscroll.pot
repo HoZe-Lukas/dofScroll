@@ -1958,3 +1958,207 @@ msgstr ""
 #: src/ui/qt/pages/channels_page.cpp
 msgid "Push strength at which a step: channel action taps its key once (steps per second after sensitivity)"
 msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Joystick mode"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Joystick mode:"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "The joystick mode (what the axes do) that applies while this profile is active"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Each button can use a button mode, switch the mode or hold the navigation mode (arrow keys instead of scrolling)."
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Default (inherit)"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "missing: %1"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Button modes"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Actions"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "inherited:"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Button mode"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "A button mode is a named button behavior. Pick it for any button on the Profiles page; the same button mode can be used on several buttons."
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "A button mode can press a key or click. Only use button modes from trusted sources. An action that is the same everywhere and always is better set in the vendor driver (see docs/modes.md)."
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "The files in the button modes folder"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Description"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Action"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Shown in the button drop-downs"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Name:"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Description:"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Action:"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "File:"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Write the changes to the button mode file"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Revert"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Discard the changes and reload the file"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Open in text editor"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Open the file in your default editor"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Warnings of the selected button mode"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "New button mode"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Create a button mode file from a commented template"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Copy the selected button mode under a new name"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Add a button mode file from somewhere else (you see its warnings first)"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Delete the button mode file"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Open button modes folder"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Show the folder with the button mode files"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Key"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Warnings for the button modes folder:"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "No button modes yet. \"New button mode\" creates one; the folder also accepts files you copy there."
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Could not save the button mode."
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Could not create the button mode."
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Name of the new button mode:"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Could not duplicate the button mode."
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Import button mode file"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Button mode files (*.conf);;All files (*)"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "A button mode with this id already exists. Name for the imported button mode:"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Import the button mode \"%1\"?"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Could not import the button mode."
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Delete the button mode file \"%1\"?"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "It is still used by:"
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Those buttons will show \"missing: %1\" and do nothing."
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Could not delete the button mode."
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Could not create the button modes folder."
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "A button mode can press a key or click whenever its button is pressed. Only keep files from sources you trust and read the file first."
+msgstr ""

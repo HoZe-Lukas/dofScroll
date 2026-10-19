@@ -61,6 +61,7 @@ private:
     spn::ui::SettingsModel settings_;
     spn::ui::StatusModel status_;
     spn::ui::ModeCatalog modes_;
+    spn::ui::ButtonModeCatalog buttonModes_;
     QtStrings strings_;
     UiContext ctx_;
     std::vector<spn::ui::NavCategory> nav_;

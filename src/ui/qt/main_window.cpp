@@ -27,7 +27,7 @@
 #include "vertical_tabs.hpp"
 
 MainWindow::MainWindow(const UiContext &base, QWidget *parent)
-    : QMainWindow(parent), modes_(base.modesDir), ctx_(base) {
+    : QMainWindow(parent), modes_(base.modesDir), buttonModes_(base.buttonModesDir), ctx_(base) {
     setWindowTitle(QStringLiteral("dofscroll"));
     resize(960, 560);
     setMinimumSize(spn::ui::tokens::kMinWindowWidth, spn::ui::tokens::kMinWindowHeight);
@@ -41,6 +41,7 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     ctx_.settings = &settings_;
     ctx_.status = &status_;
     ctx_.modes = &modes_;
+    ctx_.buttonModes = &buttonModes_;
     ctx_.strings = &strings_;
 
     // Left: one vertical tab per category. Right: the category (its pages as horizontal tabs).

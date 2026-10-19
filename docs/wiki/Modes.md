@@ -64,6 +64,7 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 | `mode:next` | Switches to the next loaded mode in alphabetical order of id (built-ins included), wrapping around |
 | `toggle:nav` | Every press switches the navigation mode on or off (latched `nav`) |
 | `toggle:mode:<id>` | First press switches to mode `<id>`, the next press goes back to the profile's mode |
+| `buttonmode:<id>` | Behaves like the action of `buttons/<id>.conf` (a button mode); unknown ids do nothing |
 
 Toggle state is shown in the tray ("Navigation mode on") and cleared by a reload (also the tray's "Release all keys"), a restart, suspend or `ENABLED = 0`, and any mode change. A mode binding wins over a `BUTTON_<n>` binding in the main config. A switch by `mode:` lasts until the daemon restarts, the config or modes reload, or another switch happens; held keys and buttons are released on every switch. An unknown mode id in a mode file is dropped with a warning.
 

@@ -27,6 +27,7 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Profiles | Profiles | Per-device and per-program profiles, see below |
 | Profiles | Channels | Scroll, zoom and the other output channels: sensitivity, dead zone, direction, curve preview |
 | Modes | Modes | The available modes (built-in and files in the modes folder): new, duplicate, import, edit, delete; a reminder that mode files can press any key |
+| Modes | Button modes | The button mode files (`buttons/`): create, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
 | Device | Axes | Live bars of the six axes and the axis assistant (wizard) that detects which axis does what |
 | Settings | General | Output on/off, global mode, "Start at login", read-only status of the daemon |
 
@@ -50,12 +51,24 @@ While the Axes page is open the daemon pauses its output, so moving the cap does
 window you look at. The page shows as many button cells as the factory button count of the
 device (see below), or the highest button it has seen when no device information is available.
 
-## Mode dropdown
+## Joystick mode and button modes
 
-The Profiles page has a "Mode" dropdown per profile (global, device, application). A button can
-also be bound to a mode switch (`mode:<id>`, `mode:next`) or a toggle (`toggle:nav`, `toggle:mode:<id>`) from the same page; the tray shows "Navigation mode on" while the navigation mode is latched. Precedence is
+The Profiles page has a "Joystick mode" dropdown per profile (global, device, application): it
+chooses what the axes do. Every button row has its own dropdown with these entries, in this order:
+"Default (inherit)" (device and program profiles; it removes the profile's own `BUTTON_<n>` line,
+and the row shows what is inherited; in the default profile the first entry is "Nothing"), the
+**button modes** by name (tooltip: the description), then the plain actions: navigation, mode
+switch (`mode:<id>`, `mode:next`), toggles (`toggle:nav`, `toggle:mode:<id>`) and, behind "Advanced"
+in the default profile, click and key. Choosing a button mode writes `BUTTON_<n> = buttonmode:<id>`;
+the same button mode can be chosen on several buttons. A reference to a button mode that is not
+installed shows as "missing: <id>" and is not rewritten. See [button-modes.md](button-modes.md).
+The tray shows "Navigation mode on" while the navigation mode is latched. Precedence is
 unchanged: global < device < mode overrides < application. A profile that names a mode which does
 not exist is shown with a warning instead of being changed silently.
+
+The **Button modes** page (category Modes, next to Modes) manages the button mode files: list,
+editor for name, description and action with Save and Revert, New, Duplicate, Import, Delete (it
+names the profiles and mode files that still use the button mode) and "Open button modes folder".
 
 ## Profiles and the running-program picker
 

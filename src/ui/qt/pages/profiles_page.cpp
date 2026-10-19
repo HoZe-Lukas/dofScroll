@@ -30,7 +30,10 @@
 #include "add_app_dialog.hpp"
 #include "add_device_dialog.hpp"
 #include "feed_dir.hpp"
+#include "key_combo.hpp"
 #include "ui/model/binding_editor_model.hpp"
+#include "ui/model/button_choice_model.hpp"
+#include <QStandardItem>
 #include "ui/model/effective_model.hpp"
 #include "ui/model/key_list.hpp"
 #include "ui/model/profile_tree_model.hpp"
@@ -51,20 +54,6 @@ QLabel *wrapLabel(const QString &text, QWidget *parent = nullptr) {
     return l;
 }
 
-// Key chooser: grouped list, group names are disabled header rows.
-QComboBox *makeKeyCombo(const QString &current, QWidget *parent) {
-    auto *c = new QComboBox(parent);
-    c->setMaxVisibleItems(20);
-    auto *model = qobject_cast<QStandardItemModel *>(c->model());
-    for (const KeyGroup &g : keyGroups()) {
-        c->addItem(T(g.title.c_str()));
-        if (model) model->item(c->count() - 1)->setFlags(Qt::NoItemFlags);
-        for (const std::string &k : g.keys) c->addItem(qs8(k), qs8(k));
-    }
-    const int i = c->findData(current);
-    if (i >= 0) c->setCurrentIndex(i);
-    return c;
-}
 }  // namespace
 
 QWidget *createProfilesPage(const UiContext &ctx) { return new ProfilesPage(ctx); }
@@ -264,11 +253,11 @@ void ProfilesPage::rebuildContent() {
 }
 
 QWidget *ProfilesPage::buildModeSelector(size_t section) {
-    auto *box = new QGroupBox(T("Mode"));
+    auto *box = new QGroupBox(T("Joystick mode"));
     auto *l = new QFormLayout(box);
     auto *combo = new QComboBox(box);
-    combo->setAccessibleName(T("Mode"));
-    combo->setToolTip(T("The mode that applies while this profile is active"));
+    combo->setAccessibleName(T("Joystick mode"));
+    combo->setToolTip(T("The joystick mode (what the axes do) that applies while this profile is active"));
     const std::vector<SettingsModel::ModeOption> opts = ctx_.settings->modeOptions(section);
     for (size_t i = 0; i < opts.size(); ++i) {
         const SettingsModel::ModeOption &o = opts[i];
@@ -278,7 +267,7 @@ QWidget *ProfilesPage::buildModeSelector(size_t section) {
         combo->addItem(text);
     }
     combo->setCurrentIndex(std::max(0, ctx_.settings->selectedModeOption(section)));
-    l->addRow(T("Mode:"), combo);
+    l->addRow(T("Joystick mode:"), combo);
     connect(combo, &QComboBox::activated, this, [this, section](int idx) {
         std::string err;
         bool changed = false;
@@ -299,14 +288,15 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
 
     auto *box = new QGroupBox(T("Button bindings"));
     auto *outer = new QVBoxLayout(box);
-    outer->addWidget(wrapLabel(T("Each button can switch the mode or hold the navigation mode (arrow keys "
-                                 "instead of scrolling).")));
+    outer->addWidget(wrapLabel(T("Each button can use a button mode, switch the mode or hold the navigation mode "
+                                 "(arrow keys instead of scrolling).")));
     auto *grid = new QGridLayout;
     grid->setColumnStretch(2, 1);
     outer->addLayout(grid);
 
     // Modes offered by "Switch to mode": every installed mode (built-in and files).
     const std::vector<std::string> offered = bindingModeIds(loadModes(ctx_.modesDir, nullptr));
+    const ButtonModeSet buttonModes = loadButtonModes(ctx_.buttonModesDir, nullptr);
 
     const bool advanced = !hasAdvancedSection(ctxKind) || advancedOpen_;
     int r = 0;
@@ -323,13 +313,26 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
         }
         auto *kind = new QComboBox;
         kind->setAccessibleName(T("Action of button") + QStringLiteral(" %1").arg(row.number));
-        const std::vector<BindingKindInfo> kinds = bindingKindsFor(ctxKind, advanced);
-        int cur = 0;
-        for (size_t i = 0; i < kinds.size(); ++i) {
-            kind->addItem(T(kinds[i].label), int(kinds[i].kind));
-            if (kinds[i].kind == row.binding.kind) cur = int(i);
+        const std::vector<ButtonChoice> choices = buttonChoices(
+            ctxKind, advanced, buttonModes,
+            row.binding.kind == BindingKind::ButtonMode ? row.binding.arg : std::string(), *ctx_.strings);
+        const int selected = selectedButtonChoice(choices, ctxKind, row);
+        ButtonChoice::Group lastGroup = ButtonChoice::Group::None;
+        for (size_t i = 0; i < choices.size(); ++i) {
+            const ButtonChoice &c = choices[i];
+            if (c.group != lastGroup && c.group != ButtonChoice::Group::None) {
+                // Group header: a disabled entry that cannot be chosen.
+                kind->addItem(c.group == ButtonChoice::Group::ButtonModes ? T("Button modes") : T("Actions"));
+                auto *item = qobject_cast<QStandardItemModel *>(kind->model())->item(kind->count() - 1);
+                item->setFlags(item->flags() & ~(Qt::ItemIsSelectable | Qt::ItemIsEnabled));
+                kind->setItemData(kind->count() - 1, QVariant(), Qt::UserRole);
+            }
+            lastGroup = c.group;
+            kind->addItem(qs8(c.label), int(i));
+            if (!c.tooltip.empty()) kind->setItemData(kind->count() - 1, qs8(c.tooltip), Qt::ToolTipRole);
+            if (int(i) == selected) kind->setCurrentIndex(kind->count() - 1);
         }
-        kind->setCurrentIndex(cur);
+        if (selected < 0) kind->setCurrentIndex(-1);
         grid->addWidget(kind, r, 1);
 
         QWidget *arg = nullptr;
@@ -366,13 +369,20 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
             });
             arg = mc;
         }
+        if (!arg && section > 0 && !row.overridden) {
+            // Inherited: say what it is, so the effect of "Default (inherit)" is visible.
+            arg = new QLabel(T("inherited:") + QLatin1Char(' ') + qs8(row.text), box);
+            arg->setForegroundRole(QPalette::PlaceholderText);
+        }
         if (arg) grid->addWidget(arg, r, 2);
 
-        connect(kind, &QComboBox::activated, this, [this, section, row, kind, kinds, offered](int idx) {
-            if (idx < 0 || size_t(idx) >= kinds.size()) return;
-            const Binding b = withKind(row.binding, kinds[size_t(idx)].kind, offered);
+        connect(kind, &QComboBox::activated, this, [this, section, row, kind, choices, offered](int idx) {
+            const QVariant data = kind->itemData(idx);
+            if (!data.isValid()) return;  // a group header
+            const size_t ci = size_t(data.toInt());
+            if (ci >= choices.size()) return;
             std::string err;
-            if (applyBinding(*ctx_.settings, section, row.number, b, &err))
+            if (applyButtonChoice(*ctx_.settings, section, row, choices[ci], offered, &err))
                 setStatus(T("Unsaved changes"));
             else
                 setStatus(qs8(err));

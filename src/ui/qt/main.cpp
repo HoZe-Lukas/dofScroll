@@ -16,6 +16,7 @@
 
 #include "main_window.hpp"
 #include "pages/axes_page.hpp"
+#include "pages/button_modes_page.hpp"
 #include "pages/modes_page.hpp"
 #include "qt_action_runner.hpp"
 #include "theme.hpp"
@@ -42,6 +43,37 @@ static void printUsage() {
 // requests, which are handled by the next round, so one processEvents() is not enough for a picture.
 static void settle() {
     for (int i = 0; i < 4; ++i) QApplication::processEvents();
+}
+
+// Button modes page: lists the files, edits one in the page and saves it, creates and deletes one.
+static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "button modes self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    ButtonModesPage page(ctx);  // standalone: its own catalog
+    page.show();
+    settle();
+    check(page.buttonModeCount() == 1, "one button mode in the folder");
+    check(page.editCurrent(QStringLiteral("Edited"), QStringLiteral("Changed"), QStringLiteral("key:space")),
+          "edit and save in the page");
+    QFile f(tmpPath + QStringLiteral("/buttons/latch.conf"));
+    check(f.open(QIODevice::ReadOnly), "the file exists");
+    const QByteArray text = f.readAll();
+    check(text.contains("NAME = Edited") && text.contains("DESCRIPTION = Changed") && text.contains("ACTION = key:space"),
+          "the file holds the edited values");
+    check(!page.dirty(), "saved: no unsaved changes");
+    // a file that appears in the folder shows up (the page polls the folder stamp)
+    QFile second(tmpPath + QStringLiteral("/buttons/second.conf"));
+    check(second.open(QIODevice::WriteOnly) && second.write("ACTION = click\n") > 0, "write a second file");
+    second.close();
+    page.refreshIfChanged();
+    check(page.buttonModeCount() == 2, "a new file shows up in the list");
+    QFile::remove(tmpPath + QStringLiteral("/buttons/second.conf"));
+    page.refreshIfChanged();
+    check(page.buttonModeCount() == 1, "a removed file disappears from the list");
+    return ok;
 }
 
 // Overview: it is the first page, shows one card per profile of the configuration, and a card opens
@@ -175,13 +207,21 @@ int main(int argc, char **argv) {
         ctx.runner = &runner;
         ctx.configPath = (tmp.path() + QStringLiteral("/dofscroll.conf")).toStdString();
         ctx.modesDir = (tmp.path() + QStringLiteral("/modes")).toStdString();
+        ctx.buttonModesDir = (tmp.path() + QStringLiteral("/buttons")).toStdString();
         ctx.runtimeDir = (tmp.path() + QStringLiteral("/run")).toStdString();
         QDir().mkpath(tmp.path() + QStringLiteral("/modes"));
+        QDir().mkpath(tmp.path() + QStringLiteral("/buttons"));
         QDir().mkpath(QString::fromUtf8(screenshotDir));
+        for (const auto &bmf : {std::make_pair("latch-nav", "NAME = Navigation latch\nDESCRIPTION = Press once to switch navigation on, again to switch it off\nACTION = toggle:nav\n"),
+                                std::make_pair("next-mode", "NAME = Next mode\nACTION = mode:next\n")}) {
+            QFile f(tmp.path() + QStringLiteral("/buttons/") + QString::fromLatin1(bmf.first) + QStringLiteral(".conf"));
+            if (!f.open(QIODevice::WriteOnly)) return 1;
+            f.write(bmf.second);
+        }
         // Example profiles, so that the Overview shows cards.
         QFile conf(tmp.path() + QStringLiteral("/dofscroll.conf"));
         if (!conf.open(QIODevice::WriteOnly)) return 1;
-        conf.write("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\nBUTTON_1 = key:space\n\n"
+        conf.write("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\nBUTTON_1 = key:space\nBUTTON_2 = buttonmode:latch-nav\nBUTTON_3 = buttonmode:gone\n\n"
                    "[app:blender]\nENABLED = 0\n\n[app:gimp]\n");
         conf.close();
         MainWindow w(ctx);
@@ -195,6 +235,7 @@ int main(int argc, char **argv) {
             w.resize(sz.w, sz.h);
             for (const std::string &id : w.pageIds()) {
                 w.showPage(QString::fromStdString(id));
+                if (id == "profiles") w.openOverviewProfile(2);  // the firefox profile: mode and button modes
                 settle();
                 const QString file = QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-%2-%3.png")
                                          .arg(QString::fromLatin1(sz.theme), QString::fromLatin1(sz.name),
@@ -215,6 +256,7 @@ int main(int argc, char **argv) {
         ctx.runner = &runner;
         ctx.configPath = (tmp.path() + QStringLiteral("/dofscroll.conf")).toStdString();
         ctx.modesDir = (tmp.path() + QStringLiteral("/modes")).toStdString();
+        ctx.buttonModesDir = (tmp.path() + QStringLiteral("/buttons")).toStdString();
         ctx.runtimeDir = (tmp.path() + QStringLiteral("/run")).toStdString();
         QDir().mkpath(tmp.path() + QStringLiteral("/modes"));
         QFile mode(tmp.path() + QStringLiteral("/modes/mine.conf"));
@@ -227,8 +269,15 @@ int main(int argc, char **argv) {
         conf.write("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\n\n[app:blender]\nENABLED = 0\n");
         conf.close();
 
+        QDir().mkpath(tmp.path() + QStringLiteral("/buttons"));
+        QFile bm(tmp.path() + QStringLiteral("/buttons/latch.conf"));
+        if (!bm.open(QIODevice::WriteOnly)) return 1;
+        bm.write("NAME = Latch\nACTION = toggle:nav\n");
+        bm.close();
+
         MainWindow w(ctx);
         w.show();
+        if (!buttonModesSelfTest(ctx, tmp.path())) return 1;
         ModesPage modes(ctx);  // standalone (own catalog): built-in normal, off, timeline + the file mode
         modes.show();
         Tray tray(&w, icon, ctx);
@@ -237,7 +286,7 @@ int main(int argc, char **argv) {
         std::printf("self-test: entries=%d profiles=%d modes=%d tray-modes=%d tray-entries=%d tray-available=%d\n",
                     w.pageCount(), w.profileCount(), modes.modeCount(), tray.modeMenuCount(),
                     tray.menuEntryCount(), avail ? 1 : 0);
-        const bool ok = w.pageCount() == 6 && w.categoryCount() == 5 && w.profileCount() >= 0 && !w.profilePageHasModeSelector() && modes.modeCount() == 4 &&
+        const bool ok = w.pageCount() == 7 && w.categoryCount() == 5 && w.profileCount() >= 0 && !w.profilePageHasModeSelector() && modes.modeCount() == 4 &&
                         tray.modeMenuCount() == 4 && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
         if (!overviewSelfTest(w)) return 1;

@@ -14,6 +14,7 @@ Vertical tabs on the left pick a category, horizontal tabs on top pick the page 
 | Profiles | Profiles | Device and application profiles, per-profile mode dropdown, overrides, button bindings |
 | Profiles | Channels | Scroll, zoom and other output channels: sensitivity, dead zone, direction, curve preview |
 | Modes | Modes | Built-in and file modes: new, duplicate, import, edit, delete |
+| Modes | Button modes | Button mode files (`buttons/`): new, edit in the page, duplicate, import, delete; chosen per button on the Profiles page |
 | Device | Axes | Live bars of the six axes, axis assistant (output pauses while it is open) |
 | Settings | General | Output on/off, global mode, "Start at login", daemon status |
 
