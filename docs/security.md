@@ -77,7 +77,7 @@ additional conditions, or robustness; **Info** = no action needed, for classific
 | S3 | **Medium** (fixed) | "Stuck" Ctrl key: blocking calls in the tick thread, crash/kill under X11, discarded key-up events with uinput | `src/activewin.cpp`, `src/dofscroll.cpp`, `src/output_uinput.cpp` |
 | S4 | Low | `loadProfiles`: no limits on file size, line length, sections; a FIFO/device file blocks the daemon | `src/config.cpp` |
 | S5 | Low | Saving: predictable temp name without `O_EXCL`/`O_NOFOLLOW`, no `fsync`, file mode from umask, lost update (TOCTOU) | `src/config.cpp`, `src/dofscroll_tray.cpp` |
-| S6 | Low (fixed) | `popen("kdotool ...")`: shell + PATH search, blocks the tick thread | `src/activewin.cpp` |
+| S6 | Low (fixed) | `popen("kdotool ...")`: shell + PATH search, blocks the tick thread; now `execl` without a shell, a fixed list of system directories instead of `PATH` (`src/platform/exec_lookup.hpp`) and a time limit | `src/activewin.cpp` |
 | S12 | Low (fixed) | `/dev/uinput` fd without `O_CLOEXEC`: inheritable by the `kdotool` child process | `src/output_uinput.cpp` (`init`) |
 | S7 | Low | Shutdown race with the detached reader thread; signal handlers installed late | `src/dofscroll.cpp` |
 | S8 | Low | Binaries under `/usr/local/bin` are root-owned symlinks into a user-writable home | `readme.md` (install), `/usr/local/bin/dofscroll*` |
