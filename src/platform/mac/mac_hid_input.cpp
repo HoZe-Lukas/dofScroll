@@ -38,6 +38,10 @@ namespace {
 
 const char *const LOG = "[dofscroll] ";
 
+// IOHIDRequestType value of kIOHIDRequestTypeListenEvent (PostEvent = 0, ListenEvent = 1). The
+// enumerator is not visible through IOHIDLib.h with the runner's SDK in C++, the function is.
+const IOHIDRequestType kListenEvent = static_cast<IOHIDRequestType>(1);
+
 bool cfInt(CFTypeRef t, int64_t *out) {
     if (!t || CFGetTypeID(t) != CFNumberGetTypeID()) return false;
     return CFNumberGetValue(static_cast<CFNumberRef>(t), kCFNumberSInt64Type, out);
@@ -130,10 +134,10 @@ private:
         if (permissionChecked_) return;
         permissionChecked_ = true;
         if (__builtin_available(macOS 10.15, *)) {
-            const MacAccess a = macAccessFromInt(static_cast<int>(IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)));
+            const MacAccess a = macAccessFromInt(static_cast<int>(IOHIDCheckAccess(kListenEvent)));
             if (a == MacAccess::Granted) return;
             std::cerr << LOG << "WARNING: " << macPermissionMessage(a) << std::endl;
-            if (a == MacAccess::Unknown) (void)IOHIDRequestAccess(kIOHIDRequestTypeListenEvent);
+            if (a == MacAccess::Unknown) (void)IOHIDRequestAccess(kListenEvent);
         }
     }
 
