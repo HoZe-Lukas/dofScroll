@@ -15,7 +15,7 @@ if(DOFSCROLL_BUILD_DAEMON)
     ${CMAKE_SOURCE_DIR}/packaging/windows/dofscroll.manifest)
   add_executable(dofscroll WIN32 ${WIN_SRC} ${WIN_RC})
   target_include_directories(dofscroll PRIVATE ${CMAKE_SOURCE_DIR}/packaging/windows)
-  target_link_libraries(dofscroll PRIVATE dofscroll_core hid setupapi user32 advapi32 shell32 bcrypt)
+  target_link_libraries(dofscroll PRIVATE dofscroll_core hid setupapi user32 advapi32 shell32 bcrypt wtsapi32)
   if(MSVC)
     # The manifest comes from the .rc: no linker-generated one (duplicate resource otherwise).
     # Control-flow guard is NOT an MSVC default; DYNAMICBASE/NXCOMPAT/HIGHENTROPYVA are made explicit.
