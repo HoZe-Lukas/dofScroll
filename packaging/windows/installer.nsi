@@ -58,16 +58,13 @@ VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "English"
 
+Var AutostartFlag
+
 Function .onInit
   ; Silent installs: /AUTOSTART=1 selects the autostart section (default: off).
   ${GetParameters} $0
   ${GetOptions} $0 "/AUTOSTART=" $1
-  FileOpen $2 "$TEMP\dofscroll-oninit.txt" w
-  FileWrite $2 "params=[$0] autostart=[$1]"
-  FileClose $2
-  ${If} $1 == "1"
-    !insertmacro SelectSection ${SecAutostart}
-  ${EndIf}
+  StrCpy $AutostartFlag $1
 FunctionEnd
 
 Section "dofscroll (required)" SecMain
@@ -102,6 +99,14 @@ SectionEnd
 
 Section /o "Start the daemon at logon" SecAutostart
   WriteRegStr HKCU "${RUN_KEY}" "${RUN_NAME}" '"$INSTDIR\dofscroll.exe"'
+SectionEnd
+
+; Silent install with /AUTOSTART=1 (the components page does not run then).
+Section "-silent autostart"
+  ${If} ${Silent}
+  ${AndIf} $AutostartFlag == "1"
+    WriteRegStr HKCU "${RUN_KEY}" "${RUN_NAME}" '"$INSTDIR\dofscroll.exe"'
+  ${EndIf}
 SectionEnd
 
 LangString DESC_Main ${LANG_ENGLISH} "The daemon, the user interface, devices, examples and licenses."

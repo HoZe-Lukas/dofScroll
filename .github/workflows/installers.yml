@@ -74,7 +74,6 @@ jobs:
           foreach ($f in 'dofscroll.exe', 'uninstall.exe', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'devices', 'examples', 'icons', 'scripts\install-autostart.ps1') {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "missing after install: $f" }
           }
-          Get-Content (Join-Path $env:TEMP 'dofscroll-oninit.txt') -ErrorAction Continue
           $v = (Get-ItemProperty -Path $runKey -Name 'dofscroll').dofscroll
           if ($v -ne ('"' + (Join-Path $dir 'dofscroll.exe') + '"')) { throw "unexpected Run value: $v" }
           $out = Join-Path $env:RUNNER_TEMP 'ver.txt'
