@@ -203,7 +203,7 @@ struct OpenDev {
 class WinHidInputSource : public InputSource {
 public:
     explicit WinHidInputSource(std::string dir) : dir_(std::move(dir)) {}
-    ~WinHidInputSource() override { close(); }
+    ~WinHidInputSource() override { closeImpl(); }
 
     const char *name() const override { return "hid"; }
 
@@ -240,7 +240,11 @@ public:
         return core_ ? core_->devices() : std::vector<DeviceInfo>();
     }
 
-    void close() override {
+    void close() override { closeImpl(); }
+
+private:
+    // Non-virtual, so the destructor does not dispatch virtually.
+    void closeImpl() {
         if (!running_) return;
         running_ = false;
         ::SetEvent(stopMgr_);
@@ -255,7 +259,6 @@ public:
         queue_.close();
     }
 
-private:
     void manage() {
         while (::WaitForSingleObject(stopMgr_, kRescanMs) == WAIT_TIMEOUT) scan();
     }
