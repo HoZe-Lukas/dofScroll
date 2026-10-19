@@ -31,7 +31,7 @@ desktop (no "stuck Ctrl", no event floods) and the configuration file.
 | `dofscroll` (daemon) | user, systemd user unit | `spacenavd` via Unix socket `/run/spnav.sock` (root, `0777`), X server (XTest) or `/dev/uinput`, optionally `kdotool` (spawned) | axis values/buttons from `spacenavd`, `~/.config/dofscroll/dofscroll.conf` (fallback: legacy paths `~/.config/spnav-scroll/spnav-scroll.conf`, `~/.config/spnav-scroll.conf`), mode files in `~/.config/dofscroll/modes/`, `WM_CLASS` of foreign X clients, environment (`XDG_*`, `HOME`, `PATH`, `DISPLAY`), SIGHUP |
 | `dofscroll-tray` | user, systemd user unit | GTK/X11, DBus (AppIndicator), starts `systemctl --user` and `xdg-open` | GUI input, config file, environment |
 | `spacenavd` | root (system service) | USB HID device | device (including the device name from the USB descriptor) |
-| udev rule `packaging/70-dofscroll-uinput.rules` | - | - | sets the permissions of `/dev/uinput` |
+| udev rule `packaging/70-dofscroll-uinput.rules` (opt-in, not installed by default: shipped under `share/dofscroll/udev`) | - | - | sets the permissions of `/dev/uinput` once the user installs it |
 
 **Attackers considered:**
 
@@ -50,7 +50,8 @@ desktop (no "stuck Ctrl", no event floods) and the configuration file.
   when moving; profiles and mode files may be shared).
 
 **Classification of XTest/uinput:** under X11, *any* X client can generate arbitrary input via
-XTest - the daemon creates no new capability there. `/dev/uinput`, however, acts **below** the
+XTest - the daemon itself creates no new capability there (but see section 7: a mode file from a
+stranger has no XTest access of its own, the daemon acts for it). `/dev/uinput`, however, acts **below** the
 display server (also on text consoles, in the login manager and in other sessions at the same
 seat). Whoever can write to `/dev/uinput` can inject keyboard input into every session active
 there - this is the most critical point of the whole setup (see S1).
@@ -86,6 +87,10 @@ additional conditions, or robustness; **Info** = no action needed, for classific
 | I1-I6 | Info | Positives and classification (reader-thread atomics, `findIconDir`, buffers, WM_CLASS spoofing, log injection) | see below |
 
 ### S1 (High) - permissions on `/dev/uinput` and group `input`
+
+**Packaging status:** the udev rule is no longer installed by default. Packages ship it under
+`share/dofscroll/udev`; users who need uinput (Wayland) copy it to `/etc/udev/rules.d` and reload
+udev, see [installation.md](installation.md). Under X11 nothing needs `/dev/uinput`.
 
 **Status (2026-10-15):** findings b and c **fixed** - `packaging/70-dofscroll-uinput.rules`
 now reads `KERNEL=="uinput", MODE="0600", OPTIONS+="static_node=uinput", TAG+="uaccess"`
@@ -186,8 +191,10 @@ For this `main` calls `XInitThreads()`, the error handler is thread-local and se
   every normal keyboard input then becomes a shortcut (`Ctrl+W`, `Ctrl+Q` ...).
 - **Status of finding b: fixed.** At start the daemon releases (`forceReleaseAll`) Ctrl, arrow
   keys and the left mouse button regardless of its own state, and the unit calls
-  `ExecStopPost=-/usr/local/bin/dofscroll --release-keys` after every stop (also after
-  SIGKILL/crash). What cannot be fixed is the time between kill and restart/StopPost
+  `ExecStopPost=-<bindir>/dofscroll --release-keys` after every stop (also after
+  SIGKILL/crash; shown here for the development install under `/usr/local/bin`; packaged units use
+  the packaged binary path, see [the October 2026 review](security-review-2026-10.md), F1, for
+  the state of that path). What cannot be fixed is the time between kill and restart/StopPost
   (about `RestartSec=1s`).
 - **Finding b (crash/kill under X11):** on `SIGTERM` keys are released, but not on `SIGKILL`
   (e.g. systemd after `TimeoutStopSec`), crash (S2) or Xlib IO error (`quietIOErrorHandler`
@@ -484,7 +491,8 @@ systemd-analyze --user security --offline=yes "$PWD/systemd/dofscroll-tray.servi
 ```
 
 Result (systemd 252): `verify` without messages; exposure score **9.8 UNSAFE -> 2.2 OK** for
-both units.
+both units. Treat the score as indicative only: in offline mode the tool reports "runs as root"
+for user units, so the number does not describe the real exposure.
 
 Since the offline analysis does not check the actual effect (see `PrivateUsers`), the
 `[Service]` hardening lines were additionally applied as **transient** units
@@ -572,7 +580,9 @@ interface (maintainer/admin role) or via its API. For GitHub:
 ## 6. Second audit (2026-10-15) and fixes
 
 Six parallel reviews (window query/X11, config, tray, daemon, systemd/CI/supply chain, tools).
-No high or critical findings; all findings below are **fixed** unless noted otherwise.
+No high or critical findings were reported by this audit, which predates the packaging work and
+the modes feature; the later [October 2026 review](security-review-2026-10.md) found two High
+issues in those areas (F1, F2). All findings below are **fixed** unless noted otherwise.
 
 | Area | Finding | Fix |
 |---|---|---|
@@ -601,7 +611,7 @@ capability is added, and command and path are fixed (no shell call). Checked: fr
 
 **Open or deliberately unchanged:**
 
-- `/dev/uinput` may be `0666` on a system through a legacy udev rule (see
+- `/dev/uinput` may be `0666` on a system through another udev rule (see
   `packaging/README-uinput.md`) - system configuration, not in the repo; check on every machine.
 - **Fixed (2026-10-15):** the tray unit used to write to all of `~/.config` (except `systemd`,
   `autostart`, `environment.d`). The config now lives in `~/.config/dofscroll/` (`0700`); the
@@ -634,7 +644,12 @@ by a file). Assessment and limits:
   cannot send arbitrary key codes. Keys such as Ctrl, Alt or Super are on the list, so a
   malicious mode file (A2/A4: written by the same user or taken over from a stranger) can make
   a device button type shortcuts. Treat mode files like any script you run: only take over mode
-  files you have read. This does not exceed what A2 can do under X11 via XTest anyway.
+  files you have read. For A2 under X11 this adds nothing beyond XTest, but it does for A4 (a
+  file from a stranger has no XTest access) and for the uinput backend. Chords are reachable too:
+  Ctrl is held while a channel zooms, so a `keys:` action on another channel can send Ctrl+W or
+  Ctrl+Q without any Ctrl button (review F2). The daemon warns at load time about
+  modifier-capable bindings, but that is a hint, not a gate. `ENABLED`, `BACKEND` and `TICK_HZ`
+  are rejected in mode files so that a mode cannot switch output off.
 - **Held state:** keys and buttons held by a mode are released on mode change, suspend,
   `ENABLED = 0` and at daemon exit/start (`forceReleaseAll`, `--release-keys`), so a faulty
   mode file cannot leave a key stuck beyond those events.
@@ -643,9 +658,12 @@ by a file). Assessment and limits:
   write access to the configuration folder (its unit allows writes only to the runtime dir);
   the tray's write access is limited to `~/.config/dofscroll` (section 3). Destination paths are
   derived from the fixed configuration directory, not from file content.
-- **Not yet audited in depth:** a dedicated review of the final implementation of `modes/`
-  loading, symlink handling and the sandbox directives for the new directory is part of the
-  planned audit; update this section with its result.
+- **Seeding source:** the destination is fixed, but the *source* directory of the examples can come
+  from `$DOFSCROLL_EXAMPLES` or from the location of the executable (review F12). Running the tray
+  from an unpacked archive or build tree seeds that tree's examples.
+- **Review:** modes loading, symlink handling and the sandbox were reviewed in
+  [security-review-2026-10.md](security-review-2026-10.md); findings that stay open are listed in
+  "Known limitations" below.
 
 ---
 
@@ -664,10 +682,37 @@ The daemon writes two files into `$XDG_RUNTIME_DIR` (private, `0700`, owned by t
   group/other-writable, otherwise nothing is written. Status: temp file with
   `O_CREAT|O_EXCL|O_NOFOLLOW`, `0600`, then `rename`. Log: `O_APPEND|O_NOFOLLOW`, `0600`, type/
   owner check via `fstat`. Write errors are never fatal (status: log once; log: mirroring is
-  switched off) and do not block the tick thread. All foreign values (device name, `WM_CLASS`,
-  profile description) go through `sanitizeForLog` (no line breaks/control characters).
+  switched off) and do not block the tick thread. Three foreign values (device name, `WM_CLASS`,
+  profile description) go through `sanitizeForLog` (no line breaks/control characters). Warnings
+  that quote file content (config and mode parse warnings) are logged without that filter, so a
+  config or mode file can put control characters into the log (review F7).
 - **Trust model:** the tray reads the files and treats their content as foreign data
   (size/permission/owner check, display only as text). Whoever can manipulate the files can
   already act as the user (A2); they contain no secrets except the name of the active program.
 - On a clean exit the daemon removes the status file; the log file stays (tmpfs, gone at logout).
 - `devices_seen` reads `/proc/bus/input/devices` (read access only, no `/sys`).
+
+---
+
+## Known limitations
+
+These findings of the [October 2026 review](security-review-2026-10.md) stay open for 0.1.
+Nothing here is hidden by the rest of this document; the review has the details.
+
+- **Stuck keys after SIGKILL (F4).** Under X11, keys held through XTest (Ctrl while zooming) are not
+  released when the daemon is killed or crashes, and there is no watchdog for a stalled tick thread.
+  `ExecStopPost=--release-keys` covers a stop under systemd; outside systemd, or if Ctrl stays down,
+  run `dofscroll --release-keys` by hand. With the uinput backend the kernel releases the keys.
+- **File permissions (F8).** Neither loader rejects group- or world-writable config or mode files, and
+  the config loader does not compare the owner. Keep `~/.config/dofscroll` private (`0700`).
+- **Runtime directory (F10).** The daemon unit may write the whole of `$XDG_RUNTIME_DIR`
+  (`ReadWritePaths=%t`), although it needs two files there.
+- **Sandbox (F11).** The tray cannot save a config that is a symlink into another directory, and
+  `AF_NETLINK` and the missing `MemoryDenyWriteExecute` in the tray unit were not tightened. The
+  sandbox is an accident-containment measure, not a security boundary.
+- **Seeding source (F12).** Examples are copied from a directory chosen by environment or by the
+  executable's location, not necessarily root-owned.
+- **HID descriptor loader (F13).** `src/hid_descriptor.cpp` is not wired into the daemon yet and has
+  weaker limits than the other loaders; harden it before use.
+- **Runtime files (F14).** Temporary file names in the runtime directory are predictable; exploiting
+  that needs write access to the user's own runtime directory.
