@@ -24,7 +24,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       # install-qt-action is not used here: it pulls in an unpinned actions/setup-python, which the
@@ -123,7 +123,7 @@ jobs:
         run: |
           ls -l dist-installers/*.exe dist-installers/*.zip
           for z in dist-installers/*.zip; do unzip -l "$z" | tail -n 15; done
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: installers-windows
           path: |
@@ -136,7 +136,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: Install Qt6 (aqtinstall, pinned version)
@@ -217,7 +217,7 @@ jobs:
           cp -R "$mnt/." "$RUNNER_TEMP/scan/"
           sh scripts/scan-package-paths.sh "$RUNNER_TEMP/scan" \
             "$GITHUB_WORKSPACE" "_CPack_Packages" "/Users/runner" "/Volumes/dofscroll"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: installers-macos
           path: dist-installers/*.dmg
