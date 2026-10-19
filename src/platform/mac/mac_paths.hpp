@@ -1,0 +1,136 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+// Pure helpers of the macOS daemon (no OS calls, unit-tested on every platform in
+// tests/test_mac_paths.cpp): directory layout, the reload socket path with the sun_path limit,
+// descriptor directory search, the permissions status line and log trimming.
+#pragma once
+
+#include <cstddef>
+#include <functional>
+#include <string>
+#include <vector>
+
+#include "../path_rules.hpp"
+
+namespace spn {
+
+struct MacPaths {
+    std::string configDir;   // ~/Library/Application Support/dofscroll
+    std::string runtimeDir;  // ~/Library/Caches/dofscroll ("" when the home directory is unusable)
+};
+
+// `home` = $HOME (or the passwd entry). A missing or relative home gives a relative configDir (as
+// on Linux) and an empty runtimeDir: without a safe per-user directory no status/log files.
+inline MacPaths macPaths(const std::string &home) {
+    MacPaths p;
+    p.configDir = macConfigBase(home) + "/dofscroll";
+    const std::string rt = macRuntimeBase(home);
+    if (!rt.empty()) p.runtimeDir = rt + "/dofscroll";
+    return p;
+}
+
+// sockaddr_un::sun_path is 104 bytes on macOS including the terminating NUL.
+constexpr size_t kMacSunPathMax = 104;
+
+struct ReloadSocket {
+    std::string path;
+    bool fallback = false;  // true: not inside the runtime dir (see below)
+};
+
+// Path of the reload socket: <runtimeDir>/reload.sock. If that does not fit into sun_path, use
+// <tmpDir>/dofscroll-<uid>/reload.sock instead (tmpDir is a short directory such as "/tmp"); the
+// caller must create that directory 0700 and verify owner and mode before binding or
+// connecting. path is empty if nothing fits.
+inline ReloadSocket reloadSocketPath(const std::string &runtimeDir, unsigned long uid, const std::string &tmpDir) {
+    ReloadSocket r;
+    if (!runtimeDir.empty()) {
+        const std::string p = runtimeDir + "/reload.sock";
+        if (p.size() < kMacSunPathMax) {
+            r.path = p;
+            return r;
+        }
+    }
+    const std::string f = stripTrailingSlashes(tmpDir) + "/dofscroll-" + std::to_string(uid) + "/reload.sock";
+    r.fallback = true;
+    if (!tmpDir.empty() && f.size() < kMacSunPathMax) r.path = f;
+    return r;
+}
+
+// Directory part of a socket path ("/a/b/reload.sock" -> "/a/b").
+inline std::string socketDir(const std::string &socketPath) {
+    const size_t i = socketPath.rfind('/');
+    return i == std::string::npos ? std::string(".") : (i == 0 ? std::string("/") : socketPath.substr(0, i));
+}
+
+// Directories that may hold the devices/*.conf descriptions, in search order: $DOFSCROLL_DEVICES,
+// <exe dir>/devices (build tree and app bundle layout), <exe dir>/../share/dofscroll/devices
+// (installed under a prefix). Empty entries are skipped.
+inline std::vector<std::string> descriptorDirCandidates(const std::string &envDir, const std::string &exeDir) {
+    std::vector<std::string> c;
+    if (!envDir.empty()) c.push_back(toSlashes(envDir));
+    if (!exeDir.empty()) {
+        c.push_back(exeDir + "/devices");
+        c.push_back(exeDir + "/../share/dofscroll/devices");
+    }
+    return c;
+}
+
+// First candidate for which isDir() is true; the first candidate if none exists (so the log
+// names a sensible directory), empty if there are no candidates.
+inline std::string pickDescriptorDir(const std::vector<std::string> &candidates,
+                                     const std::function<bool(const std::string &)> &isDir) {
+    for (const std::string &d : candidates)
+        if (isDir(d)) return d;
+    return candidates.empty() ? std::string() : candidates.front();
+}
+
+// "permissions=ok" or "permissions=missing:accessibility,input_monitoring" (with newline); one
+// line of the status file so the tray can show it instead of failing silently.
+inline std::string permissionsStatusLine(bool accessibility, bool inputMonitoring) {
+    if (accessibility && inputMonitoring) return "permissions=ok\n";
+    std::string s = "permissions=missing:";
+    if (!accessibility) s += "accessibility";
+    if (!inputMonitoring) s += std::string(accessibility ? "" : ",") + "input_monitoring";
+    return s + "\n";
+}
+
+// Human readable log hint for a missing permission (where to grant it).
+inline std::string permissionHint(bool accessibility, bool inputMonitoring) {
+    std::string s;
+    if (!accessibility)
+        s += "Accessibility permission missing: synthetic scroll/key events are blocked. Grant it in System "
+             "Settings > Privacy & Security > Accessibility. ";
+    if (!inputMonitoring)
+        s += "Input Monitoring permission missing: the SpaceMouse cannot be read. Grant it in System "
+             "Settings > Privacy & Security > Input Monitoring. ";
+    if (!s.empty()) s.pop_back();
+    return s;
+}
+
+// Number of '\n' in `text`.
+inline size_t countLines(const std::string &text) {
+    size_t n = 0;
+    for (char c : text)
+        if (c == '\n') ++n;
+    return n;
+}
+
+// Rolling log: keeps the newest `keepLines` complete lines of `text` and at most `maxBytes` bytes
+// (cut at a line start). A trailing partial line is dropped.
+inline std::string trimLogText(const std::string &text, size_t keepLines, size_t maxBytes) {
+    std::vector<size_t> starts;  // start offsets of complete lines
+    size_t pos = 0;
+    while (pos < text.size()) {
+        const size_t nl = text.find('\n', pos);
+        if (nl == std::string::npos) break;
+        starts.push_back(pos);
+        pos = nl + 1;
+    }
+    const size_t end = pos;  // end of the last complete line
+    size_t first = starts.size() > keepLines ? starts.size() - keepLines : 0;
+    while (first < starts.size() && end - starts[first] > maxBytes) ++first;
+    if (first >= starts.size()) return std::string();
+    return text.substr(starts[first], end - starts[first]);
+}
+
+}  // namespace spn
