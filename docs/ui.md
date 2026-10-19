@@ -30,6 +30,18 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Settings | General | Output on/off, global mode, "Start at login", read-only status of the daemon |
 
 This is the first step of the redesign (#52): the pages are unchanged, only their place moved.
+
+## Appearance
+
+Settings > Appearance sets the theme: **System default** (the look of the platform), **Light** or
+**Dark**. A change applies at once and is remembered in `ui.conf` (`theme = system|light|dark`,
+next to the language). Light and Dark use the Fusion style with the dofscroll palette
+(`src/ui/model/theme_colors.hpp`); System restores the style and palette the program started with.
+The palettes keep a contrast of at least 7:1 for normal text and 4.5:1 for everything else
+(hints, disabled text, links, selection), checked by `tests/test_ui_theme.cpp`. The left tabs have
+icons (`src/ui/qt/icons/*.svg`, drawn in black and tinted with the text colour of the current
+palette); spacing follows one scale (`src/ui/model/design_tokens.hpp`). The screenshots of
+`dofscroll-ui --screenshots` show the light theme at three sizes and the dark theme at one.
 `dofscroll-ui --screenshots <dir>` renders every page at three window sizes into PNG files (use
 `QT_QPA_PLATFORM=offscreen` on a machine without a display); CI attaches them to the UI job.
 

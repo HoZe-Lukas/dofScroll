@@ -2015,3 +2015,27 @@ msgstr "Gerät"
 #: src/ui/model/navigation_model.hpp:41
 msgid "Settings"
 msgstr "Einstellungen"
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Appearance"
+msgstr "Darstellung"
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Theme"
+msgstr "Farbschema"
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Light"
+msgstr "Hell"
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Dark"
+msgstr "Dunkel"
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Applies at once and is remembered."
+msgstr "Wird sofort angewendet und gemerkt."
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Could not save the theme: "
+msgstr "Das Farbschema konnte nicht gespeichert werden: "

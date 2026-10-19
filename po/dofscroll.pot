@@ -1846,3 +1846,27 @@ msgstr ""
 #: src/ui/model/navigation_model.hpp:41
 msgid "Settings"
 msgstr ""
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Appearance"
+msgstr ""
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Theme"
+msgstr ""
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Light"
+msgstr ""
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Dark"
+msgstr ""
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Applies at once and is remembered."
+msgstr ""
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Could not save the theme: "
+msgstr ""

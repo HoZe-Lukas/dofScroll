@@ -3,7 +3,9 @@
 #include "main_window.hpp"
 
 #include <QHBoxLayout>
+#include <QEvent>
 #include <QLabel>
+#include <QProxyStyle>
 #include <QStackedWidget>
 #include <QStatusBar>
 #include <QTabBar>
@@ -18,6 +20,8 @@
 #include "pages/profiles_page.hpp"
 #include "platform/fs.hpp"
 #include "ui/model/runtime_files.hpp"
+#include "theme.hpp"
+#include "ui/model/design_tokens.hpp"
 #include "ui_i18n.hpp"
 #include "vertical_tabs.hpp"
 
@@ -25,6 +29,7 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     : QMainWindow(parent), modes_(base.modesDir), ctx_(base) {
     setWindowTitle(QStringLiteral("dofscroll"));
     resize(960, 560);
+    setMinimumSize(spn::ui::tokens::kMinWindowWidth, spn::ui::tokens::kMinWindowHeight);
 
     // Configuration, status and the page context (everything the pages share).
     std::vector<std::string> warnings;
@@ -44,9 +49,8 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     row->setSpacing(0);
     categoryBar_ = new QTabBar(central);
     categoryBar_->setShape(QTabBar::RoundedWest);
-    categoryBar_->setStyle(new WestTabStyle(nullptr));  // horizontal text on the vertical tabs
-    categoryBar_->style()->setParent(categoryBar_);
     categoryBar_->setExpanding(false);
+    categoryBar_->setIconSize(QSize(spn::ui::tokens::kIconSize, spn::ui::tokens::kIconSize));
     categoryBar_->setDrawBase(false);
     categoryBar_->setAccessibleName(T("Categories"));
     categories_ = new QStackedWidget(central);
@@ -86,7 +90,40 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     auto *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, [this] { updateStatus(); });
     timer->start(1000);
+    refreshAppearance();  // the tab style and the icons
     categoryBar_->setCurrentIndex(0);
+}
+
+// The left tabs keep horizontal text through a proxy style on top of the current application style
+// (so it is rebuilt when the theme changes the style), and their icons are drawn in the colour of
+// the current palette.
+void MainWindow::refreshAppearance() {
+    QProxyStyle *style = new WestTabStyle(nullptr);
+    style->setParent(categoryBar_);
+    categoryBar_->setStyle(style);
+    delete tabStyle_;
+    tabStyle_ = style;
+    const QColor color = palette().color(QPalette::ButtonText);
+    for (size_t i = 0; i < nav_.size(); ++i)
+        categoryBar_->setTabIcon(static_cast<int>(i),
+                                 themedIcon(QStringLiteral(":/icons/%1.svg").arg(QString::fromStdString(nav_[i].id)), color,
+                                            spn::ui::tokens::kIconSize));
+}
+
+bool MainWindow::event(QEvent *e) {
+    const bool handled = QMainWindow::event(e);
+    if (e->type() == QEvent::ApplicationPaletteChange && categoryBar_) refreshAppearance();
+    return handled;
+}
+
+QIcon MainWindow::categoryIcon(int index) const {
+    return index >= 0 && index < categoryBar_->count() ? categoryBar_->tabIcon(index) : QIcon();
+}
+
+bool MainWindow::categoryIconsLoaded() const {
+    for (int i = 0; i < categoryBar_->count(); ++i)
+        if (categoryBar_->tabIcon(i).isNull()) return false;
+    return categoryBar_->count() > 0;
 }
 
 // Reads the daemon's status file (bounded, owner checked) into the status model.

@@ -16,6 +16,10 @@ Vertical tabs on the left pick a category, horizontal tabs on top pick the page 
 | Device | Axes | Live bars of the six axes, axis assistant (output pauses while it is open) |
 | Settings | General | Output on/off, global mode, "Start at login", daemon status |
 
+## Appearance
+
+Settings > Appearance: System default, Light or Dark. It applies at once and is remembered (`ui.conf`, `theme = system|light|dark`). Text keeps a contrast of at least 7:1 (4.5:1 for hints, links and the selection) in both themes.
+
 ## Profiles and the program picker
 
 "Add application..." lists the programs that are running now (search by name, match string or window title, refresh) and shows the exact match string that will be stored. "Capture next focused program" takes the program you switch to. Precedence: global < device < mode overrides < application, see [Profiles](Profiles).

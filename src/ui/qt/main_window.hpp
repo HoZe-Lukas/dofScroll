@@ -6,6 +6,7 @@
 // with the daemon state. The window owns the shared models (settings, status, modes) and completes
 // the UiContext it gets from main() with them.
 #pragma once
+#include <QIcon>
 #include <QMainWindow>
 #include <QString>
 #include <vector>
@@ -17,7 +18,9 @@
 #include "ui/model/status_model.hpp"
 #include "ui_context.hpp"
 
+class QEvent;
 class QLabel;
+class QProxyStyle;
 class QStackedWidget;
 class QTabBar;
 class QWidget;
@@ -34,11 +37,18 @@ public:
     bool showPage(const QString &pageId);
     // Page ids in navigation order (category by category).
     std::vector<std::string> pageIds() const;
+    // True if every left tab has an icon (false without the SVG module).
+    bool categoryIconsLoaded() const;
+    QIcon categoryIcon(int index) const;  // the icon of a left tab (null if there is none)
     int profileCount() const;                 // profiles listed on the Profiles page
     bool profilePageHasModeSelector() const;  // false for the default mode
 
+protected:
+    bool event(QEvent *e) override;  // a palette change redraws the icons and the tab style
+
 private:
     void updateStatus();
+    void refreshAppearance();  // tab icons in the colour of the palette, tab style on top of the current style
 
     // Declared before ctx_ and the widgets: the pages reference them.
     spn::ui::SettingsModel settings_;
@@ -48,6 +58,7 @@ private:
     UiContext ctx_;
     std::vector<spn::ui::NavCategory> nav_;
     QTabBar *categoryBar_ = nullptr;
+    QProxyStyle *tabStyle_ = nullptr;
     QStackedWidget *categories_ = nullptr;
     QLabel *statusLabel_ = nullptr;
     QWidget *profilesPage_ = nullptr;  // the "Profiles" page from the registry

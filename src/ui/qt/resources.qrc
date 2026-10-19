@@ -1,5 +1,9 @@
 <RCC>
   <qresource prefix="/">
     <file alias="dofscroll-tray.svg">../../../icons/dofscroll-tray.svg</file>
+    <file alias="icons/profiles.svg">icons/profiles.svg</file>
+    <file alias="icons/modes.svg">icons/modes.svg</file>
+    <file alias="icons/device.svg">icons/device.svg</file>
+    <file alias="icons/settings.svg">icons/settings.svg</file>
   </qresource>
 </RCC>

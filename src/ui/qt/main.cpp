@@ -18,10 +18,12 @@
 #include "pages/axes_page.hpp"
 #include "pages/modes_page.hpp"
 #include "qt_action_runner.hpp"
+#include "theme.hpp"
 #include "tray.hpp"
 #include "ui/model/first_start.hpp"
 #include "ui/model/instance_paths.hpp"
 #include "ui/model/restart_plan.hpp"
+#include "ui/model/theme_colors.hpp"
 #include "ui/model/ui_settings.hpp"
 #include "ui_context.hpp"
 
@@ -34,6 +36,46 @@ static void printUsage() {
                 "  --self-test  headless self-test with temporary directories\n"
                 "  --screenshots <dir>  render every page at three sizes into PNG files, then exit\n"
                 "  --restart    wait for a running instance to exit, then start (used by the tray)\n");
+}
+
+// Themes: Dark and Light change the palette of the application, the left tab icons follow it, and
+// "System" brings the original palette back. Without the SVG module the icons are skipped.
+static bool themeSelfTest(MainWindow &w) {
+    const QPalette original = QApplication::palette();
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "theme self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    // does the icon of the first tab contain the colour of the palette's button text?
+    auto iconHasColor = [&w](const QColor &c) {
+        const QImage img = w.categoryIcon(0).pixmap(20, 20).toImage();
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x) {
+                const QColor p = img.pixelColor(x, y);
+                if (p.alpha() > 200 && p.red() == c.red() && p.green() == c.green() && p.blue() == c.blue()) return true;
+            }
+        return false;
+    };
+    for (spn::ui::Theme t : {spn::ui::Theme::Dark, spn::ui::Theme::Light}) {
+        spn::ui::ThemeColors colors;
+        check(spn::ui::themeColors(t, &colors), "colours of a forced theme");
+        applyTheme(t);
+        QApplication::processEvents();
+        const QColor win = QApplication::palette().color(QPalette::Window);
+        check(win == QColor(colors.window.r, colors.window.g, colors.window.b), "palette window colour");
+#ifdef QT_SVG_LIB
+        check(w.categoryIconsLoaded(), "left tab icons");
+        check(iconHasColor(QColor(colors.buttonText.r, colors.buttonText.g, colors.buttonText.b)),
+              "tab icons use the text colour of the theme");
+#endif
+        check(!w.grab().isNull(), "window renders");
+    }
+    applyTheme(spn::ui::Theme::System);
+    QApplication::processEvents();
+    check(QApplication::palette().color(QPalette::Window) == original.color(QPalette::Window), "System restores the palette");
+    std::printf("theme self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
 }
 
 int main(int argc, char **argv) {
@@ -86,15 +128,19 @@ int main(int argc, char **argv) {
         QDir().mkpath(QString::fromUtf8(screenshotDir));
         MainWindow w(ctx);
         w.show();
-        static const struct { const char *name; int w, h; } sizes[] = {{"small", 720, 460}, {"medium", 960, 560}, {"wide", 1500, 820}};
+        // Light at three sizes, dark at the medium size (the layout does not depend on the colours).
+        static const struct { const char *theme; const char *name; int w, h; } shots[] = {
+            {"light", "small", 720, 460}, {"light", "medium", 960, 560}, {"light", "wide", 1500, 820}, {"dark", "medium", 960, 560}};
         int written = 0;
-        for (const auto &sz : sizes) {
+        for (const auto &sz : shots) {
+            applyTheme(spn::ui::themeFromId(sz.theme));
             w.resize(sz.w, sz.h);
             for (const std::string &id : w.pageIds()) {
                 w.showPage(QString::fromStdString(id));
                 QApplication::processEvents();
-                const QString file = QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-%2.png")
-                                         .arg(QString::fromLatin1(sz.name), QString::fromStdString(id));
+                const QString file = QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-%2-%3.png")
+                                         .arg(QString::fromLatin1(sz.theme), QString::fromLatin1(sz.name),
+                                              QString::fromStdString(id));
                 if (!w.grab().save(file)) return 1;
                 ++written;
             }
@@ -131,6 +177,7 @@ int main(int argc, char **argv) {
         const bool ok = w.pageCount() == 5 && w.categoryCount() == 4 && w.profileCount() >= 0 && !w.profilePageHasModeSelector() && modes.modeCount() == 4 &&
                         tray.modeMenuCount() == 4 && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
+        if (!themeSelfTest(w)) return 1;
         return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen
     }
 
@@ -161,6 +208,9 @@ int main(int argc, char **argv) {
 
     // First start, as the GTK tray does (src/ui/model/first_start.hpp).
     std::fputs(spn::ui::runFirstStart().text("dofscroll-ui").c_str(), stderr);
+
+    // The theme of the user (before any window exists, so the whole interface starts in it).
+    applyTheme(spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).theme);
 
     MainWindow window(ctx);
     window.setWindowIcon(icon);

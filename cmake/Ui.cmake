@@ -30,6 +30,8 @@ if(DOFSCROLL_UI)
     src/ui/qt/main_window.cpp
     src/ui/qt/main_window.hpp
     src/ui/qt/vertical_tabs.hpp
+    src/ui/qt/theme.cpp
+    src/ui/qt/theme.hpp
     src/ui/qt/tray.cpp
     src/ui/qt/tray.hpp
     src/ui/qt/ui_i18n.hpp

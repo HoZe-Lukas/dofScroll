@@ -17,6 +17,7 @@
 #include <QVBoxLayout>
 
 #include "platform/autostart_platform.hpp"
+#include "theme.hpp"
 #include "ui/model/general_page_model.hpp"
 #include "ui/model/ui_settings.hpp"
 #include "ui_i18n.hpp"
@@ -69,6 +70,22 @@ public:
         lg->addWidget(languageMsg_);
         QObject::connect(language_, QOverload<int>::of(&QComboBox::activated), this, [this](int) { onLanguage(); });
         col->addWidget(langBox);
+
+        // ---- appearance ----
+        auto *themeBox = new QGroupBox(T("Appearance"));
+        auto *tg = new QVBoxLayout(themeBox);
+        theme_ = new QComboBox;
+        theme_->addItem(T("System default"), int(Theme::System));
+        theme_->addItem(T("Light"), int(Theme::Light));
+        theme_->addItem(T("Dark"), int(Theme::Dark));
+        theme_->setAccessibleName(T("Theme"));
+        theme_->setCurrentIndex(theme_->findData(int(loadUiSettings(uiSettingsPath()).theme)));
+        tg->addWidget(theme_);
+        themeMsg_ = makeNote();
+        themeMsg_->setText(T("Applies at once and is remembered."));
+        tg->addWidget(themeMsg_);
+        QObject::connect(theme_, QOverload<int>::of(&QComboBox::activated), this, [this](int) { onTheme(); });
+        col->addWidget(themeBox);
 
         // ---- status ----
         auto *statusBox = new QGroupBox(T("Status"));
@@ -178,11 +195,23 @@ private:
         autostartMsg_->setForegroundRole(v.isError || !r.setOk ? QPalette::WindowText : QPalette::PlaceholderText);
     }
 
-    void onLanguage() {
-        UiSettings s;
-        s.language = Language(language_->currentData().toInt());
+    void onTheme() {
+        const Theme theme = Theme(theme_->currentData().toInt());
+        applyTheme(theme);
         std::string err;
-        if (saveUiSettings(uiSettingsPath(), s, &err)) {
+        if (updateUiSettings(uiSettingsPath(), [theme](UiSettings &s) { s.theme = theme; }, &err)) {
+            themeMsg_->setText(T("Applies at once and is remembered."));
+            themeMsg_->setForegroundRole(QPalette::PlaceholderText);
+        } else {
+            themeMsg_->setText(T("Could not save the theme: ") + qs8(err));
+            themeMsg_->setForegroundRole(QPalette::WindowText);
+        }
+    }
+
+    void onLanguage() {
+        const Language language = Language(language_->currentData().toInt());
+        std::string err;
+        if (updateUiSettings(uiSettingsPath(), [language](UiSettings &s) { s.language = language; }, &err)) {
             languageMsg_->setText(T("Takes effect the next time dofscroll-ui is started."));
             languageMsg_->setForegroundRole(QPalette::PlaceholderText);
         } else {
@@ -194,6 +223,8 @@ private:
     UiContext ctx_;
     QCheckBox *autostart_ = nullptr;
     QLabel *autostartMsg_ = nullptr;
+    QComboBox *theme_ = nullptr;
+    QLabel *themeMsg_ = nullptr;
     QComboBox *language_ = nullptr;
     QLabel *languageMsg_ = nullptr;
     QLabel *statusLabel_ = nullptr;
