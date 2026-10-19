@@ -6,13 +6,19 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QListWidget>
 #include <QPushButton>
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QTreeWidget>
 #include <QVBoxLayout>
 
+#include <QTimer>
+#include <ctime>
+
+#include "common.hpp"
+#include "config.hpp"
+#include "pages/page_registry.hpp"
+#include "platform/fs.hpp"
 #include "ui_i18n.hpp"
 
 namespace {
@@ -29,13 +35,25 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     stack_ = new QStackedWidget(split);
     split->setStretchFactor(1, 1);
 
-    // Mode-independent pages: always available as their own entries.
-    const QStringList pages = {T("Channels"), T("Modes"), T("General"), T("Axes / assistant")};
-    for (const QString &name : pages) {
-        auto *it = new QTreeWidgetItem(nav_, QStringList(name));
+    // Configuration, status and the page context (everything the pages share).
+    std::vector<std::string> warnings;
+    std::string err;
+    const std::string cfg = spn::defaultConfigPath();
+    if (!settings_.load(cfg, &warnings, &err)) settings_.setProfiles(spn::ProfileSet(), cfg);
+    settings_.setReloadCallback([this](std::string *e) { return runner_.requestReload(e); });
+    ctx_.reset(new PageContext{settings_, runner_, status_, strings_, QString::fromStdString(cfg)});
+    updateStatus();
+    auto *timer = new QTimer(this);
+    connect(timer, &QTimer::timeout, this, [this] { updateStatus(); });
+    timer->start(1000);
+
+    // Mode-independent pages from the registry: always available as their own entries.
+    int n = 0;
+    const PageInfo *pages = pageRegistry(&n);
+    for (int i = 0; i < n; ++i) {
+        auto *it = new QTreeWidgetItem(nav_, QStringList(T(pages[i].title)));
         it->setData(0, kRoleKind, 0);
-        QWidget *w = (name == T("Modes")) ? modesPage() : placeholder(name);
-        it->setData(0, kRoleStackIndex, stack_->addWidget(w));
+        it->setData(0, kRoleStackIndex, stack_->addWidget(pages[i].create(*ctx_)));
     }
     // Profiles group: only what depends on the profile's mode lives below it.
     auto *group = new QTreeWidgetItem(nav_, QStringList(T("Profiles")));
@@ -61,37 +79,18 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     nav_->setCurrentItem(nav_->topLevelItem(0));
 }
 
-QWidget *MainWindow::placeholder(const QString &title) {
-    auto *w = new QWidget;
-    auto *l = new QVBoxLayout(w);
-    l->addWidget(new QLabel(QStringLiteral("<b>") + title + QStringLiteral("</b>")));
-    auto *todo = new QLabel(T("not implemented yet"));
-    todo->setAlignment(Qt::AlignCenter);
-    l->addWidget(todo, 1);
-    return w;
-}
-
-// Thin placeholder: the list and the actions will be driven by the ModeCatalog model.
-QWidget *MainWindow::modesPage() {
-    auto *w = new QWidget;
-    auto *l = new QVBoxLayout(w);
-    l->addWidget(new QLabel(QStringLiteral("<b>") + T("Modes") + QStringLiteral("</b>")));
-    auto *hint = new QLabel(T("Mode files can press any key. Only use mode files from trusted "
-                              "sources."));
-    hint->setWordWrap(true);
-    l->addWidget(hint);
-    auto *row = new QHBoxLayout;
-    auto *list = new QListWidget(w);  // built-in and file modes, warnings per mode
-    list->addItem(T("not implemented yet"));
-    row->addWidget(list, 1);
-    auto *buttons = new QVBoxLayout;
-    for (const QString &b : {T("New mode"), T("Duplicate"), T("Import file..."), T("Edit"),
-                             T("Delete"), T("Open modes folder")})
-        buttons->addWidget(new QPushButton(b, w));
-    buttons->addStretch(1);
-    row->addLayout(buttons);
-    l->addLayout(row, 1);
-    return w;
+// Reads the daemon's status file (bounded, owner checked) into the status model.
+void MainWindow::updateStatus() {
+    const std::string path = spn::statusFilePath();
+    std::string text;
+    bool ok = false;
+    if (!path.empty()) {
+        spn::fs::ReadOptions opt;
+        opt.refuseLinks = true;
+        opt.requireOwner = true;
+        ok = spn::fs::readFileBounded(path, spn::kStatusMaxBytes, opt, &text).ok();
+    }
+    status_.update(text, ok, static_cast<int64_t>(std::time(nullptr)));
 }
 
 void MainWindow::onSelectionChanged() {
