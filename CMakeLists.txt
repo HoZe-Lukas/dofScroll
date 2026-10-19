@@ -93,7 +93,8 @@ pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11 xtst)
 find_library(SPNAV_LIB spnav REQUIRED)
 find_path(SPNAV_INCLUDE spnav.h REQUIRED)
 
-add_executable(dofscroll src/dofscroll.cpp ${BACKEND_SRC})
+file(GLOB LINUX_SRC CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/platform/linux/*.cpp)
+add_executable(dofscroll src/dofscroll.cpp ${BACKEND_SRC} ${LINUX_SRC})
 target_include_directories(dofscroll PRIVATE ${SPNAV_INCLUDE})
 target_link_libraries(dofscroll PRIVATE dofscroll_core PkgConfig::X11 ${SPNAV_LIB})
 
