@@ -363,17 +363,17 @@ static void testModeRequestSecurity() {
 }
 
 static void testCheckedRuntimeFile() {
-    assert(checkedRuntimeFile("/run/user/1000", RuntimeFile::Log) == "/run/user/1000/dofscroll.log");
-    assert(checkedRuntimeFile("/run/user/1000", RuntimeFile::Status) == "/run/user/1000/dofscroll-status");
-    assert(checkedRuntimeFile("/run/user/1000", RuntimeFile::Suspend) == "/run/user/1000/dofscroll-suspend");
+    assert(checkedRuntimeFile("/run/user/1000", RuntimeFile::LogFile) == "/run/user/1000/dofscroll.log");
+    assert(checkedRuntimeFile("/run/user/1000", RuntimeFile::StatusFile) == "/run/user/1000/dofscroll-status");
+    assert(checkedRuntimeFile("/run/user/1000", RuntimeFile::SuspendFile) == "/run/user/1000/dofscroll-suspend");
     for (const char *bad : {"", "/", "run/user", "./run", "/run/../etc", "/run/./x", "/run//x", "/run/x/", "/..",
                             "/run/x/.."})
-        assert(checkedRuntimeFile(bad, RuntimeFile::Log).empty());
-    assert(checkedRuntimeFile(std::string("/run/a\0b", 8), RuntimeFile::Log).empty());
-    assert(checkedRuntimeFile("/run/a\nb", RuntimeFile::Log).empty());
-    assert(checkedRuntimeFile("/" + std::string(2000, 'a'), RuntimeFile::Log).empty());
+        assert(checkedRuntimeFile(bad, RuntimeFile::LogFile).empty());
+    assert(checkedRuntimeFile(std::string("/run/a\0b", 8), RuntimeFile::LogFile).empty());
+    assert(checkedRuntimeFile("/run/a\nb", RuntimeFile::LogFile).empty());
+    assert(checkedRuntimeFile("/" + std::string(2000, 'a'), RuntimeFile::LogFile).empty());
     // the file component never contains a separator or a dot-dot
-    for (RuntimeFile f : {RuntimeFile::Log, RuntimeFile::Status, RuntimeFile::Suspend}) {
+    for (RuntimeFile f : {RuntimeFile::LogFile, RuntimeFile::StatusFile, RuntimeFile::SuspendFile}) {
         const std::string n = runtimeFileName(f);
         assert(n.find('/') == std::string::npos && n.find("..") == std::string::npos && n.rfind("dofscroll", 0) == 0);
     }

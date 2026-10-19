@@ -11,13 +11,13 @@
 
 namespace spn {
 
-enum class RuntimeFile { Log, Status, Suspend };
+enum class RuntimeFile { LogFile, StatusFile, SuspendFile };
 
 inline const char *runtimeFileName(RuntimeFile f) {
     switch (f) {
-        case RuntimeFile::Log: return "dofscroll.log";
-        case RuntimeFile::Status: return "dofscroll-status";
-        case RuntimeFile::Suspend: return "dofscroll-suspend";
+        case RuntimeFile::LogFile: return "dofscroll.log";
+        case RuntimeFile::StatusFile: return "dofscroll-status";
+        case RuntimeFile::SuspendFile: return "dofscroll-suspend";
     }
     return "";
 }
