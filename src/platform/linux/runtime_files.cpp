@@ -33,7 +33,7 @@ bool runtimeDirTrusted(const std::string &dir) {
 // to group/others; the runtime dir itself must belong to the effective user and must
 // not be group/other-writable (checked once) - otherwise the mechanism is ignored.
 SuspendProbe::SuspendProbe(const std::string &dir)
-    : path_(dir.empty() ? std::string() : dir + "/dofscroll-suspend"), dir_ok_(runtimeDirTrusted(dir)) {}
+    : path_(dir.empty() ? std::string() : suspendFilePathIn(dir)), dir_ok_(runtimeDirTrusted(dir)) {}
 
 bool SuspendProbe::operator()() const {
     if (path_.empty() || !dir_ok_) return false;
@@ -61,7 +61,7 @@ class TeeLogBuf : public std::streambuf {
 public:
     TeeLogBuf(std::streambuf *orig, const std::string &dir, size_t max_lines, size_t keep_lines)
         : orig_(orig), max_lines_(max_lines), keep_lines_(keep_lines) {
-        const std::string path = runtimeFilePath(dir, "dofscroll.log");
+        const std::string path = logFilePathIn(dir);
         if (path.empty() || !runtimeDirTrusted(dir)) return;
         int fd = ::open(path.c_str(), O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK, 0600);
         if (fd < 0) return;
@@ -227,7 +227,7 @@ std::streambuf *makeTeeLogBuf(std::streambuf *orig, const std::string &dir, bool
 // directory (O_EXCL|O_NOFOLLOW, 0600) + rename. Errors are never fatal, logged once.
 // Without a trusted runtime directory nothing happens.
 StatusWriter::StatusWriter(const std::string &dir)
-    : path_(runtimeDirTrusted(dir) ? runtimeFilePath(dir, "dofscroll-status") : std::string()) {}
+    : path_(runtimeDirTrusted(dir) ? statusFilePathIn(dir) : std::string()) {}
 
 void StatusWriter::update(const std::string &body, int64_t now_ns) {
     if (path_.empty()) return;

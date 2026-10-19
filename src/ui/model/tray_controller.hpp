@@ -26,6 +26,7 @@
 #include "platform/fs.hpp"
 #include "ui/model/action_runner.hpp"
 #include "ui/model/mode_catalog.hpp"
+#include "ui/model/runtime_files.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/status_model.hpp"
 #include "ui/model/tray_menu_model.hpp"
@@ -66,7 +67,7 @@ public:
         h.setMode = [this](const std::string &id) { requestMode(id); };
         h.setEnabled = [this](bool on) { setEnabled(on); };
         h.showLog = [this] {
-            const std::string p = runtimeFilePath(paths_.runtimeDir, "dofscroll.log");
+            const std::string p = logFilePathIn(paths_.runtimeDir);
             if (p.empty()) error_ = s_.tr("No log file: the runtime directory is not available");
             else if (!runner_.openPath(p, &error_) && error_.empty()) error_ = "cannot open the log file";
         };
@@ -81,11 +82,7 @@ public:
 private:
     bool refresh(int64_t now, bool first) {
         std::string content;
-        fs::ReadOptions opt;
-        opt.refuseLinks = true;
-        opt.requireOwner = true;
-        const std::string sp = runtimeFilePath(paths_.runtimeDir, "dofscroll-status");
-        const bool readable = !sp.empty() && fs::readFileBounded(sp, kStatusMaxBytes, opt, &content).ok();
+        const bool readable = readStatusFile(paths_.runtimeDir, &content);
         status_.update(content, readable, now);
         catalog_.refreshIfChanged();
         loadConfigIfChanged();

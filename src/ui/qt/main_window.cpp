@@ -20,6 +20,7 @@
 #include "pages/page_registry.hpp"
 #include "pages/profiles_page.hpp"
 #include "platform/fs.hpp"
+#include "ui/model/runtime_files.hpp"
 #include "ui_i18n.hpp"
 
 namespace {
@@ -67,15 +68,8 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
 
 // Reads the daemon's status file (bounded, owner checked) into the status model.
 void MainWindow::updateStatus() {
-    const std::string path = spn::statusFilePath();
     std::string text;
-    bool ok = false;
-    if (!path.empty()) {
-        spn::fs::ReadOptions opt;
-        opt.refuseLinks = true;
-        opt.requireOwner = true;
-        ok = spn::fs::readFileBounded(path, spn::kStatusMaxBytes, opt, &text).ok();
-    }
+    const bool ok = spn::ui::readStatusFile(ctx_.runtimeDir, &text);  // the daemon's directory on every OS
     status_.update(text, ok, static_cast<int64_t>(std::time(nullptr)));
 }
 

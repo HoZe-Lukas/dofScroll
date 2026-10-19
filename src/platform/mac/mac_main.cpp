@@ -115,7 +115,7 @@ public:
           maxLines_(debug ? kLogMaxLinesDebug : kLogMaxLines),
           keepLines_(debug ? kLogKeepLinesDebug : kLogKeepLines) {
         if (!prepareRuntimeDir(dir)) return;
-        path_ = dir + "/dofscroll.log";
+        path_ = logFilePathIn(dir);
         if (!openAppend()) return;
         struct stat st;
         if (::fstat(fd_, &st) != 0 || !S_ISREG(st.st_mode) || st.st_uid != ::geteuid() || (st.st_mode & 077) != 0) {
@@ -228,7 +228,7 @@ private:
 class StatusWriter {
 public:
     StatusWriter(const std::string &dir, std::string permissionsLine)
-        : path_(prepareRuntimeDir(dir) ? dir + "/dofscroll-status" : std::string()), perm_(std::move(permissionsLine)) {}
+        : path_(prepareRuntimeDir(dir) ? statusFilePathIn(dir) : std::string()), perm_(std::move(permissionsLine)) {}
 
     // Called from the permission watcher thread: the next update() rewrites the file.
     void setPermissions(std::string line) {

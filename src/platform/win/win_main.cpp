@@ -128,7 +128,7 @@ public:
         if (dir.empty()) return;
         std::string err;
         if (!fs::mkdirsPrivate(dir, &err)) return;
-        path_ = dir + "/dofscroll.log";
+        path_ = logFilePathIn(dir);
         std::string existing;
         const fs::ReadResult rr = fs::readFileBounded(path_, kLogMaxBytes * 2, fs::ReadOptions(), &existing);
         if (rr.ok()) {
@@ -355,7 +355,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     ActiveWindowProvider *win_p = makeActiveWindowProvider().release();
     ReloadListener *reload_p = makeReloadListener().release();
     StatusThrottle *throttle = new StatusThrottle();
-    const std::string statusPath = paths.runtimeDir.empty() ? std::string() : paths.runtimeDir + "/dofscroll-status";
+    const std::string statusPath = statusFilePathIn(paths.runtimeDir);
 
     DaemonDeps deps;
     deps.input = input_p;
