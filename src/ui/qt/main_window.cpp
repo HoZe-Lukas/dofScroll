@@ -13,6 +13,7 @@
 #include <QTreeWidget>
 #include <QVBoxLayout>
 
+#include "pages/page_registry.hpp"
 #include "ui_i18n.hpp"
 
 namespace {
@@ -20,7 +21,7 @@ enum { kRoleKind = Qt::UserRole };  // 0 = page entry, 1 = profile entry, 2 = gr
 enum { kRoleStackIndex = Qt::UserRole + 1, kRoleDefault = Qt::UserRole + 2 };
 }  // namespace
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
+MainWindow::MainWindow(const UiContext &ctx, QWidget *parent) : QMainWindow(parent), ctx_(ctx) {
     setWindowTitle(QStringLiteral("dofscroll"));
     resize(900, 520);
     auto *split = new QSplitter(this);
@@ -34,7 +35,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     for (const QString &name : pages) {
         auto *it = new QTreeWidgetItem(nav_, QStringList(name));
         it->setData(0, kRoleKind, 0);
-        QWidget *w = (name == T("Modes")) ? modesPage() : placeholder(name);
+        QWidget *w = nullptr;
+        for (const PageFactory &f : pageFactories())  // registered pages, else a placeholder
+            if (name == T(f.title)) w = f.create(ctx_);
+        if (!w) w = placeholder(name);
         it->setData(0, kRoleStackIndex, stack_->addWidget(w));
     }
     // Profiles group: only what depends on the profile's mode lives below it.
@@ -71,27 +75,11 @@ QWidget *MainWindow::placeholder(const QString &title) {
     return w;
 }
 
-// Thin placeholder: the list and the actions will be driven by the ModeCatalog model.
-QWidget *MainWindow::modesPage() {
-    auto *w = new QWidget;
-    auto *l = new QVBoxLayout(w);
-    l->addWidget(new QLabel(QStringLiteral("<b>") + T("Modes") + QStringLiteral("</b>")));
-    auto *hint = new QLabel(T("Mode files can press any key. Only use mode files from trusted "
-                              "sources."));
-    hint->setWordWrap(true);
-    l->addWidget(hint);
-    auto *row = new QHBoxLayout;
-    auto *list = new QListWidget(w);  // built-in and file modes, warnings per mode
-    list->addItem(T("not implemented yet"));
-    row->addWidget(list, 1);
-    auto *buttons = new QVBoxLayout;
-    for (const QString &b : {T("New mode"), T("Duplicate"), T("Import file..."), T("Edit"),
-                             T("Delete"), T("Open modes folder")})
-        buttons->addWidget(new QPushButton(b, w));
-    buttons->addStretch(1);
-    row->addLayout(buttons);
-    l->addLayout(row, 1);
-    return w;
+void MainWindow::bringToFront() {
+    show();
+    setWindowState((windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
+    raise();
+    activateWindow();
 }
 
 void MainWindow::onSelectionChanged() {

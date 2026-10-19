@@ -66,6 +66,9 @@ jobs:
       - name: shellcheck (scripts)
         run: shellcheck --severity=warning --external-sources scripts/*.sh scripts/pre-commit
 
+      - name: English-only check (translations in po/ are the only exception)
+        run: sh scripts/check-english.sh
+
       - name: SPDX headers
         run: sh scripts/check-spdx.sh
 

@@ -75,6 +75,12 @@ table in `src/device_db.cpp`). The count is not the one `spacenavd` reports.
 | `mode:<id>` | Switches to mode `<id>` when the button is pressed. |
 | `mode:next` | Switches to the next loaded mode in alphabetical order of id, built-ins included, wrapping around. |
 
+The tray's "Mode" submenu uses the same runtime switch and never writes `MODE` into `[global]`:
+it writes the mode id into `dofscroll-mode-request` in the runtime directory (user-only, one line,
+valid id only) and asks the daemon to reload; the daemon applies it after re-reading config and
+modes, then deletes the file. Like a button switch it lasts until the next reload, a restart or
+another switch (so toggling "Enabled" or saving the config drops it).
+
 A binding in the active mode for a button wins over a `BUTTON_<n>` binding in the main config for
 the same button.
 
