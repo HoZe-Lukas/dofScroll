@@ -84,15 +84,15 @@ any other distribution is untested.
 
 | Distribution | Package | Smoke test |
 |---|---|---|
-| Rocky Linux 9 (with EPEL) | RPM | covered, build distribution |
-| Debian 12 | DEB | covered, build distribution |
-| Rocky Linux 10 | RPM | covered, informational (result may be a failure) |
-| Fedora 42 | RPM | covered, informational |
-| Debian 13 | DEB | covered, informational |
-| Ubuntu 24.04 | DEB | covered, informational |
+| Rocky Linux 9 (with EPEL) | RPM | covered, build distribution; installs and starts (2026-10-19) |
+| Debian 12 | DEB | covered, build distribution; installs and starts (2026-10-19) |
+| Rocky Linux 10 | RPM | covered, informational; **does not install**: `spacenavd` is not available in its repositories (2026-10-19) |
+| Fedora 42 | RPM | covered, informational; installs and starts (2026-10-19) |
+| Debian 13 | DEB | covered, informational; installs and starts (2026-10-19) |
+| Ubuntu 24.04 | DEB | covered, informational; installs and starts (2026-10-19) |
 | everything else (Alma, openSUSE, Arch, older releases, ...) | | untested |
 
-"Informational" entries report their result in the job summary of the `linux-smoke` run but never
+"Installs and starts" means the smoke test installed the package in a fresh container and ran `dofscroll --version`; it says nothing about a real desktop or device. "Informational" entries report their result in the job summary of the `linux-smoke` run but never
 block a release; a failure there (for example a missing `spacenavd` in that release's
 repositories) means the package does not install there without extra steps. Check the latest run
 of `linux-packages-dry-run` for the current result before relying on one of them.
