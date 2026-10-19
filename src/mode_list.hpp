@@ -162,6 +162,12 @@ inline std::string modeFilePath(const std::string &dir, const std::string &id) {
     return dir + "/" + id + ".conf";
 }
 
+inline std::string chordText(Key key, const ChordMods &mods) {
+    std::string t;
+    for (uint8_t i = 0; i < mods.n; ++i) t += std::string(keyName(mods.k[i])) + "+";
+    return t + keyName(key);
+}
+
 inline std::string channelActionText(const ChannelAction &a) {
     switch (a.type) {
         case ChannelActionType::Default: return "default";
@@ -169,7 +175,7 @@ inline std::string channelActionText(const ChannelAction &a) {
         case ChannelActionType::WheelV: return "wheel_v";
         case ChannelActionType::WheelH: return "wheel_h";
         case ChannelActionType::Zoom: return "zoom";
-        case ChannelActionType::Keys: return std::string("keys:") + keyName(a.neg) + "," + keyName(a.pos);
+        case ChannelActionType::Keys: return "keys:" + chordText(a.neg, a.negMods) + "," + chordText(a.pos, a.posMods);
     }
     return "default";
 }
@@ -197,7 +203,7 @@ inline std::string modeTemplate(const ModeDef &m) {
     std::string t;
     t += "# Mode \"" + m.id + "\" - editable copy. Save the file; the daemon reloads it by itself.\n";
     t += "# A file of the same name replaces the built-in mode. Documentation: docs/modes.md\n";
-    t += "# Channel actions: default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos>\n";
+    t += "# Channel actions: default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos> (keys may be chords: ctrl+pageup)\n";
     t += "# Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next |\n";
     t += "#                 toggle:nav | toggle:mode:<id>\n";
     t += "# Buttons are numbered from 1: BUTTON_1 = key:space\n\n";

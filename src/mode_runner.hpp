@@ -114,6 +114,7 @@ private:
     void syncKeys(const std::bitset<kKeyCount> &want);
     void resetState();
     void tapKeys(Key neg, Key pos, int n);
+    void tapChord(Key key, const ChordMods &mods);
     void tickLegacy(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh, double dt);
     void tickCustom(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh, double dt);
 };

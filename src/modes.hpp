@@ -52,6 +52,8 @@
 #pragma once
 #include <map>
 #include <string>
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -59,12 +61,30 @@
 
 namespace spn {
 
+// Modifiers of a key chord (keys:ctrl+pageup,...), in the order written; at most kMaxChordMods.
+constexpr size_t kMaxChordMods = 4;
+struct ChordMods {
+    Key k[kMaxChordMods] = {Key::Ctrl, Key::Ctrl, Key::Ctrl, Key::Ctrl};
+    uint8_t n = 0;
+    // Order does not matter for equality: one bit per modifier key.
+    unsigned mask() const {
+        unsigned m = 0;
+        for (uint8_t i = 0; i < n; ++i)
+            m |= k[i] == Key::Ctrl ? 1u : k[i] == Key::Shift ? 2u : k[i] == Key::Alt ? 4u : 8u;
+        return m;
+    }
+    bool operator==(const ChordMods &o) const { return mask() == o.mask(); }
+};
+
 enum class ChannelActionType { Default, Off, WheelV, WheelH, Zoom, Keys };
 struct ChannelAction {
     ChannelActionType type = ChannelActionType::Default;
-    Key neg = Key::Up, pos = Key::Down;  // only for Keys
+    Key neg = Key::Up, pos = Key::Down;  // only for Keys: the key of the chord
+    ChordMods negMods = ChordMods(), posMods = ChordMods();         // only for Keys: modifiers held while the key is tapped
     bool operator==(const ChannelAction &o) const {
-        return type == o.type && (type != ChannelActionType::Keys || (neg == o.neg && pos == o.pos));
+        return type == o.type &&
+               (type != ChannelActionType::Keys ||
+                (neg == o.neg && pos == o.pos && negMods == o.negMods && posMods == o.posMods));
     }
 };
 

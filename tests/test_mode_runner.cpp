@@ -116,6 +116,76 @@ static void testLegacyNavAndClick() {
     CHECK(o2.count("tap:down") > 0 && o2.wv == 0, "nav binding");
 }
 
+static void testChordChannels() {
+    Settings s;
+    auto chord = [](Key neg, Key pos, std::initializer_list<Key> mods) {
+        ChannelAction a = act(ChannelActionType::Keys, neg, pos);
+        for (Key k : mods) {
+            a.negMods.k[a.negMods.n++] = k;
+            a.posMods.k[a.posMods.n++] = k;
+        }
+        return a;
+    };
+    {  // positive direction: modifiers down in the order written, tap, modifiers up in reverse
+        RunnerRec o;
+        ModeRunner r(&o);
+        ModeDef m = mode("t");
+        m.v = chord(Key::PageUp, Key::PageDown, {Key::Ctrl, Key::Shift});
+        m.h = act(ChannelActionType::Off);
+        m.twist = act(ChannelActionType::Off);
+        r.setMode(m);
+        run(r, s, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o.ev.size() >= 4 && o.ev[0] == "+ctrl" && o.ev[1] == "+shift" && o.ev[2] == "tap:pagedown" &&
+                  o.ev[3] == "-shift" && o.ev[4] == "-ctrl",
+              "chord sequence");
+        CHECK(o.count("tap:pageup") == 0, "only the positive key");
+        CHECK(o.count("+ctrl") == o.count("-ctrl") && o.count("+shift") == o.count("-shift"),
+              "every modifier press is released");
+        o.clear();
+        run(r, s, axis(AX_Z, -300), 0, 0.5);
+        CHECK(o.count("tap:pageup") > 0 && o.count("tap:pagedown") == 0, "negative direction");
+        CHECK(o.ev.size() >= 3 && o.ev[0] == "+ctrl", "negative chord starts with the modifier");
+    }
+    {  // a modifier that a button holds is neither pressed again nor released
+        RunnerRec o;
+        ModeRunner r(&o);
+        ModeDef m = mode("t");
+        m.v = chord(Key::PageUp, Key::PageDown, {Key::Ctrl});
+        m.h = act(ChannelActionType::Off);
+        m.twist = act(ChannelActionType::Off);
+        m.buttons.push_back(bind(0, ButtonActionType::Key, Key::Ctrl));
+        r.setMode(m);
+        run(r, s, axis(AX_Z, 300), 1u, 0.5);
+        CHECK(o.count("+ctrl") == 1 && o.count("-ctrl") == 0 && o.count("tap:pagedown") > 0,
+              "held Ctrl stays held, pressed once by the button");
+        run(r, s, RawAxes{}, 0u, 0.1);
+        CHECK(o.count("-ctrl") == 1, "released with the button");
+    }
+    {  // zoom on another channel holds Ctrl: the chord does not release it
+        RunnerRec o;
+        ModeRunner r(&o);
+        ModeDef m = mode("t");
+        m.v = chord(Key::PageUp, Key::PageDown, {Key::Ctrl});
+        m.h = act(ChannelActionType::Zoom);
+        r.setMode(m);
+        RawAxes both = axis(AX_Z, 300);
+        both[AX_X] = 300;
+        run(r, s, both, 0, 0.5);
+        CHECK(o.count("tap:pagedown") > 0 && o.count("+ctrl") == 1 && o.count("-ctrl") == 0, "zoom Ctrl stays");
+    }
+    {  // plain keys behave as before: no modifier events
+        RunnerRec o;
+        ModeRunner r(&o);
+        ModeDef m = mode("t");
+        m.v = act(ChannelActionType::Keys, Key::PageUp, Key::PageDown);
+        m.h = act(ChannelActionType::Off);
+        m.twist = act(ChannelActionType::Off);
+        r.setMode(m);
+        run(r, s, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o.count("tap:pagedown") > 0 && o.count("+ctrl") == 0 && o.count("+shift") == 0, "plain keys");
+    }
+}
+
 static void testCustomChannels() {
     Settings s;
     {  // V none, H keys left/right
@@ -362,6 +432,7 @@ int main() {
     testLegacyBindings();
     testLegacyNavAndClick();
     testCustomChannels();
+    testChordChannels();
     testReleases();
     if (failures) {
         std::fprintf(stderr, "%d check(s) failed\n", failures);

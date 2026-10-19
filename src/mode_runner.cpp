@@ -137,6 +137,20 @@ void ModeRunner::tapKeys(Key neg, Key pos, int n) {
     for (; n < 0; ++n) out_->tapKey(neg);
 }
 
+// Presses the modifiers that are not held yet (in the order written), taps the key and releases
+// only the modifiers pressed here (reverse order). A modifier held by a button or by zoom stays.
+void ModeRunner::tapChord(Key key, const ChordMods &mods) {
+    Key pressed[kMaxChordMods];
+    uint8_t np = 0;
+    for (uint8_t i = 0; i < mods.n; ++i)
+        if (!keys_held_[idx(mods.k[i])]) {
+            out_->setKey(mods.k[i], true);
+            pressed[np++] = mods.k[i];
+        }
+    out_->tapKey(key);
+    while (np > 0) out_->setKey(pressed[--np], false);
+}
+
 void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh,
                       double dt) {
     // Press edges only; nothing to look at (or to parse) while no button went down.
@@ -270,7 +284,10 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
             if (nav_active) tapKeys(Key::Left, Key::Right, n);
             else out_->wheelH(n);
             break;
-        case ChannelActionType::Keys: tapKeys(a.neg, a.pos, n); break;
+        case ChannelActionType::Keys:
+            for (int i = n; i > 0; --i) tapChord(a.pos, a.posMods);
+            for (int i = n; i < 0; ++i) tapChord(a.neg, a.negMods);
+            break;
         }
     };
     emit(av, tv, nv, 1);

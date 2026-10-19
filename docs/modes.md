@@ -42,13 +42,14 @@ Invalid lines or files are skipped with a warning in the log.
 | `off` | All channels `none`. Switches control off without `ENABLED = 0`. |
 | `timeline` | Vertical `none`, horizontal and twist `keys:left,right`. Scrubbing and single frames for video editing. |
 
-The first start also seeds seven example files into `~/.config/dofscroll/modes/`:
+The first start also seeds eight example files into `~/.config/dofscroll/modes/`:
 `browse-keys` (page up/down, left/right, zoom), `cycle-modes` (button 2 = `mode:next`),
 `timeline` (adds Space on button 1 and Home on button 2, active only in that mode) and four
 axis-only modes without button bindings: `slides` (up/down = page up/down, gentle rate), `media`
 (up/down, left/right and `j`/`l` for volume and seek; the keys are program-specific), `map` (arrow
 keys for panning, `minus`/`plus` for zoom; see Key names) and `precision` (default channels with
-low sensitivities). Their behavior in real programs is not verified. The shipped
+low sensitivities). `tabs` sends `ctrl+pageup` / `ctrl+pagedown` on the horizontal channel (switch tabs
+in browsers and terminals; not verified in every program). Their behavior in real programs is not verified. The shipped
 examples contain no button-to-key bindings that would be the same in every mode, see [Buttons and the vendor driver](#buttons-and-the-vendor-driver).
 
 ## Channel actions
@@ -61,7 +62,7 @@ For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`) and `TWIST_ACTION` 
 | `none` | Channel off. |
 | `wheel_v`, `wheel_h` | Vertical or horizontal mouse wheel. |
 | `zoom` | Hold Ctrl and send the mouse wheel. |
-| `keys:<neg>,<pos>` | Key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection. Dead zone, curve, smoothing and sensitivity of the channel apply. |
+| `keys:<neg>,<pos>` | Key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection. Dead zone, curve, smoothing and sensitivity of the channel apply. Each argument can be a chord, see below. |
 
 ## Button actions
 
@@ -193,6 +194,18 @@ For video editing (for example in DaVinci Resolve, whose behavior is not verifie
 
 The timeline must have keyboard focus. Reverse the twist with `ZOOM_SIGN = -1`.
 
+### Key chords in `keys:`
+
+Each of the two arguments is either a key or a chord: zero to four modifiers (`ctrl`, `shift`,
+`alt`, `super`, each at most once, any order) joined by `+` to exactly one key that is not a
+modifier, for example `keys:ctrl+pageup,ctrl+pagedown` (previous / next tab). `plus` and `minus`
+are key names, so `ctrl+plus` is valid. A lone modifier (`keys:ctrl,shift`) stays valid as before.
+
+One step presses the modifiers that are not held yet (in the order written), taps the key and
+releases only the modifiers it pressed, in reverse order. A modifier that is already held, for
+example Ctrl for zoom on another channel or a button with `key:ctrl`, stays held. Rate, dead zone,
+curve, smoothing and sensitivity are unchanged. Buttons (`key:`) stay single keys.
+
 ## Safety and sharing modes
 
 A mode file is code-like. While a device button is held or an axis is deflected, it can press
@@ -201,6 +214,11 @@ keys, Delete and Enter. Chords are reachable: Ctrl is held while a channel zooms
 action on another channel can send Ctrl+W or Ctrl+Q, and `key:ctrl` plus `key:alt` on two buttons
 combine with a third key. A mode file cannot type arbitrary text or send codes outside the key list,
 and every effect needs the physical device to be moved or pressed.
+
+Chords in `keys:` (for example `keys:ctrl+w,ctrl+q`) are sent as written. The daemon warns about
+a chord that contains `alt` or `super`, or that combines `ctrl` / `shift` with a key that is not a
+navigation key (arrows, Page Up/Down, Home, End, Space, Enter, Esc, plus/minus). A chord of `ctrl`
+and/or `shift` with a navigation key, like `ctrl+pageup`, produces no warning.
 
 Only use mode files from sources you trust, and read a file before you copy it into
 `~/.config/dofscroll/modes/`. When you review one, look for:

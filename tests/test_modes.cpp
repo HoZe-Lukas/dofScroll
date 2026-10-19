@@ -68,6 +68,31 @@ static void testGrammar() {
     }
     assert(ChannelAction() == ChannelAction());
 
+    // key chords: modifiers + one key, in any order, each modifier once, at most four
+    assert(parseChannelAction("keys:ctrl+pageup,ctrl+pagedown", &a, &err) && a.type == ChannelActionType::Keys &&
+           a.neg == Key::PageUp && a.pos == Key::PageDown && a.negMods.n == 1 && a.negMods.k[0] == Key::Ctrl &&
+           a.posMods.n == 1);
+    assert(parseChannelAction("Keys: Ctrl + Shift + Tab , alt+left", &a, &err) && a.negMods.n == 2 &&
+           a.negMods.k[0] == Key::Ctrl && a.negMods.k[1] == Key::Shift && a.pos == Key::Left && a.posMods.n == 1);
+    {
+        ChannelAction x, y, z;
+        assert(parseChannelAction("keys:ctrl+shift+tab,left", &x, nullptr));
+        assert(parseChannelAction("keys:shift+ctrl+tab,left", &y, nullptr));  // order independent
+        assert(x == y);
+        assert(parseChannelAction("keys:ctrl+tab,left", &z, nullptr));
+        assert(!(x == z));
+        assert(parseChannelAction("keys:tab,left", &z, nullptr) && !(z == x) && z.negMods.n == 0);
+        assert(parseChannelAction("keys:ctrl+shift+alt+super+a,b", &z, nullptr) && z.negMods.n == 4);
+        // a lone modifier stays valid
+        assert(parseChannelAction("keys:ctrl,shift", &z, nullptr) && z.neg == Key::Ctrl && z.negMods.n == 0);
+    }
+    for (const char *bad : {"keys:ctrl+ctrl+a,b", "keys:ctrl+,b", "keys:+a,b", "keys:ctrl+shift,b",
+                            "keys:a+b,c", "keys:ctrl+nonsense,b", "keys:ctrl+shift+alt+super+ctrl+a,b",
+                            "keys:ctrl+a,b,c", "keys:ctrl+a"}) {
+        err.clear();
+        assert(!parseChannelAction(bad, &a, &err) && !err.empty());
+    }
+
     ButtonActionType t;
     Key k;
     assert(parseButtonAction("none", &t, &k, &err) && t == ButtonActionType::Unbound);
@@ -381,6 +406,10 @@ static void testSecurityHardening() {
     writeFile("mod.conf", "BUTTON_1 = key:ctrl\nBUTTON_2 = key:alt\n");
     writeFile("kmod.conf", "TWIST_ACTION = keys:shift,f1\n");
     writeFile("zk.conf", "V_ACTION = zoom\nH_ACTION = keys:w,w\n");
+    writeFile("cnav.conf", "H_ACTION = keys:ctrl+pageup,ctrl+shift+pagedown\nV_ACTION = keys:shift+left,shift+right\n");
+    writeFile("calt.conf", "H_ACTION = keys:alt+left,alt+right\n");
+    writeFile("csup.conf", "H_ACTION = keys:super+left,super+right\n");
+    writeFile("cdel.conf", "H_ACTION = keys:ctrl+w,ctrl+q\n");
     writeFile("safe.conf", "BUTTON_1 = key:space\nH_ACTION = keys:left,right\nV_ACTION = wheel_v\n");
     w.clear();
     ms = loadModes(g_dir, &w);
@@ -392,6 +421,11 @@ static void testSecurityHardening() {
     assert(hasWarning(w, "mode kmod can press shortcut chords"));
     assert(hasWarning(w, "mode zk can press shortcut chords"));
     assert(!hasWarning(w, "mode safe"));
+    assert(ms.find("cnav") && ms.find("calt") && ms.find("csup") && ms.find("cdel"));
+    assert(!hasWarning(w, "mode cnav"));  // Ctrl/Shift with navigation keys: no warning
+    assert(hasWarning(w, "mode calt can press shortcut chords") && hasWarning(w, "alt+left"));
+    assert(hasWarning(w, "mode csup can press shortcut chords"));
+    assert(hasWarning(w, "mode cdel can press shortcut chords") && hasWarning(w, "ctrl+w"));
 
     // shipped example modes: no chord warning
     const std::string src =
@@ -399,6 +433,11 @@ static void testSecurityHardening() {
     w.clear();
     ms = loadModes(src, &w);
     assert(ms.find("browse-keys"));
+    {
+        const ModeDef *tabs = ms.find("tabs");
+        assert(tabs && tabs->buttons.empty() && tabs->h.type == ChannelActionType::Keys &&
+               tabs->h.negMods.n == 1 && tabs->h.neg == Key::PageUp && tabs->h.pos == Key::PageDown);
+    }
     for (const char *id : {"slides", "media", "map", "precision"}) {
         const ModeDef *sm = ms.find(id);
         assert(sm && sm->buttons.empty());  // axis-only examples

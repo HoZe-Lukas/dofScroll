@@ -45,7 +45,7 @@ The daemon reloads the directory when it changes (about a second), or run `syste
 | `none` | Channel off |
 | `wheel_v`, `wheel_h` | Vertical or horizontal mouse wheel |
 | `zoom` | Hold Ctrl and send the mouse wheel |
-| `keys:<neg>,<pos>` | Key presses for negative and positive deflection; the rate follows the deflection |
+| `keys:<neg>,<pos>` | Key presses for negative and positive deflection; the rate follows the deflection. Each key can be a chord such as `ctrl+pageup` (up to four modifiers, then one key) |
 
 ## Button actions
 
@@ -74,7 +74,7 @@ The loader skips what it cannot use and logs a warning: invalid lines or files, 
 
 ## Safety: mode files can press any key
 
-A mode file is code-like. While a button is held or an axis is deflected it can press any key from the key list, including Ctrl, Alt, Super, function keys, Delete and Enter. Chords are reachable: Ctrl is held while a channel zooms, so a `keys:` action on another channel can send Ctrl+W or Ctrl+Q. It cannot type arbitrary text or send codes outside the key list, and every effect needs the physical device to be moved or pressed.
+A mode file is code-like. While a button is held or an axis is deflected it can press any key from the key list, including Ctrl, Alt, Super, function keys, Delete and Enter. Chords are reachable: Ctrl is held while a channel zooms, so a `keys:` action on another channel can send Ctrl+W or Ctrl+Q, and `keys:` accepts chords itself (`ctrl+pageup`); the daemon warns about chords with `alt`, `super` or non-navigation keys. It cannot type arbitrary text or send codes outside the key list, and every effect needs the physical device to be moved or pressed.
 
 Read every file before you copy it into `~/.config/dofscroll/modes/`. Look for `key:`, `keys:`, `zoom` and `mode:`. The daemon warns at load time about modifier-capable bindings, but that does not replace reading. If you share a mode, say which keys it presses. See also [Security](Security) and [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#safety-and-sharing-modes).
 
@@ -92,6 +92,7 @@ Shipped in [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/e
 | `media.conf` | Up/down = arrow up/down (volume), sideways = left/right (seek), twist = `j`/`l`; program-specific keys |
 | `map.conf` | Arrow keys for up/down and sideways, twist = `minus`/`plus` (layout caveat, see Key names) |
 | `precision.conf` | Default channels with low sensitivities (`SCROLL_V_SENS = 2`, `SCROLL_H_SENS = 1`, `ZOOM_SENS = 2`) |
+| `tabs.conf` | Sideways = `ctrl+pageup` / `ctrl+pagedown` (previous / next tab); needs no chord warning |
 | `timeline.conf` | Sideways and twist = left/right; button 1 Space, button 2 Home (only while this mode is active); `SCROLL_H_SENS = 4` |
 
 Use `timeline` for video editing in a program of your choice, for example `[app:resolve]` with `MODE = timeline` (DaVinci Resolve's behavior is not verified here).

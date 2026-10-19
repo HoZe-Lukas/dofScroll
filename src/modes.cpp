@@ -175,9 +175,21 @@ std::string chordRisk(const ModeDef &m) {
     for (const ChannelAction *a : {&m.v, &m.h, &m.twist}) {
         if (a->type == ChannelActionType::Zoom) hasZoom = true;
         if (a->type != ChannelActionType::Keys) continue;
-        if (!isNavKey(a->neg) || !isNavKey(a->pos)) hasRiskyKeys = true;
-        if (isModifierKey(a->neg) || isModifierKey(a->pos))
-            why.push_back(std::string("a keys: channel presses ") + keyName(isModifierKey(a->neg) ? a->neg : a->pos));
+        const struct { Key key; const ChordMods &mods; } args[2] = {{a->neg, a->negMods}, {a->pos, a->posMods}};
+        for (const auto &arg : args) {
+            if (arg.mods.n == 0) {
+                if (!isNavKey(arg.key)) hasRiskyKeys = true;
+                if (isModifierKey(arg.key)) why.push_back(std::string("a keys: channel presses ") + keyName(arg.key));
+                continue;
+            }
+            // Chords: Ctrl and/or Shift with a navigation key is harmless; Alt/Super or any other key is not.
+            const unsigned bits = arg.mods.mask();
+            if ((bits & 12u) != 0 || !isNavKey(arg.key)) {
+                std::string name;
+                for (uint8_t i = 0; i < arg.mods.n; ++i) name += std::string(keyName(arg.mods.k[i])) + "+";
+                why.push_back("a keys: channel presses " + name + keyName(arg.key));
+            }
+        }
     }
     if (hasRiskyKeys && hasZoom) why.push_back("zoom holds Ctrl while a keys: channel fires non-navigation keys");
     std::string out;
@@ -215,6 +227,32 @@ bool validModeId(const std::string &id) {
            !isReservedDeviceStem(id);
 }
 
+// <chord> = [<modifier>+]... <key>: modifiers (ctrl, shift, alt, super) at most once each, then
+// exactly one non-modifier key. A single name (also a lone modifier) is a plain key.
+static bool parseChord(const std::string &text, Key *key, ChordMods *mods, std::string *err) {
+    std::vector<std::string> parts;
+    size_t start = 0;
+    for (size_t pos; (pos = text.find('+', start)) != std::string::npos; start = pos + 1)
+        parts.push_back(trim(text.substr(start, pos - start)));
+    parts.push_back(trim(text.substr(start)));
+    ChordMods m;
+    for (size_t i = 0; i + 1 < parts.size(); ++i) {
+        Key mk;
+        if (!parseKeyName(parts[i], &mk)) return fail(err, "unknown key '" + parts[i] + "'");
+        if (!isModifierKey(mk)) return fail(err, "'" + parts[i] + "' is not a modifier (ctrl, shift, alt, super)");
+        for (uint8_t j = 0; j < m.n; ++j)
+            if (m.k[j] == mk) return fail(err, "modifier '" + parts[i] + "' appears twice");
+        if (m.n >= kMaxChordMods) return fail(err, "a chord has at most 4 modifiers");
+        m.k[m.n++] = mk;
+    }
+    Key last;
+    if (!parseKeyName(parts.back(), &last)) return fail(err, "unknown key '" + parts.back() + "'");
+    if (m.n > 0 && isModifierKey(last)) return fail(err, "a chord must end with a key that is not a modifier");
+    *key = last;
+    *mods = m;
+    return true;
+}
+
 bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err) {
     const std::string t = lower(trim(text));
     ChannelAction a;
@@ -227,14 +265,13 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
         const std::string rest = t.substr(5);
         const size_t comma = rest.find(',');
         if (comma == std::string::npos || rest.find(',', comma + 1) != std::string::npos)
-            return fail(err, "keys:<neg>,<pos> expects exactly two key names");
-        if (!parseKeyName(trim(rest.substr(0, comma)), &a.neg))
-            return fail(err, "unknown key '" + trim(rest.substr(0, comma)) + "'");
-        if (!parseKeyName(trim(rest.substr(comma + 1)), &a.pos))
-            return fail(err, "unknown key '" + trim(rest.substr(comma + 1)) + "'");
+            return fail(err, "keys:<neg>,<pos> expects exactly two keys or key chords");
+        if (!parseChord(trim(rest.substr(0, comma)), &a.neg, &a.negMods, err) ||
+            !parseChord(trim(rest.substr(comma + 1)), &a.pos, &a.posMods, err))
+            return false;
         a.type = ChannelActionType::Keys;
     } else {
-        return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos>");
+        return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos> (keys may be chords like ctrl+pageup)");
     }
     if (out) *out = a;
     return true;

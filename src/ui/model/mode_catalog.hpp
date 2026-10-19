@@ -164,6 +164,7 @@ public:
         t += "# Channel actions (V = vertical push, H = horizontal push, TWIST = twisting the cap):\n";
         t += "#   default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos>\n";
         t += "#   keys:left,right presses the first key for one direction, the second for the other.\n";
+        t += "#   A key may be a chord: keys:ctrl+pageup,ctrl+pagedown (modifiers ctrl, shift, alt, super).\n";
         t += "# Button actions (buttons are numbered from 1, BUTTON_1 is the first button):\n";
         t += "#   none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next |\n";
         t += "#   toggle:nav | toggle:mode:<id>\n";

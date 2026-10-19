@@ -147,13 +147,20 @@ int main() {
         m.description = "d";
         m.h = {ChannelActionType::Keys, Key::Left, Key::Right};
         m.twist = {ChannelActionType::Zoom};
+        m.v = {ChannelActionType::Keys, Key::PageUp, Key::PageDown};
+        m.v.negMods.k[0] = Key::Shift;
+        m.v.negMods.k[1] = Key::Ctrl;
+        m.v.negMods.n = 2;
+        m.v.posMods.k[0] = Key::Ctrl;
+        m.v.posMods.n = 1;
+        assert(channelActionText(m.v) == "keys:shift+ctrl+pageup,ctrl+pagedown");
         m.buttons.push_back({1, ButtonActionType::Key, Key::Space, ""});
         m.buttons.push_back({2, ButtonActionType::ModeSwitch, Key::Space, "next"});
         m.overrides.emplace_back("SCROLL_H_SENS", "4");
         assert(createModeFile(dir, "custom", modeTemplate(m), nullptr, &err));
         const ModeSet ms3 = loadModes(dir, nullptr);
         const ModeDef *c = ms3.find("custom");
-        assert(c && c->h == m.h && c->twist == m.twist && c->buttons.size() == 2);
+        assert(c && c->h == m.h && c->twist == m.twist && c->v == m.v && c->buttons.size() == 2);
         assert(c->buttons[1].mode == "next" && c->overrides == m.overrides);
 
         tu::removeAll(tmpdir);
