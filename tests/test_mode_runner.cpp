@@ -12,7 +12,7 @@
 
 using namespace spn;
 
-struct Rec : Output {
+struct RunnerRec : Output {
     std::vector<std::string> ev;
     int wv = 0, wh = 0;
     const char *name() const override { return "rec"; }
@@ -74,7 +74,7 @@ static RawAxes axis(Axis a, int v) {
 }
 
 static void testLegacyBindings() {
-    Rec o;
+    RunnerRec o;
     ModeRunner r(&o);
     ModeDef m = mode("normal");
     m.buttons = {bind(3, ButtonActionType::Key, Key::Space), bind(4, ButtonActionType::RightClick),
@@ -92,7 +92,7 @@ static void testLegacyBindings() {
 }
 
 static void testLegacyNavAndClick() {
-    Rec o;
+    RunnerRec o;
     ModeRunner r(&o);
     Settings s;
     s.nav_button_enabled = true;
@@ -107,7 +107,7 @@ static void testLegacyNavAndClick() {
     run(r, s, RawAxes{}, 0, 0.02);
     CHECK(o.count("-m1") == 1, "CLICK_BUTTON releases left");
     // nav binding in the mode, no NAV_BUTTON in the settings
-    Rec o2;
+    RunnerRec o2;
     ModeRunner r2(&o2);
     ModeDef m = mode("normal");
     m.buttons = {bind(2, ButtonActionType::Nav)};
@@ -119,7 +119,7 @@ static void testLegacyNavAndClick() {
 static void testCustomChannels() {
     Settings s;
     {  // V none, H keys left/right
-        Rec o;
+        RunnerRec o;
         ModeRunner r(&o);
         ModeDef m = mode("t");
         m.v = act(ChannelActionType::Off);
@@ -135,7 +135,7 @@ static void testCustomChannels() {
         CHECK(o.count("tap:left") > 0 && o.count("tap:right") == 0, "H keys left");
     }
     {  // twist -> keys; default zoom replaced
-        Rec o;
+        RunnerRec o;
         ModeRunner r(&o);
         ModeDef m = mode("t");
         m.twist = act(ChannelActionType::Keys, Key::Left, Key::Right);
@@ -147,7 +147,7 @@ static void testCustomChannels() {
         CHECK(o.count("tap:left") > 0, "twist keys negative");
     }
     {  // V -> wheel_h swaps the wheel
-        Rec o;
+        RunnerRec o;
         ModeRunner r(&o);
         ModeDef m = mode("t");
         m.v = act(ChannelActionType::WheelH);
@@ -156,7 +156,7 @@ static void testCustomChannels() {
         CHECK(o.wh > 0 && o.wv == 0, "V as horizontal wheel");
     }
     {  // V -> zoom: Ctrl held while deflected, released after
-        Rec o;
+        RunnerRec o;
         ModeRunner r(&o);
         ModeDef m = mode("t");
         m.v = act(ChannelActionType::Zoom);
@@ -167,7 +167,7 @@ static void testCustomChannels() {
         CHECK(o.count("-ctrl") == 1, "Ctrl released at rest");
     }
     {  // all none ("off"): nothing, even with CLICK_BUTTON in the settings (custom path)
-        Rec o;
+        RunnerRec o;
         ModeRunner r(&o);
         ModeDef m = mode("off");
         m.v = m.h = m.twist = act(ChannelActionType::Off);
@@ -179,7 +179,7 @@ static void testCustomChannels() {
         CHECK(o.ev.empty(), "off mode sends nothing");
     }
     {  // twist default in a custom mode keeps the dominance zoom
-        Rec o;
+        RunnerRec o;
         ModeRunner r(&o);
         ModeDef m = mode("t");
         m.v = act(ChannelActionType::Off);
@@ -192,7 +192,7 @@ static void testCustomChannels() {
 static void testReleases() {
     Settings s;
     {  // mode change releases a held key binding and mouse button
-        Rec o;
+        RunnerRec o;
         ModeRunner r(&o);
         ModeDef m = mode("a");
         m.buttons = {bind(0, ButtonActionType::Key, Key::Space), bind(1, ButtonActionType::Click)};
@@ -205,7 +205,7 @@ static void testReleases() {
         CHECK(o.count("+space") == 0 && o.count("+m1") == 0, "no stale bindings");
     }
     {  // releaseAll while zooming releases Ctrl
-        Rec o;
+        RunnerRec o;
         ModeRunner r(&o);
         run(r, s, axis(AX_RY, 300), 0, 0.5);
         CHECK(o.count("+ctrl") == 1, "zooming");
@@ -215,7 +215,7 @@ static void testReleases() {
         CHECK(o.count("-ctrl") == 1, "releaseAll is idempotent");
     }
     {  // resetDsp releases Ctrl but not the mouse button
-        Rec o;
+        RunnerRec o;
         ModeRunner r(&o);
         Settings sc;
         sc.click_button_enabled = true;
@@ -227,7 +227,7 @@ static void testReleases() {
 }
 
 static void testModeSwitchRequest() {
-    Rec o;
+    RunnerRec o;
     ModeRunner r(&o);
     ModeDef m = mode("normal");
     ButtonBinding b = bind(1, ButtonActionType::ModeSwitch);
@@ -253,7 +253,7 @@ static void testModeSwitchRequest() {
 
 // BUTTON_<n> from the resolved Settings works; the mode's binding for the same n wins.
 static void testSettingsButtons() {
-    Rec o;
+    RunnerRec o;
     ModeRunner r(&o);
     Settings s;
     s.buttons[1] = "key:space";
