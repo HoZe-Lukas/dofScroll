@@ -4,18 +4,13 @@
 // per program ([app:*]) and per device ([device:*]) profile, each row choosing the mode
 // (config key MODE) for that profile. Header-only; unit-tested in tests/test_mode_list.cpp.
 #pragma once
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
-#include <cerrno>
 #include <cstddef>
-#include <cstring>
 #include <string>
 #include <vector>
 
 #include "config.hpp"
 #include "modes.hpp"
+#include "platform/fs.hpp"
 
 namespace spn {
 namespace modelist {
@@ -179,6 +174,20 @@ inline std::string channelActionText(const ChannelAction &a) {
     return "default";
 }
 
+// Config text of a button binding ("click", "key:space", "mode:next", ...; "none" if unbound).
+inline std::string buttonActionText(const ButtonBinding &b) {
+    switch (b.type) {
+        case ButtonActionType::Unbound: return "none";
+        case ButtonActionType::Click: return "click";
+        case ButtonActionType::RightClick: return "rightclick";
+        case ButtonActionType::MiddleClick: return "middleclick";
+        case ButtonActionType::Nav: return "nav";
+        case ButtonActionType::Key: return std::string("key:") + keyName(b.key);
+        case ButtonActionType::ModeSwitch: return "mode:" + b.mode;
+    }
+    return "none";
+}
+
 // Template mode file text for a mode (normally a built-in): NAME/DESCRIPTION, the channel
 // actions, the buttons and the overrides, with explanatory comments. loadModes parses it back
 // into an equivalent mode.
@@ -195,25 +204,17 @@ inline std::string modeTemplate(const ModeDef &m) {
     t += "H_ACTION = " + channelActionText(m.h) + "\n";
     t += "TWIST_ACTION = " + channelActionText(m.twist) + "\n";
     for (const ButtonBinding &b : m.buttons) {
-        std::string v;
-        switch (b.type) {
-            case ButtonActionType::Unbound: continue;
-            case ButtonActionType::Click: v = "click"; break;
-            case ButtonActionType::RightClick: v = "rightclick"; break;
-            case ButtonActionType::MiddleClick: v = "middleclick"; break;
-            case ButtonActionType::Nav: v = "nav"; break;
-            case ButtonActionType::Key: v = std::string("key:") + keyName(b.key); break;
-            case ButtonActionType::ModeSwitch: v = "mode:" + b.mode; break;
-        }
-        t += "BUTTON_" + std::to_string(b.button) + " = " + v + "\n";
+        if (b.type == ButtonActionType::Unbound) continue;
+        t += "BUTTON_" + std::to_string(b.button) + " = " + buttonActionText(b) + "\n";
     }
     for (const auto &kv : m.overrides) t += kv.first + " = " + kv.second + "\n";
     return t;
 }
 
-// Creates <dir>/<id>.conf with the given content, mode 0600, exclusively (O_EXCL, no symlink
-// following): an existing file is never touched. The directory is created (0700) if missing.
-// On success *path receives the file path. false + *err otherwise.
+// Creates <dir>/<id>.conf with the given content (private, user only), exclusively: an existing
+// file or link is never touched (fs::createFileExclusive publishes the complete content without
+// overwriting). The directory is created private if missing. On success *path receives the file
+// path. false + *err otherwise.
 inline bool createModeFile(const std::string &dir, const std::string &id, const std::string &content,
                            std::string *path, std::string *err) {
     auto fail = [&](const std::string &m) {
@@ -222,22 +223,10 @@ inline bool createModeFile(const std::string &dir, const std::string &id, const 
     };
     const std::string p = modeFilePath(dir, id);
     if (p.empty()) return fail("invalid mode id or directory");
-    if (mkdir(dir.c_str(), 0700) != 0 && errno != EEXIST) return fail(std::string("mkdir: ") + strerror(errno));
-    int fd = open(p.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
-    if (fd < 0) return fail(errno == EEXIST ? std::string("file already exists") : strerror(errno));
-    size_t off = 0;
-    while (off < content.size()) {
-        ssize_t n = write(fd, content.data() + off, content.size() - off);
-        if (n < 0 && errno == EINTR) continue;
-        if (n <= 0) {
-            std::string e = strerror(errno);
-            close(fd);
-            unlink(p.c_str());
-            return fail("write: " + e);
-        }
-        off += size_t(n);
-    }
-    if (close(fd) != 0) return fail(std::string("close: ") + strerror(errno));
+    std::string e;
+    if (!fs::mkdirsPrivate(dir, &e)) return fail("mkdir: " + e);
+    if (fs::pathExists(p)) return fail("file already exists");
+    if (!fs::createFileExclusive(p, content)) return fail("cannot create file");
     if (path) *path = p;
     return true;
 }
