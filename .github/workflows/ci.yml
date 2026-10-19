@@ -28,15 +28,9 @@ jobs:
   build-test:
     name: build + ctest (Rocky Linux 9)
     runs-on: ubuntu-latest
-    container: rockylinux:9
+    container: ghcr.io/hoze-lukas/dofscroll-ci-rocky9:latest
     timeout-minutes: 20
     steps:
-      - name: Install dependencies
-        run: |
-          retry() { for i in 1 2 3; do timeout 600 "$@" && return 0; echo "::warning::attempt $i/3 failed or timed out: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
-          retry dnf install -y epel-release
-          retry dnf install -y gcc-c++ make cmake git gettext pkgconf-pkg-config spacenavd \
-            libspnav-devel libX11-devel libXtst-devel gtk3-devel libappindicator-gtk3-devel
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Check dependencies
         run: cmake -DWITH_TRAY=ON -P cmake/CheckDeps.cmake
@@ -52,15 +46,9 @@ jobs:
   sanitizers:
     name: ASan/UBSan (Rocky Linux 9)
     runs-on: ubuntu-latest
-    container: rockylinux:9
+    container: ghcr.io/hoze-lukas/dofscroll-ci-rocky9:latest
     timeout-minutes: 20
     steps:
-      - name: Install dependencies
-        run: |
-          retry() { for i in 1 2 3; do timeout 600 "$@" && return 0; echo "::warning::attempt $i/3 failed or timed out: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
-          retry dnf install -y epel-release
-          retry dnf install -y gcc-c++ make cmake git libasan libubsan pkgconf-pkg-config spacenavd \
-            libspnav-devel libX11-devel libXtst-devel
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Configure (ASan/UBSan, no tray)
         run: cmake -S . -B build-asan -DDOFSCROLL_SANITIZE=ON -DDOFSCROLL_TRAY=OFF
@@ -72,14 +60,9 @@ jobs:
   cppcheck:
     name: cppcheck (Rocky Linux 9)
     runs-on: ubuntu-latest
-    container: rockylinux:9
+    container: ghcr.io/hoze-lukas/dofscroll-ci-rocky9:latest
     timeout-minutes: 15
     steps:
-      - name: Install dependencies
-        run: |
-          retry() { for i in 1 2 3; do timeout 600 "$@" && return 0; echo "::warning::attempt $i/3 failed or timed out: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
-          retry dnf install -y epel-release
-          retry dnf install -y cppcheck git
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Static analysis
         run: |

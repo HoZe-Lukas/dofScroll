@@ -72,6 +72,20 @@ No release step depends on a package feed being up at that moment:
   containers) and `ci.yml` (`dnf`) rely on distribution mirrors, which retry internally; the macOS
   job uses only aqtinstall (retried) and the runner's tools.
 
+## CI build images
+
+The Rocky Linux 9 jobs (`build + ctest`, ASan/UBSan, cppcheck, CodeQL and the RPM package) run in
+prebuilt images from `ghcr.io/hoze-lukas/dofscroll-ci-rocky9` (and `-qt`, for the RPM job, which adds
+Qt6) instead of running `dnf` on every run. `packaging/ci/rocky9.Dockerfile` is the recipe;
+`.github/workflows/ci-image.yml` builds and checks the images on pull requests that touch it, and
+pushes them on `main` and every Monday (distribution updates). The packages are public, so jobs pull
+them without a login.
+
+A pull request that needs a new build dependency changes the Dockerfile; its own jobs still use the
+old image, so add the dependency in one pull request, merge it (the push to `main` publishes the new
+image) and use it in the next one. If the images are ever missing or broken, the Rocky jobs fail at
+the start: run the `ci-image` workflow by hand (Actions tab, "Run workflow").
+
 ## Windows installer
 
 - **Tool: NSIS 3.** It is free, needs no .NET or WiX toolset, is installed in CI by
