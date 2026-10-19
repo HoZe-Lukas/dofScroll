@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#
+# Dry run of the release installers: builds the Windows and macOS packages exactly as a tag build
+# does (same reusable workflow) and uploads them as artifacts. Creates no release and needs no
+# tag. Start it from the Actions tab ("Run workflow") or with `gh workflow run installers-dry-run.yml`.
+# It also runs for pull requests that touch the installer files, so a change cannot break the
+# release unnoticed.
+name: installers-dry-run
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/installers.yml"
+      - ".github/workflows/installers-dry-run.yml"
+      - "packaging/windows/**"
+      - "packaging/macos/**"
+      - "scripts/scan-package-paths.sh"
+      - "cmake/windows.cmake"
+      - "cmake/macos.cmake"
+      - "cmake/Ui.cmake"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installers-dry-run-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installers:
+    uses: ./.github/workflows/installers.yml
