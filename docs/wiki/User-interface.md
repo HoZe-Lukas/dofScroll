@@ -20,7 +20,11 @@
 
 ## Tray
 
-Status, "Mode" submenu, "Enabled", "Settings...", "Open config file", "Show log...", "Open modes folder", "Quit". "Release all keys" exists only in the GTK tray for now; use `dofscroll --release-keys` otherwise.
+Status, "Mode" submenu, "Enabled", "Settings...", "Open config file", "Show log...", "Open modes folder", "Release all keys" (runs `dofscroll --release-keys`, as in the GTK tray), "Quit".
+
+## Saving and the daemon
+
+Saving notifies the running daemon: SIGHUP on Linux, a named event on Windows, a local socket on macOS (the last two are CI-verified only). The device list on the Profiles page and the factory button count (Profiles and Axes pages) come from the daemon's live feed.
 
 ## Start at login
 

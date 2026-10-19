@@ -13,7 +13,7 @@ Summary of everything on `main` since `v0.1.0-rc2`; the full draft is [docs/rele
 - Qt6 interface `dofscroll-ui` (Channels, General, Axes, Modes, Profiles, running-program picker, tray), see [User interface](User-interface)
 - Start at login on Linux, Windows and macOS
 - Linux packages with the Qt interface (GTK fallback); unsigned Windows installer and ZIP, unsigned macOS DMG (SmartScreen and Gatekeeper notes in [Installation](Installation))
-- Stuck-key safety net and tray "Release all keys" (GTK tray)
+- Stuck-key safety net and tray "Release all keys" (both trays)
 - Output pauses while the own session is not the active one
 - Documentation: dofscroll complements the vendor driver, UTF-8 policy
 

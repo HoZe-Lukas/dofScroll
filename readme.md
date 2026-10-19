@@ -46,8 +46,6 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
   blocks the first start). Notes in [docs/installation.md](docs/installation.md).
 - The Qt interface has not been checked on Windows or macOS desktops; on Linux the GTK tray is
   still the documented default.
-- The tray entry "Release all keys" exists only in the GTK tray; use `dofscroll --release-keys`
-  otherwise.
 - Pausing output while the own session is not the active one (several users on one PC) was
   unit-tested with fake probes only; no second user session was available. The Windows and macOS
   probes are compile-checked only.

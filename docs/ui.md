@@ -27,7 +27,8 @@ not depend on the active mode are always available:
 | Profiles | Per-device and per-program profiles, see below |
 
 While the Axes page is open the daemon pauses its output, so moving the cap does not scroll the
-window you look at.
+window you look at. The page shows as many button cells as the factory button count of the
+device (see below), or the highest button it has seen when no device information is available.
 
 ## Mode dropdown
 
@@ -38,7 +39,9 @@ not exist is shown with a warning instead of being changed silently.
 
 ## Profiles and the running-program picker
 
-- Add a device profile from the list of connected devices.
+- Add a device profile from the list of connected devices. The list and the factory button count
+  (which limits the buttons you can bind) come from the daemon's live feed; without the feed the
+  page falls back to the `device=` line of the status file.
 - "Add application..." opens a picker of the programs that are running now: search by name, match
   string or window title, refresh, and see the exact match string that will be stored. You never
   have to type an internal name. "Capture next focused program" waits a few seconds and takes the
@@ -55,9 +58,21 @@ The program list comes from implementations of `src/platform/running_apps.hpp` f
 ## Tray menu
 
 Status line, "Mode" submenu (the global mode), "Enabled", "Settings...", "Open config file",
-"Show log...", "Open modes folder", "Quit". The entry "Release all keys" currently exists only in
-the GTK tray; in a terminal use `dofscroll --release-keys` (see
+"Show log...", "Open modes folder", "Release all keys", "Quit". "Release all keys" starts
+`dofscroll --release-keys` as a separate process (the daemon binary next to the interface, else
+`dofscroll` from `PATH`), like the GTK tray; the same command works in a terminal (see
 [troubleshooting.md](troubleshooting.md#a-key-or-scrolling-gets-stuck)).
+
+## Reload and runtime files
+
+Saving in the settings window notifies the running daemon: SIGHUP on Linux, a named event on
+Windows, a per-user local socket on macOS. The status, log and mode-request files live in one
+per-user runtime directory that daemon and interface agree on (`$XDG_RUNTIME_DIR` on Linux,
+`%LOCALAPPDATA%\dofscroll` on Windows, `~/Library/Caches/dofscroll` on macOS). The interface
+reads the status file only when it is bounded in size, not a symlink and owned by the current
+user; without a safe directory the daemon counts as not running. While the Axes page measures,
+the interface sends a heartbeat so the daemon keeps its output paused. The Windows and macOS
+paths are CI-verified only, not run on hardware.
 
 ## Start at login
 
