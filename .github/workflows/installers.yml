@@ -131,8 +131,15 @@ jobs:
           if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\dofscroll') { throw 'uninstall entry still present' }
           Remove-Item -LiteralPath $dir -Recurse -Force
           }
-          Test-RoundTrip (Join-Path $env:RUNNER_TEMP 'dofscroll-inst') $true
-          Test-RoundTrip (Join-Path $env:RUNNER_TEMP $odd) $true
+          try {
+            Test-RoundTrip (Join-Path $env:RUNNER_TEMP 'dofscroll-inst') $true
+            Test-RoundTrip (Join-Path $env:RUNNER_TEMP $odd) $true
+          } catch {
+            Write-Output "::error::installer test failed: $($_.Exception.Message)"
+            Write-Output $_.ScriptStackTrace
+            Get-Content -LiteralPath (Join-Path $env:TEMP 'dofscroll-installer.log') -ErrorAction SilentlyContinue
+            exit 1
+          }
       - name: Scan packages for runner or staging paths
         shell: bash
         run: |
