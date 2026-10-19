@@ -3,18 +3,19 @@
 Goal: one shared core (config, DSP, modes, profile matching, key mapping) and a thin platform
 layer per OS. This document describes the seams; `port-windows.md` and `port-macos.md` describe
 the two new backends. Status: the interfaces exist in `src/platform/platform.hpp` (with a scripted
-`FakeInputSource` for tests); the Linux implementation lives in `src/platform/linux/` (daemon core: `src/daemon_core.*`); the Windows/macOS backends are not
-implemented yet (see `docs/work-plan.md`).
+`FakeInputSource` for tests); the Linux implementation lives in `src/platform/linux/` (daemon core: `src/daemon_core.*`); the Windows backend is implemented on branch `feat/w1-windows` (compiled and unit-tested in CI,
+not run on hardware; see `docs/port-windows.md`), the macOS backend is not merged yet (see
+`docs/work-plan.md`).
 
 ## Platform layer
 
 | Seam | Linux today | Windows | macOS |
 |---|---|---|---|
-| `InputSource` (new): delivers 6-DoF motion and button events per device | libspnav via spacenavd | raw HID via RawInput | IOHIDManager |
+| `InputSource` (new): delivers 6-DoF motion and button events per device | libspnav via spacenavd | raw HID (SetupAPI + `hid.dll`, `ReadFile`), shared `HidInputCore` | IOHIDManager |
 | `Output` (exists, `src/output.hpp`) | X11/XTest or uinput | `SendInput` | CGEvent |
 | `ActiveWindow` (exists, `src/activewin.hpp`) | X11 window class | foreground window to process name | NSWorkspace frontmost app |
 | Paths and permissions | `XDG_RUNTIME_DIR`, `~/.config` | `%LOCALAPPDATA%` / `%APPDATA%` | `~/Library/Application Support` |
-| Reload and status | SIGHUP, status file | named event or message window, status file | notification or socket, status file |
+| Reload and status | SIGHUP, status file | named event, status file | notification or socket, status file |
 
 `InputSource` is the only new abstraction: today the daemon talks to libspnav directly. It should
 expose "device list changed", "motion (6 axes, per device id)" and "button (index, down/up)" and

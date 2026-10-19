@@ -21,6 +21,7 @@ concurrency:
 
 # Third-party actions are pinned to full commit SHAs (tag in the comment).
 #   actions/checkout = v4.2.2
+#   actions/upload-artifact = v4.6.2
 
 jobs:
   windows-msvc:
@@ -35,6 +36,76 @@ jobs:
         run: cmake --build build --config Release --parallel
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
+      - name: Windows packaging scripts (syntax)
+        shell: pwsh
+        run: |
+          $bad = 0
+          foreach ($f in Get-ChildItem packaging/windows -Filter *.ps1) {
+            $errs = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errs)
+            if ($errs) { $bad++; $errs | ForEach-Object { Write-Output "$($f.Name): $($_.Message)" } }
+            else { Write-Output "$($f.Name): ok" }
+          }
+          if ($bad) { exit 1 }
+      - name: Autostart round trip (HKCU of the runner)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = (Get-Command pwsh).Source   # any existing file works as the target
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          $name = 'dofscroll-ci-msvc'
+          # -WhatIf must not change anything
+          ./packaging/windows/install-autostart.ps1 -ExePath $exe -Name $name -WhatIf
+          if (Get-ItemProperty -Path $key -Name $name -ErrorAction SilentlyContinue) { throw 'WhatIf wrote the value' }
+          ./packaging/windows/install-autostart.ps1 -ExePath $exe -Name $name
+          ./packaging/windows/install-autostart.ps1 -ExePath $exe -Name $name   # idempotent
+          $v = (Get-ItemProperty -Path $key -Name $name).$name
+          if ($v -ne ('"' + $exe + '"')) { throw "unexpected Run value: $v" }
+          ./packaging/windows/uninstall-autostart.ps1 -Name $name
+          if (Get-ItemProperty -Path $key -Name $name -ErrorAction SilentlyContinue) { throw 'value still present after uninstall' }
+          ./packaging/windows/uninstall-autostart.ps1 -Name $name   # nothing to remove: still fine
+          # Startup-folder variant
+          ./packaging/windows/install-autostart.ps1 -ExePath $exe -Name $name -Startup
+          $lnk = Join-Path ([Environment]::GetFolderPath('Startup')) ($name + '.lnk')
+          if (-not (Test-Path $lnk)) { throw 'shortcut missing' }
+          ./packaging/windows/uninstall-autostart.ps1 -Name $name
+          if (Test-Path $lnk) { throw 'shortcut still present after uninstall' }
+          ./packaging/windows/stop-daemon.ps1 -WhatIf
+      - name: Daemon smoke test (once dofscroll.exe is built)
+        id: smoke
+        shell: pwsh
+        run: |
+          $exe = $null
+          foreach ($c in @("build/Release/dofscroll.exe", "build/dofscroll.exe")) { if (Test-Path -LiteralPath $c -PathType Leaf) { $exe = (Resolve-Path $c).Path; break } }
+          if (-not $exe) {
+            Write-Output '::notice::dofscroll.exe is not built by this branch yet - smoke test skipped'
+            'exe=' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            exit 0
+          }
+          # dofscroll.exe is a GUI-subsystem program: start it with Start-Process so it is waited for
+          $out = Join-Path $env:RUNNER_TEMP 'dofscroll-version.txt'
+          $p = Start-Process -FilePath $exe -ArgumentList '--version' -Wait -PassThru -NoNewWindow -RedirectStandardOutput $out
+          $text = if (Test-Path $out) { (Get-Content -Raw $out) } else { '' }
+          Write-Output "exit code $($p.ExitCode), output: $text"
+          if ($p.ExitCode -ne 0) { throw "dofscroll.exe --version failed with exit code $($p.ExitCode)" }
+          if ($text -and ($text -notmatch 'dofscroll')) { throw 'unexpected --version output' }
+          "exe=$exe" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+      - name: Stage artifact
+        if: steps.smoke.outputs.exe != ''
+        shell: pwsh
+        run: |
+          $d = 'dist/dofscroll-windows-msvc'
+          New-Item -ItemType Directory -Force -Path $d | Out-Null
+          Copy-Item '${{ steps.smoke.outputs.exe }}' $d
+          Copy-Item -Recurse devices, examples $d
+          Copy-Item -Recurse packaging/windows $d/packaging-windows
+      - name: Upload artifact
+        if: steps.smoke.outputs.exe != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: dofscroll-windows-msvc
+          path: dist/dofscroll-windows-msvc
+          if-no-files-found: error
 
   windows-mingw:
     name: Windows (MinGW-w64) build + ctest
@@ -56,6 +127,76 @@ jobs:
         run: cmake --build build --parallel
       - name: Test
         run: ctest --test-dir build --output-on-failure
+      - name: Windows packaging scripts (syntax)
+        shell: pwsh
+        run: |
+          $bad = 0
+          foreach ($f in Get-ChildItem packaging/windows -Filter *.ps1) {
+            $errs = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errs)
+            if ($errs) { $bad++; $errs | ForEach-Object { Write-Output "$($f.Name): $($_.Message)" } }
+            else { Write-Output "$($f.Name): ok" }
+          }
+          if ($bad) { exit 1 }
+      - name: Autostart round trip (HKCU of the runner)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = (Get-Command pwsh).Source   # any existing file works as the target
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          $name = 'dofscroll-ci-mingw'
+          # -WhatIf must not change anything
+          ./packaging/windows/install-autostart.ps1 -ExePath $exe -Name $name -WhatIf
+          if (Get-ItemProperty -Path $key -Name $name -ErrorAction SilentlyContinue) { throw 'WhatIf wrote the value' }
+          ./packaging/windows/install-autostart.ps1 -ExePath $exe -Name $name
+          ./packaging/windows/install-autostart.ps1 -ExePath $exe -Name $name   # idempotent
+          $v = (Get-ItemProperty -Path $key -Name $name).$name
+          if ($v -ne ('"' + $exe + '"')) { throw "unexpected Run value: $v" }
+          ./packaging/windows/uninstall-autostart.ps1 -Name $name
+          if (Get-ItemProperty -Path $key -Name $name -ErrorAction SilentlyContinue) { throw 'value still present after uninstall' }
+          ./packaging/windows/uninstall-autostart.ps1 -Name $name   # nothing to remove: still fine
+          # Startup-folder variant
+          ./packaging/windows/install-autostart.ps1 -ExePath $exe -Name $name -Startup
+          $lnk = Join-Path ([Environment]::GetFolderPath('Startup')) ($name + '.lnk')
+          if (-not (Test-Path $lnk)) { throw 'shortcut missing' }
+          ./packaging/windows/uninstall-autostart.ps1 -Name $name
+          if (Test-Path $lnk) { throw 'shortcut still present after uninstall' }
+          ./packaging/windows/stop-daemon.ps1 -WhatIf
+      - name: Daemon smoke test (once dofscroll.exe is built)
+        id: smoke
+        shell: pwsh
+        run: |
+          $exe = $null
+          foreach ($c in @("build/dofscroll.exe", "build/Release/dofscroll.exe")) { if (Test-Path -LiteralPath $c -PathType Leaf) { $exe = (Resolve-Path $c).Path; break } }
+          if (-not $exe) {
+            Write-Output '::notice::dofscroll.exe is not built by this branch yet - smoke test skipped'
+            'exe=' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            exit 0
+          }
+          # dofscroll.exe is a GUI-subsystem program: start it with Start-Process so it is waited for
+          $out = Join-Path $env:RUNNER_TEMP 'dofscroll-version.txt'
+          $p = Start-Process -FilePath $exe -ArgumentList '--version' -Wait -PassThru -NoNewWindow -RedirectStandardOutput $out
+          $text = if (Test-Path $out) { (Get-Content -Raw $out) } else { '' }
+          Write-Output "exit code $($p.ExitCode), output: $text"
+          if ($p.ExitCode -ne 0) { throw "dofscroll.exe --version failed with exit code $($p.ExitCode)" }
+          if ($text -and ($text -notmatch 'dofscroll')) { throw 'unexpected --version output' }
+          "exe=$exe" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+      - name: Stage artifact
+        if: steps.smoke.outputs.exe != ''
+        shell: pwsh
+        run: |
+          $d = 'dist/dofscroll-windows-mingw'
+          New-Item -ItemType Directory -Force -Path $d | Out-Null
+          Copy-Item '${{ steps.smoke.outputs.exe }}' $d
+          Copy-Item -Recurse devices, examples $d
+          Copy-Item -Recurse packaging/windows $d/packaging-windows
+      - name: Upload artifact
+        if: steps.smoke.outputs.exe != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: dofscroll-windows-mingw
+          path: dist/dofscroll-windows-mingw
+          if-no-files-found: error
 
   macos:
     name: macOS build + ctest
