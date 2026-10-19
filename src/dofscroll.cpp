@@ -16,8 +16,6 @@
 #include <vector>
 #include <X11/Xlib.h>
 
-// Xlib defines None as a macro, which clashes with ChannelActionType::Off (modes.hpp).
-#undef None
 
 #include "common.hpp"
 #include "config.hpp"

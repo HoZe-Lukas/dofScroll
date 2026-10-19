@@ -23,8 +23,6 @@
 // mode), built from the loaded mode files; pure logic in mode_list.hpp.
 //
 // UI strings are English and wrapped in _() (gettext, see i18n.hpp and po/).
-// mode_list.hpp/modes.hpp first: modes.hpp has an enumerator "None", which the Xlib macro
-// None (pulled in by spnav.h/GTK) would break if those headers came earlier.
 #include "mode_list.hpp"
 #include "modes.hpp"
 

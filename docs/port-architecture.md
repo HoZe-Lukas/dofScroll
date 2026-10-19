@@ -48,7 +48,7 @@ with the same sanitizing of device-supplied strings as on Linux.
 
 ## Build
 
-CMake is the cross-platform build; the Makefile remains for Linux. Targets: core library
+CMake is the build system on all platforms. Targets: core library
 (config, DSP, modes, seed, device DB), the daemon, the tray/settings UI, and the unit tests,
 which run on every platform because the core has no OS dependencies. Platform backends are
 selected by CMake and compiled only on their OS. The tray UI toolkit for the ports is not decided.

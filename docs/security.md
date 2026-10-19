@@ -315,7 +315,7 @@ description below is the state before the fix.
   calling `/usr/local/bin/dofscroll`. Likewise `findIconDir` looks for icons next to the
   resolved binary (`src/dofscroll_tray.cpp`). On a single-user machine without foreign callers
   this is acceptable.
-- **Recommendation:** on multi-user systems use `make install` (copy to `/usr/local`,
+- **Recommendation:** on multi-user systems use `cmake --install` (copy to `/usr/local`,
   root-owned) instead of symlinks, or place binaries/units only in the user context
   (`~/.local/bin`) and do not touch `/usr/local/bin`.
 
@@ -534,9 +534,8 @@ journalctl --user -u dofscroll.service -u dofscroll-tray.service -f
 
      On a match: abort with file and line. Bypass only deliberately via
      `git commit --no-verify`.
-  2. `make check-fast` if the target exists in the Makefile (detected via `make -qp`, runs
-     nothing), otherwise `make test`. Without a Makefile it is skipped. Note: `make` checks
-     the working tree, not exactly the index.
+  2. The CMake `check-fast` target (configured in a `build-hook` directory). Without a
+     CMakeLists.txt it is skipped. Note: it checks the working tree, not exactly the index.
 - `scripts/install-hooks.sh [--force]`: links `.git/hooks/pre-commit` ->
   `../../scripts/pre-commit` (relative, survives moving the repo; absolute for worktrees or a
   different hook directory). Idempotent; an existing foreign hook is replaced only after a

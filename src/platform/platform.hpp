@@ -33,7 +33,8 @@ struct InputEvent {
     InputEventType type = InputEventType::Motion;
     int device = 0;                        // DeviceInfo::id
     std::array<int, 6> axes{};             // Motion: current deflection of all six axes
-    int button = 0;                        // Button: 1-based index (same numbering as BUTTON_<n>)
+    int button = 0;                        // Button: 0-based hardware index (bit number in the device's button
+                                           // mask); the core maps it to BUTTON_<n> with n = button + 1
     bool down = false;                     // Button: pressed or released
 };
 
@@ -67,7 +68,10 @@ struct PlatformPaths {
     std::string configDir;   // user config directory incl. the "dofscroll" folder (0700 / user only)
     std::string runtimeDir;  // status, suspend and log files (user only)
 };
-PlatformPaths platformPaths();  // never empty; creates nothing
+// configDir is never empty; runtimeDir may be empty when the OS offers no safe per-user runtime
+// directory (Linux without XDG_RUNTIME_DIR): the daemon then runs without status/suspend/log files.
+// Creates nothing.
+PlatformPaths platformPaths();
 
 // ---- Reload channel (replaces SIGHUP) --------------------------------------------------------
 // Contract: the writer replaces the config atomically, then calls requestReload(); the daemon's

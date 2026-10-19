@@ -21,7 +21,7 @@ first. Several people or AI agents may work in parallel; this file keeps them fr
    in your first commit; push it.
 3. Touch only the files listed for the package. Need a change elsewhere? Open an issue or note it
    in the package line instead of editing another package's files.
-4. `make check` (or `cmake --build ... && ctest`) must pass before you ask for a merge.
+4. `cmake --build build --target check` (or at least `check-fast`) must pass before you ask for a merge.
 5. One integrator merges into `main`; rebase on `main` before asking.
 
 ## State as of 2026-10-19
@@ -40,19 +40,19 @@ time are not possible on Linux until direct HID access exists (package W1/W2 des
 | Id | Package | Files (owner of) | Depends on | Status |
 |---|---|---|---|---|
 | W0a | Platform interfaces: `src/platform/platform.hpp` (`InputSource`, `ActiveWindowProvider`, paths, `ReloadListener`) and `src/platform/fake_input.hpp` + `tests/test_platform.cpp` | done 2026-10-19 | - | **done** |
-| W0b | Linux behind the interfaces: spacenavd `InputSource`, X11 `ActiveWindowProvider`, XDG paths, SIGHUP-based reload; split `src/dofscroll.cpp` into a platform-independent daemon core plus a thin `main` per OS | `src/dofscroll.cpp`, new `src/daemon_core.*`, new `src/platform/linux/`, `src/config.cpp` (paths only) | W0a | in progress (session 1, 2026-10-19) |
+| W0b | Linux behind the interfaces: spacenavd `InputSource`, X11 `ActiveWindowProvider`, XDG paths, SIGHUP-based reload; split `src/dofscroll.cpp` into a platform-independent daemon core plus a thin `main` per OS | `src/dofscroll.cpp`, new `src/daemon_core.*`, new `src/platform/linux/`, `src/config.cpp` (paths only) | W0a | **done** |
 | W1 | Windows port: raw HID `InputSource` (use `src/hid_descriptor.*` and `devices/*.conf`), `SendInput` `Output`, foreground-window `ActiveWindowProvider`, paths, named-event `ReloadListener`, no-console daemon `main`, autostart | new `src/platform/win/`, `cmake/windows.cmake`, `packaging/windows/` | W0a done; the final daemon `main` waits for W0b | open |
 | W2 | macOS port: IOHID `InputSource`, CGEvent `Output`, `NSWorkspace` `ActiveWindowProvider`, paths, `ReloadListener`, LaunchAgent, permissions | new `src/platform/mac/`, `cmake/macos.cmake`, `packaging/macos/` | W0a done; the final daemon `main` waits for W0b | open |
 | W3 | Per-OS tray / settings UI (native minimal tray first) | new `src/ui/` | W0 | open |
 | W4 | Installers and signing: NSIS, macOS pkg/dmg, notarization, release workflow | `packaging/`, `.github/workflows/release.yml` | W1, W2 | open |
-| W5 | Translate the axis wizard's dynamic result messages (numbers inside sentences) | `src/axis_wizard.hpp`, `src/dofscroll_tray.cpp`, `po/` | - | in progress (session 1, 2026-10-19) |
-| W6 | Use one numbering for `BUTTON_<n>`: config files count from 1, mode files from 0 today; unify to 1-based | `src/modes.*`, `src/config.*`, `examples/modes/`, tests, docs | - | in progress (session 1, 2026-10-19) |
+| W5 | Translate the axis wizard's dynamic result messages (numbers inside sentences) | `src/axis_wizard.hpp`, `src/dofscroll_tray.cpp`, `po/` | - | **done** |
+| W6 | Use one numbering for `BUTTON_<n>`: config files count from 1, mode files from 0 today; unify to 1-based | `src/modes.*`, `src/config.*`, `examples/modes/`, tests, docs | - | **done** |
 | W7 | Code review and security audit: modes directory loading, seeding, key output (`key:` actions), zoom Ctrl handling across channels, systemd sandbox | `docs/security.md`, fixes in affected files | - | open |
 | W8 | Keep documentation in sync with final behavior (`readme.md`, `docs/`) | `readme.md`, `docs/` | after each feature | open |
 | W9 | Verify device descriptors and factory button counts on real hardware; add SpaceExplorer / SpacePilot Pro counts once verified | `devices/*.conf`, `src/device_db.cpp` | hardware | open |
-| W10 | CI hardening: ASAN job, secret scan, cppcheck, package builds on tags | `.github/workflows/`, `CMakeLists.txt` | - | in progress (session 1, 2026-10-19) |
-| W11 | Avoid the Xlib `None` macro clash in `src/modes.hpp` (daemon currently uses `#undef None`) | `src/modes.hpp`, `src/dofscroll.cpp` | - | in progress (session 1, 2026-10-19) |
-| W12 | CMake parity with the Makefile (check/ASAN/hardening/install targets), then remove the Makefile | `CMakeLists.txt`, `cmake/`, `scripts/`, `Makefile`, build sections of docs | - | in progress (session 1, 2026-10-19) |
+| W10 | CI hardening: ASAN job, secret scan, cppcheck, package builds on tags | `.github/workflows/`, `CMakeLists.txt` | - | **done** |
+| W11 | Avoid the Xlib `None` macro clash in `src/modes.hpp` (daemon currently uses `#undef None`) | `src/modes.hpp`, `src/dofscroll.cpp` | - | **done** |
+| W12 | CMake parity with the Makefile (check/ASAN/hardening/install targets), then remove the Makefile | `CMakeLists.txt`, `cmake/`, `scripts/`, build sections of docs | - | **done** |
 | W7a | Security review as a written report only (no code edits): modes directory loading, seeding, `key:` actions, parser limits, zoom Ctrl handling across channels, systemd sandbox. Fixes come later as separate packages | new `docs/security-review-2026-10.md` | - | open |
 | W3a | UI toolkit decision per OS as a design document: Qt6 vs local web UI vs native minimal tray; effort, license fit with GPL, size, reuse of the gettext catalogs; with a recommendation | new `docs/ui-options.md` | - | open |
 | W4a | Release and signing process document: Apple Developer ID and notarization, Windows code signing, secrets in GitHub Actions, tag scheme, artifacts per OS | new `docs/release-process.md` | - | open |
