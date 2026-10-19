@@ -15,6 +15,7 @@
 #include <cstring>
 
 #include "main_window.hpp"
+#include "pages/axes_page.hpp"
 #include "pages/modes_page.hpp"
 #include "qt_action_runner.hpp"
 #include "tray.hpp"
@@ -75,7 +76,8 @@ int main(int argc, char **argv) {
                     tray.menuEntryCount(), avail ? 1 : 0);
         const bool ok = w.pageCount() == 5 && w.profileCount() == 3 && modes.modeCount() == 4 &&
                         tray.modeMenuCount() == 4 && tray.menuEntryCount() >= 8;
-        return ok ? 0 : 1;
+        if (!ok) return 1;
+        return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen
     }
 
     // Single-instance guard in a per-user directory (QLockFile detects stale locks itself).

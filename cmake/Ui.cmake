@@ -34,6 +34,8 @@ if(DOFSCROLL_UI)
     src/ui/qt/platform_bridge.cpp
     src/ui/qt/pages/page_registry.cpp
     src/ui/qt/pages/page_registry.hpp
+    src/ui/qt/pages/axes_page.cpp
+    src/ui/qt/pages/axes_page.hpp
     src/ui/qt/pages/channels_page.cpp
     src/ui/qt/pages/channels_page.hpp
     src/ui/qt/pages/general_page.cpp

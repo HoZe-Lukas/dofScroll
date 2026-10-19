@@ -109,6 +109,24 @@ security notes in `security.md` section 10.
   while a client is connected and never blocks. `LiveFeedClient` (toolkit-free, reconnecting) and
   `src/ui/model/live_feed_model.hpp` (latest sample, min/max/peak tracking) serve the UI.
 
+## Live feed
+
+The UI needs the six axis values, the button state and the daemon's interpretation at about 30 Hz
+(axes view, axis assistant). On Linux the GTK tray can read libspnav itself; on Windows and macOS the
+daemon owns the device, so it publishes a feed (`LIVE_FEED = 1`, default). Code in `src/live_feed/`,
+security notes in `security.md` section 10.
+
+- Protocol v1 (`live_feed_protocol.hpp`): one-way daemon -> client, binary little-endian frames with
+  a header (`"DFLV"`, version, type, payload length) and a fixed sample payload (seq, 6 axes, button
+  mask, channel outputs v/h/zoom after DSP, flags, mode id). Frames are at most 86 bytes; version
+  changes are incompatible and detected by the client. No command channel.
+- Transport behind one interface (`live_feed.hpp`: `FeedListener`, `FeedConn`): Unix domain socket
+  `live.sock` in the runtime directory (Linux, macOS), named pipe `\\.\pipe\dofscroll-live-<sid>`
+  (Windows).
+- `LiveFeedServer` is fed by `DaemonDeps::liveFeed` once per tick, rate limits to 30 Hz, only works
+  while a client is connected and never blocks. `LiveFeedClient` (toolkit-free, reconnecting) and
+  `src/ui/model/live_feed_model.hpp` (latest sample, min/max/peak tracking) serve the UI.
+
 ## Open points
 
 - The HID report layout of each device generation (translation and rotation as separate reports,
