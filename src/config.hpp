@@ -1,48 +1,51 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Konfigurationssystem: Settings (alle Werte), Profile (Sektionen) und
-// Aufloesung nach Geraet + aktivem Programm. Wird von Daemon UND Tray benutzt
-// (eine Quelle der Wahrheit fuer das Dateiformat, keine zweite Parser-Kopie).
+// Configuration system: Settings (all values), profiles (sections) and resolution by
+// device + active program. Used by the daemon AND the tray (one source of truth for the file
+// format, no second parser copy).
 //
-// Dateiformat (~/.config/dofscroll/dofscroll.conf), INI-artig, '#' und ';' = Kommentar:
+// File format (~/.config/dofscroll/dofscroll.conf), INI-like, '#' and ';' = comment:
 //
-//   # Ohne Sektion = [global]. Alte flache Dateien bleiben gueltig.
-//   SCROLL_V_MIX = z + rx          # Ausdruck: Summe aus [+-][Gewicht*]Achse
+//   # Without a section = [global]. Old flat files stay valid.
+//   SCROLL_V_MIX = z + rx          # expression: sum of [+-][weight*]axis
 //   SCROLL_V_SENS = 5              # 0..255
 //   SCROLL_V_DEADZONE = 30
-//   SCROLL_V_SIGN = 1              # 1 oder -1 (Richtung)
-//   SCROLL_V_CURVE = 1.5           # Exponent  ODER  Punkte "0:0 50:0.1 200:1 350:3"
-//   SCROLL_V_SMOOTH_MS = 20        # Glaettung (Zeitkonstante), 0 = aus
-//   (analog SCROLL_H_*, ZOOM_*)
-//   ZOOM_LATERAL = x z rx rz       # Achsen, gegen die der Zoom-Twist dominieren muss
+//   SCROLL_V_SIGN = 1              # 1 or -1 (direction)
+//   SCROLL_V_CURVE = 1.5           # exponent  OR  points "0:0 50:0.1 200:1 350:3"
+//   SCROLL_V_SMOOTH_MS = 20        # smoothing (time constant), 0 = off
+//   (likewise SCROLL_H_*, ZOOM_*)
+//   ZOOM_LATERAL = x z rx rz       # axes the zoom twist has to dominate
 //   ZOOM_ENTER_MS = 40
 //   ZOOM_EXIT_RATIO = 1.5
 //   BACKEND = auto                 # auto | x11 | uinput
 //   TICK_HZ = 250
-//   MODE = normal                  # normal | timeline (Scrubben/Einzelbilder, z.B. [app:resolve])
-//   ENABLED = 1                    # 0 = Daemon sendet nichts (z.B. [app:blender])
+//   MODE = normal                  # mode id (see modes.hpp), e.g. timeline in [app:resolve]
+//   ENABLED = 1                    # 0 = daemon sends nothing (e.g. [app:blender])
 //   NAV_BUTTON / NAV_BUTTON_ENABLED / CLICK_BUTTON / CLICK_BUTTON_ENABLED
+//   BUTTON_<n> = click             # n = 1..64; none | click | rightclick | middleclick | nav |
+//                                  # key:<name> (which n exist depends on the device: UI)
 //
-//   [device:SpaceMouse Pro]        # greift, wenn der Geraetename (spnav_dev_name)
-//   SCROLL_V_SENS = 8              # diesen Text enthaelt (Gross/Klein egal)
+//   [device:SpaceMouse Pro]        # applies if the device name (spnav_dev_name)
+//   SCROLL_V_SENS = 8              # contains this text (case-insensitive)
 //
-//   [app:firefox]                  # greift, wenn WM_CLASS diesen Text enthaelt
-//   ZOOM_SENS = 12                 # (Gross/Klein egal); Geraet vor Programm
+//   [app:firefox]                  # applies if WM_CLASS contains this text
+//   ZOOM_SENS = 12                 # (case-insensitive); app after device
 //
-// Sektionen enthalten nur die Keys, die sie ueberschreiben. Reihenfolge der
-// Aufloesung: [global] -> passende [device:*] -> passende [app:*] (jeweils in
-// Dateireihenfolge, spaetere gewinnen).
+// Sections contain only the keys they override. Resolution order:
+// [global] -> matching [device:*] -> (active mode's overrides) -> matching [app:*]
+// (each in file order, later ones win).
 //
-// Legacy-Keys (weiter lesbar, Tray schreibt nur noch die neuen):
+// Legacy keys (still readable, the tray writes only the new ones):
 //   SCROLL_SENSITIVITY_Y/X -> SCROLL_V_SENS / SCROLL_H_SENS
 //   ZOOM_SENSITIVITY       -> ZOOM_SENS
 //   SCROLL_DEADZONE_Y/X    -> SCROLL_V_DEADZONE / SCROLL_H_DEADZONE
 //   ZOOM_DEADZONE          -> ZOOM_DEADZONE
-//   INVERT_Y / INVERT_X    -> SCROLL_V_SIGN / SCROLL_H_SIGN (Wert 1 / -1, direkt Vorzeichen)
-//   ZOOM_INVERT            -> ZOOM_SIGN (ZOOM_INVERT=1 bedeutet SIGN=-1, 0 bedeutet 1)
-//   RESPONSE_CURVE         -> setzt den Exponenten aller drei Kanaele
+//   INVERT_Y / INVERT_X    -> SCROLL_V_SIGN / SCROLL_H_SIGN (value 1 / -1, the sign directly)
+//   ZOOM_INVERT            -> ZOOM_SIGN (ZOOM_INVERT=1 means SIGN=-1, 0 means 1)
+//   RESPONSE_CURVE         -> sets the exponent of all three channels
 #pragma once
 #include <cstddef>
+#include <map>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -51,49 +54,50 @@
 
 namespace spn {
 
-// Harte Obergrenzen gegen Ressourcen-Erschoepfung durch manipulierte Dateien
-// (docs/security.md). Gueltige Konfigurationen liegen weit darunter.
-constexpr size_t kMaxConfigBytes = 1u << 20;   // Dateigroesse (1 MiB)
-constexpr size_t kMaxLineBytes = 8192;         // Zeilenlaenge
-constexpr size_t kMaxSections = 256;           // Sektionen inkl. [global]
-constexpr size_t kMaxKeysPerSection = 512;     // eindeutige Keys je Sektion
-constexpr size_t kMaxMixTerms = 12;            // Terme je MIX-Ausdruck
-constexpr size_t kMaxCurvePoints = 64;         // Punkte je CURVE
-constexpr size_t kMaxLateralAxes = 6;          // Achsen in ZOOM_LATERAL
+// Hard upper limits against resource exhaustion by manipulated files
+// (docs/security.md). Valid configurations are far below them.
+constexpr size_t kMaxConfigBytes = 1u << 20;   // file size (1 MiB)
+constexpr size_t kMaxLineBytes = 8192;         // line length
+constexpr size_t kMaxSections = 256;           // sections incl. [global]
+constexpr size_t kMaxKeysPerSection = 512;     // unique keys per section
+constexpr size_t kMaxMixTerms = 12;            // terms per MIX expression
+constexpr size_t kMaxCurvePoints = 64;         // points per CURVE
+constexpr size_t kMaxLateralAxes = 6;          // axes in ZOOM_LATERAL
 constexpr double kMaxZoomExitRatio = 100.0;
+constexpr long kMaxButtons = 64;               // highest accepted BUTTON_<n>
 
 struct Term {
     Axis axis;
-    double weight;  // inkl. Vorzeichen
+    double weight;  // incl. sign
 };
 
-// Ausgabewert = Summe weight*axis. Leer = Kanal liefert immer 0.
+// Output value = sum of weight*axis. Empty = channel always yields 0.
 struct Mix {
     std::vector<Term> terms;
 };
 
-// Parst "z + rx", "x - rz", "0.5*rx + z", "-ry". Ungueltig -> false, *err gesetzt.
+// Parses "z + rx", "x - rz", "0.5*rx + z", "-ry". Invalid -> false, *err set.
 bool parseMix(const std::string &text, Mix *out, std::string *err);
-std::string mixToString(const Mix &m);  // Roundtrip-faehig: parseMix(mixToString(m)) == m
+std::string mixToString(const Mix &m);  // round-trip safe: parseMix(mixToString(m)) == m
 
 struct ChannelCfg {
     Mix mix;
-    int sensitivity = 5;          // 0..255, 0 = Kanal aus
-    int deadzone = 30;            // Rohsensor-Einheiten, >= 0
-    int sign = 1;                 // +1 oder -1
-    double curve_exp = 1.0;       // >= 0.1; wird genutzt, wenn curve_points leer ist
-    // Optionale frei definierte Kurve: (Eingabe nach Deadzone in Rohsensor-
-    // Einheiten, Faktor auf die lineare Geschwindigkeit), aufsteigend nach
-    // Eingabe, lineare Interpolation, ausserhalb geklemmt. Ueberschreibt curve_exp.
+    int sensitivity = 5;          // 0..255, 0 = channel off
+    int deadzone = 30;            // raw sensor units, >= 0
+    int sign = 1;                 // +1 or -1
+    double curve_exp = 1.0;       // >= 0.1; used if curve_points is empty
+    // Optional freely defined curve: (input after deadzone in raw sensor
+    // units, factor on the linear speed), ascending by input, linear
+    // interpolation, clamped outside. Overrides curve_exp.
     std::vector<std::pair<double, double>> curve_points;
-    double smooth_ms = 0.0;       // Zeitkonstante des Tiefpass, 0 = aus, <= 500
+    double smooth_ms = 0.0;       // low-pass time constant, 0 = off, <= 500
 };
 
 struct Settings {
     ChannelCfg scroll_v;
     ChannelCfg scroll_h;
     ChannelCfg zoom;
-    std::vector<Axis> zoom_lateral;   // Default: x z rx rz
+    std::vector<Axis> zoom_lateral;   // default: x z rx rz
     int zoom_enter_ms = 40;
     double zoom_exit_ratio = 1.5;
     std::string backend = "auto";     // auto | x11 | uinput
@@ -102,99 +106,105 @@ struct Settings {
     bool nav_button_enabled = false;
     int click_button = 1;
     bool click_button_enabled = false;
-    // Steuerung insgesamt aktiv? false (typisch in einem [app:*]-Profil, z.B. Blender mit
-    // eigener 3D-Navigation): der Daemon erzeugt dann gar keine Ausgabe.
+    // Control active at all? false (typically in an [app:*] profile, e.g. Blender with its
+    // own 3D navigation): the daemon then produces no output at all.
     bool enabled = true;
-    // "normal" (Scroll/Zoom/Nav) oder "timeline" (Video-Schnitt, z.B. DaVinci Resolve):
-    // seitliches Schieben/Kippen (SCROLL_H_*) = Scrubben, Drehen (ZOOM_*) = Einzelbilder,
-    // beides als Links/Rechts-Pfeiltasten (Schritte pro Sekunde je nach Auslenkung).
-    std::string mode = "normal";  // Kennung aus modes.hpp (Register)
+    std::string mode = "normal";  // mode id (see modes.hpp)
+    // Button bindings from BUTTON_<n> keys (n = 1..kMaxButtons): canonical action text as
+    // accepted by parseButtonAction (none | click | rightclick | middleclick | nav | key:<name>).
+    // Which n are valid for a given device is decided by the UI, not here.
+    std::map<int, std::string> buttons;
 
-    Settings();  // setzt die Defaults (siehe config.cpp): scroll_v "z + rx" sens 5
+    Settings();  // sets the defaults (see config.cpp): scroll_v "z + rx" sens 5
                  // dz 30 sign 1; scroll_h "x - rz" sens 3 dz 20 sign 1;
                  // zoom "ry" sens 5 dz 40 sign 1
 };
 
 using KV = std::pair<std::string, std::string>;
 
-// Setzt genau einen Key (neue und Legacy-Namen, Key case-insensitiv).
-// false + *err bei unbekanntem Key oder ungueltigem Wert (Settings bleibt dann unveraendert).
+// Sets exactly one key (new and legacy names, key case-insensitive).
+// false + *err on an unknown key or invalid value (Settings stays unchanged then).
 bool applyKey(Settings &s, const std::string &key, const std::string &value, std::string *err);
 
-// Alle Keys in kanonischer Reihenfolge (neue Namen), fuer die [global]-Sektion.
+// All keys in canonical order (new names), for the [global] section.
 std::vector<KV> allKeys(const Settings &s);
-// Nur Keys, in denen s von base abweicht (fuer [device:*]/[app:*]-Sektionen).
+// Only keys where s differs from base (for [device:*]/[app:*] sections).
 std::vector<KV> diffKeys(const Settings &base, const Settings &s);
 
 struct Section {
     enum Kind { GLOBAL, DEVICE, APP } kind = GLOBAL;
-    std::string pattern;              // bei DEVICE/APP; leer bei GLOBAL
-    std::vector<KV> kv;               // Roh-Keys wie in der Datei (Reihenfolge erhalten)
+    std::string pattern;              // for DEVICE/APP; empty for GLOBAL
+    std::vector<KV> kv;               // raw keys as in the file (order preserved)
 };
 
 struct ProfileSet {
-    std::vector<Section> sections;    // sections[0] ist immer GLOBAL
+    std::vector<Section> sections;    // sections[0] is always GLOBAL
 
-    ProfileSet();                     // nur leere GLOBAL-Sektion
-    // Aufloesung fuer Geraet + Programm (beide duerfen leer sein).
+    ProfileSet();                     // only an empty GLOBAL section
+    // Resolution for device + program (both may be empty).
     Settings resolve(const std::string &device_name, const std::string &wm_class) const;
-    // Settings nur der Sektion i (global: Defaults + global kv; sonst: base + kv der Sektion).
+    // Same, with the active mode's settings overrides (ModeDef::overrides) applied after the
+    // matching [device:*] sections and before the matching [app:*] sections.
+    // Precedence: global < device < mode overrides < app. nullptr = no overrides.
+    Settings resolve(const std::string &device_name, const std::string &wm_class,
+                     const std::vector<KV> *mode_overrides) const;
+    // Settings of section i only (global: defaults + global kv; otherwise: base + the section's kv).
     Settings sectionSettings(size_t i) const;
-    // Schreibt s in Sektion i zurueck (global: allKeys; DEVICE: diffKeys gegen global;
-    // APP: Abweichungen von global PLUS jeder Key, den ein [device:*]-Abschnitt auf
-    // einen anderen Wert setzt als s - damit ein Programmprofil auch den globalen Wert
-    // gegen einen Geraete-Override durchsetzen kann). Signatur unveraendert.
+    // Writes s back into section i (global: allKeys; DEVICE: diffKeys against global;
+    // APP: deviations from global PLUS every key that a [device:*] section sets to a
+    // value different from s - so an app profile can also enforce the global value
+    // against a device override). Signature unchanged.
     void setSectionFromSettings(size_t i, const Settings &s);
     static constexpr size_t npos = static_cast<size_t>(-1);
-    // Muster gueltig? (nach trim nicht leer, kein ']' und kein Zeilenumbruch -
-    // sonst ueberlebt es Speichern+Laden nicht). *out = getrimmtes Muster.
+    // Pattern valid? (non-empty after trim, no ']' and no line break -
+    // otherwise it does not survive save+load). *out = trimmed pattern.
     static bool normalizePattern(const std::string &pattern, std::string *out);
-    // Findet/legt Sektion an, liefert Index. Ungueltiges Muster (siehe
-    // normalizePattern) -> npos, Aufrufer MUSS das pruefen. Muster wird getrimmt.
+    // Finds/creates a section, returns its index. Invalid pattern (see
+    // normalizePattern) -> npos, the caller MUST check. The pattern is trimmed.
     size_t findOrAdd(Section::Kind kind, const std::string &pattern);
-    // Wie findOrAdd, legt aber nichts an: npos wenn nicht vorhanden/ungueltig.
+    // Like findOrAdd but creates nothing: npos if absent/invalid.
     size_t find(Section::Kind kind, const std::string &pattern) const;
-    void remove(size_t i);            // GLOBAL (i == 0) nicht entfernbar
+    void remove(size_t i);            // GLOBAL (i == 0) cannot be removed
 
 private:
-    // Suchindex (Art + kleingeschriebenes Muster -> Index), damit findOrAdd O(1)
-    // statt O(n) ist. Wird bei Groessenaenderung von `sections` bzw. Treffer-
-    // Mismatch lazy neu aufgebaut; Aenderungen ausser push_back/erase von aussen
-    // bitte vermeiden (oder sections per findOrAdd/remove pflegen).
+    // Search index (kind + lower-case pattern -> index) so that findOrAdd is O(1)
+    // instead of O(n). Rebuilt lazily when the size of `sections` changes or on a
+    // hit mismatch; please avoid changes other than push_back/erase from outside
+    // (or maintain sections via findOrAdd/remove).
     mutable std::unordered_map<std::string, size_t> idx_;
     mutable size_t idx_n_ = static_cast<size_t>(-1);
     void rebuildIndex() const;
 };
 
-// Aeltester Ort (Projektname damals "spnav-scroll"): $XDG_CONFIG_HOME (nur wenn absolut,
-// XDG-Spec) oder $HOME bzw. passwd-Heimat + /.config, jeweils + /spnav-scroll.conf
+// Oldest location (project was then named "spnav-scroll"): $XDG_CONFIG_HOME (only if absolute,
+// XDG spec) or $HOME resp. the passwd home + /.config, each + /spnav-scroll.conf
 std::string legacyConfigPath();
-// Vorheriger Ort: <configdir>/spnav-scroll/spnav-scroll.conf
+// Previous location: <configdir>/spnav-scroll/spnav-scroll.conf
 std::string previousConfigPath();
-// Neuer Ort: <configdir>/dofscroll/dofscroll.conf. Fallback: existiert die neue Datei nicht
-// (lstat), wird der vorherige, sonst der aelteste Pfad geliefert, falls vorhanden (bis zur
-// Migration). Hoechstens 3 lstat-Aufrufe, billig genug fuer 1x/s.
+// New location: <configdir>/dofscroll/dofscroll.conf. Fallback: if the new file does not exist
+// (lstat), the previous path, otherwise the oldest one is returned, if present (until
+// migration). At most 3 lstat calls, cheap enough for 1x/s.
 std::string defaultConfigPath();
-// Idempotente Best-Effort-Migration alt -> neu. true, wenn die neue Datei danach existiert
-// (schon da oder migriert); false, wenn nichts zu migrieren war oder es scheiterte (*log =
-// einzeilige Begruendung, darf nullptr sein; bei Erfolg Hinweis, dass die alte Datei
-// entfernt werden kann). Symlinks werden als Symlink (absolutes Ziel) uebernommen,
-// regulaere Dateien kopiert (Modus erhalten, ueberschreibt nie eine vorhandene neue
-// Datei, max. kMaxConfigBytes). Die alte Datei bleibt immer unangetastet.
+// Idempotent best-effort migration old -> new. true if the new file exists afterwards
+// (already there or migrated); false if there was nothing to migrate or it failed (*log =
+// one-line reason, may be nullptr; on success a hint that the old file can be removed).
+// Symlinks are carried over as symlinks (absolute target), regular files are copied (mode
+// preserved, never overwrites an existing new file, max. kMaxConfigBytes). The old file is
+// always left untouched.
 bool migrateLegacyConfig(std::string *log);
-// Fehlende Datei -> leeres ProfileSet (Defaults), true. Nicht-regulaere Datei
-// (z.B. Verzeichnis, FIFO) oder Datei > kMaxConfigBytes -> false. Zeilen > kMaxLineBytes,
-// Sektionen > kMaxSections und Keys > kMaxKeysPerSection werden mit Warnung uebersprungen;
-// doppelte Keys einer Sektion werden zusammengefasst (letzter Wert, Position des letzten). Ein UTF-8-BOM am Dateianfang wird ignoriert. Ungueltige Zeilen/Werte
-// werden uebersprungen und in *warnings (falls != nullptr) beschrieben.
+// Missing file -> empty ProfileSet (defaults), true. Non-regular file (e.g. directory, FIFO)
+// or file > kMaxConfigBytes -> false. Lines > kMaxLineBytes, sections > kMaxSections and
+// keys > kMaxKeysPerSection are skipped with a warning; duplicate keys of a section are
+// merged (last value, position of the last one). A UTF-8 BOM at the start of the file is
+// ignored. Invalid lines/values are skipped and described in *warnings (if != nullptr).
 bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::string> *warnings);
-// Schreibt atomar (temp neben dem echten Ziel + fsync + rename). Symlinks werden
-// aufgeloest und bleiben erhalten, Dateimodus bleibt erhalten (neu: 0600).
-// Ungueltige Sektionsmuster, Key/Wert mit Zeilenumbruch, leerer Key oder Key mit
-// fuehrendem '[', '#', ';' bzw. mit '=', von applyKey abgelehnte Paare, Symlink-
-// Schleifen (> 16 Hops, ELOOP) -> false, es wird nichts geschrieben. Modus ohne
-// setuid/setgid/sticky. Temp-Datei mit Zufallsnamen im selben Verzeichnis-Handle. Kommentare der Originaldatei gehen verloren
-// (bekannte Einschraenkung, steht im Dateikopf).
+// Writes atomically (temp next to the real target + fsync + rename). Symlinks are
+// resolved and preserved, the file mode is preserved (new: 0600).
+// Invalid section patterns, key/value with a line break, empty key or key with a
+// leading '[', '#', ';' or containing '=', pairs rejected by applyKey, symlink
+// loops (> 16 hops, ELOOP) -> false, nothing is written. Mode without
+// setuid/setgid/sticky. Temp file with a random name in the same directory handle.
+// Comments of the original file are lost (known limitation, stated in the file header).
 bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *err);
 
 }  // namespace spn

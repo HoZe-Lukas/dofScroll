@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Tests fuer src/config.cpp - reine assert-Tests, kein Framework.
-// Bauen/Starten:
+// Tests for src/config.cpp - plain assert tests, no framework.
+// Build/run:
 //   g++ -std=c++17 -Wall -Wextra -Isrc tests/test_config.cpp src/config.cpp -o test_config && ./test_config
 #undef NDEBUG
 #include <signal.h>
@@ -139,16 +139,16 @@ static void testDefaultsAndApplyKey() {
     assert(s.enabled && applyKey(s, "ENABLED", "0", &err) && !s.enabled);
     assert(!applyKey(s, "ENABLED", "maybe", &err) && !s.enabled);
 
-    // CURVE als Punktliste
+    // CURVE as a point list
     assert(applyKey(s, "SCROLL_H_CURVE", "0:0 50:0.1 200:1 350:3", &err));
     assert(s.scroll_h.curve_points.size() == 4 && near(s.scroll_h.curve_points[3].second, 3));
-    assert(!applyKey(s, "SCROLL_H_CURVE", "0:0 200:1 100:2", &err));  // nicht aufsteigend
+    assert(!applyKey(s, "SCROLL_H_CURVE", "0:0 200:1 100:2", &err));  // not ascending
     assert(s.scroll_h.curve_points.size() == 4);
     assert(!applyKey(s, "SCROLL_H_CURVE", "0:0 abc:1", &err));
     assert(applyKey(s, "SCROLL_H_CURVE", "1.5", &err));
     assert(s.scroll_h.curve_points.empty() && near(s.scroll_h.curve_exp, 1.5));
 
-    // Legacy-Aliase
+    // legacy aliases
     Settings l;
     assert(applyKey(l, "SCROLL_SENSITIVITY_Y", "7", &err) && l.scroll_v.sensitivity == 7);
     assert(applyKey(l, "SCROLL_SENSITIVITY_X", "8", &err) && l.scroll_h.sensitivity == 8);
@@ -202,10 +202,10 @@ static void testResolve() {
     assert(ps.resolve("spacemouse pro", "").zoom.sensitivity == 21);
     assert(ps.resolve("", "Navigator.firefox").zoom.sensitivity == 30);
     assert(ps.resolve("", "Navigator.firefox").scroll_v.sensitivity == 10);
-    // Geraet dann Programm: app gewinnt
+    // device then program: app wins
     Settings s = ps.resolve("SpaceMouse Pro", "firefox");
     assert(s.zoom.sensitivity == 30 && s.scroll_v.sensitivity == 20);
-    assert(ps.resolve("other", "XTERM").scroll_v.sensitivity == 40);  // CRLF-Sektion
+    assert(ps.resolve("other", "XTERM").scroll_v.sensitivity == 40);  // CRLF section
     assert(ps.resolve("other", "chrome").scroll_v.sensitivity == 10);
     std::remove(p.c_str());
 }
@@ -219,7 +219,7 @@ static void testSectionRoundtrip() {
     assert(a == 1 && ps.findOrAdd(Section::APP, "FIREFOX") == a);
     assert(ps.findOrAdd(Section::DEVICE, "firefox") != a);
     Settings s = ps.sectionSettings(a);
-    assert(settingsEq(s, g));  // leere Sektion = global
+    assert(settingsEq(s, g));  // empty section = global
     s.zoom.sensitivity = 77;
     s.scroll_h.curve_points = {{0, 0}, {100, 1}};
     ps.setSectionFromSettings(a, s);
@@ -227,13 +227,13 @@ static void testSectionRoundtrip() {
     assert(ps.sections[a].kv == d && d.size() == 2);
     assert(settingsEq(ps.sectionSettings(a), s));
     assert(diffKeys(s, s).empty());
-    // globale Aenderung schlaegt auf Sektion durch, Override bleibt
+    // a global change propagates to the section, the override stays
     Settings g2 = g;
     g2.scroll_v.sensitivity = 50;
     ps.setSectionFromSettings(0, g2);
     Settings r = ps.resolve("", "firefox");
     assert(r.scroll_v.sensitivity == 50 && r.zoom.sensitivity == 77);
-    // allKeys auf frischem Settings angewandt reproduziert es
+    // allKeys applied to fresh Settings reproduces it
     Settings fresh;
     for (auto &kv : allKeys(s)) {
         std::string err;
@@ -277,22 +277,22 @@ static void testSaveLoad() {
     assert(settingsEq(back.sectionSettings(0), g));
     assert(settingsEq(back.resolve("", "fire fox"), app));
     assert(settingsEq(back.resolve("spacemouse pro", ""), dev));
-    // Kopf enthaelt Kommentar-Hinweis
+    // header contains a comment note
     std::ifstream f(p);
     std::string first;
     std::getline(f, first);
     assert(!first.empty() && first[0] == '#');
-    // Tempdatei darf nicht uebrig bleiben
+    // the temp file must not be left over
     std::string tmp = p + ".tmp." + std::to_string(::getpid());
     assert(!std::ifstream(tmp));
     std::remove(p.c_str());
 
-    // nicht schreibbar
+    // not writable
     assert(!saveProfiles("/proc/nonexistent/x.conf", ps, &err) && !err.empty());
 }
 
 static void testBrokenAndMisc() {
-    // fehlende Datei -> Defaults, true
+    // missing file -> defaults, true
     ProfileSet ps;
     std::vector<std::string> w;
     assert(loadProfiles(tmpPath("does-not-exist.conf"), &ps, &w) && w.empty());
@@ -302,19 +302,19 @@ static void testBrokenAndMisc() {
     writeFile(p,
               "; Kommentar\n"
               "SCROLL_V_SENS = 7   # Zeilenende\n"
-              "ZOOM_SENS = # leer\n"             // leerer Wert -> Fehler -> Warnung
+              "ZOOM_SENS = # leer\n"             // empty value -> error -> warning
               "kein gleichheitszeichen\n"
               "UNKNOWN_KEY = 3\n"
               "SCROLL_H_SIGN = 5\n"
               "scroll_h_mix =   x   +  y  \n"
-              "[weird]\nTICK_HZ = 100\n"         // unbekannte Sektion: ignoriert
+              "[weird]\nTICK_HZ = 100\n"         // unknown section: ignored
               "[app:ok]\nZOOM_SENS = 3\n"
               "[app:\nZOOM_SENS = 4\n"
               "\n[global]\nTICK_HZ = 60\n");
     ProfileSet b;
     w.clear();
     assert(loadProfiles(p, &b, &w));
-    assert(w.size() == 6);  // ZOOM_SENS leer, ohne '=', UNKNOWN, SIGN=5, [weird], [app:
+    assert(w.size() == 6);  // ZOOM_SENS empty, without '=', UNKNOWN, SIGN=5, [weird], [app:
     Settings s = b.resolve("", "");
     assert(s.scroll_v.sensitivity == 7);
     assert(mixToString(s.scroll_h.mix) == "x + y");
@@ -332,7 +332,7 @@ static void testBrokenAndMisc() {
     assert(defaultConfigPath() == "/home/x/.config/dofscroll/dofscroll.conf");
 }
 
-// Regression S2 (docs/security.md): Obergrenzen fuer Kurve und Mix-Gewichte.
+// Regression S2 (docs/security.md): upper bounds for curve and mix weights.
 static void testUpperBounds() {
     Settings s;
     std::string err;
@@ -347,13 +347,13 @@ static void testUpperBounds() {
     assert(applyKey(t, "SCROLL_V_MIX", "100*z + rx", &err));
 }
 
-// Review-Fixes: Symlink, Modus, RESPONSE_CURVE, ']', BOM, Verzeichnis, Geraete-Override.
+// Review fixes: symlink, mode, RESPONSE_CURVE, ']', BOM, directory, device override.
 static void testReviewFixes() {
     char tmpl[] = "/tmp/spn_cfgXXXXXX";
     assert(mkdtemp(tmpl));
     std::string d = tmpl, err;
 
-    // 1+2: Symlink bleibt, Inhalt landet im Ziel, Modus bleibt
+    // 1+2: symlink stays, content lands in the target, mode stays
     std::string real = d + "/real.conf", link = d + "/link.conf";
     { std::ofstream(real) << "SCROLL_V_SENS = 1\n"; }
     assert(chmod(real.c_str(), 0640) == 0);
@@ -370,28 +370,28 @@ static void testReviewFixes() {
     ProfileSet back;
     assert(loadProfiles(real, &back, nullptr));
     assert(back.sectionSettings(0).scroll_v.sensitivity == 9);
-    // neue Datei: 0600
+    // new file: 0600
     std::string fresh = d + "/sub/new.conf";
     assert(saveProfiles(fresh, ps, &err));
     assert(stat(fresh.c_str(), &rst) == 0 && (rst.st_mode & 07777) == 0600);
-    // create_directories-Fehler wird gemeldet
+    // create_directories error is reported
     assert(!saveProfiles(real + "/x/y.conf", ps, &err) && !err.empty());
 
-    // 3: RESPONSE_CURVE loescht Punkte
+    // 3: RESPONSE_CURVE clears points
     Settings s;
     assert(applyKey(s, "SCROLL_V_CURVE", "0:0 100:1 300:3", &err));
     assert(!s.scroll_v.curve_points.empty());
     assert(applyKey(s, "RESPONSE_CURVE", "2", &err));
     assert(s.scroll_v.curve_points.empty() && near(s.scroll_v.curve_exp, 2.0));
 
-    // 4: ']' / Newline abgelehnt, Whitespace getrimmt
+    // 4: ']' / newline rejected, whitespace trimmed
     ProfileSet p4;
     assert(p4.findOrAdd(Section::APP, "a]b") == ProfileSet::npos);
     assert(p4.findOrAdd(Section::APP, "a\nb") == ProfileSet::npos);
     assert(p4.findOrAdd(Section::APP, "   ") == ProfileSet::npos);
     size_t t = p4.findOrAdd(Section::APP, "  fox  ");
     assert(t == 1 && p4.sections[1].pattern == "fox" && p4.findOrAdd(Section::APP, "FOX") == 1);
-    p4.sections[1].pattern = "bad]";  // von Hand eingeschleust
+    p4.sections[1].pattern = "bad]";  // injected by hand
     assert(!saveProfiles(d + "/bad.conf", p4, &err) && !err.empty());
     struct stat bst;
     assert(stat((d + "/bad.conf").c_str(), &bst) != 0);
@@ -404,11 +404,11 @@ static void testReviewFixes() {
     assert(pb.sections.size() == 2 && pb.sections[1].pattern == "ff");
     assert(pb.resolve("", "ff").zoom.sensitivity == 12);
 
-    // 7: Verzeichnis
+    // 7: directory
     std::vector<std::string> w;
     assert(!loadProfiles(d, &pb, &w) && !w.empty());
 
-    // 5: App-Profil stellt globalen Wert gegen Geraete-Override wieder her
+    // 5: app profile restores the global value against a device override
     ProfileSet p5;
     Settings g5 = p5.sectionSettings(0);
     g5.zoom.sensitivity = 5;
@@ -418,16 +418,16 @@ static void testReviewFixes() {
     sd.zoom.sensitivity = 8;
     p5.setSectionFromSettings(dv, sd);
     size_t ap = p5.findOrAdd(Section::APP, "ff");
-    p5.setSectionFromSettings(ap, g5);  // App will global 5
+    p5.setSectionFromSettings(ap, g5);  // app wants global 5
     assert(p5.resolve("mouse", "ff").zoom.sensitivity == 5);
     assert(p5.resolve("mouse", "other").zoom.sensitivity == 8);
     assert(p5.resolve("", "ff").zoom.sensitivity == 5);
-    // Roundtrip ueber Datei
+    // round trip through a file
     assert(saveProfiles(d + "/p5.conf", p5, &err));
     ProfileSet r5;
     assert(loadProfiles(d + "/p5.conf", &r5, nullptr));
     assert(r5.resolve("mouse", "ff").zoom.sensitivity == 5);
-    // Geraete-Sektion bleibt gegen global diffbar
+    // device section stays diffable against global
     assert(p5.sections[dv].kv.size() == 1);
 
     std::string cmd = "rm -rf " + d;
@@ -458,18 +458,18 @@ static long peakRssKb() {
     return 0;
 }
 
-// Audit-Fixes: Limits, Index, fd-basiertes Laden, sicheres Speichern, Pfade, Duplikate.
+// Audit fixes: limits, index, fd-based loading, safe saving, paths, duplicates.
 static void testAuditFixes() {
     const std::string d = mkTmpDir();
     std::string err;
     std::vector<std::string> w;
 
-    // 1: 10k Sektionen: schnell, Cap greift, Keys in uebersprungenen Sektionen ignoriert
+    // 1: 10k sections: fast, cap applies, keys in skipped sections ignored
     {
         std::string c;
         for (int i = 0; i < 10000; i++)
             c += "[app:prog" + std::to_string(i) + "]\nZOOM_SENS = " + std::to_string(i % 200) + "\n";
-        c += "[app:PROG3]\nZOOM_DEADZONE = 77\n";  // existierende Sektion bleibt auch am Cap erreichbar
+        c += "[app:PROG3]\nZOOM_DEADZONE = 77\n";  // an existing section stays reachable even at the cap
         std::string p = d + "/many.conf";
         writeFile(p, c);
         auto t0 = std::chrono::steady_clock::now();
@@ -485,19 +485,19 @@ static void testAuditFixes() {
         assert(ps.find(Section::APP, "prog255") == ProfileSet::npos);
         assert(ps.resolve("", "prog3").zoom.deadzone == 77);
         assert(ps.resolve("", "prog3").zoom.sensitivity == 3);
-        // findOrAdd/remove halten den Index konsistent
+        // findOrAdd/remove keep the index consistent
         size_t a = ps.findOrAdd(Section::DEVICE, "  NewDev ");
         assert(a == ps.sections.size() - 1 && ps.findOrAdd(Section::DEVICE, "newdev") == a);
         assert(ps.findOrAdd(Section::APP, "newdev") != a);
         ps.remove(1);
         assert(ps.find(Section::APP, "prog0") == ProfileSet::npos);
         assert(ps.find(Section::APP, "prog1") == 1);
-        ProfileSet cp = ps;  // Kopie behaelt Index
+        ProfileSet cp = ps;  // copy keeps the index
         assert(cp.find(Section::APP, "prog1") == 1 && cp.findOrAdd(Section::DEVICE, "NEWDEV") == a - 1);
     }
 
-    // 1: Keys pro Sektion begrenzt (unterschiedliche Keys gibt es nur ~25; Cap greift also
-    // ueber Duplikate nicht - hier nur: Warnungsflut wird begrenzt)
+    // 1: keys per section limited (there are only ~25 distinct keys; the cap therefore does
+    // not apply via duplicates - here only: warning flood is limited)
     {
         std::string c;
         for (int i = 0; i < 5000; i++) c += "BOGUS" + std::to_string(i) + " = 1\n";
@@ -508,7 +508,7 @@ static void testAuditFixes() {
         assert(w.size() <= 202);
     }
 
-    // 2: Dateigroesse und Zeilenlaenge
+    // 2: file size and line length
     {
         long before = peakRssKb();
         std::string big(2u << 20, 'x');
@@ -517,7 +517,7 @@ static void testAuditFixes() {
         ProfileSet ps;
         w.clear();
         assert(!loadProfiles(d + "/big.conf", &ps, &w));
-        assert(w.size() == 1 && w[0].find("zu gross") != std::string::npos);
+        assert(w.size() == 1 && w[0].find("too large") != std::string::npos);
         assert(peakRssKb() - before < 64 * 1024);
 
         std::string c = "ZOOM_SENS = 9\nZOOM_MIX = ry # " + std::string(kMaxLineBytes + 10, 'a') +
@@ -525,21 +525,21 @@ static void testAuditFixes() {
         writeFile(d + "/long.conf", c);
         w.clear();
         assert(loadProfiles(d + "/long.conf", &ps, &w));
-        assert(w.size() == 1 && w[0].find("zu lang") != std::string::npos);
+        assert(w.size() == 1 && w[0].find("too long") != std::string::npos);
         assert(ps.resolve("", "").zoom.sensitivity == 9 && ps.resolve("", "").scroll_v.sensitivity == 4);
-        // lange Zeile, die ein Sektionskopf war: Keys danach nicht der alten Sektion zuschlagen
+        // long line that was a section header: keys after it must not go to the old section
         c = "[app:ok]\nZOOM_SENS = 3\n[app:" + std::string(kMaxLineBytes + 5, 'b') + "]\nZOOM_SENS = 99\n";
         writeFile(d + "/long2.conf", c);
         assert(loadProfiles(d + "/long2.conf", &ps, nullptr));
         assert(ps.resolve("", "ok").zoom.sensitivity == 3);
-        // genau am Limit: ok
+        // exactly at the limit: ok
         std::string edge = "# " + std::string(kMaxLineBytes - 2, 'c') + "\nZOOM_SENS = 8\n";
         writeFile(d + "/edge.conf", edge);
         w.clear();
         assert(loadProfiles(d + "/edge.conf", &ps, &w) && w.empty() && ps.resolve("", "").zoom.sensitivity == 8);
     }
 
-    // 2: Mix-/Kurven-/Lateral-Caps
+    // 2: mix/curve/lateral caps
     {
         Mix m;
         std::string e12, e13;
@@ -565,23 +565,23 @@ static void testAuditFixes() {
         assert(s.zoom_lateral.size() == 6);
     }
 
-    // 9: ZOOM_EXIT_RATIO Obergrenze
+    // 9: ZOOM_EXIT_RATIO upper bound
     {
         Settings s;
         assert(applyKey(s, "ZOOM_EXIT_RATIO", "1e9", &err) && s.zoom_exit_ratio == 100.0);
     }
 
-    // 3: FIFO / Verzeichnis abgelehnt (FIFO ohne Writer darf nicht blockieren)
+    // 3: FIFO / directory rejected (a FIFO without a writer must not block)
     {
         std::string fifo = d + "/fifo.conf";
         assert(mkfifo(fifo.c_str(), 0600) == 0);
         ProfileSet ps;
         w.clear();
         assert(!loadProfiles(fifo, &ps, &w));
-        assert(w.size() == 1 && w[0].find("keine regulaere Datei") != std::string::npos);
+        assert(w.size() == 1 && w[0].find("not a regular file") != std::string::npos);
         w.clear();
         assert(!loadProfiles(d, &ps, &w) && w.size() == 1);
-        // Symlink-Konfig bleibt lesbar, dangling = Defaults
+        // symlinked config stays readable, dangling = defaults
         writeFile(d + "/t.conf", "ZOOM_SENS = 6\n");
         assert(symlink("t.conf", (d + "/l.conf").c_str()) == 0);
         assert(loadProfiles(d + "/l.conf", &ps, nullptr) && ps.resolve("", "").zoom.sensitivity == 6);
@@ -589,7 +589,7 @@ static void testAuditFixes() {
         assert(loadProfiles(d + "/dangling.conf", &ps, nullptr) && ps.sections.size() == 1);
     }
 
-    // 5: Symlink-Schleife -> Fehler, Link bleibt Link; Kette < 16 ok
+    // 5: symlink loop -> error, link stays a link; chain < 16 ok
     {
         std::string a = d + "/loopa.conf", b = d + "/loopb.conf";
         assert(symlink("loopb.conf", a.c_str()) == 0 && symlink("loopa.conf", b.c_str()) == 0);
@@ -600,7 +600,7 @@ static void testAuditFixes() {
         struct stat st;
         assert(lstat(a.c_str(), &st) == 0 && S_ISLNK(st.st_mode));
         assert(countTmpFiles(d) == 0);
-        // Kette aus 10 Links
+        // chain of 10 links
         writeFile(d + "/chain_target.conf", "");
         std::string prev = "chain_target.conf";
         for (int i = 0; i < 10; i++) {
@@ -613,7 +613,7 @@ static void testAuditFixes() {
         assert(lstat((d + "/chain_target.conf").c_str(), &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0);
     }
 
-    // 5: Modus: setuid/setgid/sticky weg
+    // 5: mode: setuid/setgid/sticky dropped
     {
         std::string p = d + "/mode.conf";
         writeFile(p, "");
@@ -625,7 +625,7 @@ static void testAuditFixes() {
         assert((st.st_mode & 07777) == 0755);
     }
 
-    // 6: kv-Validierung beim Speichern
+    // 6: kv validation on save
     {
         std::string p = d + "/kv.conf";
         writeFile(p, "ZOOM_SENS = 2\n");
@@ -646,12 +646,12 @@ static void testAuditFixes() {
         assert(!tryKv({"ZOOM_SENS", "abc"}));
         std::ifstream f(p);
         std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-        assert(content == "ZOOM_SENS = 2\n");  // nichts geschrieben
+        assert(content == "ZOOM_SENS = 2\n");  // nothing written
         assert(countTmpFiles(d) == 0);
         assert(tryKv({"ZOOM_SENS", "5"}));
     }
 
-    // 7: relative XDG ignoriert, HOME leer -> passwd
+    // 7: relative XDG ignored, empty HOME -> passwd
     {
         const char *oldHome = std::getenv("HOME");
         std::string saved = oldHome ? oldHome : "";
@@ -668,7 +668,7 @@ static void testAuditFixes() {
         assert(defaultConfigPath() == pth);
         if (oldHome) setenv("HOME", saved.c_str(), 1);
 
-        // neues Verzeichnis wird mit 0700 angelegt
+        // a new directory is created with 0700
         std::string p = d + "/new/sub/x.conf";
         ProfileSet ps;
         assert(saveProfiles(p, ps, &err));
@@ -677,7 +677,7 @@ static void testAuditFixes() {
         assert(stat((d + "/new/sub").c_str(), &st) == 0 && (st.st_mode & 0777) == 0700);
     }
 
-    // 8: Duplikate zusammenfassen
+    // 8: merge duplicates
     {
         writeFile(d + "/dup.conf",
                   "ZOOM_SENS = 1\nSCROLL_V_SENS = 2\nzoom_sens = 7\n[app:a]\nZOOM_SENS = 3\nZOOM_SENS = 4\n");
@@ -688,7 +688,7 @@ static void testAuditFixes() {
         assert(ps.sections[1].kv.size() == 1 && ps.sections[1].kv[0].second == "4");
     }
 
-    // 4: Fehlerpfade beim Speichern - Schreib-/fsync-Fehler entfernen die Temp-Datei
+    // 4: error paths on save - write/fsync errors remove the temp file
     {
         struct rlimit old, lim;
         getrlimit(RLIMIT_FSIZE, &old);
@@ -702,16 +702,16 @@ static void testAuditFixes() {
         bool ok = saveProfiles(p, ps, &err);
         setrlimit(RLIMIT_FSIZE, &old);
         signal(SIGXFSZ, oldh);
-        assert(!ok && err.find("Schreiben fehlgeschlagen") != std::string::npos);
+        assert(!ok && err.find("write failed") != std::string::npos);
         assert(countTmpFiles(d) == 0);
         std::ifstream f(p);
         std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
         assert(content == "ZOOM_SENS = 2\n");
-        // Ziel ist ein Verzeichnis -> Fehler, keine Reste
+        // target is a directory -> error, no leftovers
         assert(mkdir((d + "/isdir.conf").c_str(), 0700) == 0);
         assert(!saveProfiles(d + "/isdir.conf", ps, &err));
         assert(countTmpFiles(d) == 0);
-        // Verzeichnis nicht schreibbar (nur wenn nicht root): Fehler, keine Reste
+        // directory not writable (only if not root): error, no leftovers
         if (geteuid() != 0) {
             std::string ro = d + "/ro";
             assert(mkdir(ro.c_str(), 0500) == 0);
@@ -720,7 +720,7 @@ static void testAuditFixes() {
         }
     }
 
-    // 4: veraltete Temp-Datei (alter pid-Name o. ae.) stoert das Speichern nicht
+    // 4: a stale temp file (old pid name or similar) does not disturb saving
     {
         std::string p = d + "/stale.conf";
         writeFile(p + ".tmp." + std::to_string(::getpid()), "stale");
@@ -728,7 +728,7 @@ static void testAuditFixes() {
         ProfileSet ps;
         assert(saveProfiles(p, ps, &err));
         assert(saveProfiles(p, ps, &err));
-        assert(countTmpFiles(d) >= 2);  // fremde Dateien bleiben unangetastet
+        assert(countTmpFiles(d) >= 2);  // foreign files stay untouched
         ProfileSet back;
         assert(loadProfiles(p, &back, nullptr));
     }
@@ -749,9 +749,9 @@ static void testMigration() {
     const char *oldXdg = std::getenv("XDG_CONFIG_HOME");
     const std::string savedXdg = oldXdg ? oldXdg : "";
     setenv("XDG_CONFIG_HOME", d.c_str(), 1);
-    const std::string legacy = d + "/spnav-scroll.conf";  // aeltester Ort (alter Projektname)
+    const std::string legacy = d + "/spnav-scroll.conf";  // oldest location (old project name)
     const std::string prevdir = d + "/spnav-scroll";
-    const std::string prev = prevdir + "/spnav-scroll.conf";  // vorheriger Ort
+    const std::string prev = prevdir + "/spnav-scroll.conf";  // previous location
     const std::string nd = d + "/dofscroll";
     const std::string np = nd + "/dofscroll.conf";
     std::string log;
@@ -759,13 +759,13 @@ static void testMigration() {
 
     assert(legacyConfigPath() == legacy);
     assert(previousConfigPath() == prev);
-    // nichts da: neuer Pfad, Migration false
+    // nothing there: new path, migration false
     assert(defaultConfigPath() == np);
     assert(!migrateLegacyConfig(&log) && !log.empty());
     assert(!migrateLegacyConfig(nullptr));
-    assert(::lstat(nd.c_str(), &st) != 0);  // kein Verzeichnis angelegt
+    assert(::lstat(nd.c_str(), &st) != 0);  // no directory created
 
-    // reguelaere Datei
+    // regular file
     writeFile(legacy, "[global]\nTICK_HZ = 60\n");
     assert(::chmod(legacy.c_str(), 0640) == 0);
     assert(defaultConfigPath() == legacy);  // Fallback
@@ -774,7 +774,7 @@ static void testMigration() {
     assert(slurp(np) == "[global]\nTICK_HZ = 60\n");
     assert(::lstat(np.c_str(), &st) == 0 && S_ISREG(st.st_mode) && (st.st_mode & 0777) == 0640);
     assert(::stat(nd.c_str(), &st) == 0 && (st.st_mode & 0777) == 0700);
-    assert(slurp(legacy) == "[global]\nTICK_HZ = 60\n");  // unangetastet
+    assert(slurp(legacy) == "[global]\nTICK_HZ = 60\n");  // untouched
     assert(countTmpFiles(nd) == 0);
     // idempotent
     log.clear();
@@ -782,7 +782,7 @@ static void testMigration() {
     assert(migrateLegacyConfig(&log));
     assert(slurp(np) == "[global]\nTICK_HZ = 60\n");
     assert(countTmpFiles(nd) == 0);
-    // saveProfiles in nicht vorhandenes Verzeichnis
+    // saveProfiles into a non-existent directory
     {
         std::string p2 = d + "/fresh/dofscroll/dofscroll.conf";
         ProfileSet ps;
@@ -792,7 +792,7 @@ static void testMigration() {
     }
     assert(system(("rm -rf " + nd + " " + legacy).c_str()) == 0);
 
-    // vorheriger Ort (spnav-scroll/spnav-scroll.conf) hat Vorrang vor dem aeltesten
+    // previous location (spnav-scroll/spnav-scroll.conf) takes precedence over the oldest
     writeFile(legacy, "oldest\n");
     assert(::mkdir(prevdir.c_str(), 0700) == 0);
     writeFile(prev, "[global]\nTICK_HZ = 70\n");
@@ -800,10 +800,10 @@ static void testMigration() {
     assert(migrateLegacyConfig(&log) && !log.empty());
     assert(defaultConfigPath() == np);
     assert(slurp(np) == "[global]\nTICK_HZ = 70\n");
-    assert(slurp(prev) == "[global]\nTICK_HZ = 70\n");  // unangetastet
+    assert(slurp(prev) == "[global]\nTICK_HZ = 70\n");  // untouched
     assert(system(("rm -rf " + nd + " " + legacy + " " + prevdir).c_str()) == 0);
 
-    // kein Ueberschreiben
+    // no overwriting
     writeFile(legacy, "legacy\n");
     assert(::mkdir(nd.c_str(), 0700) == 0);
     writeFile(np, "mine\n");
@@ -812,7 +812,7 @@ static void testMigration() {
     assert(defaultConfigPath() == np);
     assert(system(("rm -rf " + nd + " " + legacy).c_str()) == 0);
 
-    // Symlink (relatives Ziel)
+    // symlink (relative target)
     writeFile(d + "/dotfiles.conf", "[global]\nTICK_HZ = 90\n");
     assert(::symlink("dotfiles.conf", legacy.c_str()) == 0);
     assert(migrateLegacyConfig(&log));
@@ -835,14 +835,14 @@ static void testMigration() {
     assert(migrateLegacyConfig(&log));  // idempotent
     assert(system(("rm -rf " + nd + " " + legacy).c_str()) == 0);
 
-    // FIFO abgelehnt
+    // FIFO rejected
     assert(::mkfifo(legacy.c_str(), 0600) == 0);
     log.clear();
     assert(!migrateLegacyConfig(&log) && !log.empty());
     assert(::lstat(np.c_str(), &st) != 0);
     assert(system(("rm -rf " + nd + " " + legacy).c_str()) == 0);
 
-    // zu gross
+    // too large
     {
         std::string big(kMaxConfigBytes + 1, '#');
         writeFile(legacy, big);
@@ -854,6 +854,88 @@ static void testMigration() {
     if (oldXdg) setenv("XDG_CONFIG_HOME", savedXdg.c_str(), 1);
     else unsetenv("XDG_CONFIG_HOME");
     assert(system(("rm -rf " + d).c_str()) == 0);
+}
+
+// ---- BUTTON_<n> keys, MODE key and mode-override precedence
+static void testButtonsAndModes() {
+    std::string err;
+    Settings s;
+    assert(applyKey(s, "BUTTON_1", "Click", &err) && s.buttons.at(1) == "click");
+    assert(applyKey(s, "button_64", " KEY: Space ", &err) && s.buttons.at(64) == "key:space");
+    assert(applyKey(s, "BUTTON_3", "nav", &err) && applyKey(s, "BUTTON_3", "none", &err) && s.buttons.at(3) == "none");
+    for (const char *bad : {"BUTTON_0", "BUTTON_65", "BUTTON_", "BUTTON_x", "BUTTON_-1", "BUTTON_0001", "BUTTON_1000"})
+        assert(!applyKey(s, bad, "click", &err));
+    assert(!applyKey(s, "BUTTON_2", "key:nonsense", &err));
+    assert(!applyKey(s, "BUTTON_2", "", &err));
+    assert(s.buttons.count(2) == 0);
+
+    // allKeys / diffKeys carry the buttons; diffKeys matches by name
+    Settings base;
+    Settings t = base;
+    assert(diffKeys(base, t).empty());
+    assert(applyKey(t, "BUTTON_5", "rightclick", &err));
+    std::vector<KV> d = diffKeys(base, t);
+    assert(d.size() == 1 && d[0].first == "BUTTON_5" && d[0].second == "rightclick");
+    Settings withB = base;
+    assert(applyKey(withB, "BUTTON_7", "click", &err));
+    d = diffKeys(withB, base);  // binding present in base, absent in s -> explicit none
+    assert(d.size() == 1 && d[0].first == "BUTTON_7" && d[0].second == "none");
+    Settings fresh;
+    for (const KV &p : allKeys(t)) assert(applyKey(fresh, p.first, p.second, &err));
+    assert(fresh.buttons == t.buttons);
+
+    // MODE in every section type
+    ProfileSet ps;
+    ps.sections[0].kv = {{"MODE", "timeline"}};
+    size_t dv = ps.findOrAdd(Section::DEVICE, "pro");
+    ps.sections[dv].kv = {{"MODE", "off"}};
+    size_t ap = ps.findOrAdd(Section::APP, "resolve");
+    ps.sections[ap].kv = {{"MODE", "normal"}};
+    assert(ps.resolve("", "").mode == "timeline");
+    assert(ps.resolve("SpaceMouse Pro", "").mode == "off");
+    assert(ps.resolve("SpaceMouse Pro", "resolve").mode == "normal");
+    assert(!applyKey(s, "MODE", "Bad Mode!", &err));
+
+    // precedence: global < device < mode overrides < app
+    ProfileSet q;
+    q.sections[0].kv = {{"SCROLL_H_SENS", "1"}, {"SCROLL_V_SENS", "1"}, {"ZOOM_SENS", "1"}, {"TICK_HZ", "100"}};
+    size_t qd = q.findOrAdd(Section::DEVICE, "pro");
+    q.sections[qd].kv = {{"SCROLL_H_SENS", "2"}, {"SCROLL_V_SENS", "2"}, {"ZOOM_SENS", "2"}};
+    size_t qa = q.findOrAdd(Section::APP, "app");
+    q.sections[qa].kv = {{"SCROLL_H_SENS", "4"}, {"SCROLL_V_SENS", "4"}};
+    const std::vector<KV> ov = {{"SCROLL_H_SENS", "3"}, {"SCROLL_V_SENS", "3"}, {"ZOOM_SENS", "3"}, {"TICK_HZ", "300"}};
+    Settings r = q.resolve("pro", "app", &ov);
+    assert(r.scroll_h.sensitivity == 4 && r.scroll_v.sensitivity == 4);  // app beats mode
+    assert(r.zoom.sensitivity == 3);                                      // mode beats device
+    assert(r.tick_hz == 300);                                             // mode beats global
+    r = q.resolve("pro", "", &ov);
+    assert(r.scroll_h.sensitivity == 3);
+    r = q.resolve("other", "", &ov);
+    assert(r.zoom.sensitivity == 3);                                      // mode beats global
+    // nullptr and the two-argument overload agree
+    assert(settingsEq(q.resolve("pro", "app", nullptr), q.resolve("pro", "app")));
+    assert(q.resolve("pro", "app").zoom.sensitivity == 2);
+    // invalid override entries are skipped, not fatal
+    const std::vector<KV> badov = {{"NO_SUCH_KEY", "1"}, {"ZOOM_SENS", "9"}};
+    assert(q.resolve("", "", &badov).zoom.sensitivity == 9);
+
+    // buttons survive profile save + load, also in device/app sections
+    ProfileSet bp;
+    Settings g = bp.sectionSettings(0);
+    assert(applyKey(g, "BUTTON_1", "click", &err));
+    bp.setSectionFromSettings(0, g);
+    size_t bd = bp.findOrAdd(Section::DEVICE, "pro");
+    Settings dset = bp.sectionSettings(0);
+    assert(applyKey(dset, "BUTTON_2", "key:space", &err));
+    bp.setSectionFromSettings(bd, dset);
+    const std::string path = tmpPath("buttons.conf");
+    assert(saveProfiles(path, bp, &err));
+    ProfileSet back;
+    assert(loadProfiles(path, &back, nullptr));
+    Settings res = back.resolve("pro", "");
+    assert(res.buttons.size() == 2 && res.buttons.at(1) == "click" && res.buttons.at(2) == "key:space");
+    assert(back.resolve("", "").buttons.size() == 1);
+    std::remove(path.c_str());
 }
 
 int main() {
@@ -868,6 +950,7 @@ int main() {
     testReviewFixes();
     testAuditFixes();
     testMigration();
-    std::cout << "test_config: alle Tests bestanden\n";
+    testButtonsAndModes();
+    std::cout << "test_config: all tests passed\n";
     return 0;
 }
