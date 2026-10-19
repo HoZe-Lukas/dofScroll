@@ -17,6 +17,7 @@ on:
       - "packaging/windows/**"
       - "packaging/macos/**"
       - "scripts/scan-package-paths.sh"
+      - "scripts/install-nsis.ps1"
       - "cmake/windows.cmake"
       - "cmake/macos.cmake"
       - "cmake/Ui.cmake"

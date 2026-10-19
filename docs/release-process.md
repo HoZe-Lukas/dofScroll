@@ -56,10 +56,25 @@ in a folder named with spaces, umlauts, CJK, an emoji and an ampersand; the macO
 daemon, the UI self-test and the LaunchAgent install/uninstall (in a sandbox `HOME`, nothing is
 loaded into launchd) from such a folder.
 
+## Release-path downloads
+
+No release step depends on a package feed being up at that moment:
+
+- **NSIS** comes from `scripts/install-nsis.ps1`: the official zip (pinned version), a pinned SHA-256
+  that fails the step on a wrong file, 3 attempts with a pause per source, an optional mirror
+  (repository variable `NSIS_MIRROR_URL`, same file) tried first, and `actions/cache` for the zip.
+  `installers-dry-run.yml` calls the same reusable workflow, so a broken source shows up before a
+  tag. To bump NSIS, change version and SHA-256 in the script and the cache key in `installers.yml`.
+- **aqtinstall and Qt** (pip, `aqt`) are retried 3 times; a failure still falls back to the
+  daemon-only package.
+- Audit, not yet hardened: the Linux package jobs (`linux-packages.yml`: `dnf`/`apt` inside
+  containers) and `ci.yml` (`dnf`) rely on distribution mirrors, which retry internally; the macOS
+  job uses only aqtinstall (retried) and the runner's tools.
+
 ## Windows installer
 
-- **Tool: NSIS 3.** It is free, needs no .NET or WiX toolset, is installed on `windows-latest`
-  (or by one `choco install nsis`), compiles a single `.nsi` text file, and supports per-user
+- **Tool: NSIS 3.** It is free, needs no .NET or WiX toolset, is installed in CI by
+  `scripts/install-nsis.ps1` (pinned zip, see below), compiles a single `.nsi` text file, and supports per-user
   installs (`RequestExecutionLevel user`), silent mode (`/S`) and a components page for the
   optional autostart. WiX would need its toolset and MSI authoring for the same result; MSI per-user
   support is more involved. `packaging/windows/installer.nsi` is the script,
