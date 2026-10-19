@@ -144,8 +144,8 @@ int main() {
     // Rejections.
     assert(!c.inspectImport(root + "/missing.conf").ok);
     assert(!c.inspectImport(root).ok);  // directory
-    put(root + "/nul.conf", std::string("NAME = x\n") + std::string(1, '\0') + "V_ACTION = none\n");
-    assert(!c.inspectImport(root + "/nul.conf", "nulfile").ok);
+    put(root + "/nulbyte.conf", std::string("NAME = x\n") + std::string(1, '\0') + "V_ACTION = none\n");
+    assert(!c.inspectImport(root + "/nulbyte.conf", "nulfile").ok);
     put(root + "/big.conf", std::string(70 * 1024, '#'));
     assert(!c.inspectImport(root + "/big.conf", "big").ok);
     std::string many;
