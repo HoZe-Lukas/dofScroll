@@ -5,6 +5,7 @@
 // Unix-socket reload, ~/Library paths. Same structure as src/dofscroll.cpp (Linux).
 #include <ApplicationServices/ApplicationServices.h>
 #include <IOKit/hidsystem/IOHIDLib.h>
+#include <dlfcn.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -80,16 +81,13 @@ void printHelp(const PlatformPaths &p) {
 
 bool accessibilityGranted() { return AXIsProcessTrusted(); }
 
-// cppcheck cannot parse __builtin_available(); it sees "true" instead (its own macro is defined).
-#ifdef __CPPCHECK__
-#define DOF_MACOS_10_15_OR_LATER() true
-#else
-#define DOF_MACOS_10_15_OR_LATER() __builtin_available(macOS 10.15, *)
-#endif
-
+// IOHIDCheckAccess exists from macOS 10.15 on: looked up at run time (no __builtin_available(),
+// which cppcheck cannot parse), like mac_hid_input.cpp does.
 bool inputMonitoringGranted() {
-    if (DOF_MACOS_10_15_OR_LATER()) return IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted;
-    return true;  // older systems have no such permission
+    using CheckFn = uint32_t (*)(uint32_t);
+    const CheckFn check = reinterpret_cast<CheckFn>(dlsym(RTLD_DEFAULT, "IOHIDCheckAccess"));
+    if (!check) return true;  // older systems have no such permission
+    return check(static_cast<uint32_t>(kIOHIDRequestTypeListenEvent)) == static_cast<uint32_t>(kIOHIDAccessTypeGranted);
 }
 
 // ---- runtime files -----------------------------------------------------------------------------
