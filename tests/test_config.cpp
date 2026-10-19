@@ -27,6 +27,10 @@
 #include "config.hpp"
 #include "testutil.hpp"
 
+#ifdef near  // <windows.h> defines near/far as empty macros
+#undef near
+#endif
+
 using namespace spn;
 
 static bool near(double a, double b) { return std::fabs(a - b) < 1e-9; }
@@ -690,9 +694,11 @@ static void testAuditFixes() {
         assert(!tryKv({"ZOOM\nSENS", "5"}));
         assert(!tryKv({"NOT_A_KEY", "5"}));
         assert(!tryKv({"ZOOM_SENS", "abc"}));
-        std::ifstream f(p);
-        std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-        assert(content == "ZOOM_SENS = 2\n");  // nothing written
+        {  // scoped: an open reader (no FILE_SHARE_DELETE) would block the replace on Windows
+            std::ifstream f(p);
+            std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+            assert(content == "ZOOM_SENS = 2\n");  // nothing written
+        }
         assert(countTmpFiles(d) == 0);
         assert(tryKv({"ZOOM_SENS", "5"}));
     }
