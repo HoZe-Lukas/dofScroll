@@ -211,6 +211,76 @@ static void testMisc() {
     assert(!base.empty() && base.find('\\') == std::string::npos);
 }
 
+#ifdef _WIN32
+// Windows path hazards (rules: path_rules.hpp): every entry point refuses them without touching
+// the file system.
+static void testWindowsHazards(const std::string &d) {
+    std::string err, out;
+    fs::FileInfo i;
+    put(d + "/plain.txt", "x");
+    const std::string bad[] = {d + "/con",          d + "/NUL.txt",       d + "/com1.conf",
+                               d + "/plain.txt:s",  d + "/plain.txt::$DATA", d + "/name.",
+                               d + "/name ",        "\\\\?\\" + d,   "\\\\.\\COM1",
+                               "C:relative",        d + "/a*b",           d + "/a?b"};
+    for (const std::string &p : bad) {
+        err.clear();
+        assert(!fs::statPath(p, &i) && !fs::lstatPath(p, &i) && !fs::pathExists(p));
+        const fs::ReadResult r = fs::readFileBounded(p, 100, fs::ReadOptions(), &out);
+        assert(r.status == fs::ReadStatus::OpenFailed && r.sysError.find("unsafe path") != std::string::npos);
+        assert(!fs::createFileExclusive(p, "x"));
+        assert(!fs::writeFileReplace(p, "x", &err) && err.find("unsafe path") != std::string::npos);
+        assert(fs::mkdirPrivate(p, &err) == fs::MkdirResult::Failed);
+        assert(!fs::mkdirsPrivate(p, &err) && !fs::removeFile(p) && !fs::removeDir(p));
+        std::vector<std::string> names;
+        bool capped = false;
+        assert(!fs::listDir(p, 0, &names, &capped));
+        fs::DirHandle dh;
+        assert(!dh.open(p, &err));
+        assert(!fs::renamePath(p, d + "/x") && !fs::renamePath(d + "/plain.txt", p));
+    }
+    assert(tu::exists(d + "/plain.txt"));  // the stream/device names never reached the file system
+    // names given to a DirHandle must be single, safe components
+    fs::DirHandle dh;
+    assert(dh.open(d, &err));
+    assert(dh.readFileBounded("con", 10, fs::ReadOptions(), &out).status == fs::ReadStatus::OpenFailed);
+    assert(dh.readFileBounded("plain.txt:s", 10, fs::ReadOptions(), &out).status == fs::ReadStatus::OpenFailed);
+    assert(dh.readFileBounded("sub/plain.txt", 10, fs::ReadOptions(), &out).status == fs::ReadStatus::OpenFailed);
+    assert(dh.readFileBounded("plain.txt", 10, fs::ReadOptions(), &out).ok());
+    // DirHandle::open reports the real reason (not a stale GetLastError, which would read
+    // "The operation completed successfully.")
+    ::SetLastError(ERROR_SUCCESS);
+    fs::DirHandle fileAsDir;
+    assert(!fileAsDir.open(d + "/plain.txt", &err) && !err.empty() &&
+           err.find("completed successfully") == std::string::npos);
+    ::SetLastError(ERROR_SUCCESS);
+    err.clear();
+    fs::DirHandle missing;
+    assert(!missing.open(d + "/does-not-exist", &err) && !err.empty() &&
+           err.find("completed successfully") == std::string::npos);
+
+    // Directory junctions are reparse points: lstat reports a link and writing through one is refused
+    // (only symbolic links are followed). Skipped where `mklink /J` is unavailable (Wine).
+    {
+        assert(fs::mkdirPrivate(d + "/jtarget", nullptr) == fs::MkdirResult::Created);
+        std::string cmd = "cmd /c mklink /J \"" + d + "/jlink\" \"" + d + "/jtarget\" >nul 2>&1";
+        for (char &c : cmd)
+            if (c == '/') c = '\\';
+        if (std::system(cmd.c_str()) == 0 && fs::lstatPath(d + "/jlink", &i)) {
+            assert(i.isLink && !i.isDir && !i.isFile);
+            assert(!fs::writeFileReplace(d + "/jlink", "x", &err) && err.find("reparse point refused") != std::string::npos);
+            fs::ReadOptions ro;
+            ro.refuseLinks = true;
+            assert(fs::readFileBounded(d + "/jlink", 10, ro, &out).status == fs::ReadStatus::OpenFailed);
+        } else {
+            std::puts("test_fs: junction test skipped (mklink /J unavailable)");
+        }
+    }
+    // a normal "dotted" name that is NOT reserved still works
+    assert(fs::writeFileReplace(d + "/console.conf", "ok", &err) && get(d + "/console.conf") == "ok");
+    assert(fs::writeFileReplace(d + "/a.con", "ok", &err));
+}
+#endif
+
 int main() {
     const std::string d = tu::makeTempDir("spn_fs");
     testStat(d);
@@ -220,6 +290,9 @@ int main() {
     testMkdirs(d);
     testList(d);
     testMisc();
+#ifdef _WIN32
+    testWindowsHazards(d);
+#endif
     tu::removeAll(d);
     std::puts("test_fs: ok");
     return 0;

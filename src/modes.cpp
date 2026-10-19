@@ -13,6 +13,7 @@
 
 #include "config.hpp"
 #include "platform/fs.hpp"
+#include "platform/path_rules.hpp"
 
 namespace spn {
 
@@ -186,8 +187,11 @@ const ModeDef *ModeSet::find(const std::string &id) const {
 }
 
 bool validModeId(const std::string &id) {
+    // Reserved Windows device names (con, nul, com1, ...) are refused on every OS: "<id>.conf"
+    // would resolve to the device on Windows, and mode directories are copied between systems.
     return !id.empty() && id.size() <= 32 &&
-           id.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_-") == std::string::npos;
+           id.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_-") == std::string::npos &&
+           !isReservedDeviceStem(id);
 }
 
 bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err) {
