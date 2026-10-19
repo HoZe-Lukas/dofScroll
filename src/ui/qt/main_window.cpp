@@ -41,7 +41,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     const std::string cfg = spn::defaultConfigPath();
     if (!settings_.load(cfg, &warnings, &err)) settings_.setProfiles(spn::ProfileSet(), cfg);
     settings_.setReloadCallback([this](std::string *e) { return runner_.requestReload(e); });
-    ctx_.reset(new PageContext{settings_, runner_, status_, strings_, QString::fromStdString(cfg)});
+    ctx_.reset(new PageContext{settings_, runner_, status_, strings_, QString::fromUtf8(cfg.data(), qsizetype(cfg.size()))});
     updateStatus();
     auto *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, [this] { updateStatus(); });
@@ -131,6 +131,8 @@ void MainWindow::rebuildProfilePage(QTreeWidgetItem *profile) {
     stack_->insertWidget(idx, page);
     stack_->setCurrentWidget(page);
 }
+
+MainWindow::~MainWindow() { delete takeCentralWidget(); }
 
 int MainWindow::pageCount() const { return nav_->topLevelItemCount(); }
 

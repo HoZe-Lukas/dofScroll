@@ -58,6 +58,15 @@ int main() {
     v = autostartView(AutostartState::Error, std::string("bad\nline") + std::string(500, 'x'), id);
     assert(!v.canToggle && v.isError && v.text.find('\n') == std::string::npos && v.text.size() < 300);
 
+    // UTF-8: a 200 byte limit never cuts a multi-byte character
+    v = autostartView(AutostartState::Error, std::string(199, 'a') + "\xC3\xA4\xC3\xA4", id);
+    assert(v.text.find("\xC3\xA4") == std::string::npos || v.text.back() != char(0xC3));
+    {
+        const std::string t = v.text;
+        for (size_t i = 0; i < t.size(); ++i)
+            if (static_cast<unsigned char>(t[i]) == 0xC3) assert(i + 1 < t.size() && (static_cast<unsigned char>(t[i + 1]) & 0xC0) == 0x80);
+    }
+
     // ---- status block ----
     StatusModel sm;
     assert(statusBlockLines(sm, id).size() == 1 && statusBlockLines(sm, id)[0] == "Daemon: not running");
@@ -99,6 +108,29 @@ int main() {
     assert(lateralText(lateralMask(s)) == "x rz" && lateralText(0).empty());
     assert(m.setValue(0, "ZOOM_LATERAL", lateralText((1u << AX_Y) | (1u << AX_RX)), &err));
     assert(lateralMask(m.effective(0)) == ((1u << AX_Y) | (1u << AX_RX)));
+
+    // Non-ASCII values and a config base with spaces and non-ASCII characters
+    {
+        const std::string odd = tu::makeTempDir("ui pages \xC3\xA4\xE4\xBD\xA0 #;=%&[x]");
+        tu::useConfigBase(odd);
+        std::string e2;
+        assert(saveUiSettings(uiSettingsPath(), de, &e2));
+        assert(loadUiSettings(uiSettingsPath()).language == Language::German);
+        std::string raw;
+        fs::ReadOptions ro;
+        assert(fs::readFileBounded(uiSettingsPath(), 4096, ro, &raw).ok());
+        assert(raw.compare(0, 3, "\xEF\xBB\xBF") != 0);  // no BOM
+        SettingsModel m2;
+        const std::string cfgp = odd + "/dofscroll \xC3\xA4.conf";
+        m2.setProfiles(ProfileSet(), cfgp);
+        assert(m2.addSection(Section::APP, "caf\xC3\xA9 \xE4\xBD\xA0", &e2) != ProfileSet::npos);
+        assert(m2.save(id).saved);
+        SettingsModel m3;
+        std::vector<std::string> w;
+        assert(m3.load(cfgp, &w, &e2) && m3.sectionCount() == 2);
+        assert(m3.sections()[1].pattern.find("\xC3\xA9") != std::string::npos);
+        tu::removeAll(odd);
+    }
 
     tu::removeAll(root);
     puts("test_ui_pages: ok");

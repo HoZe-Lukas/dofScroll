@@ -18,7 +18,7 @@ class QWidget;
 // StringProvider for the toolkit-free models: translates through the Qt catalog.
 class QtStringProvider : public spn::ui::StringProvider {
 public:
-    std::string tr(const char *source) const override { return T(source).toStdString(); }
+    std::string tr(const char *source) const override { return T(source).toUtf8().toStdString(); }
 };
 
 // What every page gets from the main window (all owned by it, outliving the pages).

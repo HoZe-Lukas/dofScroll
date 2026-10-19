@@ -21,6 +21,7 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
     explicit MainWindow(QWidget *parent = nullptr);
+    ~MainWindow() override;  // destroys the pages before the models they reference
     int pageCount() const;                    // top-level navigation entries
     int profileCount() const;                 // entries below "Profiles"
     bool profilePageHasModeSelector() const;  // false for the default mode

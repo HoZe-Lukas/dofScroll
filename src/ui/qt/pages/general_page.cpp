@@ -95,8 +95,8 @@ public:
         cl->addWidget(configMsg_);
         QObject::connect(open, &QPushButton::clicked, this, [this] {
             std::string err;
-            if (ctx_.actions.openPath(ctx_.configPath.toStdString(), &err)) configMsg_->setText(QString());
-            else configMsg_->setText(T("Could not open the file: ") + QString::fromStdString(err));
+            if (ctx_.actions.openPath(ctx_.configPath.toUtf8().toStdString(), &err)) configMsg_->setText(QString());
+            else configMsg_->setText(T("Could not open the file: ") + qs8(err));
         });
         col->addWidget(cfgBox);
 
@@ -136,7 +136,7 @@ private:
 
     void refreshStatus() {
         QStringList lines;
-        for (const std::string &s : statusBlockLines(ctx_.status, ctx_.strings)) lines << QString::fromStdString(s);
+        for (const std::string &s : statusBlockLines(ctx_.status, ctx_.strings)) lines << qs8(s);
         statusLabel_->setText(lines.join(QLatin1Char('\n')));
     }
 
@@ -167,10 +167,10 @@ private:
             autostart_->setCheckState(v.partial ? Qt::PartiallyChecked : v.checked ? Qt::Checked : Qt::Unchecked);
         }
         autostart_->setEnabled(v.canToggle);
-        autostart_->setToolTip(QString::fromStdString(v.tooltip));
-        QString text = QString::fromStdString(v.text);
+        autostart_->setToolTip(qs8(v.tooltip));
+        QString text = qs8(v.text);
         if (!r.setOk) {
-            const QString failed = T("Could not change the setting: ") + QString::fromStdString(r.setErr);
+            const QString failed = T("Could not change the setting: ") + qs8(r.setErr);
             text = text.isEmpty() ? failed : failed + QLatin1Char('\n') + text;
         }
         autostartMsg_->setText(text);
@@ -185,7 +185,7 @@ private:
             languageMsg_->setText(T("Takes effect the next time dofscroll-ui is started."));
             languageMsg_->setForegroundRole(QPalette::PlaceholderText);
         } else {
-            languageMsg_->setText(T("Could not save the language: ") + QString::fromStdString(err));
+            languageMsg_->setText(T("Could not save the language: ") + qs8(err));
             languageMsg_->setForegroundRole(QPalette::WindowText);
         }
     }

@@ -181,7 +181,7 @@ private:
     }
     double number(const std::string &key) {
         std::string t;
-        return value(key, &t) ? QString::fromStdString(t).toDouble() : 0.0;
+        return value(key, &t) ? qs8(t).toDouble() : 0.0;
     }
     // Validates and stores; shows the model's message at the row on failure.
     bool apply(const std::string &key, const std::string &text, QLabel *help, const QString &helpText) {
@@ -191,8 +191,8 @@ private:
             changed();
             return true;
         }
-        if (help) setHelp(help, QString::fromStdString(err), true);
-        else message_->setText(T("Invalid value: ") + QString::fromStdString(err));
+        if (help) setHelp(help, qs8(err), true);
+        else message_->setText(T("Invalid value: ") + qs8(err));
         return false;
     }
     void setHelp(QLabel *l, const QString &text, bool error) {
@@ -212,8 +212,8 @@ private:
         if (!ctx_.settings.dirty()) return;
         const SettingsModel::SaveResult r = ctx_.settings.save(ctx_.strings);
         if (r.saved && r.reloaded) message_->setText(T("Saved."));
-        else if (r.saved) message_->setText(T("Saved, but the daemon was not notified: ") + QString::fromStdString(r.error));
-        else message_->setText(T("Not saved: ") + QString::fromStdString(r.error));
+        else if (r.saved) message_->setText(T("Saved, but the daemon was not notified: ") + qs8(r.error));
+        else message_->setText(T("Not saved: ") + qs8(r.error));
     }
     void refreshAll() {
         for (auto &f : refreshers_) f();
@@ -271,7 +271,7 @@ private:
         s->setKeyboardTracking(false);
         QObject::connect(s, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
                          [this, key, helpLabel, help](double v) {
-                             apply(key, QString::number(v, 'g', 10).toStdString(), helpLabel, help);
+                             apply(key, QString::number(v, 'g', 10).toUtf8().toStdString(), helpLabel, help);
                          });
         refreshers_.push_back([this, s, key] {
             QSignalBlocker b(s);
@@ -312,11 +312,11 @@ private:
                     spinRow(grid, &row, T(kt.label), help, [&](QLabel *hl) -> QWidget * {
                         auto *e = new QLineEdit;
                         QObject::connect(e, &QLineEdit::editingFinished, this, [this, e, key, hl, help] {
-                            if (apply(key, e->text().toStdString(), hl, help)) refreshAll();
+                            if (apply(key, e->text().toUtf8().toStdString(), hl, help)) refreshAll();
                         });
                         refreshers_.push_back([this, e, key] {
                             std::string t;
-                            if (value(key, &t)) e->setText(QString::fromStdString(t));
+                            if (value(key, &t)) e->setText(qs8(t));
                         });
                         return e;
                     });
@@ -344,12 +344,12 @@ private:
                 auto *c = guarded(new QComboBox);
                 for (const char *id : {"auto", "x11", "uinput"}) c->addItem(QString::fromLatin1(id), QString::fromLatin1(id));
                 QObject::connect(c, QOverload<int>::of(&QComboBox::activated), this, [this, c, hl, beHelp](int) {
-                    apply("BACKEND", c->currentData().toString().toStdString(), hl, beHelp);
+                    apply("BACKEND", c->currentData().toString().toUtf8().toStdString(), hl, beHelp);
                 });
                 refreshers_.push_back([this, c] {
                     std::string t;
                     value("BACKEND", &t);
-                    const int i = c->findData(QString::fromStdString(t));
+                    const int i = c->findData(qs8(t));
                     QSignalBlocker b(c);
                     c->setCurrentIndex(i < 0 ? 0 : i);
                 });
@@ -408,7 +408,7 @@ private:
                                  QSignalBlocker b(slider);
                                  slider->setValue(int(v * 20.0 + 0.5));
                              }
-                             apply(key, QString::number(v, 'g', 6).toStdString(), expLabel, expHelp);
+                             apply(key, QString::number(v, 'g', 6).toUtf8().toStdString(), expLabel, expHelp);
                          });
         auto *l = new QLabel(T("Curve (exponent)"));
         l->setBuddy(spin);
@@ -426,11 +426,11 @@ private:
                          [this, pts, spin, key, ptsLabel, ptsHelp] {
                              const QString t = pts->text().trimmed();
                              if (t.isEmpty()) {
-                                 if (apply(key, QString::number(spin->value(), 'g', 6).toStdString(), ptsLabel, ptsHelp))
+                                 if (apply(key, QString::number(spin->value(), 'g', 6).toUtf8().toStdString(), ptsLabel, ptsHelp))
                                      refreshAll();
                              } else if (!t.contains(QLatin1Char(':'))) {
                                  setHelp(ptsLabel, T("point list expected: \"input:factor ...\" (use the slider for an exponent)"), true);
-                             } else if (apply(key, t.toStdString(), ptsLabel, ptsHelp)) {
+                             } else if (apply(key, t.toUtf8().toStdString(), ptsLabel, ptsHelp)) {
                                  refreshAll();
                              }
                          });
@@ -460,7 +460,7 @@ private:
                     const std::string want = (gid == "scroll_v" ? "SCROLL_V_" : gid == "scroll_h" ? "SCROLL_H_" : "ZOOM_") + suffix;
                     if (kv.first == want) txt = kv.second;
                 }
-            pts->setText(QString::fromStdString(txt));
+            pts->setText(qs8(txt));
         });
 
         auto *preview = new CurveWidget(this);

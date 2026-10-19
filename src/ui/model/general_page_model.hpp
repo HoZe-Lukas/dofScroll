@@ -26,7 +26,12 @@ inline AutostartView autostartView(autostart::AutostartState s, const std::strin
                                    const StringProvider &str) {
     using autostart::AutostartState;
     AutostartView v;
-    std::string d = detail.size() > 200 ? detail.substr(0, 200) : detail;
+    std::string d = detail;
+    if (d.size() > 200) {  // cut on a code point boundary (never inside a UTF-8 sequence)
+        size_t n = 200;
+        while (n > 0 && (static_cast<unsigned char>(d[n]) & 0xC0) == 0x80) --n;
+        d.resize(n);
+    }
     for (char &c : d)
         if (static_cast<unsigned char>(c) < 0x20) c = ' ';
     switch (s) {

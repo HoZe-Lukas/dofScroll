@@ -8,9 +8,10 @@
 #include <QUrl>
 
 #include "platform/autostart_platform.hpp"
+#include "ui_i18n.hpp"
 
 bool QtActionRunner::openPath(const std::string &path, std::string *err) {
-    if (QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(path)))) return true;
+    if (QDesktopServices::openUrl(QUrl::fromLocalFile(qs8(path)))) return true;
     if (err) *err = "cannot open " + path;
     return false;
 }
