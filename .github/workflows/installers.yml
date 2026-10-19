@@ -94,6 +94,11 @@ jobs:
             # the Qt runtime comes from the install folder, not from the runner's Qt
             $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -notmatch 'Qt' }) -join ';'
             $env:QT_QPA_PLATFORM = 'offscreen'
+            # windeployqt ships only the "windows" platform plugin; the headless self-test needs the
+            # offscreen one (test only: the folder is removed again below). Without it Qt shows a
+            # modal error box in this GUI program and waits forever.
+            New-Item -ItemType Directory -Force -Path (Join-Path $dir 'platforms') | Out-Null
+            Copy-Item -LiteralPath (Join-Path $env:QT_ROOT_DIR 'plugins\platforms\qoffscreen.dll') -Destination (Join-Path $dir 'platforms')
             Invoke-Limited $ui @('--self-test') 'dofscroll-ui.exe --self-test'
           }
           # _?= keeps the uninstaller in place so that the wait really waits for it
@@ -138,8 +143,9 @@ jobs:
         id: qt
         continue-on-error: true   # without Qt the daemon-only package is built (name contains -daemon-only)
         run: |
-          python3 -m pip install "aqtinstall==3.1.19"
-          python3 -m aqt install-qt mac desktop 6.9.3 clang_64 -O "$RUNNER_TEMP/Qt"   # 6.8.x links AGL, dropped in the macOS 15 SDK
+          python3 -m venv "$RUNNER_TEMP/aqt-venv"   # the runner's Python is externally managed
+          "$RUNNER_TEMP/aqt-venv/bin/python" -m pip install "aqtinstall==3.1.19"
+          "$RUNNER_TEMP/aqt-venv/bin/python" -m aqt install-qt mac desktop 6.9.3 clang_64 -O "$RUNNER_TEMP/Qt"   # 6.8.x links AGL, dropped in the macOS 15 SDK
           root="$RUNNER_TEMP/Qt/6.9.3/macos"
           test -x "$root/bin/macdeployqt"
           echo "QT_ROOT_DIR=$root" >> "$GITHUB_ENV"
@@ -160,6 +166,9 @@ jobs:
       - name: Test the image (mount, verify signature, run)
         run: |
           set -eu
+          # the bundle ships only the cocoa platform plugin; the headless self-test uses the offscreen
+          # plugin of the runner's Qt (the frameworks still come from the bundle)
+          qt_platforms="${QT_ROOT_DIR:-/nonexistent}/plugins/platforms"
           mnt="$RUNNER_TEMP/dmg-mnt"
           mkdir -p "$mnt"
           hdiutil attach -nobrowse -readonly -mountpoint "$mnt" dist-installers/*.dmg
@@ -175,7 +184,7 @@ jobs:
           "$d" --version
           if [ -d "$mnt/dofscroll.app" ]; then
             # the frameworks must come from the bundle, not from the runner's Qt
-            env -u QT_ROOT_DIR -u DYLD_FRAMEWORK_PATH QT_QPA_PLATFORM=offscreen \
+            env -u QT_ROOT_DIR -u DYLD_FRAMEWORK_PATH QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORM_PLUGIN_PATH="$qt_platforms" \
               "$mnt/dofscroll.app/Contents/MacOS/dofscroll-ui" --self-test
           fi
           # Round trip in a folder with spaces and non-ASCII characters (umlauts, CJK, an emoji and an
@@ -189,7 +198,7 @@ jobs:
             res="$sandbox/pkg/dofscroll.app/Contents/Resources"
             d="$res/daemon/dofscroll"
             codesign --verify --deep --strict "$sandbox/pkg/dofscroll.app"
-            env -u QT_ROOT_DIR -u DYLD_FRAMEWORK_PATH QT_QPA_PLATFORM=offscreen \
+            env -u QT_ROOT_DIR -u DYLD_FRAMEWORK_PATH QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORM_PLUGIN_PATH="$qt_platforms" \
               "$sandbox/pkg/dofscroll.app/Contents/MacOS/dofscroll-ui" --self-test
           else
             res="$sandbox/pkg/dofscroll"
