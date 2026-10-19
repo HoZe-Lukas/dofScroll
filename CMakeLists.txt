@@ -149,6 +149,13 @@ if(DOFSCROLL_TRAY)
 endif()
 endif()  # NOT DOFSCROLL_CORE_ONLY
 
+# ---- Windows / macOS daemon (backends live in src/platform/<os>/, see docs/port-architecture.md) ----
+if(WIN32 AND EXISTS ${CMAKE_SOURCE_DIR}/cmake/windows.cmake)
+  include(${CMAKE_SOURCE_DIR}/cmake/windows.cmake)
+elseif(APPLE AND EXISTS ${CMAKE_SOURCE_DIR}/cmake/macos.cmake)
+  include(${CMAKE_SOURCE_DIR}/cmake/macos.cmake)
+endif()
+
 # ---- tests ------------------------------------------------------------------
 file(GLOB TEST_SRC CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/tests/test_*.cpp)
 set(TEST_TARGETS)
