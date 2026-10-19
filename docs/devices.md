@@ -31,7 +31,7 @@ For Pro, Pro Wireless and Enterprise the raw button bits are not numbered sequen
 
 ## File format
 
-Plain text, one `key = value` per line, `#` starts a comment. Limits: at most 64 `*.conf`
+Plain text, one `key = value` per line, `#` or `;` starts a comment, but only at the start of a line or after whitespace; the value of `name` is taken verbatim (only whole-line comments), so `name = Foo #2` keeps `#2`. Limits: at most 64 `*.conf`
 files per directory, 16 KiB per file, regular files only (symlinks are refused,
 `O_NOFOLLOW`).
 
@@ -39,7 +39,7 @@ files per directory, 16 KiB per file, regular files only (symlinks are refused,
 |---|---|
 | `name` | Display name (required, max 128 characters) |
 | `id` | `vid:pid` as 16-bit numbers (decimal or `0x` hex); repeatable up to 16 times (required) |
-| `factory_buttons` | Physical button count, 0..64 (optional; must not exceed `bits`) |
+| `factory_buttons` | Physical button count, 0..32 (optional; requires a `buttons` line and must not exceed its `bits`) |
 | `axis.<a>` | `a` is one of `tx ty tz rx ry rz`; options below; each axis at most once |
 | `buttons` | `report=<id> offset=<n> bits=<1..32>`; at most once |
 

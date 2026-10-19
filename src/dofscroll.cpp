@@ -96,6 +96,17 @@ int main(int argc, char **argv) {
         }
     }
 
+    // Install the reload handler before any heavy initialization: a SIGHUP arriving during
+    // startup only sets a flag (reported by the first pollReload()) instead of killing us.
+    // Deliberately never destroyed (the reader thread outlives main). The core calls init()
+    // again later, which is idempotent.
+    ReloadListener *reload_p = makeReloadListener().release();
+    {
+        std::string rerr;
+        if (!reload_p->init(&rerr))
+            std::cerr << "dofscroll: WARNING: reload channel not available" << std::endl;
+    }
+
     const PlatformPaths paths = platformPaths();
 
     // Also mirror log lines into the log file (deliberately never destroyed: the detached
@@ -122,7 +133,6 @@ int main(int argc, char **argv) {
     }
     InputSource *input_p = input.release();
     ActiveWindowProvider *win_p = makeActiveWindowProvider().release();
-    ReloadListener *reload_p = makeReloadListener().release();
     StatusWriter *status = new StatusWriter(paths.runtimeDir);
     SuspendProbe *suspend = new SuspendProbe(paths.runtimeDir);
 

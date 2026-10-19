@@ -78,10 +78,14 @@ public:
         const unsigned kc = code(k);
         if (!kc) return;
         const bool plus = k == Key::Plus;
+        // A key already held by a channel is released, tapped and pressed again (like the
+        // uinput backend), so keysDown_ stays consistent with the ModeRunner's view.
+        const bool wasDown = keysDown_.count(kc) != 0;
         if (plus) pressPlusShift();
+        if (wasDown) XTestFakeKeyEvent(dpy_, kc, False, CurrentTime);
         XTestFakeKeyEvent(dpy_, kc, True, CurrentTime);
         XTestFakeKeyEvent(dpy_, kc, False, CurrentTime);
-        keysDown_.erase(kc);
+        if (wasDown) XTestFakeKeyEvent(dpy_, kc, True, CurrentTime);
         if (plus) releasePlusShift();
     }
 

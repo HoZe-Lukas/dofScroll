@@ -91,7 +91,8 @@ private:
             e.type = InputEventType::Button;
             e.button = sev.button.bnum;  // 0-based, same numbering as ButtonBinding::button
             e.down = sev.button.press != 0;
-        } else if (sev.type == SPNAV_EVENT_DEV && sev.dev.op == SPNAV_DEV_RM) {
+        } else if (sev.type == SPNAV_EVENT_DEV &&
+                   (sev.dev.op == SPNAV_DEV_RM || sev.dev.op == SPNAV_DEV_ADD)) {
             e.type = InputEventType::DevicesChanged;
         } else {
             return false;
