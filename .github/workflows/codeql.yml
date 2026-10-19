@@ -25,6 +25,9 @@ concurrency:
 jobs:
   analyze:
     name: CodeQL (c-cpp)
+    # Code scanning needs a public repository (or GitHub Advanced Security): skip while private so
+    # that it does not fail and send notifications.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     # Same container and dependency set as the ci "build + ctest" job, so the full tree
     # (daemon and tray) is compiled and analysed.

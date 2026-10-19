@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 # Links the repo's pre-commit hook: .git/hooks/pre-commit -> scripts/pre-commit
 #
 # Usage:  scripts/install-hooks.sh [--force]
