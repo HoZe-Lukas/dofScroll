@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#
+# Builds the Rocky Linux 9 build images of the CI jobs (packaging/ci/rocky9.Dockerfile) and pushes
+# them to ghcr.io. The jobs of ci.yml, codeql.yml and linux-packages.yml pull them instead of
+# running dnf on every run (#40). Pull requests only build and check the image, they never push.
+# The weekly run picks up distribution updates.
+name: ci-image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packaging/ci/**"
+      - ".github/workflows/ci-image.yml"
+  pull_request:
+    paths:
+      - "packaging/ci/**"
+      - ".github/workflows/ci-image.yml"
+  schedule:
+    - cron: "41 3 * * 1"   # weekly, Monday 03:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-image-${{ github.ref }}
+  cancel-in-progress: false
+
+# Third-party actions are pinned to full commit SHAs (tag in the comment).
+#   actions/checkout = v4.2.2
+
+jobs:
+  image:
+    name: Rocky 9 build images
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write   # push to ghcr.io (not used for pull requests)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          for target in base qt; do
+            name="ghcr.io/${owner}/dofscroll-ci-rocky9"
+            [ "$target" = qt ] && name="${name}-qt"
+            for i in 1 2 3; do
+              docker build --target "$target" -t "${name}:latest" -f packaging/ci/rocky9.Dockerfile packaging/ci && break
+              echo "::warning::build of $name failed (attempt $i/3)"; sleep 20
+              [ "$i" = 3 ] && { echo "::error::build of $name failed after 3 attempts"; exit 1; }
+            done
+          done
+      - name: Check the images
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          docker run --rm "ghcr.io/${owner}/dofscroll-ci-rocky9:latest" sh -c '
+            set -e
+            for p in g++ make cmake git cppcheck rpmbuild cpio msgfmt desktop-file-validate; do command -v "$p"; done
+            pkg-config --exists gtk+-3.0 appindicator3-0.1 x11 xtst
+            find /usr/include -name "spnav*.h" | grep -q .
+            ls /usr/lib64/libasan.so* /usr/lib64/libubsan.so*
+            if pkg-config --exists Qt6Widgets; then echo "the base image must not contain Qt"; exit 1; fi'
+          docker run --rm "ghcr.io/${owner}/dofscroll-ci-rocky9-qt:latest" sh -c '
+            set -e
+            pkg-config --exists Qt6Widgets Qt6Svg
+            ls /usr/lib64/qt6/bin/lrelease* /usr/bin/lrelease* 2>/dev/null | head -1'
+      - name: Push (not for pull requests)
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "ghcr.io/${owner}/dofscroll-ci-rocky9:latest"
+          docker push "ghcr.io/${owner}/dofscroll-ci-rocky9-qt:latest"
