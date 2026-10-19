@@ -28,6 +28,7 @@
 
 #include "add_app_dialog.hpp"
 #include "add_device_dialog.hpp"
+#include "feed_dir.hpp"
 #include "ui/model/binding_editor_model.hpp"
 #include "ui/model/key_list.hpp"
 #include "ui/model/profile_tree_model.hpp"
@@ -69,7 +70,20 @@ QWidget *createProfilesPage(const UiContext &ctx) { return new ProfilesPage(ctx)
 ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(parent), ctx_(ctx) {
     env_.runningApps = [] { return spn::makeRunningAppsProvider(); };
     env_.activeWindow = dofscroll_ui::makeActiveWindowPoll();
-    // env_.devices: set when a live device source is available (see the PR notes).
+    {
+        const std::string dir = ctx_.runtimeDir.empty() ? dofscroll_ui::feedRuntimeDir() : ctx_.runtimeDir;
+        feedClient_ = std::make_unique<spn::LiveFeedClient>(
+            [dir](std::string *err) { return spn::connectFeed(dir, err); });
+        feedClock_.start();
+        env_.devices = [this] {
+            pollDeviceFeed();
+            return devices_.devices();
+        };
+        auto *t = new QTimer(this);  // the device list changes rarely: 5 Hz is plenty
+        t->setInterval(200);
+        connect(t, &QTimer::timeout, this, [this] { pollDeviceFeed(); });
+        t->start();
+    }
     auto *outer = new QVBoxLayout(this);
     auto *split = new QSplitter(Qt::Horizontal, this);
 
@@ -184,21 +198,23 @@ void ProfilesPage::queueRebuild() {
     });
 }
 
+// Reads the feed (bounded work per call), merges the status file fallback and queues a rebuild
+// of the page when the device list changed (the BUTTON_<n> limit may differ).
+void ProfilesPage::pollDeviceFeed() {
+    if (!feedClient_) return;
+    const uint32_t before = feedModel_.infoRevision();
+    const bool hadFeed = feedModel_.hasDevices();
+    feedModel_.pump(*feedClient_, static_cast<int64_t>(feedClock_.nsecsElapsed()));
+    if (ctx_.status) devices_.setStatusDevice(ctx_.status->status().device);
+    devices_.setFeed(feedModel_.hasDevices(), feedModel_.devices());
+    if (feedModel_.infoRevision() != before || feedModel_.hasDevices() != hadFeed) queueRebuild();
+}
+
 // Button count of the connected device (or of the device profile's device).
 void ProfilesPage::refreshDeviceLimit(size_t section) {
-    std::string name;
-    int reported = 0;
     const SettingsModel::SectionInfo info = ctx_.settings->sections()[section];
-    if (info.kind == Section::DEVICE) {
-        name = info.pattern;
-    } else if (env_.devices) {
-        const std::vector<DeviceInfo> d = env_.devices();
-        if (!d.empty()) {
-            name = d[0].name;
-            reported = d[0].reportedButtons;
-        }
-    }
-    ctx_.settings->setDeviceInfo(name, reported);
+    const spn::ui::DeviceSourceModel::Limit l = devices_.buttonLimitDevice(info.kind == Section::DEVICE, info.pattern);
+    ctx_.settings->setDeviceInfo(l.name, l.reported);
 }
 
 void ProfilesPage::rebuildContent() {

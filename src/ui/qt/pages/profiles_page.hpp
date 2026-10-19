@@ -4,9 +4,15 @@
 // profile page on the right. The right side is rebuilt whenever the selected profile or its
 // effective mode changes. All decisions come from the models in src/ui/model/.
 #pragma once
+#include <QElapsedTimer>
 #include <QWidget>
 
+#include <memory>
+
+#include "live_feed/live_feed.hpp"
 #include "profiles_env.hpp"
+#include "ui/model/device_source_model.hpp"
+#include "ui/model/live_feed_model.hpp"
 #include "ui_context.hpp"
 
 class QLabel;
@@ -38,6 +44,7 @@ private:
     size_t currentSection() const;
     void refreshDeviceLimit(size_t section);
     void queueRebuild();
+    void pollDeviceFeed();
     QWidget *buildModeSelector(size_t section);
     QWidget *buildBindings(size_t section);
     QWidget *buildButtonSettings(size_t section);
@@ -46,6 +53,12 @@ private:
 
     const UiContext &ctx_;
     ProfilesEnv env_;
+    // Device list: the live feed's device info frame, with the status file's device= line as
+    // fallback while the feed is unavailable (see spn::ui::DeviceSourceModel).
+    std::unique_ptr<spn::LiveFeedClient> feedClient_;
+    spn::LiveFeedModel feedModel_;
+    spn::ui::DeviceSourceModel devices_;
+    QElapsedTimer feedClock_;
     QTreeWidget *tree_;
     QScrollArea *scroll_;
     QLabel *status_;

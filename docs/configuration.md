@@ -72,6 +72,10 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 `BUTTON_<n>` in the main config works at runtime, in any section. Buttons are numbered from 1 and
 at most 32. `n` must not exceed the factory button count of the device model
 (`factoryButtonCount()`, not the count `spacenavd` reports). `BUTTON_0` is rejected.
+The Qt interface learns the device name and this factory count from the daemon's live feed (device
+info frame, see [port-architecture.md](port-architecture.md#live-feed)); without the feed the
+Profiles page falls back to the `device=` line of the status file and the Axes page to the highest
+button it has seen.
 If the active mode binds the same button, the mode's binding wins over the config binding.
 
 ## Profiles
