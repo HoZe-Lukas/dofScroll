@@ -385,6 +385,77 @@ static void testModePrev() {
     CHECK(id() == "alpha", "prev then next returns to the start (%s)", id().c_str());
 }
 
+static std::string statusKey(const Rig &r, const std::string &key);
+
+// hold:mode:<id>: effective while the button is held, then the state from before comes back.
+static void testHoldMode() {
+    // ids: alpha < fine < normal < off < timeline
+    Rig r(std::string(BASE_CONF) + "BUTTON_3 = hold:mode:fine\nBUTTON_4 = mode:alpha\n",
+          {{"fine.conf", "SCROLL_V_SENS = 1\n"}, {"alpha.conf", "BUTTON_1 = mode:prev\n"}});
+    r.run(0.1);
+    auto id = [&] { return r.core->runner().mode().id; };
+    auto down = [&](int b) { r.src.pushButton(0, b, true); r.run(0.1); };
+    auto up = [&](int b) { r.src.pushButton(0, b, false); r.run(0.1); };
+    CHECK(id() == "normal", "starts in normal (%s)", id().c_str());
+
+    // press: the mode is effective while held; fine has no binding for the button, release still works
+    down(2);
+    CHECK(id() == "fine", "held: fine (%s)", id().c_str());
+    CHECK(statusKey(r, "toggle").find("hold:fine") != std::string::npos, "status shows the hold (%s)",
+          statusKey(r, "toggle").c_str());
+    up(2);
+    CHECK(id() == "normal", "released: back to the profile's mode (%s)", id().c_str());
+    CHECK(statusKey(r, "toggle").find("hold:") == std::string::npos, "status without hold");
+
+    // a mode:<id> override that was in effect comes back
+    r.reload.pending = true;
+    writeFile(r.conf, std::string(BASE_CONF) + "BUTTON_3 = hold:mode:fine\nBUTTON_4 = mode:alpha\n");
+    r.run(0.05);
+    down(3);
+    up(3);
+    CHECK(id() == "alpha", "mode:alpha override (%s)", id().c_str());
+    // alpha binds button 1 only: the hold button 3 still comes from the main config
+    down(2);
+    CHECK(id() == "fine", "hold from the override state (%s)", id().c_str());
+    up(2);
+    CHECK(id() == "alpha", "the override comes back (%s)", id().c_str());
+
+    // another switch during the hold ends it without restoring; the later release does nothing
+    r.reload.pending = true;
+    r.run(0.05);
+    down(2);
+    CHECK(id() == "fine", "held again");
+    down(3);  // mode:alpha from the main config while holding
+    up(3);
+    CHECK(id() == "alpha", "another switch wins (%s)", id().c_str());
+    up(2);
+    CHECK(id() == "alpha", "the release of the hold button does nothing (%s)", id().c_str());
+
+    // a reload clears the hold
+    r.reload.pending = true;
+    r.run(0.05);
+    down(2);
+    CHECK(id() == "fine", "held before the reload");
+    r.reload.pending = true;
+    r.run(0.05);
+    CHECK(id() == "normal", "reload drops the hold (%s)", id().c_str());
+    up(2);
+    CHECK(id() == "normal", "release after the reload does nothing");
+
+    // suspend while holding: the mode must not stay in effect
+    r.reload.pending = true;
+    r.run(0.05);
+    down(2);
+    CHECK(id() == "fine", "held before the suspend");
+    r.win.cls = "";
+    r.core->updateProfile(r.now);
+    InputEvent ev;
+    ev.type = InputEventType::DevicesChanged;
+    r.src.push(ev);  // unplugged: the buttons are gone, no release arrives
+    r.run(0.2);
+    CHECK(id() == "normal", "unplugging the device ends the hold (%s)", id().c_str());
+}
+
 static std::string statusKey(const Rig &r, const std::string &key) {
     if (r.status.empty()) return "";
     const std::string &b = r.status.back();
@@ -599,6 +670,7 @@ int main() {
     testConfigButtonsAndNormalFile();
     testModeSwitchButton();
     testModePrev();
+    testHoldMode();
     testToggleButtons();
     testMotion();
     testStaleWatchdog();

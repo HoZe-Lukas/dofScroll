@@ -169,6 +169,8 @@ private:
     std::string match_desc_, backend_cfg_, device_, wm_class_;
     std::string toggled_mode_;   // the part of mode_override_ that came from toggle:mode:<id>
     std::string mode_override_;  // runtime mode switch by a button; cleared on reload
+    bool hold_active_ = false;   // a hold:mode: button is held and its mode is the override
+    std::string hold_id_, hold_prev_override_, hold_prev_toggled_;  // the held mode, the state to restore
     bool mode_applied_ = false;  // selectMode activated a mode at least once
     std::string warned_mode_;  // unknown mode id already warned about
     bool warn_buttons_ = false;
@@ -198,6 +200,7 @@ private:
     bool selectMode(Settings &next, bool force);
     void applyProfile(bool modes_changed);
     void loadButtonModeSet();
+    void endHold(bool restore);
     void checkButtons();
     void switchMode(const std::string &target);
     // Status "toggle=": what button toggles hold at the moment, e.g. "nav" or "nav mode:timeline"; empty if none.

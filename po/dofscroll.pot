@@ -2166,3 +2166,7 @@ msgstr ""
 #: src/ui/model/binding_editor_model.hpp
 msgid "Previous mode"
 msgstr ""
+
+#: src/ui/model/binding_editor_model.hpp
+msgid "Mode while held"
+msgstr ""

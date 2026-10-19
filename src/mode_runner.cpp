@@ -99,6 +99,7 @@ ModeRunner::Wanted ModeRunner::bindings(const Settings &s, uint32_t buttons) con
         case ButtonActionType::ModeSwitch:
         case ButtonActionType::ToggleNav:
         case ButtonActionType::ToggleMode:
+        case ButtonActionType::HoldMode:
         case ButtonActionType::ButtonMode: break;  // act on the press edge, see tick(); ButtonMode is expanded by the daemon core
         case ButtonActionType::Click: w.mouse |= 1u << 1; break;
         case ButtonActionType::MiddleClick: w.mouse |= 1u << 2; break;
@@ -129,7 +130,8 @@ ModeRunner::Wanted ModeRunner::bindings(const Settings &s, uint32_t buttons) con
 
 std::vector<ButtonBinding> ModeRunner::edgeBindings(const Settings &s) const {
     auto isEdge = [](ButtonActionType t) {
-        return t == ButtonActionType::ModeSwitch || t == ButtonActionType::ToggleNav || t == ButtonActionType::ToggleMode;
+        return t == ButtonActionType::ModeSwitch || t == ButtonActionType::ToggleNav || t == ButtonActionType::ToggleMode ||
+               t == ButtonActionType::HoldMode;
     };
     std::vector<ButtonBinding> out;
     for (const ButtonBinding &b : mode_.buttons)
@@ -168,6 +170,19 @@ void ModeRunner::tapChord(Key key, const ChordMods &mods) {
 
 void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh,
                       double dt) {
+    // Release of the button that started a hold:mode: (remembered here, the mode that is active
+    // while holding need not bind it). Reported like a switch; the daemon ignores it when the hold
+    // has been ended by another switch.
+    const uint32_t released = prev_buttons_ & ~buttons;
+    if (hold_release_pending_ && switch_request_.empty()) {
+        switch_request_ = "release";
+        hold_release_pending_ = false;
+    }
+    if (hold_button_ > 0 && buttonHeld(released, hold_button_ - 1)) {
+        hold_button_ = 0;
+        if (switch_request_.empty()) switch_request_ = "release";
+        else hold_release_pending_ = true;
+    }
     // Press edges only; nothing to look at (or to parse) while no button went down.
     const uint32_t pressed = buttons & ~prev_buttons_;
     for (const ButtonBinding &b : pressed ? edgeBindings(s) : std::vector<ButtonBinding>()) {
@@ -175,7 +190,12 @@ void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, b
         if (b.type == ButtonActionType::ToggleNav) {
             nav_latched_ = !nav_latched_;
         } else if (switch_request_.empty()) {
-            switch_request_ = b.type == ButtonActionType::ToggleMode ? "toggle:" + b.mode : b.mode;
+            if (b.type == ButtonActionType::HoldMode) {
+                switch_request_ = "hold:" + b.mode;
+                hold_button_ = b.button;
+            } else {
+                switch_request_ = b.type == ButtonActionType::ToggleMode ? "toggle:" + b.mode : b.mode;
+            }
         }
     }
     prev_buttons_ = buttons;

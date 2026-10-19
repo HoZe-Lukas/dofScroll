@@ -281,6 +281,13 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
         ty = ButtonActionType::ToggleMode;
         if (modeId) *modeId = id;
     }
+    else if (t.compare(0, 10, "hold:mode:") == 0) {
+        const std::string id = trim(t.substr(10));
+        if (!validModeId(id) || id == "next" || id == "prev")
+            return fail(err, "hold:mode:<id> needs a mode id ([a-z0-9_-], max. 32 characters), not 'next' or 'prev'");
+        ty = ButtonActionType::HoldMode;
+        if (modeId) *modeId = id;
+    }
     else if (t.compare(0, 11, "buttonmode:") == 0) {
         const std::string id = trim(t.substr(11));
         if (!validModeId(id)) return fail(err, "buttonmode:<id> needs a button mode id ([a-z0-9_-], max. 32 characters)");
@@ -297,7 +304,7 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
         ty = ButtonActionType::ModeSwitch;
         if (modeId) *modeId = id;
     } else {
-        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | mode:prev | toggle:nav | toggle:mode:<id> | buttonmode:<id>");
+        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | mode:prev | toggle:nav | toggle:mode:<id> | hold:mode:<id> | buttonmode:<id>");
     }
     if (type) *type = ty;
     if (key) *key = k;
@@ -337,7 +344,8 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
     for (ModeDef &m : set.modes) {
         auto &bs = m.buttons;
         for (size_t i = 0; i < bs.size();) {
-            const bool targets = bs[i].type == ButtonActionType::ModeSwitch || bs[i].type == ButtonActionType::ToggleMode;
+            const bool targets = bs[i].type == ButtonActionType::ModeSwitch || bs[i].type == ButtonActionType::ToggleMode ||
+                                 bs[i].type == ButtonActionType::HoldMode;
             if (targets && bs[i].mode != "next" && bs[i].mode != "prev" && !set.find(bs[i].mode)) {
                 warnAll("mode " + m.id + ": BUTTON_" + std::to_string(bs[i].button) + ": unknown mode '" +
                         bs[i].mode + "' - binding ignored");

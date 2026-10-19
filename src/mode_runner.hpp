@@ -43,6 +43,8 @@ public:
     const ModeDef &mode() const { return mode_; }
     // Target of a mode:<id> / mode:next binding whose button was pressed in the last tick
     // (press edge only); empty if none. Reading clears it. The caller performs the switch.
+    // A hold:mode:<id> press is reported as "hold:<id>", the release of that button as "release"
+    // (also when the mode that is active while holding has no binding for the button).
     // A toggle:mode:<id> press is reported as "toggle:<id>": the caller switches to <id>, or, if
     // <id> is already the effective mode because of such a switch, drops the switch.
     std::string takeSwitchRequest() {
@@ -56,7 +58,11 @@ public:
     // Clears the toggle:nav latch. Called on reload, "Release all keys", suspend/disabled and an
     // unplugged device; releaseAll() (also used by the safety net) leaves it alone, and setMode()
     // clears it.
-    void clearToggles() { nav_latched_ = false; }
+    void clearToggles() {
+        nav_latched_ = false;
+        hold_button_ = 0;
+        hold_release_pending_ = false;
+    }
 
     // One tick. raw/buttons are already zeroed by the caller while suspended or disabled;
     // fresh = the device state is recent enough to count for nav (stale watchdog).
@@ -92,6 +98,8 @@ private:
     uint32_t prev_buttons_ = 0;
     std::string switch_request_;
     bool nav_latched_ = false;
+    int hold_button_ = 0;  // button (1-based) that started a hold:mode:, 0 = none
+    bool hold_release_pending_ = false;
 
     Channel ch_v_, ch_h_, ch_zoom_;
     StepAccumulator acc_v_, acc_h_, acc_zoom_;

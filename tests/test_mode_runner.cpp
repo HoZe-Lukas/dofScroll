@@ -116,6 +116,62 @@ static void testLegacyNavAndClick() {
     CHECK(o2.count("tap:down") > 0 && o2.wv == 0, "nav binding");
 }
 
+// hold:mode:<id>: the press is reported as "hold:<id>", the release of that button as "release", also
+// when the mode that is active while holding does not bind the button.
+static void testHoldMode() {
+    Settings s;
+    ModeDef m = mode("a");
+    ButtonBinding b;
+    b.button = 3;
+    b.type = ButtonActionType::HoldMode;
+    b.mode = "fine";
+    m.buttons.push_back(b);
+    RunnerRec o;
+    ModeRunner r(&o);
+    r.setMode(m);
+    r.tick(s, RawAxes{}, 0u, true, DT);
+    CHECK(r.takeSwitchRequest().empty(), "nothing before the press");
+    r.tick(s, RawAxes{}, 1u << 2, true, DT);
+    CHECK(r.takeSwitchRequest() == "hold:fine", "press reports hold:<id>");
+    r.tick(s, RawAxes{}, 1u << 2, true, DT);
+    CHECK(r.takeSwitchRequest().empty(), "no repeat while held");
+    // the daemon switches the mode: the new mode has no binding for button 3
+    r.setMode(mode("fine"));
+    r.tick(s, RawAxes{}, 1u << 2, true, DT);
+    CHECK(r.takeSwitchRequest().empty(), "still held after the switch");
+    r.tick(s, RawAxes{}, 0u, true, DT);
+    CHECK(r.takeSwitchRequest() == "release", "release is reported although the active mode does not bind the button");
+    r.tick(s, RawAxes{}, 0u, true, DT);
+    CHECK(r.takeSwitchRequest().empty(), "reported once");
+    // another button's release does not end the hold
+    r.setMode(m);
+    r.tick(s, RawAxes{}, (1u << 2) | 1u, true, DT);
+    CHECK(r.takeSwitchRequest() == "hold:fine", "second press");
+    r.tick(s, RawAxes{}, 1u << 2, true, DT);  // button 1 released
+    CHECK(r.takeSwitchRequest().empty(), "release of another button: nothing");
+    // clearToggles forgets the hold: no release is reported
+    r.clearToggles();
+    r.tick(s, RawAxes{}, 0u, true, DT);
+    CHECK(r.takeSwitchRequest().empty(), "cleared hold: no release");
+    // press and release of the hold button in consecutive ticks while another request waits
+    ModeDef m2 = mode("b");
+    ButtonBinding hb = b, sw;
+    sw.button = 1;
+    sw.type = ButtonActionType::ModeSwitch;
+    sw.mode = "x";
+    m2.buttons = {hb, sw};
+    r.setMode(m2);
+    r.tick(s, RawAxes{}, 1u << 2, true, DT);
+    CHECK(r.takeSwitchRequest() == "hold:fine", "hold press");
+    r.tick(s, RawAxes{}, 1u << 0, true, DT);  // hold released and button 1 (mode:x) pressed in one tick
+    const std::string first = r.takeSwitchRequest();
+    r.tick(s, RawAxes{}, 1u << 0, true, DT);
+    const std::string second = r.takeSwitchRequest();
+    CHECK((first == "release" && second.empty()) || (first == "x" && second == "release") ||
+              (first == "release" && second == "x") || first == "x",
+          "release is not lost when another request is pending (%s, %s)", first.c_str(), second.c_str());
+}
+
 static void testChordChannels() {
     Settings s;
     auto chord = [](Key neg, Key pos, std::initializer_list<Key> mods) {
@@ -538,6 +594,7 @@ int main() {
     testLegacyNavAndClick();
     testCustomChannels();
     testChordChannels();
+    testHoldMode();
     testStepChannels();
     testReleases();
     if (failures) {

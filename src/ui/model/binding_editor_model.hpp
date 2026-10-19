@@ -15,7 +15,7 @@
 
 namespace spn::ui {
 
-enum class BindingKind { None, Click, RightClick, MiddleClick, Nav, Key, Mode, ModeNext, ModePrev, ToggleNav, ToggleMode, ButtonMode };
+enum class BindingKind { None, Click, RightClick, MiddleClick, Nav, Key, Mode, ModeNext, ModePrev, ToggleNav, ToggleMode, HoldMode, ButtonMode };
 
 struct BindingKindInfo {
     BindingKind kind;
@@ -38,6 +38,7 @@ inline const std::vector<BindingKindInfo> &bindingKinds() {
         {BindingKind::ModePrev, "mode:prev", "Previous mode", false, false, false},
         {BindingKind::ToggleNav, "toggle:nav", "Navigation mode on/off (press to switch)", false, false, false},
         {BindingKind::ToggleMode, "toggle:mode", "Toggle mode (press again to go back)", false, true, false},
+        {BindingKind::HoldMode, "hold:mode", "Mode while held", false, true, false},
         {BindingKind::Click, "click", "Left click", false, false, true},
         {BindingKind::RightClick, "rightclick", "Right click", false, false, true},
         {BindingKind::MiddleClick, "middleclick", "Middle click", false, false, true},
@@ -119,6 +120,13 @@ inline bool parseBinding(const std::string &text, Binding *out) {
         out->arg = id;
         return true;
     }
+    if (t.rfind("hold:mode:", 0) == 0) {
+        const std::string id = t.substr(10);
+        if (!validModeId(id) || id == "next" || id == "prev") return false;
+        out->kind = BindingKind::HoldMode;
+        out->arg = id;
+        return true;
+    }
     if (t.rfind("mode:", 0) == 0) {
         const std::string id = t.substr(5);
         if (!validModeId(id)) return false;
@@ -146,8 +154,8 @@ inline Binding withKind(const Binding &cur, BindingKind kind, const std::vector<
     Binding b;
     b.kind = kind;
     if (kind == BindingKind::Key) b.arg = cur.kind == BindingKind::Key && !cur.arg.empty() ? cur.arg : "space";
-    if (kind == BindingKind::Mode || kind == BindingKind::ToggleMode) {
-        if (cur.kind == BindingKind::Mode || cur.kind == BindingKind::ToggleMode) b.arg = cur.arg;
+    if (kind == BindingKind::Mode || kind == BindingKind::ToggleMode || kind == BindingKind::HoldMode) {
+        if (cur.kind == BindingKind::Mode || cur.kind == BindingKind::ToggleMode || cur.kind == BindingKind::HoldMode) b.arg = cur.arg;
         if (b.arg.empty() && !modeIds.empty()) b.arg = modeIds.front();
     }
     return b;

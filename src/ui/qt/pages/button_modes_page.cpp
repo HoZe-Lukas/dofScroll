@@ -269,7 +269,8 @@ void ButtonModesPage::rebuildActionArg() {
             markDirty();
         });
         argWidget_ = kc;
-    } else if (binding_.kind == BindingKind::Mode || binding_.kind == BindingKind::ToggleMode) {
+    } else if (binding_.kind == BindingKind::Mode || binding_.kind == BindingKind::ToggleMode ||
+               binding_.kind == BindingKind::HoldMode) {
         auto *mc = new QComboBox(argHost_);
         mc->setAccessibleName(T("Mode"));
         std::vector<std::string> ids = spn::ui::bindingModeIds(spn::loadModes(ctx_.modesDir, nullptr));

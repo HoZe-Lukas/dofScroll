@@ -417,6 +417,25 @@ static void testToggleBindings() {
     assert(!parseButtonAction("toggle:mode:prev", &t, &k, &err) && err.find("prev") != std::string::npos);
     assert(!parseButtonAction("toggle:key:space", &t, &k, &err));  // plain keys are the driver's job
 
+    // hold:mode:<id>: momentary mode while the button is held
+    assert(parseButtonAction("hold:mode:timeline", &t, &k, &err, &id) && t == ButtonActionType::HoldMode && id == "timeline");
+    assert(parseButtonAction(" Hold:Mode: Fine_1 ", &t, &k, &err, &id) && id == "fine_1");
+    for (const char *bad : {"hold:mode:", "hold:mode:next", "hold:mode:prev", "hold:mode:Bad Id", "hold:", "hold:nav", "hold:key:space"}) {
+        err.clear();
+        assert(!parseButtonAction(bad, &t, &k, &err) && !err.empty());
+    }
+    {
+        clearDir();
+        writeFile("h.conf", "BUTTON_1 = hold:mode:timeline\nBUTTON_2 = hold:mode:nosuch\n");
+        std::vector<std::string> hw;
+        const ModeSet hs = loadModes(g_dir, &hw);
+        const ModeDef *hm = hs.find("h");
+        assert(hm && hm->buttons.size() == 1 && hm->buttons[0].type == ButtonActionType::HoldMode && hm->buttons[0].mode == "timeline");
+        assert(hasWarning(hw, "unknown mode 'nosuch'"));
+        Settings hset;
+        assert(applyKey(hset, "BUTTON_4", "hold:mode:off", &err) && hset.buttons[4] == "hold:mode:off");
+    }
+
     clearDir();
     writeFile("a.conf", "BUTTON_1 = toggle:nav\nBUTTON_2 = toggle:mode:timeline\nBUTTON_3 = toggle:mode:nosuch\n");
     std::vector<std::string> w;

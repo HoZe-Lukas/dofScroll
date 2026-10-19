@@ -63,6 +63,7 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 | `mode:<id>` | Switches to mode `<id>` on press |
 | `mode:next` | Switches to the next loaded mode in alphabetical order of id (built-ins included), wrapping around |
 | `toggle:nav` | Every press switches the navigation mode on or off (latched `nav`) |
+| `hold:mode:<id>` | Mode `<id>` is effective while the button is held; on release the previous state returns (e.g. `BUTTON_3 = hold:mode:precision`) |
 | `mode:prev` | The mirror of `mode:next`: the previous mode in alphabetical order, wrapping around |
 | `toggle:mode:<id>` | First press switches to mode `<id>`, the next press goes back to the profile's mode |
 | `buttonmode:<id>` | Behaves like the action of `buttons/<id>.conf` (a button mode); unknown ids do nothing |

@@ -80,6 +80,7 @@ table in `src/device_db.cpp`). The count is not the one `spacenavd` reports.
 | `key:<name>` | Holds the key while the button is held. |
 | `mode:<id>` | Switches to mode `<id>` when the button is pressed. |
 | `mode:next` | Switches to the next loaded mode in alphabetical order of id, built-ins included, wrapping around. |
+| `hold:mode:<id>` | The mode `<id>` is effective while the button is held; on release the state from before the press comes back: a `mode:<id>` / `toggle:mode:<id>` override that was in effect, else the mode the profile gives. Example: `BUTTON_3 = hold:mode:precision` (slow and fine while the button is held). The release is noticed even if the held mode does not bind the button. Any other mode switch during the hold ends it without restoring; a reload, suspend / `ENABLED = 0` / session switch and an unplugged device end it too (the previous state comes back). `next` and `prev` are not valid; an unknown id is dropped with a warning at load. The status file shows `hold:<id>` in the `toggle=` line. |
 | `mode:prev` | The mirror of `mode:next`: switches to the previous id in alphabetical order, wrapping from the first to the last. Stateless (no history). `next` and `prev` are reserved targets: a mode file called `next.conf` or `prev.conf` still loads, but `mode:next` and `mode:prev` always mean the cycle action. Not allowed in `toggle:mode:<id>`. |
 | `toggle:nav` | Every press switches the navigation mode on or off (arrow keys instead of scrolling), like a held `nav` button but latched. A held `nav` button and the latch add up. |
 | `toggle:mode:<id>` | The first press switches to mode `<id>`, the next press goes back to the mode the profile gives. `next` is not allowed. |
@@ -123,7 +124,7 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 | Where | What |
 |---|---|
 | Driver | A button mapping that is the same everywhere and always: Esc, Enter, a click, a shortcut. |
-| dofscroll | Bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes (`mode:next`, `mode:<id>`, `toggle:mode:<id>`), or work with the axis handling (`nav`, `toggle:nav`). Also: shaping scroll and zoom from the six axes, keys derived from axes (`keys:<neg>,<pos>`), per-program and per-device profiles. |
+| dofscroll | Bindings that depend on dofscroll's state: they apply only in a mode or profile, switch, toggle or hold modes (`mode:next`, `mode:prev`, `mode:<id>`, `toggle:mode:<id>`, `hold:mode:<id>`), or work with the axis handling (`nav`, `toggle:nav`). Also: shaping scroll and zoom from the six axes, keys derived from axes (`keys:<neg>,<pos>`), per-program and per-device profiles. |
 
 Examples: a button that always sends Esc belongs in the driver. A button that sends Space (play/pause) only while the `timeline` mode is active, a button with `mode:next` and a button with `nav` belong in dofscroll.
 

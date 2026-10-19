@@ -2335,3 +2335,7 @@ msgstr "Ein Tastenmodus kann eine Taste drücken oder klicken, sobald seine Tast
 #: src/ui/model/binding_editor_model.hpp
 msgid "Previous mode"
 msgstr "Vorheriger Modus"
+
+#: src/ui/model/binding_editor_model.hpp
+msgid "Mode while held"
+msgstr "Modus, solange gedrückt"

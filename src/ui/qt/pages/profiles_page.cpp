@@ -350,7 +350,8 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
                 queueRebuild();
             });
             arg = kc;
-        } else if (row.binding.kind == BindingKind::Mode || row.binding.kind == BindingKind::ToggleMode) {
+        } else if (row.binding.kind == BindingKind::Mode || row.binding.kind == BindingKind::ToggleMode ||
+                   row.binding.kind == BindingKind::HoldMode) {
             auto *mc = new QComboBox(box);
             mc->setAccessibleName(T("Mode of button") + QStringLiteral(" %1").arg(row.number));
             std::vector<std::string> ids = offered;

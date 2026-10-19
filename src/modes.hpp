@@ -26,7 +26,7 @@
 // Buttons are numbered from 1 (BUTTON_1 .. BUTTON_32), exactly like BUTTON_<n> in the main config;
 // BUTTON_0 is rejected. Internally button n is device bit n-1 (spnav_event_button.bnum).
 // Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | mode:prev |
-//                 toggle:nav | toggle:mode:<id>
+//                 toggle:nav | toggle:mode:<id> | hold:mode:<id> | buttonmode:<id>
 //   click/rightclick/middleclick = hold the mouse button while the button is held;
 //   key = hold the key; nav = while held, the V/H channels send arrow keys instead of scroll.
 //   mode:<id> = switch to the mode <id> when the button is PRESSED (not on release);
@@ -47,6 +47,11 @@
 //   by a reload (also "Release all keys" in the tray), and by entering suspend/disabled; the
 //   status file shows it in the "toggle=" line. "next" and "prev" are not valid in
 //   toggle:mode:<id> (there is no single mode to return from).
+//   hold:mode:<id> = the mode <id> is effective while the button is held; on release the state
+//   from before the press comes back (a mode:<id> / toggle:mode:<id> override that was in
+//   effect, else the mode of the profile). Any other mode switch during the hold ends it without
+//   restoring; a reload, suspend/disabled and an unplugged device end it too. "next" and "prev" are
+//   not valid; an unknown id is dropped with a warning when the modes are loaded.
 // A mode whose three channel actions are all "default" runs on the normal path (incl.
 // dominance-based zoom, NAV_BUTTON/CLICK_BUTTON from the settings).
 //
@@ -93,12 +98,12 @@ struct ChannelAction {
     }
 };
 
-enum class ButtonActionType { Unbound, Click, RightClick, MiddleClick, Nav, Key, ModeSwitch, ToggleNav, ToggleMode, ButtonMode };
+enum class ButtonActionType { Unbound, Click, RightClick, MiddleClick, Nav, Key, ModeSwitch, ToggleNav, ToggleMode, ButtonMode, HoldMode };
 struct ButtonBinding {
     int button = 1;                       // button number, 1-based (device bit index = button - 1), 1..32
     ButtonActionType type = ButtonActionType::Unbound;
     Key key = Key::Space;                 // only for Key
-    std::string mode;                     // ModeSwitch: target id or "next"; ToggleMode: target id; ButtonMode: button mode id
+    std::string mode;                     // ModeSwitch: target id or "next"; ToggleMode: target id; ButtonMode: button mode id; HoldMode: target id
 };
 
 struct ModeDef {
