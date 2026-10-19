@@ -226,7 +226,33 @@ static void testReleases() {
     }
 }
 
+static void testModeSwitchRequest() {
+    Rec o;
+    ModeRunner r(&o);
+    ModeDef m = mode("normal");
+    ButtonBinding b = bind(1, ButtonActionType::ModeSwitch);
+    b.mode = "next";
+    m.buttons = {b, bind(2, ButtonActionType::Key, Key::Space)};
+    r.setMode(m);
+    Settings s;
+    run(r, s, RawAxes{}, 0, 0.02);
+    CHECK(r.takeSwitchRequest().empty(), "no request without a press");
+    run(r, s, RawAxes{}, 1u << 1, 0.1);  // held for many ticks: one request only
+    CHECK(r.takeSwitchRequest() == "next", "press requests the switch");
+    CHECK(r.takeSwitchRequest().empty(), "taking clears the request");
+    run(r, s, RawAxes{}, 1u << 1, 0.1);
+    CHECK(r.takeSwitchRequest().empty(), "holding does not repeat");
+    run(r, s, RawAxes{}, 0, 0.02);
+    CHECK(r.takeSwitchRequest().empty(), "release does not switch");
+    // a key held by another binding is released by the switch (setMode releases everything)
+    run(r, s, RawAxes{}, 1u << 2, 0.02);
+    CHECK(o.count("+space") == 1, "space held");
+    r.setMode(mode("other"));
+    CHECK(o.count("-space") == 1, "space released on mode change");
+}
+
 int main() {
+    testModeSwitchRequest();
     testLegacyBindings();
     testLegacyNavAndClick();
     testCustomChannels();

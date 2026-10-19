@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <string>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
 
@@ -85,13 +86,18 @@ struct Rig {
     int64_t now = 10'000'000'000;  // fake clock (ns), well above the stale window
     std::unique_ptr<DaemonCore> core;
 
-    explicit Rig(const std::string &config) {
+    std::vector<std::string> status;
+    explicit Rig(const std::string &config, const std::vector<std::pair<std::string, std::string>> &modeFiles = {}) {
         char tmpl[] = "/tmp/dofscroll-core-test-XXXXXX";
         char *d = mkdtemp(tmpl);
         assert(d);
         dir = d;
         conf = dir + "/dofscroll.conf";
         writeFile(conf, config);
+        if (!modeFiles.empty()) {
+            assert(mkdir((dir + "/modes").c_str(), 0700) == 0);
+            for (const auto &f : modeFiles) writeFile(dir + "/modes/" + f.first, f.second);
+        }
         DeviceInfo di;
         di.name = "Test Mouse A";
         di.reportedButtons = 2;
@@ -107,12 +113,14 @@ struct Rig {
             return std::unique_ptr<Output>(new RecOutput(rp));
         };
         deps.clock = [this] { return now; };
+        deps.writeStatus = [this](const std::string &body, int64_t) { status.push_back(body); };
         core = std::make_unique<DaemonCore>(std::move(deps));
         assert(core->initialize());
         assert(core->reader().connect());
     }
     ~Rig() {
         unlink(conf.c_str());
+        if (std::system(("rm -rf '" + dir + "/modes'").c_str()) != 0) {}
         rmdir(dir.c_str());
     }
 
@@ -250,7 +258,65 @@ static void testDeviceRemovedReleasesState() {
     CHECK(r.rec.mouse.size() == 2 && r.rec.mouse[1] == "-1", "click released on device removal");
 }
 
+static std::string statusMode(const Rig &r) {
+    if (r.status.empty()) return "";
+    const std::string &b = r.status.back();
+    const size_t p = b.find("mode=");
+    return p == std::string::npos ? "" : b.substr(p + 5, b.find('\n', p) - p - 5);
+}
+
+static void testModeSwitchButton() {
+    // ids: alpha < normal < off < timeline (built-ins: normal, off, timeline)
+    Rig r(std::string(BASE_CONF) + "MODE = alpha\n",
+          {{"alpha.conf", "BUTTON_2 = mode:next\nBUTTON_3 = key:space\n"},
+           {"zed.conf", "BUTTON_2 = mode:next\nBUTTON_4 = mode:off\n"}});
+    r.run(0.1);
+    CHECK(r.core->runner().mode().id == "alpha", "starts in the configured mode");
+    auto press = [&](int b) {
+        r.src.pushButton(0, b, true);
+        r.run(0.1);
+        r.src.pushButton(0, b, false);
+        r.run(0.1);
+    };
+    // hold a key via BUTTON_3, then switch with BUTTON_2 while it is held
+    r.src.pushButton(0, 2, true);
+    r.run(0.1);
+    r.src.pushButton(0, 1, true);
+    r.run(0.1);
+    CHECK(r.core->runner().mode().id == "normal", "next after alpha is normal (got %s)",
+          r.core->runner().mode().id.c_str());
+    r.src.pushButton(0, 1, false);
+    r.src.pushButton(0, 2, false);
+    r.run(0.1);
+    CHECK(statusMode(r) == "normal", "status shows the effective mode (%s)", statusMode(r).c_str());
+    // unrelated profile re-resolution (app change) keeps the override
+    r.win.cls = "navigator firefox";
+    r.run(0.3);
+    CHECK(r.core->runner().mode().id == "normal", "override is sticky across profile changes");
+    // normal has no binding: the user cannot cycle further from there. Reload clears the override.
+    writeFile(r.dir + "/modes/alpha.conf", "BUTTON_2 = mode:next\n");
+    r.reload.pending = true;
+    r.run(0.05);
+    CHECK(r.core->runner().mode().id == "alpha", "reload clears the override (%s)", r.core->runner().mode().id.c_str());
+    // cycle through all modes and wrap: alpha -> normal; use zed to wrap by going to last
+    r.reload.pending = true;
+    writeFile(r.conf, std::string(BASE_CONF) + "MODE = zed\n");
+    r.run(0.05);
+    CHECK(r.core->runner().mode().id == "zed", "zed active");
+    press(1);  // next wraps around from the last id
+    CHECK(r.core->runner().mode().id == "alpha", "next wraps to the first id");
+    press(1);  // next -> normal
+    CHECK(r.core->runner().mode().id == "normal", "alpha -> normal");
+    CHECK(!r.rec.ctrl, "no stray state");
+    r.reload.pending = true;  // back to zed
+    r.run(0.05);
+    r.src.pushButton(0, 3, true);
+    r.run(0.1);
+    CHECK(r.core->runner().mode().id == "off", "fixed target mode:off");
+}
+
 int main() {
+    testModeSwitchButton();
     testMotion();
     testStaleWatchdog();
     testButtonBinding();

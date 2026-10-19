@@ -25,9 +25,17 @@
 //   key names from keys.hpp.
 // Buttons are numbered from 1 (BUTTON_1 .. BUTTON_32), exactly like BUTTON_<n> in the main config;
 // BUTTON_0 is rejected. Internally button n is device bit n-1 (spnav_event_button.bnum).
-// Button actions: none | click | rightclick | middleclick | nav | key:<name>
+// Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next
 //   click/rightclick/middleclick = hold the mouse button while the button is held;
 //   key = hold the key; nav = while held, the V/H channels send arrow keys instead of scroll.
+//   mode:<id> = switch to the mode <id> when the button is PRESSED (not on release);
+//   mode:next = cycle through all loaded modes in alphabetical order of id (built-ins
+//   included), wrapping around. The switch is a runtime override of the mode chosen by
+//   profile resolution: it is sticky (also across profile/app changes) until the daemon
+//   restarts, the config or the modes directory is reloaded, or another switch happens.
+//   All held keys/buttons are released on every switch; the status file "mode=" line
+//   shows the effective mode. An id that matches no loaded mode is rejected with a
+//   warning when the modes are loaded (the binding is dropped); "next" is always valid.
 // A mode whose three channel actions are all "default" runs on the normal path (incl.
 // dominance-based zoom, NAV_BUTTON/CLICK_BUTTON from the settings).
 //
@@ -52,11 +60,12 @@ struct ChannelAction {
     }
 };
 
-enum class ButtonActionType { Unbound, Click, RightClick, MiddleClick, Nav, Key };
+enum class ButtonActionType { Unbound, Click, RightClick, MiddleClick, Nav, Key, ModeSwitch };
 struct ButtonBinding {
     int button = 1;                       // button number, 1-based (device bit index = button - 1), 1..32
     ButtonActionType type = ButtonActionType::Unbound;
     Key key = Key::Space;                 // only for Key
+    std::string mode;                     // only for ModeSwitch: target id or "next"
 };
 
 struct ModeDef {
@@ -85,7 +94,10 @@ struct ModeSet {
 bool validModeId(const std::string &id);
 
 bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err);
-bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key, std::string *err);
+// modeId (optional) receives the target of mode:<id> / mode:next. Only the syntax of the id is
+// checked here; existence is checked by loadModes (the parser does not know the mode set).
+bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key, std::string *err,
+                       std::string *modeId = nullptr);
 
 // <config dir>/dofscroll/modes (config dir as in legacyConfigPath()).
 std::string modesDir();

@@ -81,7 +81,8 @@ ModeRunner::Wanted ModeRunner::bindings(uint32_t buttons) const {
     for (const ButtonBinding &b : mode_.buttons) {
         if (!buttonHeld(buttons, b.button - 1)) continue;  // bindings are 1-based
         switch (b.type) {
-        case ButtonActionType::Unbound: break;
+        case ButtonActionType::Unbound:
+        case ButtonActionType::ModeSwitch: break;  // ModeSwitch acts on the press edge, see tick()
         case ButtonActionType::Click: w.mouse |= 1u << 1; break;
         case ButtonActionType::MiddleClick: w.mouse |= 1u << 2; break;
         case ButtonActionType::RightClick: w.mouse |= 1u << 3; break;
@@ -99,6 +100,11 @@ void ModeRunner::tapKeys(Key neg, Key pos, int n) {
 
 void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh,
                       double dt) {
+    for (const ButtonBinding &b : mode_.buttons) {
+        if (b.type != ButtonActionType::ModeSwitch || switch_request_.size()) continue;
+        if (buttonHeld(buttons, b.button - 1) && !buttonHeld(prev_buttons_, b.button - 1)) switch_request_ = b.mode;
+    }
+    prev_buttons_ = buttons;
     if (legacy_) tickLegacy(s, raw, buttons, fresh, dt);
     else tickCustom(s, raw, buttons, fresh, dt);
 }

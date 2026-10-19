@@ -290,6 +290,30 @@ static void testResolveWithMode() {
     assert(s.zoom.sensitivity == 4);      // app beats mode
 }
 
+static void testModeSwitchBinding() {
+    ButtonActionType t;
+    Key k;
+    std::string err, id;
+    assert(parseButtonAction("mode:timeline", &t, &k, &err, &id) && t == ButtonActionType::ModeSwitch && id == "timeline");
+    assert(parseButtonAction(" Mode:NEXT ", &t, &k, &err, &id) && id == "next");
+    assert(!parseButtonAction("mode:", &t, &k, &err) && !err.empty());
+    assert(!parseButtonAction("mode:bad name", &t, &k, &err));
+    assert(parseButtonAction("mode:x", &t, &k, &err));  // id pointer is optional
+
+    clearDir();
+    writeFile("a.conf", "BUTTON_1 = mode:timeline\nBUTTON_2 = mode:next\nBUTTON_3 = mode:nosuch\n");
+    std::vector<std::string> w;
+    ModeSet ms = loadModes(g_dir, &w);
+    const ModeDef *m = ms.find("a");
+    assert(m && m->buttons.size() == 2);
+    assert(m->buttons[0].type == ButtonActionType::ModeSwitch && m->buttons[0].mode == "timeline");
+    assert(m->buttons[1].mode == "next");
+    assert(hasWarning(w, "unknown mode 'nosuch'"));
+    // the main config accepts the syntax too
+    Settings s;
+    assert(applyKey(s, "BUTTON_2", "mode:next", &err) && s.buttons[2] == "mode:next");
+}
+
 int main() {
     g_dir = "/tmp/test_modes." + std::to_string(::getpid());
     testIds();
@@ -301,6 +325,7 @@ int main() {
     testFileTypes();
     testStamp();
     testResolveWithMode();
+    testModeSwitchBinding();
     assert(system(("rm -rf '" + g_dir + "'").c_str()) == 0);
     std::cout << "test_modes: all tests passed\n";
     return 0;
