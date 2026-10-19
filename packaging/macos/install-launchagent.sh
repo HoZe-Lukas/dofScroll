@@ -52,13 +52,12 @@ case "$DAEMON" in
     *) echo "install-launchagent: daemon path must be absolute: $DAEMON" >&2; exit 1 ;;
 esac
 
-LOG_DIR="$HOME/Library/Logs/dofscroll"
 AGENT_DIR="$HOME/Library/LaunchAgents"
 PLIST="$AGENT_DIR/$LABEL.plist"
 
 # The paths end up in an XML file and in a sed expression: refuse characters that would need
 # escaping instead of trying to escape them.
-for v in "$DAEMON" "$LOG_DIR"; do
+for v in "$DAEMON"; do
     case "$v" in
         *'|'* | *'&'* | *'\'* | *'<'* | *'>'* | *'"'* | *"'"*)
             echo "install-launchagent: unsupported character in path: $v" >&2
@@ -71,7 +70,7 @@ for v in "$DAEMON" "$LOG_DIR"; do
 done
 
 render() {
-    sed -e "s|@DAEMON_PATH@|$DAEMON|g" -e "s|@LOG_DIR@|$LOG_DIR|g" "$TEMPLATE"
+    sed -e "s|@DAEMON_PATH@|$DAEMON|g" "$TEMPLATE"
 }
 
 DOMAIN="gui/$(id -u)"
@@ -86,8 +85,7 @@ if [ "$DRY" -eq 1 ]; then
     exit 0
 fi
 
-mkdir -p "$AGENT_DIR" "$LOG_DIR"
-chmod 700 "$LOG_DIR"
+mkdir -p "$AGENT_DIR"
 TMP=$(mktemp "$AGENT_DIR/.$LABEL.XXXXXX")
 trap 'rm -f "$TMP"' EXIT
 render > "$TMP"
@@ -98,6 +96,17 @@ echo "wrote $PLIST"
 
 if [ "$LOAD" -eq 1 ]; then
     launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+    # bootout is asynchronous: wait (up to ~10 s) until the service is really gone, otherwise
+    # bootstrap can fail with an I/O error.
+    i=0
+    while launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; do
+        i=$((i + 1))
+        if [ "$i" -gt 50 ]; then
+            echo "install-launchagent: $LABEL is still loaded after bootout" >&2
+            exit 1
+        fi
+        sleep 0.2
+    done
     launchctl bootstrap "$DOMAIN" "$PLIST"
     echo "loaded $LABEL in $DOMAIN"
 fi

@@ -25,6 +25,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -90,16 +91,28 @@ public:
 
     bool open(std::string *err) override {
         if (running_) return true;
+        if (thread_.joinable()) {
+            // A previous open() ran into the timeout and its thread was left behind (joining a
+            // hung IOHIDManagerOpen would block the daemon). Only reuse the object once it ended.
+            if (!threadDone_) {
+                if (err) *err = "a previous attempt to open the IOHIDManager is still pending";
+                return false;
+            }
+            thread_.join();
+        }
+        threadDone_ = false;
         queue_.reopen();
         checkPermission();
         auto ready = std::make_shared<std::promise<std::string>>();
         std::future<std::string> fut = ready->get_future();
         stop_ = false;
-        thread_ = std::thread([this, ready] { run(ready); });
+        thread_ = std::thread([this, ready] {
+            run(ready);
+            threadDone_ = true;
+        });
         if (fut.wait_for(std::chrono::seconds(10)) != std::future_status::ready) {
             if (err) *err = "timeout while opening the IOHIDManager";
-            stop_ = true;
-            if (thread_.joinable()) thread_.join();
+            stop_ = true;  // the thread tears down by itself once (if ever) it gets going; not joined here
             return false;
         }
         const std::string res = fut.get();
@@ -122,8 +135,11 @@ private:
     void shutdown() {
         running_ = false;
         stop_ = true;
-        CFRunLoopRef rl = loop_.load();
-        if (rl) CFRunLoopStop(rl);
+        {
+            // Same mutex as the hand-over in run(): the loop cannot be released while we stop it.
+            std::lock_guard<std::mutex> lk(loopMu_);
+            if (loop_) CFRunLoopStop(loop_);
+        }
         if (thread_.joinable()) thread_.join();
         queue_.close();
     }
@@ -175,7 +191,10 @@ private:
             return;
         }
         CFRetain(rl);
-        loop_ = rl;
+        {
+            std::lock_guard<std::mutex> lk(loopMu_);
+            loop_ = rl;
+        }
         ready->set_value("");
 
         // Matching callbacks for already attached devices fire on the first run-loop passes.
@@ -194,8 +213,11 @@ private:
         IOHIDManagerUnscheduleFromRunLoop(mgr, rl, kCFRunLoopDefaultMode);
         IOHIDManagerClose(mgr, kIOHIDOptionsTypeNone);
         CFRelease(mgr);
-        loop_ = nullptr;
-        CFRelease(rl);
+        {
+            std::lock_guard<std::mutex> lk(loopMu_);
+            loop_ = nullptr;
+            CFRelease(rl);  // shutdown() only touches loop_ under the same mutex
+        }
     }
 
     static void onMatch(void *ctx, IOReturn, void *, IOHIDDeviceRef dev) {
@@ -261,7 +283,9 @@ private:
     std::thread thread_;
     std::atomic<bool> running_{false};
     std::atomic<bool> stop_{false};
-    std::atomic<CFRunLoopRef> loop_{nullptr};
+    std::atomic<bool> threadDone_{true};
+    std::mutex loopMu_;
+    CFRunLoopRef loop_ = nullptr;  // guarded by loopMu_ (owns one retain while set)
     bool permissionChecked_ = false;
     std::map<IOHIDDeviceRef, std::unique_ptr<DevCtx>> devs_;  // run-loop thread only
 };

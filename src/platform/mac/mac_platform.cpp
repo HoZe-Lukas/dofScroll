@@ -175,7 +175,7 @@ public:
             }
             uid_t euid = 0;
             gid_t egid = 0;
-            if (::getpeereid(c, &euid, &egid) == 0 && euid == ::geteuid()) got = true;
+            if (::getpeereid(c, &euid, &egid) == 0 && reloadPeerAllowed(euid, ::geteuid())) got = true;
             ::close(c);
         }
         return got;
@@ -210,7 +210,7 @@ bool requestReload(std::string *err) {
         *err = "the dofscroll daemon is not running (no socket " + loc.path + ")";
         return false;
     }
-    if (!S_ISSOCK(st.st_mode) || st.st_uid != ::geteuid()) {
+    if (!reloadSocketTrusted(S_ISSOCK(st.st_mode), st.st_uid, ::geteuid())) {
         *err = loc.path + ": not a socket of the current user - refusing to connect";
         return false;
     }
@@ -274,7 +274,8 @@ std::unique_ptr<Output> makeOutput(const std::string &backend, std::string *log)
         *log = "Backend cgevent not usable: " + (err.empty() ? std::string("init failed") : err) + note;
         return nullptr;
     }
-    *log = "Backend cgevent selected" + note;
+    // keep what makeMacOutput() reported (e.g. the missing Accessibility permission)
+    *log = (log->empty() ? std::string() : *log + "; ") + "Backend cgevent selected" + note;
     return o;
 }
 

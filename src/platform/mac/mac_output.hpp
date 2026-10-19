@@ -6,10 +6,14 @@
 #include <string>
 
 #include "../../output.hpp"
+#include "mac_release_guard.hpp"
 
 namespace spn {
 
 // Creates the output (not yet init()ed). `log` may be null.
 std::unique_ptr<Output> makeMacOutput(std::string *log);
+
+// Registry of all live outputs of the process (leaked on purpose: usable from atexit handlers).
+mac::ReleaseGuard &macReleaseGuard();
 
 }  // namespace spn

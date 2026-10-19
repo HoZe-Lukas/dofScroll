@@ -60,8 +60,8 @@ request and re-reads the file on its main thread. Reload is idempotent. There ar
 
 Config and modes: `~/Library/Application Support/dofscroll/{dofscroll.conf,modes/}`, same formats
 as on Linux. Runtime directory `~/Library/Caches/dofscroll` (user only): `dofscroll.log` (rolling,
-same limits and sanitizing as Linux), `dofscroll-status`. launchd additionally captures stdout and
-stderr into `~/Library/Logs/dofscroll/`.
+same limits and sanitizing as Linux), `dofscroll-status`. launchd's own stdout/stderr capture is
+switched off (`/dev/null`): it would never be rotated.
 
 ### LaunchAgent
 
@@ -78,6 +78,19 @@ not suitable: it has no GUI session and cannot post events to the user's session
   path and code signature. Moving it, or rebuilding an unsigned binary, can invalidate the grant.
 - The daemon is meant to detect a missing permission, write it to the log/status file and keep
   running instead of failing silently. Exact prompts and pane names per macOS version: *unverified*.
+  The permissions are re-checked every 5 seconds (a revoke or grant while running is written to the
+  status file at once and to the log, repeated at most every 10 minutes while something is missing).
+
+## Exit paths and stuck keys
+
+SIGTERM, SIGINT and SIGHUP end the main loop, which releases everything it pressed (clean path).
+`std::terminate`, `exit()` and the system going to sleep (IOKit power notification) release through
+a registry of the live outputs. After SIGKILL or a hard crash nothing can run: the next start
+releases every key and button first (`--release-keys` does it on demand). Permanent errors (no
+device descriptions, unusable output) exit with 78 (EX_CONFIG) in a terminal and with 0 under launchd,
+because `KeepAlive/SuccessfulExit=false` would otherwise restart the daemon every 10 s forever.
+Unit-tested: the registry with a fake output, the exit code and permission logic; compile-only on CI:
+the sleep watcher, the permission watcher and the IOHID shutdown hand-over.
 
 ## Signing and notarization
 

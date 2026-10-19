@@ -75,6 +75,32 @@ int main() {
     assert(trimLogText("", 5, 5).empty() && trimLogText("no newline", 5, 100).empty());
     assert(trimLogText(t, 0, 1000).empty());
 
+    // socket ownership
+    assert(reloadSocketTrusted(true, 501, 501));
+    assert(!reloadSocketTrusted(true, 0, 501) && !reloadSocketTrusted(false, 501, 501));
+    assert(reloadPeerAllowed(501, 501) && !reloadPeerAllowed(0, 501));
+
+    // exit code of permanent errors: 0 under launchd (no restart loop), EX_CONFIG otherwise
+    assert(permanentErrorExitCode("io.github.dofscroll.daemon") == 0);
+    assert(permanentErrorExitCode(nullptr) == kExitConfig && permanentErrorExitCode("other") == 78);
+
+    // permission tracking: log on change, reminder rate limited, nothing when all is fine
+    {
+        PermissionTracker t(600);
+        PermissionTracker::Result r = t.update(true, true, 1000);
+        assert(!r.changed && !r.log);
+        r = t.update(false, true, 1005);  // revoked
+        assert(r.changed && r.log);
+        r = t.update(false, true, 1010);  // still missing, too early for a reminder
+        assert(!r.changed && !r.log);
+        r = t.update(false, true, 1005 + 600);
+        assert(!r.changed && r.log);
+        r = t.update(true, true, 1700);  // granted again
+        assert(r.changed && r.log);
+        PermissionTracker t2;
+        assert(t2.update(false, false, 5).log);  // missing at the first check is reported
+    }
+
     std::puts("test_mac_paths: ok");
     return 0;
 }

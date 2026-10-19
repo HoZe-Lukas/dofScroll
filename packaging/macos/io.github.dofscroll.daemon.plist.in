@@ -2,8 +2,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 <!-- Template of the per-user LaunchAgent. install-launchagent.sh replaces the two placeholders
-     (daemon path and log directory, written between at-signs below) with absolute paths; launchd
-     does not expand "~" or "$HOME". -->
+     (the daemon path, written between at-signs below) with an absolute path; launchd does not
+     expand "~" or "$HOME". -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -15,7 +15,9 @@
     </array>
     <key>RunAtLoad</key>
     <true/>
-    <!-- Restart after a crash, but not after a clean exit (e.g. the user quit it). -->
+    <!-- Restart after a crash, but not after a clean exit (e.g. the user quit it). launchd cannot
+         tell exit codes apart, so under launchd the daemon exits with 0 on permanent errors
+         (missing device descriptions, unusable configuration) and is not restarted in a loop. -->
     <key>KeepAlive</key>
     <dict>
         <key>SuccessfulExit</key>
@@ -28,9 +30,11 @@
     <string>Interactive</string>
     <key>LimitLoadToSessionType</key>
     <string>Aqua</string>
+    <!-- The daemon has its own rolling log (~/Library/Caches/dofscroll/dofscroll.log); launchd's
+         capture files would grow without limit. -->
     <key>StandardOutPath</key>
-    <string>@LOG_DIR@/launchd.out.log</string>
+    <string>/dev/null</string>
     <key>StandardErrorPath</key>
-    <string>@LOG_DIR@/launchd.err.log</string>
+    <string>/dev/null</string>
 </dict>
 </plist>

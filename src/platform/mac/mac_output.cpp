@@ -21,6 +21,7 @@
 
 #include <array>
 #include <atomic>
+#include <mutex>
 
 #include "mac_key_tables.hpp"
 
@@ -60,7 +61,9 @@ bool accessibilityTrusted() {
 
 class MacOutput : public Output {
 public:
+    MacOutput() { macReleaseGuard().add(this); }
     ~MacOutput() override {
+        macReleaseGuard().remove(this);
         if (src_) {
             doReleaseAll();
             CFRelease(src_);
@@ -70,6 +73,7 @@ public:
     const char *name() const override { return "cgevent"; }
 
     bool init(std::string *err) override {
+        std::lock_guard<std::mutex> lk(m_);
         if (src_) return true;
         src_ = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
         if (!src_) {
@@ -79,10 +83,19 @@ public:
         return true;
     }
 
-    void wheelV(int n) override { scroll(mac::scrollWheelValue(n), 0); }
-    void wheelH(int n) override { scroll(0, mac::scrollWheelValue(n)); }
+    // The public methods are serialized: releaseAll() is also called from the sleep watcher and the
+    // exit handlers (other threads).
+    void wheelV(int n) override {
+        std::lock_guard<std::mutex> lk(m_);
+        scroll(mac::scrollWheelValue(n), 0);
+    }
+    void wheelH(int n) override {
+        std::lock_guard<std::mutex> lk(m_);
+        scroll(0, mac::scrollWheelValue(n));
+    }
 
     void setKey(Key k, bool down) override {
+        std::lock_guard<std::mutex> lk(m_);
         if (!src_) return;
         const size_t i = static_cast<size_t>(k);
         if (down == keysDown_[i]) return;  // idempotent
@@ -93,6 +106,7 @@ public:
     }
 
     void tapKey(Key k) override {
+        std::lock_guard<std::mutex> lk(m_);
         if (!src_) return;
         // A key already held by a channel is released, tapped and pressed again (like the X11 and
         // uinput backends), so keysDown_ stays consistent with the ModeRunner's view.
@@ -104,6 +118,7 @@ public:
     }
 
     void mouseButton(int button, bool down) override {
+        std::lock_guard<std::mutex> lk(m_);
         mac::MouseButtonSpec spec{};
         if (!src_ || !mac::mouseButtonSpec(button, &spec)) return;
         if (down == buttonsDown_[static_cast<size_t>(button)]) return;
@@ -111,9 +126,13 @@ public:
         postMouse(spec, down);
     }
 
-    void releaseAll() override { doReleaseAll(); }
+    void releaseAll() override {
+        std::lock_guard<std::mutex> lk(m_);
+        doReleaseAll();
+    }
 
     void forceReleaseAll() override {
+        std::lock_guard<std::mutex> lk(m_);
         if (!src_) return;
         // Independent of our own state: a crashed earlier process may have left keys down.
         heldFlags_ = 0;
@@ -204,6 +223,7 @@ private:
         CFRelease(e);
     }
 
+    std::mutex m_;
     CGEventSourceRef src_ = nullptr;
     std::array<bool, kKeyCount> keysDown_{};
     std::array<bool, 4> buttonsDown_{};  // index 1..3
@@ -211,6 +231,11 @@ private:
 };
 
 }  // namespace
+
+mac::ReleaseGuard &macReleaseGuard() {
+    static mac::ReleaseGuard *g = new mac::ReleaseGuard;  // never destroyed
+    return *g;
+}
 
 std::unique_ptr<Output> makeMacOutput(std::string *log) {
     if (!accessibilityTrusted() && log)

@@ -29,6 +29,16 @@ if(DOFSCROLL_BUILD_DAEMON)
     "-framework CoreFoundation"
     "-framework AppKit")
 
+  # Hardening of the daemon (the Linux flags in CMakeLists.txt are ELF specific): stack protector,
+  # fortified libc calls with optimization, format-string warnings, position independent
+  # executable (ASLR). Hardened runtime and signing belong to the installer package (W4).
+  if(DOFSCROLL_HARDEN)
+    set_target_properties(dofscroll PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_compile_options(dofscroll PRIVATE -fstack-protector-strong -Wformat -Wformat-security
+      $<$<NOT:$<OR:$<CONFIG:Debug>,$<BOOL:${DOFSCROLL_SANITIZE}>>>:-D_FORTIFY_SOURCE=2>)
+    target_link_options(dofscroll PRIVATE -Wl,-pie)
+  endif()
+
   # Run from the build tree: the device descriptions and the example config sit next to the binary
   # (mac_platform.cpp looks for <exe dir>/devices; seeding looks for <exe dir>/examples).
   add_custom_command(TARGET dofscroll POST_BUILD

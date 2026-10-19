@@ -133,4 +133,49 @@ inline std::string trimLogText(const std::string &text, size_t keepLines, size_t
     return text.substr(starts[first], end - starts[first]);
 }
 
+// Reload socket trust decisions (pure, so they are unit-tested): the client only connects to a
+// socket that belongs to it; the daemon only honours a peer with its own uid.
+inline bool reloadSocketTrusted(bool isSocket, unsigned ownerUid, unsigned euid) { return isSocket && ownerUid == euid; }
+inline bool reloadPeerAllowed(unsigned peerUid, unsigned euid) { return peerUid == euid; }
+
+// Tracks the Accessibility / Input Monitoring state over time. update() says whether the state
+// changed and whether a log line is due: immediately on a change, and a reminder every
+// `repeatSec` while a permission is still missing (so the log is not flooded).
+class PermissionTracker {
+public:
+    struct Result {
+        bool changed = false;
+        bool log = false;
+    };
+    explicit PermissionTracker(long long repeatSec = 600) : repeat_(repeatSec) {}
+    Result update(bool accessibility, bool inputMonitoring, long long nowSec) {
+        Result r;
+        const bool first = !known_;
+        r.changed = !first && (accessibility != ax_ || inputMonitoring != im_);
+        const bool missing = !accessibility || !inputMonitoring;
+        if (first) r.log = missing;
+        else if (r.changed) r.log = true;
+        else if (missing && nowSec - lastLog_ >= repeat_) r.log = true;
+        if (r.log) lastLog_ = nowSec;
+        known_ = true;
+        ax_ = accessibility;
+        im_ = inputMonitoring;
+        return r;
+    }
+
+private:
+    long long repeat_, lastLog_ = 0;
+    bool known_ = false, ax_ = false, im_ = false;
+};
+
+// Exit codes: EX_CONFIG (78) = permanent error, retrying cannot help (launchd must not restart).
+constexpr int kExitConfig = 78;
+inline const char *launchdLabel() { return "io.github.dofscroll.daemon"; }
+// launchd's KeepAlive/SuccessfulExit cannot distinguish exit codes: a failure exit would restart
+// the daemon every ThrottleInterval forever. Under launchd (XPC_SERVICE_NAME is the job label) a
+// permanent error therefore exits 0 ("do not restart"); in a terminal it is EX_CONFIG.
+inline int permanentErrorExitCode(const char *xpcServiceName) {
+    return xpcServiceName && std::string(xpcServiceName) == launchdLabel() ? 0 : kExitConfig;
+}
+
 }  // namespace spn

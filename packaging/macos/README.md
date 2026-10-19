@@ -7,7 +7,7 @@ or signed app bundle yet (work package W4); everything here works from a local b
 
 | File | Purpose |
 |---|---|
-| `io.github.dofscroll.daemon.plist.in` | LaunchAgent template (`@DAEMON_PATH@`, `@LOG_DIR@` are substituted) |
+| `io.github.dofscroll.daemon.plist.in` | LaunchAgent template (`@DAEMON_PATH@` is substituted) |
 | `install-launchagent.sh` | Renders the plist into `~/Library/LaunchAgents`, runs `launchctl bootstrap` |
 | `uninstall-launchagent.sh` | `launchctl bootout`, removes the plist (config and logs stay) |
 
@@ -49,7 +49,7 @@ The exact wording of the panes differs between macOS versions (unverified for ea
 ## Logs and files
 
 - Daemon log (rolling): `~/Library/Caches/dofscroll/dofscroll.log`, status file next to it.
-- launchd's own capture of stdout/stderr: `~/Library/Logs/dofscroll/launchd.{out,err}.log`.
+- launchd's stdout/stderr go to `/dev/null` (unbounded capture files); the rolling daemon log is the record.
 - Configuration: `~/Library/Application Support/dofscroll/` (same format as on Linux).
 
 ## Uninstall

@@ -11,7 +11,10 @@
 
 #include <atomic>
 #include <cerrno>
+#include <chrono>
 #include <csignal>
+#include <cstdlib>
+#include <exception>
 #include <cstring>
 #include <ctime>
 #include <iostream>
@@ -19,6 +22,7 @@
 #include <mutex>
 #include <streambuf>
 #include <string>
+#include <thread>
 
 #include "../../common.hpp"
 #include "../../config.hpp"
@@ -28,7 +32,9 @@
 #include "../../output.hpp"
 #include "../fs.hpp"
 #include "../platform.hpp"
+#include "mac_output.hpp"
 #include "mac_paths.hpp"
+#include "mac_power.hpp"
 
 using namespace spn;
 
@@ -38,8 +44,19 @@ const char *const VERSION = "dofscroll 2.0 (macOS)";
 const char *const LOG = "[dofscroll] ";
 
 DaemonCore *g_core = nullptr;
+// SIGTERM/SIGINT/SIGHUP only set a flag: the main loop ends, run() releases the held keys through
+// the normal path and the process exits (nothing unsafe happens in the handler itself).
 void handleQuitSignal(int) {
     if (g_core) g_core->requestQuit();
+}
+
+// Last resort for std::terminate and exit(): release what this process pressed. Not reachable
+// after SIGKILL or a hard crash: the next start releases everything (forceReleaseAll in
+// DaemonCore::initialize).
+void releaseHeldKeys() { macReleaseGuard().releaseAll(); }
+[[noreturn]] void onTerminate() {
+    releaseHeldKeys();
+    std::abort();
 }
 
 void printHelp(const PlatformPaths &p) {
@@ -214,7 +231,18 @@ public:
     StatusWriter(const std::string &dir, std::string permissionsLine)
         : path_(prepareRuntimeDir(dir) ? dir + "/dofscroll-status" : std::string()), perm_(std::move(permissionsLine)) {}
 
+    // Called from the permission watcher thread: the next update() rewrites the file.
+    void setPermissions(std::string line) {
+        std::lock_guard<std::mutex> lk(m_);
+        if (line != perm_) {
+            perm_ = std::move(line);
+            next_ = 0;
+            last_.clear();
+        }
+    }
+
     void update(const std::string &body, int64_t nowNs) {
+        std::lock_guard<std::mutex> lk(m_);
         if (path_.empty()) return;
         if (body == last_ && nowNs < next_) return;
         last_ = body;
@@ -230,10 +258,12 @@ public:
         }
     }
     void remove() {
+        std::lock_guard<std::mutex> lk(m_);
         if (!path_.empty() && wrote_) fs::removeFile(path_);
     }
 
 private:
+    std::mutex m_;
     std::string path_, perm_, last_;
     int64_t next_ = 0;
     bool warned_ = false, wrote_ = false;
@@ -253,6 +283,24 @@ int releaseKeysAndExit(const PlatformPaths &paths) {
     out->forceReleaseAll();
     out->flush();
     return 0;
+}
+
+// Re-checks the permissions every few seconds (they can be revoked or granted while the daemon
+// runs), reports changes in the status file and, rate-limited, in the log.
+void startPermissionWatcher(StatusWriter *status, PermissionTracker tracker) {
+    std::thread([status, tracker]() mutable {
+        for (;;) {
+            const bool ax = accessibilityGranted();
+            const bool im = inputMonitoringGranted();
+            const PermissionTracker::Result r = tracker.update(ax, im, static_cast<long long>(std::time(nullptr)));
+            if (r.changed) status->setPermissions(permissionsStatusLine(ax, im));
+            if (r.log) {
+                if (ax && im) std::cerr << LOG << "permissions OK" << std::endl;
+                else std::cerr << LOG << "WARNING: " << permissionHint(ax, im) << std::endl;
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+        }
+    }).detach();
 }
 
 }  // namespace
@@ -283,7 +331,7 @@ int main(int argc, char **argv) {
     std::unique_ptr<InputSource> input = makeInputSource("auto", &ilog);
     if (!input) {
         std::cerr << LOG << "ERROR: no input source (" << ilog << ")" << std::endl;
-        return 1;
+        return permanentErrorExitCode(std::getenv("XPC_SERVICE_NAME"));  // retrying cannot help
     }
     if (!ilog.empty()) std::cerr << LOG << ilog << std::endl;
     InputSource *input_p = input.release();
@@ -305,9 +353,18 @@ int main(int argc, char **argv) {
 
     DaemonCore *core = new DaemonCore(std::move(deps));
     g_core = core;
-    if (!core->initialize()) return 1;
     std::signal(SIGTERM, handleQuitSignal);
     std::signal(SIGINT, handleQuitSignal);
+    std::signal(SIGHUP, handleQuitSignal);
+    std::set_terminate(onTerminate);
+    std::atexit(releaseHeldKeys);
+    if (!core->initialize()) {
+        releaseHeldKeys();
+        return permanentErrorExitCode(std::getenv("XPC_SERVICE_NAME"));  // config/output problem: not transient
+    }
+    startSleepWatcher();
+    startPermissionWatcher(status, PermissionTracker());
     core->run();
+    releaseHeldKeys();  // run() already did through the clean path; this is the safety net
     return 0;
 }
