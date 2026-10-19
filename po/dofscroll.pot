@@ -2162,3 +2162,7 @@ msgstr ""
 #: src/ui/qt/pages/button_modes_page.cpp
 msgid "A button mode can press a key or click whenever its button is pressed. Only keep files from sources you trust and read the file first."
 msgstr ""
+
+#: src/ui/model/binding_editor_model.hpp
+msgid "Previous mode"
+msgstr ""

@@ -167,7 +167,7 @@ public:
         t += "#   step:left,right presses one key per push (after a tap the channel must return towards the center).\n";
         t += "#   A key may be a chord: keys:ctrl+pageup,ctrl+pagedown (modifiers ctrl, shift, alt, super).\n";
         t += "# Button actions (buttons are numbered from 1, BUTTON_1 is the first button):\n";
-        t += "#   none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next |\n";
+        t += "#   none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | mode:prev |\n";
         t += "#   toggle:nav | toggle:mode:<id> | buttonmode:<id>\n";
         t += "# Settings overrides: any channel key of the main configuration, e.g. SCROLL_H_SENS = 4,\n";
         t += "#   ZOOM_SIGN = -1, SCROLL_V_CURVE = 1.5. Not allowed here: MODE, ENABLED, BACKEND, TICK_HZ.\n";

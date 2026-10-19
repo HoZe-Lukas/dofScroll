@@ -80,6 +80,7 @@ table in `src/device_db.cpp`). The count is not the one `spacenavd` reports.
 | `key:<name>` | Holds the key while the button is held. |
 | `mode:<id>` | Switches to mode `<id>` when the button is pressed. |
 | `mode:next` | Switches to the next loaded mode in alphabetical order of id, built-ins included, wrapping around. |
+| `mode:prev` | The mirror of `mode:next`: switches to the previous id in alphabetical order, wrapping from the first to the last. Stateless (no history). `next` and `prev` are reserved targets: a mode file called `next.conf` or `prev.conf` still loads, but `mode:next` and `mode:prev` always mean the cycle action. Not allowed in `toggle:mode:<id>`. |
 | `toggle:nav` | Every press switches the navigation mode on or off (arrow keys instead of scrolling), like a held `nav` button but latched. A held `nav` button and the latch add up. |
 | `toggle:mode:<id>` | The first press switches to mode `<id>`, the next press goes back to the mode the profile gives. `next` is not allowed. |
 | `buttonmode:<id>` | Behaves like the `ACTION` of the button mode file `buttons/<id>.conf`, see [button-modes.md](button-modes.md). Not nestable. An unknown id does nothing. |

@@ -343,6 +343,48 @@ static void testModeSwitchButton() {
     CHECK(r.core->runner().mode().id == "off", "fixed target mode:off");
 }
 
+// mode:prev is the mirror of mode:next: alphabetical ids, wrapping in both directions.
+static void testModePrev() {
+    // ids: alpha < normal < off < timeline < zed (built-ins: normal, off, timeline)
+    Rig r(std::string(BASE_CONF) + "MODE = alpha\n",
+          {{"alpha.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n"},
+           {"zed.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n"}});
+    r.run(0.1);
+    auto press = [&](int b) {
+        r.src.pushButton(0, b, true);
+        r.run(0.1);
+        r.src.pushButton(0, b, false);
+        r.run(0.1);
+    };
+    auto id = [&] { return r.core->runner().mode().id; };
+    CHECK(id() == "alpha", "starts in alpha");
+    press(0);  // prev from the first id wraps to the last
+    CHECK(id() == "zed", "prev wraps from the first to the last (%s)", id().c_str());
+    press(0);
+    CHECK(id() == "timeline", "prev goes to the previous id (%s)", id().c_str());
+    // timeline has no bindings of its own: continue from a mode that has them (reload, start at zed)
+    r.reload.pending = true;
+    writeFile(r.conf, std::string(BASE_CONF) + "MODE = zed\n");
+    r.run(0.05);
+    CHECK(id() == "zed", "zed active after the reload");
+    press(1);  // next from the last id wraps to the first
+    CHECK(id() == "alpha", "next wraps from the last to the first (%s)", id().c_str());
+    press(1);  // next -> normal
+    CHECK(id() == "normal", "alpha -> normal");
+    // next followed by prev returns to the start
+    r.reload.pending = true;
+    writeFile(r.conf, std::string(BASE_CONF) + "MODE = alpha\n");
+    r.run(0.05);
+    press(1);
+    CHECK(id() == "normal", "next from alpha");
+    // (normal has no binding: go back through the file mode instead)
+    r.reload.pending = true;
+    r.run(0.05);
+    press(0);
+    press(1);
+    CHECK(id() == "alpha", "prev then next returns to the start (%s)", id().c_str());
+}
+
 static std::string statusKey(const Rig &r, const std::string &key) {
     if (r.status.empty()) return "";
     const std::string &b = r.status.back();
@@ -556,6 +598,7 @@ int main() {
     testModeVsAppPrecedence();
     testConfigButtonsAndNormalFile();
     testModeSwitchButton();
+    testModePrev();
     testToggleButtons();
     testMotion();
     testStaleWatchdog();

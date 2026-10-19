@@ -385,6 +385,21 @@ static void testModeSwitchBinding() {
     // the main config accepts the syntax too
     Settings s;
     assert(applyKey(s, "BUTTON_2", "mode:next", &err) && s.buttons[2] == "mode:next");
+    assert(applyKey(s, "BUTTON_3", "mode:prev", &err) && s.buttons[3] == "mode:prev");
+
+    // mode:prev is a reserved target like mode:next: always valid in a mode file, no warning
+    clearDir();
+    writeFile("p.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n");
+    writeFile("prev.conf", "V_ACTION = none\n");  // a mode of that name still loads
+    w.clear();
+    ms = loadModes(g_dir, &w);
+    m = ms.find("p");
+    assert(m && m->buttons.size() == 2 && m->buttons[0].type == ButtonActionType::ModeSwitch && m->buttons[0].mode == "prev");
+    assert(!hasWarning(w, "unknown mode") && ms.find("prev"));
+    ButtonActionType pt;
+    Key pk;
+    std::string pid;
+    assert(parseButtonAction("mode:prev", &pt, &pk, &err, &pid) && pt == ButtonActionType::ModeSwitch && pid == "prev");
 }
 
 static void testToggleBindings() {
@@ -399,6 +414,7 @@ static void testToggleBindings() {
     assert(!parseButtonAction("toggle:mode:", &t, &k, &err));
     assert(!parseButtonAction("toggle:mode:bad name", &t, &k, &err));
     assert(!parseButtonAction("toggle:mode:next", &t, &k, &err));
+    assert(!parseButtonAction("toggle:mode:prev", &t, &k, &err) && err.find("prev") != std::string::npos);
     assert(!parseButtonAction("toggle:key:space", &t, &k, &err));  // plain keys are the driver's job
 
     clearDir();

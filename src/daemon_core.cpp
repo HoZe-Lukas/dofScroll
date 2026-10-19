@@ -393,7 +393,7 @@ void DaemonCore::checkButtons() {
                   << " does not exist on this device" << std::endl;
 }
 
-// Button-triggered mode switch: "next" cycles through all modes in alphabetical id order.
+// Button-triggered mode switch: "next" / "prev" cycle through all modes in alphabetical id order.
 void DaemonCore::switchMode(const std::string &target) {
     std::string id = target;
     if (target.compare(0, 7, "toggle:") == 0) {
@@ -409,12 +409,18 @@ void DaemonCore::switchMode(const std::string &target) {
             tick_period_ = periodFor(settings_.tick_hz);
             return;
         }
-    } else if (target == "next") {
+    } else if (target == "next" || target == "prev") {
         std::vector<std::string> ids;
         for (const ModeDef &m : modes_.modes) ids.push_back(m.id);
         std::sort(ids.begin(), ids.end());
-        auto it = std::upper_bound(ids.begin(), ids.end(), runner_->mode().id);
-        id = it == ids.end() ? ids.front() : *it;
+        if (target == "next") {
+            auto it = std::upper_bound(ids.begin(), ids.end(), runner_->mode().id);
+            id = it == ids.end() ? ids.front() : *it;
+        } else {
+            // The id before the effective one; wraps from the first to the last.
+            auto it = std::lower_bound(ids.begin(), ids.end(), runner_->mode().id);
+            id = it == ids.begin() ? ids.back() : *(it - 1);
+        }
     }
     if (!modes_.find(id)) return;
     mode_override_ = id;

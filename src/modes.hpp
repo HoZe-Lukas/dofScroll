@@ -25,24 +25,27 @@
 //   key names from keys.hpp.
 // Buttons are numbered from 1 (BUTTON_1 .. BUTTON_32), exactly like BUTTON_<n> in the main config;
 // BUTTON_0 is rejected. Internally button n is device bit n-1 (spnav_event_button.bnum).
-// Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next |
+// Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | mode:prev |
 //                 toggle:nav | toggle:mode:<id>
 //   click/rightclick/middleclick = hold the mouse button while the button is held;
 //   key = hold the key; nav = while held, the V/H channels send arrow keys instead of scroll.
 //   mode:<id> = switch to the mode <id> when the button is PRESSED (not on release);
 //   mode:next = cycle through all loaded modes in alphabetical order of id (built-ins
-//   included), wrapping around. The switch is a runtime override of the mode chosen by
+//   included), wrapping around; mode:prev is the mirror (the previous id, wrapping from the first
+//   to the last; stateless, no history). "next" and "prev" are reserved targets: a mode file
+//   called next.conf or prev.conf still loads, but mode:next / mode:prev always mean the cycle
+//   action. The switch is a runtime override of the mode chosen by
 //   profile resolution: it is sticky (also across profile/app changes) until the daemon
 //   restarts, the config or the modes directory is reloaded, or another switch happens.
 //   All held keys/buttons are released on every switch; the status file "mode=" line
 //   shows the effective mode. An id that matches no loaded mode is rejected with a
-//   warning when the modes are loaded (the binding is dropped); "next" is always valid.
+//   warning when the modes are loaded (the binding is dropped); "next" and "prev" are always valid.
 //   toggle:nav = on every PRESS the navigation mode (arrow keys instead of scroll) is switched on
 //   or off, like holding a nav button but latched. toggle:mode:<id> = the first press switches to
 //   the mode <id> (like mode:<id>), the next press while <id> is the effective mode drops that
 //   switch and returns to the mode that profile resolution gives. Both are state that is cleared
 //   by a reload (also "Release all keys" in the tray), and by entering suspend/disabled; the
-//   status file shows it in the "toggle=" line. "next" is not valid in
+//   status file shows it in the "toggle=" line. "next" and "prev" are not valid in
 //   toggle:mode:<id> (there is no single mode to return from).
 // A mode whose three channel actions are all "default" runs on the normal path (incl.
 // dominance-based zoom, NAV_BUTTON/CLICK_BUTTON from the settings).

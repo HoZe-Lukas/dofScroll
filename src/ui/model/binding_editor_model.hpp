@@ -15,7 +15,7 @@
 
 namespace spn::ui {
 
-enum class BindingKind { None, Click, RightClick, MiddleClick, Nav, Key, Mode, ModeNext, ToggleNav, ToggleMode, ButtonMode };
+enum class BindingKind { None, Click, RightClick, MiddleClick, Nav, Key, Mode, ModeNext, ModePrev, ToggleNav, ToggleMode, ButtonMode };
 
 struct BindingKindInfo {
     BindingKind kind;
@@ -35,6 +35,7 @@ inline const std::vector<BindingKindInfo> &bindingKinds() {
         {BindingKind::Nav, "nav", "Navigation mode (arrow keys while held)", false, false, false},
         {BindingKind::Mode, "mode", "Switch to mode", false, true, false},
         {BindingKind::ModeNext, "mode:next", "Next mode", false, false, false},
+        {BindingKind::ModePrev, "mode:prev", "Previous mode", false, false, false},
         {BindingKind::ToggleNav, "toggle:nav", "Navigation mode on/off (press to switch)", false, false, false},
         {BindingKind::ToggleMode, "toggle:mode", "Toggle mode (press again to go back)", false, true, false},
         {BindingKind::Click, "click", "Left click", false, false, true},
@@ -113,7 +114,7 @@ inline bool parseBinding(const std::string &text, Binding *out) {
     }
     if (t.rfind("toggle:mode:", 0) == 0) {
         const std::string id = t.substr(12);
-        if (!validModeId(id) || id == "next") return false;
+        if (!validModeId(id) || id == "next" || id == "prev") return false;
         out->kind = BindingKind::ToggleMode;
         out->arg = id;
         return true;
@@ -155,7 +156,8 @@ inline Binding withKind(const Binding &cur, BindingKind kind, const std::vector<
 // Mode ids offered by "Switch to mode": every loaded mode (built-in and files).
 inline std::vector<std::string> bindingModeIds(const ModeSet &ms) {
     std::vector<std::string> out;
-    for (const ModeDef &m : ms.modes) out.push_back(m.id);
+    for (const ModeDef &m : ms.modes)
+        if (m.id != "next" && m.id != "prev") out.push_back(m.id);  // reserved: mode:next / mode:prev cycle
     return out;
 }
 

@@ -22,7 +22,7 @@ most 32 characters. The format is that of the main configuration: `KEY = value`,
 |---|---|
 | `NAME` | Shown in the drop-downs. Fallback: the id. |
 | `DESCRIPTION` | Optional, shown as a tooltip and on the Button modes page. |
-| `ACTION` | Required. One button action as in `BUTTON_<n>`: `none`, `click`, `rightclick`, `middleclick`, `nav`, `key:<name>`, `mode:<id>`, `mode:next`, `toggle:nav`, `toggle:mode:<id>`. It must not be a `buttonmode:` reference (no nesting). |
+| `ACTION` | Required. One button action as in `BUTTON_<n>`: `none`, `click`, `rightclick`, `middleclick`, `nav`, `key:<name>`, `mode:<id>`, `mode:next`, `mode:prev`, `toggle:nav`, `toggle:mode:<id>`. It must not be a `buttonmode:` reference (no nesting). |
 
 Every other key is skipped with a warning; a file without a valid `ACTION` is skipped. Example
 (`examples/buttons/latch-nav.conf`):

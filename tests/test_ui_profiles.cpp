@@ -43,6 +43,8 @@ static void testBindingParse() {
     assert(parseBinding("nav", &b) && b.kind == BindingKind::Nav);
     assert(parseBinding("key:kp_plus", &b) && b.kind == BindingKind::Key && b.arg == "kp_plus");
     assert(parseBinding("mode:next", &b) && b.kind == BindingKind::ModeNext);
+    assert(parseBinding("mode:prev", &b) && b.kind == BindingKind::ModePrev);
+    assert(!parseBinding("toggle:mode:prev", &b));
     assert(parseBinding("mode:timeline", &b) && b.kind == BindingKind::Mode && b.arg == "timeline");
     assert(parseBinding("toggle:nav", &b) && b.kind == BindingKind::ToggleNav);
     assert(parseBinding("toggle:mode:timeline", &b) && b.kind == BindingKind::ToggleMode && b.arg == "timeline");
@@ -52,7 +54,7 @@ static void testBindingParse() {
     assert(!parseBinding("jump", &b));
 
     // compose is the inverse of parse for every action
-    for (const char *t : {"none", "click", "rightclick", "middleclick", "nav", "key:plus", "mode:next",
+    for (const char *t : {"none", "click", "rightclick", "middleclick", "nav", "key:plus", "mode:next", "mode:prev",
                           "mode:off", "toggle:nav", "toggle:mode:timeline"}) {
         assert(parseBinding(t, &b));
         assert(composeBinding(b) == t);
@@ -68,13 +70,13 @@ static void testPrimaryAdvanced() {
     std::set<BindingKind> p;
     for (const auto &k : prim) p.insert(k.kind);
     assert(p == (std::set<BindingKind>{BindingKind::None, BindingKind::Nav, BindingKind::Mode,
-                                       BindingKind::ModeNext, BindingKind::ToggleNav,
-                                       BindingKind::ToggleMode}));
+                                       BindingKind::ModeNext, BindingKind::ModePrev,
+                                       BindingKind::ToggleNav, BindingKind::ToggleMode}));
     // All capabilities stay available behind "Advanced".
-    assert(bindingKindsFor(BindingContext::Global, true).size() == 10);
+    assert(bindingKindsFor(BindingContext::Global, true).size() == 11);
     for (BindingKind k : {BindingKind::Click, BindingKind::RightClick, BindingKind::MiddleClick, BindingKind::Key})
         assert(isAdvancedKind(k));
-    for (BindingKind k : {BindingKind::None, BindingKind::Nav, BindingKind::Mode, BindingKind::ModeNext,
+    for (BindingKind k : {BindingKind::None, BindingKind::Nav, BindingKind::Mode, BindingKind::ModeNext, BindingKind::ModePrev,
                            BindingKind::ToggleNav, BindingKind::ToggleMode})
         assert(!isAdvancedKind(k));
     // primary entries come first in the full list
@@ -84,7 +86,7 @@ static void testPrimaryAdvanced() {
     // Specific profiles (device/app): everything first-class, no advanced section, no hint.
     assert(bindingContextOf(0) == BindingContext::Global && hasAdvancedSection(BindingContext::Global));
     assert(bindingContextOf(3) == BindingContext::Specific && !hasAdvancedSection(BindingContext::Specific));
-    assert(bindingKindsFor(BindingContext::Specific, false).size() == 10);
+    assert(bindingKindsFor(BindingContext::Specific, false).size() == 11);
     for (BindingKind k : {BindingKind::Click, BindingKind::RightClick, BindingKind::MiddleClick, BindingKind::Key})
         assert(!isAdvancedIn(BindingContext::Specific, k) && isAdvancedIn(BindingContext::Global, k));
     {

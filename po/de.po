@@ -2331,3 +2331,7 @@ msgstr "Der Tastenmodus-Ordner konnte nicht angelegt werden."
 #: src/ui/qt/pages/button_modes_page.cpp
 msgid "A button mode can press a key or click whenever its button is pressed. Only keep files from sources you trust and read the file first."
 msgstr "Ein Tastenmodus kann eine Taste drücken oder klicken, sobald seine Taste gedrückt wird. Behalten Sie nur Dateien aus vertrauenswürdigen Quellen und lesen Sie die Datei zuerst."
+
+#: src/ui/model/binding_editor_model.hpp
+msgid "Previous mode"
+msgstr "Vorheriger Modus"
