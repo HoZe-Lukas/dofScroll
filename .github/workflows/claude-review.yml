@@ -64,7 +64,7 @@ jobs:
             echo "ok=false" >> "$GITHUB_OUTPUT"
             echo "::notice title=Claude review skipped::No CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret available (forks and Dependabot never get one). See docs/repo-settings.md."
           fi
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         if: steps.cred.outputs.ok == 'true'
         with:
           fetch-depth: 1
@@ -135,7 +135,7 @@ jobs:
           fi
       # Always the trusted default branch, never code from a fork head: the action itself
       # fetches the PR head, and the tool set below is read-only.
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         if: steps.cred.outputs.ok == 'true'
         with:
           fetch-depth: 1

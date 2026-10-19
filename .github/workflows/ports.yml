@@ -33,7 +33,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Configure
         run: cmake -S . -B build -DDOFSCROLL_WERROR=ON
       - name: Build
@@ -105,7 +105,7 @@ jobs:
           Copy-Item -Recurse packaging/windows $d/packaging-windows
       - name: Upload artifact
         if: steps.smoke.outputs.exe != ''
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: dofscroll-windows-msvc
           path: dist/dofscroll-windows-msvc
@@ -122,7 +122,7 @@ jobs:
       run:
         shell: C:\msys64\usr\bin\bash.exe -leo pipefail {0}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Install toolchain
         run: pacman -S --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
       - name: Configure
@@ -196,7 +196,7 @@ jobs:
           Copy-Item -Recurse packaging/windows $d/packaging-windows
       - name: Upload artifact
         if: steps.smoke.outputs.exe != ''
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: dofscroll-windows-mingw
           path: dist/dofscroll-windows-mingw
@@ -207,7 +207,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Configure
         run: cmake -S . -B build -DDOFSCROLL_WERROR=ON
       - name: Build
@@ -267,7 +267,7 @@ jobs:
           fi
       - name: Upload daemon artifact
         if: hashFiles('stage/dofscroll') != ''
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: dofscroll-macos
           path: stage
