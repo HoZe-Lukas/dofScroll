@@ -11,6 +11,8 @@
 #include <string>
 
 #if !defined(DOFSCROLL_NO_GETTEXT) && defined(__has_include)
+// cppcheck cannot evaluate __has_include
+// cppcheck-suppress preprocessorErrorDirective
 #if __has_include(<libintl.h>)
 #include <libintl.h>
 #define DOFSCROLL_HAVE_GETTEXT 1

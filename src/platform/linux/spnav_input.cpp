@@ -16,7 +16,7 @@ namespace {
 
 class SpnavInputSource : public InputSource {
 public:
-    ~SpnavInputSource() override { close(); }
+    ~SpnavInputSource() override { closeImpl(); }
 
     const char *name() const override { return "spacenavd"; }
 
@@ -67,14 +67,17 @@ public:
         return v;
     }
 
-    void close() override {
+    void close() override { closeImpl(); }
+
+private:
+    bool open_ = false;
+
+    // Non-virtual so that the destructor does not make a virtual call.
+    void closeImpl() {
         if (!open_) return;
         spnav_close();
         open_ = false;
     }
-
-private:
-    bool open_ = false;
 
     // Reads one pending libspnav event and converts it. Unknown event types are consumed
     // and reported as "no event".
