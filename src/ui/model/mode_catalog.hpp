@@ -150,8 +150,9 @@ public:
         if (a == std::string::npos) return "";
         s = s.substr(a, s.find_last_not_of(' ') - a + 1);
         if (s.size() > 64) {
-            s.resize(64);
-            while (!s.empty() && (static_cast<unsigned char>(s.back()) & 0xC0) == 0x80) s.pop_back();  // keep UTF-8 whole
+            size_t cut = 64;  // cut on a code point boundary: never inside a multi-byte sequence
+            while (cut > 0 && (static_cast<unsigned char>(s[cut]) & 0xC0) == 0x80) --cut;
+            s.resize(cut);
         }
         return s;
     }
