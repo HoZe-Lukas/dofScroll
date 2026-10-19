@@ -20,20 +20,23 @@
 #include "qt_action_runner.hpp"
 #include "tray.hpp"
 #include "ui/model/instance_paths.hpp"
+#include "ui/model/restart_plan.hpp"
 #include "ui/model/ui_settings.hpp"
 #include "ui_context.hpp"
 
 static void printUsage() {
-    std::printf("Usage: dofscroll-ui [--help] [--version] [--self-test]\n"
+    std::printf("Usage: dofscroll-ui [--help] [--version] [--self-test] [--restart]\n"
                 "  Settings window and tray icon for dofscroll (Qt). Qt options such as\n"
                 "  -platform are passed through.\n"
                 "  -h, --help   print this text and exit\n"
                 "  --version    print the version and exit\n"
-                "  --self-test  headless self-test with temporary directories\n");
+                "  --self-test  headless self-test with temporary directories\n"
+                "  --restart    wait for a running instance to exit, then start (used by the tray)\n");
 }
 
 int main(int argc, char **argv) {
     bool selfTest = false;
+    bool restarted = false;  // started by "Restart interface": wait for the old instance's lock
     // Handled before QApplication exists: no window, no lock, no display needed.
     for (int i = 1; i < argc; ++i) {
         if (!std::strcmp(argv[i], "--version")) {
@@ -45,6 +48,7 @@ int main(int argc, char **argv) {
             return 0;
         }
         if (!std::strcmp(argv[i], "--self-test")) selfTest = true;
+        if (!std::strcmp(argv[i], spn::ui::restartFlag())) restarted = true;
     }
 
     QApplication app(argc, argv);
@@ -103,8 +107,9 @@ int main(int argc, char **argv) {
     QLockFile lock(QString::fromStdString(spn::ui::instanceLockPath(idir)));
     // A second start asks the running instance (marker file, polled below) to show its window.
     const QString raiseMarker = QString::fromStdString(spn::ui::instanceRaisePath(idir));
-    // A short timeout lets Qt's stale-lock detection run (dead owner process after SIGTERM/kill).
-    if (!lock.tryLock(100)) {
+    // A short timeout lets Qt's stale-lock detection run (dead owner process after SIGTERM/kill);
+    // after "Restart interface" the old instance is still shutting down, so wait longer.
+    if (!lock.tryLock(spn::ui::lockWaitMs(restarted))) {
         if (spn::ui::classifyLockFailure(lock.error() == QLockFile::LockFailedError) ==
             spn::ui::LockOutcome::AlreadyRunning) {
             QFile m(raiseMarker);

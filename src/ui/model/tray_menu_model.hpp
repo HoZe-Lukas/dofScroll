@@ -13,7 +13,9 @@
 //   6 separator
 //   7 Settings...   8 Open config file   9 Show log...   10 Open modes folder
 //   11 Release all keys (emergency: runs `dofscroll --release-keys`)
-//   12 separator    13 Quit
+//   12 Restart daemon (releases held keys, then restarts the daemon)
+//   13 Restart interface (restarts this UI process)
+//   14 separator    15 Quit
 #pragma once
 #include <functional>
 #include <string>
@@ -26,7 +28,7 @@
 
 namespace spn::ui {
 
-enum class TrayAction { None, SetMode, ToggleEnabled, OpenSettings, OpenConfig, OpenLog, OpenModesFolder, ReleaseAllKeys, Quit };
+enum class TrayAction { None, SetMode, ToggleEnabled, OpenSettings, OpenConfig, OpenLog, OpenModesFolder, ReleaseAllKeys, RestartDaemon, RestartInterface, Quit };
 
 struct TrayEntry {
     enum class Kind { Info, Separator, Item, Radio, Check, Submenu } kind = Kind::Item;
@@ -106,6 +108,8 @@ inline TrayMenu buildTrayMenu(const TrayMenuInput &in, const StringProvider &s) 
     m.entries.push_back(item("Show log...", TrayAction::OpenLog));
     m.entries.push_back(item("Open modes folder", TrayAction::OpenModesFolder));
     m.entries.push_back(item("Release all keys", TrayAction::ReleaseAllKeys));
+    m.entries.push_back(item("Restart daemon", TrayAction::RestartDaemon));
+    m.entries.push_back(item("Restart interface", TrayAction::RestartInterface));
     m.entries.push_back(sep());
     m.entries.push_back(item("Quit", TrayAction::Quit));
     return m;
@@ -143,6 +147,16 @@ inline bool performTrayAction(const TrayEntry &entry, ActionRunner &runner, cons
         case TrayAction::OpenConfig: return runner.openPath(h.configPath, err);
         case TrayAction::OpenModesFolder: return runner.openPath(h.modesDir, err);
         case TrayAction::ReleaseAllKeys: return runner.releaseKeys(err);
+        case TrayAction::RestartDaemon: {
+            // Keys first (a failure here must not block the restart: the daemon releases on quit).
+            std::string ignored;
+            runner.releaseKeys(&ignored);
+            return runner.restartDaemon(err);
+        }
+        case TrayAction::RestartInterface:
+            if (!runner.restartInterface(err)) return false;
+            if (h.quit) h.quit();
+            return true;
     }
     return true;
 }

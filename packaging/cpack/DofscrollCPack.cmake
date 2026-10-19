@@ -37,4 +37,10 @@ if(TARGET dofscroll-ui AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   endif()
 endif()
 
+# Upgrade step: after an UPGRADE (not a fresh install) restart the running user units of every
+# logged-in user, best effort, never failing the transaction (packaging/cpack/postinst; the file
+# must be called postinst for DEB, RPM runs the same file as %post).
+set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/packaging/cpack/postinst)
+set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA ${CMAKE_SOURCE_DIR}/packaging/cpack/postinst)
+
 include(CPack)

@@ -61,6 +61,7 @@ VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
 !insertmacro MUI_LANGUAGE "English"
 
 Var AutostartFlag
+Var UiWasRunning
 
 Function .onInit
   ; Silent installs: /AUTOSTART=1 selects the autostart section (default: off).
@@ -71,6 +72,17 @@ FunctionEnd
 
 Section "dofscroll (required)" SecMain
   SectionIn RO
+  ; Stop a running interface of this install first (exit code 10 = it was running; it is started
+  ; again after an interactive update, see the last section).
+  StrCpy $UiWasRunning "0"
+  ; The script comes from this installer (not from $INSTDIR): an update of an install that predates it
+  ; stops the interface too.
+  InitPluginsDir
+  File "/oname=$PLUGINSDIR\stop-ui.ps1" "${STAGE}\scripts\stop-ui.ps1"
+  nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-ui.ps1" -ExePath "$INSTDIR\dofscroll-ui.exe"'
+  Pop $0
+  StrCmp $0 "10" 0 +2
+    StrCpy $UiWasRunning "1"
   ; Stop a running daemon of this install (an update replaces dofscroll.exe).
   IfFileExists "$INSTDIR\scripts\stop-daemon.ps1" 0 +2
     nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\scripts\stop-daemon.ps1" -ExePath "$INSTDIR\dofscroll.exe"'
@@ -111,6 +123,15 @@ Section "-silent autostart"
   ${EndIf}
 SectionEnd
 
+; Interactive update with the interface open before: open it again (silent installs never start it).
+Section "-restart ui"
+  ${If} $UiWasRunning == "1"
+  ${AndIfNot} ${Silent}
+    IfFileExists "$INSTDIR\dofscroll-ui.exe" 0 +2
+      Exec '"$INSTDIR\dofscroll-ui.exe"'
+  ${EndIf}
+SectionEnd
+
 LangString DESC_Main ${LANG_ENGLISH} "The daemon, the user interface, devices, examples and licenses."
 LangString DESC_Menu ${LANG_ENGLISH} "Start menu folder with the program and an uninstall entry."
 LangString DESC_Auto ${LANG_ENGLISH} "Start dofscroll.exe at every logon of the current user (Run key value dofscroll)."
@@ -121,6 +142,8 @@ LangString DESC_Auto ${LANG_ENGLISH} "Start dofscroll.exe at every logon of the 
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 Section "Uninstall"
+  IfFileExists "$INSTDIR\scripts\stop-ui.ps1" 0 +2
+    nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\scripts\stop-ui.ps1" -ExePath "$INSTDIR\dofscroll-ui.exe"'
   IfFileExists "$INSTDIR\scripts\stop-daemon.ps1" 0 +2
     nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\scripts\stop-daemon.ps1" -ExePath "$INSTDIR\dofscroll.exe"'
   ; autostart: the Run value (and a Startup shortcut of the autostart script, if any)

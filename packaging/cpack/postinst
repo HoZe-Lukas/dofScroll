@@ -1,0 +1,41 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+# Package upgrade step (RPM %post and DEB postinst, same file). Best effort: after an UPGRADE
+# (not a fresh install) the user units that are running are restarted for every logged-in user,
+# so the new binaries are used without a re-login. Never fails the package transaction (always
+# exit 0), every call is time-limited, nothing in the users' configuration is touched.
+#   RPM: $1 = number of installed instances after this one (1 = fresh install, 2+ = upgrade)
+#   DEB: $1 = configure, $2 = previous version (empty on a fresh install)
+
+case "$1" in
+    configure) [ -n "$2" ] || exit 0 ;;
+    '' | *[!0-9]*) exit 0 ;;
+    *) [ "$1" -ge 2 ] || exit 0 ;;
+esac
+
+command -v loginctl >/dev/null 2>&1 || exit 0
+command -v systemctl >/dev/null 2>&1 || exit 0
+
+# Runs a command with a time limit when `timeout` exists; callers ignore failures.
+limited() {
+    if command -v timeout >/dev/null 2>&1; then
+        timeout 20 "$@"
+    else
+        "$@"
+    fi
+}
+
+users=$(limited loginctl list-users --no-legend 2>/dev/null | while read -r _uid name _rest; do
+    printf '%s\n' "$name"
+done)
+
+for name in $users; do
+    case "$name" in
+        '' | *[!A-Za-z0-9._-]*) continue ;;
+    esac
+    limited systemctl --user --machine="$name@.host" daemon-reload >/dev/null 2>&1 || true
+    limited systemctl --user --machine="$name@.host" try-restart \
+        dofscroll.service dofscroll-ui.service dofscroll-tray.service >/dev/null 2>&1 || true
+done
+exit 0

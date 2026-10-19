@@ -227,8 +227,19 @@ Install the newer package over the old one:
 
     sudo dnf upgrade ./dofscroll-<new>.rpm       # or: sudo dnf install ./dofscroll-<new>.rpm
     sudo apt install ./dofscroll_<new>_amd64.deb # Debian family
+
+The package then does a best-effort restart on its own: for every logged-in user it runs
+`systemctl --user daemon-reload` and `try-restart` of `dofscroll.service`, `dofscroll-ui.service`
+and `dofscroll-tray.service` (only units that are running are restarted; a fresh install does
+nothing; the step never fails the upgrade and never touches your config). If nobody was logged in
+through logind, or you run the program from a terminal, restart by hand:
+
     systemctl --user daemon-reload
-    systemctl --user restart dofscroll.service dofscroll-tray.service
+    systemctl --user restart dofscroll.service dofscroll-ui.service   # or dofscroll-tray.service
+
+You can also use the tray menu: **Restart daemon** (releases held keys first) and **Restart
+interface**. `dofscroll-ui.service` has `Wants=dofscroll.service`, so starting only the interface
+also starts the daemon.
 
 Your config in `~/.config/dofscroll/` is never touched by a package. If you copied the units
 in step 3, repeat the copy and the `sed` command when the unit files changed in the release
@@ -355,6 +366,12 @@ are in [work-plan.md](work-plan.md); how the packages are built is in
    `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`; the installer's autostart component writes
    `dofscroll`, and the uninstaller removes both.
 
+**Upgrade:** run the new installer over the old one (same folder). It stops the daemon (releasing held
+keys) and a running `dofscroll-ui.exe` of that install before replacing the files, then starts
+the interface again if it was running (interactive installs only; a silent `/S` install does not
+start anything). Start the daemon again from the finish page, the tray or the Start menu. The tray
+items **Restart daemon** and **Restart interface** restart the programs without the installer.
+
 **Uninstall:** Settings > Apps > dofscroll, or the Start menu entry "Uninstall dofscroll". It stops
 the daemon and removes the program folder, the Start menu entries and the autostart value; your
 configuration in `%APPDATA%\dofscroll` stays. Silent install: `setup.exe /S /AUTOSTART=1`.
@@ -375,7 +392,14 @@ The ZIP needs no installation: unpack it, start `dofscroll.exe`, and use
    `/Applications/dofscroll.app/Contents/Resources/daemon/dofscroll`, then restart the daemon.
 4. Autostart (per-user LaunchAgent, no sudo):
    `sh /Applications/dofscroll.app/Contents/Resources/launchagent/install-launchagent.sh --daemon /Applications/dofscroll.app/Contents/Resources/daemon/dofscroll`
-5. **Uninstall:** run `.../launchagent/uninstall-launchagent.sh`, then move the app to the Trash.
+5. **Upgrade** (no installer script, nothing is stopped for you): choose **Quit** in the tray menu to
+   close the interface, stop the daemon (`launchctl bootout gui/$(id -u)/io.github.dofscroll.daemon`
+   if autostart is installed, otherwise quit the process), drag the new `dofscroll.app` over the old
+   one in Applications, grant the permissions again if macOS asks, then start the app (and the
+   daemon: log in again or `launchctl bootstrap` / run `install-launchagent.sh`). Your
+   configuration stays. The tray items **Restart daemon** (`launchctl kickstart -k`) and **Restart
+   interface** are for restarts without an upgrade; the app does not detect a newer app on disk.
+6. **Uninstall:** run `.../launchagent/uninstall-launchagent.sh`, then move the app to the Trash.
    Configuration in `~/Library/Application Support/dofscroll` stays.
 
 See [port-macos.md](port-macos.md) and [packaging/macos/README.md](../packaging/macos/README.md).

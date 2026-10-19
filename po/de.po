@@ -1975,3 +1975,15 @@ msgstr "Keine Anwendung konnte %1 öffnen"
 #: src/ui/qt/qt_action_runner.cpp:48
 msgid "Cannot run %1"
 msgstr "%1 kann nicht ausgeführt werden"
+
+#: src/ui/model/tray_menu_model.hpp
+msgid "Restart interface"
+msgstr "Oberfläche neu starten"
+
+#: src/ui/qt/qt_action_runner.cpp
+msgid "Cannot restart the daemon through the service manager"
+msgstr "Der Daemon kann nicht über den Dienstmanager neu gestartet werden"
+
+#: src/ui/qt/qt_action_runner.cpp
+msgid "Cannot restart the interface through the service manager"
+msgstr "Die Oberfläche kann nicht über den Dienstmanager neu gestartet werden"

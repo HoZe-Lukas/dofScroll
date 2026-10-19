@@ -1,6 +1,8 @@
 [Unit]
 Description=SpaceMouse scroll settings window and tray icon, Qt (dofscroll-ui)
 After=graphical-session.target dofscroll.service
+# The interface never runs without the daemon: starting only the UI pulls the daemon in.
+Wants=dofscroll.service
 PartOf=graphical-session.target
 # Only one tray at a time: starting the Qt UI stops the GTK tray (and the other way round).
 # If both units are enabled, systemd starts only one of them; disable the one you do not want
