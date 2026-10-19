@@ -7,6 +7,8 @@
 #include <cctype>
 #include <string>
 
+#include "../utf8.hpp"
+
 namespace spn {
 
 // Converts '\\' to '/' (the core joins paths with '/'; Windows accepts both).
@@ -65,6 +67,7 @@ inline std::string macRuntimeBase(const std::string &home) {
 enum class PathHazard {
     None,
     Empty,
+    InvalidUtf8,         // not valid UTF-8 (cannot be converted to UTF-16 without loss)
     InvalidChar,         // control characters and < > " | ? *
     ReservedName,        // CON, PRN, AUX, NUL, COM1-9, LPT1-9, CONIN$, CONOUT$ (also with an extension)
     AlternateStream,     // "file:stream" (a ':' anywhere except right after the drive letter)
@@ -78,6 +81,7 @@ inline const char *pathHazardName(PathHazard h) {
     switch (h) {
     case PathHazard::None: return "none";
     case PathHazard::Empty: return "empty path";
+    case PathHazard::InvalidUtf8: return "invalid UTF-8";
     case PathHazard::InvalidChar: return "invalid character";
     case PathHazard::ReservedName: return "reserved device name";
     case PathHazard::AlternateStream: return "alternate data stream";
@@ -95,7 +99,7 @@ inline const char *pathHazardName(PathHazard h) {
 inline bool isReservedDeviceStem(const std::string &stemIn) {
     std::string s = stemIn;
     while (!s.empty() && s.back() == ' ') s.pop_back();
-    for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (char &c : s) c = static_cast<char>(spn::utf8::lowerChar(c));
     if (s == "con" || s == "prn" || s == "aux" || s == "nul" || s == "conin$" || s == "conout$") return true;
     if (s.size() == 4 && (s.compare(0, 3, "com") == 0 || s.compare(0, 3, "lpt") == 0) && s[3] >= '1' && s[3] <= '9')
         return true;
@@ -115,6 +119,7 @@ inline bool isReservedDeviceName(const std::string &component) {
 // "relative/x"). "." and ".." components are allowed. A normal UNC path is allowed.
 inline PathHazard windowsPathHazard(const std::string &path) {
     if (path.empty()) return PathHazard::Empty;
+    if (!utf8::isValid(path)) return PathHazard::InvalidUtf8;
     const std::string p = toSlashes(path);
     if (p.compare(0, 4, "//?/") == 0) return PathHazard::VerbatimPrefix;
     if (p.compare(0, 4, "//./") == 0 || p.compare(0, 4, "/?" "?/") == 0  /* NT namespace; split so it is no trigraph */) return PathHazard::DevicePrefix;

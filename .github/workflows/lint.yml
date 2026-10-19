@@ -71,3 +71,6 @@ jobs:
 
       - name: SPDX headers
         run: sh scripts/check-spdx.sh
+
+      - name: UTF-8 text files
+        run: sh scripts/check-utf8.sh

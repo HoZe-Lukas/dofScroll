@@ -326,6 +326,11 @@ std::string executablePath() {
 #endif
 }
 
+std::string getEnvUtf8(const char *name) {
+    const char *v = std::getenv(name);
+    return v ? std::string(v) : std::string();
+}
+
 std::string userConfigBase() {
 #ifdef __APPLE__
     const char *home = std::getenv("HOME");

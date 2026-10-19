@@ -3,7 +3,7 @@
 // Mode files: parser, action grammar, built-in modes and the bounded directory loader.
 // See modes.hpp for the file format and the contract.
 #include "modes.hpp"
-
+#include "utf8.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -28,38 +28,18 @@ constexpr size_t kMaxLabel = 64;
 constexpr size_t kMaxDescription = 256;
 constexpr size_t kMaxModeLine = 4096;
 
-std::string trim(const std::string &s) {
-    size_t a = 0, b = s.size();
-    while (a < b && std::isspace(static_cast<unsigned char>(s[a]))) a++;
-    while (b > a && std::isspace(static_cast<unsigned char>(s[b - 1]))) b--;
-    return s.substr(a, b - a);
-}
-
-std::string lower(std::string s) {
-    for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    return s;
-}
-
-std::string upper(std::string s) {
-    for (char &c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-    return s;
-}
+std::string trim(const std::string &s) { return utf8::trim(s); }
+std::string lower(std::string s) { return utf8::lowerAscii(std::move(s)); }
+std::string upper(std::string s) { return utf8::upperAscii(std::move(s)); }
 
 bool fail(std::string *err, const std::string &msg) {
     if (err) *err = msg;
     return false;
 }
 
-// Display text: control characters dropped, length capped.
-std::string cleanText(const std::string &s, size_t cap) {
-    std::string out;
-    for (unsigned char c : s) {
-        if (c < 0x20 || c == 0x7f) continue;
-        out += static_cast<char>(c);
-        if (out.size() >= cap) break;
-    }
-    return out;
-}
+// Display text: control characters dropped, invalid UTF-8 bytes shown as U+FFFD, length capped
+// in bytes on a character boundary.
+std::string cleanText(const std::string &s, size_t cap) { return utf8::sanitizeDisplay(s, cap); }
 
 ModeDef builtinMode(const std::string &id, const std::string &label, const std::string &desc) {
     ModeDef m;
@@ -105,6 +85,9 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
         if (raw.size() > kMaxModeLine) { warn(lineno, "line too long - ignored"); continue; }
         std::string line = trim(raw);
         if (line.empty() || line[0] == '#' || line[0] == ';') continue;
+        if (!utf8::isValid(line))
+            warn(lineno, "invalid UTF-8 at byte " + std::to_string(utf8::firstInvalid(line) + 1) +
+                             " - shown as U+FFFD");
         if (line[0] == '[') { warn(lineno, "sections are not supported in mode files - ignored"); continue; }
         const size_t eq = line.find('=');
         if (eq == std::string::npos) { warn(lineno, "line without '=' ignored"); continue; }
@@ -115,7 +98,7 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
             value.clear();
         } else {
             for (size_t p = 1; p < value.size(); p++)
-                if (value[p] == '#' && std::isspace(static_cast<unsigned char>(value[p - 1]))) {
+                if (value[p] == '#' && spn::utf8::isSpace(value[p - 1])) {
                     value.resize(p);
                     break;
                 }

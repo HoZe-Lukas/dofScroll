@@ -21,6 +21,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
+#include <cstring>
 #include <future>
 #include <iostream>
 #include <map>
@@ -54,8 +55,12 @@ bool cfInt(CFTypeRef t, int64_t *out) {
 std::string cfString(CFTypeRef t) {
     if (!t || CFGetTypeID(t) != CFStringGetTypeID()) return "";
     const CFStringRef s = static_cast<CFStringRef>(t);
-    char buf[256];
-    if (!CFStringGetCString(s, buf, sizeof buf, kCFStringEncodingUTF8)) return "";
+    // Sized for the string: a fixed buffer made long names (CJK: 3 bytes per character) vanish.
+    const CFIndex max = CFStringGetMaximumSizeForEncoding(CFStringGetLength(s), kCFStringEncodingUTF8) + 1;
+    if (max <= 1 || max > 65536) return "";
+    std::string buf(static_cast<size_t>(max), '\0');
+    if (!CFStringGetCString(s, &buf[0], max, kCFStringEncodingUTF8)) return "";
+    buf.resize(std::strlen(buf.c_str()));
     return buf;
 }
 

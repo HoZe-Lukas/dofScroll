@@ -49,6 +49,8 @@ picks up `tests/test_*.cpp` automatically; re-run cmake after adding one).
 
 ## English only
 
+All files are UTF-8 without BOM (`scripts/check-utf8.sh`; PowerShell scripts stay ASCII). Text handling rules: `docs/encoding.md`.
+
 Everything in the repository is English: code comments, identifiers, documentation, log, error
 and test messages, commit messages. The only exception is translations in `po/*.po`.
 

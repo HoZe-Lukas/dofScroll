@@ -77,6 +77,13 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 | [docs/work-plan.md](docs/work-plan.md) | Roadmap and the Windows/macOS ports |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, pull requests, adding a mode or language |
 
+## Text and encoding
+
+All text is UTF-8: configuration, mode and device files, logs, and every path (spaces, umlauts,
+CJK, emoji and characters such as `#` `;` `=` `%` `&` `[` `]` are fine). A BOM is accepted when
+reading and never written; case-insensitive matching folds ASCII letters only. Details and limits:
+[docs/encoding.md](docs/encoding.md).
+
 ## Security notes
 
 - **Mode files are code-like.** A mode file can press any key from the key list (including Ctrl,

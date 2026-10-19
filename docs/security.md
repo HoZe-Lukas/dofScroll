@@ -342,7 +342,8 @@ description below is the state before the fix.
 - **Finding:** positive: `spawnDetached` uses `g_spawn_async` with an argv array, no shell
   (`src/dofscroll_tray.cpp`); the config path is passed as a single argument. GUI values are
   validated with the same parser (`parseMix`/`applyKey`) before writing, profile patterns must
-  not contain `]` or line breaks - **no config injection through the GUI**. But:
+  not contain control characters or line breaks (and no `]` followed by `#` or `;`, which would
+  end the section header early; saving refuses it) - **no config injection through the GUI**. But:
   `G_SPAWN_SEARCH_PATH` searches `systemctl`/`xdg-open` via `PATH`. With the hardened unit,
   `xdg-open` and the editor started by it inherit the tray sandbox (only `~/.config/dofscroll`
   and `/run/user/UID` writable, only `AF_UNIX`/`AF_NETLINK`). A freshly started editor then
@@ -802,3 +803,13 @@ Nothing here is hidden by the rest of this document; the review has the details.
   weaker limits than the other loaders; harden it before use.
 - **Runtime files (F14).** Temporary file names in the runtime directory are predictable; exploiting
   that needs write access to the user's own runtime directory.
+
+## 11. Text and encoding
+
+All text is UTF-8 and is handled byte-safe (`docs/encoding.md`). Guarantees: no string is cut inside
+a multi-byte sequence, log and status lines never contain control characters (`sanitizeForLog`),
+and display text from files (mode name, description) has control characters removed and invalid
+bytes shown as U+FFFD. Known limit: look-alike (homoglyph) and bidirectional control characters are
+valid text and are shown as they are. A profile or mode name can therefore look like another one
+in the UI or in the log; matching is exact for every non-ASCII byte, so a look-alike never matches
+the profile it imitates. Only use mode files from sources you trust (see section 7).

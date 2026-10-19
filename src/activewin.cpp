@@ -3,6 +3,7 @@
 // Detection of the active program (WM_CLASS) for [app:*] profiles.
 // See activewin.hpp for the contract.
 #include "activewin.hpp"
+#include "utf8.hpp"
 #include "platform/running_apps_util.hpp"
 #include "xerrors.hpp"
 
@@ -40,7 +41,7 @@ constexpr size_t kMaxChildren = 32;
 
 std::string lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return (char)std::tolower(c); });
+                   [](unsigned char c) { return spn::utf8::lowerChar(c); });
     return s;
 }
 

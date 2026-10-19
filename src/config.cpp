@@ -4,6 +4,7 @@
 // file format and the contract.
 #include "config.hpp"
 #include "modes.hpp"
+#include "utf8.hpp"
 
 #include <algorithm>
 #include <cerrno>
@@ -28,21 +29,23 @@ namespace {
 
 // ---------------------------------------------------------------- Helpers
 
-std::string trim(const std::string &s) {
-    size_t a = 0, b = s.size();
-    while (a < b && std::isspace(static_cast<unsigned char>(s[a]))) a++;
-    while (b > a && std::isspace(static_cast<unsigned char>(s[b - 1]))) b--;
-    return s.substr(a, b - a);
-}
+std::string trim(const std::string &s) { return utf8::trim(s); }
+std::string lower(std::string s) { return utf8::lowerAscii(std::move(s)); }
+std::string upper(std::string s) { return utf8::upperAscii(std::move(s)); }
 
-std::string lower(std::string s) {
-    for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    return s;
-}
-
-std::string upper(std::string s) {
-    for (char &c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-    return s;
+// Index of the ']' that closes a section header line "[...]": the first ']' followed only by
+// white space or a comment ('#' or ';'), so a name may contain ']' ("[app:a[1]]"). Without such
+// a ']' the first one is used (text after it is ignored, as before).
+size_t headerClose(const std::string &line) {
+    size_t first = std::string::npos;
+    for (size_t i = 1; i < line.size(); i++) {
+        if (line[i] != ']') continue;
+        if (first == std::string::npos) first = i;
+        size_t j = i + 1;
+        while (j < line.size() && utf8::isSpace(line[j])) j++;
+        if (j == line.size() || line[j] == '#' || line[j] == ';') return i;
+    }
+    return first;
 }
 
 bool setErr(std::string *err, const std::string &msg) {
@@ -52,12 +55,12 @@ bool setErr(std::string *err, const std::string &msg) {
 
 // Shortest representation that parses back to exactly the same double.
 std::string fmtNum(double v) {
-    char buf[64];
+    std::string r;
     for (int prec = 6; prec <= 17; prec++) {
-        std::snprintf(buf, sizeof buf, "%.*g", prec, v);
-        if (std::strtod(buf, nullptr) == v) break;
+        r = formatG(prec, v);
+        if (strtodC(r.c_str(), nullptr) == v) break;
     }
-    return buf;
+    return r;
 }
 
 bool parseDouble(const std::string &text, double *out) {
@@ -65,7 +68,7 @@ bool parseDouble(const std::string &text, double *out) {
     if (t.empty()) return false;
     char *end = nullptr;
     errno = 0;
-    double v = std::strtod(t.c_str(), &end);
+    double v = strtodC(t.c_str(), &end);
     if (end == t.c_str() || *end != '\0' || !std::isfinite(v)) return false;
     *out = v;
     return true;
@@ -109,7 +112,7 @@ std::vector<std::string> splitList(const std::string &text, size_t max, bool *ov
         return true;
     };
     for (char c : text) {
-        if (std::isspace(static_cast<unsigned char>(c)) || c == ',') {
+        if (spn::utf8::isSpace(c) || c == ',') {
             if (!flush()) return out;
         } else {
             cur += c;
@@ -348,7 +351,7 @@ bool parseMix(const std::string &text, Mix *out, std::string *err) {
     Mix m;
     const size_t n = text.size();
     size_t i = 0;
-    auto skipws = [&] { while (i < n && std::isspace(static_cast<unsigned char>(text[i]))) i++; };
+    auto skipws = [&] { while (i < n && spn::utf8::isSpace(text[i])) i++; };
     skipws();
     if (i >= n) { if (out) *out = m; return true; }  // empty = channel yields 0
     bool first = true;
@@ -363,9 +366,9 @@ bool parseMix(const std::string &text, Mix *out, std::string *err) {
             return setErr(err, "'+' or '-' expected between terms");
         }
         double weight = 1.0;
-        if (i < n && (std::isdigit(static_cast<unsigned char>(text[i])) || text[i] == '.')) {
+        if (i < n && ((text[i] >= '0' && text[i] <= '9') || text[i] == '.')) {
             char *end = nullptr;
-            weight = std::strtod(text.c_str() + i, &end);
+            weight = strtodC(text.c_str() + i, &end);
             if (end == text.c_str() + i || !std::isfinite(weight) || weight > 100.0)
                 return setErr(err, "invalid weight (0..100)");
             i = static_cast<size_t>(end - text.c_str());
@@ -375,7 +378,7 @@ bool parseMix(const std::string &text, Mix *out, std::string *err) {
             skipws();
         }
         size_t a = i;
-        while (i < n && std::isalpha(static_cast<unsigned char>(text[i]))) i++;
+        while (i < n && ((text[i] | 0x20) >= 'a' && (text[i] | 0x20) <= 'z')) i++;
         if (a == i) return setErr(err, "axis name expected");
         std::string name = text.substr(a, i - a);
         Axis ax;
@@ -571,7 +574,11 @@ void ProfileSet::setSectionFromSettings(size_t i, const Settings &s) {
 
 bool ProfileSet::normalizePattern(const std::string &pattern, std::string *out) {
     std::string t = trim(pattern);
-    if (t.empty() || t.find_first_of("]\r\n") != std::string::npos) return false;
+    // ']' is allowed (the loader takes the last ']' that ends the header); control characters
+    // and over-long names are not (the line must fit kMaxLineBytes and stay one line).
+    if (t.empty() || t.size() > kMaxPatternBytes) return false;
+    for (unsigned char c : t)
+        if (c < 0x20 || c == 0x7f) return false;
     if (out) *out = t;
     return true;
 }
@@ -872,16 +879,19 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
             warn(lineno, "line too long (max. " + std::to_string(kMaxLineBytes) + " bytes) - ignored");
             // If it was a section header, the keys after it must not fall into the old section.
             size_t q = lstart;
-            while (q < nl && std::isspace(static_cast<unsigned char>(data[q]))) q++;
+            while (q < nl && spn::utf8::isSpace(data[q])) q++;
             if (q < nl && data[q] == '[') cur = -1;
             continue;
         }
         if (lineno == 1 && raw.compare(0, 3, "\xEF\xBB\xBF") == 0) raw.erase(0, 3);  // UTF-8-BOM
         std::string line = trim(raw);  // also removes CR
         if (line.empty() || line[0] == '#' || line[0] == ';') continue;
+        if (!utf8::isValid(line))
+            warn(lineno, "invalid UTF-8 at byte " + std::to_string(utf8::firstInvalid(line) + 1) +
+                             " - bytes kept as they are");
 
         if (line[0] == '[') {
-            size_t close = line.find(']');
+            const size_t close = headerClose(line);
             if (close == std::string::npos) {
                 warn(lineno, "section header without ']' - section ignored");
                 cur = -1;
@@ -926,7 +936,7 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
             value.clear();
         } else {
             for (size_t p = 1; p < value.size(); p++) {
-                if (value[p] == '#' && std::isspace(static_cast<unsigned char>(value[p - 1]))) {
+                if (value[p] == '#' && spn::utf8::isSpace(value[p - 1])) {
                     value.resize(p);
                     break;
                 }
@@ -969,7 +979,14 @@ bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *er
         std::string np;
         if (!ProfileSet::normalizePattern(sec.pattern, &np) || np != sec.pattern)
             return setErr(err, "invalid section pattern '" + sec.pattern +
-                                   "' (empty, ']' or line break / leading or trailing whitespace)");
+                                   "' (empty, too long, control character or leading or trailing whitespace)");
+        {
+            // The loader must find the same name again: a ']' followed by '#' or ';' inside the
+            // name would end the header early.
+            const std::string hdr = std::string(sec.kind == Section::DEVICE ? "[device:" : "[app:") + sec.pattern + "]";
+            if (headerClose(hdr) != hdr.size() - 1)
+                return setErr(err, "section pattern '" + sec.pattern + "' contains ']' followed by '#' or ';'");
+        }
         os << "\n[" << (sec.kind == Section::DEVICE ? "device:" : "app:") << sec.pattern << "]\n";
         for (const KV &p : sec.kv) {
             std::string why;

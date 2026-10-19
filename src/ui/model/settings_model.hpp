@@ -60,6 +60,7 @@
 #include <vector>
 
 #include "config.hpp"
+#include "utf8.hpp"
 #include "device_db.hpp"
 #include "mode_list.hpp"
 #include "modes.hpp"
@@ -493,7 +494,7 @@ private:
         return s.tr("[global]: MODE is only supported for the default mode; move it to a device or app profile");
     }
     static std::string upper(std::string s) {
-        for (char &c : s) c = char(std::toupper(static_cast<unsigned char>(c)));
+        for (char &c : s) c = char(spn::utf8::upperChar(c));
         return s;
     }
     static bool isButtonKey(const std::string &k) { return k.rfind("BUTTON_", 0) == 0; }
