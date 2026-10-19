@@ -437,14 +437,16 @@ static void testReviewFixes() {
     assert(applyKey(s, "RESPONSE_CURVE", "2", &err));
     assert(s.scroll_v.curve_points.empty() && near(s.scroll_v.curve_exp, 2.0));
 
-    // 4: ']' / newline rejected, whitespace trimmed
+    // 4: control characters / newline rejected, ']' allowed, whitespace trimmed
     ProfileSet p4;
-    assert(p4.findOrAdd(Section::APP, "a]b") == ProfileSet::npos);
+    assert(p4.findOrAdd(Section::APP, "a\x01" "b") == ProfileSet::npos);
+    assert(p4.findOrAdd(Section::APP, "a]b") == 1 && p4.sections.size() == 2);
+    p4.remove(1);
     assert(p4.findOrAdd(Section::APP, "a\nb") == ProfileSet::npos);
     assert(p4.findOrAdd(Section::APP, "   ") == ProfileSet::npos);
     size_t t = p4.findOrAdd(Section::APP, "  fox  ");
     assert(t == 1 && p4.sections[1].pattern == "fox" && p4.findOrAdd(Section::APP, "FOX") == 1);
-    p4.sections[1].pattern = "bad]";  // injected by hand
+    p4.sections[1].pattern = "bad] # x";  // injected by hand: would end the header early
     assert(!saveProfiles(d + "/bad.conf", p4, &err) && !err.empty());
     assert(!tu::exists(d + "/bad.conf"));
 

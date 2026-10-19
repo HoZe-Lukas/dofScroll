@@ -58,6 +58,7 @@ namespace spn {
 // (docs/security.md). Valid configurations are far below them.
 constexpr size_t kMaxConfigBytes = 1u << 20;   // file size (1 MiB)
 constexpr size_t kMaxLineBytes = 8192;         // line length
+constexpr size_t kMaxPatternBytes = 4096;      // [app:...]/[device:...] name, in bytes
 constexpr size_t kMaxSections = 256;           // sections incl. [global]
 constexpr size_t kMaxKeysPerSection = 512;     // unique keys per section
 constexpr size_t kMaxMixTerms = 12;            // terms per MIX expression

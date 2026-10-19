@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "device_db.hpp"
+#include "utf8.hpp"
 
 #include <cctype>
 
@@ -28,7 +29,7 @@ const Model kModels[] = {
 
 std::string lower(const std::string &s) {
     std::string r = s;
-    for (char &c : r) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (char &c : r) c = static_cast<char>(spn::utf8::lowerChar(c));
     return r;
 }
 

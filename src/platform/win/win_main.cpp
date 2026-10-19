@@ -84,6 +84,7 @@ void printText(const std::string &text) {
         if (::AttachConsole(ATTACH_PARENT_PROCESS)) {
             h = ::CreateFileW(L"CONOUT$", GENERIC_WRITE, FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
             console = true;
+            ::SetConsoleOutputCP(CP_UTF8);  // the text is UTF-8; otherwise the console shows mojibake
         }
     }
     if (h && h != INVALID_HANDLE_VALUE) {

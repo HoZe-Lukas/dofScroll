@@ -75,6 +75,10 @@ else()
 endif()
 if(WIN32 AND NOT MSVC)
   target_compile_definitions(dofscroll_flags INTERFACE NOMINMAX WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0A00)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # Source files and string literals are UTF-8 (the MSVC equivalent is /utf-8 above).
+    target_compile_options(dofscroll_flags INTERFACE -finput-charset=UTF-8 -fexec-charset=UTF-8)
+  endif()
 endif()
 # The hardening flags below are GCC/Clang on Linux (ELF linker options); see docs/security.md
 # for the Windows (set in cmake/windows.cmake) and macOS notes.

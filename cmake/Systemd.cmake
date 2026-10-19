@@ -15,6 +15,9 @@ endif()
 
 # Developer units (symlink flow, `install-user-links`): binaries are linked to /usr/local/bin.
 set(DOFSCROLL_BINDIR /usr/local/bin)
+include(${CMAKE_SOURCE_DIR}/cmake/ExecEscape.cmake)
+dofscroll_exec_escape("${DOFSCROLL_BINDIR}" DOFSCROLL_EXEC_BINDIR)
+set(DOFSCROLL_EXEC_Q "${DOFSCROLL_EXEC_BINDIR_Q_}")
 foreach(u ${DOFSCROLL_UNITS})
   configure_file(${CMAKE_SOURCE_DIR}/systemd/${u}.service.in
                  ${CMAKE_BINARY_DIR}/systemd-dev/${u}.service @ONLY)

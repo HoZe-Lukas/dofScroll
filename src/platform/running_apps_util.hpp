@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "running_apps.hpp"
+#include "../utf8.hpp"
 
 namespace spn {
 
@@ -23,7 +24,7 @@ inline std::string joinWmClass(const char *instance, const char *cls) {
     if (!c.empty()) r += (r.empty() ? "" : " ") + c;
     if (r.size() > kMaxWmClassLen) r.resize(kMaxWmClassLen);
     std::transform(r.begin(), r.end(), r.begin(),
-                   [](unsigned char ch) { return (char)std::tolower(ch); });
+                   [](unsigned char ch) { return spn::utf8::lowerChar(ch); });
     return r;
 }
 

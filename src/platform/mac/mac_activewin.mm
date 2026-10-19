@@ -3,6 +3,7 @@
 // Frontmost application on macOS via NSWorkspace (see mac_activewin.hpp). All Objective-C of the
 // daemon lives in this file.
 #include "mac_activewin.hpp"
+#include "../../utf8.hpp"
 
 #import <AppKit/AppKit.h>
 
@@ -29,11 +30,12 @@ public:
             NSString *name = app.bundleIdentifier;
             if (name == nil || name.length == 0) name = app.localizedName;
             if (name == nil) return std::string();
+            name = [name precomposedStringWithCanonicalMapping];  // NFC: patterns are written in NFC
             const char *utf8 = [name UTF8String];
             if (utf8 == nullptr) return std::string();
             std::string s(utf8);
             std::transform(s.begin(), s.end(), s.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                           [](unsigned char c) { return spn::utf8::lowerChar(static_cast<char>(c)); });
             return s;
         }
     }

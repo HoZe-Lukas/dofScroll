@@ -1,11 +1,16 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 # ctest script: cmake -DBUILD_DIR=<build> -DTMP=<scratch> -P cmake/InstallLayoutTest.cmake
-# Installs into a DESTDIR for the prefixes /usr and /usr/local and checks the layout.
-foreach(prefix /usr /usr/local)
-  set(root "${TMP}/root${prefix}")
-  string(REPLACE "/" "_" tag "${prefix}")
-  set(root "${TMP}/root${tag}")
+# Installs into a DESTDIR for the prefixes /usr and /usr/local and checks the layout. A third
+# prefix has spaces, parentheses, non-ASCII text (u-umlaut, CJK, emoji, built from UTF-8 bytes so
+# this file stays plain), '%' and '$': the units must quote and escape it (docs/encoding.md).
+string(ASCII 195 188 uuml)
+string(ASCII 230 151 165 230 156 172 cjk)
+string(ASCII 240 159 152 128 emoji)
+set(odd "/opt/Pr${uuml}gramme (x86) ${cjk} ${emoji} 100%h $HOME")
+foreach(prefix /usr /usr/local "${odd}")
+  string(MD5 tag "${prefix}")
+  set(root "${TMP}/root_${tag}")
   file(REMOVE_RECURSE "${root}")
   execute_process(COMMAND ${CMAKE_COMMAND} -E env DESTDIR=${root}
                   ${CMAKE_COMMAND} --install ${BUILD_DIR} --prefix ${prefix}
@@ -32,8 +37,14 @@ foreach(prefix /usr /usr/local)
   foreach(u ${units})
     get_filename_component(n "${u}" NAME_WE)
     file(READ "${u}" c)
-    if(NOT c MATCHES "ExecStart=${prefix}/bin/${n}\n")
-      message(FATAL_ERROR "[${prefix}] ${n}.service: wrong ExecStart")
+    if(prefix STREQUAL odd)
+      set(want "ExecStart=\"/opt/Pr${uuml}gramme (x86) ${cjk} ${emoji} 100%%h $$HOME/bin/${n}\"\n")
+    else()
+      set(want "ExecStart=${prefix}/bin/${n}\n")
+    endif()
+    string(FIND "${c}" "${want}" at)
+    if(at LESS 0)
+      message(FATAL_ERROR "[${prefix}] ${n}.service: wrong ExecStart (wanted ${want})")
     endif()
     if(c MATCHES "@[A-Z_]+@")
       message(FATAL_ERROR "[${prefix}] ${n}.service: unresolved @VAR@")
