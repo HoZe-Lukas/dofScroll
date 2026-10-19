@@ -114,7 +114,8 @@ struct Settings {
     bool live_feed = true;
     std::string mode = "normal";  // mode id (see modes.hpp)
     // Button bindings from BUTTON_<n> keys (n = 1..kMaxButtons): canonical action text as
-    // accepted by parseButtonAction (none | click | rightclick | middleclick | nav | key:<name>).
+    // accepted by parseButtonAction (none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | toggle:nav |
+    // toggle:mode:<id>).
     // Which n are valid for a given device is decided by the UI, not here.
     std::map<int, std::string> buttons;
 

@@ -250,6 +250,14 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
     else if (t == "rightclick") ty = ButtonActionType::RightClick;
     else if (t == "middleclick") ty = ButtonActionType::MiddleClick;
     else if (t == "nav") ty = ButtonActionType::Nav;
+    else if (t == "toggle:nav") ty = ButtonActionType::ToggleNav;
+    else if (t.compare(0, 12, "toggle:mode:") == 0) {
+        const std::string id = trim(t.substr(12));
+        if (!validModeId(id) || id == "next")
+            return fail(err, "toggle:mode:<id> needs a mode id ([a-z0-9_-], max. 32 characters), not 'next'");
+        ty = ButtonActionType::ToggleMode;
+        if (modeId) *modeId = id;
+    }
     else if (t.compare(0, 4, "key:") == 0) {
         const std::string name = trim(t.substr(4));
         if (!parseKeyName(name, &k)) return fail(err, "unknown key '" + name + "'");
@@ -260,7 +268,7 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
         ty = ButtonActionType::ModeSwitch;
         if (modeId) *modeId = id;
     } else {
-        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next");
+        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | toggle:nav | toggle:mode:<id>");
     }
     if (type) *type = ty;
     if (key) *key = k;
@@ -338,7 +346,8 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
     for (ModeDef &m : set.modes) {
         auto &bs = m.buttons;
         for (size_t i = 0; i < bs.size();) {
-            if (bs[i].type == ButtonActionType::ModeSwitch && bs[i].mode != "next" && !set.find(bs[i].mode)) {
+            const bool targets = bs[i].type == ButtonActionType::ModeSwitch || bs[i].type == ButtonActionType::ToggleMode;
+            if (targets && bs[i].mode != "next" && !set.find(bs[i].mode)) {
                 warnAll("mode " + m.id + ": BUTTON_" + std::to_string(bs[i].button) + ": unknown mode '" +
                         bs[i].mode + "' - binding ignored");
                 bs.erase(bs.begin() + static_cast<long>(i));

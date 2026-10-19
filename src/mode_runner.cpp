@@ -43,6 +43,7 @@ void ModeRunner::resetState() {
 
 void ModeRunner::setMode(const ModeDef &mode) {
     releaseAll();
+    nav_latched_ = false;
     mode_ = mode;
     legacy_ = mode_.allDefaultChannels();
 }
@@ -81,7 +82,9 @@ ModeRunner::Wanted ModeRunner::bindings(const Settings &s, uint32_t buttons) con
     auto apply = [&w](const ButtonBinding &b) {
         switch (b.type) {
         case ButtonActionType::Unbound:
-        case ButtonActionType::ModeSwitch: break;  // ModeSwitch acts on the press edge, see tick()
+        case ButtonActionType::ModeSwitch:
+        case ButtonActionType::ToggleNav:
+        case ButtonActionType::ToggleMode: break;  // act on the press edge, see tick()
         case ButtonActionType::Click: w.mouse |= 1u << 1; break;
         case ButtonActionType::MiddleClick: w.mouse |= 1u << 2; break;
         case ButtonActionType::RightClick: w.mouse |= 1u << 3; break;
@@ -105,7 +108,28 @@ ModeRunner::Wanted ModeRunner::bindings(const Settings &s, uint32_t buttons) con
         if (!parseButtonAction(kv.second, &b.type, &b.key, nullptr)) continue;
         apply(b);
     }
+    if (nav_latched_) w.nav = true;
     return w;
+}
+
+std::vector<ButtonBinding> ModeRunner::edgeBindings(const Settings &s) const {
+    auto isEdge = [](ButtonActionType t) {
+        return t == ButtonActionType::ModeSwitch || t == ButtonActionType::ToggleNav || t == ButtonActionType::ToggleMode;
+    };
+    std::vector<ButtonBinding> out;
+    for (const ButtonBinding &b : mode_.buttons)
+        if (isEdge(b.type)) out.push_back(b);
+    for (const auto &kv : s.buttons) {
+        bool in_mode = false;
+        for (const ButtonBinding &b : mode_.buttons)
+            if (b.button == kv.first) in_mode = true;
+        if (in_mode) continue;
+        ButtonBinding b;
+        b.button = kv.first;
+        if (!parseButtonAction(kv.second, &b.type, &b.key, nullptr, &b.mode)) continue;
+        if (isEdge(b.type)) out.push_back(b);
+    }
+    return out;
 }
 
 void ModeRunner::tapKeys(Key neg, Key pos, int n) {
@@ -115,9 +139,15 @@ void ModeRunner::tapKeys(Key neg, Key pos, int n) {
 
 void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh,
                       double dt) {
-    for (const ButtonBinding &b : mode_.buttons) {
-        if (b.type != ButtonActionType::ModeSwitch || switch_request_.size()) continue;
-        if (buttonHeld(buttons, b.button - 1) && !buttonHeld(prev_buttons_, b.button - 1)) switch_request_ = b.mode;
+    // Press edges only; nothing to look at (or to parse) while no button went down.
+    const uint32_t pressed = buttons & ~prev_buttons_;
+    for (const ButtonBinding &b : pressed ? edgeBindings(s) : std::vector<ButtonBinding>()) {
+        if (!buttonHeld(pressed, b.button - 1)) continue;
+        if (b.type == ButtonActionType::ToggleNav) {
+            nav_latched_ = !nav_latched_;
+        } else if (switch_request_.empty()) {
+            switch_request_ = b.type == ButtonActionType::ToggleMode ? "toggle:" + b.mode : b.mode;
+        }
     }
     prev_buttons_ = buttons;
     if (legacy_) tickLegacy(s, raw, buttons, fresh, dt);

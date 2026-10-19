@@ -40,6 +40,15 @@ static void testStatus() {
     assert(m.mainLine(id, "Timeline") == "Profile: app:firefox  |  Mode: Timeline");
     assert(m.infoLine(id) == "Program: firefox  |  Device: SpaceMouse Pro");
     assert(m.warningLine(id).empty());
+    {  // toggle= : the navigation latch is shown, a toggled mode id containing "nav" is not mistaken for it
+        StatusModel t;
+        t.update(std::string(kFile) + "toggle=nav\n", true, 1003);
+        assert(t.mainLine(id) == "Profile: app:firefox  |  Mode: timeline  |  Navigation mode on");
+        t.update(std::string(kFile) + "toggle=mode:navigator\n", true, 1003);
+        assert(t.mainLine(id) == "Profile: app:firefox  |  Mode: timeline");
+        t.update(std::string(kFile) + "toggle=nav mode:x\n", true, 1003);
+        assert(t.mainLine(id).find("Navigation mode on") != std::string::npos);
+    }
     assert(m.title(id) == "dofscroll - Profile: app:firefox  |  Mode: timeline");
     // Staleness in both directions, and without "updated".
     m.update(kFile, true, 1006);

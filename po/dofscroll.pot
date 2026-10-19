@@ -1818,3 +1818,15 @@ msgstr ""
 #: src/ui/qt/qt_action_runner.cpp
 msgid "Cannot restart the interface through the service manager"
 msgstr ""
+
+#: src/ui/model/status_model.hpp:100
+msgid "Navigation mode on"
+msgstr ""
+
+#: src/ui/model/binding_editor_model.hpp:36
+msgid "Navigation mode on/off (press to switch)"
+msgstr ""
+
+#: src/ui/model/binding_editor_model.hpp:37
+msgid "Toggle mode (press again to go back)"
+msgstr ""

@@ -33,7 +33,7 @@ device (see below), or the highest button it has seen when no device information
 ## Mode dropdown
 
 The Profiles page has a "Mode" dropdown per profile (global, device, application). A button can
-also be bound to a mode switch (`mode:<id>`, `mode:next`) from the same page. Precedence is
+also be bound to a mode switch (`mode:<id>`, `mode:next`) or a toggle (`toggle:nav`, `toggle:mode:<id>`) from the same page; the tray shows "Navigation mode on" while the navigation mode is latched. Precedence is
 unchanged: global < device < mode overrides < application. A profile that names a mode which does
 not exist is shown with a warning instead of being changed silently.
 

@@ -338,6 +338,51 @@ static void testModeSwitchButton() {
     CHECK(r.core->runner().mode().id == "off", "fixed target mode:off");
 }
 
+static std::string statusKey(const Rig &r, const std::string &key) {
+    if (r.status.empty()) return "";
+    const std::string &b = r.status.back();
+    const size_t p = b.find("\n" + key + "=");
+    if (p == std::string::npos) return "";
+    const size_t from = p + key.size() + 2;
+    return b.substr(from, b.find('\n', from) - from);
+}
+
+// toggle:mode:<id> and toggle:nav from the main config (they work in every mode): the first press
+// switches, the second press goes back; a reload (also "Release all keys") clears both.
+static void testToggleButtons() {
+    Rig r(std::string(BASE_CONF) + "BUTTON_2 = toggle:mode:timeline\nBUTTON_3 = toggle:nav\n");
+    r.run(0.1);
+    auto press = [&](int b) {
+        r.src.pushButton(0, b, true);
+        r.run(0.1);
+        r.src.pushButton(0, b, false);
+        r.run(0.1);
+    };
+    CHECK(r.core->runner().mode().id == "normal" && statusKey(r, "toggle").empty(), "starts plain");
+    press(1);
+    CHECK(r.core->runner().mode().id == "timeline", "first press switches (got %s)", r.core->runner().mode().id.c_str());
+    CHECK(statusKey(r, "toggle") == "mode:timeline", "status shows the toggle (%s)", statusKey(r, "toggle").c_str());
+    press(1);
+    CHECK(r.core->runner().mode().id == "normal", "second press goes back (got %s)", r.core->runner().mode().id.c_str());
+    CHECK(statusKey(r, "toggle").empty(), "status is empty again");
+
+    press(2);
+    CHECK(r.core->runner().navLatched() && statusKey(r, "toggle") == "nav", "nav latched (%s)", statusKey(r, "toggle").c_str());
+    press(1);  // a mode switch clears the latch (it releases everything held)
+    CHECK(!r.core->runner().navLatched() && statusKey(r, "toggle") == "mode:timeline", "switch clears nav (%s)",
+          statusKey(r, "toggle").c_str());
+    press(2);
+    CHECK(statusKey(r, "toggle") == "nav mode:timeline", "both are listed (%s)", statusKey(r, "toggle").c_str());
+    // the safety net (no input for a while) must not clear the latch
+    r.run(3.0);
+    CHECK(r.core->runner().navLatched(), "latch survives the quiet period");
+    // a reload (what the tray's "Release all keys" requests) clears everything
+    r.reload.pending = true;
+    r.run(0.1);
+    CHECK(!r.core->runner().navLatched() && r.core->runner().mode().id == "normal", "reload clears the toggles");
+    CHECK(statusKey(r, "toggle").empty(), "status is empty after the reload (%s)", statusKey(r, "toggle").c_str());
+}
+
 // Runtime mode request from the tray: file in the runtime directory + reload, [global] untouched.
 static void testModeRequest() {
     Rig r(std::string(BASE_CONF), {{"alpha.conf", "BUTTON_3 = key:space\n"}});
@@ -428,6 +473,7 @@ int main() {
     testModeVsAppPrecedence();
     testConfigButtonsAndNormalFile();
     testModeSwitchButton();
+    testToggleButtons();
     testMotion();
     testStaleWatchdog();
     testLiveFeedSink();

@@ -333,6 +333,35 @@ static void testModeSwitchBinding() {
     assert(applyKey(s, "BUTTON_2", "mode:next", &err) && s.buttons[2] == "mode:next");
 }
 
+static void testToggleBindings() {
+    ButtonActionType t;
+    Key k;
+    std::string err, id;
+    assert(parseButtonAction("toggle:nav", &t, &k, &err) && t == ButtonActionType::ToggleNav);
+    assert(parseButtonAction(" Toggle:NAV ", &t, &k, &err) && t == ButtonActionType::ToggleNav);
+    assert(parseButtonAction("toggle:mode:timeline", &t, &k, &err, &id) && t == ButtonActionType::ToggleMode && id == "timeline");
+    assert(!parseButtonAction("toggle:", &t, &k, &err) && !err.empty());
+    assert(!parseButtonAction("toggle:foo", &t, &k, &err));
+    assert(!parseButtonAction("toggle:mode:", &t, &k, &err));
+    assert(!parseButtonAction("toggle:mode:bad name", &t, &k, &err));
+    assert(!parseButtonAction("toggle:mode:next", &t, &k, &err));
+    assert(!parseButtonAction("toggle:key:space", &t, &k, &err));  // plain keys are the driver's job
+
+    clearDir();
+    writeFile("a.conf", "BUTTON_1 = toggle:nav\nBUTTON_2 = toggle:mode:timeline\nBUTTON_3 = toggle:mode:nosuch\n");
+    std::vector<std::string> w;
+    ModeSet ms = loadModes(g_dir, &w);
+    const ModeDef *m = ms.find("a");
+    assert(m && m->buttons.size() == 2);
+    assert(m->buttons[0].type == ButtonActionType::ToggleNav);
+    assert(m->buttons[1].type == ButtonActionType::ToggleMode && m->buttons[1].mode == "timeline");
+    assert(hasWarning(w, "unknown mode 'nosuch'"));
+    // the main config accepts the syntax too
+    Settings s;
+    assert(applyKey(s, "BUTTON_2", "toggle:nav", &err) && s.buttons[2] == "toggle:nav");
+    assert(applyKey(s, "BUTTON_3", "toggle:mode:off", &err) && s.buttons[3] == "toggle:mode:off");
+}
+
 static void testSecurityHardening() {
     std::vector<std::string> w;
     std::string err;
@@ -397,6 +426,7 @@ int main() {
     testStamp();
     testResolveWithMode();
     testModeSwitchBinding();
+    testToggleBindings();
     testSecurityHardening();
     tu::removeAll(g_dir);
     std::cout << "test_modes: all tests passed\n";

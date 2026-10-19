@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Editor logic for one button binding (BUTTON_<n>): splits the action text into a kind plus an
 // argument (key name or mode id) and composes it back, and lists the choices for the view.
-// Actions: none, click, rightclick, middleclick, nav, key:<name>, mode:<id>, mode:next.
+// Actions: none, click, rightclick, middleclick, nav, key:<name>, mode:<id>, mode:next, toggle:nav,
+// toggle:mode:<id>.
 #pragma once
 #include <cctype>
 #include <string>
@@ -14,7 +15,7 @@
 
 namespace spn::ui {
 
-enum class BindingKind { None, Click, RightClick, MiddleClick, Nav, Key, Mode, ModeNext };
+enum class BindingKind { None, Click, RightClick, MiddleClick, Nav, Key, Mode, ModeNext, ToggleNav, ToggleMode };
 
 struct BindingKindInfo {
     BindingKind kind;
@@ -33,6 +34,8 @@ inline const std::vector<BindingKindInfo> &bindingKinds() {
         {BindingKind::Nav, "nav", "Navigation mode (arrow keys while held)", false, false, false},
         {BindingKind::Mode, "mode", "Switch to mode", false, true, false},
         {BindingKind::ModeNext, "mode:next", "Next mode", false, false, false},
+        {BindingKind::ToggleNav, "toggle:nav", "Navigation mode on/off (press to switch)", false, false, false},
+        {BindingKind::ToggleMode, "toggle:mode", "Toggle mode (press again to go back)", false, true, false},
         {BindingKind::Click, "click", "Left click", false, false, true},
         {BindingKind::RightClick, "rightclick", "Right click", false, false, true},
         {BindingKind::MiddleClick, "middleclick", "Middle click", false, false, true},
@@ -99,6 +102,13 @@ inline bool parseBinding(const std::string &text, Binding *out) {
         out->arg = keyName(key);
         return true;
     }
+    if (t.rfind("toggle:mode:", 0) == 0) {
+        const std::string id = t.substr(12);
+        if (!validModeId(id) || id == "next") return false;
+        out->kind = BindingKind::ToggleMode;
+        out->arg = id;
+        return true;
+    }
     if (t.rfind("mode:", 0) == 0) {
         const std::string id = t.substr(5);
         if (!validModeId(id)) return false;
@@ -126,8 +136,8 @@ inline Binding withKind(const Binding &cur, BindingKind kind, const std::vector<
     Binding b;
     b.kind = kind;
     if (kind == BindingKind::Key) b.arg = cur.kind == BindingKind::Key && !cur.arg.empty() ? cur.arg : "space";
-    if (kind == BindingKind::Mode) {
-        if (cur.kind == BindingKind::Mode) b.arg = cur.arg;
+    if (kind == BindingKind::Mode || kind == BindingKind::ToggleMode) {
+        if (cur.kind == BindingKind::Mode || cur.kind == BindingKind::ToggleMode) b.arg = cur.arg;
         if (b.arg.empty() && !modeIds.empty()) b.arg = modeIds.front();
     }
     return b;
