@@ -69,6 +69,28 @@ int main() {
     for (auto &kv : ps.sections[a1].kv) n += kv.first == "MODE";
     assert(n == 1 && ps.sectionSettings(a1).mode == "timeline");
 
+    // Quick mode menu.
+    {
+        ProfileSet g0;
+        assert(globalModeId(g0) == "normal");
+        assert(setGlobalMode(g0, "timeline") && globalModeId(g0) == "timeline");
+        g0.sections[0].kv.emplace_back("MODE", "off");  // duplicate key
+        assert(setGlobalMode(g0, "off") && globalModeId(g0) == "off");
+        assert(setGlobalMode(g0, "normal") && globalModeId(g0) == "normal");
+        for (auto &kv : g0.sections[0].kv) assert(kv.first != "MODE");
+        assert(!setGlobalMode(g0, "Bad Id!") && !setGlobalMode(g0, ""));
+
+        auto me = buildMenuEntries(ms, "timeline");
+        assert(me.size() == 3 && me[0].id == "normal" && !me[0].active);
+        assert(me[2].active && me[2].text == "Timeline (timeline)" && me[1].text == "off");
+        int act = 0;
+        for (auto &e : me) act += e.active;
+        assert(act == 1);
+        auto mu = buildMenuEntries(ms, "gone");
+        assert(mu.size() == 4 && mu[3].active && !mu[3].known && mu[3].text == "gone");
+        for (size_t i = 0; i < 3; ++i) assert(!mu[i].active);
+    }
+
     puts("test_mode_list: ok");
     return 0;
 }
