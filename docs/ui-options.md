@@ -50,8 +50,29 @@ The EPEL/Rocky availability of Qt6 was not verified; CI uses `ubuntu-latest` for
 
 ## Skeleton
 
-`dofscroll-ui`: tray icon with placeholder menu, a settings window with tabs General, Channels,
-Buttons, Modes, Profiles, Axes (all "not implemented yet"), a single-instance guard
+## Window structure
+
+A `QSplitter`: navigation tree on the far left, a stacked settings area on the right.
+
+- Always-available top-level entries (identical in every mode): **Channels** (mix, sensitivity,
+  deadzone, curve, smoothing, sign, zoom options), **General** (start at login, language) and
+  **Axes / assistant**.
+- A **Profiles** group below them: "Default mode" (the `[global]` section) at the top, then the
+  device and application profiles. Only what depends on the profile's mode lives here.
+- The profile page is model-driven and rebuilt whenever the selected profile or its mode
+  changes (not fixed tabs). Default mode: button bindings and channel actions, no mode selector.
+  Device/application profile: a `QComboBox` at the top (exactly one mode, first entry
+  "Default mode", then the other modes), button bindings and channel actions of that mode, and an
+  "Edit mode file" button (not shown for the default mode).
+- Per-profile overrides of channel values stay possible in the config format; in the UI they sit
+  behind an "Overrides for this profile" section (off by default). The Channels page is the
+  normal place.
+
+## Skeleton
+
+`dofscroll-ui`: tray icon with placeholder menu (Open settings, Quit), the window above with
+placeholder pages and three placeholder profile entries, a single-instance guard
 (`QLockFile` in the per-user data directory), `--version`, and `--self-test` (builds the window
-offscreen, calls the tray-availability query, exits 0). The CMake option `DOFSCROLL_UI` defaults
-to ON only when Qt6 Widgets is found. Workflow: `.github/workflows/ui.yml`, not a required check.
+offscreen, checks the entry counts, calls the tray-availability query, exits 0). The CMake option
+`DOFSCROLL_UI` defaults to ON only when Qt6 Widgets is found. Workflow:
+`.github/workflows/ui.yml`, not a required check.
