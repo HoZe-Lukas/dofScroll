@@ -55,6 +55,11 @@ inline std::string runtimeFilePath(const char *name) {
 }
 inline std::string statusFilePath() { return runtimeFilePath("dofscroll-status"); }
 inline std::string logFilePath() { return runtimeFilePath("dofscroll.log"); }
+// Same, but in an explicitly given runtime directory (platform layer: PlatformPaths::runtimeDir).
+inline std::string runtimeFilePath(const std::string &dir, const char *name) {
+    if (dir.empty()) return "";
+    return dir + "/" + name;
+}
 constexpr size_t kLogMaxBytes = 256 * 1024;
 constexpr size_t kLogMaxLines = 300, kLogKeepLines = 200;
 constexpr size_t kLogMaxLinesDebug = 2000, kLogKeepLinesDebug = 1500;

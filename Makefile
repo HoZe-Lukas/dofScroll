@@ -51,7 +51,7 @@ export DAEMON TRAY
 CORE_SRC   := $(filter-out src/dofscroll.cpp src/dofscroll_tray.cpp src/output.cpp \
               src/output_x11.cpp src/output_uinput.cpp src/activewin.cpp, $(wildcard src/*.cpp))
 DAEMON_SRC := src/dofscroll.cpp src/output.cpp src/output_x11.cpp \
-              src/output_uinput.cpp src/activewin.cpp $(CORE_SRC)
+              src/output_uinput.cpp src/activewin.cpp $(wildcard src/platform/linux/*.cpp) $(CORE_SRC)
 TRAY_SRC   := src/dofscroll_tray.cpp
 
 DAEMON_OBJ := $(DAEMON_SRC:src/%.cpp=$(BUILDDIR)/%.o)
