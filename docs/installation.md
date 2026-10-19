@@ -91,6 +91,7 @@ Checked on the TGZ built on a RHEL 9 machine:
 | Path | Content |
 |---|---|
 | `/usr/bin/dofscroll`, `/usr/bin/dofscroll-tray` | The programs. |
+| `/usr/bin/dofscroll-ui`, `/usr/bin/dofscroll_de.qm`, `/usr/share/applications/dofscroll.desktop`, `/usr/share/icons/hicolor/scalable/apps/dofscroll.svg`, `dofscroll-ui.service` | The Qt interface with its German catalog, menu entry, icon and user unit. Only in packages built where Qt6 was available (see "Qt interface or GTK tray" below). |
 | `/usr/lib/systemd/user/dofscroll.service`, `dofscroll-tray.service` | User units, rendered at install time so `ExecStart` points at the real program path (`/usr/bin/...` for a package). The directory is always `<prefix>/lib/systemd/user`, never `lib64`. |
 | `/usr/share/dofscroll/udev/70-dofscroll-uinput.rules` | uinput udev rule, shipped as an example only. It is not active until you copy it (step 5). |
 | `/usr/share/dofscroll/examples/` | Example configs, `default/` and `modes/`. |
@@ -136,6 +137,27 @@ Do these steps once per machine. Steps 1 and 5 need root.
    together: "enabled" only if both start at login, a mix is shown as partial and ticking the box
    repairs it. If the UI is not installed, only the daemon is switched. On Linux the UI has its
    own unit `dofscroll-ui.service` (installed when the UI is built).
+
+   **Qt interface or GTK tray.** Linux packages ship both. The GTK tray (`dofscroll-tray`) stays
+   the default of the documented setup above; the Qt interface is optional and is started from the
+   application menu ("dofScroll") or with `dofscroll-ui`. Both show a tray icon, so only one may
+   run: `dofscroll-ui.service` declares `Conflicts=dofscroll-tray.service`, so starting one stops
+   the other, and if both are enabled systemd starts only one of them (not defined which). Switch
+   the autostart explicitly:
+
+        # Qt interface instead of the GTK tray
+        systemctl --user disable --now dofscroll-tray.service
+        systemctl --user enable --now dofscroll-ui.service
+        # back to the GTK tray
+        systemctl --user disable --now dofscroll-ui.service
+        systemctl --user enable --now dofscroll-tray.service
+
+   Runtime needs of the Qt interface (single package, no subpackage): the RPM requires
+   `qt6-qtbase-gui` and `qt6-qtsvg` (Rocky/RHEL 9: AppStream), the DEB depends on the `libqt6*`
+   packages that `dpkg-shlibdeps` finds (Debian 12: `libqt6widgets6`, `libqt6gui6`,
+   `libqt6svg6`). The release packages are built in `rockylinux:9` and `debian:12` containers; if
+   Qt6 cannot be installed there, that package is GTK-only and the build log says so. The package
+   build is not verified on a real desktop.
 
 5. Optional, only for Wayland or if you set `BACKEND = uinput`: activate the udev rule for
    `/dev/uinput`.
