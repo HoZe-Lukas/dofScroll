@@ -87,8 +87,8 @@ struct Rig {
     std::unique_ptr<DaemonCore> core;
 
     std::vector<std::string> status;
-    explicit Rig(const std::string &config, const std::vector<std::pair<std::string, std::string>> &modeFiles = {}) {
-        dir = tu::makeTempDir("dofscroll-core-test");
+    explicit Rig(const std::string &config, const std::vector<std::pair<std::string, std::string>> &modeFiles = {})
+        : dir(tu::makeTempDir("dofscroll-core-test")) {
         conf = dir + "/dofscroll.conf";
         writeFile(conf, config);
         if (!modeFiles.empty()) {
