@@ -399,6 +399,10 @@ static void testSecurityHardening() {
     w.clear();
     ms = loadModes(src, &w);
     assert(ms.find("browse-keys"));
+    for (const char *id : {"slides", "media", "map", "precision"}) {
+        const ModeDef *sm = ms.find(id);
+        assert(sm && sm->buttons.empty());  // axis-only examples
+    }
     assert(w.empty());
 
     // F9: NUL bytes

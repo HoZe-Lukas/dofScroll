@@ -42,9 +42,13 @@ Invalid lines or files are skipped with a warning in the log.
 | `off` | All channels `none`. Switches control off without `ENABLED = 0`. |
 | `timeline` | Vertical `none`, horizontal and twist `keys:left,right`. Scrubbing and single frames for video editing. |
 
-The first start also seeds three example files into `~/.config/dofscroll/modes/`:
-`browse-keys` (page up/down, left/right, zoom), `cycle-modes` (button 2 = `mode:next`) and
-`timeline` (adds Space on button 1 and Home on button 2, active only in that mode). The shipped
+The first start also seeds seven example files into `~/.config/dofscroll/modes/`:
+`browse-keys` (page up/down, left/right, zoom), `cycle-modes` (button 2 = `mode:next`),
+`timeline` (adds Space on button 1 and Home on button 2, active only in that mode) and four
+axis-only modes without button bindings: `slides` (up/down = page up/down, gentle rate), `media`
+(up/down, left/right and `j`/`l` for volume and seek; the keys are program-specific), `map` (arrow
+keys for panning, `minus`/`plus` for zoom; see Key names) and `precision` (default channels with
+low sensitivities). Their behavior in real programs is not verified. The shipped
 examples contain no button-to-key bindings that would be the same in every mode, see [Buttons and the vendor driver](#buttons-and-the-vendor-driver).
 
 ## Channel actions

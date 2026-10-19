@@ -14,12 +14,16 @@ The first five minutes on Linux (X11, the tested setup). This assumes you finish
 
 ## What the seeded config gives you
 
-On first start the tray writes `~/.config/dofscroll/dofscroll.conf` from [examples/default/dofscroll.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/default/dofscroll.conf): a `[global]` section with the three channels (vertical scroll, horizontal scroll, zoom) and a `[device:...]` section each for SpaceMouse Pro and SpaceMouse Compact. It also copies three example modes into `~/.config/dofscroll/modes/`:
+On first start the tray writes `~/.config/dofscroll/dofscroll.conf` from [examples/default/dofscroll.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/default/dofscroll.conf): a `[global]` section with the three channels (vertical scroll, horizontal scroll, zoom) and a `[device:...]` section each for SpaceMouse Pro and SpaceMouse Compact. It also copies seven example modes into `~/.config/dofscroll/modes/`:
 
 | Mode | What it does |
 |---|---|
 | `browse-keys` | Page up/down, left/right, twist zooms |
 | `cycle-modes` | Normal behavior; button 2 switches to the next mode |
+| `slides` | Up/down pages through slides (Page Up / Page Down), gentle rate |
+| `media` | Up/down = volume keys, sideways = seek, twist = `j`/`l` |
+| `map` | Arrow keys to pan, twist presses `minus`/`plus` |
+| `precision` | Normal behavior with low sensitivities |
 | `timeline` | Sideways and twist press the left/right arrow keys; button 1 is Space, button 2 is Home (only in this mode) |
 
 The built-in modes are `normal`, `off` and `timeline`. Switch the mode from the tray "Mode" menu, or set `MODE = browse-keys` in a profile. Read a mode file before you use it, see [Modes](Modes).

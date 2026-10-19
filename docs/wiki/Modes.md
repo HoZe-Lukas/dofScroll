@@ -88,6 +88,10 @@ Shipped in [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/e
 |---|---|
 | `browse-keys.conf` | Up/down = page up/down, sideways = left/right, twist = zoom |
 | `cycle-modes.conf` | Default channels; button 2 = `mode:next` |
+| `slides.conf` | Up/down = page up/down, sideways and twist off; `SCROLL_V_SENS = 2` |
+| `media.conf` | Up/down = arrow up/down (volume), sideways = left/right (seek), twist = `j`/`l`; program-specific keys |
+| `map.conf` | Arrow keys for up/down and sideways, twist = `minus`/`plus` (layout caveat, see Key names) |
+| `precision.conf` | Default channels with low sensitivities (`SCROLL_V_SENS = 2`, `SCROLL_H_SENS = 1`, `ZOOM_SENS = 2`) |
 | `timeline.conf` | Sideways and twist = left/right; button 1 Space, button 2 Home (only while this mode is active); `SCROLL_H_SENS = 4` |
 
 Use `timeline` for video editing in a program of your choice, for example `[app:resolve]` with `MODE = timeline` (DaVinci Resolve's behavior is not verified here).
