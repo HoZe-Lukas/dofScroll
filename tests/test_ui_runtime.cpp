@@ -13,6 +13,7 @@
 #include <filesystem>
 
 #include "common.hpp"
+#include "mode_request.hpp"
 #include "platform/suspend_probe.hpp"
 #include "platform/win/win_paths.hpp"
 #include "testutil.hpp"
@@ -267,7 +268,101 @@ static void testReleaseKeysCommand() {
     std::puts("ok release keys command");
 }
 
+static std::string slurp(const std::string &path) {
+    std::string t;
+    fs::readFileBounded(path, 1 << 20, fs::ReadOptions(), &t);
+    return t;
+}
+
+// The runtime mode request: what a request can and cannot do (src/mode_request.hpp).
+static void testModeRequestSecurity() {
+    const std::string dir = tu::makeTempDir("dofscroll-ui-modereq");
+    const std::string rt = dir + "/run";  // created by the writer, private
+    const std::string path = modeRequestPath(rt);
+    std::string err;
+
+    // round trip: user-only file, one line, atomic (no temp leftovers), consumed by the reader
+    assert(writeModeRequest(rt, "alpha", &err));
+    assert(slurp(path) == "alpha\n");
+    {
+        std::vector<std::string> names;
+        bool capped = false;
+        assert(fs::listDir(rt, 0, &names, &capped));
+        for (const std::string &n : names) assert(n == "." || n == ".." || n == "dofscroll-mode-request");
+    }
+#ifndef _WIN32
+    struct stat st;
+    assert(::lstat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode) && (st.st_mode & 077) == 0);
+#endif
+    assert(writeModeRequest(rt, "beta", &err) && slurp(path) == "beta\n");  // replaced as a whole
+    assert(takeModeRequest(rt) == "beta" && !tu::exists(path));
+    assert(takeModeRequest(rt).empty());  // consumed exactly once
+
+    // the writer refuses what the reader would never accept
+    const std::string tooLong(33, 'a');
+    for (const std::string &bad : {std::string(), std::string("ALPHA"), std::string("../x"), std::string("a/b"),
+                                   std::string("a b"), std::string("a\nb"), std::string("a\0b", 3), tooLong,
+                                   std::string(100, 'a')}) {
+        assert(!writeModeRequest(rt, bad, &err) && !tu::exists(path));
+    }
+    assert(!writeModeRequest("", "alpha", &err));  // no runtime directory: no request channel
+    assert(writeModeRequest(rt, std::string(32, 'a'), &err) && takeModeRequest(rt) == std::string(32, 'a'));
+
+    // hand-made files: invalid or oversized ids are dropped (and removed), never interpreted
+    const std::vector<std::string> junk = {
+        "alpha\nbeta\n", std::string("al\0pha\n", 8), "ALPHA\n", "../etc/passwd\n", "a b\n", "\n", "",
+        tooLong + "\n", std::string(kModeRequestMaxBytes + 1, 'a'), std::string(100000, 'a'),
+        "mode:alpha\n", "$(touch x)\n", "`id`\n"};
+    for (const std::string &c : junk) {
+        assert(fs::createFileExclusive(path, c));
+        assert(takeModeRequest(rt).empty() && !tu::exists(path));
+    }
+    // CRLF and a missing newline are tolerated, nothing else
+    assert(fs::createFileExclusive(path, "alpha\r\n") && takeModeRequest(rt) == "alpha");
+    assert(fs::createFileExclusive(path, "alpha") && takeModeRequest(rt) == "alpha");
+
+    // stale: a request that was never answered (reload did not arrive) must not fire later
+    assert(writeModeRequest(rt, "alpha", &err));
+    const int64_t now = systemNowNs(), sec = 1000000000LL;
+    assert(takeModeRequest(rt, now + (kModeRequestMaxAgeSeconds + 5) * sec).empty() && !tu::exists(path));
+    assert(writeModeRequest(rt, "alpha", &err));
+    assert(takeModeRequest(rt, now - (kModeRequestMaxAgeSeconds + 5) * sec).empty());  // far in the future
+    assert(writeModeRequest(rt, "alpha", &err));
+    assert(takeModeRequest(rt, systemNowNs() + 2 * sec) == "alpha");  // a fresh one passes
+    assert(writeModeRequest(rt, "alpha", &err));
+    clearModeRequest(rt);  // daemon start
+    assert(!tu::exists(path));
+
+#ifndef _WIN32
+    // group/other-accessible file: refused
+    assert(fs::createFileExclusive(path, "alpha\n"));
+    ::chmod(path.c_str(), 0644);
+    assert(takeModeRequest(rt).empty() && !tu::exists(path));
+
+    // a link is never followed: neither when reading nor when writing
+    assert(fs::createFileExclusive(dir + "/secret", "alpha\n"));
+    assert(::symlink((dir + "/secret").c_str(), path.c_str()) == 0);
+    assert(takeModeRequest(rt).empty() && !tu::exists(path) && slurp(dir + "/secret") == "alpha\n");
+    assert(::symlink((dir + "/secret").c_str(), path.c_str()) == 0);
+    assert(writeModeRequest(rt, "beta", &err));
+    assert(slurp(dir + "/secret") == "alpha\n");  // the target was not overwritten
+    assert(::lstat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode));
+    assert(takeModeRequest(rt) == "beta");
+
+    // a FIFO or a directory at the name neither blocks nor is accepted
+    assert(::mkfifo(path.c_str(), 0600) == 0);
+    assert(takeModeRequest(rt).empty());
+    assert(::mkdir(path.c_str(), 0700) == 0);
+    assert(takeModeRequest(rt).empty());
+    assert(!writeModeRequest(rt, "alpha", &err));
+    ::rmdir(path.c_str());
+#endif
+    tu::removeAll(dir);
+    std::puts("ok mode request security");
+}
+
 int main() {
+    testModeRequestSecurity();
     testReleaseKeysCommand();
     testSuspendHeartbeat();
 #ifndef _WIN32

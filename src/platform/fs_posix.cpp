@@ -88,6 +88,11 @@ ReadResult readAt(int dirfd, const std::string &path, size_t cap, const ReadOpti
         r.status = ReadStatus::NotOwned;
         return r;
     }
+    if (opt.requirePrivate && (st.st_mode & 077) != 0) {
+        ::close(fd);
+        r.status = ReadStatus::NotOwned;
+        return r;
+    }
     if (st.st_size > 0 && static_cast<size_t>(st.st_size) > cap) {
         ::close(fd);
         r.status = ReadStatus::TooLargeBySize;

@@ -41,6 +41,8 @@ enum class ReadStatus {
 struct ReadOptions {
     bool refuseLinks = false;   // POSIX: O_NOFOLLOW; Windows: reparse points are refused
     bool requireOwner = false;  // owner must be the current user (Windows: or Administrators)
+    bool requirePrivate = false;  // POSIX: no group/other permission bits (Windows: private ACL comes from the
+                                  // directory, nothing extra is checked); refused as NotOwned
 };
 struct ReadResult {
     ReadStatus status = ReadStatus::Ok;
