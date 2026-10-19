@@ -62,6 +62,43 @@ SCOPE (feature parity with the GTK tray, one codebase for all three systems):
   Qt UI needs its own user unit `dofscroll-ui.service`; keep the sandbox directives, adapt only
   what Qt needs and justify each change).
 
+UI DESIGN REQUIREMENTS (maintainer, 2026-10-19; they apply to the pages stage):
+- Left: profile tree with "Default mode" ([global]) on top, then device and application profiles;
+  right: the settings of the selected profile. The right side is built from a model-driven layout
+  and is rebuilt when the mode of the selected profile changes (not fixed tabs).
+- The default mode (`normal`) has the most settings (channels, curves, zoom, nav/click buttons,
+  button bindings). Any other mode shows only what applies to it (its channel actions and button
+  bindings as info, the overrides it allows) and an "Edit mode file" button.
+- [Global] is the default mode only: no mode selector there, and MODE is never written to
+  [global]. The mode choice exists only for device and application profiles and is a DROPDOWN
+  (QComboBox, exactly one mode): first entry "Default mode" (clears MODE), then built-ins and mode
+  files by display name.
+- Things that are the same in every mode are always available as their own top-level entries and
+  are NOT part of a profile's page: "Channels" (mix, sensitivity, deadzone, curve, smoothing, sign,
+  zoom options, edited in [global]), "General" (start at login, language) and "Axes / assistant".
+  The profile tree (Default mode, devices, applications) shows only what depends on the profile's
+  mode. Per-profile overrides of channel values stay possible (the config format supports them):
+  they live in a collapsed "Overrides for this profile" section, off by default.
+- A "Modes" entry (also always available) manages the mode files in the modes directory: list of
+  all modes (built-in and file) with their loader warnings, New mode (template with the syntax
+  documented in comments), Duplicate (also from built-ins), Import file... (validated before it
+  is copied, warnings shown first), Edit (default editor), Delete (file modes only; removing a file
+  that overrides a built-in restores the built-in), Open modes folder, and a permanent hint that
+  mode files can press any key and should come from trusted sources.
+- Adding a profile never needs typing an internal name: "Add application..." opens a picker of the
+  currently running programs (search field, refresh, display name plus the exact match string, an
+  "already has a profile" marker), a "Capture next focused program" button (switch to the program,
+  it is taken after a few seconds) and a manual entry as fallback; "Add device..." lists the
+  connected devices the same way. Logic: src/ui/model/app_picker_model.hpp and
+  src/platform/running_apps.hpp (Linux/X11 implementation exists; the Windows and macOS
+  implementations are written against the same interface in the port code).
+- Parity: every item above must work on Linux, Windows AND macOS (see the parity matrix in
+  docs/work-plan.md); the platform part of each feature (running-program list, autostart, open file,
+  live feed) gets an implementation per OS behind the same interface, compiled and unit-tested on
+  its runner.
+- Visual quality matters: clear grouping, sensible defaults, short helper texts, consistent
+  spacing, keyboard navigation, light/dark theme friendly, no wall of sliders.
+
 BRANCHES (from main, one PR each, never merge yourself, set the package status in
 docs/work-plan.md to "in progress (web, <date>)" in the first commit):
 1. feat/w3-ui-core: toolkit-free models + tests, portable mode_list.hpp, Qt tray and settings
