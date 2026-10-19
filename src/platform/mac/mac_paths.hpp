@@ -41,19 +41,24 @@ struct ReloadSocket {
 // <tmpDir>/dofscroll-<uid>/reload.sock instead (tmpDir is a short directory such as "/tmp"); the
 // caller must create that directory 0700 and verify owner and mode before binding or
 // connecting. path is empty if nothing fits.
-inline ReloadSocket reloadSocketPath(const std::string &runtimeDir, unsigned long uid, const std::string &tmpDir) {
+// socketPathFor does the same for any socket file name (the live feed uses "live.sock").
+inline ReloadSocket socketPathFor(const char *file, const std::string &runtimeDir, unsigned long uid,
+                                  const std::string &tmpDir) {
     ReloadSocket r;
     if (!runtimeDir.empty()) {
-        const std::string p = runtimeDir + "/reload.sock";
+        const std::string p = runtimeDir + "/" + file;
         if (p.size() < kMacSunPathMax) {
             r.path = p;
             return r;
         }
     }
-    const std::string f = stripTrailingSlashes(tmpDir) + "/dofscroll-" + std::to_string(uid) + "/reload.sock";
+    const std::string f = stripTrailingSlashes(tmpDir) + "/dofscroll-" + std::to_string(uid) + "/" + file;
     r.fallback = true;
     if (!tmpDir.empty() && f.size() < kMacSunPathMax) r.path = f;
     return r;
+}
+inline ReloadSocket reloadSocketPath(const std::string &runtimeDir, unsigned long uid, const std::string &tmpDir) {
+    return socketPathFor("reload.sock", runtimeDir, uid, tmpDir);
 }
 
 // Directory part of a socket path ("/a/b/reload.sock" -> "/a/b").

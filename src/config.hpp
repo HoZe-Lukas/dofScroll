@@ -109,6 +109,8 @@ struct Settings {
     // Control active at all? false (typically in an [app:*] profile, e.g. Blender with its
     // own 3D navigation): the daemon then produces no output at all.
     bool enabled = true;
+    // Publish the live feed (axes, buttons, channel outputs) to the UI while a client is connected.
+    bool live_feed = true;
     std::string mode = "normal";  // mode id (see modes.hpp)
     // Button bindings from BUTTON_<n> keys (n = 1..kMaxButtons): canonical action text as
     // accepted by parseButtonAction (none | click | rightclick | middleclick | nav | key:<name>).
