@@ -29,7 +29,7 @@ will be a GitHub Actions workflow (planned).
 | `docs/security.md`, `docs/windows-mac.md`, `packaging/` | Security review; driver research for Windows/Mac; udev rule for uinput |
 | `dofscroll`, `dofscroll-tray` | Locally built binaries in the repo root (see "Warning" below) |
 | `icons/dofscroll-tray.svg` | Custom tray icon |
-| `systemd/dofscroll.service`, `systemd/dofscroll-tray.service` | User systemd units, linked (not copied) into `~/.config/systemd/user/` |
+| `systemd/*.service.in` | Templates of the user units; cmake renders them (`build/systemd-dev/` for the symlink flow with `/usr/local/bin`, install time for packages), dev units are linked (not copied) into `~/.config/systemd/user/` |
 | `readme.md` | Full technical documentation (architecture, config keys, modes, install/move instructions) - **the single source of truth for operation/install**; this AGENTS.md does not duplicate it |
 | `CONTRIBUTING.md`, `THIRD-PARTY-NOTICES.md` | Contribution guide; licenses of dependencies |
 

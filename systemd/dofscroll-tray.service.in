@@ -4,7 +4,7 @@ After=graphical-session.target dofscroll.service
 PartOf=graphical-session.target
 
 [Service]
-ExecStart=/usr/local/bin/dofscroll-tray
+ExecStart=@DOFSCROLL_BINDIR@/dofscroll-tray
 Restart=on-failure
 
 # --- Hardening (user unit, only directives from systemd <= 252 / RHEL 9) --------

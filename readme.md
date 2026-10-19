@@ -298,8 +298,8 @@ Basic principle: **nothing is copied to `/usr/local` or `~/.config/systemd/user`
 Link (instead of copy) the systemd units (they live as templates in `systemd/` in this repo):
 
     mkdir -p ~/.config/systemd/user
-    ln -s "$(pwd)/systemd/dofscroll.service" ~/.config/systemd/user/dofscroll.service
-    ln -s "$(pwd)/systemd/dofscroll-tray.service" ~/.config/systemd/user/dofscroll-tray.service
+    ln -s "$(pwd)/build/systemd-dev/dofscroll.service" ~/.config/systemd/user/dofscroll.service
+    ln -s "$(pwd)/build/systemd-dev/dofscroll-tray.service" ~/.config/systemd/user/dofscroll-tray.service
 
 Enable `spacenavd` (system-wide driver service, comes with the package) once:
 
