@@ -39,9 +39,10 @@ time are not possible on Linux until direct HID access exists (package W1/W2 des
 
 | Id | Package | Files (owner of) | Depends on | Status |
 |---|---|---|---|---|
-| W0 | Platform layer: `InputSource`, `Output`, `ActiveWindow`, paths, reload mechanism instead of SIGHUP | new `src/platform/`, then `src/dofscroll.cpp`, `src/config.cpp` (paths only) | - | open |
-| W1 | Windows port: raw HID input, `SendInput` output, foreground window, no-console daemon, autostart | new `src/platform/win/`, `cmake/windows.cmake`, `packaging/windows/` | W0 interfaces (new files can start before) | open |
-| W2 | macOS port: IOHID input, CGEvent output, `NSWorkspace`, LaunchAgent, permissions | new `src/platform/mac/`, `cmake/macos.cmake`, `packaging/macos/` | W0 interfaces | open |
+| W0a | Platform interfaces: `src/platform/platform.hpp` (`InputSource`, `ActiveWindowProvider`, paths, `ReloadListener`) and `src/platform/fake_input.hpp` + `tests/test_platform.cpp` | done 2026-10-19 | - | **done** |
+| W0b | Linux behind the interfaces: spacenavd `InputSource`, X11 `ActiveWindowProvider`, XDG paths, SIGHUP-based reload; split `src/dofscroll.cpp` into a platform-independent daemon core plus a thin `main` per OS | `src/dofscroll.cpp`, new `src/daemon_core.*`, new `src/platform/linux/`, `src/config.cpp` (paths only) | W0a | in progress (session 1, 2026-10-19) |
+| W1 | Windows port: raw HID `InputSource` (use `src/hid_descriptor.*` and `devices/*.conf`), `SendInput` `Output`, foreground-window `ActiveWindowProvider`, paths, named-event `ReloadListener`, no-console daemon `main`, autostart | new `src/platform/win/`, `cmake/windows.cmake`, `packaging/windows/` | W0a done; the final daemon `main` waits for W0b | open |
+| W2 | macOS port: IOHID `InputSource`, CGEvent `Output`, `NSWorkspace` `ActiveWindowProvider`, paths, `ReloadListener`, LaunchAgent, permissions | new `src/platform/mac/`, `cmake/macos.cmake`, `packaging/macos/` | W0a done; the final daemon `main` waits for W0b | open |
 | W3 | Per-OS tray / settings UI (native minimal tray first) | new `src/ui/` | W0 | open |
 | W4 | Installers and signing: NSIS, macOS pkg/dmg, notarization, release workflow | `packaging/`, `.github/workflows/release.yml` | W1, W2 | open |
 | W5 | Translate the axis wizard's dynamic result messages (numbers inside sentences) | `src/axis_wizard.hpp`, `src/dofscroll_tray.cpp`, `po/` | - | open |
@@ -52,5 +53,6 @@ time are not possible on Linux until direct HID access exists (package W1/W2 des
 | W10 | CI hardening: ASAN job, secret scan, cppcheck, package builds on tags | `.github/workflows/`, `CMakeLists.txt` | - | open |
 | W11 | Avoid the Xlib `None` macro clash in `src/modes.hpp` (daemon currently uses `#undef None`) | `src/modes.hpp`, `src/dofscroll.cpp` | - | open |
 
-Order that avoids conflicts: W0 touches core files and should be merged first; W1/W2 can start with
-new files in parallel. W5-W11 are independent of each other.
+Order that avoids conflicts: W0b touches core files and is merged first; W1/W2 start now with
+backends in new files (they only depend on the interfaces from W0a) and wire the daemon `main` once
+W0b is on `main`. Backends must be unit-testable without hardware (see `FakeInputSource`). W5-W11 are independent of each other.

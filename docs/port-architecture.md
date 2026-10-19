@@ -2,7 +2,9 @@
 
 Goal: one shared core (config, DSP, modes, profile matching, key mapping) and a thin platform
 layer per OS. This document describes the seams; `port-windows.md` and `port-macos.md` describe
-the two new backends. Status: design, nothing here is implemented or tested on Windows/macOS yet.
+the two new backends. Status: the interfaces exist in `src/platform/platform.hpp` (with a scripted
+`FakeInputSource` for tests); the Linux implementation and the Windows/macOS backends are not
+implemented yet (see `docs/work-plan.md`).
 
 ## Platform layer
 
