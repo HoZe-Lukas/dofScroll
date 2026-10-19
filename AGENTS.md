@@ -50,6 +50,7 @@ open (`Text file busy`); stop it before rebuilding.
   `docs/installation.md`, `docs/troubleshooting.md`) in the same change.
 - Never use `--no-verify`. Do not run services, `sudo` or `git push` unless asked.
 - No personal data, hostnames or employer names in the repo.
+- dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. Do not add features that only re-implement driver button mapping (a button that always sends the same key or click); mode-dependent bindings, mode switching and `nav` are fine.
 
 ## Verifying a change
 

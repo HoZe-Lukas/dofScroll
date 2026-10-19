@@ -62,6 +62,10 @@ and test messages, commit messages. The only exception is translations in `po/*.
    needs real hardware. CI (`.github/workflows/ci.yml`) must be green.
 5. Releases are made by the maintainer, see `docs/releasing.md`.
 
+## Feature proposals
+
+dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. Proposals that only re-implement driver button mapping (always the same key or click) will not be accepted; features that act on the axes, modes or profiles, or bindings that depend on the active mode, are welcome.
+
 ## Adding a mode
 
 Modes are declarative files, no recompiling needed (format and limits: `docs/modes.md`;

@@ -2,6 +2,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Windows port
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
+
 Status (package W1, branch `feat/w1-windows`): the backend is implemented and compiled in CI
 (MSVC and MinGW-w64 on `windows-latest`), its pure logic is unit-tested, but **nothing has been run
 against a real SpaceMouse or a real desktop session**. Every behavior statement below is marked

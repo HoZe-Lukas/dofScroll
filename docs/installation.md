@@ -98,6 +98,8 @@ been checked on a real machine yet (unverified until the first release).
 
 ## 2. First-time setup
 
+dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. Setup step: configure plain button mappings in the driver (see [modes.md](modes.md#buttons-and-the-vendor-driver)) before you tune dofscroll.
+
 Do these steps once per machine. Steps 1 and 5 need root.
 
 1. Enable the SpaceMouse driver:

@@ -2,6 +2,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Device database and device description files
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver). Button remapping is done in the driver, not in the device files.
+
 Two independent pieces (neither is wired into the daemon yet):
 
 1. **Factory button counts** (`src/device_db.cpp`): `factoryButtonCount(deviceName, reported)`

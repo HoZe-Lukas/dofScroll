@@ -2,6 +2,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # User interface options: decision record
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
+
 Status: decided 2026-10-19 (see `docs/ui-qt-session-prompt.md`). The interface is experimental
 (`dofscroll-ui`, skeleton only); the GTK tray stays on Linux until the Qt interface has the same
 features.

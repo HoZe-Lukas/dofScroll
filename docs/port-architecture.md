@@ -1,5 +1,7 @@
 # Port architecture: platform layer
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
+
 Goal: one shared core (config, DSP, modes, profile matching, key mapping) and a thin platform
 layer per OS. This document describes the seams; `port-windows.md` and `port-macos.md` describe
 the two new backends. Status: the interfaces exist in `src/platform/platform.hpp` (with a scripted

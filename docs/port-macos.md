@@ -2,6 +2,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # macOS port
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
+
 Read `port-architecture.md` first. Hardware test list: `port-macos-checklist.md`. Install and
 permissions: `packaging/macos/README.md`.
 
