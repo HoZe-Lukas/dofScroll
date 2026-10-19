@@ -43,7 +43,9 @@ macOS build + ctest
 ```
 
 A required check whose job never reports blocks every PR forever, so verify the exact job names
-in a green run first.
+in a green run first. `Windows (MinGW-w64) build + ctest` runs only for pushes to `main`, tags and
+on demand (it is skipped for pull requests, #40): leave it out of the required list, since a
+skipped job would not gate anything.
 
 ## One-time manual steps
 
