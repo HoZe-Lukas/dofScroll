@@ -33,7 +33,10 @@ W3 TRAY (separate process `dofscroll-tray` per OS, like on Linux; no settings wi
   similar): parse the daemon's status file (profile, device, app, mode, enabled, paused), build a
   menu model: status lines, "Mode" submenu with one radio item per loaded mode (use loadModes and
   the logic in src/mode_list.hpp; choosing `normal` clears MODE), "Enabled" toggle (writes
-  ENABLED in [global]), "Open config", "Open log", "Quit". Changes go through the config library
+  ENABLED in [global]), "Start at login" (checkable; Windows: Startup entry or scheduled task at
+  logon, macOS: LaunchAgent; use the same contract as src/autostart.hpp from the Linux tray: query
+  the state, set enabled; use the autostart files from the W1/W2 packaging work and never run
+  scripts through a shell string), "Open config", "Open modes folder", "Open log", "Quit". Changes go through the config library
   (atomic save) and then requestReload() from src/platform/platform.hpp.
 - Windows: Win32 Shell_NotifyIcon + popup menu in src/ui/win/, no console window, single instance
   (named mutex), icon from icons/ (add a .ico/.rc built in CMake from the SVG if needed, or draw a
