@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 09:31+0200\n"
+"POT-Creation-Date: 2026-10-19 10:52+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -30,12 +30,12 @@ msgstr ""
 msgid "Zoom"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:332 src/dofscroll_tray.cpp:2318
+#: src/dofscroll_tray.cpp:332 src/dofscroll_tray.cpp:2375
 #, c-format
 msgid "Device: %s"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:333 src/dofscroll_tray.cpp:2315
+#: src/dofscroll_tray.cpp:333 src/dofscroll_tray.cpp:2372
 #, c-format
 msgid "Program: %s"
 msgstr ""
@@ -224,7 +224,7 @@ msgstr ""
 msgid "Click button (left mouse button)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:820 src/dofscroll_tray.cpp:2539
+#: src/dofscroll_tray.cpp:820 src/dofscroll_tray.cpp:2596
 msgid "Restart daemon"
 msgstr ""
 
@@ -606,74 +606,86 @@ msgstr ""
 msgid "Axes"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2307
+#: src/dofscroll_tray.cpp:2344
+msgid "Edit mode file:"
+msgstr ""
+
+#: src/dofscroll_tray.cpp:2345
+msgid "Create editable copy of"
+msgstr ""
+
+#: src/dofscroll_tray.cpp:2352
+msgid "Open modes folder"
+msgstr ""
+
+#: src/dofscroll_tray.cpp:2364
 msgid "Daemon not running / no status data"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2309
+#: src/dofscroll_tray.cpp:2366
 #, c-format
 msgid "Profile: %s"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2311
+#: src/dofscroll_tray.cpp:2368
 msgid " (paused)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2312
+#: src/dofscroll_tray.cpp:2369
 msgid " (disabled)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2314
+#: src/dofscroll_tray.cpp:2371
 #, c-format
 msgid "Mode: %s"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2320
+#: src/dofscroll_tray.cpp:2377
 #, c-format
 msgid "%d SpaceMice connected, only '%s' is reported"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2359
+#: src/dofscroll_tray.cpp:2416
 msgid "No log yet (daemon older than this version or not running)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2399
+#: src/dofscroll_tray.cpp:2456
 msgid "dofscroll - Log"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2418
+#: src/dofscroll_tray.cpp:2475
 msgid "Refresh"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2419
+#: src/dofscroll_tray.cpp:2476
 msgid "Copy"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2420
+#: src/dofscroll_tray.cpp:2477
 msgid "Close"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2527
+#: src/dofscroll_tray.cpp:2584
 msgid "Determining status..."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2532
+#: src/dofscroll_tray.cpp:2589
 msgid "Mode"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2537
+#: src/dofscroll_tray.cpp:2594
 msgid "Settings…"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2538
+#: src/dofscroll_tray.cpp:2595
 msgid "Open config file"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2540
+#: src/dofscroll_tray.cpp:2597
 msgid "Show log..."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2542
+#: src/dofscroll_tray.cpp:2599
 msgid "Quit"
 msgstr ""
 

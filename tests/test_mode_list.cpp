@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include <cassert>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include <cstdio>
+#include <cstdlib>
 
 #include "mode_list.hpp"
 
@@ -89,6 +93,68 @@ int main() {
         auto mu = buildMenuEntries(ms, "gone");
         assert(mu.size() == 4 && mu[3].active && !mu[3].known && mu[3].text == "gone");
         for (size_t i = 0; i < 3; ++i) assert(!mu[i].active);
+    }
+
+    {
+        // Editing from the tray: entries, template round trip, never overwrite, invalid ids.
+        char tmpl[] = "/tmp/dofscroll-ml-XXXXXX";
+        assert(mkdtemp(tmpl));
+        const std::string dir = std::string(tmpl) + "/modes";
+        ModeSet ms = loadModes(dir, nullptr);
+        auto ee = buildEditEntries(ms);
+        assert(ee.size() == 3);
+        for (auto &e : ee) assert(!e.has_file);
+        assert(modeFilePath(dir, "../x").empty() && modeFilePath("", "a").empty());
+        assert(modeFilePath(dir, "timeline") == dir + "/timeline.conf");
+
+        for (const char *id : {"normal", "off", "timeline"}) {
+            const ModeDef *b = ms.find(id);
+            assert(b && b->builtin);
+            std::string path, err;
+            assert(createModeFile(dir, id, modeTemplate(*b), &path, &err));
+            struct stat st;
+            assert(stat(path.c_str(), &st) == 0 && (st.st_mode & 0777) == 0600);
+            // Second attempt must refuse and leave the file alone.
+            assert(!createModeFile(dir, id, "junk", &path, &err) && err == "file already exists");
+        }
+        std::vector<std::string> warn;
+        ModeSet ms2 = loadModes(dir, &warn);
+        assert(warn.empty() && ms2.modes.size() == 3);
+        for (const ModeDef &b : ms.modes) {
+            const ModeDef *f = ms2.find(b.id);
+            assert(f && !f->builtin);
+            assert(f->label == b.label && f->description == b.description);
+            assert(f->v == b.v && f->h == b.h && f->twist == b.twist);
+            assert(f->buttons.size() == b.buttons.size() && f->overrides == b.overrides);
+        }
+        for (auto &e : buildEditEntries(ms2)) assert(e.has_file);
+
+        std::string err;
+        assert(!createModeFile(dir, "Bad Id", "x", nullptr, &err));
+        assert(!createModeFile(dir, "", "x", nullptr, &err));
+        assert(!createModeFile(dir, "../escape", "x", nullptr, &err));
+
+        // Dangling symlink at the target: O_EXCL|O_NOFOLLOW refuses.
+        assert(symlink("/nonexistent/target", (dir + "/link.conf").c_str()) == 0);
+        assert(!createModeFile(dir, "link", "x", nullptr, &err));
+
+        // Template with buttons and overrides survives the round trip.
+        ModeDef m;
+        m.id = "custom";
+        m.label = "Custom";
+        m.description = "d";
+        m.h = {ChannelActionType::Keys, Key::Left, Key::Right};
+        m.twist = {ChannelActionType::Zoom};
+        m.buttons.push_back({1, ButtonActionType::Key, Key::Space, ""});
+        m.buttons.push_back({2, ButtonActionType::ModeSwitch, Key::Space, "next"});
+        m.overrides.emplace_back("SCROLL_H_SENS", "4");
+        assert(createModeFile(dir, "custom", modeTemplate(m), nullptr, &err));
+        const ModeSet ms3 = loadModes(dir, nullptr);
+        const ModeDef *c = ms3.find("custom");
+        assert(c && c->h == m.h && c->twist == m.twist && c->buttons.size() == 2);
+        assert(c->buttons[1].mode == "next" && c->overrides == m.overrides);
+
+        if (system(("rm -rf " + std::string(tmpl)).c_str()) != 0) puts("cleanup failed");
     }
 
     puts("test_mode_list: ok");
