@@ -146,15 +146,19 @@ Do these steps once per machine. Steps 1 and 5 need root.
         systemctl --user daemon-reload
         systemctl --user list-unit-files 'dofscroll*'
 
-4. Start the services. They then start with every graphical session:
+4. Start the services. They then start with every graphical session. The Qt interface is the
+   default; use the GTK tray only if your package or build has no Qt interface:
 
+        systemctl --user enable --now dofscroll.service dofscroll-ui.service
+        # without the Qt interface:
         systemctl --user enable --now dofscroll.service dofscroll-tray.service
 
    Later you can switch the autostart on or off with the "Start at login" checkbox in the
-   tray's settings window. It runs `systemctl --user enable` or `disable` (without `--now`) for
-   both units, so it affects the next login only. The checkbox is greyed out, with a tooltip,
-   if the units are masked, static, enabled only until reboot, or unknown to systemd (for
-   example when the tray runs from a build folder instead of an installed package).
+   settings window of the interface (the GTK tray has the same checkbox for its own units). It runs
+   `systemctl --user enable` or `disable` (without `--now`) for both units, so it affects the next
+   login only. The checkbox is greyed out, with a tooltip, if the units are masked, static,
+   enabled only until reboot, or unknown to systemd (for example when it runs from a build folder
+   instead of an installed package).
 
    The Qt UI (`dofscroll-ui`) uses the same switch through `src/platform/autostart_platform.hpp`
    (`queryAutostart`, `setAutostart`) on all three systems; it handles the daemon and the UI
@@ -162,17 +166,17 @@ Do these steps once per machine. Steps 1 and 5 need root.
    repairs it. If the UI is not installed, only the daemon is switched. On Linux the UI has its
    own unit `dofscroll-ui.service` (installed when the UI is built).
 
-   **Qt interface or GTK tray.** Linux packages ship both. The GTK tray (`dofscroll-tray`) stays
-   the default of the documented setup above; the Qt interface is optional and is started from the
-   application menu ("dofScroll") or with `dofscroll-ui`. Both show a tray icon, so only one may
-   run: `dofscroll-ui.service` declares `Conflicts=dofscroll-tray.service`, so starting one stops
+   **Qt interface or GTK tray.** Linux packages ship both. The Qt interface (`dofscroll-ui`) is the
+   default of the documented setup above; it is also started from the application menu
+   ("dofScroll"). The GTK tray (`dofscroll-tray`) is kept for one more release as a fallback and
+   will then be removed (#43). Both show a tray icon, so only one may run: `dofscroll-ui.service` declares `Conflicts=dofscroll-tray.service`, so starting one stops
    the other, and if both are enabled systemd starts only one of them (not defined which). Switch
    the autostart explicitly:
 
-        # Qt interface instead of the GTK tray
+        # Qt interface (default)
         systemctl --user disable --now dofscroll-tray.service
         systemctl --user enable --now dofscroll-ui.service
-        # back to the GTK tray
+        # GTK tray (fallback)
         systemctl --user disable --now dofscroll-ui.service
         systemctl --user enable --now dofscroll-tray.service
 
@@ -197,16 +201,16 @@ Do these steps once per machine. Steps 1 and 5 need root.
 
 ### First start: seeding
 
-When the tray starts and no config exists, it creates `~/.config/dofscroll/dofscroll.conf` from
-`examples/default/dofscroll.conf` and copies the example modes into
-`~/.config/dofscroll/modes/`. It never overwrites an existing file. The daemon cannot write to
-that directory, so only the tray seeds. Without the tray, copy the files yourself:
+When the Qt interface or the GTK tray starts and no config exists, it creates
+`~/.config/dofscroll/dofscroll.conf` from `examples/default/dofscroll.conf` and copies the example
+modes into `~/.config/dofscroll/modes/`. It never overwrites an existing file. The daemon cannot
+write to that directory, so only the interface seeds. Without it, copy the files yourself:
 
     mkdir -p -m 0700 ~/.config/dofscroll/modes
     cp /usr/share/dofscroll/examples/default/dofscroll.conf ~/.config/dofscroll/
     cp /usr/share/dofscroll/examples/modes/*.conf ~/.config/dofscroll/modes/
 
-The tray looks for the examples in `$DOFSCROLL_EXAMPLES`, next to the executable, in
+The interface looks for the examples in `$DOFSCROLL_EXAMPLES`, next to the executable, in
 `../share/dofscroll/examples`, then `/usr/local/share/dofscroll/examples` and
 `/usr/share/dofscroll/examples`.
 
