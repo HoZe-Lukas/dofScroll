@@ -4,6 +4,7 @@
 // macOS implementations (xdg-open/systemctl, ShellExecute/Run key, open/LaunchAgent, signal or
 // pipe reload) live with the platform code; the models and tests only use this interface.
 #pragma once
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,13 @@ public:
     // Asks the daemon to re-read the configuration (SIGHUP or the platform equivalent).
     virtual bool requestReload(std::string *err) = 0;
 };
+
+// The reload callback of the SettingsModel (and of every page that saves): one requestReload per
+// call, so a page never has to know which OS channel the daemon listens on. The runner must outlive
+// the callback.
+inline std::function<bool(std::string *err)> reloadVia(ActionRunner &runner) {
+    return [&runner](std::string *err) { return runner.requestReload(err); };
+}
 
 // Records the calls and returns the configured result (tests).
 class RecordingActionRunner : public ActionRunner {

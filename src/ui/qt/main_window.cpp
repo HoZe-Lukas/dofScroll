@@ -41,7 +41,7 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     // Configuration, status and the page context (everything the pages share).
     std::vector<std::string> warnings;
     std::string err;
-    if (!ctx_.reload) ctx_.reload = [this](std::string *e) { return ctx_.runner->requestReload(e); };
+    if (!ctx_.reload && ctx_.runner) ctx_.reload = spn::ui::reloadVia(*ctx_.runner);
     if (!settings_.load(ctx_.configPath, &warnings, &err)) settings_.setProfiles(spn::ProfileSet(), ctx_.configPath);
     settings_.setReloadCallback(ctx_.reload);
     ctx_.settings = &settings_;

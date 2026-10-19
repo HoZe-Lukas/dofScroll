@@ -42,6 +42,15 @@ a named event (Windows), a distributed notification or Unix socket (macOS), or f
 a portable fallback. The choice is open (unverified which is most robust); the contract is
 "config written atomically, then ping; reload is idempotent".
 
+What the Qt UI does (`spn::requestReload`, client side in `src/platform/<os>/client_*.cpp`, linked by
+the daemon and the UI): every save goes through `SettingsModel::save()`, which writes the file
+atomically and then calls the reload callback of the `UiContext` (one `requestReload` per save).
+Linux: `systemctl --user kill -s HUP dofscroll.service` (the daemon catches SIGHUP). Windows:
+`SetEvent` on the named event `Local\dofscroll-reload` that the daemon created (fails with "not
+running" when there is no daemon). macOS: connecting to the user-only socket
+`<runtimeDir>/reload.sock` (the connection is the request; foreign or stale sockets are refused).
+A failed ping never loses the save: the page shows the reason and the file stays written.
+
 ## Logging and status files
 
 The status file (`key=value` lines, replaced atomically) and the log keep their format. Only the

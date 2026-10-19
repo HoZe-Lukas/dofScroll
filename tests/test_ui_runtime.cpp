@@ -11,7 +11,9 @@
 #include "common.hpp"
 #include "platform/win/win_paths.hpp"
 #include "testutil.hpp"
+#include "ui/model/action_runner.hpp"
 #include "ui/model/runtime_files.hpp"
+#include "ui/model/settings_model.hpp"
 #include "ui/model/status_model.hpp"
 
 using namespace spn;
@@ -75,7 +77,46 @@ static void testStatusSymlinkRefused() {
 }
 #endif
 
+// Every page that saves goes through SettingsModel::save(); with the reload callback of the UI
+// context the daemon is notified exactly once per successful save, after the file is written.
+static void testReloadAfterSave() {
+    using Kind = RecordingActionRunner::Kind;
+    IdentityStrings id;
+    const std::string dir = tu::makeTempDir("dofscroll-ui-reload");
+    const std::string path = dir + "/dofscroll.conf";
+    RecordingActionRunner runner;
+    SettingsModel m;
+    std::string err;
+    std::vector<std::string> warn;
+    assert(m.load(path, &warn, &err));
+    m.setReloadCallback(reloadVia(runner));
+    assert(m.setValue(0, "ENABLED", "0", &err));
+    SettingsModel::SaveResult r = m.save(id);
+    assert(r.saved && r.reloaded && runner.count(Kind::RequestReload) == 1);
+    assert(tu::exists(path));  // the request comes after the atomic write
+
+    // a failing channel: the file stays saved, the page gets the reason, nothing is retried
+    runner.result = false;
+    runner.error = "dofscroll is not running";
+    assert(m.setValue(0, "ENABLED", "1", &err));
+    r = m.save(id);
+    assert(r.saved && !r.reloaded && r.error == "dofscroll is not running");
+    assert(runner.count(Kind::RequestReload) == 2);
+
+    // nothing is written and nobody is notified when validation fails
+    ProfileSet bad = m.profiles();
+    bad.sections[0].kv.emplace_back("SCROLL_V_SENS", "oops");
+    SettingsModel bm;
+    bm.setProfiles(bad, dir + "/bad.conf");
+    bm.setReloadCallback(reloadVia(runner));
+    r = bm.save(id);
+    assert(!r.saved && runner.count(Kind::RequestReload) == 2 && !tu::exists(dir + "/bad.conf"));
+    tu::removeAll(dir);
+    std::puts("ok reload after save");
+}
+
 int main() {
+    testReloadAfterSave();
     testRuntimeDirPerOs();
     testStatusRead();
 #ifndef _WIN32
