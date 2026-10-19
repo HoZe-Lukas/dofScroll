@@ -79,6 +79,16 @@ bool setMsg(std::string *err, const std::string &m) {
     return false;
 }
 
+// Rejects names and forms Windows resolves to something else (reserved device names, alternate
+// data streams, trailing dots/spaces, \\?\ and \\.\ prefixes, drive-relative paths); rules and tests
+// in path_rules.hpp / tests/test_path_rules.cpp. Our own code never builds such paths.
+bool pathOk(const std::string &p, std::string *why = nullptr) {
+    const PathHazard h = windowsPathHazard(p);
+    if (h == PathHazard::None) return true;
+    if (why) *why = std::string("unsafe path (") + pathHazardName(h) + "): " + p;
+    return false;
+}
+
 struct Handle {
     HANDLE h = INVALID_HANDLE_VALUE;
     Handle() = default;
@@ -107,6 +117,7 @@ DWORD reparseTag(HANDLE h) {
 }
 
 bool statImpl(const std::string &path, bool follow, FileInfo *out) {
+    if (!pathOk(path)) return false;
     DWORD flags = FILE_FLAG_BACKUP_SEMANTICS;
     if (!follow) flags |= FILE_FLAG_OPEN_REPARSE_POINT;
     Handle h(::CreateFileW(native(path).c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
@@ -280,13 +291,27 @@ bool dirExists(const std::wstring &w) {
 bool statPath(const std::string &path, FileInfo *out) { return statImpl(path, true, out); }
 bool lstatPath(const std::string &path, FileInfo *out) { return statImpl(path, false, out); }
 
+ReadResult unsafeRead(const std::string &why) {
+    ReadResult r;
+    r.status = ReadStatus::OpenFailed;
+    r.sysError = why;
+    return r;
+}
+
 ReadResult readFileBounded(const std::string &path, size_t cap, const ReadOptions &opt, std::string *out) {
+    std::string why;
+    if (!pathOk(path, &why)) return unsafeRead(why);
     return readNative(native(path), cap, opt, out);
 }
 
 DirHandle::~DirHandle() = default;
 
 bool DirHandle::open(const std::string &dir, std::string *err) {
+    std::string why;
+    if (!pathOk(dir, &why)) {
+        if (err) *err = why;
+        return false;
+    }
     if (!dirExists(native(dir))) {
         if (err) *err = winError(::GetLastError());
         return false;
@@ -298,10 +323,14 @@ bool DirHandle::open(const std::string &dir, std::string *err) {
 
 ReadResult DirHandle::readFileBounded(const std::string &name, size_t cap, const ReadOptions &opt,
                                       std::string *out) const {
+    std::string why;
+    if (name.find_first_of("/\\") != std::string::npos) return unsafeRead("unsafe file name (separator): " + name);
+    if (!pathOk(dir_ + "/" + name, &why)) return unsafeRead(why);
     return readNative(native(dir_ + "/" + name), cap, opt, out);
 }
 
 bool createFileExclusive(const std::string &path, const std::string &data) {
+    if (!pathOk(path)) return false;
     PrivateSecurity sec(false);
     const std::wstring wp = native(path);
     const std::wstring wtmp = native(path + ".tmp." + std::to_string(processId()));
@@ -320,14 +349,15 @@ bool createFileExclusive(const std::string &path, const std::string &data) {
     return ok;
 }
 
-bool removeFile(const std::string &path) { return ::DeleteFileW(native(path).c_str()) != 0; }
-bool removeDir(const std::string &path) { return ::RemoveDirectoryW(native(path).c_str()) != 0; }
+bool removeFile(const std::string &path) { return pathOk(path) && ::DeleteFileW(native(path).c_str()) != 0; }
+bool removeDir(const std::string &path) { return pathOk(path) && ::RemoveDirectoryW(native(path).c_str()) != 0; }
 bool renamePath(const std::string &from, const std::string &to) {
-    return ::MoveFileExW(native(from).c_str(), native(to).c_str(), MOVEFILE_WRITE_THROUGH) != 0;
+    return pathOk(from) && pathOk(to) && ::MoveFileExW(native(from).c_str(), native(to).c_str(), MOVEFILE_WRITE_THROUGH) != 0;
 }
 long processId() { return static_cast<long>(::GetCurrentProcessId()); }
 
 MkdirResult mkdirPrivate(const std::string &path, std::string *err) {
+    if (!pathOk(path, err)) return MkdirResult::Failed;
     const std::wstring w = native(path);
     if (dirExists(w)) return MkdirResult::Exists;
     PrivateSecurity sec(true);
@@ -339,6 +369,7 @@ MkdirResult mkdirPrivate(const std::string &path, std::string *err) {
 }
 
 bool mkdirsPrivate(const std::string &dirIn, std::string *emsg) {
+    if (!pathOk(dirIn, emsg)) return false;
     const std::string dir = toSlashes(dirIn);
     // Skip the volume part: "C:" or "//server/share".
     size_t i = 0;
@@ -366,6 +397,7 @@ bool mkdirsPrivate(const std::string &dirIn, std::string *emsg) {
 }
 
 bool listDir(const std::string &dir, size_t maxEntries, std::vector<std::string> *names, bool *capped) {
+    if (!pathOk(dir)) return false;
     WIN32_FIND_DATAW fd;
     HANDLE h = ::FindFirstFileW((native(dir) + L"\\*").c_str(), &fd);
     if (h == INVALID_HANDLE_VALUE) return false;
@@ -394,6 +426,7 @@ void randomHex16(char out[17]) {
 
 bool writeFileReplace(const std::string &pathIn, const std::string &data, std::string *err) {
     std::string real = toSlashes(pathIn);
+    if (!pathOk(real, err)) return false;
     // A link at the target is followed once: the temp file goes next to the real file.
     FileInfo li;
     if (lstatPath(real, &li) && li.isLink) {
