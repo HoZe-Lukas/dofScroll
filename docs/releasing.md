@@ -15,8 +15,8 @@ A release is built and published by GitHub Actions when a tag `v<version>` is pu
    (`https://github.com/HoZe-Lukas/dofScroll/releases`); the newest stable one is also reachable
    under `/releases/latest`.
 
-Windows and macOS installers are added to the same release once the ports exist (see
-`docs/work-plan.md`, packages W1, W2, W4).
+Windows and macOS installers (unsigned) are built by the same workflow; see
+[release-process.md](release-process.md).
 
 If the tag does not match the CMake version the release job fails before publishing anything.
 A failed release can be repeated by deleting the tag and the draft release and tagging again.

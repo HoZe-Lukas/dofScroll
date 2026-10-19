@@ -1,0 +1,169 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#
+# Reusable workflow: builds the unsigned Windows (NSIS installer + portable ZIP) and macOS (DMG)
+# installers and uploads them as artifacts (installers-windows, installers-macos). It never
+# creates a release: ci.yml calls it for tags and its release job attaches the artifacts;
+# installers-dry-run.yml calls it on demand. See docs/release-process.md.
+name: installers
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+# Third-party actions are pinned to full commit SHAs (tag in the comment).
+#   actions/checkout          = v4.2.2
+#   actions/upload-artifact   = v4.6.2
+#   jurplel/install-qt-action = v4.3.0 (same Qt versions as ui.yml)
+
+jobs:
+  package-windows:
+    name: Windows installer + ZIP
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Qt6 (aqtinstall, pinned version)
+        id: qt
+        continue-on-error: true   # without Qt the daemon-only package is built (name ends in -daemon-only)
+        uses: jurplel/install-qt-action@d325aaf2a8baeeda41ad0b5d39f84a6af9bcf005  # v4.3.0
+        with:
+          version: "6.8.3"
+          arch: win64_msvc2022_64
+          modules: ""
+          cache: true
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
+            $nsis = "${env:ProgramFiles(x86)}\NSIS"
+            if (-not (Test-Path "$nsis\makensis.exe")) { choco install nsis -y --no-progress; if ($LASTEXITCODE -ne 0) { throw 'NSIS install failed' } }
+            "$nsis" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          }
+      - name: Configure
+        shell: pwsh
+        env:
+          WITH_UI: ${{ steps.qt.outcome == 'success' && 'ON' || 'OFF' }}
+        run: |
+          if ($env:WITH_UI -eq 'OFF') { Write-Output '::warning::Qt is not available: building the daemon-only package' }
+          cmake -S . -B build "-DDOFSCROLL_UI=$env:WITH_UI"
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Package
+        shell: pwsh
+        run: ./packaging/windows/build-installer.ps1 -BuildDir build -OutDir dist-installers
+      - name: Test the installer (silent install, run, uninstall)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP 'dofscroll-inst'
+          $setup = (Get-ChildItem dist-installers -Filter '*-setup.exe' | Select-Object -First 1).FullName
+          $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          $p = Start-Process -FilePath $setup -ArgumentList '/S', '/AUTOSTART=1', "/D=$dir" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "installer exit code $($p.ExitCode)" }
+          Get-ChildItem $dir | Select-Object -ExpandProperty Name
+          foreach ($f in 'dofscroll.exe', 'uninstall.exe', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'devices', 'examples', 'icons', 'scripts\install-autostart.ps1') {
+            if (-not (Test-Path (Join-Path $dir $f))) { throw "missing after install: $f" }
+          }
+          $v = (Get-ItemProperty -Path $runKey -Name 'dofscroll').dofscroll
+          if ($v -ne ('"' + (Join-Path $dir 'dofscroll.exe') + '"')) { throw "unexpected Run value: $v" }
+          $out = Join-Path $env:RUNNER_TEMP 'ver.txt'
+          $d = Start-Process -FilePath (Join-Path $dir 'dofscroll.exe') -ArgumentList '--version' -Wait -PassThru -NoNewWindow -RedirectStandardOutput $out
+          Get-Content $out
+          if ($d.ExitCode -ne 0) { throw "dofscroll.exe --version failed: $($d.ExitCode)" }
+          $ui = Join-Path $dir 'dofscroll-ui.exe'
+          if (Test-Path $ui) {
+            # the Qt runtime comes from the install folder, not from the runner's Qt
+            $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -notmatch 'Qt' }) -join ';'
+            $env:QT_QPA_PLATFORM = 'offscreen'
+            $u = Start-Process -FilePath $ui -ArgumentList '--self-test' -Wait -PassThru -NoNewWindow
+            if ($u.ExitCode -ne 0) { throw "dofscroll-ui.exe --self-test failed: $($u.ExitCode)" }
+          }
+          # _?= keeps the uninstaller in place so that Start-Process -Wait really waits for it
+          $x = Start-Process -FilePath (Join-Path $dir 'uninstall.exe') -ArgumentList '/S', "_?=$dir" -Wait -PassThru
+          if ($x.ExitCode -ne 0) { throw "uninstaller exit code $($x.ExitCode)" }
+          if (Get-ItemProperty -Path $runKey -Name 'dofscroll' -ErrorAction SilentlyContinue) { throw 'autostart value still present after uninstall' }
+          if (Test-Path (Join-Path $dir 'dofscroll.exe')) { throw 'dofscroll.exe still present after uninstall' }
+          if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\dofscroll') { throw 'uninstall entry still present' }
+      - name: Scan packages for runner or staging paths
+        shell: bash
+        run: |
+          rm -rf "$RUNNER_TEMP/scan" && mkdir -p "$RUNNER_TEMP/scan"
+          for z in dist-installers/*.zip; do unzip -q "$z" -d "$RUNNER_TEMP/scan"; done
+          ws="$GITHUB_WORKSPACE"
+          sh scripts/scan-package-paths.sh "$RUNNER_TEMP/scan" \
+            "$ws" "${ws//\\//}" "_CPack_Packages" 'D:\a\' 'D:/a/' 'C:\Users\runneradmin' 'C:/Users/runneradmin'
+      - name: List the result
+        shell: bash
+        run: |
+          ls -l dist-installers/*.exe dist-installers/*.zip
+          for z in dist-installers/*.zip; do unzip -l "$z" | tail -n 15; done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: installers-windows
+          path: |
+            dist-installers/*-setup.exe
+            dist-installers/*-portable.zip
+          if-no-files-found: error
+
+  package-macos:
+    name: macOS DMG
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Qt6 (aqtinstall, pinned version)
+        id: qt
+        continue-on-error: true   # without Qt the daemon-only package is built (name ends in -daemon-only)
+        uses: jurplel/install-qt-action@d325aaf2a8baeeda41ad0b5d39f84a6af9bcf005  # v4.3.0
+        with:
+          version: "6.9.3"  # 6.8.x links the AGL framework, which the macOS 15 SDK dropped
+          cache: true
+      - name: Configure
+        env:
+          WITH_UI: ${{ steps.qt.outcome == 'success' && 'ON' || 'OFF' }}
+        run: |
+          if [ "$WITH_UI" = OFF ]; then echo "::warning::Qt is not available: building the daemon-only package"; fi
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DDOFSCROLL_UI="$WITH_UI"
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Package
+        run: |
+          if [ -n "${QT_ROOT_DIR:-}" ]; then export PATH="$QT_ROOT_DIR/bin:$PATH"; fi
+          sh packaging/macos/build-dmg.sh --build build --out dist-installers
+      - name: Test the image (mount, verify signature, run)
+        run: |
+          set -eu
+          mnt="$RUNNER_TEMP/dmg-mnt"
+          mkdir -p "$mnt"
+          hdiutil attach -nobrowse -readonly -mountpoint "$mnt" dist-installers/*.dmg
+          trap 'hdiutil detach "$mnt" -force >/dev/null || true' EXIT
+          ls -l "$mnt"
+          if [ -d "$mnt/dofscroll.app" ]; then
+            codesign --verify --deep --strict "$mnt/dofscroll.app"
+            plutil -p "$mnt/dofscroll.app/Contents/Info.plist"
+            d="$mnt/dofscroll.app/Contents/Resources/daemon/dofscroll"
+          else
+            d="$mnt/dofscroll/dofscroll"
+          fi
+          "$d" --version
+          if [ -d "$mnt/dofscroll.app" ]; then
+            # the frameworks must come from the bundle, not from the runner's Qt
+            env -u QT_ROOT_DIR -u DYLD_FRAMEWORK_PATH QT_QPA_PLATFORM=offscreen \
+              "$mnt/dofscroll.app/Contents/MacOS/dofscroll-ui" --self-test
+          fi
+          rm -rf "$RUNNER_TEMP/scan" && mkdir -p "$RUNNER_TEMP/scan"
+          cp -R "$mnt/." "$RUNNER_TEMP/scan/"
+          sh scripts/scan-package-paths.sh "$RUNNER_TEMP/scan" \
+            "$GITHUB_WORKSPACE" "_CPack_Packages" "/Users/runner" "/Volumes/dofscroll"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: installers-macos
+          path: dist-installers/*.dmg
+          if-no-files-found: error

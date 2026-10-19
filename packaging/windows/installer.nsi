@@ -1,0 +1,125 @@
+; SPDX-License-Identifier: GPL-3.0-or-later
+; SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+;
+; Per-user installer (NSIS 3, no administrator rights). Built by packaging/windows/build-installer.ps1:
+;   makensis /DVERSION=0.1.0 /DSTAGE=<staged folder> /DOUTFILE=<setup.exe> [/DHAS_UI] [/DAPP_ICO=<ico>] installer.nsi
+; Silent use:  setup.exe /S [/AUTOSTART=1] [/D=C:\target\folder]   (the /D= argument must come last)
+; Uninstall:   <install dir>\uninstall.exe  (also from Settings > Apps); it removes the autostart value.
+Unicode true
+ManifestDPIAware true
+RequestExecutionLevel user
+SetCompressor /SOLID lzma
+
+!ifndef VERSION
+  !error "VERSION is not defined"
+!endif
+!ifndef STAGE
+  !error "STAGE is not defined"
+!endif
+!ifndef OUTFILE
+  !error "OUTFILE is not defined"
+!endif
+
+!define APP "dofscroll"
+!define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}"
+; Same Run value as packaging/windows/install-autostart.ps1 (value name "dofscroll").
+!define RUN_KEY "Software\Microsoft\Windows\CurrentVersion\Run"
+!define RUN_NAME "dofscroll"
+
+!include "MUI2.nsh"
+!include "FileFunc.nsh"
+!include "Sections.nsh"
+
+Name "dofscroll ${VERSION}"
+OutFile "${OUTFILE}"
+InstallDir "$LOCALAPPDATA\Programs\${APP}"
+InstallDirRegKey HKCU "${UNINST_KEY}" "InstallLocation"
+BrandingText "dofscroll ${VERSION} (unsigned)"
+VIProductVersion "${VERSION}.0"
+VIAddVersionKey "ProductName" "dofscroll"
+VIAddVersionKey "FileDescription" "dofscroll installer (per user)"
+VIAddVersionKey "FileVersion" "${VERSION}"
+VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
+
+!ifdef APP_ICO
+  !define MUI_ICON "${APP_ICO}"
+  !define MUI_UNICON "${APP_ICO}"
+!endif
+!define MUI_ABORTWARNING
+!define MUI_FINISHPAGE_RUN "$INSTDIR\dofscroll.exe"
+!define MUI_FINISHPAGE_RUN_TEXT "Start the dofscroll daemon now"
+
+!insertmacro MUI_PAGE_LICENSE "${STAGE}\LICENSE"
+!insertmacro MUI_PAGE_COMPONENTS
+!insertmacro MUI_PAGE_DIRECTORY
+!insertmacro MUI_PAGE_INSTFILES
+!insertmacro MUI_PAGE_FINISH
+!insertmacro MUI_UNPAGE_CONFIRM
+!insertmacro MUI_UNPAGE_INSTFILES
+!insertmacro MUI_LANGUAGE "English"
+
+Function .onInit
+  ; Silent installs: /AUTOSTART=1 selects the autostart section (default: off).
+  ${GetParameters} $0
+  ${GetOptions} $0 "/AUTOSTART=" $1
+  ${If} $1 == "1"
+    !insertmacro SelectSection ${SecAutostart}
+  ${EndIf}
+FunctionEnd
+
+Section "dofscroll (required)" SecMain
+  SectionIn RO
+  ; Stop a running daemon of this install (an update replaces dofscroll.exe).
+  IfFileExists "$INSTDIR\scripts\stop-daemon.ps1" 0 +2
+    nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\scripts\stop-daemon.ps1" -ExePath "$INSTDIR\dofscroll.exe"'
+  SetOutPath "$INSTDIR"
+  File /r "${STAGE}\*.*"
+  WriteUninstaller "$INSTDIR\uninstall.exe"
+
+  WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "dofscroll"
+  WriteRegStr HKCU "${UNINST_KEY}" "DisplayVersion" "${VERSION}"
+  WriteRegStr HKCU "${UNINST_KEY}" "Publisher" "Lukas Hois-Zelinka"
+  WriteRegStr HKCU "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
+  WriteRegStr HKCU "${UNINST_KEY}" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegStr HKCU "${UNINST_KEY}" "QuietUninstallString" '"$INSTDIR\uninstall.exe" /S'
+  WriteRegStr HKCU "${UNINST_KEY}" "URLInfoAbout" "https://github.com/HoZe-Lukas/dofScroll"
+  WriteRegDWORD HKCU "${UNINST_KEY}" "NoModify" 1
+  WriteRegDWORD HKCU "${UNINST_KEY}" "NoRepair" 1
+SectionEnd
+
+Section "Start menu shortcuts" SecMenu
+  CreateDirectory "$SMPROGRAMS\dofscroll"
+!ifdef HAS_UI
+  CreateShortCut "$SMPROGRAMS\dofscroll\dofscroll.lnk" "$INSTDIR\dofscroll-ui.exe" "" "$INSTDIR\dofscroll-ui.exe" 0
+!else
+  CreateShortCut "$SMPROGRAMS\dofscroll\dofscroll.lnk" "$INSTDIR\dofscroll.exe" "" "$INSTDIR\dofscroll.exe" 0
+!endif
+  CreateShortCut "$SMPROGRAMS\dofscroll\Uninstall dofscroll.lnk" "$INSTDIR\uninstall.exe"
+SectionEnd
+
+Section /o "Start the daemon at logon" SecAutostart
+  WriteRegStr HKCU "${RUN_KEY}" "${RUN_NAME}" '"$INSTDIR\dofscroll.exe"'
+SectionEnd
+
+LangString DESC_Main ${LANG_ENGLISH} "The daemon, the user interface, devices, examples and licenses."
+LangString DESC_Menu ${LANG_ENGLISH} "Start menu folder with the program and an uninstall entry."
+LangString DESC_Auto ${LANG_ENGLISH} "Start dofscroll.exe at every logon of the current user (Run key value dofscroll)."
+!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_Main)
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecMenu} $(DESC_Menu)
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecAutostart} $(DESC_Auto)
+!insertmacro MUI_FUNCTION_DESCRIPTION_END
+
+Section "Uninstall"
+  IfFileExists "$INSTDIR\scripts\stop-daemon.ps1" 0 +2
+    nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\scripts\stop-daemon.ps1" -ExePath "$INSTDIR\dofscroll.exe"'
+  ; autostart: the Run value (and a Startup shortcut of the autostart script, if any)
+  DeleteRegValue HKCU "${RUN_KEY}" "${RUN_NAME}"
+  Delete "$SMSTARTUP\${RUN_NAME}.lnk"
+  Delete "$SMPROGRAMS\dofscroll\dofscroll.lnk"
+  Delete "$SMPROGRAMS\dofscroll\Uninstall dofscroll.lnk"
+  RMDir "$SMPROGRAMS\dofscroll"
+  DeleteRegKey HKCU "${UNINST_KEY}"
+  ; the program folder only; the user's configuration in %APPDATA%\dofscroll stays
+  RMDir /r "$INSTDIR"
+SectionEnd

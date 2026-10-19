@@ -34,7 +34,13 @@ version `0.1.0`. Replace the version with the one you download.
 | `dofscroll-0.1.0-Linux.tar.gz` | TGZ archive, checked. Any Linux, install by hand. |
 | `dofscroll-0.1.0-1.x86_64.rpm` | RPM for the RHEL family (built on Rocky Linux 9). Name pattern from CPack `RPM-DEFAULT`, unverified. |
 | `dofscroll_0.1.0_amd64.deb` | DEB for the Debian family (built on Debian 12). Name pattern from CPack `DEB-DEFAULT`, unverified. |
+| `dofscroll-0.1.0-windows-x64-setup.exe` | Windows per-user installer (unsigned), see section 5. |
+| `dofscroll-0.1.0-windows-x64-portable.zip` | Windows portable folder, no installer. |
+| `dofscroll-0.1.0-macos-arm64.dmg` | macOS disk image for Apple silicon (ad-hoc signed, not notarized), see section 5. |
 | `SHA256SUMS.txt` | SHA-256 checksums of all other assets. |
+
+If Qt was not available when a Windows or macOS package was built, its name contains
+`-daemon-only` and it has no settings window.
 
 ### Verify the download
 
@@ -272,34 +278,48 @@ checks that the window can be created.
 
 ## 5. Windows and macOS
 
-The Windows and macOS ports are in development and there is no installer yet. Nothing else in this
-guide applies to them. The plan and the state of each work package are in
-[work-plan.md](work-plan.md).
+The Windows and macOS ports are experimental: they have **not been tested with a real SpaceMouse**
+by the maintainer, and the packages are **unsigned**. The plan and the state of each work package
+are in [work-plan.md](work-plan.md); how the packages are built is in
+[release-process.md](release-process.md).
 
-### Windows (experimental)
+### Windows installer and ZIP
 
-Only for testers: the Windows daemon is built by CI (MSVC and MinGW-w64 jobs of
-`.github/workflows/ports.yml`) and uploaded as the artifact `dofscroll-windows-*` (`dofscroll.exe`,
-`devices\`, `examples\`, `packaging-windows\`). It has **not been tested with a real SpaceMouse**;
-[port-windows-checklist.md](port-windows-checklist.md) lists what a tester has to verify.
-
-1. Unpack the artifact into a folder, keep `dofscroll.exe`, `devices\` and `examples\` together.
-2. Start `dofscroll.exe` (no console window). Config is read from `%APPDATA%\dofscroll\dofscroll.conf`
-   (same format as on Linux), logs are in `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
-3. Optional autostart for the current user, no administrator rights:
-   `powershell -ExecutionPolicy Bypass -File packaging-windows\install-autostart.ps1 -ExePath <full path to dofscroll.exe>`;
-   remove it with `uninstall-autostart.ps1`.
-4. If the 3Dconnexion driver is installed, disable its per-application navigation for the programs
+1. Download `dofscroll-<version>-windows-x64-setup.exe` (or the `-portable.zip`) and verify it as
+   in section 1.
+2. Run the installer. Because it is not code-signed, Windows SmartScreen shows "Windows protected
+   your PC": click **More info**, then **Run anyway**. No administrator rights are needed; the
+   default folder is `%LOCALAPPDATA%\Programs\dofscroll`.
+3. The components page has **Start the daemon at logon** (off by default; Run key value `dofscroll`
+   of the current user). The Start menu folder `dofscroll` opens the settings window
+   (`dofscroll-ui.exe`); `dofscroll.exe` is the daemon (no window).
+4. Config is read from `%APPDATA%\dofscroll\dofscroll.conf`, logs are in
+   `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
+5. If the 3Dconnexion driver is installed, disable its per-application navigation for the programs
    you test, otherwise scrolling is doubled ([port-windows.md](port-windows.md)).
 
-There is no tray program on Windows yet (package W3). Details and limits: [port-windows.md](port-windows.md).
+**Uninstall:** Settings > Apps > dofscroll, or the Start menu entry "Uninstall dofscroll". It stops
+the daemon and removes the program folder, the Start menu entries and the autostart value; your
+configuration in `%APPDATA%\dofscroll` stays. Silent install: `setup.exe /S /AUTOSTART=1`.
+The ZIP needs no installation: unpack it, start `dofscroll.exe`, and use
+`scripts\install-autostart.ps1` if you want autostart.
 
-### macOS (experimental)
+[port-windows-checklist.md](port-windows-checklist.md) lists what a tester has to verify.
 
-Build from source (`cmake -S . -B build && cmake --build build -j4`, Xcode command line tools and
-CMake), then install the per-user LaunchAgent with
-`sh packaging/macos/install-launchagent.sh --daemon "$PWD/build/dofscroll"`. You must grant the
-binary **Input Monitoring** and **Accessibility** in System Settings > Privacy & Security. There
-is no signed or notarized package, no tray and no settings window yet. It has not been tested with
-a real SpaceMouse; see [port-macos.md](port-macos.md) and
-[packaging/macos/README.md](../packaging/macos/README.md).
+### macOS image
+
+1. Download `dofscroll-<version>-macos-arm64.dmg` (Apple silicon), verify it, open it and drag
+   `dofscroll.app` to Applications. `README-first-run.txt` in the image repeats the steps below.
+2. The app is not signed with a Developer ID and not notarized (ad-hoc signature only), so
+   Gatekeeper blocks the first start. Right-click the app > **Open** > **Open**; on macOS 15 and
+   later use System Settings > Privacy & Security > **Open Anyway**. Alternatively:
+   `xattr -dr com.apple.quarantine /Applications/dofscroll.app`.
+3. In System Settings > Privacy & Security grant **Input Monitoring** and **Accessibility** to
+   `/Applications/dofscroll.app/Contents/Resources/daemon/dofscroll`, then restart the daemon.
+4. Autostart (per-user LaunchAgent, no sudo):
+   `sh /Applications/dofscroll.app/Contents/Resources/launchagent/install-launchagent.sh --daemon /Applications/dofscroll.app/Contents/Resources/daemon/dofscroll`
+5. **Uninstall:** run `.../launchagent/uninstall-launchagent.sh`, then move the app to the Trash.
+   Configuration in `~/Library/Application Support/dofscroll` stays.
+
+See [port-macos.md](port-macos.md) and [packaging/macos/README.md](../packaging/macos/README.md).
+Building from source on either system: `cmake -S . -B build && cmake --build build`.
