@@ -787,9 +787,12 @@ These findings of the [October 2026 review](security-review-2026-10.md) stay ope
 Nothing here is hidden by the rest of this document; the review has the details.
 
 - **Stuck keys after SIGKILL (F4).** Under X11, keys held through XTest (Ctrl while zooming) are not
-  released when the daemon is killed or crashes, and there is no watchdog for a stalled tick thread.
-  `ExecStopPost=--release-keys` covers a stop under systemd; outside systemd, or if Ctrl stays down,
-  run `dofscroll --release-keys` by hand. With the uinput backend the kernel releases the keys.
+  released when the daemon is killed or crashes, and a stalled tick thread cannot release anything.
+  While the daemon runs, a safety net releases every key and mouse button it holds after 250 ms
+  without any deflected axis or held button, and the stale-input watchdog ends axis output 250 ms
+  after the last device event. `ExecStopPost=--release-keys` covers a stop under systemd; outside
+  systemd, or if Ctrl stays down, use the tray item "Release all keys" or run
+  `dofscroll --release-keys` by hand. With the uinput backend the kernel releases the keys.
 - **File permissions (F8).** Neither loader rejects group- or world-writable config or mode files, and
   the config loader does not compare the owner. Keep `~/.config/dofscroll` private (`0700`).
 - **Runtime directory (F10).** The daemon unit may write the whole of `$XDG_RUNTIME_DIR`

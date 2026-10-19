@@ -31,6 +31,17 @@ namespace spn {
 
 int64_t steadyNowNs();
 
+// Safety net against stuck keys (see docs/troubleshooting.md, "A key or scrolling gets stuck"):
+// if no axis has been outside its dead zone and no button has been held for this long, the core
+// releases everything the output holds (keys, mouse buttons) and clears the output's own
+// bookkeeping. It never fires during a held button (click-and-hold, a key bound to a button)
+// or while an axis is deflected, so normal behavior is unchanged. A held button is deliberately
+// not bounded: there is no way to tell it from a legitimate hold; use "Release all keys" in the
+// tray or `dofscroll --release-keys` for that case.
+constexpr int64_t SAFETY_QUIET_NS = 250'000'000;  // 250 ms
+// The "safety release" log line is written at most once per this interval.
+constexpr int64_t SAFETY_LOG_INTERVAL_NS = 10'000'000'000;  // 10 s
+
 // Everything the core needs from the outside. Pointers must outlive the core.
 struct DaemonDeps {
     InputSource *input = nullptr;
@@ -154,6 +165,9 @@ private:
     bool suspended_ = false, prev_enabled_ = true, prev_idle_ = false;
     uint64_t seen_generation_ = 0;
     int devices_seen_ = 0;
+    int64_t quiet_since_ = 0, last_safety_log_ = 0;
+    bool safety_done_ = true;  // the net already ran for the current quiet period
+    bool safety_logged_ = false;
     std::string hint_key_;  // multi-device hint: once per change
     std::chrono::steady_clock::duration tick_period_;
 
@@ -169,6 +183,7 @@ private:
     void applyProfile(bool modes_changed);
     void checkButtons();
     void switchMode(const std::string &target);
+    void safetyNet(int64_t now_ns, uint32_t buttons);
 };
 
 }  // namespace spn
