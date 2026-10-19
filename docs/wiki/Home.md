@@ -6,7 +6,7 @@ dofscroll turns a 6DoF 3D mouse such as the 3Dconnexion SpaceMouse into smooth s
 
 dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [Buttons](Buttons).
 
-**Status: pre-release (0.1 candidates).** Only one setup has been verified on real hardware. Everything else is built and unit-tested in CI but has not been run on a device.
+**Status: pre-release (0.1.0-beta.1).** Only one setup has been verified on real hardware. Everything else is built and unit-tested in CI but has not been run on a device.
 
 ## Tested on
 
@@ -15,8 +15,8 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 | RHEL 9, X11, KDE Plasma | **Tested** with SpaceMouse Pro and SpaceMouse Compact |
 | Other Linux distributions (Debian, Ubuntu, Fedora, ...) | Not tested; RPM, DEB and TGZ are built by CI but not installed and run there |
 | Linux, Wayland | Not tested (uinput backend, opt-in udev rule) |
-| Windows | Implemented and CI-built; **not run on hardware**; no installer, no tray |
-| macOS | Implemented and CI-built; **not run on hardware**; no installer, no tray |
+| Windows | Daemon, Qt interface and unsigned installer/ZIP built by CI; **not run on hardware** |
+| macOS | Daemon, Qt interface and unsigned, not notarized DMG built by CI; **not run on hardware** |
 | SpaceMouse Wireless, Pro Wireless, Enterprise, SpaceNavigator | Not tested |
 
 ## Programs
@@ -24,9 +24,8 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 | Program | Task |
 |---|---|
 | `dofscroll` | Background daemon: reads the device, produces the input events |
-| `dofscroll-tray` | Linux GTK tray icon with a settings window; writes the same config file and tells the daemon to reload (optional) |
-
-A Qt6 interface for all three systems is planned, see [Roadmap](Roadmap).
+| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS, see [User interface](User-interface) (optional) |
+| `dofscroll-tray` | Linux GTK tray icon with a settings window, the fallback when the Qt interface is not installed (optional; use one of the two) |
 
 ## Where to start
 
@@ -36,7 +35,9 @@ A Qt6 interface for all three systems is planned, see [Roadmap](Roadmap).
 4. Something wrong: [Troubleshooting](Troubleshooting), [FAQ](FAQ)
 5. Contribute: [Development](Development), [Architecture](Architecture)
 
-Other pages: [Devices](Devices), [Security](Security), [Roadmap](Roadmap), [Release notes](Release-notes).
+Known limitations are listed in the [Release notes](Release-notes).
+
+Other pages: [User interface](User-interface), [Devices](Devices), [Security](Security), [Roadmap](Roadmap), [Release notes](Release-notes).
 
 ## Links
 

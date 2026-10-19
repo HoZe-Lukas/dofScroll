@@ -6,6 +6,19 @@ Design principle: dofscroll complements the vendor driver instead of duplicating
 
 Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
 
+## 0.1.0-beta.1 (pre-release, draft)
+
+Summary of everything on `main` since `v0.1.0-rc2`; the full draft is [docs/release-notes-0.1.0-beta.1.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-0.1.0-beta.1.md). **Tested on hardware only on:** RHEL 9, X11, KDE Plasma, SpaceMouse Pro and Compact. Windows and macOS are built by CI and were not run on hardware.
+
+- Qt6 interface `dofscroll-ui` (Channels, General, Axes, Modes, Profiles, running-program picker, tray), see [User interface](User-interface)
+- Start at login on Linux, Windows and macOS
+- Linux packages with the Qt interface (GTK fallback); unsigned Windows installer and ZIP, unsigned macOS DMG (SmartScreen and Gatekeeper notes in [Installation](Installation))
+- Stuck-key safety net and tray "Release all keys" (GTK tray)
+- Output pauses while the own session is not the active one
+- Documentation: dofscroll complements the vendor driver, UTF-8 policy
+
+Known limitations: see the draft notes and the [Roadmap](Roadmap).
+
 ## 0.1 candidates (pre-release)
 
 Tags `v0.1.0-rc1` and `v0.1.0-rc2`; the GitHub pre-release is `0.1.0-rc2`. **Not a stable release.** The summary below is derived from the git history up to `v0.1.0-rc2`. The current state of `main` is newer, see [Roadmap](Roadmap).
@@ -30,7 +43,7 @@ Changed:
 Fixed:
 - X11 key tap on held keys, device-add event, early SIGHUP handling, HID descriptor parsing
 
-## After 0.1.0-rc2 (on `main`, unreleased)
+## After 0.1.0-rc2 (detail, now part of 0.1.0-beta.1)
 
 - Design principle made explicit: dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. The shipped examples no longer bind always-the-same keys or clicks to buttons (the features stay; mode-specific bindings remain).
 
@@ -38,4 +51,3 @@ Fixed:
 - `dofscroll-hidprobe` diagnostic tool, see [Devices](Devices)
 - Security review and fixes: units rendered with the final prefix, opt-in udev rule, mode-file safety notes, load-time chord warnings, rejection of process-level overrides in mode files, log sanitizing, see [Security](Security)
 - Tray: edit mode files, create editable copies of built-in modes, "Start at login" checkbox
-- Qt6 interface skeleton and running-program picker model

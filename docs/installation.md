@@ -298,18 +298,18 @@ Other targets: `check-fast` (-Werror build and tests), `check` (adds sanitizers,
 hardening check), `check-config` (validates the example configs), `lint`, `install-udev`,
 `uninstall` (uses `install_manifest.txt`).
 
-### Qt interface (experimental)
+### Qt interface
 
-An optional Qt6 interface (`dofscroll-ui`, skeleton only) is built when Qt6 Widgets is found
-(CMake option `DOFSCROLL_UI`). Linux: install the distribution's Qt6 development packages
+The Qt6 interface (`dofscroll-ui`, see [ui.md](ui.md)) is built when Qt6 Widgets is found (CMake
+option `DOFSCROLL_UI`). Linux: install the distribution's Qt6 development packages
 (Debian family: `qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev`). Windows and macOS builds
-bundle the Qt libraries. Details and decisions: `docs/ui-options.md`. `dofscroll-ui --self-test`
-checks that the window can be created.
+bundle the Qt libraries. Decisions: `docs/ui-options.md`. `dofscroll-ui --self-test` checks that
+the window can be created.
 
 ## 5. Windows and macOS
 
 The Windows and macOS ports are experimental: they have **not been tested with a real SpaceMouse**
-by the maintainer, and the packages are **unsigned**. The plan and the state of each work package
+by the maintainer (CI builds only), and the packages are **unsigned**. The plan and the state of each work package
 are in [work-plan.md](work-plan.md); how the packages are built is in
 [release-process.md](release-process.md).
 
