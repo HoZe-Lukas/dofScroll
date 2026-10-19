@@ -3,12 +3,11 @@
 #
 # Installation: scripts/install-hooks.sh (links .git/hooks/pre-commit to this file).
 # Flow:
-#   1. Simple secret scan over the STAGED changes (git diff --cached,
-#      added lines only): private keys, GitLab/GitHub/Slack tokens,
+#   1. scripts/secret-scan.sh over the STAGED changes (added lines only): private keys, GitLab/GitHub/Slack tokens,
 #      AWS keys, JWTs, password/secret/token/api_key with '=' or ':' (also JSON)
 #      -> abort. Additionally gitleaks, if installed.
-#   2. "make check-fast" if the Makefile target exists, otherwise "make test".
-#      Note: make checks the working tree, not exactly the index - unstaged
+#   2. CMake target check-fast (-Werror build + tests).
+#      Note: this checks the working tree, not exactly the index - unstaged
 #      changes are therefore included.
 # Bypass (deliberately only!): git commit --no-verify
 #
@@ -24,28 +23,13 @@ top=$(git rev-parse --show-toplevel 2>/dev/null) || {
 cd "$top" || exit 1
 
 # ------------------------------------------------------------ 1. Secret scan
-# Added lines only. File headers are recognized by state (the header ends at the
-# first '@@'), NOT by the line prefix: an added line with the content '++ x'
-# appears as '+++ x' and must not be skipped as a header.
-# --no-prefix: file name without 'a/'/'b/'.
-added=$(git diff --cached --no-color --no-ext-diff --no-prefix -U0 --diff-filter=ACMR 2>/dev/null |
-  awk '
-    /^diff --git /      { hdr = 1; next }
-    hdr && /^\+\+\+ /   { f = substr($0, 5); next }
-    /^@@/               { hdr = 0; next }
-    !hdr && /^\+/       { print f ":" substr($0, 2) }
-  ')
-
-hits=""
-check() {
-  # $1 = description, $2 = grep -E pattern, $3 = optional grep flags (e.g. -i)
-  m=$(printf '%s\n' "$added" | grep -E ${3:-} -- "$2" | cut -c1-160)
-  if [ -n "$m" ]; then
-    hits="${hits}
---- $1:
-$m"
-  fi
-}
+if ! sh scripts/secret-scan.sh --cached; then
+  echo "" >&2
+  echo "pre-commit: ABORT - possible secrets in the staged changes." >&2
+  echo "Please remove them (git restore --staged <file> or clean up the file)." >&2
+  echo "If it is certainly a false positive: deliberately bypass with 'git commit --no-verify'." >&2
+  exit 1
+fi
 
 if command -v gitleaks >/dev/null 2>&1; then
   # gitleaks present: more thorough scan of the staged changes (v8.19+: 'git --staged',
@@ -54,58 +38,33 @@ if command -v gitleaks >/dev/null 2>&1; then
   else
     rc=$?
     case $rc in
-      1) hits="${hits}
---- gitleaks: finding (details: gitleaks git --staged -v)" ;;
+      1) echo "pre-commit: ABORT - gitleaks finding (details: gitleaks git --staged -v)" >&2; exit 1 ;;
       *) gitleaks protect --staged --no-banner --redact >/dev/null 2>&1 || {
-           [ $? -eq 1 ] && hits="${hits}
---- gitleaks: finding (details: gitleaks protect --staged -v)"; } ;;
+           [ $? -eq 1 ] && { echo "pre-commit: ABORT - gitleaks finding (details: gitleaks protect --staged -v)" >&2; exit 1; }; } ;;
     esac
   fi
 fi
 
-if [ -n "$added" ]; then
-  # Keywords split in expressions like [Y]/[d]/[t] so that this script does not match itself.
-  check "Private key"   '-----BEGIN ([A-Z0-9]+ )*PRIVATE KE[Y]'
-  check "GitLab token (glpat)"  'glpa[t]-[A-Za-z0-9_-]{20,}'
-  check "GitHub token (ghp_)"   'gh[pousr]_[A-Za-z0-9]{30,}'
-  check "Slack token"           'xo[x][baprs]-[A-Za-z0-9-]{10,}'
-  check "AWS access key"        '(AKI[A]|ASI[A])[0-9A-Z]{16}'
-  check "JWT"                   'eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+'
-  # Assignment with '=' or ':' (also JSON "key": "value"); placeholders/variables excluded
-  check "Secret assignment"   '(passwor[d]|passw[d]|secre[t]|toke[n]|api[_-]?ke[y])["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9/+_.~-]{8,}' -i
-fi
-
-if [ -n "$hits" ]; then
-  echo "pre-commit: ABORT - possible secrets in the staged changes:" >&2
-  printf '%s\n' "$hits" >&2
-  echo "" >&2
-  echo "Please remove them (git restore --staged <file> or clean up the file)." >&2
-  echo "If it is certainly a false positive: deliberately bypass with 'git commit --no-verify'." >&2
-  exit 1
-fi
-
 # ------------------------------------------------------------ 2. Build/tests
-if [ ! -f Makefile ]; then
-  echo "pre-commit: no Makefile in the repo root - checks skipped" >&2
+if [ ! -f CMakeLists.txt ]; then
+  echo "pre-commit: no CMakeLists.txt in the repo root - checks skipped" >&2
   exit 0
 fi
-if ! command -v make >/dev/null 2>&1; then
-  echo "pre-commit: 'make' not found - abort (bypass: git commit --no-verify)" >&2
+cmake=$(command -v cmake || true)
+if [ -z "$cmake" ] && [ -x "$HOME/.local/bin/cmake" ]; then cmake="$HOME/.local/bin/cmake"; fi
+if [ -z "$cmake" ]; then
+  echo "pre-commit: 'cmake' not found (pip install --user cmake) - abort (bypass: git commit --no-verify)" >&2
   exit 1
 fi
 
-# Target detection without executing anything: 'make -qp' only prints the database
-# (make -n would still execute recipe lines containing $(MAKE)).
-if make -qp 2>/dev/null | grep -q '^check-fast:'; then
-  target=check-fast
-else
-  target=test
-fi
-
-echo "pre-commit: make $target ..."
-if ! make --no-print-directory "$target"; then
+# check-fast builds with -Werror in <build>/check-werror and runs all tests; the
+# build directory itself only hosts the target.
+bdir=build-hook
+echo "pre-commit: cmake check-fast ..."
+if ! "$cmake" -S . -B "$bdir" >/dev/null || \
+   ! "$cmake" --build "$bdir" --target check-fast; then
   echo "" >&2
-  echo "pre-commit: ABORT - 'make $target' failed." >&2
+  echo "pre-commit: ABORT - 'check-fast' failed." >&2
   echo "Fix the error or (deliberately only) 'git commit --no-verify'." >&2
   exit 1
 fi

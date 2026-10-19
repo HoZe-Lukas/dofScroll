@@ -11,25 +11,26 @@ rest of the project.
 ## Build
 
 Dependencies (RHEL 9 + EPEL, see `readme.md` section 5 for the exact command): `gcc-c++`,
-`make`, `spacenavd`, `libspnav-devel`, `libX11-devel`, `libXtst-devel`, `gtk3-devel`,
-`libappindicator-gtk3-devel` (plus `cmake` and `gettext`).
+`spacenavd`, `libspnav-devel`, `libX11-devel`, `libXtst-devel`, `gtk3-devel`,
+`libappindicator-gtk3-devel` (plus `cmake` 3.16+ and `gettext`). If your system has no
+suitable `cmake`: `pip install --user cmake` (installs to `~/.local/bin`).
 
-    make check-deps
-    make -j4                              # Makefile build, binaries in the repo root
-    cmake -S . -B build && cmake --build build -j4   # CMake build
+    cmake -S . -B build
+    cmake --build build --target check-deps
+    cmake --build build -j4               # binaries in build/
 
 ## Test
 
-    make test          # unit and scenario tests (tests/test_*.cpp, plain assert)
-    make check-fast    # quick gate (also run by the pre-commit hook)
-    make check         # full gate: -Werror, tests, ASAN/UBSAN, cppcheck, hardening
+    ctest --test-dir build --output-on-failure   # unit and scenario tests (tests/test_*.cpp, plain assert)
+    cmake --build build --target check-fast      # quick gate (also run by the pre-commit hook)
+    cmake --build build --target check           # full gate: -Werror, tests, ASAN/UBSAN, cppcheck, hardening
 
 Install the pre-commit hook once with `scripts/install-hooks.sh`. Behavior that depends on real
 SpaceMouse hardware, a live X11 session or `spacenavd` cannot be covered by the tests; say in
 your change description what you verified and what you could not.
 
-New logic should be a small, pure, testable function with a unit test in `tests/` (the Makefile
-picks up `tests/test_*.cpp` automatically).
+New logic should be a small, pure, testable function with a unit test in `tests/` (CMake
+picks up `tests/test_*.cpp` automatically; re-run cmake after adding one).
 
 ## Style
 
@@ -61,7 +62,7 @@ Modes are declarative files, no recompiling needed (format and limits: `readme.m
 2. Use `NAME`, `DESCRIPTION`, `V_ACTION`/`H_ACTION`/`TWIST_ACTION`, `BUTTON_<n>` and any settings
    key as an override. Button indices must be below the factory button count of the device.
 3. Select it with `MODE = <name>` in `[global]`, `[device:*]` or `[app:*]`.
-4. Example modes are validated by `make check-config`/CI; run `make check` before sending it.
+4. Example modes are validated by `--target check-config`/CI; run `--target check` before sending it.
    Keep SPDX headers on shipped files.
 
 ## Adding a language

@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+# Script mode: cmake -DMANIFEST=<build>/install_manifest.txt -P cmake/Uninstall.cmake
+# Removes the files recorded by the last `cmake --install` (honors the DESTDIR environment variable).
+if(NOT EXISTS "${MANIFEST}")
+  message(FATAL_ERROR "${MANIFEST} not found: run `cmake --install` first")
+endif()
+file(STRINGS "${MANIFEST}" files)
+foreach(f ${files})
+  set(f "$ENV{DESTDIR}${f}")
+  if(EXISTS "${f}" OR IS_SYMLINK "${f}")
+    message("-- Removing ${f}")
+    file(REMOVE "${f}")
+    get_filename_component(d "${f}" DIRECTORY)
+    # drop now-empty dofscroll directories (never anything else)
+    while(d MATCHES "dofscroll" AND IS_DIRECTORY "${d}")
+      file(GLOB rest "${d}/*")
+      if(rest)
+        break()
+      endif()
+      file(REMOVE_RECURSE "${d}")
+      get_filename_component(d "${d}" DIRECTORY)
+    endwhile()
+  endif()
+endforeach()

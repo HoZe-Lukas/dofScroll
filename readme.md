@@ -193,7 +193,7 @@ The pattern (`WM_CLASS` substring) is shown in the tray menu under "Program:".
 
 **Switching devices:** there is nothing to switch – the daemon picks the `[device:*]` profile from the device name reported by `spacenavd` (substring, case-insensitive). Plugging in the Compact is enough; the profile switch is logged (`journalctl --user -u dofscroll.service -f`), which also shows the actual device name. Re-learning is not needed as long as the axis mixes are right; otherwise run the wizard under "Axes" in the tray with the Compact profile.
 
-**Example files** (`examples/`, all validated by `make check-config` and CI; to use one, copy it to `~/.config/dofscroll/dofscroll.conf`, after `mkdir -p ~/.config/dofscroll`):
+**Example files** (`examples/`, all validated by `cmake --build build --target check-config` and CI; to use one, copy it to `~/.config/dofscroll/dofscroll.conf`, after `mkdir -p ~/.config/dofscroll`):
 
 | File | Content |
 |---|---|
@@ -268,27 +268,19 @@ Required packages (RHEL 9 + EPEL):
         libX11-devel libXtst-devel \
         gtk3-devel libappindicator-gtk3-devel gettext
 
-(`cmake` is only needed for the CMake build, `gettext` for the translations.)
+(`gettext` is only needed for the translations. If your distribution has no suitable `cmake` (3.16+), `pip install --user cmake` works.)
 
-Two equivalent build systems exist; both produce `dofscroll` and `dofscroll-tray` with the same hardening flags.
-
-**Makefile** (binaries land in the repo root):
-
-    make check-deps   # checks dependencies, prints the dnf command if needed
-    make -j4          # both binaries
-    make daemon       # daemon only (no GTK)
-    make test         # unit and scenario tests
-    make check        # full quality gate (section 8)
-    make clean
-
-Further targets: `install`/`uninstall` (PREFIX, DESTDIR), `install-udev` (uinput rule, see `packaging/README-uinput.md`), `install-user-links` (only prints the symlink commands from section 6).
-
-**CMake** (`CMakeLists.txt`):
+The build is CMake only; `dofscroll` and `dofscroll-tray` are built hardened and land in `build/`:
 
     cmake -S . -B build
-    cmake --build build -j4
+    cmake --build build --target check-deps   # checks dependencies, prints the dnf/apt line if needed
+    cmake --build build -j4                   # both binaries
+    ctest --test-dir build --output-on-failure   # unit and scenario tests
+    cmake --build build --target check        # full quality gate (section 8)
 
-See `CMakeLists.txt` for the available targets and options. CI: a GitHub Actions workflow is planned (image `rockylinux:9`, jobs `build` and `test`).
+Options (`-D...` at configure time): `DOFSCROLL_TRAY=OFF` (daemon only, no GTK), `DOFSCROLL_HARDEN`, `DOFSCROLL_SANITIZE`, `DOFSCROLL_WERROR`, `DOFSCROLL_REQUIRE_ASAN`. Build only the daemon: `cmake --build build --target dofscroll`. Validate a single config: `build/tests/check_config FILE`. Clean: `rm -rf build`.
+
+Further targets: `cmake --install build --prefix /usr/local` / `--target uninstall` (DESTDIR honored), `install-udev` (uinput rule, see `packaging/README-uinput.md`), `install-user-links` (only prints the symlink commands from section 6), `lint` (cppcheck), `check-fast`. Linux packages (RPM/DEB/TGZ): `cpack --config build/CPackConfig.cmake`. CI: `.github/workflows/ci.yml`.
 
 ---
 
@@ -298,8 +290,8 @@ Basic principle: **nothing is copied to `/usr/local` or `~/.config/systemd/user`
 
 `/usr/local/bin` and `/usr/local/share` belong to root – hence `sudo`:
 
-    sudo ln -s "$(pwd)/dofscroll" /usr/local/bin/dofscroll
-    sudo ln -s "$(pwd)/dofscroll-tray" /usr/local/bin/dofscroll-tray
+    sudo ln -s "$(pwd)/build/dofscroll" /usr/local/bin/dofscroll
+    sudo ln -s "$(pwd)/build/dofscroll-tray" /usr/local/bin/dofscroll-tray
     sudo mkdir -p /usr/local/share/dofscroll-tray/icons
     sudo ln -s "$(pwd)/icons/dofscroll-tray.svg" /usr/local/share/dofscroll-tray/icons/dofscroll-tray.svg
 
@@ -324,7 +316,7 @@ The config file `~/.config/dofscroll/dofscroll.conf` is created on the first sta
 **Updating after a code change:** thanks to the symlinks a rebuild in the repo directory is enough – no new `cp`/`ln` needed. The running process keeps the binary open (`Text file busy`), so stop before rebuilding:
 
     systemctl --user stop dofscroll.service dofscroll-tray.service
-    make -j4
+    cmake --build build -j4
     systemctl --user start dofscroll.service dofscroll-tray.service
 
 ---
@@ -360,10 +352,10 @@ Checklist for a fresh RHEL 9 system (or a reinstall):
 
 ## 8. Quality and security ("quality gate")
 
-- `make check` is the central gate (local, no root needed): `-Werror` build, unit/scenario tests, sanitizers (ASAN/UBSAN, skipped locally if libasan is missing), `cppcheck`, validation of the example configs, hardened build and hardening check (`scripts/check-hardening.sh`: PIE, full RELRO, NX, stack protector, FORTIFY). `make check-fast` is the quick variant (~4 s).
-- All binaries are built hardened (`HARDEN_CXXFLAGS`/`HARDEN_LDFLAGS` in the Makefile). After changing the flags run `make clean` once.
+- `cmake --build build --target check` is the central gate (local, no root needed): `-Werror` build, unit/scenario tests, sanitizers (ASAN/UBSAN, skipped locally if libasan is missing), `cppcheck`, validation of the example configs, hardened build and hardening check (`scripts/check-hardening.sh`: PIE, full RELRO, NX, stack protector, FORTIFY). `--target check-fast` is the quick variant (-Werror build + tests).
+- All binaries are built hardened (`DOFSCROLL_HARDEN` in `CMakeLists.txt`). After changing the flags re-run the build (or `rm -rf build`).
 - CI: a GitHub Actions workflow is planned (`build`, `test`, `check` with `REQUIRE_ASAN=1`, config self-tests, secret scan; as a required check for `main`, see `docs/security.md`).
-- Pre-commit hook: `scripts/install-hooks.sh` (runs `make check-fast` and a secret scan).
+- Pre-commit hook: `scripts/install-hooks.sh` (runs `scripts/secret-scan.sh` and the CMake target `check-fast`).
 - `docs/security.md`: threat model, findings with severity, systemd hardening (the units in `systemd/` are hardened; effective only after `systemctl --user daemon-reload` + restart, rollback via drop-in see there) and `uinput` permissions.
 
 ## 9. Settings in the vendor driver
