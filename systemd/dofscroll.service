@@ -1,0 +1,75 @@
+[Unit]
+Description=SpaceMouse Clean C++ Multi-Axis Scroll & Zoom Translator
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/local/bin/dofscroll
+# Absicherung nach Absturz/SIGKILL (XTest-Tasten bleiben sonst gedrueckt, siehe docs/security.md S3)
+ExecStopPost=-/usr/local/bin/dofscroll --release-keys
+Restart=always
+RestartSec=1s
+
+# --- Haertung (User-Unit, nur Direktiven aus systemd <= 252 / RHEL 9) --------
+# Begruendung, Pruefprotokoll und bewusst NICHT gesetzte Direktiven:
+# docs/security.md, Abschnitt 3.
+# Der Daemon braucht: X11-Socket /tmp/.X11-unix (XTest), spacenavd-Socket
+# /run/spnav.sock, /dev/uinput (uinput-Backend), Lesezugriff auf die Config
+# und ggf. kdotool (DBus-Session-Bus, AF_UNIX). Schreiben darf er nur im privaten
+# Runtime-Dir %t (XDG_RUNTIME_DIR): Status-Datei dofscroll-status und Log-Kopie
+# dofscroll.log fuer den Tray (docs/security.md); sonst bleibt alles read-only.
+# BEKANNTE GRENZE: AF_UNIX erlaubt auch den DBus-Session-Bus. Darueber koennte
+# kompromittierter Code per 'systemd-run --user' einen Prozess AUSSERHALB dieser
+# Sandbox starten (Escape). Der Bus wird nur fuer das optionale kdotool
+# (KDE-Aktivfenster) gebraucht; ohne kdotool laesst sich AF_UNIX nicht weiter
+# einschraenken (X11/spacenavd sind ebenfalls Unix-Sockets), daher bewusst offen.
+NoNewPrivileges=yes
+UMask=0077
+# PrivateUsers=yes ist im User-Manager von systemd 252 PFLICHT: ohne werden
+# ProtectSystem/ProtectHome/ProtectKernelTunables/ProtectControlGroups
+# stillschweigend ignoriert, und CapabilityBoundingSet=/ProtectClock/
+# ProtectKernelModules/ProtectKernelLogs brechen den Start mit
+# status=218/CAPABILITIES ab. Zusatzgruppen (z.B. 'input') erscheinen darin
+# als 'nobody', die Rechtepruefung des Kernels gilt aber weiter
+# (/dev/uinput ueber die Gruppe bleibt nutzbar).
+PrivateUsers=yes
+CapabilityBoundingSet=
+# Datei-System: alles read-only, Home inkl. Config (~/.config/dofscroll/
+# dofscroll.conf bzw. Legacy-Fallback ~/.config/dofscroll.conf) nur lesbar;
+# 2026-10-15 getestet: beide Pfade lesbar, --release-keys laeuft in der Sandbox. KEIN
+# PrivateTmp (verdeckt /tmp/.X11-unix) und KEIN PrivateDevices (verdeckt
+# /dev/uinput).
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%t
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+PrivateIPC=yes
+KeyringMode=private
+# Netz: nur Unix-Sockets (X11 lokal, spacenavd, DBus fuer kdotool).
+# Kein PrivateNetwork: wuerde abstrakte Sockets (@/tmp/.X11-unix/X0) kappen.
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged
+SystemCallFilter=~@resources
+SystemCallErrorNumber=EPERM
+# 2026-10-15 getestet (systemd-run mit allen Direktiven dieser Unit + Kandidat):
+# GESETZT: SystemCallFilter=~@resources (wirksam: setpriority/sched_setaffinity
+#   liefern EPERM; kein Code-Pfad der Binaries nutzt sie, Start OK, ExecStopPost-
+#   Variante --release-keys OK).
+# NICHT gesetzt: ProtectProc=invisible, ProcSubset=pid, IPAddressDeny=any. Startbar,
+#   aber im User-Manager (PrivateUsers=yes) nachweislich wirkungslos: fremde PIDs,
+#   /proc/sys und 127.0.0.1 blieben erreichbar. Wuerden nur ein falsches
+#   Sicherheitsgefuehl und einen kosmetisch besseren 'security'-Score liefern.
+
+[Install]
+WantedBy=graphical-session.target

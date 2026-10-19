@@ -1,0 +1,4 @@
+# Zugriff auf /dev/uinput fuer das uinput-Backend von dofscroll (Wayland).
+# Nur uaccess: ACL fuer den Nutzer der aktiven lokalen Sitzung (Standard 0600 root),
+# bewusst KEIN GROUP="input" (siehe docs/security.md, S1).
+KERNEL=="uinput", MODE="0600", OPTIONS+="static_node=uinput", TAG+="uaccess"

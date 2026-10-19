@@ -1,0 +1,75 @@
+[Unit]
+Description=SpaceMouse Scroll Tray Icon & Einstellungen
+After=graphical-session.target dofscroll.service
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=/usr/local/bin/dofscroll-tray
+Restart=on-failure
+
+# --- Haertung (User-Unit, nur Direktiven aus systemd <= 252 / RHEL 9) --------
+# Begruendung, Pruefprotokoll und bewusst NICHT gesetzte Direktiven:
+# docs/security.md, Abschnitt 3.
+# Der Tray braucht: X11 (GTK), DBus-Session-Bus (AppIndicator/StatusNotifier,
+# systemctl --user), Schreibzugriff auf ~/.config/dofscroll (Config, atomar per
+# temp+rename) und %t (= /run/user/UID: dconf/at-spi). Kindprozesse
+# (systemctl, xdg-open + Editor) erben diese Sandbox!
+# BEKANNTE GRENZE: Der DBus-Session-Bus ist erreichbar (fuer AppIndicator/systemctl
+# noetig). Darueber kann ein kompromittierter Tray per 'systemd-run --user' einen
+# Prozess AUSSERHALB dieser Sandbox starten (Sandbox-Escape). Diese Haertung
+# begrenzt Dateisystem/Syscalls, ist aber KEINE Grenze gegen DBus-faehigen Code.
+NoNewPrivileges=yes
+UMask=0077
+# PrivateUsers=yes ist im User-Manager von systemd 252 PFLICHT (sonst werden
+# die Protect*-Direktiven ignoriert bzw. der Start scheitert mit 218).
+PrivateUsers=yes
+CapabilityBoundingSet=
+# KEIN PrivateTmp (verdeckt /tmp/.X11-unix).
+ProtectSystem=strict
+ProtectHome=read-only
+# Schreibzugriff NUR auf das eigene Config-Verzeichnis ~/.config/dofscroll
+# (%E = $XDG_CONFIG_HOME bzw. ~/.config) und %t (= /run/user/UID). Der Rest von
+# ~/.config (systemd/user, autostart, environment.d, ...) bleibt read-only, damit
+# ein kompromittierter Tray keine User-Units/Autostart-Eintraege/Umgebung ablegen
+# kann; die frueheren ReadOnlyPaths-Ausnahmen sind dadurch ueberfluessig.
+# ConfigurationDirectory= legt das Verzeichnis (Modus 0700) VOR dem Aufbau des
+# Mount-Namespace an, sonst waere das ReadWritePaths-Ziel beim ersten Start
+# nicht vorhanden. 2026-10-15 getestet (systemd 252, User-Manager): Verzeichnis
+# wird angelegt, Datei anlegen + rename darin ok, 'touch ~/.config/zz-test' und
+# Schreiben nach ~/.config/systemd/user liefern EROFS.
+ConfigurationDirectory=dofscroll
+ConfigurationDirectoryMode=0700
+ReadWritePaths=%E/dofscroll %t
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+KeyringMode=private
+# Kein PrivateIPC: GTK/cairo nutzen MIT-SHM (SysV-Shared-Memory mit dem X-Server).
+# AF_UNIX: X11 + DBus. AF_NETLINK: GLib/GIO (GNetworkMonitor) fragt bei Bedarf
+# Netlink ab.
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+# MemoryDenyWriteExecute bewusst NICHT: GLib-GRegex (PCRE2-JIT) und ggf.
+# Mesa/GL im GTK-Stack brauchen W+X-Speicher.
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged
+SystemCallFilter=~@resources
+SystemCallErrorNumber=EPERM
+# 2026-10-15 getestet (systemd-run mit allen Direktiven dieser Unit + Kandidat):
+# GESETZT: SystemCallFilter=~@resources (wirksam: setpriority/sched_setaffinity
+#   liefern EPERM; kein Code-Pfad der Binaries nutzt sie, Start OK, ExecStopPost-
+#   Variante --release-keys OK).
+# NICHT gesetzt: ProtectProc=invisible, ProcSubset=pid, IPAddressDeny=any. Startbar,
+#   aber im User-Manager (PrivateUsers=yes) nachweislich wirkungslos: fremde PIDs,
+#   /proc/sys und 127.0.0.1 blieben erreichbar. Wuerden nur ein falsches
+#   Sicherheitsgefuehl und einen kosmetisch besseren 'security'-Score liefern.
+
+[Install]
+WantedBy=graphical-session.target
