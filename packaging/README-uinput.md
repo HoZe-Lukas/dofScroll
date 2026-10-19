@@ -7,7 +7,7 @@ default only root has.
 ## Installation
 
 ```sh
-sudo cp packaging/70-dofscroll-uinput.rules /etc/udev/rules.d/
+sudo cp packaging/70-dofscroll-uinput.rules /etc/udev/rules.d/   # from a package: /usr/share/dofscroll/udev/
 sudo udevadm control --reload && sudo udevadm trigger
 ```
 

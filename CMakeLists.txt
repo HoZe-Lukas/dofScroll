@@ -253,10 +253,13 @@ if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/examples/modes)
 endif()
 
 if(NOT DOFSCROLL_CORE_ONLY)
-include(cmake/Systemd.cmake)  # units + udev rule go to <prefix>/lib (never lib64)
+include(cmake/Systemd.cmake)  # units go to <prefix>/lib (never lib64), udev rule only as example
 if(BUILD_TESTING)
   add_test(NAME install_layout COMMAND ${CMAKE_COMMAND} -DBUILD_DIR=${CMAKE_BINARY_DIR}
            -DTMP=${CMAKE_BINARY_DIR}/install_layout -P ${CMAKE_SOURCE_DIR}/cmake/InstallLayoutTest.cmake)
+  add_test(NAME package_layout COMMAND ${CMAKE_COMMAND} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+           -DSRC=${CMAKE_SOURCE_DIR} -DCMAKE_CPACK_COMMAND=${CMAKE_CPACK_COMMAND}
+           -DTMP=${CMAKE_BINARY_DIR}/package_layout -P ${CMAKE_SOURCE_DIR}/cmake/PackageLayoutTest.cmake)
 endif()
 endif()  # NOT DOFSCROLL_CORE_ONLY
 

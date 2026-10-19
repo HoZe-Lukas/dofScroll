@@ -27,8 +27,8 @@ Format: `KEY = value`, no sections, `#` and `;` comments.
     BUTTON_2 = key:home
     SCROLL_H_SENS = 4                           # any profile key is an override
 
-`MODE` is not allowed inside a mode file. Any other key from [configuration.md](configuration.md)
-is a settings override. The overrides are applied after the device profile and before the app
+`MODE`, `ENABLED`, `BACKEND` and `TICK_HZ` are not allowed inside a mode file (the daemon rejects
+them with a warning). Any other key from [configuration.md](configuration.md) is a settings override. The overrides are applied after the device profile and before the app
 profile.
 
 Limits: up to 64 mode files, each up to 64 KiB, up to 128 overrides per file, regular files only.
@@ -112,6 +112,33 @@ For video editing (for example in DaVinci Resolve, whose behavior is not verifie
 
 The timeline must have keyboard focus. Reverse the twist with `ZOOM_SIGN = -1`.
 
+## Safety and sharing modes
+
+A mode file is code-like. While a device button is held or an axis is deflected, it can press
+any key on the list in [Key names](#key-names), including modifiers (Ctrl, Alt, Super), function
+keys, Delete and Enter. Chords are reachable: Ctrl is held while a channel zooms, so a `keys:`
+action on another channel can send Ctrl+W or Ctrl+Q, and `key:ctrl` plus `key:alt` on two buttons
+combine with a third key. A mode file cannot type arbitrary text or send codes outside the key list,
+and every effect needs the physical device to be moved or pressed.
+
+Only use mode files from sources you trust, and read a file before you copy it into
+`~/.config/dofscroll/modes/`. When you review one, look for:
+
+- `key:` bindings, especially `ctrl`, `alt`, `super`, `shift`, `delete`, `esc`, `enter` and `f1` to `f12`.
+- `keys:<negative>,<positive>` actions on `V_ACTION`, `H_ACTION` or `TWIST_ACTION`, especially
+  letters and digits, or in combination with a `zoom` channel (Ctrl is held then).
+- `zoom` on any channel, because it holds Ctrl.
+- `mode:` bindings that switch to another mode, and the other files such a mode points to.
+- Settings overrides that change sensitivities, signs or button behavior.
+
+The daemon warns at load time (in the log) about modifier-capable bindings, but the warning does not
+replace reading the file. If you share a mode, say what keys it presses.
+
+A mode that turns output off or ignores the device (for example the built-in `off`) leaves the
+device inactive. To get out of it, use the tray menu "Mode", a `mode:next` or `mode:<id>` binding
+(put it in the main config so it stays available in every mode, or in the mode itself), or edit
+`MODE` in the config and reload.
+
 ## Add your own mode
 
 1. Create `~/.config/dofscroll/modes/<id>.conf` with the keys above.
@@ -119,3 +146,20 @@ The timeline must have keyboard focus. Reverse the twist with `ZOOM_SIGN = -1`.
 3. Select it with `MODE = <id>` in a profile, from the tray "Mode" menu, or with a `mode:<id>`
    button action.
 4. Check `journalctl --user -u dofscroll.service` for warnings about skipped lines.
+
+## Editing modes from the tray
+
+The tray "Mode" submenu lists, below the mode choices, one entry per mode:
+
+- `Edit mode file: <name>` opens the mode's file in the default editor.
+- `Create editable copy of <name>...` appears for built-in modes that have no file yet (normal,
+  off, timeline). It writes a commented template `<id>.conf` with the built-in's name, description
+  and channel actions into the modes folder (mode 0600, never overwriting an existing file) and
+  opens it. A file of the same name replaces the built-in mode.
+- `Open modes folder` opens the folder in the file manager.
+
+The editor is started outside the tray's sandbox, like "Open config file". After saving, the
+daemon reloads the modes by itself and the new entry appears in the menu within about a second.
+
+The example modes (`timeline`, `browse-keys`, `cycle-modes`) are good starting points: copy one and
+change it.

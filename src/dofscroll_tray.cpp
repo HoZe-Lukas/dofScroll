@@ -53,10 +53,12 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "autostart.hpp"
 #include "axis_wizard.hpp"
 #include "config.hpp"
 #include "device_db.hpp"
 #include "i18n.hpp"
+#include "log_sanitize.hpp"
 #include "seed.hpp"
 
 using spn::ChannelCfg;
@@ -106,6 +108,116 @@ static void reloadDaemon() {
 
 static void restartDaemon() {
     spawnDetached({"systemctl", "--user", "restart", "dofscroll.service"});
+}
+
+// ---------------------------------------------------------------------------
+// "Start at login": enable/disable the two user units (logic in autostart.hpp).
+// systemctl runs directly inside the tray's sandbox, NOT via systemd-run: `systemctl
+// --user enable/disable` is executed by the user manager over D-Bus, which creates the
+// symlinks in ~/.config/systemd/user itself (the read-only view of that directory only
+// applies to the tray's own processes). So no sandbox escape is needed, unlike for
+// openWithDefaultApp, where the editor must write files. Both calls are short and
+// synchronous (g_spawn_sync, argv vector, no shell).
+// ---------------------------------------------------------------------------
+static bool runCapture(const std::vector<std::string> &args_in, std::string *out, std::string *err,
+                       int *exit_code) {
+    std::vector<std::string> args = args_in;
+    args[0] = resolveExe(args[0]);
+    const bool search = args[0].find('/') == std::string::npos;
+    std::vector<gchar *> argv;
+    for (const auto &a : args) argv.push_back(const_cast<gchar *>(a.c_str()));
+    argv.push_back(nullptr);
+    gchar *so = nullptr, *se = nullptr;
+    gint status = 0;
+    GError *gerr = nullptr;
+    bool ok = g_spawn_sync(nullptr, argv.data(), nullptr,
+                           GSpawnFlags(search ? G_SPAWN_SEARCH_PATH : 0), nullptr, nullptr, &so, &se,
+                           &status, &gerr);
+    if (!ok) {
+        if (err) *err = gerr ? gerr->message : "?";
+        if (gerr) g_error_free(gerr);
+    } else {
+        if (out) *out = so ? so : "";
+        if (err) *err = se ? se : "";
+        if (exit_code) *exit_code = g_spawn_check_exit_status(status, nullptr) ? 0 : 1;
+    }
+    g_free(so);
+    g_free(se);
+    return ok;
+}
+
+struct AutostartUi {
+    GtkWidget *window_check = nullptr;  // settings window (null while it is closed)
+    GtkWidget *window_msg = nullptr;
+    bool updating = false;              // set while the widget is updated from code
+    spn::autostart::State state = spn::autostart::State::Error;
+};
+static AutostartUi autoUi;
+
+static const char *autostartTooltip(spn::autostart::State s) {
+    using S = spn::autostart::State;
+    switch (s) {
+        case S::Enabled:
+        case S::Disabled:
+            return _("Start the SpaceMouse daemon and this tray icon automatically when you log in "
+                     "(takes effect at the next login)");
+        case S::EnabledRuntime:
+            return _("Enabled only until the next reboot (by a temporary link); it cannot be "
+                     "changed here");
+        case S::Static:
+            return _("The units have no [Install] section or are enabled indirectly; they cannot "
+                     "be changed here");
+        case S::Masked:
+            return _("The units are masked (systemctl --user unmask dofscroll.service "
+                     "dofscroll-tray.service)");
+        case S::NotFound:
+            return _("systemd does not know the dofscroll units, for example when running from a "
+                     "build folder. Install the package, see docs/installation.md");
+        case S::Error:
+            break;
+    }
+    return _("Could not read the autostart state from systemd");
+}
+
+static void autostartSetMessage(const std::string &msg) {
+    if (autoUi.window_msg) {
+        gtk_label_set_text(GTK_LABEL(autoUi.window_msg), msg.c_str());
+        gtk_widget_set_visible(autoUi.window_msg, !msg.empty());
+    }
+}
+
+static void autostartRefresh() {
+    std::string out, err;
+    int code = 0;
+    using S = spn::autostart::State;
+    S s = S::Error;
+    if (runCapture(spn::autostart::queryArgv(), &out, &err, &code))
+        s = spn::autostart::stateFromOutput(out, err);
+    autoUi.state = s;
+    const spn::autostart::Ui u = spn::autostart::ui(s);
+    autoUi.updating = true;
+    const char *tip = autostartTooltip(s);
+    if (autoUi.window_check) {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autoUi.window_check), u.checked);
+        gtk_widget_set_sensitive(autoUi.window_check, u.can_toggle);
+        gtk_widget_set_tooltip_text(autoUi.window_check, tip);
+    }
+    autoUi.updating = false;
+}
+
+// Called by the settings checkbox.
+static void autostartToggled(bool want) {
+    if (autoUi.updating) return;
+    std::string out, err;
+    int code = 1;
+    std::string msg;
+    if (!runCapture(spn::autostart::setEnabledArgv(want), &out, &err, &code)) {
+        msg = std::string(_("Could not run systemctl: ")) + spn::sanitizeForLog(err);
+    } else if (code != 0) {
+        msg = std::string(_("systemctl failed: ")) + spn::sanitizeForLog(err.empty() ? out : err);
+    }
+    autostartRefresh();  // show the real state again, also after a failure
+    autostartSetMessage(msg);
 }
 
 // printf-style formatting into a std::string (for translated format strings).
@@ -1979,6 +2091,29 @@ static void showSettingsWindow() {
     gtk_container_add(GTK_CONTAINER(window), outer);
     gtk_box_pack_start(GTK_BOX(outer), buildProfileArea(), FALSE, FALSE, 0);
 
+    {
+        // Global option (not per profile): start with the graphical session.
+        GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+        GtkWidget *check = gtk_check_button_new_with_label(_("Start at login"));
+        GtkWidget *msg = gtk_label_new("");
+        gtk_label_set_xalign(GTK_LABEL(msg), 0.0f);
+        gtk_label_set_line_wrap(GTK_LABEL(msg), TRUE);
+        gtk_style_context_add_class(gtk_widget_get_style_context(msg), GTK_STYLE_CLASS_ERROR);
+        gtk_widget_set_no_show_all(msg, TRUE);
+        gtk_box_pack_start(GTK_BOX(box), check, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(box), msg, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(outer), box, FALSE, FALSE, 0);
+        autoUi.window_check = check;
+        autoUi.window_msg = msg;
+        g_signal_connect(check, "toggled", G_CALLBACK(+[](GtkToggleButton *t, gpointer) {
+            autostartToggled(gtk_toggle_button_get_active(t));
+        }), nullptr);
+        g_signal_connect(check, "destroy", G_CALLBACK(+[](GtkWidget *, gpointer) {
+            autoUi.window_check = autoUi.window_msg = nullptr;
+        }), nullptr);
+        autostartRefresh();
+    }
+
     GtkWidget *notebook = gtk_notebook_new();
     suspendNotebook = notebook;
     gtk_box_pack_start(GTK_BOX(outer), notebook, TRUE, TRUE, 0);
@@ -2060,25 +2195,11 @@ static gboolean onTermSignal(gpointer) {
 
 static void onSettings(GtkMenuItem *, gpointer) { showSettingsWindow(); }
 
-static void onOpenConfig(GtkMenuItem *, gpointer) {
-    flushPending();
-    // xdg-open fails on non-existent files -> create it with the current (default)
-    // values if needed (saveProfiles creates the directory).
-    std::string path = cfgPath();
-    if (access(path.c_str(), F_OK) != 0) {
-        ProfileSet ps;
-        spn::loadProfiles(path, &ps, nullptr);
-        ps.setSectionFromSettings(0, ps.sectionSettings(0));
-        std::string err;
-        if (!spn::saveProfiles(path, ps, &err)) {
-            fprintf(stderr, "dofscroll-tray: cannot create %s: %s\n", path.c_str(), err.c_str());
-            return;
-        }
-        path = cfgPath();  // possibly a new path after creating
-    }
+// Opens a file or folder with the default application, outside the tray's sandbox.
+static void openWithDefaultApp(const std::string &path) {
+    std::string open_path = path;
     // Absolute path: a relative path / one starting with '-' (e.g. XDG_CONFIG_HOME="-x")
     // would be read as an option by xdg-open.
-    std::string open_path = path;
     if (open_path.empty() || open_path[0] != '/') {
         char cwd[4096];
         open_path = (getcwd(cwd, sizeof(cwd)) ? std::string(cwd) : std::string()) + "/" + open_path;
@@ -2096,6 +2217,25 @@ static void onOpenConfig(GtkMenuItem *, gpointer) {
     } else {
         spawnDetached({"xdg-open", open_path});
     }
+}
+
+static void onOpenConfig(GtkMenuItem *, gpointer) {
+    flushPending();
+    // xdg-open fails on non-existent files -> create it with the current (default)
+    // values if needed (saveProfiles creates the directory).
+    std::string path = cfgPath();
+    if (access(path.c_str(), F_OK) != 0) {
+        ProfileSet ps;
+        spn::loadProfiles(path, &ps, nullptr);
+        ps.setSectionFromSettings(0, ps.sectionSettings(0));
+        std::string err;
+        if (!spn::saveProfiles(path, ps, &err)) {
+            fprintf(stderr, "dofscroll-tray: cannot create %s: %s\n", path.c_str(), err.c_str());
+            return;
+        }
+        path = cfgPath();  // possibly a new path after creating
+    }
+    openWithDefaultApp(path);
 }
 
 // ---------------------------------------------------------------------------
@@ -2255,6 +2395,38 @@ static void onModeMenuPick(GtkCheckMenuItem *item, gpointer) {
     scheduleApply();
 }
 
+// Opens an existing mode file, or first creates an editable copy of a built-in mode (never
+// overwrites). The new file shows up in the submenu through the modes-directory stamp.
+static void onModeEdit(GtkMenuItem *item, gpointer) {
+    const char *id = static_cast<const char *>(g_object_get_data(G_OBJECT(item), "mode-id"));
+    if (!id) return;
+    const std::string dir = spn::modesDir();
+    const std::string path = spn::modelist::modeFilePath(dir, id);
+    if (path.empty()) return;
+    if (access(path.c_str(), F_OK) != 0) {
+        const spn::ModeSet ms = spn::loadModes(dir, nullptr);
+        const spn::ModeDef *m = ms.find(id);
+        if (!m) return;
+        std::string err;
+        if (!spn::modelist::createModeFile(dir, id, spn::modelist::modeTemplate(*m), nullptr, &err) &&
+            access(path.c_str(), F_OK) != 0) {
+            fprintf(stderr, "dofscroll-tray: cannot create %s: %s\n", path.c_str(), err.c_str());
+            return;
+        }
+    }
+    openWithDefaultApp(path);
+}
+
+static void onModesFolder(GtkMenuItem *, gpointer) {
+    const std::string dir = spn::modesDir();
+    if (dir.empty()) return;
+    if (mkdir(dir.c_str(), 0700) != 0 && errno != EEXIST) {
+        fprintf(stderr, "dofscroll-tray: cannot create %s: %s\n", dir.c_str(), strerror(errno));
+        return;
+    }
+    openWithDefaultApp(dir);
+}
+
 // Rebuilds the submenu if the modes directory or the global mode changed (cheap check,
 // called from the 1 s status tick).
 static void updateModeMenu() {
@@ -2295,6 +2467,26 @@ static void updateModeMenu() {
         g_signal_connect(item, "toggled", G_CALLBACK(onModeMenuPick), nullptr);
         gtk_menu_shell_append(GTK_MENU_SHELL(modeMenu.sub), item);
         gtk_widget_show(item);
+    }
+    auto appendItem = [](GtkWidget *w) {
+        gtk_menu_shell_append(GTK_MENU_SHELL(modeMenu.sub), w);
+        gtk_widget_show(w);
+    };
+    appendItem(gtk_separator_menu_item_new());
+    for (const auto &e : spn::modelist::buildEditEntries(ms)) {
+        const std::string name = displayText(e.text, 50);
+        const std::string label =
+            e.has_file ? std::string(_("Edit mode file:")) + " " + name
+                       : std::string(_("Create editable copy of")) + " " + name + "...";
+        GtkWidget *item = gtk_menu_item_new_with_label(label.c_str());
+        g_object_set_data_full(G_OBJECT(item), "mode-id", g_strdup(e.id.c_str()), g_free);
+        g_signal_connect(item, "activate", G_CALLBACK(onModeEdit), nullptr);
+        appendItem(item);
+    }
+    {
+        GtkWidget *item = gtk_menu_item_new_with_label(_("Open modes folder"));
+        g_signal_connect(item, "activate", G_CALLBACK(onModesFolder), nullptr);
+        appendItem(item);
     }
     modeMenu.rebuilding = false;
 }

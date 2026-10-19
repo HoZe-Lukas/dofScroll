@@ -423,6 +423,10 @@ Settings::Settings() {
 }
 
 bool applyKey(Settings &s, const std::string &key, const std::string &value, std::string *err) {
+    if (key.find('\0') != std::string::npos || value.find('\0') != std::string::npos) {
+        if (err) *err = "contains a NUL byte";
+        return false;
+    }
     Settings tmp = s;
     std::string e;
     if (!applyKeyImpl(tmp, key, value, &e)) {
