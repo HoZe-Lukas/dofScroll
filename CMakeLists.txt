@@ -175,6 +175,10 @@ if(BUILD_TESTING)
     list(APPEND TEST_TARGETS ${name})
   endforeach()
 
+  add_test(NAME check_ports_trigger COMMAND ${CMAKE_COMMAND}
+           -DFILE=${CMAKE_SOURCE_DIR}/.github/workflows/ports.yml
+           -P ${CMAKE_SOURCE_DIR}/tests/check_ports_trigger.cmake)
+
   # config validation: examples/*.conf and examples/default/dofscroll.conf
   add_executable(check_config tests/check_config.cpp)
   target_link_libraries(check_config PRIVATE dofscroll_core)
