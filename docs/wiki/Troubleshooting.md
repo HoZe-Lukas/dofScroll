@@ -2,6 +2,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Troubleshooting
 
+A button does nothing or input arrives twice: check the driver mapping first, see [Buttons](Buttons). dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles.
+
 Full guide: [docs/troubleshooting.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/troubleshooting.md). This page covers Linux; the Windows and macOS ports are unverified on hardware (see their checklists under [Installation](Installation)).
 
 ## Quick checks

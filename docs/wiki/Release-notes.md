@@ -2,6 +2,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Release notes
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons](Buttons).
+
 Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
 
 ## 0.1 candidates (pre-release)
@@ -29,6 +31,8 @@ Fixed:
 - X11 key tap on held keys, device-add event, early SIGHUP handling, HID descriptor parsing
 
 ## After 0.1.0-rc2 (on `main`, unreleased)
+
+- Design principle made explicit: dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. The shipped examples no longer bind always-the-same keys or clicks to buttons (the features stay; mode-specific bindings remain).
 
 - Windows and macOS daemons (CI-verified, **hardware-unverified**), see [Installation](Installation)
 - `dofscroll-hidprobe` diagnostic tool, see [Devices](Devices)
