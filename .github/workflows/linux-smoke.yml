@@ -31,7 +31,7 @@ jobs:
       matrix:
         include:
           - { kind: rpm, image: "rockylinux:9",  artifact: packages-rpm-tgz, experimental: false }
-          - { kind: rpm, image: "rockylinux/rockylinux:10",artifact: packages-rpm-tgz, experimental: true }
+          # Rocky 10 is not tested: spacenavd is not in its repositories, so the package cannot be installed there.
           - { kind: rpm, image: "fedora:42",     artifact: packages-rpm-tgz, experimental: true }
           - { kind: deb, image: "debian:12",     artifact: packages-deb,     experimental: false }
           - { kind: deb, image: "debian:13",     artifact: packages-deb,     experimental: true }

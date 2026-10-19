@@ -86,7 +86,7 @@ any other distribution is untested.
 |---|---|---|
 | Rocky Linux 9 (with EPEL) | RPM | covered, build distribution; installs and starts (2026-10-19) |
 | Debian 12 | DEB | covered, build distribution; installs and starts (2026-10-19) |
-| Rocky Linux 10 | RPM | covered, informational; **does not install**: `spacenavd` is not available in its repositories (2026-10-19) |
+| Rocky Linux 10 | RPM | not tested in CI; the test on 2026-10-19 showed that it **does not install**: `spacenavd` is not available in its repositories |
 | Fedora 42 | RPM | covered, informational; installs and starts (2026-10-19) |
 | Debian 13 | DEB | covered, informational; installs and starts (2026-10-19) |
 | Ubuntu 24.04 | DEB | covered, informational; installs and starts (2026-10-19) |
