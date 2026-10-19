@@ -28,7 +28,8 @@ This build is NOT signed with an Apple Developer ID and NOT notarized. It is sig
        sh /Applications/dofscroll.app/Contents/Resources/launchagent/uninstall-launchagent.sh
 
 5. Uninstall
-   Run the uninstall script above, then drag dofscroll.app to the Trash. Your configuration in
+   Run the uninstall script above (if you switched on "Start at login" in the app, switch it off first, or
+   delete ~/Library/LaunchAgents/io.github.dofscroll.ui.plist), then drag dofscroll.app to the Trash. Your configuration in
    ~/Library/Application Support/dofscroll stays until you delete it.
 
 The program has not been tested with a real SpaceMouse on macOS yet.
