@@ -69,7 +69,9 @@ bool copyFile(const std::string &src, const std::string &dst) {
         }
     }
     ::close(in);
-    const int out = ::open(dst.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
+    const std::string tmp = dst + ".tmp." + std::to_string(static_cast<long>(::getpid()));
+    ::unlink(tmp.c_str());  // leftover of an earlier run with the same pid
+    const int out = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
     if (out < 0) return false;
     size_t off = 0;
     bool ok = true;
@@ -83,8 +85,42 @@ bool copyFile(const std::string &src, const std::string &dst) {
         off += static_cast<size_t>(n);
     }
     if (::close(out) != 0) ok = false;
-    if (!ok) ::unlink(dst.c_str());
+    // link() fails with EEXIST instead of overwriting, and the final name only ever holds a
+    // complete file (a kill in between leaves only the temp file).
+    if (ok && ::link(tmp.c_str(), dst.c_str()) != 0) ok = false;
+    ::unlink(tmp.c_str());
     return ok;
+}
+
+// Removes the regular files of a temporary directory and the directory itself (best effort).
+void removeTempDir(const std::string &dir) {
+    if (DIR *d = ::opendir(dir.c_str())) {
+        while (const dirent *e = ::readdir(d)) {
+            const std::string n = e->d_name;
+            if (n == "." || n == "..") continue;
+            struct stat st;
+            const std::string f = dir + "/" + n;
+            if (::lstat(f.c_str(), &st) == 0 && !S_ISDIR(st.st_mode)) ::unlink(f.c_str());
+        }
+        ::closedir(d);
+    }
+    ::rmdir(dir.c_str());
+}
+
+// Cleans up "modes.tmp.*" directories that an interrupted earlier run left behind.
+void removeStaleModeTemps(const std::string &cfgDir) {
+    std::vector<std::string> stale;
+    if (DIR *d = ::opendir(cfgDir.c_str())) {
+        while (const dirent *e = ::readdir(d)) {
+            const std::string n = e->d_name;
+            struct stat st;
+            if (n.rfind("modes.tmp.", 0) == 0 && ::lstat((cfgDir + "/" + n).c_str(), &st) == 0 &&
+                S_ISDIR(st.st_mode))
+                stale.push_back(cfgDir + "/" + n);
+        }
+        ::closedir(d);
+    }
+    for (const auto &p : stale) removeTempDir(p);
 }
 
 std::string exeDir() {
@@ -151,11 +187,20 @@ bool seedDefaults(std::string *log) {
         }
         std::sort(names.begin(), names.end());
         if (names.size() > kMaxModeFiles) names.resize(kMaxModeFiles);
-        if (!names.empty() && ::mkdir(modesPath.c_str(), 0700) == 0) {
-            int cnt = 0;
-            for (const auto &n : names)
-                if (copyFile(srcModes + "/" + n, modesPath + "/" + n)) ++cnt;
-            if (cnt) msg += std::string(msg.empty() ? "" : ", ") + std::to_string(cnt) + " mode file(s)";
+        if (!names.empty()) {
+            removeStaleModeTemps(cfgDir);
+            const std::string tmpDir = cfgDir + "/modes.tmp." + std::to_string(static_cast<long>(::getpid()));
+            if (::mkdir(tmpDir.c_str(), 0700) == 0) {
+                int cnt = 0;
+                for (const auto &n : names)
+                    if (copyFile(srcModes + "/" + n, tmpDir + "/" + n)) ++cnt;
+                // Publish the complete set in one step: an interrupted run never leaves a partial
+                // modes/ directory that would be treated as "already seeded".
+                if (cnt > 0 && ::rename(tmpDir.c_str(), modesPath.c_str()) == 0)
+                    msg += std::string(msg.empty() ? "" : ", ") + std::to_string(cnt) + " mode file(s)";
+                else
+                    removeTempDir(tmpDir);
+            }
         }
     }
     if (msg.empty()) return false;

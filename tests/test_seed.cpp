@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -15,6 +16,16 @@
 static bool exists(const std::string &p) {
     struct stat st;
     return ::lstat(p.c_str(), &st) == 0;
+}
+// Number of entries whose name contains ".tmp" (leftovers of an interrupted copy).
+static int countTmp(const std::string &dir) {
+    int n = 0;
+    if (DIR *d = ::opendir(dir.c_str())) {
+        while (const dirent *e = ::readdir(d))
+            if (std::string(e->d_name).find(".tmp") != std::string::npos) ++n;
+        ::closedir(d);
+    }
+    return n;
 }
 static void put(const std::string &p, const std::string &c) { std::ofstream(p) << c; }
 static std::string get(const std::string &p) {
@@ -76,6 +87,22 @@ int main() {
     put(cfg + "/spnav-scroll/spnav-scroll.conf", "old\n");
     assert(!spn::seedDefaults(&log));
     assert(!exists(conf));
+
+    // interrupted earlier run: a stale temp directory is cleaned up and the complete set is published
+    {
+        std::string cmd2 = "rm -rf '" + cfg + "/dofscroll' '" + cfg + "/spnav-scroll'";
+        assert(std::system(cmd2.c_str()) == 0);
+        assert(::mkdir((cfg + "/dofscroll").c_str(), 0700) == 0);
+        const std::string stale = cfg + "/dofscroll/modes.tmp.99999";
+        assert(::mkdir(stale.c_str(), 0700) == 0);
+        put(stale + "/a.conf", "partial\n");
+        assert(!exists(modes));
+        assert(spn::seedDefaults(&log));
+        assert(!exists(stale));  // stale temp directory removed
+        assert(get(modes + "/a.conf") == "a\n" && get(modes + "/b.conf") == "b\n");
+        // no temporary leftovers next to the published files
+        assert(countTmp(cfg + "/dofscroll") == 0 && countTmp(modes) == 0);
+    }
 
     const std::string cmd = "rm -rf '" + root + "'";
     assert(std::system(cmd.c_str()) == 0);
