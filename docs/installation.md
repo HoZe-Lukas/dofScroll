@@ -256,6 +256,24 @@ hardening check), `check-config` (validates the example configs), `lint`, `insta
 
 ## 5. Windows and macOS
 
-The Windows and macOS ports are in development and there is no installer yet. Nothing in this
-guide applies to them. The plan and the state of each work package are in
+The Windows and macOS ports are in development and there is no installer yet. Nothing else in
+this guide applies to them. The plan and the state of each work package are in
 [work-plan.md](work-plan.md).
+
+### Windows (experimental)
+
+Only for testers: the Windows daemon is built by CI (MSVC and MinGW-w64 jobs of
+`.github/workflows/ports.yml`) and uploaded as the artifact `dofscroll-windows-*` (`dofscroll.exe`,
+`devices\`, `examples\`, `packaging-windows\`). It has **not been tested with a real SpaceMouse**;
+[port-windows-checklist.md](port-windows-checklist.md) lists what a tester has to verify.
+
+1. Unpack the artifact into a folder, keep `dofscroll.exe`, `devices\` and `examples\` together.
+2. Start `dofscroll.exe` (no console window). Config is read from `%APPDATA%\dofscroll\dofscroll.conf`
+   (same format as on Linux), logs are in `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
+3. Optional autostart for the current user, no administrator rights:
+   `powershell -ExecutionPolicy Bypass -File packaging-windows\install-autostart.ps1 -ExePath <full path to dofscroll.exe>`;
+   remove it with `uninstall-autostart.ps1`.
+4. If the 3Dconnexion driver is installed, disable its per-application navigation for the programs
+   you test, otherwise scrolling is doubled ([port-windows.md](port-windows.md)).
+
+There is no tray program on Windows yet (package W3). Details and limits: [port-windows.md](port-windows.md).
