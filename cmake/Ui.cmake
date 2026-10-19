@@ -13,7 +13,10 @@ endif()
 if(DOFSCROLL_UI)
   find_package(Qt6 REQUIRED COMPONENTS Widgets)
   find_package(Qt6 QUIET COMPONENTS Svg)   # SVG icon rendering; optional
+  file(GLOB UI_PAGE_SRC CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/ui/qt/pages/*.cpp
+       ${CMAKE_SOURCE_DIR}/src/ui/qt/pages/*.hpp)
   qt_add_executable(dofscroll-ui
+    ${UI_PAGE_SRC}
     src/ui/qt/main.cpp
     src/ui/qt/main_window.cpp
     src/ui/qt/main_window.hpp
@@ -23,10 +26,10 @@ if(DOFSCROLL_UI)
     src/ui/qt/resources.qrc)
   set_target_properties(dofscroll-ui PROPERTIES AUTOMOC ON AUTORCC ON
                         WIN32_EXECUTABLE ON MACOSX_BUNDLE OFF)
-  target_include_directories(dofscroll-ui PRIVATE src/ui/qt)
+  target_include_directories(dofscroll-ui PRIVATE src/ui/qt src/ui/qt/pages)
   target_compile_features(dofscroll-ui PRIVATE cxx_std_17)
   target_compile_definitions(dofscroll-ui PRIVATE DOFSCROLL_VERSION="${PROJECT_VERSION}")
-  target_link_libraries(dofscroll-ui PRIVATE Qt6::Widgets)
+  target_link_libraries(dofscroll-ui PRIVATE Qt6::Widgets dofscroll_core)
   if(TARGET Qt6::Svg)
     target_link_libraries(dofscroll-ui PRIVATE Qt6::Svg)
   endif()

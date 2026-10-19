@@ -13,6 +13,7 @@
 #include <QTreeWidget>
 #include <QVBoxLayout>
 
+#include "pages/page_registry.hpp"
 #include "ui_i18n.hpp"
 
 namespace {
@@ -34,7 +35,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     for (const QString &name : pages) {
         auto *it = new QTreeWidgetItem(nav_, QStringList(name));
         it->setData(0, kRoleKind, 0);
-        QWidget *w = (name == T("Modes")) ? modesPage() : placeholder(name);
+        QWidget *w = createRegisteredPage(name);
+        if (!w) w = (name == T("Modes")) ? modesPage() : placeholder(name);
         it->setData(0, kRoleStackIndex, stack_->addWidget(w));
     }
     // Profiles group: only what depends on the profile's mode lives below it.

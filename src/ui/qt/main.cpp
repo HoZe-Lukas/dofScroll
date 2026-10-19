@@ -13,6 +13,7 @@
 #include <cstring>
 
 #include "main_window.hpp"
+#include "pages/axes_page.hpp"
 #include "tray.hpp"
 
 int main(int argc, char **argv) {
@@ -45,7 +46,8 @@ int main(int argc, char **argv) {
         const bool avail = QSystemTrayIcon::isSystemTrayAvailable();
         std::printf("self-test: entries=%d profiles=%d tray-available=%d\n", w.pageCount(),
                     w.profileCount(), avail ? 1 : 0);
-        return (w.pageCount() == 5 && w.profileCount() == 3) ? 0 : 1;
+        if (w.pageCount() != 5 || w.profileCount() != 3) return 1;
+        return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen
     }
 
     // Single-instance guard in a per-user directory (QLockFile detects stale locks itself).
