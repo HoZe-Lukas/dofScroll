@@ -13,6 +13,10 @@ It consists of two programs:
 | `dofscroll` | Background daemon. Reads the SpaceMouse, produces the input events. |
 | `dofscroll-tray` | Tray icon with a settings window. Writes the same config file and tells the daemon to reload. Optional. |
 
+## Design principle
+
+dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [docs/modes.md](docs/modes.md#buttons-and-the-vendor-driver).
+
 ## Status and testing
 
 Everything below was verified by the maintainer on real hardware unless it says otherwise.
@@ -65,13 +69,20 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 |---|---|
 | [docs/installation.md](docs/installation.md) | Install from a release, first-time setup, upgrade, uninstall, build from source |
 | [docs/configuration.md](docs/configuration.md) | Config file, all keys, profiles, precedence, examples |
-| [docs/modes.md](docs/modes.md) | Modes, button actions, key names |
+| [docs/modes.md](docs/modes.md) | Modes, button actions, key names, buttons versus the vendor driver (always-the-same button mappings belong in the driver) |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common problems, logs, status files |
 | [docs/devices.md](docs/devices.md) | Device descriptions |
 | [docs/security.md](docs/security.md) | Threat model, systemd hardening, uinput permissions |
 | [docs/releasing.md](docs/releasing.md) | How a release is made |
 | [docs/work-plan.md](docs/work-plan.md) | Roadmap and the Windows/macOS ports |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, pull requests, adding a mode or language |
+
+## Text and encoding
+
+All text is UTF-8: configuration, mode and device files, logs, and every path (spaces, umlauts,
+CJK, emoji and characters such as `#` `;` `=` `%` `&` `[` `]` are fine). A BOM is accepted when
+reading and never written; case-insensitive matching folds ASCII letters only. Details and limits:
+[docs/encoding.md](docs/encoding.md).
 
 ## Security notes
 

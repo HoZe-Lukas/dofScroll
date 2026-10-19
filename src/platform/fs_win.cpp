@@ -36,9 +36,9 @@ namespace {
 
 std::wstring widen(const std::string &s) {
     if (s.empty()) return std::wstring();
-    const int n = ::MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), nullptr, 0);
+    const int n = ::MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, s.data(), static_cast<int>(s.size()), nullptr, 0);
     std::wstring w(static_cast<size_t>(n > 0 ? n : 0), L'\0');
-    if (n > 0) ::MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), &w[0], n);
+    if (n > 0) ::MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, s.data(), static_cast<int>(s.size()), &w[0], n);
     return w;
 }
 
@@ -530,6 +530,12 @@ std::string envVar(const wchar_t *name) {
     return narrow(std::wstring(buf, n));
 }
 }  // namespace
+
+std::string getEnvUtf8(const char *name) {
+    std::wstring w;
+    for (const char *c = name; *c; ++c) w += static_cast<wchar_t>(*c);  // names are ASCII
+    return envVar(w.c_str());
+}
 
 std::string userConfigBase() { return windowsConfigBase(envVar(L"APPDATA"), envVar(L"USERPROFILE")); }
 

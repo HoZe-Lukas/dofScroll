@@ -55,18 +55,18 @@ esac
 AGENT_DIR="$HOME/Library/LaunchAgents"
 PLIST="$AGENT_DIR/$LABEL.plist"
 
-# The path ends up in an XML file: spaces and non-ASCII (UTF-8) characters are fine, & < > are
-# escaped below. Only a line break is refused.
+# The path ends up in an XML file (escaped below) and in a sed replacement (escaped below).
+# Spaces, non-ASCII text and characters such as & < > ' " | \ are fine; a line break is not.
 if [ "$(printf '%s' "$DAEMON" | wc -l)" -ne 0 ]; then
     echo "install-launchagent: line break in path" >&2
     exit 1
 fi
+DAEMON_XML=$(printf '%s' "$DAEMON" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
+    -e 's/"/\&quot;/g' -e "s/'/\&apos;/g")
+DAEMON_SED=$(printf '%s' "$DAEMON_XML" | sed -e 's/[\\|&]/\\&/g')
 
 render() {
-    # 1. XML-escape (& first), 2. escape the characters that are special in a sed replacement.
-    esc=$(printf '%s' "$DAEMON" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
-        | sed -e 's/[|&\\]/\\&/g')
-    sed -e "s|@DAEMON_PATH@|$esc|g" "$TEMPLATE"
+    sed -e "s|@DAEMON_PATH@|$DAEMON_SED|g" "$TEMPLATE"
 }
 
 DOMAIN="gui/$(id -u)"

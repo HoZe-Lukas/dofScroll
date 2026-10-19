@@ -66,6 +66,11 @@ UI DESIGN REQUIREMENTS (maintainer, 2026-10-19; they apply to the pages stage):
 - Left: profile tree with "Default mode" ([global]) on top, then device and application profiles;
   right: the settings of the selected profile. The right side is built from a model-driven layout
   and is rebuilt when the mode of the selected profile changes (not fixed tabs).
+- Principle: dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. The UI therefore puts mode switching (`mode:`) and
+  `nav` first on the buttons page, shows mode-specific key and click bindings inside the mode
+  page, and hides plain key and click bindings of the default mode (`key:`, `click`,
+  `rightclick`, `middleclick`) under an "Advanced" section, with a hint that the driver is the
+  better place for mappings that are the same everywhere.
 - The default mode (`normal`) has the most settings (channels, curves, zoom, nav/click buttons,
   button bindings). Any other mode shows only what applies to it (its channel actions and button
   bindings as info, the overrides it allows) and an "Edit mode file" button.

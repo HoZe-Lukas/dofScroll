@@ -25,6 +25,7 @@
 // UI strings are English and wrapped in _() (gettext, see i18n.hpp and po/).
 #include "mode_list.hpp"
 #include "modes.hpp"
+#include "utf8.hpp"
 
 #include <glib-unix.h>
 #include <gtk/gtk.h>
@@ -317,7 +318,7 @@ static std::string patKey(const std::string &s) {
     while (b < e && isspace(static_cast<unsigned char>(s[b]))) ++b;
     while (e > b && isspace(static_cast<unsigned char>(s[e - 1]))) --e;
     std::string r = s.substr(b, e - b);
-    for (char &c : r) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+    for (char &c : r) c = spn::utf8::lowerChar(c);
     return r;
 }
 

@@ -108,6 +108,10 @@ std::string executablePath();
 // Linux $XDG_CONFIG_HOME or ~/.config, macOS ~/Library/Application Support, Windows %APPDATA%.
 std::string userConfigBase();
 
+// Environment variable as UTF-8 ("" when unset). Windows reads the wide variable: std::getenv would
+// return the ANSI code page text and lose non-ASCII characters.
+std::string getEnvUtf8(const char *name);
+
 // Position of the last path separator ('/' everywhere, also '\\' on Windows), npos if none.
 size_t lastSeparator(const std::string &p);
 

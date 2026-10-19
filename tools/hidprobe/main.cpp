@@ -12,6 +12,7 @@
 #include <sstream>
 
 #include "hid_descriptor.hpp"
+#include "log_sanitize.hpp"
 #include "hidprobe_backend.hpp"
 #include "hidprobe_core.hpp"
 #ifndef _WIN32
@@ -294,7 +295,7 @@ int runGuided(Session &s, const Options &o) {
     // report
     std::ostringstream rep;
     rep << "dofscroll-hidprobe report\n";
-    rep << "device: " << s.dev.name << "\n";
+    rep << "device: " << spn::sanitizeForLog(s.dev.name, 256) << "\n";
     rep << "usb id: " << vidpid(s.dev.vid, s.dev.pid) << "\n";
     rep << "serial fingerprint: " << hashSerial(s.dev.serial) << " (hashed)\n";
     rep << "description: " << s.desc->name << " (factory_buttons=" << s.desc->factoryButtons << ")\n\n";

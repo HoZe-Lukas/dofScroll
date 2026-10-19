@@ -21,7 +21,7 @@ int main() {
     wchar_t self[MAX_PATH];
     const DWORD n = GetModuleFileNameW(nullptr, self, MAX_PATH);
     CHECK(n > 0 && n < MAX_PATH);
-    const stdfs::path dir = stdfs::path(tu::makeTempDir("dofscroll-autostart")) / L"Prögramme (x86) test";
+    const stdfs::path dir = stdfs::path(tu::makeTempDir("dofscroll-autostart")) / L"Pr\u00f6gramme (x86) test"  /* non-ASCII on purpose */;
     stdfs::create_directories(dir);
     const stdfs::path exe = dir / L"dofscroll-test.exe";
     stdfs::copy_file(self, exe, stdfs::copy_options::overwrite_existing);

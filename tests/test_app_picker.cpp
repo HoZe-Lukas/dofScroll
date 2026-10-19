@@ -47,7 +47,8 @@ static void testValidity() {
     assert(validateProfilePattern("  firefox  ", &n, &e) && n == "firefox");
     assert(!validateProfilePattern("", &n, &e) && !e.empty());
     assert(!validateProfilePattern("   ", &n, &e));
-    assert(!validateProfilePattern("a]b", &n, &e) && !e.empty());
+    assert(validateProfilePattern("a]b", &n, &e) && n == "a]b");  // brackets are fine in names
+    assert(!validateProfilePattern("a\x01" "b", &n, &e) && !e.empty());  // control character
     assert(!validateProfilePattern("a\nb", &n, nullptr));
 }
 

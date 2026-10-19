@@ -2,9 +2,13 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Configuration reference
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons](Buttons).
+
 The source ([src/config.cpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/config.cpp)) is the reference; the full text is [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
 
 ## File and format
+
+The file is UTF-8 (a BOM is accepted, never written; LF written, CRLF accepted); names may contain any Unicode text, matched with ASCII-only case folding. See docs/encoding.md.
 
 | Item | Value |
 |---|---|
@@ -68,6 +72,10 @@ All are validated by `cmake --build build --target check-config`. Packages insta
 | [examples/dofscroll-compact.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-compact.conf) | SpaceMouse Compact, both buttons active |
 | [examples/dofscroll-multi-device.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-multi-device.conf) | Both device profiles in one file |
 | [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/modes) | Example modes |
+
+## Text and encoding
+
+All text is UTF-8. A leading BOM is accepted and never written; LF is written, CRLF is accepted. Names in `[app:*]` and `[device:*]` may contain any Unicode text (spaces, umlauts, CJK, emoji, `#` `;` `=` `[` `]`); only control characters are refused. Matching is case-insensitive for ASCII letters only, and text is not normalized (write macOS names in NFC). Invalid UTF-8 in a file gives a warning with `file:line`; the rest of the file is still used. See docs/encoding.md.
 
 ## Vendor driver settings
 

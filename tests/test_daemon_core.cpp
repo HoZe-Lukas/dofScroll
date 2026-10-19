@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "daemon_core.hpp"
+#include "mode_request.hpp"
 #include "platform/fake_input.hpp"
 #include "testutil.hpp"
 
@@ -334,6 +335,38 @@ static void testModeSwitchButton() {
     CHECK(r.core->runner().mode().id == "off", "fixed target mode:off");
 }
 
+// Runtime mode request from the tray: file in the runtime directory + reload, [global] untouched.
+static void testModeRequest() {
+    Rig r(std::string(BASE_CONF), {{"alpha.conf", "BUTTON_3 = key:space\n"}});
+    r.run(0.1);
+    CHECK(r.core->runner().mode().id == "normal", "starts in the default mode");
+    std::string err;
+    CHECK(writeModeRequest(r.dir, "alpha", &err), "write request: %s", err.c_str());
+    r.run(0.1);
+    CHECK(r.core->runner().mode().id == "normal", "no switch without a reload request");
+    r.reload.pending = true;
+    r.run(0.05);
+    CHECK(r.core->runner().mode().id == "alpha", "request applied (%s)", r.core->runner().mode().id.c_str());
+    CHECK(!tu::exists(modeRequestPath(r.dir)), "request file is consumed");
+    CHECK(statusMode(r) == "alpha", "status shows the requested mode");
+    // a request for an unknown mode keeps the default; the next plain reload drops the override
+    CHECK(writeModeRequest(r.dir, "nope", &err), "write");
+    r.reload.pending = true;
+    r.run(0.05);
+    CHECK(r.core->runner().mode().id == "normal", "unknown mode: default (%s)", r.core->runner().mode().id.c_str());
+    CHECK(writeModeRequest(r.dir, "alpha", &err), "write");
+    r.reload.pending = true;
+    r.run(0.05);
+    r.reload.pending = true;
+    r.run(0.05);
+    CHECK(r.core->runner().mode().id == "normal", "a plain reload drops the override");
+    // junk in the file is ignored
+    writeFile(modeRequestPath(r.dir), "../../etc/passwd\n");
+    r.reload.pending = true;
+    r.run(0.05);
+    CHECK(r.core->runner().mode().id == "normal" && !tu::exists(modeRequestPath(r.dir)), "invalid id ignored");
+}
+
 // Precedence: global < device < mode overrides < app.
 static void testModeVsAppPrecedence() {
     Rig r("[global]\nTICK_HZ = 250\nMODE = m\n[app:x]\nZOOM_SENS = 8\n",
@@ -397,6 +430,7 @@ int main() {
     testLiveFeedSink();
     testButtonBinding();
     testReload();
+    testModeRequest();
     testAutoReload();
     testDeviceAndWindowProfiles();
     testDeviceRemovedReleasesState();

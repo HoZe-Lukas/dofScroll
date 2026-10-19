@@ -121,6 +121,10 @@ or start the tray by hand with `LANGUAGE=C dofscroll-tray`. Daemon log lines are
 Translations are looked up in `$DOFSCROLL_LOCALEDIR`, `../share/locale` next to the binary,
 `/usr/local/share/locale` and `/usr/share/locale`. A missing catalog shows English.
 
+### A button does nothing, or input arrives twice
+
+dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. Check the driver mapping first: a button that sends the same key or click everywhere is mapped in `/etc/spnavrc` (Linux) or the 3Dconnexion driver settings (Windows, macOS), see [modes.md](modes.md#buttons-and-the-vendor-driver). Double input usually means the driver also scrolls or pans in that program; turn that off per application, see [windows-mac.md](windows-mac.md).
+
 ### Scrolling is inverted or on the wrong axis
 
 Set `<CH>_SIGN = -1` or change the `<CH>_MIX` line, or run "Learn axes" in the tray. If you changed
