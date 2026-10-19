@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <ctime>
 #include <map>
+#include <vector>
 #include <string>
 
 #include <chrono>
@@ -21,9 +22,11 @@
 #endif
 
 #include "ui/model/action_runner.hpp"
+#include "ui/model/release_keys.hpp"
 #include "ui/model/runtime_files.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/suspend_heartbeat.hpp"
+#include "ui/model/tray_menu_model.hpp"
 #include "ui/model/status_model.hpp"
 
 using namespace spn;
@@ -239,7 +242,33 @@ static void testSuspendHeartbeatSecurity() {
 }
 #endif
 
+static void testReleaseKeysCommand() {
+    const std::string name = daemonExecutableName();
+    auto never = [](const std::string &) { return false; };
+    // PATH lookup when the daemon is not next to the UI (argv, no shell)
+    std::vector<std::string> a = releaseKeysCommand("/opt/dofscroll/bin", never);
+    assert(a.size() == 2 && a[0] == name && a[1] == "--release-keys");
+    assert(releaseKeysCommand("", never)[0] == name);
+    // next to the UI executable when it exists (same build or install)
+    std::string asked;
+    a = releaseKeysCommand("/opt/dofscroll/bin", [&](const std::string &p) { asked = p; return true; });
+    assert(asked == "/opt/dofscroll/bin/" + name && a[0] == asked && a[1] == "--release-keys");
+    assert(releaseKeysCommand("C:/Program Files/dofscroll/", [](const std::string &) { return true; })[0] ==
+           "C:/Program Files/dofscroll/" + name);
+    // the tray entry reaches the runner exactly once per click
+    RecordingActionRunner runner;
+    TrayEntry e;
+    e.action = TrayAction::ReleaseAllKeys;
+    std::string err;
+    assert(performTrayAction(e, runner, TrayHooks(), &err) && runner.count(RecordingActionRunner::Kind::ReleaseKeys) == 1);
+    runner.result = false;
+    runner.error = "cannot start";
+    assert(!performTrayAction(e, runner, TrayHooks(), &err) && err == "cannot start");
+    std::puts("ok release keys command");
+}
+
 int main() {
+    testReleaseKeysCommand();
     testSuspendHeartbeat();
 #ifndef _WIN32
     testSuspendHeartbeatSecurity();

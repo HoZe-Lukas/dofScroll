@@ -47,7 +47,7 @@ int main() {
     // ---- no status file: not running, default mode checked, all modes listed ----
     c.refresh(now);
     assert(c.icon() == TrayController::Icon::NotRunning);
-    assert(c.menu().entries.size() == 13);
+    assert(c.menu().entries.size() == 14);
     const TrayEntry &modeMenu = c.menu().entries[4];
     assert(modeMenu.kind == TrayEntry::Kind::Submenu && modeMenu.children.size() == 4);  // normal, off, timeline, mine
     int checked = 0;
@@ -117,7 +117,8 @@ int main() {
     bool opened = false, quit = false;
     c.hooks().openSettings = [&] { opened = true; };
     c.hooks().quit = [&] { quit = true; };
-    assert(c.perform(c.menu().entries[7]) && opened && c.perform(c.menu().entries[12]) && quit);
+    assert(c.perform(c.menu().entries[7]) && opened && c.perform(c.menu().entries[13]) && quit);
+    assert(c.perform(c.menu().entries[11]) && runner.count(Kind::ReleaseKeys) == 1);  // Release all keys
 
     // no runtime directory: no log, no mode request, but no crash
     TrayController::Paths np = p;
