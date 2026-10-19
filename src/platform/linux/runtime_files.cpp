@@ -93,8 +93,7 @@ namespace {
 class TeeLogBuf : public std::streambuf {
 public:
     TeeLogBuf(std::streambuf *orig, const std::string &dir, size_t max_lines, size_t keep_lines)
-        : orig_(orig), max_lines_(max_lines), keep_lines_(keep_lines) {
-        rd_ = std::make_unique<RuntimeDir>(dir);
+        : orig_(orig), max_lines_(max_lines), keep_lines_(keep_lines), rd_(std::make_unique<RuntimeDir>(dir)) {
         if (!rd_->ok()) return;
         int fd = rd_->open(RuntimeFile::LogFile, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK, 0600);
         if (fd < 0) return;
