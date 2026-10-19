@@ -79,6 +79,16 @@ bool setMsg(std::string *err, const std::string &m) {
     return false;
 }
 
+// Rejects names and forms Windows resolves to something else (reserved device names, alternate
+// data streams, trailing dots/spaces, \\?\ and \\.\ prefixes, drive-relative paths); rules and tests
+// in path_rules.hpp / tests/test_path_rules.cpp. Our own code never builds such paths.
+bool pathOk(const std::string &p, std::string *why = nullptr) {
+    const PathHazard h = windowsPathHazard(p);
+    if (h == PathHazard::None) return true;
+    if (why) *why = std::string("unsafe path (") + pathHazardName(h) + "): " + p;
+    return false;
+}
+
 struct Handle {
     HANDLE h = INVALID_HANDLE_VALUE;
     Handle() = default;
@@ -97,9 +107,9 @@ int64_t fileTimeNs(const FILETIME &ft) {
     return (static_cast<int64_t>(u.QuadPart) - 116444736000000000LL) * 100;
 }
 
-bool isLinkTag(DWORD tag) { return tag == IO_REPARSE_TAG_SYMLINK || tag == IO_REPARSE_TAG_MOUNT_POINT; }
-
-// Reparse tag of an open handle (0 when it is not a reparse point).
+// Reparse tag of an open handle (0 when it is not a reparse point). Every reparse point other than
+// a plain file or directory is treated as a link: symlinks, junctions, mount points, cloud
+// placeholders, dedup/WOF stubs, ... They are refused instead of being allowed by a tag whitelist.
 DWORD reparseTag(HANDLE h) {
     FILE_ATTRIBUTE_TAG_INFO ti;
     if (!::GetFileInformationByHandleEx(h, FileAttributeTagInfo, &ti, sizeof ti)) return 0;
@@ -107,6 +117,7 @@ DWORD reparseTag(HANDLE h) {
 }
 
 bool statImpl(const std::string &path, bool follow, FileInfo *out) {
+    if (!pathOk(path)) return false;
     DWORD flags = FILE_FLAG_BACKUP_SEMANTICS;
     if (!follow) flags |= FILE_FLAG_OPEN_REPARSE_POINT;
     Handle h(::CreateFileW(native(path).c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
@@ -115,7 +126,7 @@ bool statImpl(const std::string &path, bool follow, FileInfo *out) {
     BY_HANDLE_FILE_INFORMATION bi;
     if (!::GetFileInformationByHandle(h.h, &bi)) return false;
     if (out) {
-        const bool link = !follow && isLinkTag(reparseTag(h.h));
+        const bool link = !follow && reparseTag(h.h) != 0;
         const bool dir = (bi.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
         out->isLink = link;
         out->isDir = !link && dir;
@@ -217,10 +228,15 @@ ReadResult readNative(const std::wstring &wpath, size_t cap, const ReadOptions &
         r.sysError = winError(e);
         return r;
     }
-    if (opt.refuseLinks && isLinkTag(reparseTag(h.h))) {
-        r.status = ReadStatus::OpenFailed;
-        r.sysError = "symbolic link refused";
-        return r;
+    if (opt.refuseLinks) {
+        const DWORD tag = reparseTag(h.h);
+        if (tag != 0) {
+            char hex[32];
+            std::snprintf(hex, sizeof hex, "0x%08lX", static_cast<unsigned long>(tag));
+            r.status = ReadStatus::OpenFailed;
+            r.sysError = std::string("reparse point refused (tag ") + hex + ")";
+            return r;
+        }
     }
     BY_HANDLE_FILE_INFORMATION bi;
     if (!::GetFileInformationByHandle(h.h, &bi) || (bi.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ||
@@ -270,25 +286,44 @@ bool writeAll(HANDLE h, const std::string &data, std::string *why) {
     return true;
 }
 
-bool dirExists(const std::wstring &w) {
+// 0 if `w` is a directory, otherwise the error code that says why not (captured right at the
+// failing call, never read later).
+DWORD dirError(const std::wstring &w) {
     const DWORD a = ::GetFileAttributesW(w.c_str());
-    return a != INVALID_FILE_ATTRIBUTES && (a & FILE_ATTRIBUTE_DIRECTORY);
+    if (a == INVALID_FILE_ATTRIBUTES) return ::GetLastError();
+    return (a & FILE_ATTRIBUTE_DIRECTORY) ? 0 : ERROR_DIRECTORY;
 }
+bool dirExists(const std::wstring &w) { return dirError(w) == 0; }
 
 }  // namespace
 
 bool statPath(const std::string &path, FileInfo *out) { return statImpl(path, true, out); }
 bool lstatPath(const std::string &path, FileInfo *out) { return statImpl(path, false, out); }
 
+ReadResult unsafeRead(const std::string &why) {
+    ReadResult r;
+    r.status = ReadStatus::OpenFailed;
+    r.sysError = why;
+    return r;
+}
+
 ReadResult readFileBounded(const std::string &path, size_t cap, const ReadOptions &opt, std::string *out) {
+    std::string why;
+    if (!pathOk(path, &why)) return unsafeRead(why);
     return readNative(native(path), cap, opt, out);
 }
 
 DirHandle::~DirHandle() = default;
 
 bool DirHandle::open(const std::string &dir, std::string *err) {
-    if (!dirExists(native(dir))) {
-        if (err) *err = winError(::GetLastError());
+    std::string why;
+    if (!pathOk(dir, &why)) {
+        if (err) *err = why;
+        return false;
+    }
+    const DWORD de = dirError(native(dir));
+    if (de != 0) {
+        if (err) *err = winError(de);
         return false;
     }
     dir_ = dir;
@@ -298,10 +333,14 @@ bool DirHandle::open(const std::string &dir, std::string *err) {
 
 ReadResult DirHandle::readFileBounded(const std::string &name, size_t cap, const ReadOptions &opt,
                                       std::string *out) const {
+    std::string why;
+    if (name.find_first_of("/\\") != std::string::npos) return unsafeRead("unsafe file name (separator): " + name);
+    if (!pathOk(dir_ + "/" + name, &why)) return unsafeRead(why);
     return readNative(native(dir_ + "/" + name), cap, opt, out);
 }
 
 bool createFileExclusive(const std::string &path, const std::string &data) {
+    if (!pathOk(path)) return false;
     PrivateSecurity sec(false);
     const std::wstring wp = native(path);
     const std::wstring wtmp = native(path + ".tmp." + std::to_string(processId()));
@@ -320,14 +359,15 @@ bool createFileExclusive(const std::string &path, const std::string &data) {
     return ok;
 }
 
-bool removeFile(const std::string &path) { return ::DeleteFileW(native(path).c_str()) != 0; }
-bool removeDir(const std::string &path) { return ::RemoveDirectoryW(native(path).c_str()) != 0; }
+bool removeFile(const std::string &path) { return pathOk(path) && ::DeleteFileW(native(path).c_str()) != 0; }
+bool removeDir(const std::string &path) { return pathOk(path) && ::RemoveDirectoryW(native(path).c_str()) != 0; }
 bool renamePath(const std::string &from, const std::string &to) {
-    return ::MoveFileExW(native(from).c_str(), native(to).c_str(), MOVEFILE_WRITE_THROUGH) != 0;
+    return pathOk(from) && pathOk(to) && ::MoveFileExW(native(from).c_str(), native(to).c_str(), MOVEFILE_WRITE_THROUGH) != 0;
 }
 long processId() { return static_cast<long>(::GetCurrentProcessId()); }
 
 MkdirResult mkdirPrivate(const std::string &path, std::string *err) {
+    if (!pathOk(path, err)) return MkdirResult::Failed;
     const std::wstring w = native(path);
     if (dirExists(w)) return MkdirResult::Exists;
     PrivateSecurity sec(true);
@@ -339,6 +379,7 @@ MkdirResult mkdirPrivate(const std::string &path, std::string *err) {
 }
 
 bool mkdirsPrivate(const std::string &dirIn, std::string *emsg) {
+    if (!pathOk(dirIn, emsg)) return false;
     const std::string dir = toSlashes(dirIn);
     // Skip the volume part: "C:" or "//server/share".
     size_t i = 0;
@@ -366,6 +407,7 @@ bool mkdirsPrivate(const std::string &dirIn, std::string *emsg) {
 }
 
 bool listDir(const std::string &dir, size_t maxEntries, std::vector<std::string> *names, bool *capped) {
+    if (!pathOk(dir)) return false;
     WIN32_FIND_DATAW fd;
     HANDLE h = ::FindFirstFileW((native(dir) + L"\\*").c_str(), &fd);
     if (h == INVALID_HANDLE_VALUE) return false;
@@ -394,18 +436,29 @@ void randomHex16(char out[17]) {
 
 bool writeFileReplace(const std::string &pathIn, const std::string &data, std::string *err) {
     std::string real = toSlashes(pathIn);
+    if (!pathOk(real, err)) return false;
     // A link at the target is followed once: the temp file goes next to the real file.
     FileInfo li;
     if (lstatPath(real, &li) && li.isLink) {
+        // Only a symbolic link is followed; junctions, mount points and every other reparse point
+        // are refused.
+        Handle t(::CreateFileW(native(real).c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+                               OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+        const DWORD tag = t.valid() ? reparseTag(t.h) : 0;
+        if (tag != IO_REPARSE_TAG_SYMLINK) {
+            char hex[32];
+            std::snprintf(hex, sizeof hex, "0x%08lX", static_cast<unsigned long>(tag));
+            return setMsg(err, real + ": reparse point refused (tag " + hex + ")");
+        }
         Handle h(::CreateFileW(native(real).c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
                                OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr));
         if (!h.valid()) return setMsg(err, real + ": " + winError(::GetLastError()));
         wchar_t buf[4096];
         const DWORD n = ::GetFinalPathNameByHandleW(h.h, buf, 4096, FILE_NAME_NORMALIZED);
         if (n == 0 || n >= 4096) return setMsg(err, real + ": cannot resolve link");
-        std::wstring w(buf, n);
-        if (w.compare(0, 4, L"\\\\?\\") == 0) w.erase(0, 4);
-        real = toSlashes(narrow(w));
+        // "\\?\C:\x" -> "C:\x" and "\\?\UNC\server\share\x" -> "\\server\share\x"
+        real = toSlashes(stripVerbatimPrefix(narrow(std::wstring(buf, n))));
+        if (!pathOk(real, err)) return false;
     }
     std::string dir, base;
     {

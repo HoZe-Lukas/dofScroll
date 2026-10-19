@@ -43,6 +43,10 @@ static void testIds() {
     assert(validModeId("timeline") && validModeId("a_b-9") && validModeId(std::string(32, 'a')));
     assert(!validModeId("") && !validModeId(std::string(33, 'a')) && !validModeId("Upper") &&
            !validModeId("a b") && !validModeId("../x") && !validModeId("a.b"));
+    // reserved Windows device names are not mode ids on any OS (con.conf would be the console)
+    for (const char *r : {"con", "prn", "aux", "nul", "com1", "com9", "lpt1", "lpt9"}) assert(!validModeId(r));
+    assert(validModeId("console") && validModeId("com0") && validModeId("com10") && validModeId("lpt") &&
+           validModeId("con-1") && validModeId("nul_") && validModeId("aux2"));
 }
 
 static void testGrammar() {
