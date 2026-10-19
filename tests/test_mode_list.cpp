@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include <cassert>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include <cstdio>
 #include <cstdlib>
 
 #include "mode_list.hpp"
+#include "testutil.hpp"
 
 using namespace spn;
 using namespace spn::modelist;
@@ -97,9 +95,8 @@ int main() {
 
     {
         // Editing from the tray: entries, template round trip, never overwrite, invalid ids.
-        char tmpl[] = "/tmp/dofscroll-ml-XXXXXX";
-        assert(mkdtemp(tmpl));
-        const std::string dir = std::string(tmpl) + "/modes";
+        const std::string tmpdir = tu::makeTempDir("dofscroll-ml");
+        const std::string dir = tmpdir + "/modes";
         ModeSet ms = loadModes(dir, nullptr);
         auto ee = buildEditEntries(ms);
         assert(ee.size() == 3);
@@ -112,8 +109,11 @@ int main() {
             assert(b && b->builtin);
             std::string path, err;
             assert(createModeFile(dir, id, modeTemplate(*b), &path, &err));
+#ifndef _WIN32
             struct stat st;
-            assert(stat(path.c_str(), &st) == 0 && (st.st_mode & 0777) == 0600);
+            assert(::stat(path.c_str(), &st) == 0 && (st.st_mode & 0777) == 0600);
+#endif
+            assert(tu::exists(path));
             // Second attempt must refuse and leave the file alone.
             assert(!createModeFile(dir, id, "junk", &path, &err) && err == "file already exists");
         }
@@ -135,8 +135,10 @@ int main() {
         assert(!createModeFile(dir, "../escape", "x", nullptr, &err));
 
         // Dangling symlink at the target: O_EXCL|O_NOFOLLOW refuses.
-        assert(symlink("/nonexistent/target", (dir + "/link.conf").c_str()) == 0);
+#ifndef _WIN32
+        assert(::symlink("/nonexistent/target", (dir + "/link.conf").c_str()) == 0);
         assert(!createModeFile(dir, "link", "x", nullptr, &err));
+#endif
 
         // Template with buttons and overrides survives the round trip.
         ModeDef m;
@@ -154,7 +156,7 @@ int main() {
         assert(c && c->h == m.h && c->twist == m.twist && c->buttons.size() == 2);
         assert(c->buttons[1].mode == "next" && c->overrides == m.overrides);
 
-        if (system(("rm -rf " + std::string(tmpl)).c_str()) != 0) puts("cleanup failed");
+        tu::removeAll(tmpdir);
     }
 
     puts("test_mode_list: ok");
