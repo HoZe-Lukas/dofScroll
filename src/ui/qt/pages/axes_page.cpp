@@ -159,7 +159,9 @@ protected:
 
         // Mode line.
         const LiveSample &s = vm_->shown();
-        status_ = T("Mode:") + QLatin1Char(' ') + (live ? qs(truncateUtf8(s.mode, 64)) : QStringLiteral("-"));
+        status_.clear();
+        if (!vm_->deviceLabel().empty()) status_ = qs(truncateUtf8(vm_->deviceLabel(), 96)) + QStringLiteral("  |  ");
+        status_ += T("Mode:") + QLatin1Char(' ') + (live ? qs(truncateUtf8(s.mode, 64)) : QStringLiteral("-"));
         if (live) {
             if (!s.enabled) status_ += QStringLiteral("  |  ") + T("disabled");
             if (s.nav) status_ += QStringLiteral("  |  ") + T("navigation mode");

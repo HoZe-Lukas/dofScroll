@@ -41,6 +41,13 @@ public:
     // Polls the client and feeds every received sample; returns how many arrived.
     int pump(LiveFeedClient &client, int64_t nowNs) {
         const int n = client.poll(nowNs, [&](const LiveSample &s) { update(s, nowNs); });
+        syncDevices(client);
+        return n;
+    }
+
+    // Takes over the client's device list (call after every poll; pump() does it). The list is
+    // dropped while the client is not connected.
+    void syncDevices(const LiveFeedClient &client) {
         if (client.infoCount() != infoSeen_) {  // new device list (or reconnect with a fresh one)
             infoSeen_ = client.infoCount();
             devices_ = client.devices();
@@ -49,7 +56,6 @@ public:
             devices_.clear();  // daemon gone: its device list is no longer known
             hasDevices_ = false;
         }
-        return n;
     }
 
     // Device info frame of the daemon. hasDevices() is false until the first frame arrives and
@@ -57,10 +63,19 @@ public:
     bool hasDevices() const { return hasDevices_; }
     const std::vector<LiveDevice> &devices() const { return devices_; }
     uint32_t infoRevision() const { return infoSeen_; }
-    // Name of the first device ("" if none), and the number of configurable buttons: the factory
-    // count of the first device (0 if no device is known).
-    std::string deviceName() const { return devices_.empty() ? std::string() : devices_.front().name; }
-    int factoryButtons() const { return devices_.empty() ? 0 : devices_.front().factoryButtons; }
+    // Display label: the device names joined by ", " ("" if none). The number of configurable
+    // buttons is the largest factory count (devices behind one merged source share the indices;
+    // 0 if no device is known).
+    std::string deviceLabel() const {
+        std::string l;
+        for (const LiveDevice &d : devices_) l += (l.empty() ? "" : ", ") + d.name;
+        return l;
+    }
+    int factoryButtons() const {
+        int n = 0;
+        for (const LiveDevice &d : devices_) n = std::max(n, d.factoryButtons);
+        return n;
+    }
 
     bool hasSample() const { return has_; }
     const LiveSample &latest() const { return latest_; }

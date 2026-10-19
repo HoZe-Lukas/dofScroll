@@ -171,7 +171,13 @@ public:
     }
 
     // Buttons shown as 1..N: the known device count if set (factoryButtonCount), but at least the
-    // highest button seen so far (the feed carries no device name), at least kMinButtons.
+    // highest button seen so far (for devices without a known count), at least kMinButtons.
+    // Device from the feed's info frame (name "" and 0 buttons when unknown).
+    void setDevice(const std::string &label, int factoryButtons) {
+        label_ = label;
+        setKnownButtonCount(factoryButtons);
+    }
+    const std::string &deviceLabel() const { return label_; }
     void setKnownButtonCount(int n) { known_ = std::max(0, std::min(n, int(kMaxButtons))); }
     int buttonCount() const {
         int highest = 0;
@@ -187,6 +193,7 @@ private:
     LiveSample shown_;
     PeakHold hold_;
     uint32_t everButtons_ = 0;
+    std::string label_;
     int scale_ = axisFullScale(0), known_ = 0;
     double chanScale_ = 10.0;
     bool paused_ = false, has_ = false;
@@ -417,6 +424,8 @@ public:
             view_.onSample(s, nowNs);
             wizard_.onSample(s.axes);
         });
+        feed_.syncDevices(client_);
+        view_.setDevice(feed_.deviceLabel(), feed_.factoryButtons());
         if (client_.state() != LiveFeedClient::State::Connected) wizard_.connectionLost();
         return wizard_.tick(nowNs);
     }
