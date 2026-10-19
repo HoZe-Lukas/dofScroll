@@ -114,7 +114,7 @@ static void testBuildMix() {
     assert(buildMix({{AX_X, 1}, {AX_RZ, -1}}) == "x - rz");
     assert(buildMix({{AX_RY, -1}}) == "-ry");
     assert(buildMix({{AX_Z, 1}, {-1, 0}}) == "z");
-    assert(buildMix({{AX_RX, 1}, {AX_RX, -1}}) == "rx");  // doppelte Achse nur einmal
+    assert(buildMix({{AX_RX, 1}, {AX_RX, -1}}) == "rx");  // duplicate axis only once
     assert(buildMix({}).empty());
     // The result must be accepted by the real parser and round-trip.
     for (const char *t : {"z + rx", "x - rz", "-ry", "-z - rx"}) {
