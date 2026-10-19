@@ -39,7 +39,7 @@ using namespace spn::ui;
 namespace {
 enum { kRoleSection = Qt::UserRole };  // section index, -1 for group headers
 
-QString q(const std::string &s) { return QString::fromStdString(s); }
+QString q(const std::string &s) { return QString::fromUtf8(s.data(), qsizetype(s.size())); }
 
 QLabel *wrapLabel(const QString &text, QWidget *parent = nullptr) {
     auto *l = new QLabel(text, parent);
@@ -306,7 +306,7 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
             kc->setAccessibleName(T("Key of button") + QStringLiteral(" %1").arg(row.number));
             connect(kc, &QComboBox::activated, this, [this, section, row, kc](int) {
                 std::string err;
-                Binding b{BindingKind::Key, kc->currentData().toString().toStdString()};
+                Binding b{BindingKind::Key, kc->currentData().toString().toUtf8().toStdString()};
                 if (kc->currentData().isValid() && applyBinding(*ctx_.settings, section, row.number, b, &err))
                     setStatus(T("Unsaved changes"));
                 else if (!err.empty())
@@ -324,7 +324,7 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
             mc->setCurrentIndex(std::max(0, mc->findData(q(row.binding.arg))));
             connect(mc, &QComboBox::activated, this, [this, section, row, mc](int) {
                 std::string err;
-                Binding b{BindingKind::Mode, mc->currentData().toString().toStdString()};
+                Binding b{BindingKind::Mode, mc->currentData().toString().toUtf8().toStdString()};
                 if (applyBinding(*ctx_.settings, section, row.number, b, &err))
                     setStatus(T("Unsaved changes"));
                 else
@@ -496,8 +496,8 @@ QWidget *ProfilesPage::buildOverrides(size_t section) {
         connect(edit, &QLineEdit::editingFinished, this, [this, section, key, edit] {
             std::string err;
             SettingsModel::Value cur;
-            if (ctx_.settings->value(section, key, &cur) && cur.text == edit->text().toStdString()) return;
-            if (!ctx_.settings->setValue(section, key, edit->text().toStdString(), &err)) {
+            if (ctx_.settings->value(section, key, &cur) && cur.text == edit->text().toUtf8().toStdString()) return;
+            if (!ctx_.settings->setValue(section, key, edit->text().toUtf8().toStdString(), &err)) {
                 setStatus(q(key) + QStringLiteral(": ") + q(err));
                 if (ctx_.settings->value(section, key, &cur)) edit->setText(q(cur.text));
             } else {
@@ -525,7 +525,7 @@ QWidget *ProfilesPage::buildOverrides(size_t section) {
         il->addLayout(h);
         connect(add, &QPushButton::clicked, this, [this, section, combo] {
             std::string err;
-            if (!ctx_.settings->addOverride(section, combo->currentData().toString().toStdString(), &err))
+            if (!ctx_.settings->addOverride(section, combo->currentData().toString().toUtf8().toStdString(), &err))
                 setStatus(q(err));
             else
                 setStatus(T("Unsaved changes"));
@@ -543,7 +543,7 @@ void ProfilesPage::addApplication() {
     AddAppDialog dlg(ctx_, ProfileTreeModel::patterns(*ctx_.settings, Section::APP), this);
     if (dlg.exec() != QDialog::Accepted) return;
     std::string err;
-    const size_t idx = ProfileTreeModel::add(*ctx_.settings, Section::APP, dlg.matchString().toStdString(), &err);
+    const size_t idx = ProfileTreeModel::add(*ctx_.settings, Section::APP, dlg.matchString().toUtf8().toStdString(), &err);
     if (idx == ProfileSet::npos) {
         setStatus(q(err));
         return;
@@ -556,7 +556,7 @@ void ProfilesPage::addDevice() {
     AddDeviceDialog dlg(ctx_, ProfileTreeModel::patterns(*ctx_.settings, Section::DEVICE), this);
     if (dlg.exec() != QDialog::Accepted) return;
     std::string err;
-    const size_t idx = ProfileTreeModel::add(*ctx_.settings, Section::DEVICE, dlg.deviceName().toStdString(), &err);
+    const size_t idx = ProfileTreeModel::add(*ctx_.settings, Section::DEVICE, dlg.deviceName().toUtf8().toStdString(), &err);
     if (idx == ProfileSet::npos) {
         setStatus(q(err));
         return;
@@ -574,7 +574,7 @@ void ProfilesPage::renameProfile() {
                                                q(cur), &ok);
     if (!ok) return;
     std::string err;
-    if (!ProfileTreeModel::rename(*ctx_.settings, s, text.toStdString(), &err)) {
+    if (!ProfileTreeModel::rename(*ctx_.settings, s, text.toUtf8().toStdString(), &err)) {
         setStatus(q(err));
         return;
     }

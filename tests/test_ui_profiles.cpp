@@ -215,7 +215,81 @@ static void testLayout() {
     assert(!sm.setMode(0, 1, &err));
 }
 
+// Non-ASCII names, spaces and special characters in profile names (UTF-8, byte-exact).
+static void testUtf8() {
+    const std::vector<std::string> names = {
+        "Pr\xc3\xa4sentation Manager",               // umlaut + space
+        "caf\xc3\xa9.exe",                            // accent
+        "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x82\xa2\xe3\x83\x97\xe3\x83\xaa",  // CJK
+        "rocket \xf0\x9f\x9a\x80 app",              // emoji (4-byte)
+        "a#b;c=d [x",                                   // '#', ';', '=', '[' (no ']')
+        "  padded name  "};
+    SettingsModel sm;
+    ProfileSet ps;
+    sm.setProfiles(ps, "");
+    std::string err;
+    for (const std::string &n : names) {
+        const size_t i = ProfileTreeModel::add(sm, Section::APP, n, &err);
+        assert(i != ProfileSet::npos);
+    }
+    // Stored byte-identical (only ASCII outer whitespace is trimmed).
+    for (size_t k = 0; k + 1 < names.size(); ++k) assert(sm.profiles().find(Section::APP, names[k]) != ProfileSet::npos);
+    assert(sm.profiles().find(Section::APP, "padded name") != ProfileSet::npos);
+
+    // Rejected with a message: ']' and line breaks (cannot be stored), blank.
+    for (const char *bad : {"x]y", "a\nb", "a\rb", "", "   "}) {
+        assert(ProfileTreeModel::add(sm, Section::APP, bad, &err) == ProfileSet::npos);
+        assert(!err.empty());
+    }
+
+    // Save and load round trip keeps every name byte-exact.
+    const std::string dir = tu::makeTempDir("profiles-utf8");
+    const std::string path = dir + "/dofscroll.conf";
+    sm.setProfiles(sm.profiles(), path);
+    IdentityStrings strs;
+    const SettingsModel::SaveResult r = sm.save(strs);
+    assert(r.saved);
+    SettingsModel sm2;
+    assert(sm2.load(path, nullptr, &err));
+    for (size_t k = 0; k + 1 < names.size(); ++k) {
+        const bool found = sm2.profiles().find(Section::APP, names[k]) != ProfileSet::npos;
+        if (!found) std::printf("UTF-8 round trip lost profile name #%zu\n", k);
+        assert(found);
+    }
+    tu::removeAll(dir);
+
+    // Tree order and picker filter work on UTF-8 text (substring on the bytes; case folding is
+    // ASCII only).
+    AppPickerModel pm;
+    std::vector<RunningApp> apps;
+    for (const std::string &n : names) {
+        RunningApp a;
+        a.matchString = n;
+        a.displayName = n;
+        apps.push_back(a);
+    }
+    pm.setApps(apps);
+    assert(pm.rows("\xc3\xa4sent").size() == 1);                     // umlaut substring
+    assert(pm.rows("\xf0\x9f\x9a\x80").size() == 1);                // emoji
+    assert(pm.rows("\xe6\x97\xa5\xe6\x9c\xac").size() == 1);      // CJK prefix
+    assert(pm.rows("A#B").size() == 1);                               // ASCII case-insensitive
+    assert(pm.rows("rocket app").empty());                            // substring, not words
+    assert(pm.rows("").size() == names.size());
+    pm.setConfigured({"caf\xc3\xa9.exe"});
+    for (const AppRow &row : pm.rows("caf")) assert(row.hasProfile);
+
+    DevicePickerModel dm;
+    DeviceInfo d;
+    d.name = "Ger\xc3\xa4t \xe2\x84\xa2 [1";
+    dm.setDevices({d});
+    assert(dm.rows("\xe2\x84\xa2").size() == 1);
+    assert(ProfileTreeModel::add(sm, Section::DEVICE, d.name, &err) != ProfileSet::npos);
+    dm.setConfigured(ProfileTreeModel::patterns(sm, Section::DEVICE));
+    assert(dm.rows("")[0].hasProfile);
+}
+
 int main() {
+    testUtf8();
     testKeyList();
     testBindingParse();
     testPrimaryAdvanced();

@@ -16,7 +16,7 @@
 using namespace spn;
 
 namespace {
-QString q(const std::string &s) { return QString::fromStdString(s); }
+QString q(const std::string &s) { return QString::fromUtf8(s.data(), qsizetype(s.size())); }
 enum { kRoleName = Qt::UserRole };
 }  // namespace
 
@@ -88,7 +88,7 @@ AddDeviceDialog::AddDeviceDialog(PageContext &ctx, const std::vector<std::string
 
 QString AddDeviceDialog::deviceName() const {
     std::string norm;
-    if (validateProfilePattern(manual_->text().toStdString(), &norm, nullptr)) return q(norm);
+    if (validateProfilePattern(manual_->text().toUtf8().toStdString(), &norm, nullptr)) return q(norm);
     return QString();
 }
 
@@ -104,7 +104,7 @@ void AddDeviceDialog::refresh() {
 
 void AddDeviceDialog::refill() {
     list_->clear();
-    for (const DeviceRow &r : model_.rows(search_->text().toStdString())) {
+    for (const DeviceRow &r : model_.rows(search_->text().toUtf8().toStdString())) {
         auto *it = new QTreeWidgetItem(list_);
         it->setText(0, q(r.dev.name));
         it->setText(1, q(r.idString));
@@ -115,7 +115,7 @@ void AddDeviceDialog::refill() {
 
 void AddDeviceDialog::validate() {
     std::string norm, err;
-    const bool ok = validateProfilePattern(manual_->text().toStdString(), &norm, &err);
+    const bool ok = validateProfilePattern(manual_->text().toUtf8().toStdString(), &norm, &err);
     buttons_->button(QDialogButtonBox::Ok)->setEnabled(ok);
     validation_->setText(ok ? QString() : (manual_->text().isEmpty() ? QString() : T(err.c_str())));
 }

@@ -19,7 +19,7 @@
 using namespace spn;
 
 namespace {
-QString q(const std::string &s) { return QString::fromStdString(s); }
+QString q(const std::string &s) { return QString::fromUtf8(s.data(), qsizetype(s.size())); }
 enum { kRoleMatch = Qt::UserRole, kRoleHasProfile };
 }  // namespace
 
@@ -123,7 +123,7 @@ AddAppDialog::~AddAppDialog() { ++generation_; }
 
 QString AddAppDialog::matchString() const {
     std::string norm;
-    if (validateProfilePattern(manual_->text().toStdString(), &norm, nullptr)) return q(norm);
+    if (validateProfilePattern(manual_->text().toUtf8().toStdString(), &norm, nullptr)) return q(norm);
     return QString();
 }
 
@@ -149,7 +149,7 @@ void AddAppDialog::refresh() {
         } else {
             err = "not available";
         }
-        const QString qerr = QString::fromStdString(err);
+        const QString qerr = QString::fromUtf8(err.data(), qsizetype(err.size()));
         if (!self) return;
         QMetaObject::invokeMethod(
             self.data(),
@@ -178,7 +178,7 @@ void AddAppDialog::applyResult(bool ok, const QString &err, std::vector<RunningA
 
 void AddAppDialog::refill() {
     list_->clear();
-    for (const AppRow &r : model_.rows(search_->text().toStdString())) {
+    for (const AppRow &r : model_.rows(search_->text().toUtf8().toStdString())) {
         auto *it = new QTreeWidgetItem(list_);
         it->setText(0, q(r.app.displayName.empty() ? r.app.matchString : r.app.displayName));
         it->setText(1, q(r.app.matchString));
@@ -221,7 +221,7 @@ void AddAppDialog::tickCapture() {
 
 void AddAppDialog::validate() {
     std::string norm, err;
-    const bool ok = validateProfilePattern(manual_->text().toStdString(), &norm, &err);
+    const bool ok = validateProfilePattern(manual_->text().toUtf8().toStdString(), &norm, &err);
     buttons_->button(QDialogButtonBox::Ok)->setEnabled(ok);
     if (ok) {
         validation_->setText(model_.alreadyConfigured(norm) ? T("This program already has a profile.") : QString());

@@ -12,7 +12,7 @@
 class QtActionRunner : public spn::ui::ActionRunner {
 public:
     bool openPath(const std::string &path, std::string *err) override {
-        if (QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(path)))) return true;
+        if (QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromUtf8(path.data(), qsizetype(path.size()))))) return true;
         if (err) *err = "cannot open " + path;
         return false;
     }
