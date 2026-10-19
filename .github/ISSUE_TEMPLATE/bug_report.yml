@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+name: Bug report
+description: Something does not work as documented
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. For security problems do NOT use this form, see SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: dofscroll version
+      description: Output of `dofscroll --version`, or the commit/tag you built.
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: SpaceMouse / SpaceNavigator model, wired or wireless.
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Linux, Windows, macOS, Other]
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Distribution / session
+      description: For example distribution and version, X11 or Wayland, spacenavd version.
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and config
+      description: Relevant log lines and your config file. Remove anything private first.
+      render: text
