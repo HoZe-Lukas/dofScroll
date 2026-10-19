@@ -97,15 +97,15 @@ int main() {
         // Editing from the tray: entries, template round trip, never overwrite, invalid ids.
         const std::string tmpdir = tu::makeTempDir("dofscroll-ml");
         const std::string dir = tmpdir + "/modes";
-        ModeSet ms = loadModes(dir, nullptr);
-        auto ee = buildEditEntries(ms);
+        ModeSet fms = loadModes(dir, nullptr);
+        auto ee = buildEditEntries(fms);
         assert(ee.size() == 3);
         for (auto &e : ee) assert(!e.has_file);
         assert(modeFilePath(dir, "../x").empty() && modeFilePath("", "a").empty());
         assert(modeFilePath(dir, "timeline") == dir + "/timeline.conf");
 
         for (const char *id : {"normal", "off", "timeline"}) {
-            const ModeDef *b = ms.find(id);
+            const ModeDef *b = fms.find(id);
             assert(b && b->builtin);
             std::string path, err;
             assert(createModeFile(dir, id, modeTemplate(*b), &path, &err));
@@ -120,7 +120,7 @@ int main() {
         std::vector<std::string> warn;
         ModeSet ms2 = loadModes(dir, &warn);
         assert(warn.empty() && ms2.modes.size() == 3);
-        for (const ModeDef &b : ms.modes) {
+        for (const ModeDef &b : fms.modes) {
             const ModeDef *f = ms2.find(b.id);
             assert(f && !f->builtin);
             assert(f->label == b.label && f->description == b.description);
