@@ -1,84 +1,58 @@
 # AGENTS.md
 
-Context for AI coding agents (Claude Code, Codex, Cursor, ...) working on this repo. For the
-full architecture and operating instructions see `readme.md` - this document is only a short
-orientation.
+Orientation for AI coding agents (Claude Code, Codex, Cursor, ...) working on this repo.
+User documentation is in `readme.md` and `docs/`; this file only gives the short version.
 
 ## What this is
 
-dofscroll: a small C++ driver bridge, running as two separate processes, for a 3Dconnexion
-SpaceMouse on Linux (X11, tested on RHEL 9). The daemon (`src/dofscroll.cpp`) reads the mouse
-via `spacenavd`/`libspnav` and turns it into X11 scroll/zoom/arrow-key/mouse-button events
-(250 Hz tick rate (`TICK_HZ`), reader thread and main thread decoupled). What the channels and
-buttons do is decided by a **mode** (declarative plugin files, see `readme.md` section 4). The
-second component, `src/dofscroll_tray.cpp`, is a GTK3+AppIndicator tray icon with a settings
-window that writes the same config file and triggers a live reload in the daemon via SIGHUP;
-it also seeds example config/modes on first start. Build with CMake (see below); CI
-will be a GitHub Actions workflow (planned).
+dofscroll: a C++17 bridge for a 3Dconnexion SpaceMouse, two processes. The daemon
+(`src/dofscroll.cpp`) reads the device through `spacenavd`/`libspnav` and produces scroll, zoom,
+key and mouse-button events through X11/XTest or uinput. The tray (`src/dofscroll_tray.cpp`, GTK3
++ AppIndicator) writes the same config file and triggers a live reload with SIGHUP. Windows and
+macOS ports are in development (`docs/work-plan.md`).
 
-## Where things are
+## Layout
 
 | Path | Purpose |
 |---|---|
-| `src/` | Sources: `dofscroll.cpp` (daemon), `dofscroll_tray.cpp` (tray), `config`/`dsp`/`modes` (shared resp. unit-tested), `output*` (X11/uinput), `activewin`, `seed`, `device_db.hpp`; headers are the contract |
-| `tests/` | Unit tests (`ctest --test-dir build`) |
-| `examples/` | Example configs: `dofscroll-pro.conf`, `-compact.conf`, `-multi-device.conf` (CI-validated), `default/` (seeded on first start), `modes/` (example modes) |
-| `po/` | gettext translations (`*.po`); the only place for non-English text |
-| `scripts/` | Pre-commit hook, hardening check |
-| `CMakeLists.txt`, `cmake/` | Build, quality gates (`check`, `check-fast`) |
-| `docs/security.md`, `docs/windows-mac.md`, `packaging/` | Security review; driver research for Windows/Mac; udev rule for uinput |
-| `dofscroll`, `dofscroll-tray` | Locally built binaries in the repo root (see "Warning" below) |
-| `icons/dofscroll-tray.svg` | Custom tray icon |
-| `systemd/dofscroll.service`, `systemd/dofscroll-tray.service` | User systemd units, linked (not copied) into `~/.config/systemd/user/` |
-| `readme.md` | Full technical documentation (architecture, config keys, modes, install/move instructions) - **the single source of truth for operation/install**; this AGENTS.md does not duplicate it |
-| `CONTRIBUTING.md`, `THIRD-PARTY-NOTICES.md` | Contribution guide; licenses of dependencies |
+| `src/` | Sources. Headers are the contract. Shared logic: `config`, `dsp`, `modes`, `seed`, `device_db`; output: `output*`; platform code in `src/platform/` |
+| `tests/` | Unit and scenario tests (`tests/test_*.cpp`, plain `assert`) |
+| `examples/` | Example configs (CI-validated), `default/` (seeded on first start), `modes/` |
+| `devices/` | Device descriptions, format in `docs/devices.md` |
+| `po/` | gettext catalogs. The only place for non-English text |
+| `systemd/`, `packaging/`, `icons/` | User units, udev rule and CPack config, tray icon |
+| `cmake/`, `CMakeLists.txt` | Build, quality gates, install and helper targets |
+| `scripts/` | Pre-commit hook, secret scan, hardening check |
+| `docs/` | `installation`, `configuration`, `modes`, `troubleshooting` (user docs); `security`, `releasing`, `work-plan`, `port-*`, `windows-mac`, `devices` |
 
-`~/.config/dofscroll/dofscroll.conf` (legacy: `~/.config/spnav-scroll/spnav-scroll.conf` and
-`~/.config/spnav-scroll.conf`, migrated by the tray at start) is NOT part of the repo (purely
-user-specific) - see `readme.md` section 4 for the format.
+## Build and test
 
-## Build (verified)
+    cmake -S . -B build
+    cmake --build build --target check-deps     # missing dependencies
+    cmake --build build -j4                     # binaries in build/
+    ctest --test-dir build --output-on-failure  # tests
+    cmake --build build --target check-fast     # -Werror build + tests (pre-commit gate)
+    cmake --build build --target check          # + ASan/UBSan, cppcheck, hardening
 
-```sh
-cmake -S . -B build                         # configure (pip install --user cmake if missing)
-cmake --build build --target check-deps     # check dependencies
-cmake --build build -j4                     # both binaries in build/
-ctest --test-dir build --output-on-failure  # unit tests
-cmake --build build --target check          # complete quality gate (werror, tests, ASAN, cppcheck, hardening)
-```
+If `cmake` is missing or too old: `pip install --user cmake`. A running service keeps its binary
+open (`Text file busy`); stop it before rebuilding.
 
-Required packages (RHEL 9 + EPEL): `gcc-c++ spacenavd libspnav-devel libX11-devel
-libXtst-devel gtk3-devel libappindicator-gtk3-devel` (plus `cmake`, `gettext` for
-translations) - exact `dnf install` in `readme.md` section 5.
+## Rules
 
-**Warning before a rebuild:** the two binaries in `build/` are purely local build
-artifacts (listed in `.gitignore`, not tracked - only the sources are) - a fresh clone does not
-have them until the build above creates them. A running service keeps its binary open (`Text
-file busy`) - before a rebuild on a system with active services, stop them first: `systemctl
---user stop dofscroll.service dofscroll-tray.service`, then rebuild, then `systemctl --user
-start ...`.
+- English everywhere (code, comments, docs, logs, commits). Only `po/*.po` has other languages.
+  UI strings are English in the source and translated through gettext.
+- New files carry the SPDX header (`GPL-3.0-or-later`, copyright line as in existing files).
+- The number of configurable buttons comes from `factoryButtonCount(deviceName, reported)`, never
+  from the reported count alone. `BUTTON_<n>` is 1-based and at most 32.
+- Fixed interfaces: `src/modes.hpp`, `src/keys.hpp`, `src/seed.hpp`, `src/device_db.hpp`.
+- Precedence of profiles: global < device < mode overrides < app.
+- On a behavior change update the matching doc (`docs/configuration.md`, `docs/modes.md`,
+  `docs/installation.md`, `docs/troubleshooting.md`) in the same change.
+- Never use `--no-verify`. Do not run services, `sudo` or `git push` unless asked.
+- No personal data, hostnames or employer names in the repo.
 
 ## Verifying a change
 
-Unit/scenario tests (`ctest`) cover config, DSP, modes and the axis wizard; beyond that the
-behavior depends on real SpaceMouse hardware, a running X11 session and `spacenavd`. What an
-agent without hardware access can realistically do:
-1. Run `cmake --build build --target check` (at least `check-fast`) and check for compile errors/warnings.
-2. Check `readme.md` for contradictions with the changed logic (the code is the source of truth
-   for behavior, the README only for architecture/contracts - on a behavior change update the
-   README as well, not just the code).
-3. Real verification (scrolling/zooming/nav mode/click button, `journalctl --user
-   -u dofscroll.service -f`) can only be done by a human on real hardware - say so clearly
-   instead of pretending it was tested.
-
-Rules that are easy to break: the number of configurable buttons must come from
-`factoryButtonCount(deviceName, reported)`, never from the reported count alone; the headers
-`src/modes.hpp`, `src/keys.hpp`, `src/seed.hpp`, `src/device_db.hpp` are fixed interfaces.
-
-## Language
-
-All repository text is English: code comments, identifiers, documentation, log/error/test
-messages, commit messages. The only exception is the German translation in `po/*.po`. New UI
-strings are written in English and made translatable (gettext); do not hard-code German (or any
-other language) in source files. New files carry the SPDX header
-(`SPDX-License-Identifier: GPL-3.0-or-later`).
+Tests cover config, DSP, modes and the axis wizard. Real behavior needs hardware, a live X11 or
+Wayland session and `spacenavd`. Run `check-fast` at least, and say clearly what only a human can
+verify on real hardware (scrolling, zoom, buttons, tray). Do not claim it was tested.
