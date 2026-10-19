@@ -41,7 +41,10 @@ QString originText(Origin o) {
 QWidget *makeModesPage(const UiContext &ctx) { return new ModesPage(ctx); }
 
 ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
-    : QWidget(parent), ctx_(ctx), catalog_(ctx.modesDir) {
+    : QWidget(parent),
+      ctx_(ctx),
+      ownCatalog_(ctx.modes ? nullptr : new spn::ui::ModeCatalog(ctx.modesDir)),
+      catalog_(ctx.modes ? *ctx.modes : *ownCatalog_) {
     auto *root = new QVBoxLayout(this);
     auto *title = new QLabel(QStringLiteral("<b>") + T("Modes") + QStringLiteral("</b>"), this);
     root->addWidget(title);

@@ -6,14 +6,19 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QListWidget>
 #include <QPushButton>
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QTreeWidget>
 #include <QVBoxLayout>
 
+#include <QTimer>
+#include <ctime>
+
+#include "common.hpp"
+#include "config.hpp"
 #include "pages/page_registry.hpp"
+#include "platform/fs.hpp"
 #include "ui_i18n.hpp"
 
 namespace {
@@ -21,7 +26,8 @@ enum { kRoleKind = Qt::UserRole };  // 0 = page entry, 1 = profile entry, 2 = gr
 enum { kRoleStackIndex = Qt::UserRole + 1, kRoleDefault = Qt::UserRole + 2 };
 }  // namespace
 
-MainWindow::MainWindow(const UiContext &ctx, QWidget *parent) : QMainWindow(parent), ctx_(ctx) {
+MainWindow::MainWindow(const UiContext &base, QWidget *parent)
+    : QMainWindow(parent), modes_(base.modesDir), ctx_(base) {
     setWindowTitle(QStringLiteral("dofscroll"));
     resize(900, 520);
     auto *split = new QSplitter(this);
@@ -30,16 +36,26 @@ MainWindow::MainWindow(const UiContext &ctx, QWidget *parent) : QMainWindow(pare
     stack_ = new QStackedWidget(split);
     split->setStretchFactor(1, 1);
 
-    // Mode-independent pages: always available as their own entries.
-    const QStringList pages = {T("Channels"), T("Modes"), T("General"), T("Axes / assistant")};
-    for (const QString &name : pages) {
-        auto *it = new QTreeWidgetItem(nav_, QStringList(name));
+    // Configuration, status and the page context (everything the pages share).
+    std::vector<std::string> warnings;
+    std::string err;
+    if (!ctx_.reload) ctx_.reload = [this](std::string *e) { return ctx_.runner->requestReload(e); };
+    if (!settings_.load(ctx_.configPath, &warnings, &err)) settings_.setProfiles(spn::ProfileSet(), ctx_.configPath);
+    settings_.setReloadCallback(ctx_.reload);
+    ctx_.settings = &settings_;
+    ctx_.status = &status_;
+    ctx_.modes = &modes_;
+    ctx_.strings = &strings_;
+    updateStatus();
+    auto *timer = new QTimer(this);
+    connect(timer, &QTimer::timeout, this, [this] { updateStatus(); });
+    timer->start(1000);
+
+    // Mode-independent pages from the registry: always available as their own entries.
+    for (const PageFactory &f : pageFactories()) {
+        auto *it = new QTreeWidgetItem(nav_, QStringList(T(f.title)));
         it->setData(0, kRoleKind, 0);
-        QWidget *w = nullptr;
-        for (const PageFactory &f : pageFactories())  // registered pages, else a placeholder
-            if (name == T(f.title)) w = f.create(ctx_);
-        if (!w) w = placeholder(name);
-        it->setData(0, kRoleStackIndex, stack_->addWidget(w));
+        it->setData(0, kRoleStackIndex, stack_->addWidget(f.create(ctx_)));
     }
     // Profiles group: only what depends on the profile's mode lives below it.
     auto *group = new QTreeWidgetItem(nav_, QStringList(T("Profiles")));
@@ -65,14 +81,18 @@ MainWindow::MainWindow(const UiContext &ctx, QWidget *parent) : QMainWindow(pare
     nav_->setCurrentItem(nav_->topLevelItem(0));
 }
 
-QWidget *MainWindow::placeholder(const QString &title) {
-    auto *w = new QWidget;
-    auto *l = new QVBoxLayout(w);
-    l->addWidget(new QLabel(QStringLiteral("<b>") + title + QStringLiteral("</b>")));
-    auto *todo = new QLabel(T("not implemented yet"));
-    todo->setAlignment(Qt::AlignCenter);
-    l->addWidget(todo, 1);
-    return w;
+// Reads the daemon's status file (bounded, owner checked) into the status model.
+void MainWindow::updateStatus() {
+    const std::string path = spn::statusFilePath();
+    std::string text;
+    bool ok = false;
+    if (!path.empty()) {
+        spn::fs::ReadOptions opt;
+        opt.refuseLinks = true;
+        opt.requireOwner = true;
+        ok = spn::fs::readFileBounded(path, spn::kStatusMaxBytes, opt, &text).ok();
+    }
+    status_.update(text, ok, static_cast<int64_t>(std::time(nullptr)));
 }
 
 void MainWindow::bringToFront() {
@@ -120,6 +140,8 @@ void MainWindow::rebuildProfilePage(QTreeWidgetItem *profile) {
     stack_->insertWidget(idx, page);
     stack_->setCurrentWidget(page);
 }
+
+MainWindow::~MainWindow() { delete takeCentralWidget(); }
 
 int MainWindow::pageCount() const { return nav_->topLevelItemCount(); }
 

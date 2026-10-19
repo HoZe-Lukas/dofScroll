@@ -18,6 +18,7 @@
 #include "pages/modes_page.hpp"
 #include "qt_action_runner.hpp"
 #include "tray.hpp"
+#include "ui/model/ui_settings.hpp"
 #include "ui_context.hpp"
 
 int main(int argc, char **argv) {
@@ -36,9 +37,12 @@ int main(int argc, char **argv) {
     QApplication::setQuitOnLastWindowClosed(false);
 
     // Catalog converted from po/de.po at build time (dofscroll_<lang>.qm next to the binary).
+    // The language comes from the per-user UI settings (General page): "en" = no catalog.
+    const std::string lang = spn::ui::languageLocaleName(spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).language);
     QTranslator translator;
-    if (translator.load(QLocale(), QStringLiteral("dofscroll"), QStringLiteral("_"),
-                        QApplication::applicationDirPath()))
+    if (lang != "en" &&
+        translator.load(lang.empty() ? QLocale() : QLocale(QString::fromStdString(lang)),
+                        QStringLiteral("dofscroll"), QStringLiteral("_"), QApplication::applicationDirPath()))
         QApplication::installTranslator(&translator);
 
     const QIcon icon(QStringLiteral(":/dofscroll-tray.svg"));
@@ -61,7 +65,7 @@ int main(int argc, char **argv) {
 
         MainWindow w(ctx);
         w.show();
-        ModesPage modes(ctx);  // built-in normal, off, timeline + the file mode
+        ModesPage modes(ctx);  // standalone (own catalog): built-in normal, off, timeline + the file mode
         modes.show();
         Tray tray(&w, icon, ctx);
         // Must not crash; the result depends on the platform (offscreen: usually false).

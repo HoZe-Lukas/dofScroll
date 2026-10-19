@@ -46,7 +46,8 @@ private:
     QString askName(const QString &title, const QString &label, const QString &initial, bool *ok);
 
     UiContext ctx_;
-    spn::ui::ModeCatalog catalog_;
+    std::unique_ptr<spn::ui::ModeCatalog> ownCatalog_;  // only when the context has no shared one
+    spn::ui::ModeCatalog &catalog_;
     QListWidget *list_ = nullptr;
     QPlainTextEdit *detail_ = nullptr;
     QPushButton *newBtn_ = nullptr, *dupBtn_ = nullptr, *importBtn_ = nullptr, *editBtn_ = nullptr,
