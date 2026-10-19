@@ -17,6 +17,8 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <cstdarg>
+#include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <utility>
@@ -39,6 +41,40 @@ constexpr double TIE_RATIO = 0.95;      // above this: practically a tie -> ambi
 #ifndef N_
 #define N_(s) s
 #endif
+
+// Translation hook, so that this header stays free of GTK/gettext. The UI sets it to its
+// translator (spn::i18n::tr); the default returns the English msgid unchanged (tests).
+inline const char *(*&trHook())(const char *) {
+    static const char *(*h)(const char *) = [](const char *s) { return s; };
+    return h;
+}
+inline const char *tr(const char *s) { return trHook()(s); }
+
+// printf-style formatting of a translatable msgid (translated through the hook).
+#if defined(__GNUC__)
+__attribute__((format(printf, 1, 2)))
+#endif
+inline std::string wfmt(const char *msgid, ...) {
+    va_list ap;
+    va_start(ap, msgid);
+    va_list ap2;
+    va_copy(ap2, ap);
+    const char *f = tr(msgid);
+    // The translated format string must use the same conversions as the msgid.
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#endif
+    int n = vsnprintf(nullptr, 0, f, ap);
+    std::string out(n > 0 ? size_t(n) : 0, '\0');
+    if (n > 0) vsnprintf(&out[0], out.size() + 1, f, ap2);
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+    va_end(ap2);
+    va_end(ap);
+    return out;
+}
 
 inline const char *roleTitle(int r) {
     static const char *t[ROLE_COUNT] = {N_("Push forward/back"), N_("Tilt forward/back"),
@@ -167,9 +203,9 @@ inline StepResult analyzeStep(const std::vector<RawAxes> &samples,
         // Raw peaks exist but are never sustained -> hint about twitches.
         const auto raw = peakAbs(samples);
         r.message = strongestAxis(raw) >= 0
-                        ? "No sustained movement detected (only short deflections) - please "
-                          "move steadily and a little longer."
-                        : "No movement detected - please move the cap after \"Start\".";
+                        ? wfmt(N_("No sustained movement detected (only short deflections) - "
+                                  "please move steadily and a little longer."))
+                        : wfmt(N_("No movement detected - please move the cap after \"Start\"."));
         return r;
     }
     r.peak = r.peaks[r.axis];
@@ -179,27 +215,27 @@ inline StepResult analyzeStep(const std::vector<RawAxes> &samples,
     const std::string an = axisName(Axis(r.axis));
     if (r.peak < min_peak) {
         r.too_weak = true;
-        r.message = "Too weak (peak " + std::to_string(r.peak) + " on " + an +
-                    ", required " + std::to_string(min_peak) + ") - please move more firmly.";
+        r.message = wfmt(N_("Too weak (peak %d on %s, required %d) - please move more firmly."),
+                         r.peak, an.c_str(), min_peak);
         return r;
     }
     if (r.ratio >= TIE_RATIO) {
         r.ambiguous = true;
-        r.message = "Ambiguous: " + an + " " + std::to_string(r.peak) + " and " +
-                    axisName(Axis(r.runner_up)) + " " + std::to_string(r.peaks[r.runner_up]) +
-                    " are almost equally strong - please repeat and move more cleanly in only one "
-                    "direction.";
+        r.message = wfmt(N_("Ambiguous: %s %d and %s %d are almost equally strong - please "
+                            "repeat and move more cleanly in only one direction."),
+                         an.c_str(), r.peak, axisName(Axis(r.runner_up)), r.peaks[r.runner_up]);
         return r;
     }
     r.valid = r.sign != 0;
-    r.message = "Detected: " + std::string(r.sign < 0 ? "-" : "+") + an + " (peak " +
-                std::to_string(r.peak) + ")";
+    const char *sg = r.sign < 0 ? "-" : "+";
     if (r.runner_up >= 0)
-        r.message += ", second-strongest axis: " + std::string(axisName(Axis(r.runner_up))) + " " +
-                     std::to_string(r.peaks[r.runner_up]);
-    r.message += ".";
+        r.message = wfmt(N_("Detected: %s%s (peak %d), second-strongest axis: %s %d."), sg,
+                         an.c_str(), r.peak, axisName(Axis(r.runner_up)), r.peaks[r.runner_up]);
+    else
+        r.message = wfmt(N_("Detected: %s%s (peak %d)."), sg, an.c_str(), r.peak);
     if (r.ratio > AMBIGUOUS_RATIO)
-        r.message += " Close call - repeat if necessary and move more cleanly in only one direction.";
+        r.message += " " + wfmt(N_("Close call - repeat if necessary and move more cleanly in "
+                                   "only one direction."));
     return r;
 }
 
@@ -238,15 +274,17 @@ inline WizardResult evaluate(const std::array<StepResult, ROLE_COUNT> &res,
     for (int r = 0; r < ROLE_COUNT; ++r) {
         if (skipped[r] && roleOptional(r)) continue;
         if (skipped[r]) {
-            w.errors.push_back(std::string("Step \"") + roleTitle(r) +
-                               "\" is required and must not be skipped.");
+            w.errors.push_back(wfmt(N_("Step \"%s\" is required and must not be skipped."),
+                                    tr(roleTitle(r))));
             continue;
         }
         if (!res[r].valid) {
-            w.errors.push_back(std::string("Step \"") + roleTitle(r) +
-                               "\" has no valid result" +
-                               (res[r].too_weak ? " (too weak)."
-                                                 : res[r].ambiguous ? " (ambiguous)." : "."));
+            w.errors.push_back(
+                res[r].too_weak
+                    ? wfmt(N_("Step \"%s\" has no valid result (too weak)."), tr(roleTitle(r)))
+                : res[r].ambiguous
+                    ? wfmt(N_("Step \"%s\" has no valid result (ambiguous)."), tr(roleTitle(r)))
+                    : wfmt(N_("Step \"%s\" has no valid result."), tr(roleTitle(r))));
             continue;
         }
         used[r] = true;
@@ -258,21 +296,23 @@ inline WizardResult evaluate(const std::array<StepResult, ROLE_COUNT> &res,
     for (int a = 0; a < ROLE_COUNT; ++a)
         for (int b = a + 1; b < ROLE_COUNT; ++b)
             if (used[a] && used[b] && res[a].axis == res[b].axis) {
-                const std::string base = std::string("Axis ") + axisName(Axis(res[a].axis)) +
-                                         " was detected for \"" + roleTitle(a) + "\" and for \"" +
-                                         roleTitle(b) + "\" - contradictory";
+                const char *an = axisName(Axis(res[a].axis));
                 if (roleChannel(a) != roleChannel(b))
-                    w.errors.push_back(base + " (two different channels would use the same "
-                                              "axis), please repeat the steps.");
+                    w.errors.push_back(wfmt(
+                        N_("Axis %s was detected for \"%s\" and for \"%s\" - contradictory (two "
+                           "different channels would use the same axis), please repeat the steps."),
+                        an, tr(roleTitle(a)), tr(roleTitle(b))));
                 else
-                    w.warnings.push_back(base + "; it is used only once in the mix, please "
-                                                "repeat the steps.");
+                    w.warnings.push_back(wfmt(
+                        N_("Axis %s was detected for \"%s\" and for \"%s\" - contradictory; it is "
+                           "used only once in the mix, please repeat the steps."),
+                        an, tr(roleTitle(a)), tr(roleTitle(b))));
             }
     for (int r = 0; r < ROLE_COUNT; ++r)
         if (used[r] && res[r].axis == AX_Y)
-            w.warnings.push_back(std::string("For \"") + roleTitle(r) +
-                                 "\" lift/press (y) was strongest - probably "
-                                 "pressed down too hard.");
+            w.warnings.push_back(wfmt(N_("For \"%s\" lift/press (y) was strongest - probably "
+                                         "pressed down too hard."),
+                                      tr(roleTitle(r))));
 
     auto term = [&](int r) {
         return used[r] ? std::make_pair(res[r].axis, res[r].sign) : std::make_pair(-1, 0);

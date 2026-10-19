@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 09:01+0200\n"
+"POT-Creation-Date: 2026-10-19 09:11+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -224,7 +224,7 @@ msgstr ""
 msgid "Click button (left mouse button)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:822 src/dofscroll_tray.cpp:2463
+#: src/dofscroll_tray.cpp:822 src/dofscroll_tray.cpp:2464
 msgid "Restart daemon"
 msgstr ""
 
@@ -260,7 +260,7 @@ msgstr ""
 msgid "Twist the cap"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1185 src/axis_wizard.hpp:44
+#: src/dofscroll_tray.cpp:1185 src/axis_wizard.hpp:80
 msgid "Tilt forward/back"
 msgstr ""
 
@@ -268,7 +268,7 @@ msgstr ""
 msgid "+ right: push sideways"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1187 src/axis_wizard.hpp:45
+#: src/dofscroll_tray.cpp:1187 src/axis_wizard.hpp:81
 msgid "Tilt sideways"
 msgstr ""
 
@@ -653,34 +653,111 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2457
+#: src/dofscroll_tray.cpp:2458
 msgid "Determining status..."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2461
+#: src/dofscroll_tray.cpp:2462
 msgid "Settings…"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2462
+#: src/dofscroll_tray.cpp:2463
 msgid "Open config file"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2464
+#: src/dofscroll_tray.cpp:2465
 msgid "Show log..."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2466
+#: src/dofscroll_tray.cpp:2467
 msgid "Quit"
 msgstr ""
 
-#: src/axis_wizard.hpp:44
+#: src/axis_wizard.hpp:80
 msgid "Push forward/back"
 msgstr ""
 
-#: src/axis_wizard.hpp:45
+#: src/axis_wizard.hpp:81
 msgid "Push sideways"
 msgstr ""
 
-#: src/axis_wizard.hpp:46
+#: src/axis_wizard.hpp:82
 msgid "Twist"
+msgstr ""
+
+#: src/axis_wizard.hpp:206
+msgid ""
+"No sustained movement detected (only short deflections) - please move "
+"steadily and a little longer."
+msgstr ""
+
+#: src/axis_wizard.hpp:208
+msgid "No movement detected - please move the cap after \"Start\"."
+msgstr ""
+
+#: src/axis_wizard.hpp:218
+#, c-format
+msgid "Too weak (peak %d on %s, required %d) - please move more firmly."
+msgstr ""
+
+#: src/axis_wizard.hpp:224
+#, c-format
+msgid ""
+"Ambiguous: %s %d and %s %d are almost equally strong - please repeat and "
+"move more cleanly in only one direction."
+msgstr ""
+
+#: src/axis_wizard.hpp:232
+#, c-format
+msgid "Detected: %s%s (peak %d), second-strongest axis: %s %d."
+msgstr ""
+
+#: src/axis_wizard.hpp:235
+#, c-format
+msgid "Detected: %s%s (peak %d)."
+msgstr ""
+
+#: src/axis_wizard.hpp:237
+msgid ""
+"Close call - repeat if necessary and move more cleanly in only one direction."
+msgstr ""
+
+#: src/axis_wizard.hpp:277
+#, c-format
+msgid "Step \"%s\" is required and must not be skipped."
+msgstr ""
+
+#: src/axis_wizard.hpp:284
+#, c-format
+msgid "Step \"%s\" has no valid result (too weak)."
+msgstr ""
+
+#: src/axis_wizard.hpp:286
+#, c-format
+msgid "Step \"%s\" has no valid result (ambiguous)."
+msgstr ""
+
+#: src/axis_wizard.hpp:287
+#, c-format
+msgid "Step \"%s\" has no valid result."
+msgstr ""
+
+#: src/axis_wizard.hpp:302
+#, c-format
+msgid ""
+"Axis %s was detected for \"%s\" and for \"%s\" - contradictory (two "
+"different channels would use the same axis), please repeat the steps."
+msgstr ""
+
+#: src/axis_wizard.hpp:307
+#, c-format
+msgid ""
+"Axis %s was detected for \"%s\" and for \"%s\" - contradictory; it is used "
+"only once in the mix, please repeat the steps."
+msgstr ""
+
+#: src/axis_wizard.hpp:313
+#, c-format
+msgid ""
+"For \"%s\" lift/press (y) was strongest - probably pressed down too hard."
 msgstr ""

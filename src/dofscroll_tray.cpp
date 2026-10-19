@@ -2412,6 +2412,7 @@ static void addMenuItem(GtkWidget *menu, const char *label, GCallback cb) {
 
 int main(int argc, char **argv) {
     spn::i18n::init();
+    spn::wiz::trHook() = spn::i18n::tr;  // wizard result messages are built GUI-free
     gtk_init(&argc, &argv);
     {
         std::string mlog;

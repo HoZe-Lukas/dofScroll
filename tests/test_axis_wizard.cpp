@@ -272,7 +272,25 @@ static void testAmbiguous() {
     assert(r.valid && !r.ambiguous && r.axis == AX_RY);
 }
 
+static const char *fakeTr(const char *s) {
+    return std::string(s).compare(0, 8, "Too weak") == 0 ? "Zu schwach (Spitze %d auf %s, noetig %d)" : s;
+}
+
+// The tray installs its translator via the hook; messages use the translated format.
+static void testTranslationHook() {
+    RawAxes weak = {20, 30, 70, 25, 10, 30};
+    StepResult en = analyzeStep(sweep(weak, withMain(AX_Z, 1)));
+    assert(en.message.rfind("Too weak (peak ", 0) == 0);
+    auto *old = trHook();
+    trHook() = fakeTr;
+    StepResult de = analyzeStep(sweep(weak, withMain(AX_Z, 1)));
+    trHook() = old;
+    assert(de.message.rfind("Zu schwach (Spitze ", 0) == 0);
+    assert(de.message.find(" auf z, noetig 80)") != std::string::npos);
+}
+
 int main() {
+    testTranslationHook();
     testSignRobust();
     testSpikeIgnored();
     testAmbiguous();
