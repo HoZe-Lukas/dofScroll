@@ -90,7 +90,12 @@ struct FakeProvider : ActiveWindowProvider {
     std::vector<std::string> script;
     size_t pos = 0;
     bool init() override { return true; }
-    std::string poll() override { return pos < script.size() ? script[pos++] : script.empty() ? "" : script.back(); }
+    std::string poll() override {
+        if (script.empty()) return std::string();
+        const size_t i = pos < script.size() ? pos : script.size() - 1;
+        pos++;
+        return script[i];
+    }
 };
 }  // namespace
 
