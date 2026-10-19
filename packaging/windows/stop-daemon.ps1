@@ -50,6 +50,11 @@ function Get-Daemon {
 }
 
 $procs = Get-Daemon
+if ($procs.Count -eq 0) {
+    # help to find out why nothing matched (shown in the installer log)
+    Write-Output "stop-daemon: expected path '$ExePath', session $sid"
+    Get-Process -Name 'dofscroll' -ErrorAction SilentlyContinue | ForEach-Object { Write-Output "stop-daemon: saw pid $($_.Id) session $($_.SessionId) path '$($_.Path)'" }
+}
 foreach ($p in $procs) {
     if (-not $PSCmdlet.ShouldProcess("dofscroll.exe (pid $($p.Id))", 'stop')) { continue }
     # 1. polite request through the quit event (same user only: the event is private to the user)
