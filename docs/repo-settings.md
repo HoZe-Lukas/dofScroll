@@ -17,7 +17,6 @@ to apply the configuration with `scripts/configure-repo.sh`. The ruleset JSON fi
 | `lint` | actionlint (pinned, checksum-verified) on all workflows, shellcheck on `scripts/`, SPDX header check | required | `.github/workflows/lint.yml`, `scripts/check-spdx.sh` |
 | `CodeQL (c-cpp)` | CodeQL `security-extended` queries on a manual CMake build; also weekly | required | `.github/workflows/codeql.yml` |
 | `dependency review` | new or changed dependencies with known high-severity advisories | advisory (needs the dependency graph, see below) | `.github/workflows/dependency-review.yml` |
-| `Claude review` / `Claude (@claude comment)` | AI review of the diff, inline comments for real issues only | advisory, never required | `.github/workflows/claude-review.yml` |
 | package / release jobs | RPM, DEB, TGZ and the GitHub release | tags only | `ci.yml` |
 
 Notes:
@@ -48,16 +47,9 @@ in a green run first.
 
 ## One-time manual steps
 
-1. **Claude review secret.** On your machine run `claude setup-token` (needs a Claude
-   subscription) and store the printed token as the repository secret `CLAUDE_CODE_OAUTH_TOKEN`
-   (Settings, Secrets and variables, Actions). Alternatively create `ANTHROPIC_API_KEY`. Without
-   either, the review jobs finish green with a notice. The action also exchanges the job's OIDC
-   token for a short-lived GitHub token, which is why the review jobs have `id-token: write`.
-   Check the action's current setup requirements (it may ask for the Claude GitHub app) in
-   <https://github.com/anthropics/claude-code-action>.
-2. Nothing else needs to be installed. CodeQL, Dependabot and secret scanning are GitHub
+1. Nothing needs to be installed. CodeQL, Dependabot and secret scanning are GitHub
    features and need no secrets.
-3. Optional: enable **Discussions** (Settings, General) for questions, and **Security
+2. Optional: enable **Discussions** (Settings, General) for questions, and **Security
    advisories** for coordinated disclosure (private vulnerability reporting is switched on by
    `configure-repo.sh`, see `SECURITY.md`).
 4. Run `scripts/configure-repo.sh` (below).
@@ -81,7 +73,7 @@ script continues; anything else is FAILED and gives a non-zero exit status. Afte
 became public, run it again.
 
 Things to know when the allow-list is active: the `selected` list contains GitHub-owned
-actions, `anthropics/claude-code-action` and `oven-sh/setup-bun` (used inside it). A new action
+actions and `jurplel/install-qt-action`. A new action
 must be added to the list in the script (and in Settings) or its workflow fails. The CodeQL
 `init`/`analyze` steps belong to `github/*` and are covered.
 
@@ -95,15 +87,13 @@ must be added to the list in the script (and in Settings) or its workflow fails.
 | Dependabot alerts | limited | free |
 | Fork PRs | n/a | run without secrets; first-time and all outside contributors need approval before workflows run (`all_external_contributors`) |
 
-Until then CI, lint, the Claude review and the scripts work, but nothing prevents a direct push
+Until then CI, lint and the scripts work, but nothing prevents a direct push
 to `main`. Apply the ruleset right when the repository becomes public (or upgrade the plan).
 The CodeQL and dependency review workflows will fail on a private free-plan repository (the SARIF
 upload and the dependency graph are not available); that is expected and no reason to treat
 them as broken.
 
-Fork PRs never receive secrets, so the automatic Claude review skips them. A maintainer can
-comment `@claude` on a fork PR to get a read-only review (only OWNER, MEMBER or COLLABORATOR
-comments trigger it).
+Fork PRs never receive secrets.
 
 ## Maintainer workflow once the ruleset is active
 
@@ -111,7 +101,6 @@ The ruleset has no bypass actors: nobody can push to `main`, force-push, or dele
 the owner.
 
 1. `git switch -c my-change` and commit. Pushing the branch builds nothing; open a PR to start CI.
-   (Mark it draft to skip the Claude review until it is ready.)
 2. All required checks must be green and all review conversations resolved. Zero approvals are
    needed, so you can merge your own PR.
 3. Merge with **squash** (auto-merge can be enabled so the PR merges itself when the checks
@@ -131,5 +120,3 @@ the owner.
 - `sha_pinning_required` is set to false on purpose: with it on, GitHub also rejects actions that
   other actions call by tag internally (jurplel/install-qt-action calls setup-python@v5), and the
   Qt jobs failed in "Set up job". Our own workflows still pin every action to a full SHA.
-- Whether `anthropics/claude-code-action` works without its GitHub app installed, and whether it
-  can check out and read a fork PR head on an `@claude` comment, was not tested.
