@@ -3,6 +3,7 @@
 // Detection of the active program (WM_CLASS) for [app:*] profiles.
 // See activewin.hpp for the contract.
 #include "activewin.hpp"
+#include "platform/running_apps_util.hpp"
 #include "xerrors.hpp"
 
 #include <X11/Xatom.h>
@@ -35,7 +36,6 @@ using Clock = std::chrono::steady_clock;
 
 // The error handler and thread_local flag g_xerror come from xerrors.hpp (installed
 // once, idempotently; BadWindow for just-closed windows is normal).
-constexpr size_t kMaxClassLen = 256;
 constexpr size_t kMaxChildren = 32;
 
 std::string lower(std::string s) {
@@ -181,16 +181,10 @@ struct ActiveWindow::Impl {
         Status ok = XGetClassHint(dpy, w, &ch);
         XSync(dpy, False);
         std::string r;
-        if (ok && !g_xerror) {
-            std::string inst = ch.res_name ? ch.res_name : "";
-            std::string cls = ch.res_class ? ch.res_class : "";
-            r = inst;
-            if (!cls.empty()) r += (r.empty() ? "" : " ") + cls;
-        }
+        if (ok && !g_xerror) r = joinWmClass(ch.res_name, ch.res_class);
         if (ch.res_name) XFree(ch.res_name);
         if (ch.res_class) XFree(ch.res_class);
-        if (r.size() > kMaxClassLen) r.resize(kMaxClassLen);
-        return g_xerror ? std::string() : lower(r);
+        return g_xerror ? std::string() : r;
     }
 
     Window activeWindow() {

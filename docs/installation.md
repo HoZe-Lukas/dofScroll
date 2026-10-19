@@ -262,10 +262,18 @@ Other targets: `check-fast` (-Werror build and tests), `check` (adds sanitizers,
 hardening check), `check-config` (validates the example configs), `lint`, `install-udev`,
 `uninstall` (uses `install_manifest.txt`).
 
+### Qt interface (experimental)
+
+An optional Qt6 interface (`dofscroll-ui`, skeleton only) is built when Qt6 Widgets is found
+(CMake option `DOFSCROLL_UI`). Linux: install the distribution's Qt6 development packages
+(Debian family: `qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev`). Windows and macOS builds
+bundle the Qt libraries. Details and decisions: `docs/ui-options.md`. `dofscroll-ui --self-test`
+checks that the window can be created.
+
 ## 5. Windows and macOS
 
-The Windows and macOS ports are in development and there is no installer yet. Nothing else in
-this guide applies to them. The plan and the state of each work package are in
+The Windows and macOS ports are in development and there is no installer yet. Nothing else in this
+guide applies to them. The plan and the state of each work package are in
 [work-plan.md](work-plan.md).
 
 ### Windows (experimental)
@@ -285,3 +293,13 @@ Only for testers: the Windows daemon is built by CI (MSVC and MinGW-w64 jobs of
    you test, otherwise scrolling is doubled ([port-windows.md](port-windows.md)).
 
 There is no tray program on Windows yet (package W3). Details and limits: [port-windows.md](port-windows.md).
+
+### macOS (experimental)
+
+Build from source (`cmake -S . -B build && cmake --build build -j4`, Xcode command line tools and
+CMake), then install the per-user LaunchAgent with
+`sh packaging/macos/install-launchagent.sh --daemon "$PWD/build/dofscroll"`. You must grant the
+binary **Input Monitoring** and **Accessibility** in System Settings > Privacy & Security. There
+is no signed or notarized package, no tray and no settings window yet. It has not been tested with
+a real SpaceMouse; see [port-macos.md](port-macos.md) and
+[packaging/macos/README.md](../packaging/macos/README.md).

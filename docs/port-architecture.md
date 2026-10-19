@@ -67,6 +67,22 @@ The vendor SDK is not used on any OS: its license is proprietary and revocable, 
 incompatible with distributing a GPL-3.0-or-later program (see `windows-mac.md`). This is a
 project decision, not legal advice.
 
+## Running programs picker
+
+`src/platform/running_apps.hpp` defines `RunningAppsProvider` (list of running programs for the
+"Add application" dialog). Its `matchString` must be byte-identical to what the
+`ActiveWindowProvider` of the same OS returns for that program. Pure logic (filter, sort,
+capture-next-focus, dedupe) lives in `src/ui/model/app_picker_model.hpp` and
+`src/platform/running_apps_util.hpp`.
+
+- Linux/X11: done (`platform/linux/running_apps_x11.cpp`); Wayland returns an empty list with an error.
+- Windows (to be added in the Windows port branch): `EnumWindows` over visible top-level windows,
+  `GetWindowThreadProcessId` and `QueryFullProcessImageNameW`, with the same executable-name rule as
+  the foreground provider.
+- macOS (to be added in the macOS port branch): `NSWorkspace.runningApplications` with
+  `activationPolicy == regular`; bundle identifier or localized name exactly as the foreground
+  provider reports it.
+
 ## Open points
 
 - The HID report layout of each device generation (translation and rotation as separate reports,

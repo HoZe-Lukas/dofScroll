@@ -20,12 +20,14 @@ redistributing binaries.
 | Xlib (`libX11`), `libXtst` | X11 connection, XTest event injection, active-window query | Dynamically linked | MIT/X11-style licenses (upstream); check the license of the version you ship |
 | GLib / GIO / GObject | Transitive dependency of GTK | Dynamically linked | LGPL-2.1-or-later (upstream) |
 | gettext (runtime in glibc, tools `msgfmt`/`msginit`) | UI translation catalogs | Runtime in the C library; tools only at build time | Tools: GPL; the libc runtime part is covered by the C library license - check your distribution |
+| Qt 6 (Widgets, Core, Gui; optional Svg) | Cross-platform user interface `dofscroll-ui` (experimental) | Dynamically linked, never statically | LGPL-3.0 (Qt Widgets/Core/Gui/Svg modules; some other Qt modules are GPL/commercial and are not used) |
 
 Notes:
 
 - The LGPL libraries are used through dynamic linking only, so users can replace them with
   modified versions. If you ship statically linked binaries, the LGPL conditions change - check
   them before doing so.
+- Qt 6: the licence text and the corresponding source code come from the Qt project (https://www.qt.io/download-open-source, https://code.qt.io) or from your distribution's source packages. Bundled Windows/macOS builds must ship the LGPL-3.0 text and an offer or link to the Qt sources for the exact version bundled; users can replace the Qt libraries with modified builds.
 - `spacenavd` runs as its own system service and is **not** part of dofscroll; dofscroll
   communicates with it through the `libspnav` socket protocol.
 - "3Dconnexion" and "SpaceMouse" are trademarks of their respective owners. dofscroll is
