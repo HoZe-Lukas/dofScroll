@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Signalverarbeitung, siehe dsp.hpp.
+// Signal processing, see dsp.hpp.
 #include "dsp.hpp"
 
 #include <algorithm>
@@ -69,8 +69,8 @@ double Channel::processValue(const ChannelCfg &c, double mixed, double dt_s) {
     v = applyDeadzone(v, c.deadzone);
     v = applyCurve(c, v);
     double rate = v * c.sensitivity / 2500.0 * 125.0;
-    // Schutz vor inf/NaN und absurden Raten (z.B. aus extremen Kurvenwerten);
-    // das lineare Maximum liegt bei 350*255/2500*125 = ~4460 Schritte/s.
+    // Guard against inf/NaN and absurd rates (e.g. from extreme curve values);
+    // the linear maximum is 350*255/2500*125 = ~4460 steps/s.
     if (!std::isfinite(rate)) return 0.0;
     constexpr double MAX_RATE = 20000.0;
     return std::max(-MAX_RATE, std::min(MAX_RATE, rate));
@@ -84,9 +84,9 @@ int StepAccumulator::add(double steps_per_s, double dt_s) {
     double add = steps_per_s * dt_s;
     if (!std::isfinite(add)) { acc_ = 0.0; return 0; }
     acc_ += add;
-    double whole = std::trunc(acc_);  // Richtung 0: Rest behaelt das Vorzeichen
+    double whole = std::trunc(acc_);  // toward 0: the remainder keeps the sign
     acc_ -= whole;
-    // Obergrenze je Aufruf: nie mehr als eine absurde Klickflut pro Tick.
+    // Upper limit per call: never more than an absurd flood of clicks per tick.
     constexpr double MAX_STEPS_PER_CALL = 200.0;
     return static_cast<int>(std::max(-MAX_STEPS_PER_CALL, std::min(MAX_STEPS_PER_CALL, whole)));
 }

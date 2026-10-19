@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Setzt/aktualisiert die SPDX-Kopfzeile in allen Quelldateien (src/, tests/) anhand von
-# packaging/LICENSE_ID. Lizenz: GPL-3.0-or-later (siehe LICENSE).
+# Sets/updates the SPDX header line in all source files (src/, tests/) based on
+# packaging/LICENSE_ID. License: GPL-3.0-or-later (see LICENSE).
 #
-# Aufruf:  scripts/set-license-headers.sh [--apply] ["Copyright-Zeile"]
-#   ohne --apply: nur anzeigen, was geaendert wuerde (Trockenlauf).
-# Verweigert die Arbeit, solange LICENSE_ID "UNLICENSED" ist (Lizenz noch nicht entschieden).
+# Usage:  scripts/set-license-headers.sh [--apply] ["copyright line"]
+#   without --apply: only show what would change (dry run).
+# Refuses to work while LICENSE_ID is "UNLICENSED" (license not yet decided).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -14,8 +14,8 @@ copyright="${1:-}"
 
 id="$(tr -d '[:space:]' < packaging/LICENSE_ID)"
 if [ -z "$id" ] || [ "$id" = "UNLICENSED" ]; then
-    echo "LICENSE_ID ist '$id': Lizenz noch nicht entschieden - nichts zu tun." >&2
-    echo "Zuerst packaging/LICENSE_ID auf eine SPDX-Kennung setzen (z.B. MIT, Apache-2.0, GPL-3.0-or-later)." >&2
+    echo "LICENSE_ID is '$id': license not yet decided - nothing to do." >&2
+    echo "First set packaging/LICENSE_ID to an SPDX identifier (e.g. MIT, Apache-2.0, GPL-3.0-or-later)." >&2
     exit 2
 fi
 
@@ -24,9 +24,9 @@ while IFS= read -r f; do
     line="// SPDX-License-Identifier: $id"
     if grep -q '^// SPDX-License-Identifier:' "$f"; then
         if grep -qx "$line" "$f"; then continue; fi
-        action="aktualisieren"
+        action="update"
     else
-        action="ergaenzen"
+        action="add"
     fi
     changed=$((changed + 1))
     echo "$action: $f"
@@ -42,7 +42,7 @@ while IFS= read -r f; do
 done < <(find src tests -type f \( -name '*.cpp' -o -name '*.hpp' \) | sort)
 
 if [ "$apply" -eq 1 ]; then
-    echo "$changed Datei(en) geaendert."
+    echo "$changed file(s) changed."
 else
-    echo "$changed Datei(en) betroffen (Trockenlauf, --apply zum Schreiben)."
+    echo "$changed file(s) affected (dry run, --apply to write)."
 fi

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Erkennung des aktiven Programms (WM_CLASS) fuer [app:*]-Profile.
+// Detection of the active program (WM_CLASS) for [app:*] profiles.
 #pragma once
 #include <string>
 
@@ -12,14 +12,14 @@ public:
     ~ActiveWindow();
     ActiveWindow(const ActiveWindow &) = delete;
     ActiveWindow &operator=(const ActiveWindow &) = delete;
-    // X11: _NET_ACTIVE_WINDOW + WM_CLASS ueber ein eigenes Display (mit eigenem
-    // Fehlerhandler, darf nie abstuerzen). Auf reinem Wayland ohne Moeglichkeit
-    // false -> poll() liefert dann "". Mit optionalem KDE-Fallback.
+    // X11: _NET_ACTIVE_WINDOW + WM_CLASS via a dedicated display (with its own
+    // error handler, must never crash). On pure Wayland without an alternative
+    // returns false -> poll() then returns "". With optional KDE fallback.
     bool init();
-    // "instance class" kleingeschrieben zusammengesetzt, z.B. "navigator firefox";
-    // leer wenn unbekannt. Liefert nur den Zwischenspeicher eines Hintergrund-Threads
-    // (alle X11-Roundtrips/kdotool-Aufrufe laufen dort) und blockiert den Aufrufer nie.
-    // Voraussetzung: XInitThreads() wurde vor dem ersten Xlib-Aufruf des Prozesses gerufen.
+    // "instance class" joined in lowercase, e.g. "navigator firefox";
+    // empty if unknown. Returns only the cache of a background thread (all X11
+    // round trips / kdotool calls run there) and never blocks the caller.
+    // Precondition: XInitThreads() was called before the process's first Xlib call.
     std::string poll();
 private:
     struct Impl;

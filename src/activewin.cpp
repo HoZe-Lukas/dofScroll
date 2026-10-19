@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Erkennung des aktiven Programms (WM_CLASS) fuer [app:*]-Profile.
-// Vertrag siehe activewin.hpp.
+// Detection of the active program (WM_CLASS) for [app:*] profiles.
+// See activewin.hpp for the contract.
 #include "activewin.hpp"
 #include "xerrors.hpp"
 
@@ -33,8 +33,8 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 
-// Fehlerhandler und thread_local-Flag g_xerror kommen aus xerrors.hpp (einmal,
-// idempotent installiert; BadWindow bei gerade geschlossenen Fenstern ist normal).
+// The error handler and thread_local flag g_xerror come from xerrors.hpp (installed
+// once, idempotently; BadWindow for just-closed windows is normal).
 constexpr size_t kMaxClassLen = 256;
 constexpr size_t kMaxChildren = 32;
 
@@ -44,9 +44,9 @@ std::string lower(std::string s) {
     return s;
 }
 
-// Absoluter Pfad eines ausfuehrbaren Programms aus den PATH-Eintraegen; relative
-// Eintraege (leer, ".", "bin") werden ignoriert, damit kein Verzeichnis relativ zum
-// Arbeitsverzeichnis ausgefuehrt wird. Leer, wenn nicht gefunden.
+// Absolute path of an executable from the PATH entries; relative entries (empty,
+// ".", "bin") are ignored so that no directory relative to the working directory
+// is executed. Empty if not found.
 std::string findInPath(const char *prog) {
     const char *path = std::getenv("PATH");
     if (!path) return std::string();
@@ -60,9 +60,9 @@ std::string findInPath(const char *prog) {
     return std::string();
 }
 
-// Startet prog (absoluter Pfad) ohne Shell mit festen Argumenten und liest die erste
-// Ausgabezeile mit Zeitlimit. Bei Timeout wird das Kind per SIGKILL beendet und
-// eingesammelt. Leerer String bei jedem Fehler.
+// Starts prog (absolute path) without a shell, with fixed arguments, and reads the
+// first output line with a time limit. On timeout the child is killed with SIGKILL
+// and reaped. Empty string on any error.
 std::string runCapture(const std::string &prog, const char *a1, const char *a2, int timeoutMs) {
     int fds[2];
     if (pipe2(fds, O_CLOEXEC) != 0) return std::string();
@@ -73,7 +73,7 @@ std::string runCapture(const std::string &prog, const char *a1, const char *a2, 
         return std::string();
     }
     if (pid == 0) {
-        // Kind: stdout auf die Pipe, stdin/stderr auf /dev/null, alle uebrigen fds zu.
+        // Child: stdout to the pipe, stdin/stderr to /dev/null, all other fds closed.
         int dn = open("/dev/null", O_RDWR);
         if (dn >= 0) {
             dup2(dn, 0);
@@ -117,11 +117,11 @@ std::string runCapture(const std::string &prog, const char *a1, const char *a2, 
     }
     close(fds[0]);
 
-    // Kind einsammeln: bei Timeout (oder abgeschnittener Ausgabe) hart beenden.
+    // Reap the child: on timeout (or truncated output) kill it hard.
     bool finished = false;
     int status = 0;
     if (!timedOut) {
-        // Nach EOF endet das Kind praktisch sofort; kurz bounded warten.
+        // After EOF the child ends almost immediately; wait briefly, bounded.
         for (int i = 0; i < 20 && !finished; ++i) {
             pid_t w = waitpid(pid, &status, WNOHANG);
             if (w == pid) finished = true;
@@ -132,7 +132,7 @@ std::string runCapture(const std::string &prog, const char *a1, const char *a2, 
     if (!finished) {
         kill(pid, SIGKILL);
         while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {}
-        // Zeile schon gelesen, Kind nur noch nicht beendet: Ausgabe ist brauchbar.
+        // Line already read, child just not finished yet: the output is usable.
         return timedOut ? std::string() : out;
     }
     if (status == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0) return std::string();
@@ -146,9 +146,9 @@ struct ActiveWindow::Impl {
     Window root = 0;
     Atom netActive = None;
     bool useKdotool = false;
-    std::string kdotoolPath;  // absoluter Pfad, in init() aufgeloest
+    std::string kdotoolPath;  // absolute path, resolved in init()
 
-    // Hintergrund-Thread: fragt zyklisch ab, poll() liest nur den Zwischenspeicher.
+    // Background thread: queries cyclically, poll() only reads the cache.
     std::thread worker;
     std::mutex mu;
     std::condition_variable cv;
@@ -158,7 +158,7 @@ struct ActiveWindow::Impl {
     std::string query() { return useKdotool ? queryKdotool() : queryX(); }
 
     void startWorker() {
-        cached = query();  // Erstbefuellung, damit das erste poll() schon etwas liefert
+        cached = query();  // initial fill so that the first poll() already returns something
         const auto interval = std::chrono::milliseconds(useKdotool ? 250 : 100);
         worker = std::thread([this, interval] {
             std::unique_lock<std::mutex> lk(mu);
@@ -174,7 +174,7 @@ struct ActiveWindow::Impl {
 
     // --- X11 ---------------------------------------------------------------
 
-    // WM_CLASS eines Fensters als "instance class" (klein); leer wenn nicht vorhanden.
+    // WM_CLASS of a window as "instance class" (lowercase); empty if not present.
     std::string classOf(Window w) {
         XClassHint ch{nullptr, nullptr};
         g_xerror = 0;
@@ -216,7 +216,7 @@ struct ActiveWindow::Impl {
         std::string r = classOf(w);
         if (!r.empty()) return r;
 
-        // Fallback 1: Kindfenster (z.B. Reparenting-WMs / Toolkit-Subfenster)
+        // Fallback 1: child windows (e.g. reparenting WMs / toolkit subwindows)
         {
             Window rt = 0, par = 0, *kids = nullptr;
             unsigned int nk = 0;
@@ -231,7 +231,7 @@ struct ActiveWindow::Impl {
                 r = classOf(c);
                 if (!r.empty()) return r;
             }
-            // Fallback 2: Elternfenster (bis zum Root)
+            // Fallback 2: parent windows (up to the root)
             Window cur = (ok && !g_xerror) ? par : 0;
             for (int depth = 0; cur != 0 && cur != root && depth < 8; ++depth) {
                 r = classOf(cur);
@@ -252,11 +252,11 @@ struct ActiveWindow::Impl {
     // --- KDE/Wayland -------------------------------------------------------
 
     std::string queryKdotool() {
-        // Fester absoluter Pfad, feste Argumente, keine Shell; Zeitlimit 200 ms, damit ein
-        // haengendes kdotool (DBus-Timeouts) den Tick-Thread nicht blockiert.
+        // Fixed absolute path, fixed arguments, no shell; 200 ms time limit so that a
+        // hanging kdotool (DBus timeouts) does not block the tick thread.
         if (kdotoolPath.empty()) return std::string();
         std::string line = runCapture(kdotoolPath, "getactivewindow", "getwindowclassname", 200);
-        // auf erste Zeile kuerzen, Whitespace trimmen
+        // cut to the first line, trim whitespace
         size_t nl = line.find_first_of("\r\n");
         if (nl != std::string::npos) line.erase(nl);
         size_t b = line.find_first_not_of(" \t");
@@ -286,7 +286,7 @@ bool ActiveWindow::init() {
     bool kdotool = !kpath.empty();
     impl_->kdotoolPath = kpath;
 
-    // Reines Wayland mit kdotool: dessen Abfrage ist zuverlaessiger als XWayland.
+    // Pure Wayland with kdotool: its query is more reliable than XWayland.
     if (wayland && kdotool) {
         impl_->useKdotool = true;
         impl_->startWorker();

@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Bereinigung unvertrauenswuerdiger Strings (Geraetename, WM_CLASS, Profil-
-// beschreibung) vor der Ausgabe ins Log: verhindert Log-Injection durch
-// Zeilenumbrueche, Escape-Sequenzen und andere Steuerzeichen.
+// Sanitizing of untrusted strings (device name, WM_CLASS, profile description)
+// before they are written to the log: prevents log injection via line breaks,
+// escape sequences and other control characters.
 #pragma once
 #include <cstddef>
 #include <string>
 
 namespace spn {
 
-// Behalten: druckbares ASCII (0x20-0x7e) und gueltiges UTF-8 (ohne Overlongs,
-// Surrogate, > U+10FFFF und ohne C1-Steuerzeichen U+0080-U+009F). Alles andere
-// (inkl. NUL, ESC, DEL, kaputte Sequenzen) wird bytegenau zu '?'. Laenge wird
-// auf maxLen Bytes (an Zeichengrenze) gekuerzt, dann folgt "...".
+// Kept: printable ASCII (0x20-0x7e) and valid UTF-8 (no overlongs, surrogates,
+// > U+10FFFF and no C1 control characters U+0080-U+009F). Everything else
+// (incl. NUL, ESC, DEL, broken sequences) becomes '?' byte by byte. The length is
+// truncated to maxLen bytes (at a character boundary), followed by "...".
 inline std::string sanitizeForLog(const std::string &in, size_t maxLen = 128) {
     std::string out;
     out.reserve(in.size() < maxLen ? in.size() : maxLen + 3);
@@ -20,7 +20,7 @@ inline std::string sanitizeForLog(const std::string &in, size_t maxLen = 128) {
     size_t i = 0;
     while (i < n) {
         unsigned char c = (unsigned char)in[i];
-        size_t len = 0;  // Bytes dieses Zeichens
+        size_t len = 0;  // bytes of this character
         if (c >= 0x20 && c <= 0x7e) {
             len = 1;
         } else if (c >= 0xc2 && c <= 0xf4) {
