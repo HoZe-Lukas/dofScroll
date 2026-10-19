@@ -4,6 +4,7 @@
 // See activewin.hpp for the contract.
 #include "activewin.hpp"
 #include "utf8.hpp"
+#include "platform/exec_lookup.hpp"
 #include "platform/running_apps_util.hpp"
 #include "xerrors.hpp"
 
@@ -43,22 +44,6 @@ std::string lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return spn::utf8::lowerChar(c); });
     return s;
-}
-
-// Absolute path of an executable from the PATH entries; relative entries (empty,
-// ".", "bin") are ignored so that no directory relative to the working directory
-// is executed. Empty if not found.
-std::string findInPath(const char *prog) {
-    const char *path = std::getenv("PATH");
-    if (!path) return std::string();
-    std::stringstream ss(path);
-    std::string dir;
-    while (std::getline(ss, dir, ':')) {
-        if (dir.empty() || dir[0] != '/') continue;
-        std::string full = dir + "/" + prog;
-        if (access(full.c_str(), X_OK) == 0) return full;
-    }
-    return std::string();
 }
 
 // Starts prog (absolute path) without a shell, with fixed arguments, and reads the
@@ -277,7 +262,8 @@ ActiveWindow::~ActiveWindow() {
 bool ActiveWindow::init() {
     const char *st = std::getenv("XDG_SESSION_TYPE");
     bool wayland = st && std::strcmp(st, "wayland") == 0;
-    std::string kpath = findInPath("kdotool");
+    // Fixed system directories, not PATH: the daemon never runs a program that the environment names.
+    std::string kpath = findExecutableIn("kdotool", trustedBinDirs());
     bool kdotool = !kpath.empty();
     impl_->kdotoolPath = kpath;
 

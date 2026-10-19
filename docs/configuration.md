@@ -115,7 +115,8 @@ app), so an app section can select a mode and still has the last word over the m
 
 Find the `WM_CLASS` of a window with `xprop WM_CLASS` and click the window. The daemon logs every
 profile switch. Program profiles need an active-window query: always on X11, on Wayland only with
-`kdotool` (KDE). Otherwise only `[global]` and `[device:*]` apply.
+`kdotool` (KDE), which the daemon looks for only in `/usr/bin`, `/usr/local/bin` and `/bin` (not in `PATH`,
+so a `kdotool` in `~/.local/bin` is not used). Otherwise only `[global]` and `[device:*]` apply.
 
 With two SpaceMice connected, `spacenavd` reports only one, so `[device:*]` applies to both.
 
