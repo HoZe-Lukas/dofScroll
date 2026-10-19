@@ -53,7 +53,7 @@ struct LiveFeedOptions {
 
 class LiveFeedServer {
 public:
-    explicit LiveFeedServer(std::unique_ptr<FeedListener> listener, LiveFeedOptions opt = {});
+    explicit LiveFeedServer(std::unique_ptr<FeedListener> listener, const LiveFeedOptions &opt = {});
     bool start(std::string *err);
 
     // Called once per tick from the daemon main thread. Returns immediately unless a frame is due
@@ -101,7 +101,7 @@ public:
     using Connector = std::function<std::unique_ptr<FeedConn>(std::string *err)>;
     enum class State { Disconnected, Connected, Incompatible };
 
-    explicit LiveFeedClient(Connector connector, LiveFeedClientOptions opt = {});
+    explicit LiveFeedClient(Connector connector, const LiveFeedClientOptions &opt = {});
 
     // Call periodically (UI timer, ~30 Hz). Connects/reconnects as needed, reads at most a bounded
     // amount and delivers every valid sample to `onSample` (may be null). Returns the number of

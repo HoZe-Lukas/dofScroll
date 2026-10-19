@@ -9,7 +9,7 @@ namespace spn {
 
 // ---- server ------------------------------------------------------------------------------------
 
-LiveFeedServer::LiveFeedServer(std::unique_ptr<FeedListener> listener, LiveFeedOptions opt)
+LiveFeedServer::LiveFeedServer(std::unique_ptr<FeedListener> listener, const LiveFeedOptions &opt)
     : listener_(std::move(listener)), opt_(opt) {
     opt_.hz = std::clamp(opt_.hz, 1, 60);
     if (opt_.maxDroppedFrames < 1) opt_.maxDroppedFrames = 1;
@@ -110,7 +110,7 @@ std::function<void(const LiveSample &, int64_t)> makeLiveFeedSink(const std::str
 
 // ---- client ------------------------------------------------------------------------------------
 
-LiveFeedClient::LiveFeedClient(Connector connector, LiveFeedClientOptions opt)
+LiveFeedClient::LiveFeedClient(Connector connector, const LiveFeedClientOptions &opt)
     : connector_(std::move(connector)), opt_(opt), backoff_(opt.reconnectMinNs) {}
 
 void LiveFeedClient::drop(int64_t nowNs, const std::string &why, State st) {
