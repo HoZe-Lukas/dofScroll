@@ -62,6 +62,22 @@ SCOPE (feature parity with the GTK tray, one codebase for all three systems):
   Qt UI needs its own user unit `dofscroll-ui.service`; keep the sandbox directives, adapt only
   what Qt needs and justify each change).
 
+UI DESIGN REQUIREMENTS (maintainer, 2026-10-19; they apply to the pages stage):
+- Left: profile tree with "Default mode" ([global]) on top, then device and application profiles;
+  right: the settings of the selected profile. The right side is built from a model-driven layout
+  and is rebuilt when the mode of the selected profile changes (not fixed tabs).
+- The default mode (`normal`) has the most settings (channels, curves, zoom, nav/click buttons,
+  button bindings). Any other mode shows only what applies to it (its channel actions and button
+  bindings as info, the overrides it allows) and an "Edit mode file" button.
+- [Global] is the default mode only: no mode selector there, and MODE is never written to
+  [global]. The mode choice exists only for device and application profiles and is a DROPDOWN
+  (QComboBox, exactly one mode): first entry "Default mode" (clears MODE), then built-ins and mode
+  files by display name.
+- General settings (start at login, language) and the axes/wizard page are separate entries
+  outside the profile tree.
+- Visual quality matters: clear grouping, sensible defaults, short helper texts, consistent
+  spacing, keyboard navigation, light/dark theme friendly, no wall of sliders.
+
 BRANCHES (from main, one PR each, never merge yourself, set the package status in
 docs/work-plan.md to "in progress (web, <date>)" in the first commit):
 1. feat/w3-ui-core: toolkit-free models + tests, portable mode_list.hpp, Qt tray and settings
