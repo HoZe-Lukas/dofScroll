@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #
 # Qt6 Widgets user interface (dofscroll-ui). Included from CMakeLists.txt. Standalone: needs
-# only Qt, not the core library, so the UI jobs can build just this target (see docs/ui-options.md).
+# Qt and the core library (config, file layer; no daemon code), so the UI jobs can build just this target (see docs/ui-options.md).
 find_package(Qt6 COMPONENTS Widgets QUIET)
 if(Qt6_FOUND)
   option(DOFSCROLL_UI "Build the Qt6 user interface (experimental)" ON)
@@ -13,17 +13,39 @@ endif()
 if(DOFSCROLL_UI)
   find_package(Qt6 REQUIRED COMPONENTS Widgets)
   find_package(Qt6 QUIET COMPONENTS Svg)   # SVG icon rendering; optional
-  file(GLOB UI_PAGE_SRC CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/ui/qt/pages/*.cpp
-       ${CMAKE_SOURCE_DIR}/src/ui/qt/pages/*.hpp)
+  # Platform autostart implementation (one interface, src/platform/autostart_platform.hpp)
+  if(WIN32)
+    set(DOFSCROLL_UI_AUTOSTART_SRC src/platform/win/autostart_win.cpp)
+  elseif(APPLE)
+    set(DOFSCROLL_UI_AUTOSTART_SRC src/platform/mac/autostart_mac.cpp)
+  else()
+    set(DOFSCROLL_UI_AUTOSTART_SRC src/platform/linux/autostart_linux.cpp)
+  endif()
   qt_add_executable(dofscroll-ui
-    ${UI_PAGE_SRC}
     src/ui/qt/main.cpp
     src/ui/qt/main_window.cpp
     src/ui/qt/main_window.hpp
     src/ui/qt/tray.cpp
     src/ui/qt/tray.hpp
     src/ui/qt/ui_i18n.hpp
+    src/ui/qt/ui_context.hpp
+    src/ui/qt/qt_action_runner.cpp
+    src/ui/qt/qt_action_runner.hpp
+    src/ui/qt/platform_bridge.cpp
+    src/ui/qt/pages/page_registry.cpp
+    src/ui/qt/pages/page_registry.hpp
+    src/ui/qt/pages/axes_page.cpp
+    src/ui/qt/pages/axes_page.hpp
+    src/ui/qt/pages/channels_page.cpp
+    src/ui/qt/pages/channels_page.hpp
+    src/ui/qt/pages/general_page.cpp
+    src/ui/qt/pages/general_page.hpp
+    src/ui/qt/pages/modes_page.cpp
+    src/ui/qt/pages/modes_page.hpp
+    ${DOFSCROLL_UI_AUTOSTART_SRC}
     src/ui/qt/resources.qrc)
+  # The toolkit-free models use the core library (config, modes, fs); the autostart code of the
+  # current OS comes from src/platform/<os>/ (self-contained, no input/output backends).
   set_target_properties(dofscroll-ui PROPERTIES AUTOMOC ON AUTORCC ON
                         WIN32_EXECUTABLE ON MACOSX_BUNDLE OFF)
   target_include_directories(dofscroll-ui PRIVATE src/ui/qt src/ui/qt/pages)

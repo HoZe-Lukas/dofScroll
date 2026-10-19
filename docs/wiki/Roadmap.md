@@ -2,6 +2,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Roadmap and status
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons](Buttons).
+
 Source of truth: [docs/work-plan.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/work-plan.md) (state as of 2026-10-19). If this page and the work plan differ, the work plan wins.
 
 ## Parity rule

@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Registry of the settings window pages. Each page registers itself with one line in
-// page_registry.cpp; the main window asks for a page by its navigation title and falls back to a
-// placeholder when none is registered.
+// Registry of the settings pages: the main window builds its top-level navigation from it, in
+// registry order (the "Profiles" group follows). A page is added by one line in page_registry.cpp.
 #pragma once
-#include <QString>
+#include <vector>
+
+#include "ui_context.hpp"
 
 class QWidget;
 
-// Returns the page registered for this (already translated) navigation title, or nullptr.
-QWidget *createRegisteredPage(const QString &translatedTitle);
+struct PageFactory {
+    const char *id;                            // stable identifier ("channels", ...)
+    const char *title;                         // English navigation title, e.g. "Modes"
+    QWidget *(*create)(const UiContext &ctx);  // new page, owned by the caller
+};
+
+const std::vector<PageFactory> &pageFactories();

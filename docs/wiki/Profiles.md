@@ -2,6 +2,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Profiles for programs and devices
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons](Buttons).
+
 Profiles are sections in `dofscroll.conf` that override only the keys they list. Full text: [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
 
 | Section | Applies when |

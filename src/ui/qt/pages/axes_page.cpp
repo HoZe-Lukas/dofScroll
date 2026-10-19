@@ -57,13 +57,8 @@ const char *wizardTranslate(const char *msgid) {
     return it->second.c_str();
 }
 
-class QtStrings : public StringProvider {
-public:
-    std::string tr(const char *source) const override { return T(source).toUtf8().toStdString(); }
-};
-
-// Untrusted UTF-8 (config path errors, feed text) -> QString; invalid bytes are replaced.
-QString qs(const std::string &s) { return QString::fromUtf8(sanitizeUtf8(s).c_str()); }
+// Untrusted UTF-8 (errors, feed text): invalid bytes are replaced before the shared qs8.
+QString qs(const std::string &s) { return qs8(sanitizeUtf8(s)); }
 
 }  // namespace
 
@@ -187,14 +182,14 @@ private:
 
 // ---- the page ---------------------------------------------------------------------------------
 
-AxesPage::AxesPage(const AxesPageEnv &env, QWidget *parent) : QWidget(parent), env_(env) {
+AxesPage::AxesPage(const UiContext &ctx, const AxesPageEnv &env, QWidget *parent)
+    : QWidget(parent), ctx_(ctx), connector_(env.connector) {
     wiz::trHook() = &wizardTranslate;  // wizard messages are built toolkit-free
-    if (!env_.connector) {
-        const std::string dir = feedRuntimeDir();
-        env_.connector = [dir](std::string *err) { return connectFeed(dir, err); };
+    if (!connector_) {
+        const std::string dir = ctx_.runtimeDir.empty() ? feedRuntimeDir() : ctx_.runtimeDir;
+        connector_ = [dir](std::string *err) { return connectFeed(dir, err); };
     }
-    if (env_.configPath.empty()) env_.configPath = defaultConfigPath();
-    client_ = std::make_unique<LiveFeedClient>(env_.connector);
+    client_ = std::make_unique<LiveFeedClient>(connector_);
     session_ = std::make_unique<AxesSession>(*client_);
     clock_.start();
 
@@ -318,10 +313,7 @@ void AxesPage::openWizard() {
     auto &w = session_->wizard();
     w.reset();
     applyNote_.clear();
-    SettingsModel m;  // only to read the zoom detection axes for the result page warning
-    std::vector<std::string> warn;
-    std::string err;
-    if (m.load(env_.configPath, &warn, &err)) w.setZoomLateral(m.profiles().sectionSettings(0).zoom_lateral);
+    if (ctx_.settings) w.setZoomLateral(ctx_.settings->profiles().sectionSettings(0).zoom_lateral);
     savedNote_.clear();
     stack_->setCurrentIndex(1);
     refreshWizard(now());
@@ -335,17 +327,14 @@ void AxesPage::cancelWizard() {
 void AxesPage::applyWizard() {
     auto &w = session_->wizard();
     if (!w.canApply()) return;
-    SettingsModel m;
-    m.setReloadCallback(env_.reload);
-    std::vector<std::string> warn;
+    if (!ctx_.settings || !ctx_.strings) return;
     std::string err;
-    if (!m.load(env_.configPath, &warn, &err) || !w.applyTo(m, &err)) {
+    if (!w.applyTo(*ctx_.settings, &err)) {
         applyNote_ = T("Error: %1").arg(qs(err));
         refreshWizard(now());
         return;
     }
-    const QtStrings strings;
-    const SettingsModel::SaveResult r = m.save(strings);
+    const SettingsModel::SaveResult r = ctx_.settings->save(*ctx_.strings);
     if (!r.saved) {
         applyNote_ = T("Error: %1").arg(qs(r.error));
         refreshWizard(now());
@@ -453,7 +442,7 @@ void AxesPage::refreshWizard(int64_t nowNs) {
     bApply_->setEnabled(w.canApply());
 }
 
-QWidget *createAxesPage() { return new AxesPage; }
+QWidget *createAxesPage(const UiContext &ctx) { return new AxesPage(ctx); }
 
 // ---- self-test -----------------------------------------------------------------------------------
 
@@ -474,14 +463,17 @@ struct SelfTestConn : FeedConn {
 
 int axesPageSelfTest() {
     SelfTestConn *conn = nullptr;
+    SettingsModel settings;
+    settings.setProfiles(ProfileSet(), "axes-selftest-unused.conf");
+    UiContext ctx;
+    ctx.settings = &settings;
     AxesPageEnv env;
-    env.configPath = std::string("axes-selftest-does-not-exist.conf");
     env.connector = [&conn](std::string *) -> std::unique_ptr<FeedConn> {
         auto c = std::make_unique<SelfTestConn>();
         conn = c.get();
         return c;
     };
-    AxesPage page(env);
+    AxesPage page(ctx, env);
     page.resize(560, 520);
     page.show();
     int64_t t = 0;

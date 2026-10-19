@@ -1,5 +1,7 @@
 # SpaceMouse on Windows and macOS: the official 3Dconnexion driver
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
+
 Research date: 2026-10-12. The official 3Dconnexion pages (3dconnexion.com/...) returned HTTP 403
 when fetched; statements about them come from search-result summaries and forum posts, not from
 full texts read first-hand. Labels:

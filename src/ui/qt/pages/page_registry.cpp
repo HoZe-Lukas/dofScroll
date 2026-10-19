@@ -1,24 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-#include "page_registry.hpp"
+#include "pages/page_registry.hpp"
 
 #include <QWidget>
 
-#include "axes_page.hpp"
+#include "pages/axes_page.hpp"
+#include "pages/channels_page.hpp"
+#include "pages/general_page.hpp"
+#include "pages/modes_page.hpp"
 #include "ui_i18n.hpp"
 
-namespace {
-struct PageEntry {
-    const char *title;  // English navigation title
-    QWidget *(*create)();
-};
-const PageEntry kPages[] = {
-    {"Axes / assistant", &createAxesPage},
-};
-}  // namespace
-
-QWidget *createRegisteredPage(const QString &translatedTitle) {
-    for (const PageEntry &e : kPages)
-        if (T(e.title) == translatedTitle) return e.create();
-    return nullptr;
+// One line per page, in navigation order; each page declares its factory in its own header.
+const std::vector<PageFactory> &pageFactories() {
+    static const std::vector<PageFactory> factories = {
+        {"channels", "Channels", createChannelsPage},
+        {"general", "General", createGeneralPage},
+        {"axes", "Axes", createAxesPage},
+        {"modes", "Modes", makeModesPage},
+    };
+    return factories;
 }

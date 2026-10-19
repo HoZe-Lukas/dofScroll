@@ -2,6 +2,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Windows port
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
+
 Status (package W1, branch `feat/w1-windows`): the backend is implemented and compiled in CI
 (MSVC and MinGW-w64 on `windows-latest`), its pure logic is unit-tested, but **nothing has been run
 against a real SpaceMouse or a real desktop session**. Every behavior statement below is marked
@@ -58,6 +60,13 @@ Not part of W1: tray / settings UI (package W3), installer and code signing (W4)
   (WM_ENDSESSION, bounded to 3 s). `stop-daemon.ps1` asks the daemon to quit through the event
   `Local\dofscroll-quit` first, ends it after a timeout, then runs `--release-keys`.
   Compile/link only in CI, unverified on hardware: the end-session handling and the event.
+
+## Running programs (picker)
+
+`src/platform/win/running_apps_win.cpp` lists programs for the "Add application" dialog with
+`EnumWindows` (visible, titled, non-tool, non-cloaked, unowned windows); the match string is the
+same lower-case executable name as the foreground provider. Processes that deny access are skipped.
+Compile-checked and smoke-tested by `running_apps_selftest`; unverified on a real desktop.
 
 ## Active window caveats (unverified)
 

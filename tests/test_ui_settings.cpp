@@ -71,7 +71,7 @@ int main() {
     assert(app == 1 && dev == 2 && m.dirty());
     assert(m.addSection(Section::APP, "FireFox", &err) == app);  // case-insensitive find
     assert(m.addSection(Section::APP, "  ", &err) == ProfileSet::npos && !err.empty());
-    assert(m.addSection(Section::APP, "a]b", &err) == ProfileSet::npos);
+    assert(m.addSection(Section::APP, "a\x01" "b", &err) == ProfileSet::npos);
     assert(m.addSection(Section::GLOBAL, "", &err) == ProfileSet::npos);
     assert(m.sections()[1].title == "[app:firefox]" && m.sections()[0].title == "[global]");
 

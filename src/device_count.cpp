@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "device_count.hpp"
+#include "utf8.hpp"
 
 #include <cctype>
 #include <cstddef>
@@ -14,7 +15,7 @@ namespace spn {
 namespace {
 
 std::string lower(std::string s) {
-    for (char &c : s) c = (char)std::tolower((unsigned char)c);
+    for (char &c : s) c = spn::utf8::lowerChar(c);
     return s;
 }
 

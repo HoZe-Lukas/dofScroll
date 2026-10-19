@@ -6,5 +6,9 @@
 #pragma once
 #include <QCoreApplication>
 #include <QString>
+#include <string>
 
 inline QString T(const char *english) { return QCoreApplication::translate("", english); }
+
+// std::string in the models is always UTF-8.
+inline QString qs8(const std::string &s) { return QString::fromUtf8(s.data(), qsizetype(s.size())); }

@@ -6,6 +6,8 @@ The source (`src/config.cpp`, `src/config.hpp`) is the reference. This page desc
 
 ## File and location
 
+The file is UTF-8 (a BOM is accepted, never written; LF written, CRLF accepted); names may contain any Unicode text, see [encoding.md](encoding.md).
+
 | Item | Value |
 |---|---|
 | Config file | `~/.config/dofscroll/dofscroll.conf` (`$XDG_CONFIG_HOME` is used if it is an absolute path) |
@@ -58,12 +60,14 @@ in the tray.
 | `MODE` | `normal` | Active mode, see [modes.md](modes.md). |
 | `LIVE_FEED` | `1` | `0` disables the live data feed to the UI (axes view, axis assistant); with `1` it only runs while a UI is connected. See `security.md`. |
 | `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | Button that turns X/Y into arrow keys while held. |
-| `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | Button that is passed through as the left mouse button. |
+| `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | Older key: button that is passed through as the left mouse button. A click that is the same everywhere is better set in the vendor driver, see [modes.md](modes.md#buttons-and-the-vendor-driver). |
 | `BUTTON_<n>` | none | Action of button `n`, same values as in mode files, see [modes.md](modes.md). |
 
 `NAV_BUTTON` and `CLICK_BUTTON` are older keys. They take the raw button index as `spacenavd`
 reports it, and the log shows the index of every pressed button in `--debug` mode. New setups
 should use `BUTTON_<n>` with `nav`, `click` and the other actions.
+
+dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
 
 `BUTTON_<n>` in the main config works at runtime, in any section. Buttons are numbered from 1 and
 at most 32. `n` must not exceed the factory button count of the device model
@@ -121,7 +125,7 @@ All are validated by `cmake --build build --target check-config`. Copy one to
 |---|---|
 | `examples/default/dofscroll.conf` | Initial config that the tray seeds on first start. |
 | `examples/dofscroll-pro.conf` | SpaceMouse Pro, buttons off. |
-| `examples/dofscroll-compact.conf` | SpaceMouse Compact, both buttons active. |
+| `examples/dofscroll-compact.conf` | SpaceMouse Compact, left button as nav button. |
 | `examples/dofscroll-multi-device.conf` | Both device profiles in one file. |
 | `examples/modes/*.conf` | Example modes, seeded into `~/.config/dofscroll/modes/`. |
 

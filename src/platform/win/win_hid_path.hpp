@@ -10,11 +10,13 @@
 #include <string>
 #include <vector>
 
+#include "../../utf8.hpp"
+
 namespace spn {
 
 // Lower-cases ASCII only (device paths are compared case-insensitively on Windows).
 inline std::string hidPathKey(std::string p) {
-    for (char &c : p) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (char &c : p) c = static_cast<char>(spn::utf8::lowerChar(c));
     return p;
 }
 

@@ -1,5 +1,7 @@
 # Port architecture: platform layer
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
+
 Goal: one shared core (config, DSP, modes, profile matching, key mapping) and a thin platform
 layer per OS. This document describes the seams; `port-windows.md` and `port-macos.md` describe
 the two new backends. Status: the interfaces exist in `src/platform/platform.hpp` (with a scripted
@@ -76,12 +78,36 @@ capture-next-focus, dedupe) lives in `src/ui/model/app_picker_model.hpp` and
 `src/platform/running_apps_util.hpp`.
 
 - Linux/X11: done (`platform/linux/running_apps_x11.cpp`); Wayland returns an empty list with an error.
-- Windows (to be added in the Windows port branch): `EnumWindows` over visible top-level windows,
-  `GetWindowThreadProcessId` and `QueryFullProcessImageNameW`, with the same executable-name rule as
-  the foreground provider.
-- macOS (to be added in the macOS port branch): `NSWorkspace.runningApplications` with
-  `activationPolicy == regular`; bundle identifier or localized name exactly as the foreground
-  provider reports it.
+- Windows: done, compile-checked (`platform/win/running_apps_win.cpp`): `EnumWindows` over visible,
+  non-tool, non-cloaked, titled, unowned top-level windows, `QueryFullProcessImageNameW` (access
+  denied: window skipped), match string through `winMatchString` (the foreground provider's
+  `exeNameLower` rule; the UWP frame host is never listed), display name from the version resource.
+- macOS: done, compile-checked (`platform/mac/running_apps_mac.mm`): `NSWorkspace.runningApplications`
+  with `activationPolicy == regular`, match string through `macMatchString` (bundle identifier,
+  else localized name, lowercased, as `mac_activewin.mm`), icon hint = bundle path.
+- The pure rules are in `platform/running_apps_os.hpp` (tested on Linux in
+  `tests/test_running_apps_os.cpp`). `running_apps_selftest` runs the provider on the Windows/macOS
+  runner and asserts only "no crash, well-formed list" (an empty list is accepted).
+- Device list for `DevicePickerModel`: `listInputDevices()` opens the platform `InputSource`, takes
+  its `devices()` snapshot and closes it again.
+
+## Live feed
+
+The UI needs the six axis values, the button state and the daemon's interpretation at about 30 Hz
+(axes view, axis assistant). On Linux the GTK tray can read libspnav itself; on Windows and macOS the
+daemon owns the device, so it publishes a feed (`LIVE_FEED = 1`, default). Code in `src/live_feed/`,
+security notes in `security.md` section 10.
+
+- Protocol v1 (`live_feed_protocol.hpp`): one-way daemon -> client, binary little-endian frames with
+  a header (`"DFLV"`, version, type, payload length) and a fixed sample payload (seq, 6 axes, button
+  mask, channel outputs v/h/zoom after DSP, flags, mode id). Frames are at most 86 bytes; version
+  changes are incompatible and detected by the client. No command channel.
+- Transport behind one interface (`live_feed.hpp`: `FeedListener`, `FeedConn`): Unix domain socket
+  `live.sock` in the runtime directory (Linux, macOS), named pipe `\\.\pipe\dofscroll-live-<sid>`
+  (Windows).
+- `LiveFeedServer` is fed by `DaemonDeps::liveFeed` once per tick, rate limits to 30 Hz, only works
+  while a client is connected and never blocks. `LiveFeedClient` (toolkit-free, reconnecting) and
+  `src/ui/model/live_feed_model.hpp` (latest sample, min/max/peak tracking) serve the UI.
 
 ## Live feed
 
