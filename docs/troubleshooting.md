@@ -58,6 +58,8 @@ service again afterwards.
    `ENABLED = 0`, or `MODE = off`, switches it off for that program.
 6. Does another program grab the device (Blender, CAD)? Switch dofscroll off for it with
    `[app:<name>]` `ENABLED = 0`.
+7. Does the device send reports at all? `dofscroll-hidprobe --dump` shows the raw reports (see
+   [devices.md](devices.md#verifying-a-device-with-hidprobe)).
 
 ### The service does not start with the session
 

@@ -3,10 +3,13 @@
 name: ci
 
 on:
+  # Push builds only for main and release tags; every other branch is built via its PR,
+  # so WIP/scratch branch pushes do not send failure mails.
   push:
-    branches: ["**"]
+    branches: [main]
     tags: ["v*"]
   pull_request:
+  workflow_dispatch:
 
 # Least privilege: no job needs more than read access to the repository contents.
 permissions:
@@ -19,7 +22,7 @@ concurrency:
 # Third-party actions are pinned to full commit SHAs (tag in the comment).
 #   actions/checkout        = v4.2.2
 #   actions/upload-artifact = v4.6.2
-#   actions/download-artifact = v4.3.0 (pinned by version tag, not yet by commit SHA)
+#   actions/download-artifact = v4.3.0
 
 jobs:
   build-test:
@@ -132,7 +135,7 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends g++ make cmake git ca-certificates gettext \
+          apt-get install -y --no-install-recommends g++ make cmake git ca-certificates gettext file \
             pkg-config dpkg-dev libspnav-dev libx11-dev libxtst-dev libgtk-3-dev \
             libayatana-appindicator3-dev
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
@@ -167,7 +170,7 @@ jobs:
             "$ver"|"$ver"-*) ;;
             *) echo "Tag $GITHUB_REF_NAME does not match project version $ver in CMakeLists.txt" >&2; exit 1 ;;
           esac
-      - uses: actions/download-artifact@v4.3.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           path: dist
           merge-multiple: true

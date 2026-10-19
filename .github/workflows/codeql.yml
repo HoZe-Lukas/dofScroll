@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+name: codeql
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1"   # weekly, Monday 04:17 UTC
+  workflow_dispatch:
+
+# Default for every job; the analysis job raises exactly what it needs.
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Pinned to full commit SHAs (tag in the comment).
+#   actions/checkout        = v4.2.2
+#   github/codeql-action    = v4.39.0
+
+jobs:
+  analyze:
+    name: CodeQL (c-cpp)
+    # Code scanning needs a public repository (or GitHub Advanced Security): skip while private so
+    # that it does not fail and send notifications.
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    # Same container and dependency set as the ci "build + ctest" job, so the full tree
+    # (daemon and tray) is compiled and analysed.
+    container: rockylinux:9
+    timeout-minutes: 45
+    permissions:
+      contents: read          # checkout
+      security-events: write  # upload SARIF results (only this job)
+      actions: read           # codeql-action reads workflow run metadata (private repos)
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf install -y epel-release
+          dnf install -y gcc-c++ make cmake git gettext pkgconf-pkg-config spacenavd \
+            libspnav-devel libX11-devel libXtst-devel gtk3-devel libappindicator-gtk3-devel
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee  # v4.39.0
+        with:
+          languages: c-cpp
+          build-mode: manual
+          queries: security-extended
+      - name: Build (manual, project CMake build)
+        run: |
+          cmake -S . -B build
+          cmake --build build -j4
+      - uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee  # v4.39.0
+        with:
+          category: "/language:c-cpp"

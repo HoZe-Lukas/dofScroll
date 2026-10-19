@@ -42,9 +42,15 @@ time are not possible on Linux until direct HID access exists (package W1/W2 des
 | W0a | Platform interfaces: `src/platform/platform.hpp` (`InputSource`, `ActiveWindowProvider`, paths, `ReloadListener`) and `src/platform/fake_input.hpp` + `tests/test_platform.cpp` | done 2026-10-19 | - | **done** |
 | W0b | Linux behind the interfaces: spacenavd `InputSource`, X11 `ActiveWindowProvider`, XDG paths, SIGHUP-based reload; split `src/dofscroll.cpp` into a platform-independent daemon core plus a thin `main` per OS | `src/dofscroll.cpp`, new `src/daemon_core.*`, new `src/platform/linux/`, `src/config.cpp` (paths only) | W0a | **done** |
 | W1 | Windows port: raw HID `InputSource` (use `src/hid_descriptor.*` and `devices/*.conf`), `SendInput` `Output`, foreground-window `ActiveWindowProvider`, paths, named-event `ReloadListener`, no-console daemon `main`, autostart | new `src/platform/win/`, `cmake/windows.cmake`, `packaging/windows/` | W0a done; the final daemon `main` waits for W0b | open |
-| W2 | macOS port: IOHID `InputSource`, CGEvent `Output`, `NSWorkspace` `ActiveWindowProvider`, paths, `ReloadListener`, LaunchAgent, permissions | new `src/platform/mac/`, `cmake/macos.cmake`, `packaging/macos/` | W0a done; the final daemon `main` waits for W0b | in progress (web, 2026-10-19) |
+<<<<<<< HEAD
+| W2 | macOS port: IOHID `InputSource`, CGEvent `Output`, `NSWorkspace` `ActiveWindowProvider`, paths, `ReloadListener`, LaunchAgent, permissions | new `src/platform/mac/`, `cmake/macos.cmake`, `packaging/macos/` | W0a done; the final daemon `main` waits for W0b | **implemented, CI-verified; hardware-unverified** (build incl. Objective-C++, unit tests, LaunchAgent plist lint/round trip on `macos-latest`; manual tests: `docs/port-macos-checklist.md`) |
 | W3 | Per-OS tray / settings UI (native minimal tray first) | new `src/ui/` | W0 | open |
 | W4 | Installers and signing: NSIS, macOS pkg/dmg, notarization, release workflow | `packaging/`, `.github/workflows/release.yml` | W1, W2 | open |
+=======
+| W2 | macOS port: IOHID `InputSource`, CGEvent `Output`, `NSWorkspace` `ActiveWindowProvider`, paths, `ReloadListener`, LaunchAgent, permissions | new `src/platform/mac/`, `cmake/macos.cmake`, `packaging/macos/` | W0a done; the final daemon `main` waits for W0b | open |
+| W3 | Native minimal tray for Windows and macOS (status, mode submenu, enable toggle, open config/log, quit); no settings window in 0.1; prompt in `docs/tray-installer-session-prompt.md` | new `src/ui/`, `cmake/windows.cmake`, `cmake/macos.cmake` (UI parts) | W1, W2 merged | open (starts after the port PRs are merged) |
+| W4 | Unsigned installers for 0.1: Windows per-user installer + ZIP, macOS .app/.dmg(.pkg); attach to the GitHub Release; Gatekeeper/SmartScreen steps in `docs/installation.md` | `packaging/windows/`, `packaging/macos/`, `.github/workflows/`, `docs/installation.md`, `docs/release-process.md` | W3 | open (same session as W3) |
+>>>>>>> origin/main
 | W5 | Translate the axis wizard's dynamic result messages (numbers inside sentences) | `src/axis_wizard.hpp`, `src/dofscroll_tray.cpp`, `po/` | - | **done** |
 | W6 | Use one numbering for `BUTTON_<n>`: config files count from 1, mode files from 0 today; unify to 1-based | `src/modes.*`, `src/config.*`, `examples/modes/`, tests, docs | - | **done** |
 | W7 | Code review and security audit: modes directory loading, seeding, key output (`key:` actions), zoom Ctrl handling across channels, systemd sandbox | `docs/security.md`, fixes in affected files | - | open |
@@ -59,6 +65,11 @@ time are not possible on Linux until direct HID access exists (package W1/W2 des
 | W13 | `hidprobe`: small diagnostic tool that records raw HID reports of a 3D mouse and checks them against `devices/*.conf` (verifies the report layouts, prerequisite of W9); runs on Linux, Windows, macOS | new `tools/hidprobe/` | - | open |
 | W14 | Repository hygiene for the later public launch: `SECURITY.md`, issue and PR templates, `dependabot.yml`, `CODEOWNERS` | new `SECURITY.md`, `.github/ISSUE_TEMPLATE/`, `.github/dependabot.yml`, `.github/CODEOWNERS` (not `.github/workflows/`) | - | open |
 | W15 | Seeding race: `seedDefaults()` creates `modes/` before copying the files, so a restart in between leaves a partial set that is never completed; copy into a temporary directory and rename it, or check per file | `src/seed.cpp`, `tests/test_seed.cpp` | - | **done** |
+
+## Decisions (2026-10-19)
+- Version 0.1 on Windows and macOS ships a minimal native tray only; the large settings window (Qt6 or local web UI) is a later version (see W3a, `docs/ui-options.md`).
+- Version 0.1 installers are unsigned and not notarized; signing is added later when certificates exist (`docs/release-process.md`).
+- The git history of this repository is published as is.
 
 Order that avoids conflicts: W0b touches core files and is merged first; W1/W2 start now with
 backends in new files (they only depend on the interfaces from W0a) and wire the daemon `main` once

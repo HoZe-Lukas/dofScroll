@@ -156,6 +156,8 @@ elseif(APPLE AND EXISTS ${CMAKE_SOURCE_DIR}/cmake/macos.cmake)
   include(${CMAKE_SOURCE_DIR}/cmake/macos.cmake)
 endif()
 
+add_subdirectory(tools/hidprobe)  # optional diagnostic, option DOFSCROLL_HIDPROBE (see there)
+
 # ---- tests ------------------------------------------------------------------
 file(GLOB TEST_SRC CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/tests/test_*.cpp)
 set(TEST_TARGETS)
@@ -245,6 +247,7 @@ endif()
 file(GLOB EXAMPLE_FILES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/examples/*.conf)
 install(FILES ${EXAMPLE_FILES} DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
 install(DIRECTORY examples/default DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
+install(DIRECTORY devices/ DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/devices FILES_MATCHING PATTERN "*.conf")
 if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/examples/modes)
   install(DIRECTORY examples/modes DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
 endif()
