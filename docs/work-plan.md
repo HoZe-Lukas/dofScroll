@@ -58,6 +58,7 @@ time are not possible on Linux until direct HID access exists (package W1/W2 des
 | W4a | Release and signing process document: Apple Developer ID and notarization, Windows code signing, secrets in GitHub Actions, tag scheme, artifacts per OS | new `docs/release-process.md` | - | open |
 | W13 | `hidprobe`: small diagnostic tool that records raw HID reports of a 3D mouse and checks them against `devices/*.conf` (verifies the report layouts, prerequisite of W9); runs on Linux, Windows, macOS | new `tools/hidprobe/` | - | open |
 | W14 | Repository hygiene for the later public launch: `SECURITY.md`, issue and PR templates, `dependabot.yml`, `CODEOWNERS` | new `SECURITY.md`, `.github/ISSUE_TEMPLATE/`, `.github/dependabot.yml`, `.github/CODEOWNERS` (not `.github/workflows/`) | - | open |
+| W15 | Seeding race: `seedDefaults()` creates `modes/` before copying the files, so a restart in between leaves a partial set that is never completed; copy into a temporary directory and rename it, or check per file | `src/seed.cpp`, `tests/test_seed.cpp` | - | open |
 
 Order that avoids conflicts: W0b touches core files and is merged first; W1/W2 start now with
 backends in new files (they only depend on the interfaces from W0a) and wire the daemon `main` once
