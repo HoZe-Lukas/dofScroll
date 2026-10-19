@@ -85,6 +85,17 @@ UI DESIGN REQUIREMENTS (maintainer, 2026-10-19; they apply to the pages stage):
   is copied, warnings shown first), Edit (default editor), Delete (file modes only; removing a file
   that overrides a built-in restores the built-in), Open modes folder, and a permanent hint that
   mode files can press any key and should come from trusted sources.
+- Adding a profile never needs typing an internal name: "Add application..." opens a picker of the
+  currently running programs (search field, refresh, display name plus the exact match string, an
+  "already has a profile" marker), a "Capture next focused program" button (switch to the program,
+  it is taken after a few seconds) and a manual entry as fallback; "Add device..." lists the
+  connected devices the same way. Logic: src/ui/model/app_picker_model.hpp and
+  src/platform/running_apps.hpp (Linux/X11 implementation exists; the Windows and macOS
+  implementations are written against the same interface in the port code).
+- Parity: every item above must work on Linux, Windows AND macOS (see the parity matrix in
+  docs/work-plan.md); the platform part of each feature (running-program list, autostart, open file,
+  live feed) gets an implementation per OS behind the same interface, compiled and unit-tested on
+  its runner.
 - Visual quality matters: clear grouping, sensible defaults, short helper texts, consistent
   spacing, keyboard navigation, light/dark theme friendly, no wall of sliders.
 
