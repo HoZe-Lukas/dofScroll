@@ -26,6 +26,7 @@
 #include "output.hpp"
 #include "platform/linux/runtime_files.hpp"
 #include "platform/platform.hpp"
+#include "platform/session_monitor.hpp"
 
 using namespace spn;
 
@@ -146,6 +147,7 @@ int main(int argc, char **argv) {
     deps.configPath = [] { return defaultConfigPath(); };  // includes the legacy-path fallback
     deps.modesDir = [] { return modesDir(); };
     deps.suspendRequested = [suspend] { return (*suspend)(); };
+    deps.sessionMonitor = makeSessionMonitor().release();  // never destroyed (see above)
     deps.writeStatus = [status](const std::string &b, int64_t n) { status->update(b, n); };
     deps.removeStatus = [status] { status->remove(); };
     // spacenavd reports only one device when several are attached: count them via /proc.

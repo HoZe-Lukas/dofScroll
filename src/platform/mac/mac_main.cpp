@@ -349,6 +349,7 @@ int main(int argc, char **argv) {
     deps.writeStatus = [status](const std::string &b, int64_t n) { status->update(b, n); };
     deps.removeStatus = [status] { status->remove(); };
     deps.liveFeed = makeLiveFeedSink(paths.runtimeDir);  // UI data feed, see src/live_feed/
+    deps.sessionMonitor = makeSessionMonitor().release();  // lives until exit
     deps.debug = debug;
 
     DaemonCore *core = new DaemonCore(std::move(deps));
