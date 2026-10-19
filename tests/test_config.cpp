@@ -614,7 +614,6 @@ static void testAuditFixes() {
     // BUTTON_<n> = buttonmode:<id>: syntax checked, text kept (lower case), round trip through allKeys
     {
         Settings s;
-        std::string err;
         assert(applyKey(s, "BUTTON_3", " ButtonMode:Latch-Nav ", &err) && s.buttons[3] == "buttonmode:latch-nav");
         assert(!applyKey(s, "BUTTON_4", "buttonmode:", &err) && !err.empty());
         assert(!applyKey(s, "BUTTON_4", "buttonmode:a b", &err));
@@ -626,7 +625,6 @@ static void testAuditFixes() {
     // STEP_TRIGGER: default, parsing, clamping, round trip through allKeys
     {
         Settings s;
-        std::string err;
         assert(s.step_trigger == 20.0);
         assert(applyKey(s, "STEP_TRIGGER", "35.5", &err) && s.step_trigger == 35.5);
         assert(applyKey(s, "step_trigger", "0", &err) && s.step_trigger == kMinStepTrigger);

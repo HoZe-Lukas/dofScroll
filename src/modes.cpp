@@ -319,11 +319,11 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
         if (warnings && warnings->size() < 200) warnings->push_back(m);
     };
 
-    for (const confdir::Entry &e : confdir::readConfDir(dir, "mode files", warnAll)) {
-        const std::string &path = e.path;
-        const std::string &text = e.text;
+    for (const confdir::Entry &file : confdir::readConfDir(dir, "mode files", warnAll)) {
+        const std::string &path = file.path;
+        const std::string &text = file.text;
         ModeDef m;
-        m.id = e.id;
+        m.id = file.id;
         if (!parseModeText(text, path, &m, warnings)) continue;
         if (m.label.empty()) m.label = m.id;
         const std::string risk = chordRisk(m);

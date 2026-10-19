@@ -9,6 +9,7 @@
 #include <QStandardPaths>
 #include <QSystemTrayIcon>
 #include <QTemporaryDir>
+#include <QThread>
 #include <QTimer>
 #include <QTranslator>
 #include <cstdio>
@@ -103,10 +104,18 @@ static bool overviewSelfTest(MainWindow &w) {
     settle();
     const int wideColumns = w.overviewColumns(), wideWidth = w.width();
     w.resize(720, 460);
-    settle();
+    // The platform may deliver the resize a little later: give it some rounds before judging.
+    for (int i = 0; i < 40 && wideColumns >= 2 && w.overviewColumns() >= wideColumns; ++i) {
+        settle();
+        QThread::msleep(10);
+    }
     check(w.overviewColumns() >= 1 && wideColumns >= w.overviewColumns(), "cards never wrap to more columns in a narrower window");
-    if (wideWidth - w.width() >= 400 && w.width() <= 800 && wideColumns >= 2)  // 3 cards need ~780 px
+    if (wideWidth - w.width() >= 400 && w.width() <= 800 && wideColumns >= 2) {  // 3 cards need ~780 px
+        if (wideColumns <= w.overviewColumns())
+            std::fprintf(stderr, "overview: wide %d px = %d columns, narrow %d px = %d columns\n", wideWidth, wideColumns,
+                         w.width(), w.overviewColumns());
         check(wideColumns > w.overviewColumns(), "cards wrap to fewer columns in a narrow window");
+    }
     w.resize(960, 560);
     // the cards open their profile: section 1 is the device profile, 3 the last program profile
     for (size_t section : {size_t(1), size_t(3)}) {
