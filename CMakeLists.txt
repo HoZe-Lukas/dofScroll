@@ -112,6 +112,8 @@ if(DOFSCROLL_TRAY)
   endif()
 endif()
 
+add_subdirectory(tools/hidprobe)  # optional diagnostic, option DOFSCROLL_HIDPROBE (see there)
+
 # ---- tests ------------------------------------------------------------------
 file(GLOB TEST_SRC CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/tests/test_*.cpp)
 set(TEST_TARGETS)
