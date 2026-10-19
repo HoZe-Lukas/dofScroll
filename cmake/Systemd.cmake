@@ -3,6 +3,8 @@
 # systemd user units and udev rules: templates systemd/*.service.in get the real
 # binary directory of the install prefix. systemd and udev only read <prefix>/lib/...,
 # never lib64, so these directories do NOT use CMAKE_INSTALL_LIBDIR.
+# Final install prefix of packages (CPack uses it as CPACK_PACKAGING_INSTALL_PREFIX).
+set(DOFSCROLL_PACKAGING_PREFIX /usr)
 set(DOFSCROLL_UNITS dofscroll)
 if(DOFSCROLL_BUILD_TRAY)
   list(APPEND DOFSCROLL_UNITS dofscroll-tray)
@@ -20,9 +22,13 @@ endforeach()
 install(CODE "set(DOFSCROLL_UNITS \"${DOFSCROLL_UNITS}\")
 set(DOFSCROLL_SRC \"${CMAKE_SOURCE_DIR}\")
 set(DOFSCROLL_BINDIR_REL \"${CMAKE_INSTALL_BINDIR}\")
+set(DOFSCROLL_PACKAGING_PREFIX \"${DOFSCROLL_PACKAGING_PREFIX}\")
 include(\"${CMAKE_SOURCE_DIR}/cmake/InstallUnits.cmake\")")
 
+# The uinput rule is NOT installed into the active udev directory: it opens /dev/uinput to
+# the logged-in seat user and must be an explicit opt-in. It ships as an example under
+# share/dofscroll/udev; `install-udev` (or a manual copy) activates it.
 file(GLOB UDEV_RULES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/packaging/*.rules)
 if(UDEV_RULES)
-  install(FILES ${UDEV_RULES} DESTINATION lib/udev/rules.d)
+  install(FILES ${UDEV_RULES} DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/udev)
 endif()

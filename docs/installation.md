@@ -86,7 +86,7 @@ Checked on the TGZ built on a RHEL 9 machine:
 |---|---|
 | `/usr/bin/dofscroll`, `/usr/bin/dofscroll-tray` | The programs. |
 | `/usr/lib/systemd/user/dofscroll.service`, `dofscroll-tray.service` | User units, rendered at install time so `ExecStart` points at the real program path (`/usr/bin/...` for a package). The directory is always `<prefix>/lib/systemd/user`, never `lib64`. |
-| `/usr/lib/udev/rules.d/70-dofscroll-uinput.rules` | uinput rule (always under `lib`, never `lib64`). |
+| `/usr/share/dofscroll/udev/70-dofscroll-uinput.rules` | uinput udev rule, shipped as an example only. It is not active until you copy it (step 5). |
 | `/usr/share/dofscroll/examples/` | Example configs, `default/` and `modes/`. |
 | `/usr/share/dofscroll-tray/icons/dofscroll-tray.svg` | Tray icon. |
 | `/usr/share/locale/de/LC_MESSAGES/dofscroll.mo` | German translation. |
@@ -119,8 +119,10 @@ Do these steps once per machine. Steps 1 and 5 need root.
 
 5. Optional, only for Wayland or if you set `BACKEND = uinput`: activate the udev rule for
    `/dev/uinput`.
-   The package installs the rule to `/usr/lib/udev/rules.d/`. Reload udev:
+   The package deliberately does not activate the rule (it makes `/dev/uinput` accessible to the
+   logged-in seat user), it only ships it as an example. Copy it and reload udev:
 
+        sudo cp /usr/share/dofscroll/udev/70-dofscroll-uinput.rules /etc/udev/rules.d/
         sudo udevadm control --reload && sudo udevadm trigger
 
    Log out and in once. Details and the reason why you must not join the `input` group:
@@ -230,8 +232,8 @@ Options at configure time:
 | `-DDOFSCROLL_SANITIZE=ON` | OFF | ASan/UBSan build. |
 | `-DDOFSCROLL_WERROR=ON` | OFF | Treat warnings as errors. |
 
-The install rules put the units in `<prefix>/lib/systemd/user` and the udev rule in
-`<prefix>/lib/udev/rules.d`, with `ExecStart` pointing at `<prefix>/bin`. With the default prefix
+The install rules put the units in `<prefix>/lib/systemd/user` and the udev rule example in
+`<prefix>/share/dofscroll/udev` (nothing goes into an active udev directory; `install-udev` activates it), with `ExecStart` pointing at `<prefix>/bin`. With the default prefix
 `/usr/local`, systemd does not read `/usr/local/lib/systemd/user` by default; for a local install
 link the units as described in "Run from the build tree" below, or install with
 `-DCMAKE_INSTALL_PREFIX=/usr`.
