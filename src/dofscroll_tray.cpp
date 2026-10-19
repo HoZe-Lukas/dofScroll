@@ -1,24 +1,33 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Tray-Icon + Einstellungsfenster fuer dofscroll (Profil-faehige Version).
+// Tray icon + settings window for dofscroll (profile-aware version).
 //
-// Bewusst als eigener Prozess/Dienst getrennt vom Scroll-Daemon: GTK-Mainloop
-// und Tray-Overhead sollen nie den zeitkritischen Tick-Thread beeinflussen.
-// Diese App liest/schreibt nur die gemeinsame Config-Datei - ausschliesslich
-// ueber loadProfiles()/saveProfiles() aus config.hpp (keine eigene
-// Parser-Kopie) - und stoesst beim laufenden Daemon per SIGHUP (ueber
-// systemctl --user) einen Live-Reload an.
+// Deliberately a separate process/service from the scroll daemon: the GTK main loop
+// and tray overhead must never affect the time-critical tick thread.
+// This app only reads/writes the shared config file - exclusively through
+// loadProfiles()/saveProfiles() from config.hpp (no parser copy of its own) - and
+// triggers a live reload in the running daemon via SIGHUP (through systemctl --user).
 //
-// Bedienmodell: oben wird ein Profil gewaehlt ([global], [device:*], [app:*]).
-// Alle Regler zeigen die *aufgeloesten* Werte dieses Profils (global + Sektion).
-// Beim Speichern schreibt ProfileSet::setSectionFromSettings() fuer
-// Nicht-Global-Profile nur die von Global abweichenden Keys (diffKeys).
+// Operating model: a profile is chosen at the top ([global], [device:*], [app:*]).
+// All controls show the *resolved* values of that profile (global + section).
+// When saving, ProfileSet::setSectionFromSettings() writes only the keys that differ
+// from Global for non-global profiles (diffKeys).
 //
-// Reiter "Achsen": Achsenskizze, Live-Anzeige und Assistent "Achsen einlernen".
-// Dafuer oeffnet der Tray - nur solange das Einstellungsfenster offen ist - eine
-// eigene, rein lesende libspnav-Verbindung (spacenavd erlaubt mehrere Clients;
-// der Daemon bleibt davon unberuehrt). Die Auswertung des Assistenten steckt
-// GTK-frei in axis_wizard.hpp (getestet in tests/test_axis_wizard.cpp).
+// "Axes" tab: axis sketch, live display and the "Learn axes" wizard. For this the
+// tray opens - only while the settings window is open - its own read-only libspnav
+// connection (spacenavd allows several clients; the daemon is unaffected). The
+// wizard's evaluation lives GUI-free in axis_wizard.hpp (tested in
+// tests/test_axis_wizard.cpp).
+//
+// Bottom of the settings window: "Application modes" list (program/device profile ->
+// mode), built from the loaded mode files; pure logic in mode_list.hpp.
+//
+// UI strings are English and wrapped in _() (gettext, see i18n.hpp and po/).
+// mode_list.hpp/modes.hpp first: modes.hpp has an enumerator "None", which the Xlib macro
+// None (pulled in by spnav.h/GTK) would break if those headers came earlier.
+#include "mode_list.hpp"
+#include "modes.hpp"
+
 #include <glib-unix.h>
 #include <gtk/gtk.h>
 #include <libappindicator/app-indicator.h>
@@ -28,6 +37,7 @@
 #include <array>
 #include <cmath>
 #include <csignal>
+#include <cstdarg>
 #include <fstream>
 #include <sstream>
 #include <cstdio>
@@ -47,6 +57,9 @@
 
 #include "axis_wizard.hpp"
 #include "config.hpp"
+#include "device_db.hpp"
+#include "i18n.hpp"
+#include "seed.hpp"
 
 using spn::ChannelCfg;
 using spn::ProfileSet;
@@ -54,13 +67,12 @@ using spn::Section;
 using spn::Settings;
 
 // ---------------------------------------------------------------------------
-// Hilfsprozesse: immer per g_spawn_async mit argv-Array, nie system() mit
-// zusammengebautem String (Pfade koennen Leerzeichen/Sonderzeichen enthalten).
-// Ohne G_SPAWN_DO_NOT_REAP_CHILD raeumt GLib die Kindprozesse selbst ab.
+// Helper processes: always via g_spawn_async with an argv array, never system() with
+// an assembled string (paths may contain spaces/special characters).
+// Without G_SPAWN_DO_NOT_REAP_CHILD GLib reaps the child processes itself.
 // ---------------------------------------------------------------------------
-// Programme werden bevorzugt aus /usr/bin bzw. /bin aufgeloest (nicht aus einem
-// manipulierbaren $PATH); nur wenn dort nicht vorhanden, faellt es auf die PATH-Suche
-// zurueck.
+// Programs are preferably resolved from /usr/bin or /bin (not from a manipulable
+// $PATH); only if not found there does it fall back to a PATH search.
 static std::string resolveExe(const std::string &name) {
     if (name.find('/') != std::string::npos) return name;
     for (const char *dir : {"/usr/bin/", "/bin/"}) {
@@ -82,14 +94,14 @@ static void spawnDetached(const std::vector<std::string> &args_in) {
                        GSpawnFlags((search ? G_SPAWN_SEARCH_PATH : 0) | G_SPAWN_STDOUT_TO_DEV_NULL |
                                    G_SPAWN_STDERR_TO_DEV_NULL),
                        nullptr, nullptr, nullptr, &err)) {
-        fprintf(stderr, "dofscroll-tray: %s konnte nicht gestartet werden: %s\n",
+        fprintf(stderr, "dofscroll-tray: could not start %s: %s\n",
                 args.empty() ? "?" : args[0].c_str(), err ? err->message : "?");
         if (err) g_error_free(err);
     }
 }
 
-// Bringt den laufenden Scroll-Daemon dazu, die soeben gespeicherte Config live
-// neu einzulesen (siehe SIGHUP-Handler dort).
+// Makes the running scroll daemon re-read the config that was just saved
+// (see the SIGHUP handler there).
 static void reloadDaemon() {
     spawnDetached({"systemctl", "--user", "kill", "-s", "HUP", "dofscroll.service"});
 }
@@ -98,11 +110,23 @@ static void restartDaemon() {
     spawnDetached({"systemctl", "--user", "restart", "dofscroll.service"});
 }
 
+// printf-style formatting into a std::string (for translated format strings).
+static std::string sfmt(const char *fmt, ...) G_GNUC_PRINTF(1, 2);
+static std::string sfmt(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    gchar *s = g_strdup_vprintf(fmt, ap);
+    va_end(ap);
+    std::string r = s ? s : "";
+    g_free(s);
+    return r;
+}
+
 // ---------------------------------------------------------------------------
-// Zustand
+// State
 // ---------------------------------------------------------------------------
 
-// Beschreibung eines Kanals: Anzeigename, Key-Praefix in der Datei, Feld in Settings.
+// Description of a channel: display name, key prefix in the file, field in Settings.
 struct ChanDesc {
     const char *title;
     const char *prefix;
@@ -110,28 +134,28 @@ struct ChanDesc {
 };
 
 static const ChanDesc CHANNELS[] = {
-    {"Scroll vertikal", "SCROLL_V", &Settings::scroll_v},
-    {"Scroll horizontal", "SCROLL_H", &Settings::scroll_h},
-    {"Zoom", "ZOOM", &Settings::zoom},
+    {N_("Scroll vertical"), "SCROLL_V", &Settings::scroll_v},
+    {N_("Scroll horizontal"), "SCROLL_H", &Settings::scroll_h},
+    {N_("Zoom"), "ZOOM", &Settings::zoom},
 };
 
-// Ein Regler im Fenster: load() schreibt den Wert aus App::cur ins Widget,
-// apply() liest das Widget nach App::cur zurueck (false = nichts uebernommen,
-// z.B. ungueltige Eingabe).
+// A control in the window: load() writes the value from App::cur into the widget,
+// apply() reads the widget back into App::cur (false = nothing taken over,
+// e.g. invalid input).
 struct Binding {
     std::function<void()> load;
     std::function<bool()> apply;
-    GtkWidget *widget = nullptr;  // fuer das Abklemmen des Signals beim Schliessen
+    GtkWidget *widget = nullptr;  // for disconnecting the signal on close
 };
 
 struct App {
     ProfileSet ps;
     size_t cur_idx = 0;
-    Settings cur;            // aufgeloeste Settings des gewaehlten Profils
+    Settings cur;            // resolved settings of the selected profile
     guint debounce_id = 0;
-    bool updating = false;   // true waehrend refresh(): Widget-Signale ignorieren
+    bool updating = false;   // true during refresh(): ignore widget signals
 
-    // Nur gueltig, solange das Fenster offen ist.
+    // Only valid while the window is open.
     GtkWidget *window = nullptr;
     GtkWidget *profile_combo = nullptr;
     GtkWidget *profile_info = nullptr;
@@ -140,22 +164,26 @@ struct App {
     std::vector<GtkWidget *> graphs;
     std::vector<std::unique_ptr<Binding>> binds;
     std::vector<std::function<void()>> sensitivity_rules;
-    int axes_chan = 0;       // Reiter "Achsen": hervorgehobener Kanal (Index in CHANNELS)
+    int axes_chan = 0;       // "Axes" tab: highlighted channel (index into CHANNELS)
+    GtkWidget *mode_box = nullptr;  // rows of the "Application modes" list
+    std::string modes_stamp;        // modesStamp() at the last rebuild of that list
+    // Button-index spinners (limited to the connected device's real button count).
+    std::vector<std::pair<GtkWidget *, int Settings::*>> button_spins;
 
-    // Abgleich mit der Datei (Lost-Update-Schutz, siehe applyDebounced):
-    ProfileSet base;         // Stand von g.ps beim letzten Laden/Speichern
-    std::string disk_content;  // Dateiinhalt zu diesem Zeitpunkt
+    // Sync with the file (lost-update protection, see applyDebounced):
+    ProfileSet base;         // state of g.ps at the last load/save
+    std::string disk_content;  // file content at that time
     bool disk_known = false;
 };
 
 static App g;
 
-// Config-Pfad immer frisch ermitteln: nach der Migration/dem ersten Speichern
-// wechselt defaultConfigPath() ggf. vom Legacy- auf den neuen Pfad.
+// Always determine the config path fresh: after migration/first save defaultConfigPath()
+// may switch from the legacy to the new path.
 static std::string cfgPath() { return spn::defaultConfigPath(); }
 
 // ---------------------------------------------------------------------------
-// Speichern (debounced)
+// Saving (debounced)
 // ---------------------------------------------------------------------------
 
 static bool readFileContent(const std::string &path, std::string *out) {
@@ -173,7 +201,7 @@ static void syncDiskState() {
     if (!readFileContent(cfgPath(), &g.disk_content)) g.disk_content.clear();
 }
 
-// Gleiche Normalisierung wie ProfileSet::findOrAdd (getrimmt, Kleinschreibung).
+// Same normalization as ProfileSet::findOrAdd (trimmed, lowercase).
 static std::string patKey(const std::string &s) {
     size_t b = 0, e = s.size();
     while (b < e && isspace(static_cast<unsigned char>(s[b]))) ++b;
@@ -193,13 +221,12 @@ static size_t findSection(const ProfileSet &ps, const Section &like) {
 
 static void refresh();
 
-// Lost-Update-Schutz: Hat sich die Datei seit dem letzten Laden/Speichern geaendert
-// (z.B. von Hand ueber "Konfigurationsdatei oeffnen"), wird sie frisch geladen und
-// nur die Differenz zwischen g.base (Stand beim letzten Sync) und g.ps - also genau
-// das, was der Nutzer im Fenster geaendert hat - darauf angewendet: geaenderte/neue
-// Keys setzen, entfernte Keys loeschen, neue/geloeschte Profile uebernehmen. Alles
-// andere bleibt wie auf der Platte. Danach ersetzt das Ergebnis g.ps.
-// Rueckgabe false: Datei nicht lesbar, nichts gemerged (Aufrufer darf NICHT speichern).
+// Lost-update protection: if the file changed since the last load/save (e.g. by hand via
+// "Open config file"), it is loaded fresh and only the difference between g.base (state at
+// the last sync) and g.ps - i.e. exactly what the user changed in the window - is applied
+// to it: set changed/new keys, delete removed keys, take over new/deleted profiles.
+// Everything else stays as on disk. The result then replaces g.ps.
+// Returns false: file not readable, nothing merged (caller must NOT save).
 static bool mergeDiskChanges() {
     ProfileSet disk;
     if (!spn::loadProfiles(cfgPath(), &disk, nullptr)) return false;
@@ -216,7 +243,7 @@ static bool mergeDiskChanges() {
         size_t bi = findSection(g.base, mine);
         size_t di = findSection(disk, mine);
         if (di == ProfileSet::npos) {
-            if (bi != ProfileSet::npos) continue;  // auf Platte von Hand entfernt: bleibt weg
+            if (bi != ProfileSet::npos) continue;  // removed by hand on disk: stays removed
             di = disk.findOrAdd(mine.kind, mine.pattern);
             if (di == ProfileSet::npos) continue;
         }
@@ -253,6 +280,7 @@ static bool mergeDiskChanges() {
 }
 
 static void fillProfileCombo();
+static void rebuildModeList();
 
 static gboolean applyDebounced(gpointer) {
     g.debounce_id = 0;
@@ -260,14 +288,14 @@ static gboolean applyDebounced(gpointer) {
         std::string now;
         const bool have = readFileContent(cfgPath(), &now);
         if ((have ? now : std::string()) != g.disk_content) {
-            fprintf(stderr, "dofscroll-tray: %s wurde extern geaendert - fuehre zusammen\n",
+            fprintf(stderr, "dofscroll-tray: %s was changed externally - merging\n",
                     cfgPath().c_str());
             if (!mergeDiskChanges()) {
-                // Aenderung bleibt in g.ps erhalten, naechste Aenderung versucht es erneut.
+                // The change stays in g.ps, the next change tries again.
                 static bool warned = false;
                 if (!warned)
-                    fprintf(stderr, "dofscroll-tray: %s nicht lesbar - Speichern uebersprungen, "
-                                    "Aenderung bleibt vorgemerkt\n", cfgPath().c_str());
+                    fprintf(stderr, "dofscroll-tray: %s not readable - save skipped, "
+                                    "change stays pending\n", cfgPath().c_str());
                 warned = true;
                 return G_SOURCE_REMOVE;
             }
@@ -276,7 +304,7 @@ static gboolean applyDebounced(gpointer) {
     }
     std::string err;
     if (!spn::saveProfiles(cfgPath(), g.ps, &err)) {
-        fprintf(stderr, "dofscroll-tray: Speichern von %s fehlgeschlagen: %s\n",
+        fprintf(stderr, "dofscroll-tray: saving %s failed: %s\n",
                 cfgPath().c_str(), err.c_str());
         return G_SOURCE_REMOVE;
     }
@@ -285,14 +313,14 @@ static gboolean applyDebounced(gpointer) {
     return G_SOURCE_REMOVE;
 }
 
-// Speichert/reload't nicht bei jedem einzelnen Slider-Tick, sondern erst
-// 250 ms nach der letzten Aenderung - vermeidet Datei-I/O-Spam beim Ziehen.
+// Does not save/reload on every single slider tick, only 250 ms after the last
+// change - avoids file I/O spam while dragging.
 static void scheduleApply() {
     if (g.debounce_id != 0) g_source_remove(g.debounce_id);
     g.debounce_id = g_timeout_add(250, applyDebounced, nullptr);
 }
 
-// Ausstehendes Speichern sofort ausfuehren (z.B. vor "Datei oeffnen"/Beenden).
+// Run a pending save immediately (e.g. before "open file"/quit).
 static void flushPending() {
     if (g.debounce_id != 0) {
         g_source_remove(g.debounce_id);
@@ -300,25 +328,30 @@ static void flushPending() {
     }
 }
 
-static std::string sectionLabel(const Section &s) {
-    switch (s.kind) {
-    case Section::DEVICE: return "Geraet: " + s.pattern;
-    case Section::APP: return "Programm: " + s.pattern;
-    default: return "Global";
+// "Program: x" / "Device: x" (kind and pattern of a profile).
+static std::string kindLabel(Section::Kind kind, const std::string &pattern) {
+    switch (kind) {
+    case Section::DEVICE: return sfmt(_("Device: %s"), pattern.c_str());
+    case Section::APP: return sfmt(_("Program: %s"), pattern.c_str());
+    default: return _("Global");
     }
 }
+
+static std::string sectionLabel(const Section &s) { return kindLabel(s.kind, s.pattern); }
 
 static void updateProfileInfo() {
     if (!g.profile_info) return;
     std::string txt;
     if (g.cur_idx == 0) {
-        txt = "Globale Grundeinstellungen. Geraete- und Programm-Profile "
-              "ueberschreiben davon nur einzelne Werte.";
+        txt = _("Global base settings. Device and program profiles override only "
+                "individual values of them.");
     } else {
         size_t n = g.ps.sections[g.cur_idx].kv.size();
-        txt = "Angezeigt werden die wirksamen Werte (Global + dieses Profil). "
-              "Gespeichert werden nur Abweichungen von Global - derzeit " +
-              std::to_string(n) + (n == 1 ? " Wert." : " Werte.");
+        txt = sfmt(NG_("The effective values are shown (Global + this profile). Only "
+                       "deviations from Global are saved - currently %d value.",
+                       "The effective values are shown (Global + this profile). Only "
+                       "deviations from Global are saved - currently %d values.", n),
+                   int(n));
     }
     gtk_label_set_text(GTK_LABEL(g.profile_info), txt.c_str());
 }
@@ -330,7 +363,7 @@ static void updateSensitivity() {
     for (GtkWidget *d : g.graphs) gtk_widget_queue_draw(d);
 }
 
-// Nach jeder uebernommenen Aenderung: in die Sektion zurueckschreiben, speichern planen.
+// After every accepted change: write back into the section, schedule saving.
 static void commit() {
     g.ps.setSectionFromSettings(g.cur_idx, g.cur);
     updateProfileInfo();
@@ -338,7 +371,7 @@ static void commit() {
     scheduleApply();
 }
 
-// Alle Widgets aus g.cur neu befuellen (ohne dabei Speichern auszuloesen).
+// Refill all widgets from g.cur (without triggering a save).
 static void refresh() {
     g.updating = true;
     for (auto &b : g.binds) b->load();
@@ -362,10 +395,11 @@ static void fillProfileCombo() {
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(g.profile_combo), sectionLabel(s).c_str());
     gtk_combo_box_set_active(GTK_COMBO_BOX(g.profile_combo), int(g.cur_idx));
     g.updating = false;
+    rebuildModeList();
 }
 
 // ---------------------------------------------------------------------------
-// Widget-Bindungen
+// Widget bindings
 // ---------------------------------------------------------------------------
 
 static void onBindChanged(GtkWidget *, gpointer data) {
@@ -382,8 +416,8 @@ static Binding *addBinding(GtkWidget *w, const char *signal, std::function<void(
     return b;
 }
 
-// Mausrad ueber Spinbox/Regler/Auswahlliste soll den Wert nicht aendern, sondern das umgebende
-// Fenster scrollen: Ereignis dort stoppen und an das Elternwidget weiterreichen.
+// Mouse wheel over a spin box/slider/combo must not change the value but scroll the
+// surrounding window: stop the event there and pass it on to the parent widget.
 static GtkWidget *noWheelChange(GtkWidget *w) {
     g_signal_connect(w, "scroll-event", G_CALLBACK(+[](GtkWidget *w, GdkEvent *ev, gpointer) -> gboolean {
         g_signal_stop_emission_by_name(w, "scroll-event");
@@ -429,7 +463,7 @@ static GtkWidget *bindCheck(const char *label, std::function<bool()> get,
     return check;
 }
 
-// Ungueltige Texteingaben rot markieren (eigene Klasse + Adwaita-"error").
+// Mark invalid text input in red (own class + Adwaita "error").
 static void markEntry(GtkWidget *entry, bool valid, const std::string &err) {
     GtkStyleContext *sc = gtk_widget_get_style_context(entry);
     if (valid) {
@@ -450,8 +484,8 @@ static std::string trim(const std::string &s) {
     return s.substr(a, b - a + 1);
 }
 
-// Kurvenwert fuer die Vorschau, gleiche Formel wie spn::applyCurve() in dsp.hpp
-// (hier nachgebildet, damit der Tray nicht gegen dsp.cpp linken muss).
+// Curve value for the preview, same formula as spn::applyCurve() in dsp.hpp
+// (replicated here so the tray does not have to link against dsp.cpp).
 static double previewCurve(const ChannelCfg &c, double v) {
     const double ref = 200.0;  // = spn::CURVE_REF
     if (v <= 0) return 0.0;
@@ -474,7 +508,7 @@ static double previewCurve(const ChannelCfg &c, double v) {
     return v * f;
 }
 
-// Vorschaugraph: x = Eingabe nach Deadzone 0..350, y = Ausgabe (linear = Diagonale).
+// Preview graph: x = input after deadzone 0..350, y = output (linear = diagonal).
 static gboolean onGraphDraw(GtkWidget *w, cairo_t *cr, gpointer data) {
     const ChanDesc *d = static_cast<const ChanDesc *>(data);
     const ChannelCfg &c = g.cur.*(d->member);
@@ -484,20 +518,20 @@ static gboolean onGraphDraw(GtkWidget *w, cairo_t *cr, gpointer data) {
 
     double ymax = XMAX;
     for (int i = 0; i <= 70; ++i) ymax = std::max(ymax, previewCurve(c, XMAX * i / 70.0));
-    if (ymax > 4 * XMAX) ymax = 4 * XMAX;  // extreme Kurven oben abschneiden
+    if (ymax > 4 * XMAX) ymax = 4 * XMAX;  // cut off extreme curves at the top
 
     GdkRGBA fg;
     gtk_style_context_get_color(gtk_widget_get_style_context(w), GTK_STATE_FLAG_NORMAL, &fg);
     auto px = [&](double x) { return pad + x / XMAX * (W - 2 * pad); };
     auto py = [&](double y) { return H - pad - std::min(y, ymax) / ymax * (H - 2 * pad); };
 
-    // Rahmen
+    // Frame
     cairo_set_source_rgba(cr, fg.red, fg.green, fg.blue, 0.25);
     cairo_set_line_width(cr, 1);
     cairo_rectangle(cr, pad + 0.5, pad + 0.5, W - 2 * pad - 1, H - 2 * pad - 1);
     cairo_stroke(cr);
 
-    // Lineare Referenz (gestrichelt)
+    // Linear reference (dashed)
     double dash = 3;
     cairo_set_dash(cr, &dash, 1, 0);
     cairo_move_to(cr, px(0), py(0));
@@ -505,7 +539,7 @@ static gboolean onGraphDraw(GtkWidget *w, cairo_t *cr, gpointer data) {
     cairo_stroke(cr);
     cairo_set_dash(cr, nullptr, 0, 0);
 
-    // Kurve
+    // Curve
     cairo_set_source_rgba(cr, 0.21, 0.52, 0.89, 1.0);
     cairo_set_line_width(cr, 2);
     const int N = 140;
@@ -516,19 +550,19 @@ static gboolean onGraphDraw(GtkWidget *w, cairo_t *cr, gpointer data) {
     }
     cairo_stroke(cr);
 
-    // Beschriftung
+    // Labels
     cairo_set_source_rgba(cr, fg.red, fg.green, fg.blue, 0.6);
     cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(cr, 9);
     cairo_move_to(cr, pad + 3, pad + 11);
-    cairo_show_text(cr, ymax > XMAX * 1.01 ? "Ausgabe (gekappt)" : "Ausgabe");
+    cairo_show_text(cr, ymax > XMAX * 1.01 ? _("Output (clipped)") : _("Output"));
     cairo_move_to(cr, W - pad - 72, H - pad - 4);
-    cairo_show_text(cr, "Eingabe 0..350");
+    cairo_show_text(cr, _("Input 0..350"));
     return FALSE;
 }
 
 // ---------------------------------------------------------------------------
-// Fensteraufbau
+// Window construction
 // ---------------------------------------------------------------------------
 
 static GtkWidget *newGrid() {
@@ -575,7 +609,7 @@ static GtkWidget *buildChannel(const ChanDesc *d, bool with_zoom_extras) {
     GtkWidget *grid = newGrid();
     int row = 0;
 
-    // Achsen-Mix: Wert wird erst uebernommen, wenn parseMix() ihn akzeptiert.
+    // Axis mix: the value is only taken over once parseMix() accepts it.
     GtkWidget *mix = gtk_entry_new();
     addBinding(mix, "changed",
                [mix, ch] {
@@ -590,25 +624,25 @@ static GtkWidget *buildChannel(const ChanDesc *d, bool with_zoom_extras) {
                    if (ok) ch().mix = parsed;
                    return ok;
                });
-    labeled(grid, row++, "Achsen-Mix", mix,
-            "Summe aus [+-][Gewicht*]Achse, Achsen: x y z rx ry rz.\n"
-            "Beispiele: \"z + rx\", \"x - rz\", \"0.5*rx + z\", \"-ry\". Leer = Kanal aus.");
+    labeled(grid, row++, _("Axis mix"), mix,
+            _("Sum of [+-][weight*]axis, axes: x y z rx ry rz.\n"
+              "Examples: \"z + rx\", \"x - rz\", \"0.5*rx + z\", \"-ry\". Empty = channel off."));
 
-    labeled(grid, row++, "Empfindlichkeit",
+    labeled(grid, row++, _("Sensitivity"),
             bindIntSpin(0, 255, [ch]() -> int & { return ch().sensitivity; }),
-            "0..255, 0 = Kanal aus");
-    labeled(grid, row++, "Deadzone",
+            _("0..255, 0 = channel off"));
+    labeled(grid, row++, _("Deadzone"),
             bindIntSpin(0, 500, [ch]() -> int & { return ch().deadzone; }),
-            "Rohsensor-Einheiten, unterhalb davon passiert nichts");
-    labeled(grid, row++, "Glaettung (ms)",
+            _("Raw sensor units; nothing happens below this"));
+    labeled(grid, row++, _("Smoothing (ms)"),
             bindDoubleSpin(0, 500, 1, 0, [ch]() -> double & { return ch().smooth_ms; }),
-            "Zeitkonstante des Tiefpass, 0 = aus");
+            _("Low-pass time constant, 0 = off"));
 
-    GtkWidget *inv = bindCheck("Richtung invertieren", [ch] { return ch().sign < 0; },
+    GtkWidget *inv = bindCheck(_("Invert direction"), [ch] { return ch().sign < 0; },
                                [ch](bool on) { ch().sign = on ? -1 : 1; });
     gtk_grid_attach(GTK_GRID(grid), inv, 0, row++, 2, 1);
 
-    // Response-Kurve: Exponent-Regler, alternativ Punktliste (hat Vorrang).
+    // Response curve: exponent slider, alternatively a point list (takes precedence).
     GtkWidget *exp = noWheelChange(gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.2, 4.0, 0.05));
     gtk_scale_set_digits(GTK_SCALE(exp), 2);
     gtk_scale_set_value_pos(GTK_SCALE(exp), GTK_POS_RIGHT);
@@ -619,13 +653,13 @@ static GtkWidget *buildChannel(const ChanDesc *d, bool with_zoom_extras) {
                    ch().curve_exp = gtk_range_get_value(GTK_RANGE(exp));
                    return true;
                });
-    // "-"/"+" neben dem Regler (je ein Schritt), da das Mausrad ihn nicht verstellt.
+    // "-"/"+" next to the slider (one step each), since the mouse wheel does not move it.
     GtkWidget *exp_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
     gtk_widget_set_hexpand(exp, TRUE);
     GtkWidget *minus = gtk_button_new_with_label("\xe2\x88\x92");
     GtkWidget *plus = gtk_button_new_with_label("+");
     for (GtkWidget *b : {minus, plus}) {
-        gtk_widget_set_tooltip_text(b, "Einen Schritt (0,05) verstellen");
+        gtk_widget_set_tooltip_text(b, _("Adjust by one step (0.05)"));
         gtk_button_set_relief(GTK_BUTTON(b), GTK_RELIEF_NONE);
     }
     g_signal_connect_swapped(minus, "clicked", G_CALLBACK(+[](GtkWidget *r) {
@@ -637,15 +671,16 @@ static GtkWidget *buildChannel(const ChanDesc *d, bool with_zoom_extras) {
     gtk_box_pack_start(GTK_BOX(exp_box), minus, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(exp_box), exp, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(exp_box), plus, FALSE, FALSE, 0);
-    labeled(grid, row++, "Kurve (Exponent)", exp_box, "1.0 = linear, >1 = feiner bei kleinen Ausschlaegen");
+    labeled(grid, row++, _("Curve (exponent)"), exp_box,
+            _("1.0 = linear, >1 = finer at small deflections"));
 
     GtkWidget *pts = gtk_entry_new();
-    gtk_entry_set_placeholder_text(GTK_ENTRY(pts), "leer = Exponent gilt, z.B. 0:0 50:0.1 200:1 350:3");
+    gtk_entry_set_placeholder_text(GTK_ENTRY(pts), _("empty = exponent applies, e.g. 0:0 50:0.1 200:1 350:3"));
     addBinding(pts, "changed",
                [pts, ch, curve_key] {
                    std::string txt;
                    if (!ch().curve_points.empty()) {
-                       // Format exakt wie config.cpp es schreibt (allKeys).
+                       // Format exactly as config.cpp writes it (allKeys).
                        for (const auto &kv : spn::allKeys(g.cur))
                            if (kv.first == curve_key) txt = kv.second;
                    }
@@ -662,16 +697,16 @@ static GtkWidget *buildChannel(const ChanDesc *d, bool with_zoom_extras) {
                    std::string err;
                    Settings tmp = g.cur;
                    bool ok = txt.find(':') != std::string::npos;
-                   if (!ok) err = "Punktliste erwartet: \"eingabe:faktor ...\" (fuer einen Exponenten den Regler benutzen)";
+                   if (!ok) err = _("Point list expected: \"input:factor ...\" (use the slider for an exponent)");
                    else ok = spn::applyKey(tmp, curve_key, txt, &err) && !(tmp.*m).curve_points.empty();
                    if (ok) ch().curve_points = (tmp.*m).curve_points;
-                   markEntry(pts, ok, err.empty() ? "ungueltige Punktliste" : err);
+                   markEntry(pts, ok, err.empty() ? std::string(_("invalid point list")) : err);
                    return ok;
                });
-    labeled(grid, row++, "Kurve (Punkte)", pts,
-            "Optional: Paare \"Eingabe:Faktor\" aufsteigend, z.B. \"0:0 50:0.1 200:1 350:3\".\n"
-            "Eingabe = Ausschlag nach Deadzone (Rohsensor-Einheiten), Faktor auf die lineare\n"
-            "Geschwindigkeit, dazwischen linear interpoliert. Ueberschreibt den Exponenten.");
+    labeled(grid, row++, _("Curve (points)"), pts,
+            _("Optional: ascending \"input:factor\" pairs, e.g. \"0:0 50:0.1 200:1 350:3\".\n"
+              "Input = deflection after deadzone (raw sensor units), factor applies to the linear\n"
+              "speed, linearly interpolated in between. Overrides the exponent."));
     g.sensitivity_rules.push_back([exp, ch] { gtk_widget_set_sensitive(exp, ch().curve_points.empty()); });
 
     GtkWidget *graph = gtk_drawing_area_new();
@@ -681,7 +716,7 @@ static GtkWidget *buildChannel(const ChanDesc *d, bool with_zoom_extras) {
     gtk_grid_attach(GTK_GRID(grid), graph, 0, row++, 2, 1);
 
     if (with_zoom_extras) {
-        // Achsen, gegen die der Zoom-Twist dominieren muss.
+        // Axes the zoom twist has to dominate against.
         GtkWidget *box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
         for (int a = 0; a < spn::AX_COUNT; ++a) {
             spn::Axis ax = spn::Axis(a);
@@ -703,21 +738,21 @@ static GtkWidget *buildChannel(const ChanDesc *d, bool with_zoom_extras) {
             });
             gtk_box_pack_start(GTK_BOX(box), cb, FALSE, FALSE, 0);
         }
-        labeled(grid, row++, "Zoom muss dominieren gegen", box,
-                "Zoom startet nur, wenn der Twist staerker ist als die staerkste dieser Achsen");
-        labeled(grid, row++, "Einstiegszeit (ms)",
+        labeled(grid, row++, _("Zoom must dominate against"), box,
+                _("Zoom only starts if the twist is stronger than the strongest of these axes"));
+        labeled(grid, row++, _("Entry time (ms)"),
                 bindIntSpin(0, 1000, [] () -> int & { return g.cur.zoom_enter_ms; }),
-                "So lange muss der Twist dominieren, bevor Zoom einrastet");
-        labeled(grid, row++, "Austrittsverhaeltnis",
+                _("How long the twist must dominate before zoom engages"));
+        labeled(grid, row++, _("Exit ratio"),
                 bindDoubleSpin(1.0, 10.0, 0.05, 2, [] () -> double & { return g.cur.zoom_exit_ratio; }),
-                "Hysterese: Zoom endet erst, wenn eine Seitenachse um diesen Faktor staerker ist");
+                _("Hysteresis: zoom only ends once a lateral axis is stronger by this factor"));
     }
 
-    GtkWidget *reset = gtk_button_new_with_label("Auf Global zuruecksetzen");
+    GtkWidget *reset = gtk_button_new_with_label(_("Reset to Global"));
     gtk_widget_set_halign(reset, GTK_ALIGN_END);
     gtk_widget_set_tooltip_text(reset, with_zoom_extras
-                                           ? "Kanal inkl. Zoom-Erkennung auf die globalen Werte setzen"
-                                           : "Kanal auf die globalen Werte setzen");
+                                           ? _("Reset the channel including zoom detection to the global values")
+                                           : _("Reset the channel to the global values"));
     g.reset_btns.push_back(reset);
     struct ResetData { ChannelCfg Settings::*m; bool zoom; };
     auto *rd = new ResetData{m, with_zoom_extras};
@@ -737,7 +772,7 @@ static GtkWidget *buildChannel(const ChanDesc *d, bool with_zoom_extras) {
                           GConnectFlags(0));
     gtk_grid_attach(GTK_GRID(grid), reset, 0, row++, 2, 1);
 
-    return frame(d->title, grid);
+    return frame(_(d->title), grid);
 }
 
 static GtkWidget *buildGeneral() {
@@ -758,33 +793,33 @@ static GtkWidget *buildGeneral() {
                    g.cur.backend = id;
                    return true;
                });
-    labeled(grid, row++, "Ausgabe-Backend", backend,
-            "auto: Wayland -> uinput, sonst X11 (mit Fallback)");
-    GtkWidget *bh = hint("Backend-Wechsel wird erst nach einem Neustart des Daemons wirksam.");
+    labeled(grid, row++, _("Output backend"), backend,
+            _("auto: Wayland -> uinput, otherwise X11 (with fallback)"));
+    GtkWidget *bh = hint(_("Changing the backend only takes effect after the daemon is restarted."));
     gtk_grid_attach(GTK_GRID(grid), bh, 0, row++, 2, 1);
 
-    labeled(grid, row++, "Tickrate (Hz)",
+    labeled(grid, row++, _("Tick rate (Hz)"),
             bindIntSpin(30, 1000, [] () -> int & { return g.cur.tick_hz; }),
-            "Wie oft pro Sekunde der Daemon Events erzeugt (30..1000)");
+            _("How many times per second the daemon generates events (30..1000)"));
 
-    // Checkbox + zugehoeriger Button-Index-Spinner: die Spinbox ist nur
-    // bedienbar, solange die Checkbox aktiv ist, damit klar ist, ob dieser
-    // Button ueberhaupt fuer Nav/Klick verwendet wird.
+    // Checkbox + associated button-index spinner: the spin box is only usable while the
+    // checkbox is active, so it is clear whether this button is used for nav/click at all.
     auto addToggleableSpin = [&](const char *checkLabel, bool Settings::*enabled,
                                  const char *spinLabel, int Settings::*field) {
         GtkWidget *check = bindCheck(checkLabel, [enabled] { return g.cur.*enabled; },
                                      [enabled](bool on) { g.cur.*enabled = on; });
         gtk_grid_attach(GTK_GRID(grid), check, 0, row++, 2, 1);
         GtkWidget *spin = bindIntSpin(0, 31, [field]() -> int & { return g.cur.*field; });
+        g.button_spins.emplace_back(spin, field);
         labeled(grid, row++, spinLabel, spin);
         g.sensitivity_rules.push_back([spin, enabled] { gtk_widget_set_sensitive(spin, g.cur.*enabled); });
     };
-    addToggleableSpin("Nav-Button verwenden", &Settings::nav_button_enabled,
-                      "Nav-Button (Pfeiltasten statt Scroll)", &Settings::nav_button);
-    addToggleableSpin("Klick-Button verwenden", &Settings::click_button_enabled,
-                      "Klick-Button (linke Maustaste)", &Settings::click_button);
+    addToggleableSpin(_("Use nav button"), &Settings::nav_button_enabled,
+                      _("Nav button (arrow keys instead of scroll)"), &Settings::nav_button);
+    addToggleableSpin(_("Use click button"), &Settings::click_button_enabled,
+                      _("Click button (left mouse button)"), &Settings::click_button);
 
-    GtkWidget *restart = gtk_button_new_with_label("Daemon neu starten");
+    GtkWidget *restart = gtk_button_new_with_label(_("Restart daemon"));
     gtk_widget_set_halign(restart, GTK_ALIGN_END);
     g_signal_connect(restart, "clicked", G_CALLBACK(+[](GtkButton *, gpointer) {
         flushPending();
@@ -792,14 +827,14 @@ static GtkWidget *buildGeneral() {
     }), nullptr);
     gtk_grid_attach(GTK_GRID(grid), restart, 0, row++, 2, 1);
 
-    return frame("Allgemein", grid);
+    return frame(_("General"), grid);
 }
 
 // ---------------------------------------------------------------------------
-// Reiter "Achsen" - Live-Reader: eigene libspnav-Verbindung, nur solange das
-// Einstellungsfenster offen ist. Gelesen wird nicht-blockierend per
-// spnav_poll_event() auf dem GLib-Mainloop (g_unix_fd_add auf spnav_fd()).
-// Ist spacenavd nicht erreichbar, wird alle 2 s ein neuer Versuch gemacht.
+// "Axes" tab - live reader: own libspnav connection, only while the settings window is
+// open. Reading is non-blocking via spnav_poll_event() on the GLib main loop
+// (g_unix_fd_add on spnav_fd()). If spacenavd is unreachable, another attempt is made
+// every 2 s.
 // ---------------------------------------------------------------------------
 
 struct LiveReader {
@@ -812,15 +847,15 @@ struct LiveReader {
     std::string dev_name;
     int dev_buttons = -1;
     int dev_axes = -1;
-    std::vector<GtkWidget *> views;          // Balkenanzeigen (Fenster + Assistent)
-    std::vector<GtkWidget *> status_labels;  // Verbindungs-/Geraetetext
-    std::function<void(const spn::RawAxes &)> on_motion;  // Messung des Assistenten
-    std::function<void()> on_state;                       // Verbindung auf/zu (Assistent)
+    std::vector<GtkWidget *> views;          // bar displays (window + wizard)
+    std::vector<GtkWidget *> status_labels;  // connection/device text
+    std::function<void(const spn::RawAxes &)> on_motion;  // wizard measurement
+    std::function<void()> on_state;                       // connection up/down (wizard)
 };
 
 static LiveReader live;
 
-// Widget in eine Liste aufnehmen und beim Zerstoeren automatisch austragen.
+// Add a widget to a list and remove it automatically when it is destroyed.
 static void trackIn(std::vector<GtkWidget *> *vec, GtkWidget *w) {
     vec->push_back(w);
     g_signal_connect(w, "destroy", G_CALLBACK(+[](GtkWidget *self, gpointer data) {
@@ -831,22 +866,37 @@ static void trackIn(std::vector<GtkWidget *> *vec, GtkWidget *w) {
 
 static std::string liveStatusText() {
     if (!live.connected)
-        return "spacenavd ist nicht erreichbar - die Live-Anzeige startet automatisch, sobald "
-               "der Dienst laeuft (pruefen mit: systemctl status spacenavd).";
-    std::string s = "Verbunden mit spacenavd. Geraet: ";
-    s += live.dev_name.empty() ? "(kein Name gemeldet)" : live.dev_name;
-    s += " - ";
-    s += live.dev_buttons >= 0 ? std::to_string(live.dev_buttons) : "?";
-    s += " Tasten, ";
-    s += live.dev_axes >= 0 ? std::to_string(live.dev_axes) : "?";
-    s += " Achsen";
-    return s;
+        return _("spacenavd is not reachable - the live display starts automatically as soon "
+                 "as the service is running (check with: systemctl status spacenavd).");
+    const std::string btn = live.dev_buttons >= 0 ? std::to_string(live.dev_buttons) : "?";
+    const std::string axes = live.dev_axes >= 0 ? std::to_string(live.dev_axes) : "?";
+    return sfmt(_("Connected to spacenavd. Device: %s - %s buttons, %s axes"),
+                live.dev_name.empty() ? _("(no name reported)") : live.dev_name.c_str(),
+                btn.c_str(), axes.c_str());
+}
+
+// Limit the button-index spinners to the buttons the connected device really has
+// (factoryButtonCount knows the model's physical buttons even if spacenavd reports more).
+// The range never drops below the currently configured value (nothing is changed silently).
+static void updateButtonLimits() {
+    if (g.button_spins.empty() || !live.connected) return;
+    const int n = spn::factoryButtonCount(live.dev_name, live.dev_buttons);
+    if (n <= 0 || n > 32) return;
+    const bool was = g.updating;
+    g.updating = true;
+    for (auto &p : g.button_spins) {
+        const int cur = g.cur.*(p.second);
+        gtk_spin_button_set_range(GTK_SPIN_BUTTON(p.first), 0, std::max(n - 1, cur));
+        gtk_widget_set_tooltip_text(p.first, sfmt(_("This device has %d buttons (0..%d)"), n, n - 1).c_str());
+    }
+    g.updating = was;
 }
 
 static void liveUpdateStatus() {
     const std::string t = liveStatusText();
     for (GtkWidget *l : live.status_labels) gtk_label_set_text(GTK_LABEL(l), t.c_str());
     for (GtkWidget *v : live.views) gtk_widget_queue_draw(v);
+    updateButtonLimits();
     if (live.on_state) live.on_state();
 }
 
@@ -890,9 +940,9 @@ static void liveScheduleRetry() {
     if (!live.retry_timer) live.retry_timer = g_timeout_add_seconds(2, onLiveRetry, nullptr);
 }
 
-// Verbindung verloren (spacenavd beendet/neu gestartet): aufraeumen, spaeter neu versuchen.
+// Connection lost (spacenavd stopped/restarted): clean up, retry later.
 static gboolean liveLost() {
-    live.fd_watch = 0;  // Quelle wird durch G_SOURCE_REMOVE entfernt
+    live.fd_watch = 0;  // the source is removed by G_SOURCE_REMOVE
     liveDisconnect();
     liveScheduleRetry();
     return G_SOURCE_REMOVE;
@@ -915,7 +965,7 @@ static gboolean onLiveFd(gint fd, GIOCondition cond, gpointer) {
         }
     }
     if (n == 0) {
-        // Lesbar, aber kein Event: hat spacenavd die Verbindung geschlossen (EOF)?
+        // Readable but no event: did spacenavd close the connection (EOF)?
         char c;
         if (recv(fd, &c, 1, MSG_PEEK | MSG_DONTWAIT) == 0) return liveLost();
     }
@@ -926,7 +976,7 @@ static gboolean onLiveFd(gint fd, GIOCondition cond, gpointer) {
     return G_SOURCE_CONTINUE;
 }
 
-// ~30 Hz: nur neu zeichnen, wenn seit dem letzten Mal Bewegungsdaten kamen.
+// ~30 Hz: only redraw if motion data arrived since the last time.
 static gboolean onLiveRedraw(gpointer) {
     if (live.dirty) {
         live.dirty = false;
@@ -943,7 +993,7 @@ static bool liveConnect() {
         spnav_close();
         return false;
     }
-    spnav_client_name("dofscroll-tray (Achsen-Anzeige)");
+    spnav_client_name("dofscroll-tray (axes display)");
     live.connected = true;
     live.axes = {};
     liveQueryDevice();
@@ -972,7 +1022,7 @@ static void liveStop() {
 }
 
 // ---------------------------------------------------------------------------
-// Reiter "Achsen" - Zeichnen (Farben fuer Text immer aus dem GTK-Theme)
+// "Axes" tab - drawing (text colors always from the GTK theme)
 // ---------------------------------------------------------------------------
 
 static GdkRGBA themeFg(GtkWidget *w) {
@@ -981,7 +1031,7 @@ static GdkRGBA themeFg(GtkWidget *w) {
     return c;
 }
 
-// Akzentfarbe des Themes (Adwaita & Co. definieren theme_selected_bg_color).
+// Accent color of the theme (Adwaita & co. define theme_selected_bg_color).
 static GdkRGBA themeAccent(GtkWidget *w) {
     GdkRGBA c;
     if (gtk_style_context_lookup_color(gtk_widget_get_style_context(w), "theme_selected_bg_color", &c))
@@ -993,11 +1043,11 @@ static void setRgba(cairo_t *cr, const GdkRGBA &c, double alpha) {
     cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha * alpha);
 }
 
-// Welche Rohachsen der Kanal 'chan' (Index in CHANNELS) im gewaehlten Profil nutzt.
+// Which raw axes channel 'chan' (index into CHANNELS) uses in the selected profile.
 static std::array<bool, spn::AX_COUNT> channelAxes(int chan) {
     std::array<bool, spn::AX_COUNT> used{};
     if (chan < 0 || chan >= int(G_N_ELEMENTS(CHANNELS))) return used;
-    // chan ist oben auf [0, G_N_ELEMENTS(CHANNELS)) geprueft (Falsch-Positiv)
+    // chan is range-checked above, [0, G_N_ELEMENTS(CHANNELS)) (false positive)
     // cppcheck-suppress arrayIndexOutOfBoundsCond
     for (const auto &t : (g.cur.*(CHANNELS[chan].member)).mix.terms)
         if (t.weight != 0 && t.axis >= 0 && t.axis < spn::AX_COUNT) used[t.axis] = true;
@@ -1022,7 +1072,7 @@ static void drawArrow(cairo_t *cr, double x0, double y0, double x1, double y1) {
     arrowHead(cr, x1, y1, ang, 10);
 }
 
-// Ellipsenbogen (Mitte cx/cy, Halbachsen rx/ry) von a0 nach a1 mit Pfeilspitze am Ende.
+// Elliptical arc (center cx/cy, semi-axes rx/ry) from a0 to a1 with an arrowhead at the end.
 static void drawArcArrow(cairo_t *cr, double cx, double cy, double rx, double ry, double a0,
                          double a1) {
     cairo_new_path(cr);
@@ -1036,7 +1086,7 @@ static void drawArcArrow(cairo_t *cr, double cx, double cy, double rx, double ry
     arrowHead(cr, ex, ey, std::atan2(ry * std::cos(a1), -rx * std::sin(a1)), 9);
 }
 
-// Zweizeiliges Label (Achsenname fett + Beschreibung), horizontal ins Bild geklemmt.
+// Two-line label (axis name in bold + description), clamped horizontally into the image.
 static void drawAxisLabel(cairo_t *cr, double x, double y, double W, const char *name,
                           const char *desc, const GdkRGBA &fg, bool hl) {
     cairo_text_extents_t e1, e2;
@@ -1061,9 +1111,9 @@ static void drawAxisLabel(cairo_t *cr, double x, double y, double W, const char 
     cairo_show_text(cr, desc);
 }
 
-// Statische Skizze: Kappe schraeg von vorn oben, Achsen nach libspnav-Konvention
-// (x rechts, y hoch, z zum Nutzer; rx/ry/rz = Drehung um x/y/z). Die Achsen des
-// im Reiter gewaehlten Kanals werden in der Akzentfarbe hervorgehoben.
+// Static sketch: cap seen obliquely from front above, axes per libspnav convention
+// (x right, y up, z toward the user; rx/ry/rz = rotation about x/y/z). The axes of the
+// channel selected in the tab are highlighted in the accent color.
 static gboolean onAxesDraw(GtkWidget *w, cairo_t *cr, gpointer) {
     using namespace spn;
     const double W = gtk_widget_get_allocated_width(w);
@@ -1073,7 +1123,7 @@ static gboolean onAxesDraw(GtkWidget *w, cairo_t *cr, gpointer) {
     const double cx = std::round(W * 0.42), cy = std::round(H * 0.47);
     const double capRx = 70, capRy = 22, capH = 30;
 
-    // Kappe: Mantel + Deckel
+    // Cap: side + lid
     cairo_new_path(cr);
     cairo_move_to(cr, cx - capRx, cy);
     cairo_line_to(cr, cx - capRx, cy + capH);
@@ -1110,7 +1160,7 @@ static gboolean onAxesDraw(GtkWidget *w, cairo_t *cr, gpointer) {
         }
     };
 
-    // Lineare Achsen
+    // Linear axes
     const double xEnd = cx + std::min(175.0, W * 0.34);
     const double yEnd = cy - 125;
     const double zx = cx - 115, zy = cy + 100;
@@ -1121,7 +1171,7 @@ static gboolean onAxesDraw(GtkWidget *w, cairo_t *cr, gpointer) {
     style(AX_Z);
     drawArrow(cr, cx, cy, zx, zy);
 
-    // Drehungen: ry um die Hochachse, rx um x, rz um z
+    // Rotations: ry about the vertical axis, rx about x, rz about z
     style(AX_RY);
     drawArcArrow(cr, cx, cy - 80, 30, 9, -0.25, M_PI + 0.9);
     style(AX_RX);
@@ -1129,18 +1179,18 @@ static gboolean onAxesDraw(GtkWidget *w, cairo_t *cr, gpointer) {
     style(AX_RZ);
     drawArcArrow(cr, cx + (zx - cx) * 0.72, cy + (zy - cy) * 0.72, 17, 17, -M_PI * 0.85, M_PI * 0.55);
 
-    // Beschriftung (Textfarbe aus dem Theme)
-    drawAxisLabel(cr, cx + 10, yEnd + 8, W, "y", "+ hoch: Heben / Druecken", fg, used[AX_Y]);
-    drawAxisLabel(cr, cx - 190, cy - 92, W, "ry", "Drehen der Kappe", fg, used[AX_RY]);
-    drawAxisLabel(cr, xEnd - 60, cy - 40, W, "rx", "Kippen vor/zurueck", fg, used[AX_RX]);
-    drawAxisLabel(cr, cx + capRx + 12, cy + 22, W, "x", "+ rechts: Schieben seitlich", fg, used[AX_X]);
-    drawAxisLabel(cr, cx - 40, cy + capH + capRy + 20, W, "rz", "Kippen seitlich", fg, used[AX_RZ]);
-    drawAxisLabel(cr, zx - 110, zy + 16, W, "z", "+ zum Nutzer: Schieben vor/zurueck", fg, used[AX_Z]);
+    // Labels (text color from the theme)
+    drawAxisLabel(cr, cx + 10, yEnd + 8, W, "y", _("+ up: lift / press"), fg, used[AX_Y]);
+    drawAxisLabel(cr, cx - 190, cy - 92, W, "ry", _("Twist the cap"), fg, used[AX_RY]);
+    drawAxisLabel(cr, xEnd - 60, cy - 40, W, "rx", _("Tilt forward/back"), fg, used[AX_RX]);
+    drawAxisLabel(cr, cx + capRx + 12, cy + 22, W, "x", _("+ right: push sideways"), fg, used[AX_X]);
+    drawAxisLabel(cr, cx - 40, cy + capH + capRy + 20, W, "rz", _("Tilt sideways"), fg, used[AX_RZ]);
+    drawAxisLabel(cr, zx - 110, zy + 16, W, "z", _("+ toward user: push forward/back"), fg, used[AX_Z]);
 
     cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_ITALIC, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(cr, 9);
     setRgba(cr, fg, 0.55);
-    const char *cap = "Ansicht: schraeg von vorn oben (Nutzer vorn)";
+    const char *cap = _("View: obliquely from front above (user in front)");
     cairo_text_extents_t e;
     cairo_text_extents(cr, cap, &e);
     cairo_move_to(cr, std::max(4.0, W - 6 - e.x_advance), 12);
@@ -1148,7 +1198,7 @@ static gboolean onAxesDraw(GtkWidget *w, cairo_t *cr, gpointer) {
     return FALSE;
 }
 
-// Live-Balken: je Achse Auslenkung von der Mitte aus, Bereich -350..350.
+// Live bars: per axis the deflection from the center, range -350..350.
 static gboolean onBarsDraw(GtkWidget *w, cairo_t *cr, gpointer) {
     const double W = gtk_widget_get_allocated_width(w);
     const double H = gtk_widget_get_allocated_height(w);
@@ -1216,11 +1266,11 @@ static GtkWidget *newLiveStatusLabel() {
 
 static std::string mixText(int chan) {
     std::string m = spn::mixToString((g.cur.*(CHANNELS[chan].member)).mix);
-    return m.empty() ? "(aus)" : m;
+    return m.empty() ? std::string(_("(off)")) : m;
 }
 
 // ---------------------------------------------------------------------------
-// Assistent "Achsen einlernen" (modal, nutzt denselben Live-Reader)
+// "Learn axes" wizard (modal, uses the same live reader)
 // ---------------------------------------------------------------------------
 
 struct WizStepDesc {
@@ -1229,18 +1279,18 @@ struct WizStepDesc {
 };
 
 static const WizStepDesc WIZ_STEPS[spn::wiz::ROLE_COUNT] = {
-    {"Kappe zu dir ziehen und danach nach vorn schieben - waagerecht, ohne zu kippen. "
-     "Zuerst zu dir!",
-     "Zu dir = positiv (Scroll nach unten)."},
-    {"Kappe zu dir kippen und danach nach vorn kippen (die Oberseite neigen, ohne zu "
-     "schieben). Zuerst zu dir!",
-     "Zu dir kippen = positiv (Scroll nach unten). Optional - kann uebersprungen werden."},
-    {"Kappe nach rechts schieben und zurueck - waagerecht, ohne zu kippen. Zuerst nach rechts!",
-     "Rechts = positiv (Scroll nach rechts)."},
-    {"Kappe seitlich kippen: nach rechts kippen und zurueck. Zuerst nach rechts!",
-     "Nach rechts kippen = positiv (Scroll nach rechts). Optional - kann uebersprungen werden."},
-    {"Kappe im Uhrzeigersinn drehen (von oben gesehen) und zurueck. Zuerst im Uhrzeigersinn!",
-     "Uhrzeigersinn = positiv (Zoom hinein)."},
+    {N_("Pull the cap toward you, then push it forward - level, without tilting. "
+        "Toward you first!"),
+     N_("Toward you = positive (scroll down).")},
+    {N_("Tilt the cap toward you, then forward (tilt the top, without pushing). "
+        "Toward you first!"),
+     N_("Tilting toward you = positive (scroll down). Optional - can be skipped.")},
+    {N_("Push the cap to the right and back - level, without tilting. Right first!"),
+     N_("Right = positive (scroll right).")},
+    {N_("Tilt the cap sideways: tilt to the right and back. Right first!"),
+     N_("Tilting right = positive (scroll right). Optional - can be skipped.")},
+    {N_("Twist the cap clockwise (seen from above) and back. Clockwise first!"),
+     N_("Clockwise = positive (zoom in).")},
 };
 
 constexpr int WIZ_MEASURE_MS = 3000;
@@ -1250,11 +1300,11 @@ struct Wizard {
     GtkWidget *dlg = nullptr;
     GtkWidget *step_lbl = nullptr, *steps_bar = nullptr, *instr = nullptr, *meaning = nullptr;
     GtkWidget *count_bar = nullptr, *live_box = nullptr, *result = nullptr;
-    int step = 0;  // 0..ROLE_COUNT-1 = Messschritte, ROLE_COUNT = Ergebnisseite
+    int step = 0;  // 0..ROLE_COUNT-1 = measuring steps, ROLE_COUNT = result page
     bool measuring = false;
     gint64 t0 = 0;
     guint timer = 0;
-    std::string note;  // einmalige Meldung (z.B. Verbindung verloren)
+    std::string note;  // one-time message (e.g. connection lost)
     std::vector<spn::RawAxes> samples;
     std::array<spn::wiz::StepResult, spn::wiz::ROLE_COUNT> res{};
     std::array<bool, spn::wiz::ROLE_COUNT> done{}, skipped{};
@@ -1272,18 +1322,18 @@ static std::string wizResultText() {
     const WizardResult &f = wizUi.final;
     std::string t;
     if (f.ok) {
-        t = "Erkannte Zuordnung:\n"
+        t = std::string(_("Detected mapping:")) + "\n"
             "    Scroll V = " + f.mix_v + "\n"
             "    Scroll H = " + f.mix_h + "\n"
-            "    Zoom = " + f.mix_zoom + "\n\n"
-            "\"Uebernehmen\" setzt diese Achsen-Mixe im Profil \"" +
-            sectionLabel(g.ps.sections[g.cur_idx]) +
-            "\" und stellt die Richtungs-Schalter (\"Richtung invertieren\") auf normal.";
+            "    Zoom = " + f.mix_zoom + "\n\n" +
+            sfmt(_("\"Apply\" sets these axis mixes in the profile \"%s\" and resets the "
+                   "direction switches (\"Invert direction\") to normal."),
+                 sectionLabel(g.ps.sections[g.cur_idx]).c_str());
     } else {
-        t = "Die Zuordnung ist unvollstaendig und kann nicht uebernommen werden.";
+        t = _("The mapping is incomplete and cannot be applied.");
     }
-    for (const auto &e : f.errors) t += "\n\nFehler: " + e;
-    for (const auto &w : f.warnings) t += "\n\nWarnung: " + w;
+    for (const auto &e : f.errors) t += "\n\n" + sfmt(_("Error: %s"), e.c_str());
+    for (const auto &w : f.warnings) t += "\n\n" + sfmt(_("Warning: %s"), w.c_str());
     return t;
 }
 
@@ -1293,11 +1343,12 @@ static void wizUpdateUi() {
     const bool result_page = wizUi.step >= ROLE_COUNT;
     const int s = std::min(wizUi.step, ROLE_COUNT - 1);
 
-    gchar *head = result_page
-                      ? g_markup_printf_escaped("<b>Ergebnis</b>")
-                      : g_markup_printf_escaped("<b>Schritt %d von %d: %s%s</b>", wizUi.step + 1,
-                                                ROLE_COUNT, roleTitle(wizUi.step),
-                                                roleOptional(wizUi.step) ? " (optional)" : "");
+    const std::string step_txt =
+        result_page ? std::string()
+                    : sfmt(_("Step %d of %d: %s%s"), wizUi.step + 1, int(ROLE_COUNT),
+                           _(roleTitle(wizUi.step)),
+                           roleOptional(wizUi.step) ? _(" (optional)") : "");
+    gchar *head = g_markup_printf_escaped("<b>%s</b>", result_page ? _("Result") : step_txt.c_str());
     gtk_label_set_markup(GTK_LABEL(wizUi.step_lbl), head);
     g_free(head);
     gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(wizUi.steps_bar), double(wizUi.step) / ROLE_COUNT);
@@ -1311,31 +1362,30 @@ static void wizUpdateUi() {
     if (result_page) {
         msg = wizResultText();
     } else {
-        gchar *ins = g_markup_printf_escaped("<big>%s</big>", WIZ_STEPS[s].instruction);
+        gchar *ins = g_markup_printf_escaped("<big>%s</big>", _(WIZ_STEPS[s].instruction));
         gtk_label_set_markup(GTK_LABEL(wizUi.instr), ins);
         g_free(ins);
-        gtk_label_set_text(GTK_LABEL(wizUi.meaning), WIZ_STEPS[s].meaning);
+        gtk_label_set_text(GTK_LABEL(wizUi.meaning), _(WIZ_STEPS[s].meaning));
 
         GtkProgressBar *cb = GTK_PROGRESS_BAR(wizUi.count_bar);
         if (wizUi.measuring) {
             double left = std::max(0.0, WIZ_MEASURE_MS / 1000.0 -
                                             static_cast<double>(g_get_monotonic_time() - wizUi.t0) / 1e6);
-            char buf[64];
-            snprintf(buf, sizeof(buf), "Messung laeuft - jetzt bewegen! Noch %.1f s", left);
-            gtk_progress_bar_set_text(cb, buf);
+            const std::string m = sfmt(_("Measuring - move now! %.1f s left"), left);
+            gtk_progress_bar_set_text(cb, m.c_str());
             gtk_progress_bar_set_fraction(cb, 1.0 - left * 1000.0 / WIZ_MEASURE_MS);
         } else if (wizUi.done[s]) {
-            gtk_progress_bar_set_text(cb, "Messung abgeschlossen");
+            gtk_progress_bar_set_text(cb, _("Measurement complete"));
             gtk_progress_bar_set_fraction(cb, 1.0);
         } else {
             gtk_progress_bar_set_text(cb, live.connected
-                                              ? "Bereit - \"Start\" klicken, dann bewegen (3 s)"
-                                              : "Keine Verbindung zu spacenavd");
+                                              ? _("Ready - click \"Start\", then move (3 s)")
+                                              : _("No connection to spacenavd"));
             gtk_progress_bar_set_fraction(cb, 0.0);
         }
         if (!wizUi.note.empty()) msg = wizUi.note;
         else if (wizUi.done[s]) msg = wizUi.res[s].message;
-        else if (wizUi.skipped[s]) msg = "Uebersprungen.";
+        else if (wizUi.skipped[s]) msg = _("Skipped.");
     }
     gtk_label_set_text(GTK_LABEL(wizUi.result), msg.c_str());
 
@@ -1343,7 +1393,7 @@ static void wizUpdateUi() {
     GtkWidget *back = wizButton(WIZ_RESP_BACK), *next = wizButton(WIZ_RESP_NEXT);
     GtkWidget *apply = wizButton(WIZ_RESP_APPLY);
     gtk_widget_set_visible(start, !result_page);
-    gtk_button_set_label(GTK_BUTTON(start), wizUi.done[s] ? "_Nochmal messen" : "_Start");
+    gtk_button_set_label(GTK_BUTTON(start), wizUi.done[s] ? _("_Measure again") : _("_Start"));
     gtk_widget_set_sensitive(start, !wizUi.measuring && live.connected);
     gtk_widget_set_visible(skip, !result_page && roleOptional(wizUi.step));
     gtk_widget_set_sensitive(skip, !wizUi.measuring);
@@ -1369,7 +1419,7 @@ static gboolean onWizTick(gpointer) {
         wizUpdateUi();
         return G_SOURCE_CONTINUE;
     }
-    wizUi.timer = 0;  // Quelle endet mit G_SOURCE_REMOVE
+    wizUi.timer = 0;  // the source ends with G_SOURCE_REMOVE
     wizStopMeasuring();
     wizUi.res[wizUi.step] = spn::wiz::analyzeStep(wizUi.samples);
     wizUi.done[wizUi.step] = true;
@@ -1396,15 +1446,15 @@ static void wizGoto(int step) {
     wizUi.step = std::max(0, std::min(step, int(ROLE_COUNT)));
     if (wizUi.step == ROLE_COUNT) {
         wizUi.final = evaluate(wizUi.res, wizUi.skipped);
-        // Zoom kann nie einrasten, wenn seine Achse zugleich eine "Seitenachse" ist.
+        // Zoom can never engage if its axis is also a "lateral axis".
         if (!wizUi.skipped[ROLE_TWIST] && wizUi.res[ROLE_TWIST].valid) {
             int ax = wizUi.res[ROLE_TWIST].axis;
             for (spn::Axis l : g.cur.zoom_lateral)
                 if (l == ax)
-                    wizUi.final.warnings.push_back(
-                        std::string("Die Dreh-Achse ") + spn::axisName(l) +
-                        " steht bei Zoom unter \"Zoom muss dominieren gegen\" - dort bitte "
-                        "abwaehlen, sonst rastet Zoom nie ein.");
+                    wizUi.final.warnings.push_back(sfmt(
+                        _("The twist axis %s is listed under \"Zoom must dominate against\" for "
+                          "zoom - please deselect it there, otherwise zoom never engages."),
+                        spn::axisName(l)));
         }
     }
     wizUpdateUi();
@@ -1417,7 +1467,7 @@ static void wizApply() {
     std::string err;
     if (!spn::parseMix(f.mix_v, &v, &err) || !spn::parseMix(f.mix_h, &h, &err) ||
         !spn::parseMix(f.mix_zoom, &z, &err)) {
-        wizUi.final.errors.push_back("Interner Fehler beim Uebernehmen: " + err);
+        wizUi.final.errors.push_back(sfmt(_("Internal error while applying: %s"), err.c_str()));
         wizUi.final.ok = false;
         wizUpdateUi();
         return;
@@ -1426,8 +1476,8 @@ static void wizApply() {
     g.cur.scroll_h.mix = h;
     g.cur.zoom.mix = z;
     g.cur.scroll_v.sign = g.cur.scroll_h.sign = g.cur.zoom.sign = 1;
-    commit();   // in die Sektion des gewaehlten Profils, scheduleApply()
-    refresh();  // UI-Felder (Achsen-Mix, Invertieren) nachziehen
+    commit();   // into the section of the selected profile, scheduleApply()
+    refresh();  // update UI fields (axis mix, invert)
     gtk_widget_destroy(wizUi.dlg);
 }
 
@@ -1445,21 +1495,21 @@ static void onWizResponse(GtkDialog *, gint resp, gpointer) {
     case WIZ_RESP_BACK: wizStopMeasuring(); wizGoto(wizUi.step - 1); break;
     case WIZ_RESP_NEXT: wizGoto(wizUi.step + 1); break;
     case WIZ_RESP_APPLY: wizApply(); break;
-    default: gtk_widget_destroy(wizUi.dlg); break;  // Abbrechen, Esc, Fenster schliessen
+    default: gtk_widget_destroy(wizUi.dlg); break;  // cancel, Esc, window close
     }
 }
 
 static void wizOnLiveState() {
     if (wizUi.measuring && !live.connected) {
         wizStopMeasuring();
-        wizUi.note = "Verbindung zu spacenavd verloren - Messung abgebrochen.";
+        wizUi.note = _("Connection to spacenavd lost - measurement aborted.");
     }
     wizUpdateUi();
 }
 
-// Daemon-Ausgabe pausieren, solange die Maus hier ausgewertet wird: Reiter
-// "Achsen" bei aktivem Fenster oder Assistent offen. Heartbeat-Datei siehe
-// common.hpp; sie wird beruehrt, solange die Bedingung gilt, sonst entfernt.
+// Pause the daemon output while the mouse is evaluated here: "Axes" tab with the
+// window active, or wizard open. Heartbeat file: see common.hpp; it is touched as long
+// as the condition holds, otherwise removed.
 static GtkWidget *suspendNotebook = nullptr;
 static guint suspend_timer = 0;
 static bool suspend_file_made = false;
@@ -1494,17 +1544,17 @@ static void showAxisWizard() {
     wizUi = Wizard{};
     GtkWidget *dlg = gtk_dialog_new();
     wizUi.dlg = dlg;
-    gtk_window_set_title(GTK_WINDOW(dlg), "Achsen einlernen");
+    gtk_window_set_title(GTK_WINDOW(dlg), _("Learn axes"));
     gtk_window_set_transient_for(GTK_WINDOW(dlg), GTK_WINDOW(g.window));
     gtk_window_set_modal(GTK_WINDOW(dlg), TRUE);
     gtk_window_set_destroy_with_parent(GTK_WINDOW(dlg), TRUE);
     gtk_window_set_default_size(GTK_WINDOW(dlg), 540, -1);
-    gtk_dialog_add_button(GTK_DIALOG(dlg), "_Abbrechen", GTK_RESPONSE_CANCEL);
-    gtk_dialog_add_button(GTK_DIALOG(dlg), "_Zurueck", WIZ_RESP_BACK);
-    gtk_dialog_add_button(GTK_DIALOG(dlg), "_Ueberspringen", WIZ_RESP_SKIP);
-    gtk_dialog_add_button(GTK_DIALOG(dlg), "_Start", WIZ_RESP_START);
-    gtk_dialog_add_button(GTK_DIALOG(dlg), "_Weiter", WIZ_RESP_NEXT);
-    gtk_dialog_add_button(GTK_DIALOG(dlg), "Ue_bernehmen", WIZ_RESP_APPLY);
+    gtk_dialog_add_button(GTK_DIALOG(dlg), _("_Cancel"), GTK_RESPONSE_CANCEL);
+    gtk_dialog_add_button(GTK_DIALOG(dlg), _("_Back"), WIZ_RESP_BACK);
+    gtk_dialog_add_button(GTK_DIALOG(dlg), _("_Skip"), WIZ_RESP_SKIP);
+    gtk_dialog_add_button(GTK_DIALOG(dlg), _("_Start"), WIZ_RESP_START);
+    gtk_dialog_add_button(GTK_DIALOG(dlg), _("_Next"), WIZ_RESP_NEXT);
+    gtk_dialog_add_button(GTK_DIALOG(dlg), _("_Apply"), WIZ_RESP_APPLY);
 
     GtkWidget *area = gtk_dialog_get_content_area(GTK_DIALOG(dlg));
     gtk_container_set_border_width(GTK_CONTAINER(area), 12);
@@ -1552,20 +1602,20 @@ static GtkWidget *buildAxesPage() {
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), 12);
 
-    // 1. Skizze + Legende
+    // 1. Sketch + legend
     GtkWidget *grid = newGrid();
     int row = 0;
     GtkWidget *combo = noWheelChange(gtk_combo_box_text_new());
-    for (const auto &c : CHANNELS) gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo), c.title);
+    for (const auto &c : CHANNELS) gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo), _(c.title));
     gtk_combo_box_set_active(GTK_COMBO_BOX(combo), g.axes_chan);
     g_signal_connect(combo, "changed", G_CALLBACK(+[](GtkComboBox *cb, gpointer) {
         int i = gtk_combo_box_get_active(cb);
         if (i >= 0) g.axes_chan = i;
-        updateSensitivity();  // Skizze, Legende und Balken neu
+        updateSensitivity();  // redraw sketch, legend and bars
     }), nullptr);
-    labeled(grid, row++, "Kanal hervorheben", combo,
-            "Die Achsen dieses Kanals (aus seinem Achsen-Mix im gewaehlten Profil) "
-            "werden in Skizze und Live-Anzeige hervorgehoben");
+    labeled(grid, row++, _("Highlight channel"), combo,
+            _("The axes of this channel (from its axis mix in the selected profile) "
+              "are highlighted in the sketch and the live display"));
 
     GtkWidget *area = gtk_drawing_area_new();
     gtk_widget_set_size_request(area, -1, 300);
@@ -1579,23 +1629,23 @@ static GtkWidget *buildAxesPage() {
     gtk_grid_attach(GTK_GRID(grid), legend, 0, row++, 2, 1);
     g.sensitivity_rules.push_back([legend] {
         std::string m = mixText(g.axes_chan);
-        std::string all = std::string("Scroll V: ") + mixText(0) + "     Scroll H: " + mixText(1) +
-                          "     Zoom: " + mixText(2);
+        std::string all = sfmt(_("Scroll V: %s     Scroll H: %s     Zoom: %s"), mixText(0).c_str(),
+                               mixText(1).c_str(), mixText(2).c_str());
         gchar *mk = g_markup_printf_escaped(
-            "<b>%s</b> verwendet: <b>%s</b>\n<small>%s  (Profil: %s)</small>",
-            CHANNELS[g.axes_chan].title, m.c_str(), all.c_str(),
+            _("<b>%s</b> uses: <b>%s</b>\n<small>%s  (Profile: %s)</small>"),
+            _(CHANNELS[g.axes_chan].title), m.c_str(), all.c_str(),
             sectionLabel(g.ps.sections[g.cur_idx]).c_str());
         gtk_label_set_markup(GTK_LABEL(legend), mk);
         g_free(mk);
         for (GtkWidget *v : live.views) gtk_widget_queue_draw(v);
     });
     gtk_grid_attach(GTK_GRID(grid),
-                    hint("Welche Richtung einer Achse positiv zaehlt, haengt vom Geraet ab - "
-                         "der Assistent unten ermittelt Achsen und Vorzeichen automatisch."),
+                    hint(_("Which direction of an axis counts as positive depends on the device - "
+                           "the wizard below determines axes and signs automatically.")),
                     0, row++, 2, 1);
-    gtk_box_pack_start(GTK_BOX(vbox), frame("Achsen der SpaceMouse", grid), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), frame(_("SpaceMouse axes"), grid), FALSE, FALSE, 0);
 
-    // 2. Live-Anzeige
+    // 2. Live display
     GtkWidget *lg = newGrid();
     row = 0;
     gtk_grid_attach(GTK_GRID(lg), newLiveStatusLabel(), 0, row++, 2, 1);
@@ -1603,90 +1653,90 @@ static GtkWidget *buildAxesPage() {
     gtk_widget_set_hexpand(bars, TRUE);
     gtk_grid_attach(GTK_GRID(lg), bars, 0, row++, 2, 1);
     gtk_grid_attach(GTK_GRID(lg),
-                    hint("Rohwerte von spacenavd, Bereich -350..350 (Mitte = Ruhe). Eigene, rein "
-                         "lesende Verbindung - nur aktiv, solange dieses Fenster offen ist."),
+                    hint(_("Raw values from spacenavd, range -350..350 (center = at rest). Own, "
+                           "read-only connection - only active while this window is open.")),
                     0, row++, 2, 1);
-    gtk_box_pack_start(GTK_BOX(vbox), frame("Live-Anzeige", lg), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), frame(_("Live display"), lg), FALSE, FALSE, 0);
 
-    // 3. Assistent
+    // 3. Wizard
     GtkWidget *wg = newGrid();
     row = 0;
     gtk_grid_attach(GTK_GRID(wg),
-                    hint("Der Assistent fuehrt durch fuenf kurze Bewegungen (je 3 s) und "
-                         "ermittelt daraus die Achsen-Mixe fuer Scroll vertikal, Scroll "
-                         "horizontal und Zoom samt Richtung."),
+                    hint(_("The wizard guides you through five short movements (3 s each) and "
+                           "derives the axis mixes for vertical scroll, horizontal scroll "
+                           "and zoom, including direction.")),
                     0, row++, 2, 1);
     GtkWidget *target = gtk_label_new("");
     gtk_label_set_xalign(GTK_LABEL(target), 0.0);
     gtk_label_set_line_wrap(GTK_LABEL(target), TRUE);
     gtk_widget_set_hexpand(target, TRUE);
     g.sensitivity_rules.push_back([target] {
-        std::string t = "Ergebnis gilt fuer das oben gewaehlte Profil: " +
-                        sectionLabel(g.ps.sections[g.cur_idx]);
+        std::string t = sfmt(_("The result applies to the profile selected above: %s"),
+                             sectionLabel(g.ps.sections[g.cur_idx]).c_str());
         gtk_label_set_text(GTK_LABEL(target), t.c_str());
     });
-    GtkWidget *btn = gtk_button_new_with_label("Achsen einlernen…");
+    GtkWidget *btn = gtk_button_new_with_label(_("Learn axes…"));
     g_signal_connect(btn, "clicked", G_CALLBACK(+[](GtkButton *, gpointer) { showAxisWizard(); }),
                      nullptr);
     gtk_grid_attach(GTK_GRID(wg), target, 0, row, 1, 1);
     gtk_grid_attach(GTK_GRID(wg), btn, 1, row++, 1, 1);
-    gtk_box_pack_start(GTK_BOX(vbox), frame("Achsen einlernen", wg), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), frame(_("Learn axes"), wg), FALSE, FALSE, 0);
     return vbox;
 }
 
-// Dialog fuer das Muster eines neuen Profils. Leer/abgebrochen -> "".
+// Dialog for the pattern of a new profile. Empty/cancelled -> "".
 static std::string askPattern(Section::Kind kind) {
     const bool dev = kind == Section::DEVICE;
     GtkWidget *dlg = gtk_dialog_new_with_buttons(
-        dev ? "Neues Geraete-Profil" : "Neues Programm-Profil", GTK_WINDOW(g.window),
-        GtkDialogFlags(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT), "_Abbrechen",
-        GTK_RESPONSE_CANCEL, "_Anlegen", GTK_RESPONSE_OK, nullptr);
+        dev ? _("New device profile") : _("New program profile"), GTK_WINDOW(g.window),
+        GtkDialogFlags(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT), _("_Cancel"),
+        GTK_RESPONSE_CANCEL, _("_Create"), GTK_RESPONSE_OK, nullptr);
     gtk_dialog_set_default_response(GTK_DIALOG(dlg), GTK_RESPONSE_OK);
     GtkWidget *area = gtk_dialog_get_content_area(GTK_DIALOG(dlg));
     gtk_container_set_border_width(GTK_CONTAINER(area), 12);
     gtk_box_set_spacing(GTK_BOX(area), 8);
 
     gtk_box_pack_start(GTK_BOX(area),
-                       hint(dev ? "Das Profil greift, wenn der Geraetename der SpaceMouse (wie "
-                                  "spacenavd ihn meldet, z.B. \"SpaceMouse Pro\" oder \"SpaceMouse "
-                                  "Compact\"; steht beim Start des Daemons im Journal: journalctl "
-                                  "--user -u dofscroll.service) diesen Text enthaelt. "
-                                  "Gross/Klein egal, Teiltext genuegt."
-                                : "Das Profil greift, wenn die WM_CLASS des aktiven Fensters diesen "
-                                  "Text enthaelt (verglichen wird \"instanz klasse\" kleingeschrieben, "
-                                  "z.B. \"navigator firefox\"). Ermitteln mit: xprop WM_CLASS und "
-                                  "dann ins Fenster klicken. Gross/Klein egal, Teiltext genuegt. "
-                                  "Programm-Profile gelten nach Geraete-Profilen (gewinnen also). "
-                                  "Hier lassen sich auch Programme ausschalten (z.B. Blender mit "
-                                  "eigener 3D-Navigation): Profil anlegen und darin \"Steuerung in "
-                                  "diesem Profil aktiv\" abwaehlen."),
+                       hint(dev ? _("The profile applies when the device name of the SpaceMouse (as "
+                                    "spacenavd reports it, e.g. \"SpaceMouse Pro\" or \"SpaceMouse "
+                                    "Compact\"; it is in the journal when the daemon starts: "
+                                    "journalctl --user -u dofscroll.service) contains this text. "
+                                    "Case-insensitive, a substring is enough.")
+                                : _("The profile applies when the WM_CLASS of the active window "
+                                    "contains this text (\"instance class\" is compared in lowercase, "
+                                    "e.g. \"navigator firefox\"). Determine it with: xprop WM_CLASS "
+                                    "and then click into the window. Case-insensitive, a substring "
+                                    "is enough. Program profiles apply after device profiles (so "
+                                    "they win). Programs can also be switched off here (e.g. "
+                                    "Blender with its own 3D navigation): create a profile and "
+                                    "uncheck \"Control active in this profile\" in it.")),
                        FALSE, FALSE, 0);
     GtkWidget *entry = gtk_entry_new();
     gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
-    gtk_entry_set_placeholder_text(GTK_ENTRY(entry), dev ? "z.B. SpaceMouse Pro" : "z.B. firefox");
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entry), dev ? _("e.g. SpaceMouse Pro") : _("e.g. firefox"));
     gtk_box_pack_start(GTK_BOX(area), entry, FALSE, FALSE, 0);
     gtk_widget_show_all(dlg);
 
-    // Das Hauptfenster kann waehrend gtk_dialog_run geschlossen werden: DESTROY_WITH_PARENT
-    // zerstoert dann auch dlg. Weak-Pointer statt blindem gtk_widget_destroy(dlg).
+    // The main window can be closed during gtk_dialog_run: DESTROY_WITH_PARENT then also
+    // destroys dlg. Weak pointer instead of a blind gtk_widget_destroy(dlg).
     GtkWidget *guard = dlg;
     g_object_add_weak_pointer(G_OBJECT(dlg), reinterpret_cast<gpointer *>(&guard));
     std::string result;
     while (gtk_dialog_run(GTK_DIALOG(dlg)) == GTK_RESPONSE_OK) {
         if (!guard) break;
         std::string p = trim(gtk_entry_get_text(GTK_ENTRY(entry)));
-        // ']' und Zeilenumbrueche wuerden die Sektionszeile in der Datei zerbrechen.
+        // ']' and line breaks would break the section line in the file.
         if (!p.empty() && p.find_first_of("]\n\r") == std::string::npos) {
             result = p;
             break;
         }
-        markEntry(entry, false, "Muster darf nicht leer sein und kein ']' enthalten");
+        markEntry(entry, false, _("Pattern must not be empty or contain ']'"));
     }
     if (guard) {
         g_object_remove_weak_pointer(G_OBJECT(dlg), reinterpret_cast<gpointer *>(&guard));
         gtk_widget_destroy(dlg);
     } else {
-        result.clear();  // Fenster wurde geschlossen
+        result.clear();  // window was closed
     }
     return result;
 }
@@ -1699,8 +1749,7 @@ static void onNewProfile(GtkButton *, gpointer data) {
     if (idx == ProfileSet::npos) {
         GtkWidget *dlg = gtk_message_dialog_new(
             GTK_WINDOW(g.window), GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
-            "Ungueltiges Muster: es darf nicht leer sein und kein ']' oder Zeilenumbruch "
-            "enthalten.");
+            "%s", _("Invalid pattern: it must not be empty or contain ']' or a line break."));
         GtkWidget *guard = dlg;
         g_object_add_weak_pointer(G_OBJECT(dlg), reinterpret_cast<gpointer *>(&guard));
         gtk_dialog_run(GTK_DIALOG(dlg));
@@ -1720,7 +1769,7 @@ static void onDeleteProfile(GtkButton *, gpointer) {
     std::string name = sectionLabel(g.ps.sections[g.cur_idx]);
     GtkWidget *dlg = gtk_message_dialog_new(GTK_WINDOW(g.window), GTK_DIALOG_MODAL,
                                             GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO,
-                                            "Profil \"%s\" loeschen?", name.c_str());
+                                            _("Delete profile \"%s\"?"), name.c_str());
     GtkWidget *guard = dlg;
     g_object_add_weak_pointer(G_OBJECT(dlg), reinterpret_cast<gpointer *>(&guard));
     int resp = gtk_dialog_run(GTK_DIALOG(dlg));
@@ -1728,7 +1777,7 @@ static void onDeleteProfile(GtkButton *, gpointer) {
         g_object_remove_weak_pointer(G_OBJECT(dlg), reinterpret_cast<gpointer *>(&guard));
         gtk_widget_destroy(dlg);
     }
-    // Hauptfenster waehrenddessen geschlossen -> g.ps-Stand/Combo nicht mehr anfassen.
+    // Main window closed in the meantime -> do not touch the g.ps state/combo any more.
     if (resp != GTK_RESPONSE_YES || !g.window || !g.profile_combo ||
         g.cur_idx == 0 || g.cur_idx >= g.ps.sections.size())
         return;
@@ -1745,12 +1794,103 @@ static void onProfileChanged(GtkComboBox *combo, gpointer) {
     if (idx >= 0) selectProfile(size_t(idx));
 }
 
+// ---------------------------------------------------------------------------
+// "Application modes" list: one row per program/device profile, a combo box picks the
+// mode (config key MODE of that profile). Rows and choices are built dynamically from
+// the profiles and the loaded mode files (see mode_list.hpp).
+// ---------------------------------------------------------------------------
+
+struct ModeRowData {
+    Section::Kind kind;
+    std::string pattern;
+    std::vector<std::string> ids;  // mode id per combo entry
+};
+
+static void onModeComboChanged(GtkComboBox *cb, gpointer) {
+    if (g.updating || !g.window) return;
+    auto *rd = static_cast<ModeRowData *>(g_object_get_data(G_OBJECT(cb), "row"));
+    const int i = gtk_combo_box_get_active(cb);
+    if (!rd || i < 0 || size_t(i) >= rd->ids.size()) return;
+    if (!spn::modelist::setRowMode(g.ps, rd->kind, rd->pattern, rd->ids[size_t(i)])) return;
+    // The edited section may be the selected one: re-resolve so g.cur has the new MODE.
+    g.cur = g.ps.sectionSettings(g.cur_idx);
+    refresh();
+    scheduleApply();
+}
+
+static void rebuildModeList() {
+    if (!g.mode_box) return;
+    GList *kids = gtk_container_get_children(GTK_CONTAINER(g.mode_box));
+    for (GList *l = kids; l; l = l->next) gtk_widget_destroy(GTK_WIDGET(l->data));
+    g_list_free(kids);
+
+    const std::string dir = spn::modesDir();
+    g.modes_stamp = spn::modesStamp(dir);
+    std::vector<std::string> warnings;
+    const spn::ModeSet ms = spn::loadModes(dir, &warnings);
+    for (const auto &w : warnings) fprintf(stderr, "dofscroll-tray: modes: %s\n", w.c_str());
+
+    const auto rows = spn::modelist::buildRows(g.ps);
+    if (rows.empty()) {
+        gtk_box_pack_start(GTK_BOX(g.mode_box),
+                           hint(_("There are no program or device profiles yet. Create one with "
+                                  "\"New program profile...\" above; it then appears here.")),
+                           FALSE, FALSE, 0);
+    } else {
+        GtkWidget *grid = newGrid();
+        int row = 0;
+        for (const auto &rw : rows) {
+            GtkWidget *combo = noWheelChange(gtk_combo_box_text_new());
+            auto *rd = new ModeRowData{rw.kind, rw.pattern, {}};
+            const auto choices = spn::modelist::buildChoices(ms, rw.mode_id);
+            for (const auto &c : choices) {
+                const std::string label =
+                    c.known ? c.label : sfmt(_("%s (missing)"), c.label.c_str());
+                gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo), label.c_str());
+                rd->ids.push_back(c.id);
+            }
+            g.updating = true;
+            gtk_combo_box_set_active(GTK_COMBO_BOX(combo),
+                                     spn::modelist::choiceIndex(choices, rw.mode_id));
+            g.updating = false;
+            g_object_set_data_full(G_OBJECT(combo), "row", rd, +[](gpointer p) {
+                delete static_cast<ModeRowData *>(p);
+            });
+            g_signal_connect(combo, "changed", G_CALLBACK(onModeComboChanged), nullptr);
+            const spn::ModeDef *md = ms.find(rw.mode_id);
+            if (md && !md->description.empty())
+                gtk_widget_set_tooltip_text(combo, md->description.c_str());
+            labeled(grid, row++, kindLabel(rw.kind, rw.pattern).c_str(), combo);
+        }
+        gtk_box_pack_start(GTK_BOX(g.mode_box), grid, FALSE, FALSE, 0);
+    }
+    gtk_widget_show_all(g.mode_box);
+}
+
+static GtkWidget *buildModeList() {
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+    gtk_container_set_border_width(GTK_CONTAINER(box), 8);
+    gtk_box_pack_start(GTK_BOX(box),
+                       hint(_("A mode defines what the three channels and the buttons do. Modes "
+                              "are loaded from the modes folder; the choice is saved as MODE in "
+                              "the profile.")),
+                       FALSE, FALSE, 0);
+    g.mode_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
+    GtkWidget *sc = gtk_scrolled_window_new(nullptr, nullptr);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sc), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    gtk_scrolled_window_set_propagate_natural_height(GTK_SCROLLED_WINDOW(sc), TRUE);
+    gtk_scrolled_window_set_max_content_height(GTK_SCROLLED_WINDOW(sc), 170);
+    gtk_container_add(GTK_CONTAINER(sc), g.mode_box);
+    gtk_box_pack_start(GTK_BOX(box), sc, FALSE, FALSE, 0);
+    return frame(_("Application modes"), box);
+}
+
 static GtkWidget *buildProfileArea() {
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
     gtk_container_set_border_width(GTK_CONTAINER(box), 8);
 
     GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-    gtk_box_pack_start(GTK_BOX(row), gtk_label_new("Profil"), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(row), gtk_label_new(_("Profile")), FALSE, FALSE, 0);
     g.profile_combo = noWheelChange(gtk_combo_box_text_new());
     gtk_box_pack_start(GTK_BOX(row), g.profile_combo, TRUE, TRUE, 0);
     g_signal_connect(g.profile_combo, "changed", G_CALLBACK(onProfileChanged), nullptr);
@@ -1759,9 +1899,9 @@ static GtkWidget *buildProfileArea() {
     GtkWidget *btns = gtk_flow_box_new();
     gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(btns), GTK_SELECTION_NONE);
     gtk_flow_box_set_homogeneous(GTK_FLOW_BOX(btns), FALSE);
-    GtkWidget *nd = gtk_button_new_with_label("Neues Geraete-Profil...");
-    GtkWidget *na = gtk_button_new_with_label("Neues Programm-Profil...");
-    g.delete_btn = gtk_button_new_with_label("Profil loeschen");
+    GtkWidget *nd = gtk_button_new_with_label(_("New device profile..."));
+    GtkWidget *na = gtk_button_new_with_label(_("New program profile..."));
+    g.delete_btn = gtk_button_new_with_label(_("Delete profile"));
     g_signal_connect(nd, "clicked", G_CALLBACK(onNewProfile), GINT_TO_POINTER(Section::DEVICE));
     g_signal_connect(na, "clicked", G_CALLBACK(onNewProfile), GINT_TO_POINTER(Section::APP));
     g_signal_connect(g.delete_btn, "clicked", G_CALLBACK(onDeleteProfile), nullptr);
@@ -1772,7 +1912,7 @@ static GtkWidget *buildProfileArea() {
 
     g.profile_info = hint("");
     gtk_box_pack_start(GTK_BOX(box), g.profile_info, FALSE, FALSE, 0);
-    return frame("Profil", box);
+    return frame(_("Profile"), box);
 }
 
 static void installCss() {
@@ -1792,8 +1932,8 @@ static void loadFromDisk() {
     std::vector<std::string> warnings;
     ProfileSet ps;
     if (!spn::loadProfiles(cfgPath(), &ps, &warnings))
-        fprintf(stderr, "dofscroll-tray: %s ist nicht lesbar (kein regulaere Datei?) - "
-                        "es werden Standardwerte angezeigt\n", cfgPath().c_str());
+        fprintf(stderr, "dofscroll-tray: %s is not readable (not a regular file?) - "
+                        "showing default values\n", cfgPath().c_str());
     for (const auto &w : warnings) fprintf(stderr, "dofscroll-tray: %s: %s\n", cfgPath().c_str(), w.c_str());
     g.ps = ps;
     syncDiskState();
@@ -1806,35 +1946,36 @@ static void showSettingsWindow() {
     }
     installCss();
     flushPending();
-    loadFromDisk();  // Datei koennte zwischenzeitlich von Hand geaendert worden sein
+    loadFromDisk();  // the file may have been edited by hand in the meantime
     g.cur_idx = 0;
 
     GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     g.window = window;
-    gtk_window_set_title(GTK_WINDOW(window), "SpaceMouse Scroll – Einstellungen");
+    gtk_window_set_title(GTK_WINDOW(window), _("dofscroll - Settings"));
     gtk_window_set_default_size(GTK_WINDOW(window), 580, 800);
     g_signal_connect(window, "destroy", G_CALLBACK(+[](GtkWidget *, gpointer) {
         if (wizUi.dlg) gtk_widget_destroy(wizUi.dlg);
         if (suspend_timer) g_source_remove(suspend_timer);
         suspend_timer = 0;
         suspendNotebook = nullptr;
-        g.window = nullptr;  // ab hier ignorieren onBindChanged/onProfileChanged alle Signale
-        flushPending();      // ausstehende Aenderung nicht verlieren
-        updateSuspend();  // Heartbeat-Datei entfernen
-        liveStop();  // eigene libspnav-Verbindung nur, solange das Fenster offen ist
-        g.window = g.profile_combo = g.profile_info = g.delete_btn = nullptr;
+        g.window = nullptr;  // from here on onBindChanged/onProfileChanged ignore all signals
+        flushPending();      // do not lose a pending change
+        updateSuspend();  // remove the heartbeat file
+        liveStop();  // own libspnav connection only while the window is open
+        g.window = g.profile_combo = g.profile_info = g.delete_btn = g.mode_box = nullptr;
+        g.button_spins.clear();
         g.reset_btns.clear();
         g.graphs.clear();
-        // Kinder leben noch: Signal-Handler abklemmen, bevor die Binding-Objekte
-        // freigegeben werden (sonst spaete "changed"-Emissionen auf freiem Speicher).
+        // Children still alive: disconnect signal handlers before the binding objects
+        // are freed (otherwise late "changed" emissions hit freed memory).
         for (auto &b : g.binds)
             if (b->widget) g_signal_handlers_disconnect_by_data(b->widget, b.get());
         g.binds.clear();
         g.sensitivity_rules.clear();
     }), nullptr);
 
-    // Profilwahl oben fuer beide Reiter sichtbar (der Assistent im Reiter
-    // "Achsen" schreibt in das hier gewaehlte Profil).
+    // Profile selection at the top, visible for both tabs (the wizard in the "Axes" tab
+    // writes into the profile selected here).
     GtkWidget *outer = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
     gtk_container_set_border_width(GTK_CONTAINER(outer), 12);
     gtk_container_add(GTK_CONTAINER(window), outer);
@@ -1843,6 +1984,7 @@ static void showSettingsWindow() {
     GtkWidget *notebook = gtk_notebook_new();
     suspendNotebook = notebook;
     gtk_box_pack_start(GTK_BOX(outer), notebook, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(outer), buildModeList(), FALSE, FALSE, 0);
     g_signal_connect_after(notebook, "switch-page", G_CALLBACK(+[](GtkNotebook *, GtkWidget *, guint, gpointer) {
         updateSuspend();
     }), nullptr);
@@ -1854,7 +1996,7 @@ static void showSettingsWindow() {
         return G_SOURCE_CONTINUE;
     }, nullptr);
 
-    // Scrollbar, damit das Fenster auch auf kleinen Bildschirmen bedienbar bleibt.
+    // Scrollbar, so the window stays usable on small screens.
     auto addPage = [notebook](GtkWidget *content, const char *title) {
         GtkWidget *scroller = gtk_scrolled_window_new(nullptr, nullptr);
         gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroller), GTK_POLICY_NEVER,
@@ -1865,16 +2007,16 @@ static void showSettingsWindow() {
 
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), 12);
-    // Ganz oben: Steuerung pro Profil an/aus (ENABLED). Aus -> alle uebrigen Einstellungen
-    // dieses Reiters ausgegraut (sie wirken dann ohnehin nicht); die Checkbox bleibt bedienbar.
-    GtkWidget *enabled_check = bindCheck("Steuerung in diesem Profil aktiv",
+    // At the very top: control on/off per profile (ENABLED). Off -> all other settings of
+    // this tab are greyed out (they have no effect then anyway); the checkbox stays usable.
+    GtkWidget *enabled_check = bindCheck(_("Control active in this profile"),
                                          [] { return g.cur.enabled; },
                                          [](bool on) { g.cur.enabled = on; });
     gtk_widget_set_tooltip_text(
         enabled_check,
-        "Aus = SpaceMouse erzeugt in diesem Profil keine Scroll-/Zoom-/Tasten-Events, z.B. "
-        "fuer Programme mit eigener 3D-Navigation wie Blender: Programm-Profil anlegen und "
-        "das hier abschalten");
+        _("Off = the SpaceMouse generates no scroll/zoom/key events in this profile, e.g. "
+          "for programs with their own 3D navigation such as Blender: create a program "
+          "profile and switch this off"));
     gtk_box_pack_start(GTK_BOX(vbox), enabled_check, FALSE, FALSE, 0);
     GtkWidget *rest = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_box_pack_start(GTK_BOX(rest), buildChannel(&CHANNELS[0], false), FALSE, FALSE, 0);
@@ -1883,8 +2025,8 @@ static void showSettingsWindow() {
     gtk_box_pack_start(GTK_BOX(rest), buildGeneral(), FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), rest, FALSE, FALSE, 0);
     g.sensitivity_rules.push_back([rest] { gtk_widget_set_sensitive(rest, g.cur.enabled); });
-    addPage(vbox, "Kanaele");
-    addPage(buildAxesPage(), "Achsen");
+    addPage(vbox, _("Channels"));
+    addPage(buildAxesPage(), _("Axes"));
 
     fillProfileCombo();
     selectProfile(0);
@@ -1893,15 +2035,15 @@ static void showSettingsWindow() {
 }
 
 // ---------------------------------------------------------------------------
-// Tray-Menue
+// Tray menu
 // ---------------------------------------------------------------------------
 
 static void quitNow() {
     flushPending();
     g.window = nullptr;
-    updateSuspend(true);  // Heartbeat-Datei unbedingt entfernen (auch bei offenem Assistenten)
-    // Offenen Assistenten schliessen: gtk_main_quit aus einem verschachtelten
-    // gtk_dialog_run wirkt sonst erst nach dem Schliessen des Dialogs.
+    updateSuspend(true);  // remove the heartbeat file without fail (even with the wizard open)
+    // Close an open wizard: gtk_main_quit from a nested gtk_dialog_run would otherwise
+    // only take effect after the dialog is closed.
     if (wizUi.dlg) gtk_dialog_response(GTK_DIALOG(wizUi.dlg), GTK_RESPONSE_CANCEL);
     GList *tops = gtk_window_list_toplevels();
     for (GList *l = tops; l; l = l->next)
@@ -1922,8 +2064,8 @@ static void onSettings(GtkMenuItem *, gpointer) { showSettingsWindow(); }
 
 static void onOpenConfig(GtkMenuItem *, gpointer) {
     flushPending();
-    // xdg-open scheitert an nicht existierenden Dateien -> ggf. mit den
-    // aktuellen (Default-)Werten anlegen (saveProfiles legt das Verzeichnis an).
+    // xdg-open fails on non-existent files -> create it with the current (default)
+    // values if needed (saveProfiles creates the directory).
     std::string path = cfgPath();
     if (access(path.c_str(), F_OK) != 0) {
         ProfileSet ps;
@@ -1931,24 +2073,24 @@ static void onOpenConfig(GtkMenuItem *, gpointer) {
         ps.setSectionFromSettings(0, ps.sectionSettings(0));
         std::string err;
         if (!spn::saveProfiles(path, ps, &err)) {
-            fprintf(stderr, "dofscroll-tray: %s nicht anlegbar: %s\n", path.c_str(), err.c_str());
+            fprintf(stderr, "dofscroll-tray: cannot create %s: %s\n", path.c_str(), err.c_str());
             return;
         }
-        path = cfgPath();  // evtl. neuer Pfad nach dem Anlegen
+        path = cfgPath();  // possibly a new path after creating
     }
-    // Absoluter Pfad: ein relativer/mit '-' beginnender Pfad (z.B. XDG_CONFIG_HOME="-x")
-    // wuerde von xdg-open als Option gelesen.
+    // Absolute path: a relative path / one starting with '-' (e.g. XDG_CONFIG_HOME="-x")
+    // would be read as an option by xdg-open.
     std::string open_path = path;
     if (open_path.empty() || open_path[0] != '/') {
         char cwd[4096];
         open_path = (getcwd(cwd, sizeof(cwd)) ? std::string(cwd) : std::string()) + "/" + open_path;
     }
-    // Der Editor/Dateimanager darf NICHT in der Sandbox des Trays laufen: dort ist ~/.config
-    // schreibgeschuetzt (nur das eigene Config-Verzeichnis ist beschreibbar), und z.B.
-    // kde-open5 bricht mit 'Configuration file ... not writable' ab; ein dort gestarteter
-    // Editor koennte ausserdem nichts ausserhalb davon speichern. Deshalb als eigener
-    // transienter User-Dienst ueber systemd-run starten (KillMode=process: ein vom
-    // xdg-open gestarteter Editor ueberlebt dessen Ende). Ohne systemd-run: direkt.
+    // The editor/file manager must NOT run in the tray's sandbox: there ~/.config is
+    // read-only (only the own config directory is writable), and e.g. kde-open5 aborts
+    // with 'Configuration file ... not writable'; an editor started there also could not
+    // save anything outside of it. So start it as a separate transient user service via
+    // systemd-run (KillMode=process: an editor started by xdg-open survives its end).
+    // Without systemd-run: directly.
     const std::string sdrun = resolveExe("systemd-run");
     if (sdrun[0] == '/') {
         spawnDetached({sdrun, "--user", "--collect", "--quiet", "-p", "KillMode=process", "--",
@@ -1959,12 +2101,12 @@ static void onOpenConfig(GtkMenuItem *, gpointer) {
 }
 
 // ---------------------------------------------------------------------------
-// Laufzeitdateien des Daemons (Status, Log) - sicher lesen. Die Inhalte sind fremde
-// Daten: nur als reiner Text anzeigen (GTK-Labels ohne Markup, Laenge begrenzt).
+// Runtime files of the daemon (status, log) - read safely. Their contents are foreign
+// data: display only as plain text (GTK labels without markup, length limited).
 // ---------------------------------------------------------------------------
 
-// Liest hoechstens die letzten tail_max Bytes. Verweigert Symlinks, Nicht-Regulaeres,
-// fremde Besitzer, Gruppen-/Other-Rechte und Dateien > size_max. mtime/size optional.
+// Reads at most the last tail_max bytes. Refuses symlinks, non-regular files, foreign
+// owners, group/other permissions and files > size_max. mtime/size optional.
 static bool readRuntimeFile(const std::string &path, size_t size_max, size_t tail_max,
                             std::string *out, off_t *size_out = nullptr, long long *mtime_out = nullptr) {
     out->clear();
@@ -1988,7 +2130,7 @@ static bool readRuntimeFile(const std::string &path, size_t size_max, size_t tai
             got += size_t(n);
         }
         out->resize(got);
-        if (off > 0) {  // mitten in einer Zeile begonnen: angeschnittene erste Zeile verwerfen
+        if (off > 0) {  // started in the middle of a line: discard the truncated first line
             size_t nl = out->find('\n');
             *out = nl == std::string::npos ? std::string() : out->substr(nl + 1);
         }
@@ -1997,8 +2139,8 @@ static bool readRuntimeFile(const std::string &path, size_t size_max, size_t tai
     return ok;
 }
 
-// Fremden Text fuer die Anzeige saeubern: Steuerzeichen -> Leerzeichen (bei keep_nl bleiben
-// \n und \t), gueltiges UTF-8 erzwingen, auf max_chars Zeichen kuerzen.
+// Sanitize foreign text for display: control characters -> space (with keep_nl, \n and
+// \t stay), enforce valid UTF-8, truncate to max_chars characters.
 static std::string displayText(const std::string &in, size_t max_chars, bool keep_nl = false) {
     std::string t = in;
     for (char &c : t) {
@@ -2016,8 +2158,8 @@ static std::string displayText(const std::string &in, size_t max_chars, bool kee
 }
 
 struct DaemonStatus {
-    bool valid = false;  // Datei lesbar, plausibel und frisch
-    std::string profile, device, app;
+    bool valid = false;  // file readable, plausible and fresh
+    std::string profile, device, app, mode;
     bool enabled = true, paused = false;
     int devices_seen = 0;
 };
@@ -2041,6 +2183,7 @@ static DaemonStatus readDaemonStatus() {
         else if (k == "enabled") d.enabled = v != "0";
         else if (k == "paused") d.paused = v == "1";
         else if (k == "devices_seen") d.devices_seen = int(std::strtol(v.c_str(), nullptr, 10));
+        else if (k == "mode") d.mode = v;  // optional: daemons without this key are fine
         else if (k == "updated") { updated = std::strtoll(v.c_str(), nullptr, 10); have_updated = true; }
     }
     long long age = (long long)time(nullptr) - updated;
@@ -2048,10 +2191,43 @@ static DaemonStatus readDaemonStatus() {
     return d;
 }
 
+// Display name of the active mode. Uses the daemon's "mode" status key if present, else
+// resolves MODE from the config for the reported device/program. Config and mode files
+// are re-read only when they change.
+static std::string activeModeLabel(const DaemonStatus &d) {
+    static ProfileSet cfg;
+    static std::string cfg_content;
+    static bool cfg_loaded = false;
+    static spn::ModeSet modes;
+    static std::string modes_stamp;
+    static bool modes_loaded = false;
+
+    const std::string dir = spn::modesDir();
+    const std::string st = spn::modesStamp(dir);
+    if (!modes_loaded || st != modes_stamp) {
+        modes = spn::loadModes(dir, nullptr);
+        modes_stamp = st;
+        modes_loaded = true;
+    }
+    std::string id = d.mode;
+    if (id.empty()) {
+        std::string content;
+        readFileContent(cfgPath(), &content);
+        if (!cfg_loaded || content != cfg_content) {
+            cfg = ProfileSet();
+            spn::loadProfiles(cfgPath(), &cfg, nullptr);
+            cfg_content = content;
+            cfg_loaded = true;
+        }
+        id = cfg.resolve(d.device, d.app).mode;
+    }
+    return displayText(spn::modelist::modeLabel(modes, id), 40);
+}
+
 struct StatusUi {
     AppIndicator *indicator = nullptr;
     GtkWidget *main_item = nullptr, *info_item = nullptr, *warn_item = nullptr;
-    std::string last;  // zuletzt angezeigter Zustand (nur bei Aenderung Labels setzen)
+    std::string last;  // last displayed state (set labels only on change)
 };
 static StatusUi statusUi;
 
@@ -2059,17 +2235,21 @@ static gboolean onStatusTick(gpointer) {
     const DaemonStatus d = readDaemonStatus();
     std::string main_t, info_t, warn_t;
     if (!d.valid) {
-        main_t = "Daemon laeuft nicht / keine Statusdaten";
+        main_t = _("Daemon not running / no status data");
     } else {
-        main_t = "Profil: " + displayText(d.profile.empty() ? "global" : d.profile, 80);
-        if (d.paused) main_t += " (pausiert)";
-        if (!d.enabled) main_t += " (deaktiviert)";
-        if (!d.app.empty()) info_t = "Programm: " + displayText(d.app, 60);
+        main_t = sfmt(_("Profile: %s"),
+                      displayText(d.profile.empty() ? "global" : d.profile, 80).c_str());
+        if (d.paused) main_t += _(" (paused)");
+        if (!d.enabled) main_t += _(" (disabled)");
+        const std::string mode = activeModeLabel(d);
+        if (!mode.empty()) main_t += "  |  " + sfmt(_("Mode: %s"), mode.c_str());
+        if (!d.app.empty()) info_t = sfmt(_("Program: %s"), displayText(d.app, 60).c_str());
         if (!d.device.empty())
-            info_t += std::string(info_t.empty() ? "" : "  |  ") + "Geraet: " + displayText(d.device, 60);
+            info_t += std::string(info_t.empty() ? "" : "  |  ") +
+                      sfmt(_("Device: %s"), displayText(d.device, 60).c_str());
         if (d.devices_seen >= 2)
-            warn_t = std::to_string(d.devices_seen) + " SpaceMice angesteckt, nur '" +
-                     displayText(d.device, 60) + "' wird gemeldet";
+            warn_t = sfmt(_("%d SpaceMice connected, only '%s' is reported"), d.devices_seen,
+                          displayText(d.device, 60).c_str());
     }
     const std::string state = main_t + "\n" + info_t + "\n" + warn_t;
     if (state != statusUi.last) {
@@ -2081,12 +2261,12 @@ static gboolean onStatusTick(gpointer) {
         gtk_widget_set_visible(statusUi.warn_item, !warn_t.empty());
         if (statusUi.indicator)
             app_indicator_set_title(statusUi.indicator,
-                                    (std::string("SpaceMouse Scroll - ") + main_t).c_str());
+                                    (std::string("dofscroll - ") + main_t).c_str());
     }
     return G_SOURCE_CONTINUE;
 }
 
-// --- Log-Fenster -----------------------------------------------------------
+// --- Log window ------------------------------------------------------------
 
 struct LogUi {
     GtkWidget *win = nullptr, *view = nullptr;
@@ -2103,11 +2283,11 @@ static void logReload(bool force) {
     long long mtime = 0;
     const bool ok = readRuntimeFile(spn::logFilePath(), spn::kLogMaxBytes, 64 * 1024, &raw, &size, &mtime);
     if (!force && ok && size == logUi.size && mtime == logUi.mtime) return;
-    if (!ok && !force && logUi.size == -2) return;  // Hinweis steht schon da
+    if (!ok && !force && logUi.size == -2) return;  // the notice is already shown
     logUi.size = ok ? size : -2;
     logUi.mtime = ok ? mtime : -2;
     std::string text = ok ? displayText(raw, raw.size(), true)
-                          : "Noch kein Log (Daemon aelter als diese Version oder laeuft nicht)";
+                          : std::string(_("No log yet (daemon older than this version or not running)"));
     GtkTextView *tv = GTK_TEXT_VIEW(logUi.view);
     GtkAdjustment *adj = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(tv));
     const bool at_bottom = gtk_adjustment_get_value(adj) + gtk_adjustment_get_page_size(adj) >=
@@ -2147,7 +2327,7 @@ static void showLogWindow() {
     logUi = LogUi{};
     GtkWidget *win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     logUi.win = win;
-    gtk_window_set_title(GTK_WINDOW(win), "SpaceMouse Scroll - Log");
+    gtk_window_set_title(GTK_WINDOW(win), _("dofscroll - Log"));
     gtk_window_set_default_size(GTK_WINDOW(win), 760, 480);
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), 8);
@@ -2166,9 +2346,9 @@ static void showLogWindow() {
 
     GtkWidget *btns = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
     gtk_box_set_homogeneous(GTK_BOX(btns), FALSE);
-    GtkWidget *refresh = gtk_button_new_with_label("Aktualisieren");
-    GtkWidget *copy = gtk_button_new_with_label("Kopieren");
-    GtkWidget *close = gtk_button_new_with_label("Schliessen");
+    GtkWidget *refresh = gtk_button_new_with_label(_("Refresh"));
+    GtkWidget *copy = gtk_button_new_with_label(_("Copy"));
+    GtkWidget *close = gtk_button_new_with_label(_("Close"));
     gtk_box_pack_start(GTK_BOX(btns), refresh, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(btns), copy, FALSE, FALSE, 0);
     gtk_box_pack_end(GTK_BOX(btns), close, FALSE, FALSE, 0);
@@ -2197,12 +2377,12 @@ static void onRestartDaemon(GtkMenuItem *, gpointer) {
     restartDaemon();
 }
 
-// Eigenes Icon (Puck + 4-Wege-Pfeil). Der Icon-Ordner wird zur Laufzeit
-// gesucht, statt nur auf einen fest installierten Pfad zu vertrauen (ein
-// toter Symlink unter /usr/local liess das Fenster beim Standard-Icon):
-// 1. icons/ neben dem aufgeloesten Binary (= Repo, Symlink wird aufgeloest)
+// Own icon (puck + 4-way arrow). The icon directory is searched at run time instead of
+// relying on one fixed installed path (a dead symlink under /usr/local once left the
+// window with the default icon):
+// 1. icons/ next to the resolved binary (= repo, symlink is resolved)
 // 2. ~/.local/share/dofscroll-tray/icons  3. /usr/local/share/...
-// "input-mouse" bleibt der Fallback-Name, falls nirgends ein Icon liegt.
+// "input-mouse" remains the fallback name if there is no icon anywhere.
 static const char *ICON_NAME = "dofscroll-tray";
 
 static std::string findIconDir() {
@@ -2213,7 +2393,7 @@ static std::string findIconDir() {
         exe[n] = 0;
         std::string dir = dirname(exe);
         candidates.push_back(dir + "/icons");
-        // Binary evtl. in einem Unterordner des Repos (z.B. build/).
+        // Binary possibly in a subfolder of the repo (e.g. build/).
         candidates.push_back(dir + "/../icons");
     }
     if (const char *home = getenv("HOME"))
@@ -2231,22 +2411,27 @@ static void addMenuItem(GtkWidget *menu, const char *label, GCallback cb) {
 }
 
 int main(int argc, char **argv) {
+    spn::i18n::init();
     gtk_init(&argc, &argv);
     {
         std::string mlog;
         const bool ok = spn::migrateLegacyConfig(&mlog);
-        fprintf(stderr, "dofscroll-tray: Config-Migration: %s%s%s\n", ok ? "ok" : "fehlgeschlagen",
+        fprintf(stderr, "dofscroll-tray: config migration: %s%s%s\n", ok ? "ok" : "failed",
                 mlog.empty() ? "" : " - ", mlog.c_str());
+        // First start: seed example config + modes (the daemon cannot write the config dir).
+        std::string slog;
+        if (spn::seedDefaults(&slog))
+            fprintf(stderr, "dofscroll-tray: seeded defaults: %s\n", slog.c_str());
     }
 
-    // Ohne dies bekommt das Einstellungsfenster in der Taskleiste das
-    // generische GTK-Logo statt des eigenen Icons, da GtkWindow (anders als
-    // AppIndicator) den Icon-Theme-Pfad nicht automatisch mitbekommt.
+    // Without this the settings window gets the generic GTK logo in the task bar instead
+    // of the own icon, since GtkWindow (unlike AppIndicator) does not automatically get
+    // the icon theme path.
     std::string icon_dir = findIconDir();
     if (!icon_dir.empty()) {
         gtk_icon_theme_append_search_path(gtk_icon_theme_get_default(), icon_dir.c_str());
-        // Direkt aus Datei: setzt _NET_WM_ICON, das Taskleisten (KDE/X11) nutzen,
-        // unabhaengig von Theme-Cache/Namensaufloesung.
+        // Directly from file: sets _NET_WM_ICON, which task bars (KDE/X11) use,
+        // independent of theme cache/name resolution.
         gtk_window_set_default_icon_from_file((icon_dir + "/" + ICON_NAME + ".svg").c_str(), nullptr);
     } else {
         gtk_window_set_default_icon_name("input-mouse");
@@ -2256,12 +2441,12 @@ int main(int argc, char **argv) {
                                                 APP_INDICATOR_CATEGORY_HARDWARE);
     if (!icon_dir.empty()) app_indicator_set_icon_theme_path(indicator, icon_dir.c_str());
     app_indicator_set_icon_full(indicator, icon_dir.empty() ? "input-mouse" : ICON_NAME,
-                                "SpaceMouse Scroll");
+                                "dofscroll");
     app_indicator_set_status(indicator, APP_INDICATOR_STATUS_ACTIVE);
-    app_indicator_set_title(indicator, "SpaceMouse Scroll");
+    app_indicator_set_title(indicator, "dofscroll");
 
     GtkWidget *menu = gtk_menu_new();
-    // Statuszeilen oben (nicht anklickbar), von onStatusTick aus der Status-Datei gespeist.
+    // Status lines at the top (not clickable), fed by onStatusTick from the status file.
     auto addInfoItem = [menu](const char *label) {
         GtkWidget *item = gtk_menu_item_new_with_label(label);
         gtk_widget_set_sensitive(item, FALSE);
@@ -2269,16 +2454,16 @@ int main(int argc, char **argv) {
         return item;
     };
     statusUi.indicator = indicator;
-    statusUi.main_item = addInfoItem("Status wird ermittelt...");
+    statusUi.main_item = addInfoItem(_("Determining status..."));
     statusUi.info_item = addInfoItem("");
     statusUi.warn_item = addInfoItem("");
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
-    addMenuItem(menu, "Einstellungen…", G_CALLBACK(onSettings));
-    addMenuItem(menu, "Konfigurationsdatei oeffnen", G_CALLBACK(onOpenConfig));
-    addMenuItem(menu, "Daemon neu starten", G_CALLBACK(onRestartDaemon));
-    addMenuItem(menu, "Log anzeigen...", G_CALLBACK(onShowLog));
+    addMenuItem(menu, _("Settings…"), G_CALLBACK(onSettings));
+    addMenuItem(menu, _("Open config file"), G_CALLBACK(onOpenConfig));
+    addMenuItem(menu, _("Restart daemon"), G_CALLBACK(onRestartDaemon));
+    addMenuItem(menu, _("Show log..."), G_CALLBACK(onShowLog));
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
-    addMenuItem(menu, "Beenden", G_CALLBACK(onQuit));
+    addMenuItem(menu, _("Quit"), G_CALLBACK(onQuit));
     gtk_widget_show_all(menu);
     app_indicator_set_menu(indicator, GTK_MENU(menu));
     gtk_widget_set_visible(statusUi.info_item, FALSE);
