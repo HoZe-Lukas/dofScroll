@@ -1830,3 +1830,19 @@ msgstr ""
 #: src/ui/model/binding_editor_model.hpp:37
 msgid "Toggle mode (press again to go back)"
 msgstr ""
+
+#: src/ui/qt/main_window.cpp:57
+msgid "Categories"
+msgstr ""
+
+#: src/ui/qt/main_window.cpp:94
+msgid "Daemon status"
+msgstr ""
+
+#: src/ui/model/navigation_model.hpp:41
+msgid "Device"
+msgstr ""
+
+#: src/ui/model/navigation_model.hpp:41
+msgid "Settings"
+msgstr ""

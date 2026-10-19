@@ -25,17 +25,19 @@
 #include "ui_context.hpp"
 
 static void printUsage() {
-    std::printf("Usage: dofscroll-ui [--help] [--version] [--self-test] [--restart]\n"
+    std::printf("Usage: dofscroll-ui [--help] [--version] [--self-test] [--screenshots <dir>] [--restart]\n"
                 "  Settings window and tray icon for dofscroll (Qt). Qt options such as\n"
                 "  -platform are passed through.\n"
                 "  -h, --help   print this text and exit\n"
                 "  --version    print the version and exit\n"
                 "  --self-test  headless self-test with temporary directories\n"
+                "  --screenshots <dir>  render every page at three sizes into PNG files, then exit\n"
                 "  --restart    wait for a running instance to exit, then start (used by the tray)\n");
 }
 
 int main(int argc, char **argv) {
     bool selfTest = false;
+    const char *screenshotDir = nullptr;
     bool restarted = false;  // started by "Restart interface": wait for the old instance's lock
     // Handled before QApplication exists: no window, no lock, no display needed.
     for (int i = 1; i < argc; ++i) {
@@ -48,6 +50,7 @@ int main(int argc, char **argv) {
             return 0;
         }
         if (!std::strcmp(argv[i], "--self-test")) selfTest = true;
+        if (!std::strcmp(argv[i], "--screenshots") && i + 1 < argc) screenshotDir = argv[i + 1];
         if (!std::strcmp(argv[i], spn::ui::restartFlag())) restarted = true;
     }
 
@@ -67,6 +70,37 @@ int main(int argc, char **argv) {
 
     const QIcon icon(QStringLiteral(":/dofscroll-tray.svg"));
     QtActionRunner runner;
+
+    if (screenshotDir) {
+        // Renders every page at three window sizes into PNG files (for the review of layout changes
+        // and CI artifacts). Private temporary directories; works with QT_QPA_PLATFORM=offscreen.
+        QTemporaryDir tmp;
+        if (!tmp.isValid()) return 1;
+        UiContext ctx;
+        ctx.runner = &runner;
+        ctx.configPath = (tmp.path() + QStringLiteral("/dofscroll.conf")).toStdString();
+        ctx.modesDir = (tmp.path() + QStringLiteral("/modes")).toStdString();
+        ctx.runtimeDir = (tmp.path() + QStringLiteral("/run")).toStdString();
+        QDir().mkpath(tmp.path() + QStringLiteral("/modes"));
+        QDir().mkpath(QString::fromUtf8(screenshotDir));
+        MainWindow w(ctx);
+        w.show();
+        static const struct { const char *name; int w, h; } sizes[] = {{"small", 720, 460}, {"medium", 960, 560}, {"wide", 1500, 820}};
+        int written = 0;
+        for (const auto &sz : sizes) {
+            w.resize(sz.w, sz.h);
+            for (const std::string &id : w.pageIds()) {
+                w.showPage(QString::fromStdString(id));
+                QApplication::processEvents();
+                const QString file = QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-%2.png")
+                                         .arg(QString::fromLatin1(sz.name), QString::fromStdString(id));
+                if (!w.grab().save(file)) return 1;
+                ++written;
+            }
+        }
+        std::printf("screenshots: %d files in %s\n", written, screenshotDir);
+        return written > 0 ? 0 : 1;
+    }
 
     if (selfTest) {
         // Private temporary directories: the test never touches the user's configuration.
@@ -93,7 +127,7 @@ int main(int argc, char **argv) {
         std::printf("self-test: entries=%d profiles=%d modes=%d tray-modes=%d tray-entries=%d tray-available=%d\n",
                     w.pageCount(), w.profileCount(), modes.modeCount(), tray.modeMenuCount(),
                     tray.menuEntryCount(), avail ? 1 : 0);
-        const bool ok = w.pageCount() == 5 && w.profileCount() >= 0 && !w.profilePageHasModeSelector() && modes.modeCount() == 4 &&
+        const bool ok = w.pageCount() == 5 && w.categoryCount() == 4 && w.profileCount() >= 0 && !w.profilePageHasModeSelector() && modes.modeCount() == 4 &&
                         tray.modeMenuCount() == 4 && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
         return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen
