@@ -106,6 +106,24 @@ The tray uses AppIndicator (StatusNotifierItem).
 The daemon works without the tray. The tray is only needed for the settings window and the first
 start seeding.
 
+### `dofscroll-ui.service` exits at once and no window appears (Qt UI)
+
+The Qt UI keeps a single-instance lock (`dofscroll-ui.lock`) in the per-user runtime directory
+(`$XDG_RUNTIME_DIR`, usually `/run/user/<uid>/`; Windows and macOS: the per-user dofscroll runtime
+folder). The directory is writable inside the unit sandbox (`ReadWritePaths=%t`) and is cleaned at
+logout, so the lock never survives a reboot. A lock left by a killed instance is detected as stale
+at the next start.
+
+- "dofscroll-ui is already running" (exit 0): a live instance holds the lock; the second start asks
+  it to show its window. If you see no window or tray icon, check
+  `systemctl --user status dofscroll-ui.service dofscroll-tray.service` (only one of the two runs).
+- "cannot create the single-instance lock ..." (exit 1): the runtime directory is not writable.
+  Check `ls -ld "$XDG_RUNTIME_DIR"` and that a unit override has not removed `%t` from
+  `ReadWritePaths`.
+- `dofscroll-ui --help` and `--version` print and exit without starting a window.
+- Versions up to 0.1.0-beta.1 kept the lock in `~/.local/share/dofscroll/`, which the unit mounts
+  read-only: the unit exited with status 0 and no message. Update the package.
+
 ### Settings window or menus are in German (or another language)
 
 The UI follows the locale (`LC_MESSAGES`, `LANGUAGE`). To force English:

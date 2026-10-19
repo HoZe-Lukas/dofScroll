@@ -19,14 +19,29 @@
 #include "pages/modes_page.hpp"
 #include "qt_action_runner.hpp"
 #include "tray.hpp"
+#include "ui/model/instance_paths.hpp"
 #include "ui/model/ui_settings.hpp"
 #include "ui_context.hpp"
 
+static void printUsage() {
+    std::printf("Usage: dofscroll-ui [--help] [--version] [--self-test]\n"
+                "  Settings window and tray icon for dofscroll (Qt). Qt options such as\n"
+                "  -platform are passed through.\n"
+                "  -h, --help   print this text and exit\n"
+                "  --version    print the version and exit\n"
+                "  --self-test  headless self-test with temporary directories\n");
+}
+
 int main(int argc, char **argv) {
     bool selfTest = false;
+    // Handled before QApplication exists: no window, no lock, no display needed.
     for (int i = 1; i < argc; ++i) {
         if (!std::strcmp(argv[i], "--version")) {
             std::printf("dofscroll-ui %s\n", DOFSCROLL_VERSION);
+            return 0;
+        }
+        if (!std::strcmp(argv[i], "--help") || !std::strcmp(argv[i], "-h")) {
+            printUsage();
             return 0;
         }
         if (!std::strcmp(argv[i], "--self-test")) selfTest = true;
@@ -80,23 +95,30 @@ int main(int argc, char **argv) {
         return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen
     }
 
-    // Single-instance guard in a per-user directory (QLockFile detects stale locks itself).
-    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
-    QDir().mkpath(dir);
-    QFile::setPermissions(dir, QFileDevice::ReadOwner | QFileDevice::WriteOwner |
-                                   QFileDevice::ExeOwner);
-    QLockFile lock(dir + QStringLiteral("/dofscroll-ui.lock"));
+    // Single-instance guard in the per-user runtime directory: writable inside the systemd unit
+    // (ReadWritePaths=%t) and cleaned at logout (src/ui/model/instance_paths.hpp).
+    const UiContext ctx = makeUiContext(&runner);
+    const std::string idir = spn::ui::instanceDir(ctx.runtimeDir, spn::platformPaths().configDir);
+    QDir().mkpath(QString::fromStdString(idir));
+    QLockFile lock(QString::fromStdString(spn::ui::instanceLockPath(idir)));
     // A second start asks the running instance (marker file, polled below) to show its window.
-    const QString raiseMarker = dir + QStringLiteral("/dofscroll-ui.raise");
-    if (!lock.tryLock(0)) {
-        QFile m(raiseMarker);
-        if (m.open(QIODevice::WriteOnly)) m.close();
-        std::fprintf(stderr, "dofscroll-ui is already running\n");
-        return 0;
+    const QString raiseMarker = QString::fromStdString(spn::ui::instanceRaisePath(idir));
+    // A short timeout lets Qt's stale-lock detection run (dead owner process after SIGTERM/kill).
+    if (!lock.tryLock(100)) {
+        if (spn::ui::classifyLockFailure(lock.error() == QLockFile::LockFailedError) ==
+            spn::ui::LockOutcome::AlreadyRunning) {
+            QFile m(raiseMarker);
+            if (m.open(QIODevice::WriteOnly)) m.close();
+            std::fprintf(stderr, "dofscroll-ui is already running\n");
+            return spn::ui::kExitAlreadyRunning;
+        }
+        std::fprintf(stderr, "dofscroll-ui: cannot create the single-instance lock %s (%s)\n",
+                     qPrintable(lock.fileName()),
+                     lock.error() == QLockFile::PermissionError ? "permission denied" : "unknown error");
+        return spn::ui::kExitLockFailure;
     }
     QFile::remove(raiseMarker);  // stale request of an earlier start
 
-    const UiContext ctx = makeUiContext(&runner);
     MainWindow window(ctx);
     window.setWindowIcon(icon);
     Tray tray(&window, icon, ctx);
