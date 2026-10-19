@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// dofscroll 2.0: Daemon, der eine 3Dconnexion-SpaceMouse (via spacenavd/
-// libspnav) in Scroll-, Zoom-, Pfeiltasten- und Maustasten-Events uebersetzt.
-// Ersetzt spacenav_bridge.cpp funktional, nutzt aber die gemeinsamen Module:
-//   config.hpp    - Settings/Profile ([global], [device:*], [app:*])
-//   dsp.hpp       - Kanal-Signalverarbeitung, Schritt-Akkumulator, Zoom-Erkennung
-//   output.hpp    - Ausgabe ueber X11/XTest oder uinput
-//   activewin.hpp - aktives Programm (WM_CLASS) fuer [app:*]-Profile
+// dofscroll 2.0: daemon that translates a 3Dconnexion SpaceMouse (via spacenavd/
+// libspnav) into scroll, zoom, arrow-key and mouse-button events.
+// It uses the shared modules:
+//   config.hpp      - settings/profiles ([global], [device:*], [app:*])
+//   dsp.hpp         - channel signal processing, step accumulator, zoom detection
+//   modes.hpp       - pluggable modes (loaded from the modes directory)
+//   mode_runner.hpp - per-tick evaluation of the active mode (legacy and custom path)
+//   output.hpp      - output via X11/XTest or uinput
+//   activewin.hpp   - active program (WM_CLASS) for [app:*] profiles
 //
-// Threads: ein Reader-Thread blockiert auf spnav_wait_event() und schreibt nur
-// den jeweils aktuellsten Zustand (lock-free Atomics) weg; der Haupt-Thread
-// tickt mit Settings.tick_hz, wertet aus und sendet gleichmaessig verteilte
-// Schritte (statt Bursts pro Event). Config/Profile gehoeren allein dem
-// Haupt-Thread.
+// Threads: a reader thread blocks on spnav_wait_event() and only stores the latest
+// state (lock-free atomics); the main thread ticks at Settings.tick_hz, evaluates and
+// sends evenly distributed steps (instead of bursts per event). Config/profiles belong
+// to the main thread alone.
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -40,12 +41,17 @@
 #include <X11/Xlib.h>
 #include <spnav.h>
 
+// Xlib defines None as a macro, which clashes with ChannelActionType::None (modes.hpp).
+#undef None
+
 #include "activewin.hpp"
 #include "common.hpp"
 #include "config.hpp"
 #include "device_count.hpp"
 #include "dsp.hpp"
 #include "log_sanitize.hpp"
+#include "mode_runner.hpp"
+#include "modes.hpp"
 #include "output.hpp"
 #include "profile_match.hpp"
 
@@ -56,11 +62,11 @@ namespace {
 const char *const VERSION = "dofscroll 2.0";
 const char *const LOG = "[dofscroll] ";
 
-// --debug: Button-Presses nur dann loggen (vom Daemon gesetzt, bevor der Reader startet).
+// --debug: only log button presses then (set by the daemon before the reader starts).
 std::atomic<bool> g_debug{false};
 
-// Von Signal-Handlern gesetzt (deshalb sig_atomic_t statt bool). Der Haupt-Loop
-// prueft die Flags pro Tick und handelt selbst - die Handler bleiben minimal.
+// Set by signal handlers (hence sig_atomic_t instead of bool). The main loop checks
+// the flags every tick and acts itself - the handlers stay minimal.
 volatile std::sig_atomic_t g_reload_requested = 0;
 volatile std::sig_atomic_t g_quit_requested = 0;
 
@@ -72,31 +78,31 @@ int64_t nowNs() {
         std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-// Obergrenze fuer dt: nach Suspend/Stall wuerde sonst ein riesiger
-// Akkumulator auf einmal als Burst entladen.
+// Upper bound for dt: after a suspend/stall a huge accumulator would otherwise be
+// discharged as one burst.
 constexpr double MAX_DT = 0.05;
-// "Frisch genug": deutlich ueber der nominellen ~8 ms HID-Poll-Periode, aber
-// kurz genug, dass ein Verbindungsabbruch waehrend einer Auslenkung praktisch
-// sofort endet (statt ewig in die letzte Richtung weiterzuscrollen).
+// "Fresh enough": well above the nominal ~8 ms HID poll period, but short enough that
+// a connection loss during a deflection ends practically at once (instead of scrolling
+// on forever in the last direction).
 constexpr int64_t STALE_NS = 250'000'000;  // 250 ms
-// Abfrage des aktiven Fensters (~10x/s, nicht jeden Tick).
+// Active-window query (~10x/s, not every tick).
 constexpr int64_t ACTIVEWIN_POLL_NS = 100'000'000;
-// mtime-Pruefung der Config-Datei fuer Auto-Reload.
+// mtime check of the config file and modes directory for auto-reload.
 constexpr int64_t CONFIG_POLL_NS = 1'000'000'000;
-// Heartbeat-Datei des Trays (Ausgabe pausieren) ~20x/s pruefen.
+// Check the tray's heartbeat file (pause output) ~20x/s.
 constexpr int64_t SUSPEND_POLL_NS = 50'000'000;
-// --debug-Ausgabe ~10x/s.
+// --debug output ~10x/s.
 constexpr int64_t DEBUG_PERIOD_NS = 100'000'000;
-// Angesteckte 3Dconnexion-Geraete neu zaehlen (zusaetzlich bei jedem (Re-)Connect).
+// Recount attached 3Dconnexion devices (additionally on every (re)connect).
 constexpr int64_t DEVCOUNT_POLL_NS = 10'000'000'000;
-// Status-Datei: unveraendert hoechstens so oft neu schreiben (Zeitstempel "updated").
+// Status file: when unchanged, rewrite at most this often ("updated" timestamp).
 constexpr int64_t STATUS_REFRESH_NS = 1'000'000'000;
 
-// Pausiert der Tray die Ausgabe gerade (frische Heartbeat-Datei)?
-// Vertrauensprinzip: Datei muss dem effektiven Benutzer gehoeren und darf fuer
-// Gruppe/Andere nicht zugreifbar sein; XDG_RUNTIME_DIR selbst muss dem
-// effektiven Benutzer gehoeren und darf nicht group/other-schreibbar sein
-// (einmal geprueft, gecacht) - sonst wird der Mechanismus ignoriert.
+// Is the tray pausing the output right now (fresh heartbeat file)?
+// Trust rule: the file must belong to the effective user and must not be accessible
+// to group/others; XDG_RUNTIME_DIR itself must belong to the effective user and must
+// not be group/other-writable (checked once, cached) - otherwise the mechanism is
+// ignored.
 bool suspendRequested() {
     static const std::string path = suspendFilePath();
     if (path.empty()) return false;
@@ -117,8 +123,8 @@ bool suspendRequested() {
     return age_ms >= -SUSPEND_MAX_AGE_MS && age_ms <= SUSPEND_MAX_AGE_MS;
 }
 
-// XDG_RUNTIME_DIR vertrauenswuerdig? (dem effektiven Benutzer gehoerig, nicht
-// group/other-schreibbar) - Voraussetzung fuer Status- und Log-Datei.
+// Is XDG_RUNTIME_DIR trustworthy? (owned by the effective user, not group/other-
+// writable) - prerequisite for the status and log files.
 bool runtimeDirTrusted() {
     static const bool ok = [] {
         const char *d = std::getenv("XDG_RUNTIME_DIR");
@@ -129,13 +135,14 @@ bool runtimeDirTrusted() {
     return ok;
 }
 
-// Spiegelt alles, was nach std::cerr geht (stderr/Journal bleibt unveraendert), zusaetzlich
-// in die Log-Datei im Runtime-Dir (fuer die Anzeige im Tray). Geschrieben wird beim Flush
-// (std::endl) unter einem Mutex, weil auch der Reader-Thread loggt. O_APPEND|O_NOFOLLOW,
-// 0600; Besitzer/Typ werden geprueft. Rollender Puffer: wird max_lines (Normalbetrieb
-// kLogMaxLines = 300, --debug kLogMaxLinesDebug) oder kLogMaxBytes ueberschritten, bleiben
-// nur die neuesten keep_lines Zeilen (Datei wird atomar neu geschrieben). Jeder Fehler schaltet nur das Spiegeln ab; der Haupt-Thread
-// blockiert nie (regulaere Datei auf tmpfs, O_NONBLOCK).
+// Mirrors everything that goes to std::cerr (stderr/journal stays unchanged) into the
+// log file in the runtime dir as well (for display in the tray). Written on flush
+// (std::endl) under a mutex, because the reader thread logs too. O_APPEND|O_NOFOLLOW,
+// 0600; owner/type are checked. Rolling buffer: when max_lines (normal operation
+// kLogMaxLines = 300, --debug kLogMaxLinesDebug) or kLogMaxBytes is exceeded, only the
+// newest keep_lines lines remain (the file is rewritten atomically). Any error only
+// disables the mirroring; the main thread never blocks (regular file on tmpfs,
+// O_NONBLOCK).
 class TeeLogBuf : public std::streambuf {
 public:
     TeeLogBuf(std::streambuf *orig, size_t max_lines, size_t keep_lines)
@@ -153,7 +160,7 @@ public:
         fd_ = fd;
         size_ = (size_t)st.st_size;
         path_ = path;
-        loadExisting();  // Neustart (Restart=always) soll das Log nicht verlieren
+        loadExisting();  // a restart (Restart=always) must not lose the log
     }
 
 protected:
@@ -166,7 +173,7 @@ protected:
         std::streamsize r = orig_->sputn(s, n);
         std::lock_guard<std::mutex> lk(m_);
         if (fd_ >= 0 && pending_.size() < 64 * 1024) {
-            // Zeitstempel (lokale Zeit) nur in der Datei, am Anfang jeder Zeile.
+            // Timestamp (local time) only in the file, at the start of each line.
             for (std::streamsize i = 0; i < n; ++i) {
                 if (at_line_start_) {
                     char ts[32];
@@ -197,13 +204,13 @@ private:
     size_t size_ = 0;
     std::string pending_;
     std::string path_;
-    std::deque<std::string> lines_;  // Spiegel des Dateiinhalts (ohne \n)
-    std::string partial_;            // noch nicht abgeschlossene Zeile
-    bool at_line_start_ = true;      // naechstes Zeichen beginnt eine Zeile (Zeitstempel)
+    std::deque<std::string> lines_;  // mirror of the file content (without \n)
+    std::string partial_;            // line not yet terminated
+    bool at_line_start_ = true;      // next character starts a line (timestamp)
 
     void loadExisting() {
         if (size_ == 0 || size_ > kLogMaxBytes) {
-            if (size_ > kLogMaxBytes) rewrite();  // ueberlang (alte Version): leeren
+            if (size_ > kLogMaxBytes) rewrite();  // too long (old version): clear
             return;
         }
         int rfd = ::open(path_.c_str(), O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK);
@@ -226,7 +233,7 @@ private:
         }
     }
 
-    // Schreibt lines_ atomar (temp + rename) neu und oeffnet den Anhaenge-Deskriptor erneut.
+    // Rewrites lines_ atomically (temp + rename) and reopens the append descriptor.
     void rewrite() {
         const std::string tmp = path_ + ".tmp";
         ::unlink(tmp.c_str());
@@ -273,7 +280,7 @@ private:
             left -= (size_t)w;
             size_ += (size_t)w;
         }
-        // Zeilen mitzaehlen; bei Ueberlauf auf die neuesten keep_lines_ kuerzen.
+        // Count lines; on overflow trim to the newest keep_lines_.
         partial_ += pending_;
         pending_.clear();
         size_t pos = 0, nl;
@@ -282,7 +289,7 @@ private:
             pos = nl + 1;
         }
         partial_.erase(0, pos);
-        if (partial_.size() > 8192) partial_.clear();  // Schutz, nie eine endlose Zeile
+        if (partial_.size() > 8192) partial_.clear();  // guard, never an endless line
         if (lines_.size() > max_lines_ || size_ > kLogMaxBytes) {
             while (lines_.size() > keep_lines_) lines_.pop_front();
             rewrite();
@@ -295,14 +302,14 @@ private:
     }
 };
 
-// Schreibt die Status-Datei (Format: siehe common.hpp) atomar: Temp-Datei im selben
-// Verzeichnis (O_EXCL|O_NOFOLLOW, 0600) + rename. Fehler sind nie fatal, es wird einmal
-// geloggt. Ohne XDG_RUNTIME_DIR passiert nichts.
+// Writes the status file (format: see common.hpp) atomically: temp file in the same
+// directory (O_EXCL|O_NOFOLLOW, 0600) + rename. Errors are never fatal, logged once.
+// Without XDG_RUNTIME_DIR nothing happens.
 class StatusWriter {
 public:
     StatusWriter() : path_(statusFilePath()) {}
 
-    // body = Zeilen ohne "updated"; geschrieben wird bei Aenderung bzw. nach STATUS_REFRESH_NS.
+    // body = lines without "updated"; written on change or after STATUS_REFRESH_NS.
     void update(const std::string &body, int64_t now_ns) {
         if (path_.empty() || !runtimeDirTrusted()) return;
         if (body == last_body_ && now_ns < next_refresh_ns_) return;
@@ -312,8 +319,8 @@ public:
         if (text.size() > kStatusMaxBytes) return;
         if (!write(text) && !warned_) {
             warned_ = true;
-            std::cerr << LOG << "WARNUNG: Status-Datei nicht schreibbar (" << std::strerror(errno)
-                      << ") - Anzeige im Tray eingeschraenkt" << std::endl;
+            std::cerr << LOG << "WARNING: status file not writable (" << std::strerror(errno)
+                      << ") - tray display limited" << std::endl;
         }
     }
 
@@ -329,7 +336,7 @@ private:
     bool write(const std::string &text) {
         const std::string tmp = path_ + ".tmp." + std::to_string((long long)getpid());
         int fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
-        if (fd < 0 && errno == EEXIST) {  // Rest eines frueheren Laufs mit gleicher PID
+        if (fd < 0 && errno == EEXIST) {  // leftover of an earlier run with the same PID
             ::unlink(tmp.c_str());
             fd = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
         }
@@ -374,8 +381,8 @@ std::string describeMatches(const ProfileSet &ps, const std::string &device,
     return d;
 }
 
-// Identitaet der Config-Datei fuer die Auto-Reload-Erkennung. Der Tray
-// schreibt atomar (temp + rename) -> auch Inode/Groesse vergleichen.
+// Identity of the config file for auto-reload detection. The tray writes atomically
+// (temp + rename) -> compare inode/size too.
 struct FileStamp {
     bool exists = false;
     int64_t mtime_ns = 0;
@@ -398,25 +405,21 @@ FileStamp statFile(const std::string &path) {
     return f;
 }
 
-bool buttonHeld(uint32_t mask, int bnum) {
-    return bnum >= 0 && bnum < 32 && (mask & (1u << bnum)) != 0;
-}
-
 // ---------------------------------------------------------------------------
-// Reader-Thread: Zustand der SpaceMouse, lock-free zum Haupt-Thread.
+// Reader thread: SpaceMouse state, lock-free towards the main thread.
 // ---------------------------------------------------------------------------
 class DeviceReader {
 public:
     std::array<std::atomic<int>, AX_COUNT> axes{};
-    // Bitmaske gedrueckter Buttons (Bit n = spnav_event_button.bnum n).
+    // Bitmask of pressed buttons (bit n = spnav_event_button.bnum n).
     std::atomic<uint32_t> button_mask{0};
-    // Zeitstempel (steady_clock, ns) des letzten Motion-Events -> Stale-Watchdog.
+    // Timestamp (steady_clock, ns) of the last motion event -> stale watchdog.
     std::atomic<int64_t> last_motion_ns{0};
-    // Tastenzahl des aktuellen Geraets (fuer Warnungen im Haupt-Thread).
+    // Button count of the current device (for warnings in the main thread).
     std::atomic<int> dev_buttons{0};
-    // Wird nach jedem (Re-)Connect erhoeht, nachdem der Name unter dem Mutex
-    // gesetzt wurde. Der Haupt-Thread vergleicht pro Tick nur diese Zahl
-    // (billig) und holt den Namen nur bei Aenderung unter dem Mutex.
+    // Incremented after every (re)connect, after the name was set under the mutex.
+    // The main thread only compares this number per tick (cheap) and fetches the
+    // name under the mutex only on change.
     std::atomic<uint64_t> dev_generation{0};
 
     DeviceReader() {
@@ -430,8 +433,8 @@ public:
 
     void start() {
         std::thread t(&DeviceReader::loop, this);
-        // Detached: spnav_wait_event() blockiert ohne Abbruchmoeglichkeit; beim
-        // Beenden raeumt der Prozess-Exit den Thread mit ab.
+        // Detached: spnav_wait_event() blocks without a way to abort; on exit the
+        // process teardown cleans the thread up.
         t.detach();
     }
 
@@ -439,16 +442,16 @@ private:
     mutable std::mutex name_mutex_;
     std::string dev_name_;
 
-    // Gibt Geraetename/Tasten/Achsen aus (Compact: 2 Tasten, Pro: 15) und
-    // reicht den Namen an den Haupt-Thread weiter (Profil [device:*]). Nach
-    // Hotplug kann sich das Geraet aendern -> bei jedem (Re-)Connect.
+    // Logs device name/buttons/axes and passes the name on to the main thread
+    // (profile [device:*]). After hotplug the device can change -> on every
+    // (re)connect.
     void publishDeviceInfo() {
         char name[256] = "";
         if (spnav_dev_name(name, sizeof(name)) < 0) name[0] = '\0';
         name[sizeof(name) - 1] = '\0';
         int buttons = spnav_dev_buttons();
-        std::cerr << LOG << "Geraet: " << (name[0] ? sanitizeForLog(name) : std::string("?")) << " (" << buttons
-                  << " Tasten, " << spnav_dev_axes() << " Achsen)" << std::endl;
+        std::cerr << LOG << "Device: " << (name[0] ? sanitizeForLog(name) : std::string("?")) << " (" << buttons
+                  << " buttons, " << spnav_dev_axes() << " axes)" << std::endl;
         dev_buttons.store(buttons, std::memory_order_relaxed);
         {
             std::lock_guard<std::mutex> lk(name_mutex_);
@@ -457,26 +460,26 @@ private:
         dev_generation.fetch_add(1, std::memory_order_release);
     }
 
-    // Backoff-Verzoegerung, ueber Aufrufe hinweg erhalten: wird nur nach einer
-    // Verbindung zurueckgesetzt, die Events geliefert hat oder lange stand.
+    // Backoff delay, kept across calls: only reset after a connection that delivered
+    // events or stood for a long time.
     static constexpr int MIN_DELAY_MS = 500;
     static constexpr int MAX_DELAY_MS = 5000;
     static constexpr int64_t HEALTHY_NS = 10'000'000'000;  // 10 s
     int delay_ms_ = MIN_DELAY_MS;
 
     void backoffSleep(const char *why) {
-        std::cerr << LOG << why << ", naechster Versuch in " << (delay_ms_ / 1000.0) << "s"
+        std::cerr << LOG << why << ", next attempt in " << (delay_ms_ / 1000.0) << "s"
                   << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms_));
         delay_ms_ = std::min(delay_ms_ * 2, MAX_DELAY_MS);
     }
 
-    // Verbindet sich mit spacenavd, exponentieller Backoff bis 5 s. Dadurch
-    // startet der Dienst sauber, auch wenn spacenavd (noch) nicht laeuft, und
-    // erholt sich von selbst nach einem spacenavd-Neustart.
+    // Connects to spacenavd, exponential backoff up to 5 s. This way the service
+    // starts cleanly even if spacenavd is not (yet) running, and recovers by itself
+    // after a spacenavd restart.
     void connectWithRetry() {
-        while (spnav_open() == -1) backoffSleep("spacenavd nicht erreichbar");
-        std::cerr << LOG << "mit spacenavd verbunden" << std::endl;
+        while (spnav_open() == -1) backoffSleep("spacenavd not reachable");
+        std::cerr << LOG << "connected to spacenavd" << std::endl;
         publishDeviceInfo();
     }
 
@@ -485,9 +488,8 @@ private:
         button_mask.store(0, std::memory_order_relaxed);
     }
 
-    // Blockiert auf spnav-Events und schreibt nur den aktuellsten Zustand weg.
-    // Kein Versand hier, damit unregelmaessiges Event-Timing den Fluss nicht
-    // beeinflusst.
+    // Blocks on spnav events and only stores the latest state. Nothing is sent
+    // here, so irregular event timing does not affect the flow.
     void loop() {
         while (true) {
             connectWithRetry();
@@ -507,18 +509,18 @@ private:
                     last_motion_ns.store(nowNs(), std::memory_order_release);
                 } else if (sev.type == SPNAV_EVENT_BUTTON) {
                     if (sev.button.press && g_debug.load(std::memory_order_relaxed))
-                        std::cerr << LOG << "Button " << sev.button.bnum << " gedrueckt" << std::endl;
+                        std::cerr << LOG << "Button " << sev.button.bnum << " pressed" << std::endl;
                     if (sev.button.bnum >= 0 && sev.button.bnum < 32) {
                         uint32_t bit = 1u << sev.button.bnum;
                         if (sev.button.press) button_mask.fetch_or(bit, std::memory_order_relaxed);
                         else button_mask.fetch_and(~bit, std::memory_order_relaxed);
                     }
                 } else if (sev.type == SPNAV_EVENT_DEV && sev.dev.op == SPNAV_DEV_RM) {
-                    // Geraet abgezogen: Release-Events kommen dann nie mehr -
-                    // gehaltene Tasten/Achsen sonst haengend (Klick bliebe gedrueckt).
-                    // Bewusst kein Heuristik-Timeout: eine gehaltene Taste ohne
-                    // Bewegung ist legitim (Klicken-und-Halten).
-                    std::cerr << LOG << "Geraet entfernt" << std::endl;
+                    // Device unplugged: release events never arrive then - held
+                    // buttons/axes would hang (a click would stay pressed).
+                    // Deliberately no heuristic timeout: a held button without
+                    // motion is legitimate (click-and-hold).
+                    std::cerr << LOG << "Device removed" << std::endl;
                     clearState();
                 }
             }
@@ -526,13 +528,13 @@ private:
             spnav_close();
             clearState();
             if (got_event || nowNs() - connected_ns >= HEALTHY_NS) delay_ms_ = MIN_DELAY_MS;
-            backoffSleep("Verbindung zu spacenavd verloren");
+            backoffSleep("Connection to spacenavd lost");
         }
     }
 };
 
 // ---------------------------------------------------------------------------
-// Haupt-Thread: Profile, Auswertung, Ausgabe.
+// Main thread: profiles, evaluation, output.
 // ---------------------------------------------------------------------------
 class Daemon {
 public:
@@ -540,8 +542,8 @@ public:
 
     bool initialize() {
         {
-            // Best-effort: Legacy-Config in den eigenen Ordner uebernehmen (kann in
-            // der read-only Sandbox des Daemons scheitern - dann egal).
+            // Best effort: adopt the legacy config into the own folder (may fail in the
+            // daemon's read-only sandbox - then it does not matter).
             std::string mlog;
             migrateLegacyConfig(&mlog);
             if (!mlog.empty()) {
@@ -551,8 +553,10 @@ public:
         }
         config_path_ = defaultConfigPath();
         loadConfig();
-        // Erste Aufloesung ohne Geraet/Programm, damit BACKEND/TICK_HZ aus
-        // [global] fuer den Start feststehen.
+        modes_dir_ = modesDir();
+        loadModeSet();
+        // First resolution without device/program, so BACKEND/TICK_HZ from [global] are
+        // known at startup.
         settings_ = profiles_.resolve("", "");
         match_desc_ = describeMatches(profiles_, "", "");
 
@@ -563,19 +567,22 @@ public:
             if (log.back() != '\n') std::cerr << std::endl;
         }
         if (!output_) {
-            std::cerr << LOG << "FEHLER: keine Ausgabe moeglich (BACKEND=" << settings_.backend
+            std::cerr << LOG << "ERROR: no output possible (BACKEND=" << settings_.backend
                       << ")" << std::endl;
             return false;
         }
         backend_cfg_ = settings_.backend;
-        std::cerr << LOG << "Ausgabe ueber " << output_->name() << std::endl;
-        // Saubere Ausgangslage: ein vorheriger Prozess (Absturz, SIGKILL) kann Strg
-        // oder die Maustaste per XTest gedrueckt hinterlassen haben.
+        std::cerr << LOG << "Output via " << output_->name() << std::endl;
+        // Clean starting point: a previous process (crash, SIGKILL) may have left Ctrl
+        // or the mouse button pressed via XTest.
         output_->forceReleaseAll();
         output_->flush();
 
+        runner_ = std::make_unique<ModeRunner>(output_.get());
+        selectMode(settings_, false);
+
         if (!activewin_.init())
-            std::cerr << LOG << "Aktives Fenster nicht ermittelbar - [app:*]-Profile inaktiv"
+            std::cerr << LOG << "Active window not available - [app:*] profiles inactive"
                       << std::endl;
 
         std::signal(SIGHUP, handleReloadSignal);
@@ -593,16 +600,14 @@ public:
         int64_t next_win_poll = 0, next_cfg_poll = 0, next_debug = 0, next_susp_poll = 0;
         bool suspended = false;
         uint64_t seen_generation = 0;
-        // Zustand des linken Mausbuttons (Klick-Button); bleibt ueber Profil-
-        // Neuaufloesungen hinweg erhalten, damit ein gehaltener Drag nicht bricht.
-        bool prev_click_active = false;
-        bool prev_enabled = true;  // fuer das einmalige Log je ENABLED-Wechsel
+        bool prev_enabled = true;  // for the one-time log per ENABLED change
+        bool prev_idle = false;    // suspended or disabled in the previous tick
         int64_t next_devcount = 0;
         int devices_seen = 0;
-        std::string hint_key;      // Mehrgeraete-Hinweis: einmal pro Aenderung
+        std::string hint_key;      // multi-device hint: once per change
 
-        std::cerr << LOG << "Profil: " << sanitizeForLog(match_desc_) << " (Tickrate " << settings_.tick_hz
-                  << " Hz)" << std::endl;
+        std::cerr << LOG << "Profile: " << sanitizeForLog(match_desc_) << " (tick rate " << settings_.tick_hz
+                  << " Hz, mode " << sanitizeForLog(runner_->mode().id) << ")" << std::endl;
 
         while (!g_quit_requested) {
             next_tick += tick_period;
@@ -611,36 +616,45 @@ public:
 
             const int64_t now_ns = nowNs();
 
-            // --- Profil-Eingaben: Config, Geraet, aktives Programm ---------
+            // --- Profile inputs: config, modes, device, active program ------
             bool need_resolve = false;
+            bool modes_changed = false;
             if (g_reload_requested) {
                 g_reload_requested = 0;
-                std::cerr << LOG << "SIGHUP: lade Config neu" << std::endl;
+                std::cerr << LOG << "SIGHUP: reloading config and modes" << std::endl;
                 loadConfig();
+                loadModeSet();
                 need_resolve = true;
+                modes_changed = true;
                 next_cfg_poll = now_ns + CONFIG_POLL_NS;
             } else if (now_ns >= next_cfg_poll) {
                 next_cfg_poll = now_ns + CONFIG_POLL_NS;
-                // Pfad neu bewerten: z.B. hat der Tray die Datei inzwischen in den
-                // neuen Ordner migriert, waehrend wir noch am Legacy-Pfad hingen.
+                // Re-evaluate the path: e.g. the tray has meanwhile migrated the file to
+                // the new folder while we were still on the legacy path.
                 const std::string new_path = defaultConfigPath();
                 if (new_path != config_path_) {
                     config_path_ = new_path;
-                    std::cerr << LOG << "Config-Pfad gewechselt: " << sanitizeForLog(config_path_)
+                    std::cerr << LOG << "Config path changed: " << sanitizeForLog(config_path_)
                               << std::endl;
-                    loadConfig();  // setzt den Stempel neu
+                    loadConfig();  // sets the stamp anew
                     need_resolve = true;
                 } else if (statFile(config_path_) != stamp_) {
-                    std::cerr << LOG << "Config-Datei geaendert, lade neu" << std::endl;
+                    std::cerr << LOG << "Config file changed, reloading" << std::endl;
                     loadConfig();
                     need_resolve = true;
+                }
+                if (modesStamp(modes_dir_) != modes_stamp_) {
+                    std::cerr << LOG << "Modes changed, reloading" << std::endl;
+                    loadModeSet();
+                    need_resolve = true;
+                    modes_changed = true;
                 }
             }
 
             uint64_t gen = reader_.dev_generation.load(std::memory_order_acquire);
             if (gen != seen_generation) {
                 seen_generation = gen;
-                next_devcount = 0;  // nach (Re-)Connect sofort neu zaehlen
+                next_devcount = 0;  // recount right after a (re)connect
                 std::string name = reader_.deviceName();
                 warn_buttons_ = true;
                 if (name != device_) {
@@ -661,12 +675,12 @@ public:
             }
 
             if (need_resolve) {
-                applyProfile();
+                applyProfile(modes_changed);
                 tick_period = periodFor(settings_.tick_hz);
             }
 
-            // Angesteckte 3Dconnexion-Geraete zaehlen (billig: alle ~10 s bzw. nach Connect).
-            // spacenavd meldet bei mehreren nur eines -> einmaliger Hinweis je Aenderung.
+            // Count attached 3Dconnexion devices (cheap: every ~10 s or after connect).
+            // spacenavd reports only one if there are several -> one-time hint per change.
             if (now_ns >= next_devcount) {
                 next_devcount = now_ns + DEVCOUNT_POLL_NS;
                 int c = countSpaceMice();
@@ -674,24 +688,24 @@ public:
                 std::string key = std::to_string(devices_seen) + "|" + device_;
                 if (devices_seen >= 2 && key != hint_key) {
                     std::string dn = device_.empty() ? "?" : sanitizeForLog(device_);
-                    std::cerr << LOG << "Hinweis: " << devices_seen
-                              << " SpaceMice angesteckt, spacenavd meldet nur '" << dn
-                              << "' - Profil [device:" << dn
-                              << "] gilt fuer alle; Tasten beider Geraete teilen sich die Indizes"
+                    std::cerr << LOG << "Note: " << devices_seen
+                              << " SpaceMice attached, spacenavd reports only '" << dn
+                              << "' - profile [device:" << dn
+                              << "] applies to all; buttons of both devices share the indices"
                               << std::endl;
                 }
                 hint_key = devices_seen >= 2 ? key : std::string();
             }
 
-            // --- Zeitbasis -------------------------------------------------
+            // --- Time base --------------------------------------------------
             auto now = std::chrono::steady_clock::now();
             double dt = std::min(std::chrono::duration<double>(now - last_tick).count(), MAX_DT);
-            // Drift-Schutz: liegen wir weit hinter dem Plan (Suspend, Stall),
-            // nicht alle verpassten Ticks nachholen.
+            // Drift guard: if we are far behind the plan (suspend, stall), do not catch
+            // up on all missed ticks.
             if (now > next_tick + std::chrono::milliseconds(100)) next_tick = now;
             last_tick = now;
 
-            // --- Eingaben lesen --------------------------------------------
+            // --- Read inputs ------------------------------------------------
             bool fresh = (nowNs() - reader_.last_motion_ns.load(std::memory_order_acquire)) <= STALE_NS;
             RawAxes raw{};
             if (fresh) {
@@ -700,101 +714,64 @@ public:
             }
             uint32_t buttons = reader_.button_mask.load(std::memory_order_relaxed);
 
-            // Tray wertet die Maus selbst aus (Reiter "Achsen"/Assistent): Eingaben
-            // wie "keine Auslenkung, keine Taste" behandeln - gehaltene Tasten
-            // (Klick, Strg) werden dadurch sauber losgelassen.
+            // The tray evaluates the mouse itself (tab "Axes"/wizard): treat inputs as
+            // "no deflection, no button" - held keys (click, Ctrl) are then released cleanly.
             if (now_ns >= next_susp_poll) {
                 next_susp_poll = now_ns + SUSPEND_POLL_NS;
                 bool want = suspendRequested();
                 if (want != suspended) {
                     suspended = want;
-                    std::cerr << LOG << (suspended ? "Ausgabe pausiert (Tray-Achsenanzeige)"
-                                                   : "Ausgabe wieder aktiv") << std::endl;
+                    std::cerr << LOG << (suspended ? "Output paused (tray axis display)"
+                                                   : "Output active again") << std::endl;
                 }
             }
-            // Profil mit ENABLED=0 (z.B. [app:blender]): gleiche Behandlung, keine Ausgabe.
+            // Profile with ENABLED=0 (e.g. [app:blender]): same treatment, no output.
             const bool enabled = settings_.enabled;
             if (enabled != prev_enabled) {
                 prev_enabled = enabled;
-                if (enabled) std::cerr << LOG << "Steuerung wieder aktiv" << std::endl;
-                else std::cerr << LOG << "Steuerung deaktiviert (Profil " << sanitizeForLog(match_desc_)
+                if (enabled) std::cerr << LOG << "Control active again" << std::endl;
+                else std::cerr << LOG << "Control disabled (profile " << sanitizeForLog(match_desc_)
                                << ")" << std::endl;
             }
-            if (suspended || !enabled) {
+            const bool idle = suspended || !enabled;
+            if (idle) {
                 fresh = false;
                 raw = RawAxes{};
                 buttons = 0;
+                if (!prev_idle) {  // release everything held on entering suspend/disabled
+                    runner_->releaseAll();
+                    output_->flush();
+                }
             }
+            prev_idle = idle;
 
             status_.update("profile=" + sanitizeForLog(match_desc_) + "\ndevice=" + sanitizeForLog(device_) +
-                               "\napp=" + sanitizeForLog(wm_class_) + "\nenabled=" + (enabled ? "1" : "0") +
+                               "\napp=" + sanitizeForLog(wm_class_) + "\nmode=" + sanitizeForLog(runner_->mode().id) +
+                               "\nenabled=" + (enabled ? "1" : "0") +
                                "\npaused=" + (suspended ? "1" : "0") +
                                "\ndevices_seen=" + std::to_string(devices_seen) + "\n",
                            now_ns);
 
-            const Settings &s = settings_;
-            bool nav_active = fresh && s.nav_button_enabled && buttonHeld(buttons, s.nav_button);
-
-            // Klick-Button 1:1 als linke Maustaste (Press + Release getrennt),
-            // dadurch funktioniert auch Klicken-und-Halten zum Draggen.
-            bool click_active = s.click_button_enabled && buttonHeld(buttons, s.click_button);
-            if (click_active != prev_click_active) {
-                output_->mouseButton(1, click_active);
-                prev_click_active = click_active;
-            }
-
-            // --- Kanaele ---------------------------------------------------
-            // Scroll-Kanaele laufen jeden Tick (Glaettungszustand bleibt stetig),
-            // gesendet wird je nach Modus.
-            double rate_v = ch_v_.process(s.scroll_v, raw, dt);
-            double rate_h = ch_h_.process(s.scroll_h, raw, dt);
-
-            // Zoom = Twist; Einstieg nur, wenn er die anderen Achsen dominiert
-            // (Hysterese/Verzoegerung in ZoomDetector). Im Nav-Modus aus.
-            double zoom_mixed = evalMix(s.zoom.mix, raw);
-            double twist = nav_active ? 0.0 : std::fabs(zoom_mixed * s.zoom.sign);
-            double lateral = lateralMax(s.zoom_lateral, raw);
-            if (s.zoom.sensitivity <= 0) twist = 0.0;
-            bool zooming = zoom_.update(twist, lateral, s, dt);
-            double rate_zoom = ch_zoom_.processValue(s.zoom, zoom_mixed, dt);
-
-            setCtrl(zooming);
-            if (zooming) {
-                acc_v_.reset();
-                acc_h_.reset();
-                // Positive Rate = Scroll hoch = Zoom rein; wheelV(n>0) = runter.
-                int n = acc_zoom_.add(rate_zoom, dt);
-                if (n != 0) output_->wheelV(-n);
-            } else {
-                acc_zoom_.reset();
-                // Positive Rate = runter bzw. rechts (wie bisher).
-                int nv = stepOrReset(acc_v_, rate_v, dt);
-                int nh = stepOrReset(acc_h_, rate_h, dt);
-                if (nav_active) {
-                    tapArrows(Key::Up, Key::Down, nv);
-                    tapArrows(Key::Left, Key::Right, nh);
-                } else {
-                    if (nv != 0) output_->wheelV(nv);
-                    if (nh != 0) output_->wheelH(nh);
-                }
-            }
+            // --- Channels, buttons, output (see mode_runner.hpp) ------------
+            runner_->tick(settings_, raw, buttons, fresh, dt);
 
             if (debug_ && now_ns >= next_debug &&
                 (raw[AX_X] || raw[AX_Y] || raw[AX_Z] || raw[AX_RX] || raw[AX_RY] || raw[AX_RZ])) {
                 next_debug = now_ns + DEBUG_PERIOD_NS;
-                std::cerr << "h=" << rate_h << " v=" << rate_v << " twist=" << twist
-                          << " lateral=" << lateral << " zoom=" << zooming
-                          << (nav_active ? " nav" : "") << " profil=[" << sanitizeForLog(match_desc_) << "]"
-                          << std::endl;
+                const ModeRunner::Info &i = runner_->info();
+                std::cerr << "h=" << i.rate_h << " v=" << i.rate_v << " twist=" << i.twist
+                          << " lateral=" << i.lateral << " zoom=" << i.zooming
+                          << (i.nav ? " nav" : "") << " mode=" << sanitizeForLog(runner_->mode().id)
+                          << " profile=[" << sanitizeForLog(match_desc_) << "]" << std::endl;
             }
             output_->flush();
         }
 
-        ctrl_held_ = false;
+        runner_->releaseAll();
         output_->releaseAll();
         output_->flush();
         status_.remove();
-        std::cerr << LOG << "beendet" << std::endl;
+        std::cerr << LOG << "terminated" << std::endl;
     }
 
 private:
@@ -802,22 +779,21 @@ private:
     std::string config_path_;
     FileStamp stamp_;
     ProfileSet profiles_;
+    ModeSet modes_;
+    std::string modes_dir_, modes_stamp_;
     Settings settings_;
     std::string match_desc_;
     std::string backend_cfg_;
     std::string device_;
     std::string wm_class_;
+    std::string warned_mode_;  // unknown mode id already warned about
     bool warn_buttons_ = false;
 
     DeviceReader reader_;
     ActiveWindow activewin_;
     StatusWriter status_;
     std::unique_ptr<Output> output_;
-
-    Channel ch_v_, ch_h_, ch_zoom_;
-    StepAccumulator acc_v_, acc_h_, acc_zoom_;
-    ZoomDetector zoom_;
-    bool ctrl_held_ = false;
+    std::unique_ptr<ModeRunner> runner_;
 
     static std::chrono::steady_clock::duration periodFor(int hz) {
         hz = std::clamp(hz, 30, 1000);
@@ -826,14 +802,14 @@ private:
     }
 
     void loadConfig() {
-        // Stempel vor dem Lesen nehmen: aendert sich die Datei waehrend des
-        // Lesens, faellt das bei der naechsten Pruefung auf.
+        // Take the stamp before reading: if the file changes while reading, it is
+        // noticed at the next check.
         stamp_ = statFile(config_path_);
         ProfileSet ps;
         std::vector<std::string> warnings;
         if (!loadProfiles(config_path_, &ps, &warnings)) {
-            std::cerr << LOG << "WARNUNG: Config " << config_path_
-                      << " nicht lesbar, behalte bisherige Einstellungen" << std::endl;
+            std::cerr << LOG << "WARNING: config " << config_path_
+                      << " not readable, keeping previous settings" << std::endl;
         } else {
             profiles_ = std::move(ps);
         }
@@ -841,37 +817,64 @@ private:
             std::cerr << LOG << "Config: " << w << std::endl;
     }
 
-    // Loest die Settings neu auf. Aendern sich weder die greifenden Sektionen
-    // noch die aufgeloesten Werte (z.B. Config nur angefasst, identischer
-    // Inhalt oder Ladefehler), passiert nichts - insbesondere bleiben gehaltene
-    // Tasten (Klick-Drag, Strg) erhalten. Sonst werden Filterzustaende
-    // zurueckgesetzt und Strg freigegeben; der Klick-Button wird nicht
-    // angefasst (die Tick-Logik gleicht ihn mit den neuen Settings ab).
-    void applyProfile() {
+    void loadModeSet() {
+        modes_stamp_ = modesStamp(modes_dir_);  // before reading, like the config stamp
+        std::vector<std::string> warnings;
+        modes_ = loadModes(modes_dir_, &warnings);
+        for (const std::string &w : warnings)
+            std::cerr << LOG << "Modes: " << sanitizeForLog(w) << std::endl;
+    }
+
+    // Picks the mode named by next.mode (unknown -> "normal", warned once), applies its
+    // setting overrides to next and activates it in the runner. force: also re-activate
+    // when the id is unchanged (the mode files were reloaded). Returns true if the
+    // runner got a (new) mode.
+    bool selectMode(Settings &next, bool force) {
+        const ModeDef *m = modes_.find(next.mode);
+        if (!m) {
+            if (warned_mode_ != next.mode) {
+                warned_mode_ = next.mode;
+                std::cerr << LOG << "WARNING: unknown mode '" << sanitizeForLog(next.mode)
+                          << "', using 'normal'" << std::endl;
+            }
+            m = &modes_.normal();
+        }
+        for (const auto &kv : m->overrides) {
+            std::string err;
+            if (!applyKey(next, kv.first, kv.second, &err))
+                std::cerr << LOG << "Mode " << sanitizeForLog(m->id) << ": " << sanitizeForLog(err) << std::endl;
+        }
+        if (!force && runner_->mode().id == m->id) return false;
+        runner_->setMode(*m);
+        std::cerr << LOG << "Mode: " << sanitizeForLog(m->id)
+                  << (runner_->legacyPath() ? " (default channels)" : "") << std::endl;
+        return true;
+    }
+
+    // Re-resolves the settings. If neither the matching sections nor the resolved values
+    // change (e.g. config only touched, identical content or load error), nothing happens
+    // - in particular held keys (click drag, Ctrl) are kept. Otherwise the filter state is
+    // reset and Ctrl is released; mouse buttons are not touched (the tick logic reconciles
+    // them with the new settings). A mode change releases everything held.
+    void applyProfile(bool modes_changed) {
         std::string desc = describeMatches(profiles_, device_, wm_class_);
         Settings next = profiles_.resolve(device_, wm_class_);
-        if (desc == match_desc_ && allKeys(next) == allKeys(settings_)) return;
+        const bool mode_switched = selectMode(next, modes_changed);
+        if (!mode_switched && desc == match_desc_ && allKeys(next) == allKeys(settings_)) return;
 
         settings_ = std::move(next);
         match_desc_ = desc;
 
-        ch_v_.reset();
-        ch_h_.reset();
-        ch_zoom_.reset();
-        acc_v_.reset();
-        acc_h_.reset();
-        acc_zoom_.reset();
-        zoom_.reset();
-        setCtrl(false);
+        runner_->resetDsp();
         output_->flush();
 
-        std::cerr << LOG << "Profil: " << sanitizeForLog(match_desc_) << " (Geraet \""
-                  << (device_.empty() ? "?" : sanitizeForLog(device_)) << "\", Programm \""
+        std::cerr << LOG << "Profile: " << sanitizeForLog(match_desc_) << " (device \""
+                  << (device_.empty() ? "?" : sanitizeForLog(device_)) << "\", program \""
                   << (wm_class_.empty() ? "?" : sanitizeForLog(wm_class_)) << "\")" << std::endl;
 
         if (settings_.backend != backend_cfg_) {
-            std::cerr << LOG << "Hinweis: BACKEND=" << settings_.backend
-                      << " wird erst nach Neustart wirksam (aktiv: " << output_->name() << ")"
+            std::cerr << LOG << "Note: BACKEND=" << settings_.backend
+                      << " only takes effect after a restart (active: " << output_->name() << ")"
                       << std::endl;
             backend_cfg_ = settings_.backend;
         }
@@ -879,67 +882,47 @@ private:
         checkButtons();
     }
 
-    // Warnt, wenn ein konfigurierter Button auf dem Geraet nicht existiert
-    // (nur einmal pro Geraet/Profil-Wechsel).
+    // Warns if a configured button does not exist on the device (only once per
+    // device/profile change).
     void checkButtons() {
         if (!warn_buttons_) return;
         warn_buttons_ = false;
         int buttons = reader_.dev_buttons.load(std::memory_order_relaxed);
         if (buttons <= 0) return;
         if (settings_.nav_button_enabled && settings_.nav_button >= buttons)
-            std::cerr << LOG << "WARNUNG: NAV_BUTTON " << settings_.nav_button
-                      << " existiert auf diesem Geraet nicht" << std::endl;
+            std::cerr << LOG << "WARNING: NAV_BUTTON " << settings_.nav_button
+                      << " does not exist on this device" << std::endl;
         if (settings_.click_button_enabled && settings_.click_button >= buttons)
-            std::cerr << LOG << "WARNUNG: CLICK_BUTTON " << settings_.click_button
-                      << " existiert auf diesem Geraet nicht" << std::endl;
-    }
-
-    void setCtrl(bool down) {
-        if (down == ctrl_held_) return;
-        output_->setKey(Key::Ctrl, down);
-        ctrl_held_ = down;
-    }
-
-    // Unterhalb der Deadzone (Rate 0) Rest verwerfen, damit ein angefangener
-    // Schritt nicht beim naechsten Antippen ploetzlich ausgeloest wird.
-    static int stepOrReset(StepAccumulator &acc, double rate, double dt) {
-        if (rate == 0.0) {
-            acc.reset();
-            return 0;
-        }
-        return acc.add(rate, dt);
-    }
-
-    void tapArrows(Key neg, Key pos, int n) {
-        for (; n > 0; --n) output_->tapKey(pos);
-        for (; n < 0; ++n) output_->tapKey(neg);
+            std::cerr << LOG << "WARNING: CLICK_BUTTON " << settings_.click_button
+                      << " does not exist on this device" << std::endl;
     }
 };
 
 void printHelp() {
     std::cout <<
-        "Aufruf: dofscroll [--debug] [--release-keys] [--help] [--version]\n"
+        "Usage: dofscroll [--debug] [--release-keys] [--help] [--version]\n"
         "\n"
-        "Uebersetzt SpaceMouse-Bewegungen (spacenavd/libspnav) in Scroll-, Zoom-,\n"
-        "Pfeiltasten- und Maustasten-Events. Config: " << defaultConfigPath() << "\n"
-        "(frueherer Pfad: " << previousConfigPath() << ", wird automatisch uebernommen)\n"
-        "(Profile [global], [device:NAME], [app:WM_CLASS]).\n"
+        "Translates SpaceMouse motion (spacenavd/libspnav) into scroll, zoom,\n"
+        "arrow-key and mouse-button events. Config: " << defaultConfigPath() << "\n"
+        "(previous path: " << previousConfigPath() << ", adopted automatically)\n"
+        "(profiles [global], [device:NAME], [app:WM_CLASS]). Modes: " << modesDir() << "\n"
         "\n"
-        "  --debug    gibt ~10x/s die ausgewerteten Kanaele, die Zoom-Entscheidung\n"
-        "             und das aktive Profil aus (vorher den Dienst stoppen, sonst\n"
-        "             werden Events doppelt gesendet)\n"
-        "  --release-keys  gibt Strg, Pfeiltasten und linke Maustaste frei und endet\n"
-        "             (ExecStopPost der systemd-Unit: Absicherung nach Absturz/SIGKILL)\n"
-        "  --help     diese Hilfe\n"
-        "  --version  Version ausgeben\n"
+        "  --debug    prints the evaluated channels, the zoom decision, the mode\n"
+        "             and the active profile ~10x/s (stop the service first,\n"
+        "             otherwise events are sent twice)\n"
+        "  --release-keys  releases Ctrl, arrow keys and the left mouse button and\n"
+        "             exits (ExecStopPost of the systemd unit: safeguard after a\n"
+        "             crash/SIGKILL)\n"
+        "  --help     this help\n"
+        "  --version  print the version\n"
         "\n"
-        "Signale: SIGHUP = Config neu laden (zusaetzlich automatisch bei Aenderung\n"
-        "der Datei), SIGTERM/SIGINT = sauber beenden (gehaltene Tasten frei).\n";
+        "Signals: SIGHUP = reload config and modes (also automatic when the files\n"
+        "change), SIGTERM/SIGINT = exit cleanly (held keys released).\n";
 }
 
 }  // namespace
 
-// --release-keys: eigene Ausgabe oeffnen, alles freigeben, beenden.
+// --release-keys: open an own output, release everything, exit.
 static int releaseKeysAndExit() {
     ProfileSet ps;
     std::vector<std::string> warnings;
@@ -947,7 +930,7 @@ static int releaseKeysAndExit() {
     std::string log;
     std::unique_ptr<Output> out = makeOutput(ps.resolve("", "").backend, &log);
     if (!out) {
-        std::cerr << LOG << "--release-keys: keine Ausgabe moeglich" << std::endl;
+        std::cerr << LOG << "--release-keys: no output possible" << std::endl;
         return 1;
     }
     out->forceReleaseAll();
@@ -956,8 +939,8 @@ static int releaseKeysAndExit() {
 }
 
 int main(int argc, char **argv) {
-    // Die Fensterabfrage laeuft in einem eigenen Thread (eigenes Display), die Ausgabe
-    // im Haupt-Thread: Xlib muss vor dem ersten Aufruf thread-faehig gemacht werden.
+    // The window query runs in its own thread (own display), the output in the main
+    // thread: Xlib must be made thread-safe before the first call.
     XInitThreads();
     bool debug = false;
     for (int i = 1; i < argc; ++i) {
@@ -967,14 +950,15 @@ int main(int argc, char **argv) {
         else if (a == "--version") { std::cout << VERSION << std::endl; return 0; }
         else if (a == "--release-keys") return releaseKeysAndExit();
         else {
-            std::cerr << "dofscroll: unbekannte Option '" << a << "' (siehe --help)" << std::endl;
+            std::cerr << "dofscroll: unknown option '" << a << "' (see --help)" << std::endl;
             return 2;
         }
     }
 
-    // Bewusst nie zerstoert: der detachte Reader-Thread greift bis zum
-    // Prozess-Exit auf den DeviceReader im Daemon zu.
-    // Logzeilen zusaetzlich in die Log-Datei spiegeln (bewusst nie zerstoert: detachter Reader-Thread).
+    // Deliberately never destroyed: the detached reader thread accesses the DeviceReader
+    // inside the daemon until process exit.
+    // Also mirror log lines into the log file (deliberately never destroyed: detached
+    // reader thread).
     if (!debug)
         std::cerr.rdbuf(new TeeLogBuf(std::cerr.rdbuf(), kLogMaxLines, kLogKeepLines));
     else

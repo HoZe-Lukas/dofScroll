@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Gemeinsame Grundtypen fuer Daemon, Tray und Tests.
+// Shared basic types for daemon, tray and tests.
 #pragma once
 #include <array>
 #include <cstddef>
@@ -9,10 +9,10 @@
 
 namespace spn {
 
-// Die sechs Rohachsen einer SpaceMouse (libspnav-Konvention: x rechts, y oben,
-// z zum Nutzer; rx/ry/rz = Drehung um die jeweilige Achse). Mit axdiag an einer
-// SpaceMouse Pro gemessen: Schieben vor/zurueck = z, seitlich = x, Heben = y;
-// Kippen vor/zurueck = rx, Kippen seitlich = rz, Drehen der Kappe = ry.
+// The six raw axes of a SpaceMouse (libspnav convention: x right, y up, z towards the
+// user; rx/ry/rz = rotation about the respective axis). Measured with axdiag on a
+// SpaceMouse Pro: push forward/back = z, sideways = x, lift = y; tilt forward/back = rx,
+// tilt sideways = rz, twisting the cap = ry.
 enum Axis { AX_X = 0, AX_Y, AX_Z, AX_RX, AX_RY, AX_RZ, AX_COUNT };
 
 using RawAxes = std::array<int, AX_COUNT>;
@@ -22,14 +22,14 @@ inline const char *axisName(Axis a) {
     return n[a];
 }
 
-// Heartbeat-Datei: Der Tray beruehrt sie (~alle 150 ms), solange er die
-// Bewegungen der Maus selbst auswertet (Reiter "Achsen" im aktiven Fenster,
-// Achsen-Assistent). Der Daemon sendet dann weder Scroll, Zoom, Pfeiltasten noch
-// Klicks. Liegt im privaten XDG_RUNTIME_DIR; ohne diese Variable gibt es keine
-// Unterdrueckung. Sicherheit: der Daemon ignoriert den Mechanismus, wenn
-// XDG_RUNTIME_DIR nicht dem effektiven Benutzer gehoert bzw. group/other-
-// schreibbar ist, oder wenn die Datei fremd gehoert / Gruppen-/Other-Rechte
-// hat (der Tray legt sie mit 0600 an). Veraltet die Datei (Tray abgestuerzt), endet sie von selbst.
+// Heartbeat file: the tray touches it (~every 150 ms) while it evaluates the mouse
+// motion itself (tab "Axes" in the active window, axis wizard). The daemon then sends
+// neither scroll, zoom, arrow keys nor clicks. Lives in the private XDG_RUNTIME_DIR;
+// without this variable there is no suppression. Security: the daemon ignores the
+// mechanism if XDG_RUNTIME_DIR does not belong to the effective user or is
+// group/other-writable, or if the file belongs to someone else / has group/other
+// permissions (the tray creates it with 0600). If the file goes stale (tray crashed),
+// it ends by itself.
 inline std::string suspendFilePath() {
     const char *d = std::getenv("XDG_RUNTIME_DIR");
     if (!d || !*d) return "";
@@ -37,16 +37,17 @@ inline std::string suspendFilePath() {
 }
 constexpr long SUSPEND_MAX_AGE_MS = 600;
 
-// Laufzeitdateien im privaten XDG_RUNTIME_DIR (leer, wenn die Variable fehlt). Der Daemon
-// schreibt sie, der Tray liest sie. Beide Seiten pruefen wie bei der Suspend-Datei Besitzer
-// und Rechte (0600, regulaere Datei, dem effektiven Benutzer gehoerig), O_NOFOLLOW.
-//   dofscroll-status  Zeilen "key=value" (UTF-8, ohne Steuerzeichen, atomar ersetzt):
-//                          profile=<match_desc>  device=<Name>  app=<WM_CLASS>
-//                          enabled=0|1  paused=0|1  devices_seen=<Anzahl USB-3Dconnexion-Geraete>
-//                          updated=<unix-Sekunden>
-//   dofscroll.log     Kopie der Daemon-Logzeilen (stderr), rollend: hoechstens
-//                          kLogMaxLines Zeilen (im --debug-Modus kLogMaxLinesDebug), danach
-//                          bleiben nur die neuesten kLogKeepLines; zusaetzlich Obergrenze kLogMaxBytes.
+// Runtime files in the private XDG_RUNTIME_DIR (empty if the variable is missing). The
+// daemon writes them, the tray reads them. As with the suspend file, both sides check
+// owner and permissions (0600, regular file, owned by the effective user), O_NOFOLLOW.
+//   dofscroll-status  lines "key=value" (UTF-8, no control characters, replaced atomically):
+//                          profile=<match_desc>  device=<name>  app=<WM_CLASS>
+//                          mode=<id of the active mode, e.g. normal, off, timeline>
+//                          enabled=0|1  paused=0|1  devices_seen=<number of USB 3Dconnexion devices>
+//                          updated=<unix seconds>
+//   dofscroll.log     copy of the daemon log lines (stderr), rolling: at most
+//                          kLogMaxLines lines (kLogMaxLinesDebug in --debug mode), after which
+//                          only the newest kLogKeepLines remain; additionally capped at kLogMaxBytes.
 inline std::string runtimeFilePath(const char *name) {
     const char *d = std::getenv("XDG_RUNTIME_DIR");
     if (!d || !*d) return "";
