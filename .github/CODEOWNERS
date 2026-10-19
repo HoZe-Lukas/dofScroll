@@ -1,0 +1,5 @@
+# Every path is routed to the maintainer. Code-owner review is not enforced by the ruleset
+# (0 required approvals); this file requests reviews and documents ownership.
+*             @HoZe-Lukas
+/.github/     @HoZe-Lukas
+/SECURITY.md  @HoZe-Lukas

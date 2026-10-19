@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: https://github.com/HoZe-Lukas/dofScroll/security/advisories/new
+    about: Please do not open a public issue for vulnerabilities. Use GitHub private vulnerability reporting (see SECURITY.md).
