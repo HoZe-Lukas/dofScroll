@@ -2119,3 +2119,11 @@ msgstr "aus diesem Programmprofil"
 #: src/ui/model/effective_model.hpp
 msgid "from mode \"%1\""
 msgstr "aus dem Modus „%1“"
+
+#: src/ui/qt/pages/channels_page.cpp
+msgid "Step trigger"
+msgstr "Schrittschwelle"
+
+#: src/ui/qt/pages/channels_page.cpp
+msgid "Push strength at which a step: channel action taps its key once (steps per second after sensitivity)"
+msgstr "Auslenkung, bei der eine step:-Kanalaktion ihre Taste einmal drückt (Schritte pro Sekunde nach der Empfindlichkeit)"
