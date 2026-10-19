@@ -9,6 +9,10 @@
 
 namespace spn {
 
+// Makes the next outputs release every key in forceReleaseAll() (for --release-keys); by default
+// forceReleaseAll() releases only what the process holds itself.
+void setWinBlanketRelease(bool on);
+
 // Creates the output (not yet init()ed). `log` may be null.
 std::unique_ptr<Output> makeWinOutput(std::string *log);
 

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Windows event output with SendInput: wheel, horizontal wheel, keys, mouse buttons 1-3. Same
 // semantics as the X11/uinput outputs: idempotent setKey, tapKey on a held key releases and
-// re-presses it, releaseAll releases exactly what we hold, forceReleaseAll everything.
+// re-presses it, releaseAll releases exactly what we hold (tracked in win_pressed.hpp).
 // Limits (expected Windows behavior, see docs/port-windows.md): input to elevated windows is blocked
 // by UIPI unless the daemon is elevated too, and the secure desktop (lock screen, UAC) cannot be
 // injected into; SendInput then injects fewer events than requested, which is logged once.
@@ -22,12 +22,16 @@
 
 #include "win_key_tables.hpp"
 #include "win_output.hpp"
+#include "win_pressed.hpp"
 
 namespace spn {
 namespace {
 
+bool g_blanketRelease = false;
+
 class WinOutput : public Output {
 public:
+    WinOutput() { pressed_.setShiftSlot(idx(Key::Shift)); }
     ~WinOutput() override { doReleaseAll(); }
 
     const char *name() const override { return "sendinput"; }
@@ -49,29 +53,33 @@ public:
     }
 
     void setKey(Key k, bool down) override {
-        bool &st = held_[idx(k)];
-        if (st == down) return;
-        st = down;
-        const winkeys::WinKeySpec s = spec(k);
+        const size_t i = idx(k);
         std::vector<INPUT> in;
-        if (down && s.shift && !held_[idx(Key::Shift)] && !shiftByUs_) {
-            shiftByUs_ = true;
-            in.push_back(keyInput(winkeys::keyToWin(Key::Shift), true));
-        }
-        in.push_back(keyInput(s, down));
-        if (!down && s.shift && shiftByUs_) {
-            shiftByUs_ = false;
-            in.push_back(keyInput(winkeys::keyToWin(Key::Shift), false));
+        if (down) {
+            if (pressed_.isDown(i)) return;
+            const winkeys::WinKeySpec s = spec(k);  // resolved once, recorded for the key-up
+            if (pressed_.press(i, s.vk, s.extended, s.shift, pressed_.isDown(idx(Key::Shift)), shiftPhysical()))
+                in.push_back(keyInput(winkeys::keyToWin(Key::Shift), true));
+            in.push_back(rawKey(s.vk, s.extended, true));
+        } else {
+            winkeys::KeyRelease r;
+            bool relShift = false;
+            if (!pressed_.release(i, pressed_.isDown(idx(Key::Shift)), &r, &relShift)) return;  // not ours
+            in.push_back(rawKey(r.vk, r.extended, false));
+            if (relShift) in.push_back(keyInput(winkeys::keyToWin(Key::Shift), false));
         }
         send(in);
     }
 
     void tapKey(Key k) override {
-        const winkeys::WinKeySpec s = spec(k);
+        const size_t i = idx(k);
         std::vector<INPUT> in;
-        const bool shiftAdded = s.shift && !held_[idx(Key::Shift)] && !shiftByUs_;
+        winkeys::KeyRelease held;
+        const bool wasDown = pressed_.recorded(i, &held);
+        const winkeys::WinKeySpec s = wasDown ? winkeys::WinKeySpec{held.vk, held.extended, false} : spec(k);
+        const bool shiftAdded = !wasDown && s.shift && !pressed_.isDown(idx(Key::Shift)) && !pressed_.shiftByUs() &&
+                                !shiftPhysical();
         if (shiftAdded) in.push_back(keyInput(winkeys::keyToWin(Key::Shift), true));
-        const bool wasDown = held_[idx(k)];
         if (wasDown) in.push_back(keyInput(s, false));
         in.push_back(keyInput(s, true));
         in.push_back(keyInput(s, false));
@@ -93,17 +101,27 @@ public:
 
     void releaseAll() override { doReleaseAll(); }
 
+    // Called at every daemon start and by --release-keys. Normally it only releases what this
+    // process holds (nothing at start): a blanket key-up would release modifiers the user holds
+    // physically and a bare Alt/Win key-up opens the menu bar or the Start menu. The blanket
+    // release (for keys stuck after a crash) is only done for --release-keys (setBlanketRelease).
     void forceReleaseAll() override {
-        // Independent of our own state: a crashed earlier process may have left keys down.
-        // Key-up events for keys that are not down are harmless.
-        std::vector<INPUT> in;
-        for (size_t i = 0; i < kKeyCount; ++i) in.push_back(keyInput(winkeys::keyToWin(static_cast<Key>(i)), false));
-        in.push_back(keyInput(spec(Key::Plus), false));  // the layout-resolved "plus"
-        for (const winkeys::ExtraRelease &e : winkeys::kExtraReleases) in.push_back(rawKey(e.vk, e.extended, false));
-        for (int b = 1; b <= 3; ++b) in.push_back(mouseInput(winkeys::mouseButtonFlags(b).up));
-        send(in);
+        if (blanket_) {
+            std::vector<INPUT> in;
+            for (size_t i = 0; i < kKeyCount; ++i) {
+                const winkeys::WinKeySpec s = winkeys::keyToWin(static_cast<Key>(i));
+                if (!winkeys::isMenuTriggerVk(s.vk)) in.push_back(keyInput(s, false));
+            }
+            const winkeys::WinKeySpec plus = spec(Key::Plus);
+            in.push_back(keyInput(plus, false));  // the layout-resolved "plus"
+            for (const winkeys::ExtraRelease &e : winkeys::kExtraReleases)
+                if (!winkeys::isMenuTriggerVk(e.vk)) in.push_back(rawKey(e.vk, e.extended, false));
+            for (int b = 1; b <= 3; ++b) in.push_back(mouseInput(winkeys::mouseButtonFlags(b).up));
+            send(in);
+        }
         doReleaseAll();
     }
+    void setBlanketRelease(bool on) { blanket_ = on; }
 
     void flush() override {}
 
@@ -127,6 +145,9 @@ private:
         return s;
     }
 
+    // The user holds Shift on the keyboard (then it must not be pressed or released for "plus").
+    static bool shiftPhysical() { return (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0; }
+
     static INPUT rawKey(uint16_t vk, bool extended, bool down) {
         INPUT in = {};
         in.type = INPUT_KEYBOARD;
@@ -148,17 +169,11 @@ private:
         return in;
     }
 
+    // Releases exactly what this process pressed, with the codes used at key-down.
     void doReleaseAll() {
         std::vector<INPUT> in;
-        if (shiftByUs_) {
-            shiftByUs_ = false;
-            in.push_back(keyInput(winkeys::keyToWin(Key::Shift), false));
-        }
-        for (size_t i = 0; i < kKeyCount; ++i) {
-            if (!held_[i]) continue;
-            held_[i] = false;
-            in.push_back(keyInput(spec(static_cast<Key>(i)), false));
-        }
+        for (const winkeys::KeyRelease &r : pressed_.releaseAll({winkeys::keyToWin(Key::Shift).vk, false}))
+            in.push_back(rawKey(r.vk, r.extended, false));
         for (int b = 0; b < 3; ++b) {
             if (!btnHeld_[b]) continue;
             btnHeld_[b] = false;
@@ -181,17 +196,21 @@ private:
         }
     }
 
-    bool held_[kKeyCount] = {};
+    winkeys::PressedKeys pressed_;  // keys this process holds (with the codes used at key-down)
     bool btnHeld_[3] = {};
-    bool shiftByUs_ = false;  // Shift pressed on behalf of "plus"
+    bool blanket_ = false;
     bool warned_ = false;
 };
 
 }  // namespace
 
+void setWinBlanketRelease(bool on) { g_blanketRelease = on; }
+
 std::unique_ptr<Output> makeWinOutput(std::string *log) {
     if (log) *log = "SendInput";
-    return std::make_unique<WinOutput>();
+    auto out = std::make_unique<WinOutput>();
+    out->setBlanketRelease(g_blanketRelease);
+    return out;
 }
 
 }  // namespace spn

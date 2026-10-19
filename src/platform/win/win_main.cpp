@@ -38,6 +38,7 @@
 #include "../../output.hpp"
 #include "../fs.hpp"
 #include "../platform.hpp"
+#include "win_output.hpp"
 #include "win_paths.hpp"
 
 using namespace spn;
@@ -259,6 +260,7 @@ HWND createMessageWindow() {
 
 // --release-keys: open an own output, release everything, exit.
 int releaseKeysAndExit() {
+    setWinBlanketRelease(true);
     std::string log;
     std::unique_ptr<Output> out = makeOutput("auto", &log);
     if (!out) {
