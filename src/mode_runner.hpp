@@ -36,6 +36,13 @@ public:
     // Activates a mode: releases everything held and resets the DSP state.
     void setMode(const ModeDef &mode);
     const ModeDef &mode() const { return mode_; }
+    // Target of a mode:<id> / mode:next binding whose button was pressed in the last tick
+    // (press edge only); empty if none. Reading clears it. The caller performs the switch.
+    std::string takeSwitchRequest() {
+        std::string r;
+        r.swap(switch_request_);
+        return r;
+    }
     bool legacyPath() const { return legacy_; }
 
     // One tick. raw/buttons are already zeroed by the caller while suspended or disabled;
@@ -59,6 +66,8 @@ private:
     Output *out_;
     ModeDef mode_;
     bool legacy_ = true;
+    uint32_t prev_buttons_ = 0;
+    std::string switch_request_;
 
     Channel ch_v_, ch_h_, ch_zoom_;
     StepAccumulator acc_v_, acc_h_, acc_zoom_;

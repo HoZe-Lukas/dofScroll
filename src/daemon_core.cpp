@@ -211,6 +211,7 @@ DaemonCore::FileStamp DaemonCore::statFile(const std::string &path) {
 }
 
 void DaemonCore::loadConfig() {
+    mode_override_.clear();  // a reload drops the button-selected mode
     // Take the stamp before reading: if the file changes while reading, it is
     // noticed at the next check.
     stamp_ = statFile(config_path_);
@@ -227,6 +228,7 @@ void DaemonCore::loadConfig() {
 }
 
 void DaemonCore::loadModeSet() {
+    mode_override_.clear();
     modes_stamp_ = modesStamp(modes_dir_);  // before reading, like the config stamp
     std::vector<std::string> warnings;
     modes_ = loadModes(modes_dir_, &warnings);
@@ -285,7 +287,7 @@ bool DaemonCore::initialize() {
 // when the id is unchanged (the mode files were reloaded). Returns true if the
 // runner got a (new) mode.
 bool DaemonCore::selectMode(Settings &next, bool force) {
-    const ModeDef *m = modes_.find(next.mode);
+    const ModeDef *m = modes_.find(mode_override_.empty() ? next.mode : mode_override_);
     if (!m) {
         if (warned_mode_ != next.mode) {
             warned_mode_ = next.mode;
@@ -350,6 +352,23 @@ void DaemonCore::checkButtons() {
     if (settings_.click_button_enabled && settings_.click_button >= buttons)
         std::cerr << LOG << "WARNING: CLICK_BUTTON " << settings_.click_button
                   << " does not exist on this device" << std::endl;
+}
+
+// Button-triggered mode switch: "next" cycles through all modes in alphabetical id order.
+void DaemonCore::switchMode(const std::string &target) {
+    std::string id = target;
+    if (target == "next") {
+        std::vector<std::string> ids;
+        for (const ModeDef &m : modes_.modes) ids.push_back(m.id);
+        std::sort(ids.begin(), ids.end());
+        auto it = std::upper_bound(ids.begin(), ids.end(), runner_->mode().id);
+        id = it == ids.end() ? ids.front() : *it;
+    }
+    if (!modes_.find(id)) return;
+    mode_override_ = id;
+    std::cerr << LOG << "Mode switched to " << sanitizeForLog(id) << std::endl;
+    applyProfile(true);  // force: releases everything held, applies the mode's overrides
+    tick_period_ = periodFor(settings_.tick_hz);
 }
 
 // --- Profile inputs: config, modes, device, active program ------------------
@@ -486,6 +505,10 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
 
     // --- Channels, buttons, output (see mode_runner.hpp) ------------------
     runner_->tick(settings_, raw, buttons, fresh, dt);
+    {
+        const std::string req = runner_->takeSwitchRequest();
+        if (!req.empty()) switchMode(req);
+    }
 
     if (d_.debug && now_ns >= next_debug_ &&
         (raw[AX_X] || raw[AX_Y] || raw[AX_Z] || raw[AX_RX] || raw[AX_RY] || raw[AX_RZ])) {
