@@ -158,6 +158,15 @@ add_custom_target(check COMMAND ${CMAKE_COMMAND} -DMODE=full ${CHECK_COMMON}
                   -P ${CMAKE_SOURCE_DIR}/cmake/Check.cmake
                   COMMENT "Full gate: werror, tests, ASan/UBSan, cppcheck, hardening"
                   USES_TERMINAL VERBATIM)
+find_program(CPPCHECK_EXECUTABLE cppcheck)
+if(CPPCHECK_EXECUTABLE)
+  add_custom_target(lint COMMAND ${CPPCHECK_EXECUTABLE} --enable=warning,performance,portability
+                    --error-exitcode=1 --inline-suppr --suppress=assertWithSideEffect:tests/*
+                    -Isrc src tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                    COMMENT "cppcheck" USES_TERMINAL VERBATIM)
+else()
+  add_custom_target(lint COMMAND ${CMAKE_COMMAND} -E echo "lint: cppcheck not installed - skipped")
+endif()
 add_custom_target(check-deps COMMAND ${CMAKE_COMMAND} -DWITH_TRAY=${DOFSCROLL_TRAY}
                   -DCXX=${CMAKE_CXX_COMPILER} -P ${CMAKE_SOURCE_DIR}/cmake/CheckDeps.cmake
                   USES_TERMINAL VERBATIM)

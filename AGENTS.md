@@ -13,7 +13,7 @@ via `spacenavd`/`libspnav` and turns it into X11 scroll/zoom/arrow-key/mouse-but
 buttons do is decided by a **mode** (declarative plugin files, see `readme.md` section 4). The
 second component, `src/dofscroll_tray.cpp`, is a GTK3+AppIndicator tray icon with a settings
 window that writes the same config file and triggers a live reload in the daemon via SIGHUP;
-it also seeds example config/modes on first start. Build with `make` or CMake (see below); CI
+it also seeds example config/modes on first start. Build with CMake (see below); CI
 will be a GitHub Actions workflow (planned).
 
 ## Where things are
@@ -21,11 +21,11 @@ will be a GitHub Actions workflow (planned).
 | Path | Purpose |
 |---|---|
 | `src/` | Sources: `dofscroll.cpp` (daemon), `dofscroll_tray.cpp` (tray), `config`/`dsp`/`modes` (shared resp. unit-tested), `output*` (X11/uinput), `activewin`, `seed`, `device_db.hpp`; headers are the contract |
-| `tests/` | Unit tests (`make test`) |
+| `tests/` | Unit tests (`ctest --test-dir build`) |
 | `examples/` | Example configs: `dofscroll-pro.conf`, `-compact.conf`, `-multi-device.conf` (CI-validated), `default/` (seeded on first start), `modes/` (example modes) |
 | `po/` | gettext translations (`*.po`); the only place for non-English text |
 | `scripts/` | Pre-commit hook, hardening check |
-| `Makefile`, `CMakeLists.txt` | Build |
+| `CMakeLists.txt`, `cmake/` | Build, quality gates (`check`, `check-fast`) |
 | `docs/security.md`, `docs/windows-mac.md`, `packaging/` | Security review; driver research for Windows/Mac; udev rule for uinput |
 | `dofscroll`, `dofscroll-tray` | Locally built binaries in the repo root (see "Warning" below) |
 | `icons/dofscroll-tray.svg` | Custom tray icon |
@@ -40,19 +40,18 @@ user-specific) - see `readme.md` section 4 for the format.
 ## Build (verified)
 
 ```sh
-make check-deps   # check dependencies
-make -j4          # both binaries in the repo root
-make test         # unit tests
-make check        # complete quality gate (werror, tests, ASAN, cppcheck, hardening)
+cmake -S . -B build                         # configure (pip install --user cmake if missing)
+cmake --build build --target check-deps     # check dependencies
+cmake --build build -j4                     # both binaries in build/
+ctest --test-dir build --output-on-failure  # unit tests
+cmake --build build --target check          # complete quality gate (werror, tests, ASAN, cppcheck, hardening)
 ```
 
-CMake equivalent: `cmake -S . -B build && cmake --build build -j4`.
-
 Required packages (RHEL 9 + EPEL): `gcc-c++ spacenavd libspnav-devel libX11-devel
-libXtst-devel gtk3-devel libappindicator-gtk3-devel` (plus `cmake`, `gettext` for CMake and
+libXtst-devel gtk3-devel libappindicator-gtk3-devel` (plus `cmake`, `gettext` for
 translations) - exact `dnf install` in `readme.md` section 5.
 
-**Warning before a rebuild:** the two binaries in the repo root are purely local build
+**Warning before a rebuild:** the two binaries in `build/` are purely local build
 artifacts (listed in `.gitignore`, not tracked - only the sources are) - a fresh clone does not
 have them until the build above creates them. A running service keeps its binary open (`Text
 file busy`) - before a rebuild on a system with active services, stop them first: `systemctl
@@ -61,10 +60,10 @@ start ...`.
 
 ## Verifying a change
 
-Unit/scenario tests (`make test`) cover config, DSP, modes and the axis wizard; beyond that the
+Unit/scenario tests (`ctest`) cover config, DSP, modes and the axis wizard; beyond that the
 behavior depends on real SpaceMouse hardware, a running X11 session and `spacenavd`. What an
 agent without hardware access can realistically do:
-1. Run `make check` (at least `make check-fast`) and check for compile errors/warnings.
+1. Run `cmake --build build --target check` (at least `check-fast`) and check for compile errors/warnings.
 2. Check `readme.md` for contradictions with the changed logic (the code is the source of truth
    for behavior, the README only for architecture/contracts - on a behavior change update the
    README as well, not just the code).
