@@ -92,6 +92,10 @@ UI DESIGN REQUIREMENTS (maintainer, 2026-10-19; they apply to the pages stage):
   connected devices the same way. Logic: src/ui/model/app_picker_model.hpp and
   src/platform/running_apps.hpp (Linux/X11 implementation exists; the Windows and macOS
   implementations are written against the same interface in the port code).
+- Parity: every item above must work on Linux, Windows AND macOS (see the parity matrix in
+  docs/work-plan.md); the platform part of each feature (running-program list, autostart, open file,
+  live feed) gets an implementation per OS behind the same interface, compiled and unit-tested on
+  its runner.
 - Visual quality matters: clear grouping, sensible defaults, short helper texts, consistent
   spacing, keyboard navigation, light/dark theme friendly, no wall of sliders.
 
