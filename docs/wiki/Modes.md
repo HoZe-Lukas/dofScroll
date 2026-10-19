@@ -10,7 +10,7 @@ Exactly one mode is active: the one named by `MODE` in the resolved profile, oth
 
 | Mode | Behavior |
 |---|---|
-| `normal` | All channels `default`, no bindings: scroll, Ctrl+scroll zoom, `NAV_BUTTON` and `CLICK_BUTTON` |
+| `normal` | All channels `default`, no bindings: scroll, Ctrl+scroll zoom, `NAV_BUTTON` (the older `CLICK_BUTTON` also still works) |
 | `off` | All channels `none`; switches control off without `ENABLED = 0` |
 | `timeline` | Vertical `none`, horizontal and twist `keys:left,right` |
 
@@ -49,6 +49,8 @@ The daemon reloads the directory when it changes (about a second), or run `syste
 
 ## Button actions
 
+dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. A mode may bind keys or clicks that only make sense in that mode; they are active only while the mode is active, which the driver cannot do. Examples: a button that always sends Esc belongs in the driver. A button that sends Space (play/pause) only while the `timeline` mode is active, a button with `mode:next` and a button with `nav` belong in dofscroll. See [Buttons](Buttons).
+
 `BUTTON_<n> = <action>`, buttons numbered **from 1**, in mode files and the main config alike. `BUTTON_0` is rejected. At most 32, and `n` must not exceed the factory button count of the model, see [Buttons](Buttons).
 
 | Action | Effect |
@@ -82,9 +84,9 @@ Shipped in [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/e
 
 | File | Behavior |
 |---|---|
-| `browse-keys.conf` | Up/down = page up/down, sideways = left/right, twist = zoom; button 1 Enter, button 2 Esc |
+| `browse-keys.conf` | Up/down = page up/down, sideways = left/right, twist = zoom |
 | `cycle-modes.conf` | Default channels; button 2 = `mode:next` |
-| `timeline.conf` | Sideways and twist = left/right; button 1 Space, button 2 Home; `SCROLL_H_SENS = 4` |
+| `timeline.conf` | Sideways and twist = left/right; button 1 Space, button 2 Home (only while this mode is active); `SCROLL_H_SENS = 4` |
 
 Use `timeline` for video editing in a program of your choice, for example `[app:resolve]` with `MODE = timeline` (DaVinci Resolve's behavior is not verified here).
 

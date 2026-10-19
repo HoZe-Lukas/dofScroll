@@ -38,13 +38,14 @@ Invalid lines or files are skipped with a warning in the log.
 
 | Mode | Behavior |
 |---|---|
-| `normal` | All channels `default`, no bindings. Scroll, Ctrl+scroll zoom, `NAV_BUTTON` and `CLICK_BUTTON`. |
+| `normal` | All channels `default`, no bindings. Scroll, Ctrl+scroll zoom and `NAV_BUTTON` (the older `CLICK_BUTTON` also still works). |
 | `off` | All channels `none`. Switches control off without `ENABLED = 0`. |
 | `timeline` | Vertical `none`, horizontal and twist `keys:left,right`. Scrubbing and single frames for video editing. |
 
 The first start also seeds three example files into `~/.config/dofscroll/modes/`:
-`browse-keys` (page up/down, left/right, zoom, Enter and Esc on buttons 1 and 2), `cycle-modes`
-(button 2 = `mode:next`) and `timeline` (adds Space on button 1 and Home on button 2).
+`browse-keys` (page up/down, left/right, zoom), `cycle-modes` (button 2 = `mode:next`) and
+`timeline` (adds Space on button 1 and Home on button 2, active only in that mode). The shipped
+examples contain no button-to-key bindings that would be the same in every mode, see [Buttons and the vendor driver](#buttons-and-the-vendor-driver).
 
 ## Channel actions
 
@@ -83,6 +84,59 @@ a mode file is dropped with a warning.
 
 A mode whose three channel actions are all `default` runs the normal path, so dominance-based zoom
 and `NAV_BUTTON`/`CLICK_BUTTON` still work, and its button bindings apply in addition.
+
+## Buttons and the vendor driver
+
+dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles.
+
+| Where | What |
+|---|---|
+| Driver | A button mapping that is the same everywhere and always: Esc, Enter, a click, a shortcut. |
+| dofscroll | Bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes (`mode:next`, `mode:<id>`), or work with the axis handling (`nav`). Also: shaping scroll and zoom from the six axes, keys derived from axes (`keys:<neg>,<pos>`), per-program and per-device profiles. |
+
+Examples: a button that always sends Esc belongs in the driver. A button that sends Space (play/pause) only while the `timeline` mode is active, a button with `mode:next` and a button with `nav` belong in dofscroll.
+
+A mode may bind keys or clicks that only make sense in that mode, for example Space for
+play/pause in a timeline-style mode. Such bindings are active only while that mode is active.
+This is what the driver cannot do on Linux, because `spnavrc` knows nothing about dofscroll's
+modes.
+
+Why the driver is better for a mapping that is always the same: it works in every program and
+keeps working when dofscroll is stopped. dofscroll's own `key:`, `click`, `rightclick` and
+`middleclick` actions and the older `CLICK_BUTTON` stay fully supported, also as an option for
+people without a driver. The shipped examples use them only for mode-specific bindings.
+
+### Linux: spacenavd
+
+Edit `/etc/spnavrc` (the system-wide spacenavd config) and restart spacenavd, or send it SIGHUP.
+Option names below are taken from spacenavd's upstream `doc/example-spnavrc`. A local man page
+for `spnavrc` was not available when this was written, so check the file that came with your
+version. Button numbers in `spnavrc` are zero-based, while dofscroll's `BUTTON_<n>` is
+one-based.
+
+- `kbmapN = <keysym>` maps button N to a keyboard key, using a keysym name from
+  `/usr/include/X11/keysymdef.h` without the `XK_` prefix. Example: `kbmap0 = Escape`.
+  Upstream marks this as experimental.
+- `bnmapN = M` remaps button N to button M, and `bnactN = <action>` assigns spacenavd's own
+  actions (for example `sensitivity-up`). These are not key or click mappings.
+- Mouse clicks and shortcuts: this was not found in the upstream example file. Not verified.
+  Without a driver option, dofscroll's `click` actions are the fallback.
+
+### Windows and macOS: 3Dconnexion driver
+
+The 3Dconnexion driver has a settings or control panel where buttons can be assigned to keys,
+shortcuts or commands, per application. The exact menu names differ between driver versions and
+were not verified here, so look for the button or "customize buttons" page in your driver's
+settings. See [windows-mac.md](windows-mac.md) for what is known about the driver and the
+port notes ([port-windows.md](port-windows.md), [port-macos.md](port-macos.md)).
+
+### Avoiding double input
+
+The vendor driver may itself map the axes to scroll or pan in some applications. If an
+application then scrolls twice (once from the driver, once from dofscroll), turn off pan/zoom
+for that application in the driver's per-application settings, or disable the driver's
+scroll/pan behavior. Details and sources are in [windows-mac.md](windows-mac.md) and the
+`port-*.md` documents; they are not repeated here.
 
 ## Key names
 
