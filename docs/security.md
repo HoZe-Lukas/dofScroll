@@ -816,3 +816,29 @@ bytes shown as U+FFFD. Known limit: look-alike (homoglyph) and bidirectional con
 valid text and are shown as they are. A profile or mode name can therefore look like another one
 in the UI or in the log; matching is exact for every non-ASCII byte, so a look-alike never matches
 the profile it imitates. Only use mode files from sources you trust (see section 7).
+
+## 12. Several users on one PC
+
+The 3D mouse is one shared device. When two users are logged in at the same time (fast user
+switching, remote desktop, multi-seat) every user's dofscroll daemon can receive its events.
+
+- **Isolated per user:** config, modes, status, log and suspend files (private runtime directory),
+  the X11/uinput/CGEvent/SendInput output, the profile matching and the reload channel. One user's
+  settings never change another user's daemon.
+- **Shared:** the device and its event stream. Linux: `spacenavd` is one system daemon that feeds
+  the clients of every user. Windows and macOS: the HID device is read by every process that opens it.
+- **What the pause does:** each daemon asks the operating system once per second whether its own
+  session is the active one (Linux: the logind session file `/run/systemd/sessions/<XDG_SESSION_ID>`,
+  `ACTIVE=0` or `STATE=online|closing`; Windows: not the console session and WTS connect state not
+  active; macOS: `kCGSessionOnConsoleKey` false). While it is not, the daemon behaves like the
+  tray's pause: it releases everything it holds, ignores the device, writes `session=inactive` to the
+  status file and logs `session inactive: output paused` once. It resumes with
+  `session active: output resumed`, without replaying motion from the time it was paused.
+  The Linux probe reads one small root-owned file without following links (the session id is
+  validated as a short file name), and adds no libsystemd or D-Bus dependency.
+- **Limits:** the pause stops the output, not the reading: another user's daemon can still read the
+  device events (the same is true for any process of that user that talks to `spacenavd` or opens
+  the HID device). If the state cannot be determined (no `XDG_SESSION_ID`, unreadable file, failed
+  query) the daemon counts as active, so detection problems never silence it. A locked screen of the
+  active user is not detected on Windows and macOS. The vendor driver may handle several sessions
+  differently; this was designed from the documented APIs and not tested with a second user session.
