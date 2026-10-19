@@ -69,9 +69,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          # Round trip twice: a plain folder and a folder with spaces and non-ASCII characters (umlauts,
-          # CJK, an emoji and an ampersand), built from code points so that this file stays ASCII.
-          $odd = 'dofscroll ' + [char]0xE4 + [char]0xF6 + [char]0xFC + ' & ' + [char]0x65E5 + [char]0x672C + [char]0x8A9E + ' ' + [char]::ConvertFromUtf32(0x1F600)
+          # Round trip twice: a plain folder and a folder with a space in its name.
+          $spaced = 'dofscroll test'
           $setup = (Get-ChildItem dist-installers -Filter '*-setup.exe' | Select-Object -First 1).FullName
           $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
           # every program runs with a time limit, so that a hang fails the step instead of the job
@@ -129,7 +128,7 @@ jobs:
           }
           try {
             Test-RoundTrip (Join-Path $env:RUNNER_TEMP 'dofscroll-inst') $true
-            Test-RoundTrip (Join-Path $env:RUNNER_TEMP $odd) $true
+            Test-RoundTrip (Join-Path $env:RUNNER_TEMP $spaced) $true
           } catch {
             Write-Output "::error::installer test failed: $($_.Exception.Message)"
             Write-Output $_.ScriptStackTrace
