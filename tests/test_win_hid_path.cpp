@@ -62,7 +62,7 @@ int main() {
             h.usage = usage;
             return h;
         };
-        std::vector<HidCandidate> v = {
+        std::vector<HidCandidate> cands = {
             c("p1", "{A}", 0x01, 0x06),    // keyboard: ignored
             c("p2", "{A}", 0xFF00, 0x01),  // vendor page
             c("p3", "{A}", 0x01, 0x08),    // multi-axis controller: wins in {A}
@@ -72,9 +72,9 @@ int main() {
             c("p7", "", 0x01, 0x08),       // unknown container: its own device
             c("p8", "", 0x01, 0x08),       // ... and so is this one
         };
-        std::vector<size_t> r = pickInterfaces(v, {});
+        std::vector<size_t> r = pickInterfaces(cands, {});
         assert((r == std::vector<size_t>{2, 5, 6, 7}));
-        r = pickInterfaces(v, {"{a}"});  // {A} already open (case-insensitive)
+        r = pickInterfaces(cands, {"{a}"});  // {A} already open (case-insensitive)
         assert((r == std::vector<size_t>{5, 6, 7}));
         r = pickInterfaces({}, {});
         assert(r.empty());
