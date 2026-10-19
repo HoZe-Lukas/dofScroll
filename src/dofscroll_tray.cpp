@@ -53,10 +53,12 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "autostart.hpp"
 #include "axis_wizard.hpp"
 #include "config.hpp"
 #include "device_db.hpp"
 #include "i18n.hpp"
+#include "log_sanitize.hpp"
 #include "seed.hpp"
 
 using spn::ChannelCfg;
@@ -106,6 +108,116 @@ static void reloadDaemon() {
 
 static void restartDaemon() {
     spawnDetached({"systemctl", "--user", "restart", "dofscroll.service"});
+}
+
+// ---------------------------------------------------------------------------
+// "Start at login": enable/disable the two user units (logic in autostart.hpp).
+// systemctl runs directly inside the tray's sandbox, NOT via systemd-run: `systemctl
+// --user enable/disable` is executed by the user manager over D-Bus, which creates the
+// symlinks in ~/.config/systemd/user itself (the read-only view of that directory only
+// applies to the tray's own processes). So no sandbox escape is needed, unlike for
+// openWithDefaultApp, where the editor must write files. Both calls are short and
+// synchronous (g_spawn_sync, argv vector, no shell).
+// ---------------------------------------------------------------------------
+static bool runCapture(const std::vector<std::string> &args_in, std::string *out, std::string *err,
+                       int *exit_code) {
+    std::vector<std::string> args = args_in;
+    args[0] = resolveExe(args[0]);
+    const bool search = args[0].find('/') == std::string::npos;
+    std::vector<gchar *> argv;
+    for (const auto &a : args) argv.push_back(const_cast<gchar *>(a.c_str()));
+    argv.push_back(nullptr);
+    gchar *so = nullptr, *se = nullptr;
+    gint status = 0;
+    GError *gerr = nullptr;
+    bool ok = g_spawn_sync(nullptr, argv.data(), nullptr,
+                           GSpawnFlags(search ? G_SPAWN_SEARCH_PATH : 0), nullptr, nullptr, &so, &se,
+                           &status, &gerr);
+    if (!ok) {
+        if (err) *err = gerr ? gerr->message : "?";
+        if (gerr) g_error_free(gerr);
+    } else {
+        if (out) *out = so ? so : "";
+        if (err) *err = se ? se : "";
+        if (exit_code) *exit_code = g_spawn_check_exit_status(status, nullptr) ? 0 : 1;
+    }
+    g_free(so);
+    g_free(se);
+    return ok;
+}
+
+struct AutostartUi {
+    GtkWidget *window_check = nullptr;  // settings window (null while it is closed)
+    GtkWidget *window_msg = nullptr;
+    bool updating = false;              // set while the widget is updated from code
+    spn::autostart::State state = spn::autostart::State::Error;
+};
+static AutostartUi autoUi;
+
+static const char *autostartTooltip(spn::autostart::State s) {
+    using S = spn::autostart::State;
+    switch (s) {
+        case S::Enabled:
+        case S::Disabled:
+            return _("Start the SpaceMouse daemon and this tray icon automatically when you log in "
+                     "(takes effect at the next login)");
+        case S::EnabledRuntime:
+            return _("Enabled only until the next reboot (by a temporary link); it cannot be "
+                     "changed here");
+        case S::Static:
+            return _("The units have no [Install] section or are enabled indirectly; they cannot "
+                     "be changed here");
+        case S::Masked:
+            return _("The units are masked (systemctl --user unmask dofscroll.service "
+                     "dofscroll-tray.service)");
+        case S::NotFound:
+            return _("systemd does not know the dofscroll units, for example when running from a "
+                     "build folder. Install the package, see docs/installation.md");
+        case S::Error:
+            break;
+    }
+    return _("Could not read the autostart state from systemd");
+}
+
+static void autostartSetMessage(const std::string &msg) {
+    if (autoUi.window_msg) {
+        gtk_label_set_text(GTK_LABEL(autoUi.window_msg), msg.c_str());
+        gtk_widget_set_visible(autoUi.window_msg, !msg.empty());
+    }
+}
+
+static void autostartRefresh() {
+    std::string out, err;
+    int code = 0;
+    using S = spn::autostart::State;
+    S s = S::Error;
+    if (runCapture(spn::autostart::queryArgv(), &out, &err, &code))
+        s = spn::autostart::stateFromOutput(out, err);
+    autoUi.state = s;
+    const spn::autostart::Ui u = spn::autostart::ui(s);
+    autoUi.updating = true;
+    const char *tip = autostartTooltip(s);
+    if (autoUi.window_check) {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autoUi.window_check), u.checked);
+        gtk_widget_set_sensitive(autoUi.window_check, u.can_toggle);
+        gtk_widget_set_tooltip_text(autoUi.window_check, tip);
+    }
+    autoUi.updating = false;
+}
+
+// Called by the settings checkbox.
+static void autostartToggled(bool want) {
+    if (autoUi.updating) return;
+    std::string out, err;
+    int code = 1;
+    std::string msg;
+    if (!runCapture(spn::autostart::setEnabledArgv(want), &out, &err, &code)) {
+        msg = std::string(_("Could not run systemctl: ")) + spn::sanitizeForLog(err);
+    } else if (code != 0) {
+        msg = std::string(_("systemctl failed: ")) + spn::sanitizeForLog(err.empty() ? out : err);
+    }
+    autostartRefresh();  // show the real state again, also after a failure
+    autostartSetMessage(msg);
 }
 
 // printf-style formatting into a std::string (for translated format strings).
@@ -1978,6 +2090,29 @@ static void showSettingsWindow() {
     gtk_container_set_border_width(GTK_CONTAINER(outer), 12);
     gtk_container_add(GTK_CONTAINER(window), outer);
     gtk_box_pack_start(GTK_BOX(outer), buildProfileArea(), FALSE, FALSE, 0);
+
+    {
+        // Global option (not per profile): start with the graphical session.
+        GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+        GtkWidget *check = gtk_check_button_new_with_label(_("Start at login"));
+        GtkWidget *msg = gtk_label_new("");
+        gtk_label_set_xalign(GTK_LABEL(msg), 0.0f);
+        gtk_label_set_line_wrap(GTK_LABEL(msg), TRUE);
+        gtk_style_context_add_class(gtk_widget_get_style_context(msg), GTK_STYLE_CLASS_ERROR);
+        gtk_widget_set_no_show_all(msg, TRUE);
+        gtk_box_pack_start(GTK_BOX(box), check, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(box), msg, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(outer), box, FALSE, FALSE, 0);
+        autoUi.window_check = check;
+        autoUi.window_msg = msg;
+        g_signal_connect(check, "toggled", G_CALLBACK(+[](GtkToggleButton *t, gpointer) {
+            autostartToggled(gtk_toggle_button_get_active(t));
+        }), nullptr);
+        g_signal_connect(check, "destroy", G_CALLBACK(+[](GtkWidget *, gpointer) {
+            autoUi.window_check = autoUi.window_msg = nullptr;
+        }), nullptr);
+        autostartRefresh();
+    }
 
     GtkWidget *notebook = gtk_notebook_new();
     suspendNotebook = notebook;
