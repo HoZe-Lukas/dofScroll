@@ -43,7 +43,10 @@ using namespace spn;
 
 namespace {
 
-const char *const VERSION = "dofscroll 2.0 (macOS)";
+#ifndef DOFSCROLL_VERSION
+#define DOFSCROLL_VERSION "unknown"
+#endif
+const char *const VERSION = "dofscroll " DOFSCROLL_VERSION " (macOS)";
 const char *const LOG = "[dofscroll] ";
 
 DaemonCore *g_core = nullptr;
