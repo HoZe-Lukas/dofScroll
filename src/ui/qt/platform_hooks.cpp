@@ -14,6 +14,8 @@
 #include "activewin.hpp"
 #elif defined(DOFSCROLL_UI_MAC_AW)
 #include "platform/mac/mac_activewin.hpp"
+#elif defined(DOFSCROLL_UI_WIN_AW)
+#include "platform/win/win_activewin.hpp"
 #endif
 
 #if defined(DOFSCROLL_UI_RUNNING_APPS_STUB)
@@ -49,8 +51,13 @@ std::function<std::string()> makeActiveWindowPoll() {
     std::shared_ptr<spn::ActiveWindowProvider> p = spn::makeMacActiveWindowProvider();
     if (!p || !p->init()) return nullptr;
     return [p] { return p->poll(); };
+#elif defined(DOFSCROLL_UI_WIN_AW)
+    // Same string as the daemon uses for [app:*] matching: the lowercased executable name.
+    std::shared_ptr<spn::ActiveWindowProvider> p = spn::makeWinForegroundProvider();
+    if (!p || !p->init()) return nullptr;
+    return [p] { return p->poll(); };
 #else
-    return nullptr;  // Windows: the foreground provider is part of the daemon target; not wired yet
+    return nullptr;
 #endif
 }
 

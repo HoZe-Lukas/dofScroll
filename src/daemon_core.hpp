@@ -92,6 +92,7 @@ public:
     DeviceReader(InputSource *src, std::function<int64_t()> clock, bool debug);
 
     std::string deviceName() const;
+    std::vector<DeviceInfo> deviceList() const;  // snapshot taken at the last publishDeviceInfo()
 
     // Starts the detached reader thread (connect with backoff, then event loop). Detached:
     // the process teardown cleans it up, the owner must never be destroyed before exit.
@@ -108,6 +109,7 @@ private:
     bool debug_;
     mutable std::mutex name_mutex_;
     std::string dev_name_;
+    std::vector<DeviceInfo> dev_list_;
     int delay_ms_ = 500;
 
     void publishDeviceInfo();

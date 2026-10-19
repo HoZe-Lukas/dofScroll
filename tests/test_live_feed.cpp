@@ -123,13 +123,14 @@ void testRejects() {
         return f;
     };
     run(mut(0, 'X'), LiveParseError::EBadMagic);
-    run(mut(4, 2), LiveParseError::EVersionMismatch);
+    run(mut(4, 1), LiveParseError::EVersionMismatch);
+    run(mut(4, 3), LiveParseError::EVersionMismatch);
     run(mut(4, 0), LiveParseError::EVersionMismatch);
     {  // oversize: detected from the header alone, without waiting for the payload
         std::vector<uint8_t> f(good.begin(), good.begin() + kLiveHeaderBytes);
         f[6] = 0xFF, f[7] = 0xFF;
         run(f, LiveParseError::EOversize);
-        f[6] = static_cast<uint8_t>(kLiveMaxPayload + 1), f[7] = 0;
+        f[6] = static_cast<uint8_t>((kLiveMaxPayload + 1) & 0xFF), f[7] = static_cast<uint8_t>((kLiveMaxPayload + 1) >> 8);
         run(f, LiveParseError::EOversize);
     }
     {  // header-only prefixes: early rejection of garbage
@@ -360,12 +361,12 @@ void testClient() {
 
     // version mismatch: reported as incompatible, retried slowly
     next = encodeLiveSample(sample(4));
-    next[4] = 2;
+    next[4] = 1;
     made.back()->broken = true;
     cl.poll(t += 33 * MS, cb);
     cl.poll(t += 6000 * MS, cb);
     assert(cl.state() == LiveFeedClient::State::Incompatible);
-    assert(cl.lastError() == "protocol version mismatch");
+    assert(cl.lastError() == liveParseErrorText(LiveParseError::EVersionMismatch));
     const int b = attempts;
     cl.poll(t += 1000 * MS, cb);
     assert(attempts == b);
@@ -457,6 +458,189 @@ void testLoopback() {
     tu::removeAll(dir);
 }
 
+LiveDevice dev(uint8_t id, const std::string &name, int rep, int fac) {
+    LiveDevice d;
+    d.id = id, d.name = name, d.reportedButtons = rep, d.factoryButtons = fac;
+    d.vendor = 0x256f, d.product = 0xc62b;
+    return d;
+}
+
+void testDeviceInfo() {
+    // roundtrip, including Unicode names
+    std::vector<LiveDevice> in = {dev(1, "3Dconnexion SpaceMouse Pro", 15, 15), dev(2, "Maus \xC3\xA4\xE2\x82\xAC\xF0\x9F\x96\xB1", 2, 4)};
+    const std::vector<uint8_t> f = encodeLiveDevices(in);
+    assert(f[4] == kLiveVersion && f[5] == kLiveTypeDevices && f.size() <= kLiveMaxFrame + 1000);
+    LiveFrameParser p;
+    LiveSample o;
+    assert(p.feed(f.data(), f.size()) && !p.next(&o) && p.error() == LiveParseError::Ok);
+    assert(p.devices() == in && p.infoCount() == 1 && p.buffered() == 0);
+    // none
+    const std::vector<uint8_t> e = encodeLiveDevices({});
+    assert(e.size() == kLiveHeaderBytes + 1);
+    assert(p.feed(e.data(), e.size()) && !p.next(&o) && p.devices().empty() && p.infoCount() == 2);
+    // interleaved with samples, split into single bytes
+    LiveFrameParser q;
+    std::vector<uint8_t> all = f;
+    const std::vector<uint8_t> sm = encodeLiveSample(sample());
+    all.insert(all.end(), sm.begin(), sm.end());
+    int got = 0;
+    for (uint8_t b : all) {
+        assert(q.feed(&b, 1));
+        while (q.next(&o)) got++;
+    }
+    assert(got == 1 && q.devices() == in && q.error() == LiveParseError::Ok);
+
+    // encoder bounds: too many devices, long and invalid names, huge counts
+    std::vector<LiveDevice> many;
+    for (int i = 0; i < 20; i++) many.push_back(dev(static_cast<uint8_t>(i), std::string(200, 'x'), 99, 99));
+    many[0].name = std::string("a\x01\xFF\xC0\xAF") + "b";
+    const std::vector<uint8_t> m = encodeLiveDevices(many);
+    assert(m.size() <= kLiveMaxFrame);
+    LiveFrameParser r;
+    assert(r.feed(m.data(), m.size()) && !r.next(&o) && r.error() == LiveParseError::Ok);
+    assert(r.devices().size() == kLiveMaxDevices && r.devices()[0].name == "a????b" && r.devices()[1].name.size() == kLiveMaxName);
+    assert(r.devices()[0].reportedButtons == kLiveMaxButtons);
+    // truncation never splits a code point
+    const std::string long3(100, '\xE2');  // invalid lead bytes only -> '?' each
+    assert(live_detail::sanitizeName(long3).size() == kLiveMaxName);
+    std::string eur;
+    for (int i = 0; i < 30; i++) eur += "\xE2\x82\xAC";
+    const std::string se = live_detail::sanitizeName(eur);
+    assert(se.size() == 63 && live_detail::validName(se));
+
+    // strict UTF-8 validation
+    for (const char *bad : {"\xC0\x80", "\xE0\x80\x80", "\xED\xA0\x80", "\xF4\x90\x80\x80", "\xC2\x80", "\x7f", "a\nb", "\xF8\x88\x80\x80\x80", "\xE2\x82"})
+        assert(!live_detail::validName(bad));
+    assert(live_detail::validName("\xC2\xA0\xF4\x8F\xBF\xBF"));
+
+    // client-side rejects: build a valid frame, then corrupt it
+    auto rejects = [&](std::vector<uint8_t> fr, LiveParseError want) {
+        LiveFrameParser z;
+        z.feed(fr.data(), fr.size());
+        assert(!z.next(&o) && z.error() == want && z.infoCount() == 0 && z.devices().empty());
+    };
+    const std::vector<uint8_t> one = encodeLiveDevices({dev(3, "Abc", 4, 4)});
+    auto mut = [&](size_t i, uint8_t v) { auto c = one; c[i] = v; return c; };
+    const size_t d0 = kLiveHeaderBytes + 1;  // first device
+    rejects(mut(kLiveHeaderBytes, kLiveMaxDevices + 1), LiveParseError::EBadPayload);  // too many devices
+    rejects(mut(kLiveHeaderBytes, 2), LiveParseError::EBadLength);                    // count larger than data
+    rejects(mut(kLiveHeaderBytes, 0), LiveParseError::EBadLength);                    // trailing bytes
+    rejects(mut(d0 + 5, 33), LiveParseError::EBadPayload);                            // reported buttons
+    rejects(mut(d0 + 6, 33), LiveParseError::EBadPayload);                            // factory buttons
+    rejects(mut(d0 + 7, 7), LiveParseError::EBadPayload);                             // axes
+    rejects(mut(d0 + 8, 65), LiveParseError::EBadPayload);                            // name length
+    rejects(mut(d0 + 8, 9), LiveParseError::EBadLength);                              // name beyond payload
+    rejects(mut(d0 + 9, 0xFF), LiveParseError::EBadPayload);                          // invalid UTF-8
+    rejects(mut(d0 + 9, 0x07), LiveParseError::EBadPayload);                          // control character
+    rejects(mut(4, 1), LiveParseError::EVersionMismatch);
+    {  // empty payload
+        std::vector<uint8_t> z(one.begin(), one.begin() + kLiveHeaderBytes);
+        z[6] = z[7] = 0;
+        rejects(z, LiveParseError::EBadLength);
+    }
+    {  // oversize info frame
+        std::vector<uint8_t> z(one.begin(), one.begin() + kLiveHeaderBytes);
+        z[6] = static_cast<uint8_t>((kLiveMaxPayload + 1) & 0xFF), z[7] = static_cast<uint8_t>((kLiveMaxPayload + 1) >> 8);
+        rejects(z, LiveParseError::EOversize);
+    }
+    // fuzz: random garbage and bit flips never crash and never leave invalid devices behind
+    uint32_t seed = 99;
+    for (int it = 0; it < 3000; it++) {
+        std::vector<uint8_t> z = (it % 3 == 0) ? encodeLiveDevices(in) : (it % 3 == 1 ? m : one);
+        const int flips = 1 + static_cast<int>(lcg(seed) % 4);
+        for (int k = 0; k < flips; k++) z[lcg(seed) % z.size()] ^= static_cast<uint8_t>(1u << (lcg(seed) % 8));
+        if (it % 5 == 0) z.resize(lcg(seed) % z.size());
+        LiveFrameParser w;
+        w.feed(z.data(), z.size());
+        while (w.next(&o)) {}
+        for (const LiveDevice &d : w.devices()) {
+            assert(live_detail::validName(d.name) && d.reportedButtons <= kLiveMaxButtons && d.axes <= AX_COUNT);
+        }
+        assert(w.devices().size() <= kLiveMaxDevices);
+    }
+    // garbage bytes after a valid header
+    for (int it = 0; it < 500; it++) {
+        std::vector<uint8_t> z = {'D', 'F', 'L', 'V', kLiveVersion, kLiveTypeDevices, 0, 0};
+        const size_t len = lcg(seed) % (kLiveMaxPayload + 1);
+        z[6] = static_cast<uint8_t>(len), z[7] = static_cast<uint8_t>(len >> 8);
+        for (size_t k = 0; k < len; k++) z.push_back(static_cast<uint8_t>(lcg(seed) >> 24));
+        LiveFrameParser w;
+        assert(w.feed(z.data(), z.size()));
+        while (w.next(&o)) {}
+    }
+}
+
+void testDeviceInfoTransport() {
+    auto lst = std::make_unique<FakeListener>();
+    FakeListener *l = lst.get();
+    LiveFeedServer srv(std::move(lst));
+    assert(srv.start(nullptr));
+    LiveSample s = sample();
+    s.devices = {dev(1, "SpaceMouse Pro", 15, 15)};
+    s.devicesRev = 1;
+    auto c1 = std::make_unique<FakeConn>();
+    FakeConn *a = c1.get();
+    l->waiting.push_back(std::move(c1));
+    int64_t t = 1000 * MS;
+    srv.publish(s, t);
+    LiveFrameParser p;
+    LiveSample o;
+    assert(p.feed(a->out.data(), a->out.size()));
+    int n = 0;
+    while (p.next(&o)) n++;
+    assert(n == 1 && p.infoCount() == 1 && p.devices().size() == 1);  // info first, then the sample
+    assert(a->out[5] == kLiveTypeDevices);
+    // unchanged list: no new info; changed list: info again to everyone; late client gets it on connect
+    const size_t before = a->out.size();
+    srv.publish(s, t += 40 * MS);
+    LiveFrameParser p2;
+    p2.feed(a->out.data() + before, a->out.size() - before);
+    while (p2.next(&o)) {}
+    assert(p2.infoCount() == 0);
+    s.devices.push_back(dev(2, "Second \xC3\xA4", 2, 2));
+    s.devicesRev = 2;
+    auto c2 = std::make_unique<FakeConn>();
+    FakeConn *b = c2.get();
+    l->waiting.push_back(std::move(c2));
+    srv.publish(s, t += 200 * MS);
+    for (FakeConn *c : {a, b}) {
+        LiveFrameParser q;
+        const size_t from = (c == a) ? before : 0;
+        q.feed(c->out.data() + from, c->out.size() - from);
+        while (q.next(&o)) {}
+        assert(q.devices().size() == 2 && q.devices()[1].name == "Second \xC3\xA4");
+    }
+    // client side: devices() and a monotonic infoCount across reconnects
+    std::vector<uint8_t> stream = encodeLiveDevices(s.devices);
+    const std::vector<uint8_t> sm = encodeLiveSample(sample());
+    stream.insert(stream.end(), sm.begin(), sm.end());
+    std::vector<FakeConn *> made;
+    LiveFeedClient cl([&](std::string *) {
+        auto c = std::make_unique<FakeConn>();
+        c->in.assign(stream.begin(), stream.end());
+        made.push_back(c.get());
+        return std::unique_ptr<FeedConn>(std::move(c));
+    });
+    int64_t u = 0;
+    assert(cl.poll(u, nullptr) == 1 && cl.devices().size() == 2 && cl.infoCount() == 1);
+    made.back()->broken = true;
+    cl.poll(u += 33 * MS, nullptr);
+    assert(cl.devices().empty() && cl.infoCount() == 1);
+    cl.poll(u += 6000 * MS, nullptr);
+    assert(cl.devices().size() == 2 && cl.infoCount() == 2);
+
+    // UI model glue
+    LiveFeedModel m;
+    assert(!m.hasDevices() && m.devices().empty());
+    LiveFeedClient c3([&](std::string *) {
+        auto c = std::make_unique<FakeConn>();
+        c->in.assign(stream.begin(), stream.end());
+        return std::unique_ptr<FeedConn>(std::move(c));
+    });
+    m.pump(c3, 0);
+    assert(m.hasDevices() && m.devices().size() == 2 && m.infoRevision() == 1);
+}
+
 }  // namespace
 
 int main() {
@@ -468,6 +652,8 @@ int main() {
     testClient();
     testModel();
     testLoopback();
+    testDeviceInfo();
+    testDeviceInfoTransport();
     std::printf("test_live_feed: OK\n");
     return 0;
 }

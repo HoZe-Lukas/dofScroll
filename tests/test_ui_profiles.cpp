@@ -9,6 +9,7 @@
 #include "platform/running_apps.hpp"
 #include "testutil.hpp"
 #include "ui/model/binding_editor_model.hpp"
+#include "ui/model/device_source_model.hpp"
 #include "ui/model/key_list.hpp"
 #include "ui/model/profile_tree_model.hpp"
 
@@ -288,6 +289,66 @@ static void testUtf8() {
     assert(dm.rows("")[0].hasProfile);
 }
 
+static LiveDevice liveDev(const std::string &name, int reported, int factory) {
+    LiveDevice d;
+    d.name = name, d.reportedButtons = reported, d.factoryButtons = factory;
+    d.vendor = 0x256f, d.product = 0xc62b;
+    return d;
+}
+
+static void testDeviceSource() {
+    DeviceSourceModel m;
+    assert(m.devices().empty() && !m.fromFeed());
+    // status fallback: one device without ids; control characters and overlong names are cleaned
+    m.setStatusDevice("SpaceMouse Pro\n");
+    assert(m.devices().size() == 1 && m.devices()[0].name == "SpaceMouse Pro?" && m.devices()[0].vendor == 0);
+    m.setStatusDevice(std::string(500, 'x'));
+    assert(m.devices()[0].name.size() == kLiveMaxName);
+    m.setStatusDevice("");
+    assert(m.devices().empty());
+
+    // feed wins over the status file; "available but empty" means no device
+    m.setStatusDevice("Old Name");
+    m.setFeed(true, {});
+    assert(m.fromFeed() && m.devices().empty());
+    m.setFeed(true, {liveDev("SpaceMouse Pro", 15, 15), liveDev("M\xC3\xA4use \xE2\x82\xAC", 2, 2)});
+    assert(m.devices().size() == 2 && m.devices()[1].name == "M\xC3\xA4use \xE2\x82\xAC");
+    assert(m.devices()[0].vendor == 0x256f && m.devices()[0].reportedButtons == 15);
+    m.setFeed(false, {liveDev("ignored", 1, 1)});
+    assert(m.devices().size() == 1 && m.devices()[0].name == "Old Name");  // feed lost: status again
+
+    // many devices
+    std::vector<LiveDevice> many;
+    for (int i = 0; i < 8; i++) many.push_back(liveDev("Dev " + std::to_string(i), 2, 2));
+    m.setFeed(true, many);
+    assert(m.devices().size() == 8);
+    DevicePickerModel pick;
+    pick.setDevices(m.devices());
+    assert(pick.rows("dev 7").size() == 1);
+
+    // button limit: a device profile uses the connected device it matches, else its own pattern
+    m.setFeed(true, {liveDev("3Dconnexion SpaceMouse Pro", 15, 15), liveDev("Unknown Pad", 6, 6)});
+    DeviceSourceModel::Limit l = m.buttonLimitDevice(true, "spacemouse pro");
+    assert(l.name == "3Dconnexion SpaceMouse Pro" && l.reported == 15);
+    l = m.buttonLimitDevice(true, "spacemouse compact");  // not connected: model table by name
+    assert(l.name == "spacemouse compact" && l.reported == 0);
+    l = m.buttonLimitDevice(false, "");
+    assert(l.name == "3Dconnexion SpaceMouse Pro");
+    m.setFeed(true, {});
+    assert(m.buttonLimitDevice(false, "").name.empty());
+
+    SettingsModel sm;
+    ProfileSet ps;
+    sm.setProfiles(ps, "");
+    sm.setDeviceInfo("spacemouse compact", 0);
+    assert(sm.buttonLimit() == 2);
+    l = DeviceSourceModel::Limit{"Unknown Pad", 6};
+    sm.setDeviceInfo(l.name, l.reported);
+    assert(sm.buttonLimit() == 6);
+    sm.setDeviceInfo("", 0);
+    assert(sm.buttonLimit() == 32);  // nothing known: the maximum
+}
+
 int main() {
     testUtf8();
     testKeyList();
@@ -297,6 +358,7 @@ int main() {
     testTree();
     testPickerWiring();
     testLayout();
+    testDeviceSource();
     std::puts("test_ui_profiles: OK");
     return 0;
 }

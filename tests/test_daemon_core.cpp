@@ -183,6 +183,9 @@ static void testLiveFeedSink() {
     CHECK(s.active && s.enabled && !s.idle && s.fresh, "live flags");
     CHECK(s.axes[AX_X] == 69 && s.axes[AX_Y] == 286 && s.axes[AX_Z] == 350, "raw axes in the sample");
     CHECK(s.v != 0.0f && s.mode == "normal", "channel output and mode in the sample");
+    CHECK(s.devices.size() == 1 && s.devices[0].name == "Test Mouse A" && s.devices[0].factoryButtons == 2 &&
+              s.devicesRev >= 1,
+          "device info in the sample");
     Rig off("[global]\nLIVE_FEED = 0\n");
     off.run(0.1);
     CHECK(!off.live.empty() && !off.live.back().active, "LIVE_FEED = 0 marks the sample inactive");

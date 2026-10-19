@@ -51,6 +51,9 @@ struct FakeFeed {
             return c;
         };
     }
+    void pushDevices(const std::vector<LiveDevice> &d) {
+        for (uint8_t b : encodeLiveDevices(d)) conn->in.push_back(b);
+    }
     void push(const RawAxes &a, uint32_t buttons = 0) {
         LiveSample s;
         s.axes = a;
@@ -168,6 +171,22 @@ static void testConnection() {
     s.poll(t += 33 * MS);
     assert(s.connection(t) == ConnState::Connected && s.view().shown().axes[AX_RZ] == 6);
     assert(s.connection(t + 2000 * MS) == ConnState::WaitingForFeed);  // stale
+    assert(s.view().deviceLabel().empty() && s.view().buttonCount() == 2);  // no info frame yet
+    {  // device info: name and factory button count (Unicode name, two devices)
+        LiveDevice a, b;
+        a.id = 1, a.name = "SpaceMouse Pro \xC3\xA4", a.reportedButtons = 2, a.factoryButtons = 15;
+        b.id = 2, b.name = "Compact", b.reportedButtons = 2, b.factoryButtons = 2;
+        f.pushDevices({a, b});
+        f.push(ax(1, 2, 3, 4, 5, 6), 1);
+        s.poll(t += 33 * MS);
+        assert(s.view().deviceLabel() == "SpaceMouse Pro \xC3\xA4, Compact" && s.view().buttonCount() == 15);
+        f.pushDevices({});  // device unplugged
+        s.poll(t += 33 * MS);
+        assert(s.view().deviceLabel().empty() && s.view().buttonCount() == 2);
+        f.pushDevices({a});
+        s.poll(t += 33 * MS);
+        assert(s.view().buttonCount() == 15);
+    }
     f.conn->broken = true;
     s.poll(t += 33 * MS);
     assert(s.connection(t) == ConnState::DaemonNotRunning);

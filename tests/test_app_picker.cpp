@@ -3,6 +3,8 @@
 // Unit tests for src/ui/model/app_picker_model.hpp (assert-based, own main).
 #include <cassert>
 #include <cstdio>
+#include <string>
+#include <vector>
 
 #include "ui/model/app_picker_model.hpp"
 
@@ -81,6 +83,52 @@ static void testCapture() {
     assert(!s.tick("a b", 1) && s.state() == CaptureNextFocus::State::Idle);
 }
 
+// Drives the state machine the way the dialog does (baseline = provider at start, then a 100 ms
+// timer) with a fake ActiveWindowProvider that returns Windows-style executable names.
+namespace {
+struct FakeProvider : ActiveWindowProvider {
+    std::vector<std::string> script;
+    size_t pos = 0;
+    bool init() override { return true; }
+    std::string poll() override {
+        if (script.empty()) return std::string();
+        const size_t i = pos < script.size() ? pos : script.size() - 1;
+        pos++;
+        return script[i];
+    }
+};
+}  // namespace
+
+static void testCaptureWithProvider() {
+    FakeProvider p;
+    p.script = {"dofscroll-ui.exe", "dofscroll-ui.exe", "", "explorer.exe", "caf\xC3\xA9.exe"};
+    CaptureNextFocus c;
+    int64_t now = 0;
+    c.start(now, p.poll());  // baseline: the UI itself
+    int ticks = 0;
+    while (c.state() == CaptureNextFocus::State::Waiting && ticks < 50) {
+        now += 100;
+        c.tick(p.poll(), now);
+        ticks++;
+    }
+    assert(c.state() == CaptureNextFocus::State::Captured && c.result() == "explorer.exe" && ticks == 3);
+
+    // nothing but the UI and empty strings (e.g. an elevated program denies the query): timeout
+    FakeProvider q;
+    q.script = {"dofscroll-ui.exe", "", "dofscroll-ui.exe"};
+    CaptureNextFocus d(1000);
+    d.start(0, q.poll());
+    for (int64_t t = 100; t <= 1000; t += 100) d.tick(q.poll(), t);
+    assert(d.state() == CaptureNextFocus::State::TimedOut && d.result().empty());
+
+    // Unicode executable name is captured unchanged (same string the profile matcher compares)
+    FakeProvider u;
+    u.script = {"x.exe", "caf\xC3\xA9.exe"};
+    CaptureNextFocus e;
+    e.start(0, u.poll());
+    assert(e.tick(u.poll(), 100) && e.result() == "caf\xC3\xA9.exe");
+}
+
 static void testDevices() {
     DevicePickerModel m;
     DeviceInfo a, b, c;
@@ -107,6 +155,7 @@ int main() {
     testStableSort();
     testValidity();
     testCapture();
+    testCaptureWithProvider();
     testDevices();
     std::puts("test_app_picker: all tests passed");
     return 0;

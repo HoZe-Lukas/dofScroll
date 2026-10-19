@@ -8,6 +8,8 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <string>
+#include <vector>
 
 #include "live_feed/live_feed.hpp"
 
@@ -38,7 +40,41 @@ public:
 
     // Polls the client and feeds every received sample; returns how many arrived.
     int pump(LiveFeedClient &client, int64_t nowNs) {
-        return client.poll(nowNs, [&](const LiveSample &s) { update(s, nowNs); });
+        const int n = client.poll(nowNs, [&](const LiveSample &s) { update(s, nowNs); });
+        syncDevices(client);
+        return n;
+    }
+
+    // Takes over the client's device list (call after every poll; pump() does it). The list is
+    // dropped while the client is not connected.
+    void syncDevices(const LiveFeedClient &client) {
+        if (client.infoCount() != infoSeen_) {  // new device list (or reconnect with a fresh one)
+            infoSeen_ = client.infoCount();
+            devices_ = client.devices();
+            hasDevices_ = true;
+        } else if (client.state() != LiveFeedClient::State::Connected) {
+            devices_.clear();  // daemon gone: its device list is no longer known
+            hasDevices_ = false;
+        }
+    }
+
+    // Device info frame of the daemon. hasDevices() is false until the first frame arrives and
+    // while the feed is unavailable (consumers then fall back to the status file).
+    bool hasDevices() const { return hasDevices_; }
+    const std::vector<LiveDevice> &devices() const { return devices_; }
+    uint32_t infoRevision() const { return infoSeen_; }
+    // Display label: the device names joined by ", " ("" if none). The number of configurable
+    // buttons is the largest factory count (devices behind one merged source share the indices;
+    // 0 if no device is known).
+    std::string deviceLabel() const {
+        std::string l;
+        for (const LiveDevice &d : devices_) l += (l.empty() ? "" : ", ") + d.name;
+        return l;
+    }
+    int factoryButtons() const {
+        int n = 0;
+        for (const LiveDevice &d : devices_) n = std::max(n, d.factoryButtons);
+        return n;
     }
 
     bool hasSample() const { return has_; }
@@ -66,6 +102,9 @@ private:
     int64_t lastNs_ = 0;
     bool has_ = false, seeded_ = false;
     uint64_t samples_ = 0;
+    std::vector<LiveDevice> devices_;
+    uint32_t infoSeen_ = 0;
+    bool hasDevices_ = false;
 };
 
 }  // namespace spn
