@@ -1,19 +1,22 @@
-# Translation template for dofscroll (source language: English).
-# SPDX-License-Identifier: GPL-3.0-or-later
-# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: dofscroll\n"
-"Report-Msgid-Bugs-To: https://github.com/HoZe-Lukas/dofScroll/issues\n"
-"POT-Creation-Date: 2026-10-19 08:58+0200\n"
-"PO-Revision-Date: 2026-10-19 00:00+0000\n"
-"Last-Translator: Lukas Hois-Zelinka\n"
-"Language-Team: English\n"
-"Language: en\n"
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-19 09:01+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
 #: src/dofscroll_tray.cpp:137
 msgid "Scroll vertical"
@@ -59,11 +62,11 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: src/dofscroll_tray.cpp:558
-msgid "Output"
+msgid "Output (clipped)"
 msgstr ""
 
 #: src/dofscroll_tray.cpp:558
-msgid "Output (clipped)"
+msgid "Output"
 msgstr ""
 
 #: src/dofscroll_tray.cpp:560
@@ -249,7 +252,6 @@ msgstr ""
 msgid "This device has %d buttons (0..%d)"
 msgstr ""
 
-#. Labels (text color from the theme)
 #: src/dofscroll_tray.cpp:1183
 msgid "+ up: lift / press"
 msgstr ""
@@ -258,7 +260,7 @@ msgstr ""
 msgid "Twist the cap"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1185
+#: src/dofscroll_tray.cpp:1185 src/axis_wizard.hpp:44
 msgid "Tilt forward/back"
 msgstr ""
 
@@ -266,7 +268,7 @@ msgstr ""
 msgid "+ right: push sideways"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1187
+#: src/dofscroll_tray.cpp:1187 src/axis_wizard.hpp:45
 msgid "Tilt sideways"
 msgstr ""
 
@@ -585,8 +587,6 @@ msgstr ""
 msgid "dofscroll - Settings"
 msgstr ""
 
-#. At the very top: control on/off per profile (ENABLED). Off -> all other settings of
-#. this tab are greyed out (they have no effect then anyway); the checkbox stays usable.
 #: src/dofscroll_tray.cpp:2012
 msgid "Control active in this profile"
 msgstr ""
@@ -671,4 +671,16 @@ msgstr ""
 
 #: src/dofscroll_tray.cpp:2466
 msgid "Quit"
+msgstr ""
+
+#: src/axis_wizard.hpp:44
+msgid "Push forward/back"
+msgstr ""
+
+#: src/axis_wizard.hpp:45
+msgid "Push sideways"
+msgstr ""
+
+#: src/axis_wizard.hpp:46
+msgid "Twist"
 msgstr ""

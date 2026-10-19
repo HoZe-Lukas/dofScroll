@@ -35,10 +35,15 @@ constexpr int MIN_PEAK = 80;            // below this: "too weak"
 constexpr double AMBIGUOUS_RATIO = 0.85;  // second-strongest/strongest above this -> "close call" hint
 constexpr double TIE_RATIO = 0.95;      // above this: practically a tie -> ambiguous, invalid
 
+// N_() only marks the titles for gettext extraction; the UI translates them at display time.
+#ifndef N_
+#define N_(s) s
+#endif
+
 inline const char *roleTitle(int r) {
-    static const char *t[ROLE_COUNT] = {"Push forward/back", "Tilt forward/back",
-                                        "Push sideways", "Tilt sideways",
-                                        "Twist"};
+    static const char *t[ROLE_COUNT] = {N_("Push forward/back"), N_("Tilt forward/back"),
+                                        N_("Push sideways"), N_("Tilt sideways"),
+                                        N_("Twist")};
     return (r >= 0 && r < ROLE_COUNT) ? t[r] : "?";
 }
 
