@@ -17,6 +17,7 @@ set(CPACK_RPM_PACKAGE_LICENSE "GPL-3.0-or-later")
 set(CPACK_RPM_PACKAGE_GROUP "Applications/System")
 set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
 set(CPACK_RPM_PACKAGE_REQUIRES "spacenavd")
+# Units and udev rule live in /usr/lib (not lib64): these system directories must not be owned by the RPM.
 set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
     /usr/lib /usr/lib/systemd /usr/lib/systemd/user /usr/lib/udev /usr/lib/udev/rules.d)
 

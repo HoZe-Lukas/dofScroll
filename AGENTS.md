@@ -20,7 +20,7 @@ macOS ports are in development (`docs/work-plan.md`).
 | `examples/` | Example configs (CI-validated), `default/` (seeded on first start), `modes/` |
 | `devices/` | Device descriptions, format in `docs/devices.md` |
 | `po/` | gettext catalogs. The only place for non-English text |
-| `systemd/`, `packaging/`, `icons/` | User units, udev rule and CPack config, tray icon |
+| `systemd/`, `packaging/`, `icons/` | Unit templates (`*.service.in`, rendered by CMake), udev rule and CPack config, tray icon |
 | `cmake/`, `CMakeLists.txt` | Build, quality gates, install and helper targets |
 | `scripts/` | Pre-commit hook, secret scan, hardening check |
 | `docs/` | `installation`, `configuration`, `modes`, `troubleshooting` (user docs); `security`, `releasing`, `work-plan`, `port-*`, `windows-mac`, `devices` |

@@ -85,21 +85,16 @@ Checked on the TGZ built on a RHEL 9 machine:
 | Path | Content |
 |---|---|
 | `/usr/bin/dofscroll`, `/usr/bin/dofscroll-tray` | The programs. |
-| `/usr/lib64/systemd/user/dofscroll.service`, `dofscroll-tray.service` | User units. The directory is `<libdir>/systemd/user`, where `<libdir>` is the build machine's CMake library directory (`lib64` on RHEL). On Debian it is probably `lib/x86_64-linux-gnu` (unverified). |
-| `/usr/lib64/udev/rules.d/70-dofscroll-uinput.rules` | uinput rule (same `<libdir>` caveat). |
+| `/usr/lib/systemd/user/dofscroll.service`, `dofscroll-tray.service` | User units, rendered at install time so `ExecStart` points at the real program path (`/usr/bin/...` for a package). The directory is always `<prefix>/lib/systemd/user`, never `lib64`. |
+| `/usr/lib/udev/rules.d/70-dofscroll-uinput.rules` | uinput rule (always under `lib`, never `lib64`). |
 | `/usr/share/dofscroll/examples/` | Example configs, `default/` and `modes/`. |
 | `/usr/share/dofscroll-tray/icons/dofscroll-tray.svg` | Tray icon. |
 | `/usr/share/locale/de/LC_MESSAGES/dofscroll.mo` | German translation. |
 | `/usr/share/doc/dofscroll/` | `LICENSE` and a copy of the readme. |
 
-Known problems of the current packages (to be fixed in the build; check the release notes):
-
-- systemd looks for user units in `/usr/lib/systemd/user`, not in `/usr/lib64/systemd/user`.
-  On RHEL the installed units are therefore not found. Step 3 of the setup below works around it.
-- Both unit files contain `ExecStart=/usr/local/bin/...`, but the packages install into
-  `/usr/bin`. The setup below patches the paths.
-- udev reads `/usr/lib/udev/rules.d`, not `/usr/lib64/udev/rules.d`. Install the rule by hand
-  (step 5).
+The unit and rule locations are covered by the `install_layout` test (an install into a temporary
+directory). The RPM and DEB files themselves are built by the release workflow and have not
+been checked on a real machine yet (unverified until the first release).
 
 ## 2. First-time setup
 
@@ -113,27 +108,18 @@ Do these steps once per machine. Steps 1 and 5 need root.
 
         systemctl status spacenavd
 
-3. Make the user units available to your user. Find them first (`rpm -ql dofscroll | grep service`,
-   or `dpkg -L dofscroll | grep service` on Debian), then copy them and fix the program path:
+3. Check that systemd finds the user units (the package installs them where systemd looks):
 
-        mkdir -p ~/.config/systemd/user
-        cp /usr/lib64/systemd/user/dofscroll*.service ~/.config/systemd/user/
-        sed -i 's#/usr/local/bin/#/usr/bin/#' ~/.config/systemd/user/dofscroll*.service
         systemctl --user daemon-reload
-
-   Use the directory that `rpm -ql` printed. If your package already installed working units
-   (a build with the fixed paths), skip this step.
+        systemctl --user list-unit-files 'dofscroll*'
 
 4. Start the services. They then start with every graphical session:
 
         systemctl --user enable --now dofscroll.service dofscroll-tray.service
 
-5. Optional, only for Wayland or if you set `BACKEND = uinput`: install the udev rule for
-   `/dev/uinput`:
-
-        sudo cp <path of 70-dofscroll-uinput.rules> /etc/udev/rules.d/
-
-   Get the path from `rpm -ql dofscroll | grep rules` (`dpkg -L dofscroll` on Debian). Then:
+5. Optional, only for Wayland or if you set `BACKEND = uinput`: activate the udev rule for
+   `/dev/uinput`.
+   The package installs the rule to `/usr/lib/udev/rules.d/`. Reload udev:
 
         sudo udevadm control --reload && sudo udevadm trigger
 
@@ -244,10 +230,11 @@ Options at configure time:
 | `-DDOFSCROLL_SANITIZE=ON` | OFF | ASan/UBSan build. |
 | `-DDOFSCROLL_WERROR=ON` | OFF | Treat warnings as errors. |
 
-The install rules put the units in `<prefix>/<libdir>/systemd/user` with the same caveats as in
-[section 1](#what-a-package-installs). With the default prefix `/usr/local` the unit paths
-`/usr/local/bin/...` are correct, but systemd does not read `/usr/local/lib*/systemd/user`
-by default, so still copy or link the units as in step 3 of the setup (skip the `sed`).
+The install rules put the units in `<prefix>/lib/systemd/user` and the udev rule in
+`<prefix>/lib/udev/rules.d`, with `ExecStart` pointing at `<prefix>/bin`. With the default prefix
+`/usr/local`, systemd does not read `/usr/local/lib/systemd/user` by default; for a local install
+link the units as described in "Run from the build tree" below, or install with
+`-DCMAKE_INSTALL_PREFIX=/usr`.
 
 Packages: `cd build && cpack -G TGZ` (also `RPM` with `rpmbuild`, `DEB` with `dpkg-deb`).
 
@@ -258,8 +245,8 @@ the commands and runs nothing with sudo:
 
     cmake --build build --target install-user-links
 
-Run the printed commands. The binaries then come from `build/`, the units from `systemd/` in the
-checkout, so a rebuild takes effect after a restart. Stop the services before rebuilding
+Run the printed commands. The binaries then come from `build/`, the units from `build/systemd-dev/`
+(rendered for `/usr/local/bin`), so a rebuild takes effect after a restart. Stop the services before rebuilding
 (`Text file busy`): `systemctl --user stop dofscroll.service dofscroll-tray.service`. Do not move
 the checkout afterwards, or the links break.
 

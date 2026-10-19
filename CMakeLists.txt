@@ -182,13 +182,10 @@ add_custom_target(uninstall COMMAND ${CMAKE_COMMAND}
 
 # ---- install ----------------------------------------------------------------
 install(TARGETS dofscroll RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(FILES systemd/dofscroll.service DESTINATION ${CMAKE_INSTALL_LIBDIR}/systemd/user)
 if(DOFSCROLL_BUILD_TRAY)
   install(TARGETS dofscroll-tray RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   install(FILES icons/dofscroll-tray.svg
           DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll-tray/icons)
-  install(FILES systemd/dofscroll-tray.service
-          DESTINATION ${CMAKE_INSTALL_LIBDIR}/systemd/user)
 endif()
 
 file(GLOB EXAMPLE_FILES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/examples/*.conf)
@@ -198,10 +195,10 @@ if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/examples/modes)
   install(DIRECTORY examples/modes DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
 endif()
 
-# udev rule(s); the packaged location is <prefix>/lib/udev/rules.d
-file(GLOB UDEV_RULES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/packaging/*.rules)
-if(UDEV_RULES)
-  install(FILES ${UDEV_RULES} DESTINATION ${CMAKE_INSTALL_LIBDIR}/udev/rules.d)
+include(cmake/Systemd.cmake)  # units + udev rule go to <prefix>/lib (never lib64)
+if(BUILD_TESTING)
+  add_test(NAME install_layout COMMAND ${CMAKE_COMMAND} -DBUILD_DIR=${CMAKE_BINARY_DIR}
+           -DTMP=${CMAKE_BINARY_DIR}/install_layout -P ${CMAKE_SOURCE_DIR}/cmake/InstallLayoutTest.cmake)
 endif()
 
 install(FILES LICENSE readme.md DESTINATION ${CMAKE_INSTALL_DOCDIR})

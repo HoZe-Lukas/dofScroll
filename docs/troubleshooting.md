@@ -48,10 +48,11 @@ service again afterwards.
    plugged in. `lsusb` should list a 3Dconnexion device. With two SpaceMice, `spacenavd` reports
    only one.
 3. Is the user unit running? `systemctl --user status dofscroll.service`. If it is
-   "not found" after a package install, the unit was not installed where systemd looks. Follow
-   step 3 of the setup in [installation.md](installation.md#2-first-time-setup).
-4. Does the unit fail with status 203/EXEC? The unit's `ExecStart` path is wrong
-   (`/usr/local/bin` versus `/usr/bin`). Fix it as in the same step.
+   "not found", run `systemctl --user daemon-reload` and check step 3 of the setup in
+   [installation.md](installation.md#2-first-time-setup).
+4. Does the unit fail with status 203/EXEC? The program in the unit's `ExecStart` does not
+   exist. A package install points at `/usr/bin`, the symlink flow from the build tree at
+   `/usr/local/bin` (see "Run from the build tree"). Check with `systemctl --user cat dofscroll.service`.
 5. Is output paused or disabled? The status file shows `enabled=0` or `paused=1`. The daemon
    pauses while the tray's "Axes" tab or the wizard is open. An `[app:*]` section with
    `ENABLED = 0`, or `MODE = off`, switches it off for that program.
