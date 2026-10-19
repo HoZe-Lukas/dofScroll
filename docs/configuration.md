@@ -56,6 +56,7 @@ in the tray.
 | `TICK_HZ` | `250` | Tick rate 30 to 1000. Can differ per profile. |
 | `ENABLED` | `1` | `0` switches all output off (scroll, zoom, keys, clicks) and releases held keys. |
 | `MODE` | `normal` | Active mode, see [modes.md](modes.md). |
+| `LIVE_FEED` | `1` | `0` disables the live data feed to the UI (axes view, axis assistant); with `1` it only runs while a UI is connected. See `security.md`. |
 | `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | Button that turns X/Y into arrow keys while held. |
 | `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | Button that is passed through as the left mouse button. |
 | `BUTTON_<n>` | none | Action of button `n`, same values as in mode files, see [modes.md](modes.md). |

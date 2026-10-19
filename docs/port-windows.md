@@ -80,6 +80,12 @@ Manual setup from the build artifact, see `packaging/windows/README.md`:
 (input injection needs the interactive session). Behavior across fast user switching is
 unverified.
 
+The UI switches the same thing through `src/platform/win/autostart_win.cpp` (W18): Run values
+`dofscroll` and `dofscroll-ui` with the quoted full path of the executable (folder of the running
+program, UTF-16 registry API, no shell, no administrator rights); disabling deletes them. The
+ctest `autostart_win_roundtrip` writes and removes the value `dofscroll-test`. Compile and
+runner test only, not tried on a real desktop.
+
 ## Vendor driver
 
 If the 3Dconnexion driver is installed it may also translate motion into scroll/zoom/keys for some

@@ -1,0 +1,37 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
+# Release notes
+
+Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
+
+## 0.1 candidates (pre-release)
+
+Tags `v0.1.0-rc1` and `v0.1.0-rc2`; the GitHub pre-release is `0.1.0-rc2`. **Not a stable release.** The summary below is derived from the git history up to `v0.1.0-rc2`. The current state of `main` is newer, see [Roadmap](Roadmap).
+
+**Tested only on:** RHEL 9, X11, KDE Plasma, SpaceMouse Pro and Compact. Everything else is built in CI but not run on hardware.
+
+Added:
+- Modes as plain files (`~/.config/dofscroll/modes/`), built-in `normal`, `off` and `timeline`, example modes, `BUTTON_<n>` actions including `mode:<id>` and `mode:next`, every key and mouse buttons 1-3 on X11 and uinput
+- First-start seeding of the config and example modes by the tray (published atomically)
+- Tray: application modes list, quick "Mode" menu, German translation, translatable axis-wizard messages
+- Device database with factory button counts, `devices/*.conf` HID descriptions and the HID report decoder
+- Platform interfaces and a platform-independent daemon core with a thin Linux main
+- CMake build (targets `check-fast`, `check`, `check-deps`, `install-user-links`, ...), CPack packages (RPM, DEB, TGZ), release workflow with checksums
+- CI with `-Werror`, sanitizers, cppcheck, secret scan and pinned actions
+
+Changed:
+- Project renamed from `spnav-scroll` to `dofscroll` (old config paths are still read)
+- `BUTTON_<n>` is 1-based; `plus` is the main-keyboard plus and `kp_plus`/`kp_minus` were added
+- Application profiles now take precedence over the active mode's overrides
+- Documentation and code comments are English
+
+Fixed:
+- X11 key tap on held keys, device-add event, early SIGHUP handling, HID descriptor parsing
+
+## After 0.1.0-rc2 (on `main`, unreleased)
+
+- Windows and macOS daemons (CI-verified, **hardware-unverified**), see [Installation](Installation)
+- `dofscroll-hidprobe` diagnostic tool, see [Devices](Devices)
+- Security review and fixes: units rendered with the final prefix, opt-in udev rule, mode-file safety notes, load-time chord warnings, rejection of process-level overrides in mode files, log sanitizing, see [Security](Security)
+- Tray: edit mode files, create editable copies of built-in modes, "Start at login" checkbox
+- Qt6 interface skeleton and running-program picker model

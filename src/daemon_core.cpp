@@ -468,6 +468,9 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
             raw[i] = reader_.axes[i].load(std::memory_order_relaxed);
     }
     uint32_t buttons = reader_.button_mask.load(std::memory_order_relaxed);
+    const RawAxes live_raw = raw;  // the live feed shows the device even while output is idle
+    const uint32_t live_buttons = buttons;
+    const bool live_fresh = fresh;
 
     // The tray evaluates the mouse itself (tab "Axes"/wizard): treat inputs as
     // "no deflection, no button" - held keys (click, Ctrl) are then released cleanly.
@@ -513,6 +516,25 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
     {
         const std::string req = runner_->takeSwitchRequest();
         if (!req.empty()) switchMode(req);
+    }
+
+    if (d_.liveFeed) {
+        live_.active = settings_.live_feed;
+        if (live_.active) {
+            const ModeRunner::Info &i = runner_->info();
+            live_.axes = live_raw;
+            live_.buttons = live_buttons;
+            live_.fresh = live_fresh;
+            live_.v = static_cast<float>(i.rate_v);
+            live_.h = static_cast<float>(i.rate_h);
+            live_.zoom = static_cast<float>(i.twist);
+            live_.zooming = i.zooming;
+            live_.nav = i.nav;
+            live_.enabled = enabled;
+            live_.idle = idle;
+            live_.mode = runner_->mode().id;
+        }
+        d_.liveFeed(live_, now_ns);
     }
 
     if (d_.debug && now_ns >= next_debug_ &&

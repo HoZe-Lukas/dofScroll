@@ -126,10 +126,13 @@ call "Actions: default GITHUB_TOKEN read-only, Actions may not approve PRs" PUT 
   "default_workflow_permissions": "read",
   "can_approve_pull_request_reviews": false
 }'
-call "Actions: selected actions only, full-SHA pinning required" PUT "/actions/permissions" '{
+# sha_pinning_required stays false: it also applies to the actions that other actions call
+# internally (jurplel/install-qt-action calls setup-python@v5 by tag), which made the Qt jobs fail
+# in "Set up job". Our own workflows pin every action to a full commit SHA (checked in review).
+call "Actions: selected actions only" PUT "/actions/permissions" '{
   "enabled": true,
   "allowed_actions": "selected",
-  "sha_pinning_required": true
+  "sha_pinning_required": false
 }'
 # GitHub-owned actions (actions/*, github/*) are allowed as a group; the rest is listed.
 # oven-sh/setup-bun is used internally by anthropics/claude-code-action (composite action).
@@ -138,6 +141,8 @@ call "Actions: allow-list" PUT "/actions/permissions/selected-actions" '{
   "verified_allowed": false,
   "patterns_allowed": [
     "anthropics/claude-code-action@*",
+    "jurplel/install-qt-action@*",
+    "jurplel/install-qt-action/action@*",
     "oven-sh/setup-bun@*"
   ]
 }'

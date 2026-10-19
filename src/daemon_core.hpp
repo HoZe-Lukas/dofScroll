@@ -20,6 +20,7 @@
 #include <string>
 
 #include "common.hpp"
+#include "live_feed/live_feed_protocol.hpp"
 #include "config.hpp"
 #include "mode_runner.hpp"
 #include "modes.hpp"
@@ -52,6 +53,9 @@ struct DaemonDeps {
     std::function<int()> countDevices;
     // Optional monotonic clock in ns (default: steady_clock); tests inject a fake.
     std::function<int64_t()> clock;
+    // Optional live feed sink (see src/live_feed/): called once per tick with the raw axes, the
+    // buttons and the channel outputs; the publisher rate-limits and never blocks.
+    std::function<void(const LiveSample &, int64_t nowNs)> liveFeed;
     bool debug = false;
 };
 
@@ -153,6 +157,7 @@ private:
     std::string hint_key_;  // multi-device hint: once per change
     std::chrono::steady_clock::duration tick_period_;
 
+    LiveSample live_;
     DeviceReader reader_;
     std::unique_ptr<Output> output_;
     std::unique_ptr<ModeRunner> runner_;

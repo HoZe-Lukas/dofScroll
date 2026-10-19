@@ -25,6 +25,8 @@ SetCompressor /SOLID lzma
 ; Same Run value as packaging/windows/install-autostart.ps1 (value name "dofscroll").
 !define RUN_KEY "Software\Microsoft\Windows\CurrentVersion\Run"
 !define RUN_NAME "dofscroll"
+; The UI's "Start at login" switch writes this second value (the UI program).
+!define RUN_UI_NAME "dofscroll-ui"
 
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
@@ -123,6 +125,7 @@ Section "Uninstall"
     nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\scripts\stop-daemon.ps1" -ExePath "$INSTDIR\dofscroll.exe"'
   ; autostart: the Run value (and a Startup shortcut of the autostart script, if any)
   DeleteRegValue HKCU "${RUN_KEY}" "${RUN_NAME}"
+  DeleteRegValue HKCU "${RUN_KEY}" "${RUN_UI_NAME}"
   Delete "$SMSTARTUP\${RUN_NAME}.lnk"
   Delete "$SMPROGRAMS\dofscroll\dofscroll.lnk"
   Delete "$SMPROGRAMS\dofscroll\Uninstall dofscroll.lnk"

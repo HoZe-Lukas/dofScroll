@@ -34,6 +34,7 @@
 #include "../../common.hpp"
 #include "../../config.hpp"
 #include "../../daemon_core.hpp"
+#include "../../live_feed/live_feed.hpp"
 #include "../../modes.hpp"
 #include "../../output.hpp"
 #include "../fs.hpp"
@@ -376,6 +377,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         };
         deps.removeStatus = [statusPath] { fs::removeFile(statusPath); };
     }
+    deps.liveFeed = makeLiveFeedSink(paths.runtimeDir);  // UI data feed, see src/live_feed/
     deps.debug = debug;
 
     DaemonCore *core = new DaemonCore(std::move(deps));
