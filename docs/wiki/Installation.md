@@ -17,13 +17,13 @@ Full guide: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/
 | DEB (built on Debian 12) | `sudo apt install ./dofscroll_*.deb` | Whether `spacenavd` is in your release's repositories is unverified |
 | TGZ | `tar xzf dofscroll-*-Linux.tar.gz`, then `sudo cp -a dofscroll-*-Linux/usr/. /usr/` | You install the run-time dependencies yourself |
 
-The RPM and DEB files have not been installed on a real machine yet. A package installs `/usr/bin/dofscroll`, `/usr/bin/dofscroll-tray`, the user units in `/usr/lib/systemd/user`, examples in `/usr/share/dofscroll/examples/`, and the uinput udev rule as an inactive example under `/usr/share/dofscroll/udev/`.
+The RPM and DEB files have not been installed on a real machine yet. A package installs `/usr/bin/dofscroll`, `/usr/bin/dofscroll-tray`, `/usr/bin/dofscroll-ui` (only when Qt6 was available at build time; otherwise the package is GTK-only), a menu entry, the user units in `/usr/lib/systemd/user`, examples in `/usr/share/dofscroll/examples/`, and the uinput udev rule as an inactive example under `/usr/share/dofscroll/udev/`.
 
 ## First-time setup (Linux)
 
 1. `sudo systemctl enable --now spacenavd`
 2. `systemctl --user daemon-reload`, then check `systemctl --user list-unit-files 'dofscroll*'`
-3. `systemctl --user enable --now dofscroll.service dofscroll-tray.service`
+3. `systemctl --user enable --now dofscroll.service dofscroll-tray.service`. For the Qt interface use `dofscroll-ui.service` instead of the tray unit (the units conflict, so starting one stops the other); the interface's "Start at login" switch does the same through one interface on all systems.
 4. Wayland only (or `BACKEND = uinput`): activate the udev rule yourself, it is not active by default.
    `sudo cp /usr/share/dofscroll/udev/70-dofscroll-uinput.rules /etc/udev/rules.d/`, then `sudo udevadm control --reload && sudo udevadm trigger`, then log out and in. Do not join the `input` group, see [Security](Security).
 
@@ -44,26 +44,28 @@ sudo cmake --install build --prefix /usr
 
 CMake 3.16 or newer. Debian-family package names are in the full guide (marked unverified there). Options: `-DDOFSCROLL_TRAY=OFF` (daemon only, no GTK), `-DDOFSCROLL_HARDEN=OFF`, `-DDOFSCROLL_SANITIZE=ON`, `-DDOFSCROLL_WERROR=ON`. With the default prefix `/usr/local` systemd does not read the installed units; use `--prefix /usr` or `cmake --build build --target install-user-links`.
 
-## Windows (experimental, unverified on hardware)
+## Windows (unsigned, unverified on hardware)
 
-The daemon is built by CI (MSVC and MinGW-w64) and uploaded as the artifact `dofscroll-windows-*`. It has **not been tested with a real SpaceMouse**. There is no installer, no tray and no settings window yet.
+CI builds an installer (`dofscroll-<version>-windows-x64-setup.exe`) and a portable ZIP. They have **not been run with a real SpaceMouse**, and they are not code-signed.
 
-1. Unpack the artifact and keep `dofscroll.exe`, `devices\` and `examples\` together.
-2. Start `dofscroll.exe` (no console window). Config: `%APPDATA%\dofscroll\dofscroll.conf` (same format as on Linux). Log: `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
-3. Optional per-user autostart without administrator rights: `packaging-windows\install-autostart.ps1 -ExePath <full path to dofscroll.exe>`.
-4. If the 3Dconnexion driver is installed, disable its per-application navigation for the programs you test, otherwise scrolling is doubled.
+1. Download, verify the checksum as above, run the installer. No administrator rights are needed (default folder `%LOCALAPPDATA%\Programs\dofscroll`).
+2. SmartScreen shows "Windows protected your PC": click **More info**, then **Run anyway**.
+3. Optional component "Start the daemon at logon" (off by default). The Start menu entry opens the settings window (`dofscroll-ui.exe`); `dofscroll.exe` is the daemon without a window.
+4. Config: `%APPDATA%\dofscroll\dofscroll.conf` (same format as on Linux). Log: `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
+5. If the 3Dconnexion driver is installed, disable its per-application navigation for the programs you test, otherwise scrolling is doubled.
 
-Details and the tester checklist: [port-windows.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-windows.md), [port-windows-checklist.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-windows-checklist.md).
+Uninstall: Settings > Apps > dofscroll; your configuration stays. Details: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md), [port-windows.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-windows.md), [port-windows-checklist.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-windows-checklist.md).
 
-## macOS (experimental, unverified on hardware)
+## macOS (unsigned, unverified on hardware)
 
-Build from source (Xcode command line tools and CMake), then install the per-user LaunchAgent:
+CI builds `dofscroll-<version>-macos-arm64.dmg` (Apple silicon). It is signed ad hoc only and **not notarized**, and it has **not been run with a real SpaceMouse**.
 
-```sh
-sh packaging/macos/install-launchagent.sh --daemon "$PWD/build/dofscroll"
-```
+1. Open the DMG and drag `dofscroll.app` to Applications.
+2. Gatekeeper blocks the first start: right-click the app > **Open** > **Open**. On macOS 15 and later use System Settings > Privacy & Security > **Open Anyway**. Alternative: `xattr -dr com.apple.quarantine /Applications/dofscroll.app`.
+3. Grant **Input Monitoring** and **Accessibility** to the daemon inside the app (`Contents/Resources/daemon/dofscroll`), then restart it.
+4. Autostart: the interface's "Start at login" switch, or the LaunchAgent script from the image (`README-first-run.txt`).
 
-Grant the binary **Input Monitoring** and **Accessibility** in System Settings > Privacy & Security. There is no signed or notarized package, no tray and no settings window. Details: [port-macos.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-macos.md), [packaging/macos/README.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/packaging/macos/README.md).
+Details: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md), [port-macos.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-macos.md), [packaging/macos/README.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/packaging/macos/README.md).
 
 ## Upgrade and uninstall
 

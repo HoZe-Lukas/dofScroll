@@ -99,6 +99,19 @@ cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$STAGE/"
 sed "s|@VERSION@|$VERSION|g" "$HERE/README-first-run.txt" > "$STAGE/README-first-run.txt"
 [ "$HAS_UI" -eq 1 ] && ln -s /Applications "$STAGE/Applications"
 
-rm -f "$OUT/$NAME.dmg"
-hdiutil create -volname "dofscroll $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$OUT/$NAME.dmg"
+# hdiutil sometimes fails with "Resource busy" on CI runners; retry up to 3 times.
+attempt=1
+while :; do
+    rm -f "$OUT/$NAME.dmg"
+    if hdiutil create -volname "dofscroll $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$OUT/$NAME.dmg"; then
+        break
+    fi
+    if [ "$attempt" -ge 3 ]; then
+        echo "build-dmg: hdiutil failed after $attempt attempts" >&2
+        exit 1
+    fi
+    echo "build-dmg: hdiutil failed (attempt $attempt of 3), retrying" >&2
+    attempt=$((attempt + 1))
+    sleep 5
+done
 echo "build-dmg: $OUT/$NAME.dmg"

@@ -5,6 +5,7 @@
 - [Home](Home)
 - [Installation](Installation)
 - [Quick start](Quick-start)
+- [User interface](User-interface)
 - [Configuration reference](Configuration-reference)
 - [Modes](Modes)
 - [Profiles](Profiles)

@@ -23,6 +23,12 @@ Treat a mode file like a script: it can press any key on the key list, including
 **Does it run as root?**
 No. The daemon and tray run as your user in systemd user units. Only enabling `spacenavd` and the optional udev rule need root.
 
+**A key or scrolling seems stuck. What now?**
+The daemon has a stale-input watchdog and a safety net that releases held keys and buttons when the device is quiet. If something still hangs: tray menu "Release all keys" (GTK tray), or `dofscroll --release-keys` in a terminal, or restart the service. See [Troubleshooting](Troubleshooting).
+
+**Should I use the Qt interface or the GTK tray?**
+On Linux the packages ship both when Qt6 was available at build time. The GTK tray is the documented default; the Qt interface is the one for Windows and macOS. Run only one of them. See [User interface](User-interface).
+
 **Which devices are supported?**
 On Linux, models `spacenavd` supports. Factory button counts are known for the six models on [Buttons](Buttons); only Pro and Compact are tested.
 
