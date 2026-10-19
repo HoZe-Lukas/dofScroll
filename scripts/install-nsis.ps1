@@ -31,11 +31,14 @@ if (-not (Test-Hash $zip)) {
   $urls = @()
   if ($MirrorUrl) { $urls += $MirrorUrl }
   $urls += "https://prdownloads.sourceforge.net/nsis/$name"
+  $urls += "https://downloads.sourceforge.net/project/nsis/NSIS%203/$Version/$name"
   foreach ($url in $urls) {
     for ($i = 1; $i -le $Attempts; $i++) {
       try {
         Write-Output "download ($i/$Attempts): $url"
-        Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing -TimeoutSec 120
+        # SourceForge answers a browser-like User-Agent (the PowerShell default) with an HTML mirror
+        # page instead of the file; a curl User-Agent gets the redirect to the file.
+        Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing -TimeoutSec 120 -UserAgent 'curl/8.5.0' -MaximumRedirection 10
         if (Test-Hash $zip) { break }
         $got = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
         throw "SHA-256 mismatch for ${url}: expected $Sha256, got $got"
