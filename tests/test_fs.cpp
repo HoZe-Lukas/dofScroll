@@ -246,6 +246,35 @@ static void testWindowsHazards(const std::string &d) {
     assert(dh.readFileBounded("plain.txt:s", 10, fs::ReadOptions(), &out).status == fs::ReadStatus::OpenFailed);
     assert(dh.readFileBounded("sub/plain.txt", 10, fs::ReadOptions(), &out).status == fs::ReadStatus::OpenFailed);
     assert(dh.readFileBounded("plain.txt", 10, fs::ReadOptions(), &out).ok());
+    // DirHandle::open reports the real reason (not a stale GetLastError, which would read
+    // "The operation completed successfully.")
+    ::SetLastError(ERROR_SUCCESS);
+    fs::DirHandle fileAsDir;
+    assert(!fileAsDir.open(d + "/plain.txt", &err) && !err.empty() &&
+           err.find("completed successfully") == std::string::npos);
+    ::SetLastError(ERROR_SUCCESS);
+    err.clear();
+    fs::DirHandle missing;
+    assert(!missing.open(d + "/does-not-exist", &err) && !err.empty() &&
+           err.find("completed successfully") == std::string::npos);
+
+    // Directory junctions are reparse points: lstat reports a link and writing through one is refused
+    // (only symbolic links are followed). Skipped where `mklink /J` is unavailable (Wine).
+    {
+        assert(fs::mkdirPrivate(d + "/jtarget", nullptr) == fs::MkdirResult::Created);
+        std::string cmd = "cmd /c mklink /J \"" + d + "/jlink\" \"" + d + "/jtarget\" >nul 2>&1";
+        for (char &c : cmd)
+            if (c == '/') c = '\\';
+        if (std::system(cmd.c_str()) == 0 && fs::lstatPath(d + "/jlink", &i)) {
+            assert(i.isLink && !i.isDir && !i.isFile);
+            assert(!fs::writeFileReplace(d + "/jlink", "x", &err) && err.find("reparse point refused") != std::string::npos);
+            fs::ReadOptions ro;
+            ro.refuseLinks = true;
+            assert(fs::readFileBounded(d + "/jlink", 10, ro, &out).status == fs::ReadStatus::OpenFailed);
+        } else {
+            std::puts("test_fs: junction test skipped (mklink /J unavailable)");
+        }
+    }
     // a normal "dotted" name that is NOT reserved still works
     assert(fs::writeFileReplace(d + "/console.conf", "ok", &err) && get(d + "/console.conf") == "ok");
     assert(fs::writeFileReplace(d + "/a.con", "ok", &err));
