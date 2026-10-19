@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <vector>
 
 #include "platform/fs.hpp"
 #include "seed.hpp"
@@ -18,6 +19,16 @@
 #endif
 
 static bool exists(const std::string &p) { return spn::fs::pathExists(p); }
+// Number of entries whose name contains ".tmp" (leftovers of an interrupted copy).
+static int countTmp(const std::string &dir) {
+    int n = 0;
+    std::vector<std::string> names;
+    bool capped = false;
+    if (spn::fs::listDir(dir, 0, &names, &capped))
+        for (const std::string &e : names)
+            if (e.find(".tmp") != std::string::npos) ++n;
+    return n;
+}
 static void put(const std::string &p, const std::string &c) { std::ofstream(p, std::ios::binary) << c; }
 static std::string get(const std::string &p) {
     std::ifstream f(p, std::ios::binary);
@@ -47,9 +58,7 @@ int main() {
     put(ex + "/modes/skip.txt", "x\n");
     put(ex + "/modes/big.conf", std::string(70 * 1024, 'x'));
     put(root + "/secret", "secret\n");
-#ifndef _WIN32  // symlink creation needs privileges on Windows: that check is not exercised there
     assert(::symlink((root + "/secret").c_str(), (ex + "/modes/link.conf").c_str()) == 0);
-#endif
 
     assert(spn::seedDefaults(&log));
     assert(!log.empty());
@@ -69,18 +78,34 @@ int main() {
     assert(get(conf) == "mine\n" && get(modes + "/a.conf") == "mine\n");
 
     // an existing modes dir blocks mode seeding, a missing config is re-seeded
-    std::remove(conf.c_str());
+    spn::fs::removeFile(conf);
     put(ex + "/modes/c.conf", "c\n");
     assert(spn::seedDefaults(&log));
     assert(get(conf) == "[global]\nA = 1\n");
     assert(get(modes + "/a.conf") == "mine\n" && !exists(modes + "/c.conf"));
 
     // a config at the previous location counts as an existing config
-    std::remove(conf.c_str());
+    spn::fs::removeFile(conf);
     mkdir1(cfg + "/spnav-scroll");
     put(cfg + "/spnav-scroll/spnav-scroll.conf", "old\n");
     assert(!spn::seedDefaults(&log));
     assert(!exists(conf));
+
+    // interrupted earlier run: a stale temp directory is cleaned up and the complete set is published
+    {
+        tu::removeAll(cfg + "/dofscroll");
+        tu::removeAll(cfg + "/spnav-scroll");
+        mkdir1(cfg + "/dofscroll");
+        const std::string stale = cfg + "/dofscroll/modes.tmp.99999";
+        mkdir1(stale);
+        put(stale + "/a.conf", "partial\n");
+        assert(!exists(modes));
+        assert(spn::seedDefaults(&log));
+        assert(!exists(stale));  // stale temp directory removed
+        assert(get(modes + "/a.conf") == "a\n" && get(modes + "/b.conf") == "b\n");
+        // no temporary leftovers next to the published files
+        assert(countTmp(cfg + "/dofscroll") == 0 && countTmp(modes) == 0);
+    }
 
     tu::removeAll(root);
     std::puts("test_seed OK");

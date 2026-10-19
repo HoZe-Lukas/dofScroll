@@ -103,8 +103,22 @@ bool parseHidDescriptor(const std::string &text, HidDescriptor &out, std::string
     int ln = 0;
     while (std::getline(is, raw)) {
         ++ln;
-        size_t hash = raw.find('#');
-        if (hash != std::string::npos) raw.erase(hash);
+        // Comment rule: '#' or ';' starts a comment at the start of a line or after
+        // whitespace. The value of `name` is taken verbatim (only full-line comments),
+        // so "name = Foo #2" is kept whole.
+        {
+            size_t first = raw.find_first_not_of(" \t\r");
+            const bool isName = first != std::string::npos && raw.compare(first, 4, "name") == 0 &&
+                                raw.find_first_not_of(" \t", first + 4) != std::string::npos &&
+                                raw[raw.find_first_not_of(" \t", first + 4)] == '=';
+            for (size_t i = 0; i < raw.size(); ++i) {
+                if ((raw[i] == '#' || raw[i] == ';') &&
+                    (i == first || (!isName && (i == 0 || raw[i - 1] == ' ' || raw[i - 1] == '\t')))) {
+                    raw.erase(i);
+                    break;
+                }
+            }
+        }
         std::string line = trim(raw);
         if (line.empty()) continue;
         size_t eq = line.find('=');
@@ -127,7 +141,7 @@ bool parseHidDescriptor(const std::string &text, HidDescriptor &out, std::string
             d.ids.emplace_back(vid, pid);
         } else if (key == "factory_buttons") {
             unsigned n;
-            if (!parseUInt(val, 64, n)) return fail(err, ln, "factory_buttons must be 0..64");
+            if (!parseUInt(val, 32, n)) return fail(err, ln, "factory_buttons must be 0..32");
             d.factoryButtons = static_cast<int>(n);
         } else if (key.size() > 5 && key.compare(0, 5, "axis.") == 0) {
             std::string an = key.substr(5);
@@ -175,7 +189,7 @@ bool parseHidDescriptor(const std::string &text, HidDescriptor &out, std::string
     bool anyAxis = false;
     for (const HidAxis &a : d.axes) anyAxis = anyAxis || a.present;
     if (!anyAxis && !d.hasButtons) { err = "no axes or buttons defined"; return false; }
-    if (d.hasButtons && d.factoryButtons > 0 && static_cast<unsigned>(d.factoryButtons) > d.buttonBits) {
+    if (d.factoryButtons > 0 && (!d.hasButtons || static_cast<unsigned>(d.factoryButtons) > d.buttonBits)) {
         err = "factory_buttons exceeds button bits";
         return false;
     }

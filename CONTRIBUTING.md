@@ -2,18 +2,18 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Contributing to dofscroll
 
-Thanks for helping. This is the short version; `readme.md` is the full technical documentation
-and `AGENTS.md` the orientation for coding agents.
+Thanks for helping. This is the short version. User documentation is in `readme.md` and `docs/`;
+`AGENTS.md` is the orientation for coding agents.
 
 By contributing you agree that your contribution is licensed under `GPL-3.0-or-later`, like the
 rest of the project.
 
 ## Build
 
-Dependencies (RHEL 9 + EPEL, see `readme.md` section 5 for the exact command): `gcc-c++`,
-`spacenavd`, `libspnav-devel`, `libX11-devel`, `libXtst-devel`, `gtk3-devel`,
-`libappindicator-gtk3-devel` (plus `cmake` 3.16+ and `gettext`). If your system has no
-suitable `cmake`: `pip install --user cmake` (installs to `~/.local/bin`).
+Dependencies (RHEL 9 + EPEL; exact commands per distribution in `docs/installation.md`,
+section 4): `gcc-c++`, `spacenavd`, `libspnav-devel`, `libX11-devel`, `libXtst-devel`,
+`gtk3-devel`, `libappindicator-gtk3-devel` (plus `cmake` 3.16+ and `gettext`). If your system has
+no suitable `cmake`: `pip install --user cmake` (installs to `~/.local/bin`).
 
     cmake -S . -B build
     cmake --build build --target check-deps
@@ -44,23 +44,35 @@ picks up `tests/test_*.cpp` automatically; re-run cmake after adding one).
   `// SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka`; use `#` comments for CMake, shell,
   config and YAML files).
 - Keep the hardening flags; the binaries must pass `scripts/check-hardening.sh`.
-- Update `readme.md` when behavior or a contract (config key, file path) changes.
+- Update the docs when behavior or a contract (config key, file path) changes:
+  `docs/configuration.md`, `docs/modes.md`, `docs/installation.md` or `docs/troubleshooting.md`.
 
 ## English only
 
 Everything in the repository is English: code comments, identifiers, documentation, log, error
 and test messages, commit messages. The only exception is translations in `po/*.po`.
 
+## Branches and pull requests
+
+1. Branch from `main` and give the branch a topic name.
+2. Keep a change small and focused. Add or update tests.
+3. Run `cmake --build build --target check`. The pre-commit hook runs `check-fast`; do not skip
+   it with `--no-verify`.
+4. Push the branch and open a pull request against `main`. State what you verified and what
+   needs real hardware. CI (`.github/workflows/ci.yml`) must be green.
+5. Releases are made by the maintainer, see `docs/releasing.md`.
+
 ## Adding a mode
 
-Modes are declarative files, no recompiling needed (format and limits: `readme.md` section 4,
-"Modes"; parser: `src/modes.hpp`).
+Modes are declarative files, no recompiling needed (format and limits: `docs/modes.md`;
+parser: `src/modes.hpp`).
 
 1. Create `<name>.conf` (the name is the id, `[a-z0-9_-]{1,32}`). For a mode that ships with the
    project put it in `examples/modes/`; for personal use put it in
    `~/.config/dofscroll/modes/`.
 2. Use `NAME`, `DESCRIPTION`, `V_ACTION`/`H_ACTION`/`TWIST_ACTION`, `BUTTON_<n>` and any settings
-   key as an override. Button indices must be below the factory button count of the device.
+   key as an override. Buttons are numbered from 1 and must not exceed the factory button count
+   of the device.
 3. Select it with `MODE = <name>` in `[global]`, `[device:*]` or `[app:*]`.
 4. Example modes are validated by `--target check-config`/CI; run `--target check` before sending it.
    Keep SPDX headers on shipped files.
@@ -69,12 +81,12 @@ Modes are declarative files, no recompiling needed (format and limits: `readme.m
 
 UI strings are English in the source and translated with gettext; translations live in `po/`.
 
-1. Create `po/<lang>.po` from the translation template in `po/` (for example
-   `msginit -l <lang> -i po/<template>.pot -o po/<lang>.po`; use the template file name that
-   exists in `po/`).
+1. Create `po/<lang>.po` from the template:
+   `msginit -l <lang> -i po/dofscroll.pot -o po/<lang>.po`.
 2. Translate the entries; keep placeholders (`%s`, `%d`) and mnemonics intact.
-3. Register the language if the build lists languages explicitly, rebuild and run the tray with
-   `LANGUAGE=<lang>` to check it.
+3. Add `<lang>` to `po/LINGUAS`. Rebuild: CMake compiles every `po/*.po` into
+   `share/locale/<lang>/LC_MESSAGES/dofscroll.mo` (needs `gettext`). Check it by running the tray
+   with `LANGUAGE=<lang>` and `DOFSCROLL_LOCALEDIR=build/locale`.
 4. When you add or change UI strings in the source, keep them English and re-extract the
    template so translators see the new entries.
 

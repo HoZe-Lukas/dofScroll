@@ -2229,7 +2229,78 @@ struct StatusUi {
 };
 static StatusUi statusUi;
 
+// ---------------------------------------------------------------------------
+// Quick mode menu: "Mode" submenu of the tray icon, one radio item per loaded mode, the
+// effective global mode selected. Picking one writes MODE in [global] (removed for
+// "normal") through the normal debounced save, which also reloads the daemon.
+// ---------------------------------------------------------------------------
+
+struct ModeMenu {
+    GtkWidget *sub = nullptr;
+    std::string key;           // stamp + global mode of the last rebuild
+    bool rebuilding = false;
+};
+static ModeMenu modeMenu;
+
+static void onModeMenuPick(GtkCheckMenuItem *item, gpointer) {
+    if (modeMenu.rebuilding || !gtk_check_menu_item_get_active(item)) return;
+    const char *id = static_cast<const char *>(g_object_get_data(G_OBJECT(item), "mode-id"));
+    if (!id) return;
+    if (!g.disk_known) loadFromDisk();
+    if (!spn::modelist::setGlobalMode(g.ps, id)) return;
+    if (g.cur_idx == 0) {
+        g.cur = g.ps.sectionSettings(0);
+        if (g.window) refresh();
+    }
+    scheduleApply();
+}
+
+// Rebuilds the submenu if the modes directory or the global mode changed (cheap check,
+// called from the 1 s status tick).
+static void updateModeMenu() {
+    if (!modeMenu.sub) return;
+    static ProfileSet cfg;
+    static std::string cfg_content;
+    static bool cfg_loaded = false;
+    std::string cur;
+    if (g.debounce_id != 0) {
+        cur = spn::modelist::globalModeId(g.ps);  // pick not saved yet
+    } else {
+        std::string content;
+        readFileContent(cfgPath(), &content);
+        if (!cfg_loaded || content != cfg_content) {
+            cfg = ProfileSet();
+            spn::loadProfiles(cfgPath(), &cfg, nullptr);
+            cfg_content = content;
+            cfg_loaded = true;
+        }
+        cur = spn::modelist::globalModeId(cfg);
+    }
+    const std::string dir = spn::modesDir();
+    const std::string key = spn::modesStamp(dir) + "\n" + cur;
+    if (key == modeMenu.key) return;
+    modeMenu.key = key;
+
+    modeMenu.rebuilding = true;
+    GList *kids = gtk_container_get_children(GTK_CONTAINER(modeMenu.sub));
+    for (GList *l = kids; l; l = l->next) gtk_widget_destroy(GTK_WIDGET(l->data));
+    g_list_free(kids);
+    const spn::ModeSet ms = spn::loadModes(dir, nullptr);
+    GSList *group = nullptr;
+    for (const auto &e : spn::modelist::buildMenuEntries(ms, cur)) {
+        GtkWidget *item = gtk_radio_menu_item_new_with_label(group, displayText(e.text, 60).c_str());
+        group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(item));
+        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), e.active);
+        g_object_set_data_full(G_OBJECT(item), "mode-id", g_strdup(e.id.c_str()), g_free);
+        g_signal_connect(item, "toggled", G_CALLBACK(onModeMenuPick), nullptr);
+        gtk_menu_shell_append(GTK_MENU_SHELL(modeMenu.sub), item);
+        gtk_widget_show(item);
+    }
+    modeMenu.rebuilding = false;
+}
+
 static gboolean onStatusTick(gpointer) {
+    updateModeMenu();
     const DaemonStatus d = readDaemonStatus();
     std::string main_t, info_t, warn_t;
     if (!d.valid) {
@@ -2457,6 +2528,12 @@ int main(int argc, char **argv) {
     statusUi.info_item = addInfoItem("");
     statusUi.warn_item = addInfoItem("");
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
+    {
+        GtkWidget *mode_item = gtk_menu_item_new_with_label(_("Mode"));
+        modeMenu.sub = gtk_menu_new();
+        gtk_menu_item_set_submenu(GTK_MENU_ITEM(mode_item), modeMenu.sub);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), mode_item);
+    }
     addMenuItem(menu, _("Settings…"), G_CALLBACK(onSettings));
     addMenuItem(menu, _("Open config file"), G_CALLBACK(onOpenConfig));
     addMenuItem(menu, _("Restart daemon"), G_CALLBACK(onRestartDaemon));

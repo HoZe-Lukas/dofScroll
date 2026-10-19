@@ -69,8 +69,9 @@ private:
     int fd_ = -1;
 };
 
-// Creates a new file that must not exist yet (no symlink following), mode 0600 / user only.
-// Removes the file again if writing fails.
+// Creates a new file that must not exist yet (no symlink following), mode 0600 / user only. The
+// final name only ever holds the complete content (written to a temp file next to it and then
+// published without overwriting). Returns false if the file exists or anything fails.
 bool createFileExclusive(const std::string &path, const std::string &data);
 
 // Replaces `path` atomically with `data` (temp file next to the target, flush, rename). Missing
@@ -78,6 +79,13 @@ bool createFileExclusive(const std::string &path, const std::string &data);
 // resolved first so the link survives, the mode of an existing file is kept, new files are 0600.
 // On failure *err holds a one-line message.
 bool writeFileReplace(const std::string &path, const std::string &data, std::string *err);
+
+bool removeFile(const std::string &path);          // unlink (never follows a link at the end)
+bool removeDir(const std::string &path);           // rmdir (empty directories only)
+// Renames a file or directory; the destination of a directory rename must not exist (POSIX also
+// accepts an empty directory there, Windows does not replace anything).
+bool renamePath(const std::string &from, const std::string &to);
+long processId();
 
 enum class MkdirResult { Created, Exists, Failed };
 // Creates one directory level, private (0700 / user only). `Exists` also for non-directories (the

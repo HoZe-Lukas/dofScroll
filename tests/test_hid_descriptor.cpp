@@ -35,6 +35,18 @@ static void testParse() {
     assert(!d.axes[5].present);
     assert(d.hasButtons && d.buttonBits == 12);
 
+    {
+        HidDescriptor n;
+        assert(parseHidDescriptor("name = Foo #2\nid = 1:2 ; c\nbuttons = report=1 offset=0 bits=8 # c\n",
+                                  n, err));
+        assert(n.name == "Foo #2" && n.ids.size() == 1 && n.buttonBits == 8);
+        // factory_buttons: capped at 32, and needs a buttons line
+        assert(!parseHidDescriptor("name = X\nid = 1:2\nfactory_buttons = 40\nbuttons = report=1 offset=0 bits=32\n",
+                                   n, err));
+        assert(!parseHidDescriptor("name = X\nid = 1:2\nfactory_buttons = 4\naxis.tx = report=1 offset=0 type=s8\n",
+                                   n, err));
+    }
+
     const char *bad[] = {
         "name = X\nid = 0x1:0x2\n",                                            // nothing to decode
         "id = 0x1:0x2\naxis.tx = report=1 offset=0 type=s16le\n",              // no name

@@ -1,0 +1,121 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
+# Modes
+
+A mode decides what the three channels and the device buttons do. Modes are plain files, no
+recompiling needed. Parser: `src/modes.hpp`, `src/modes.cpp`. Key names: `src/keys.hpp`.
+
+Exactly one mode is active. It is the one named by `MODE` in the resolved profile, otherwise
+`normal`. Select it in `[global]`, `[device:*]` or `[app:*]` (see
+[configuration.md](configuration.md)). The tray also has a quick "Mode" menu that sets the global
+`MODE`.
+
+## Mode files
+
+Location: `~/.config/dofscroll/modes/<id>.conf`. The file name without `.conf` is the mode id
+(`[a-z0-9_-]{1,32}`). A file with the id of a built-in mode replaces the built-in one. The daemon
+reloads the directory when its contents change.
+
+Format: `KEY = value`, no sections, `#` and `;` comments.
+
+    NAME = Timeline (scrub / single frames)    # display name, optional
+    DESCRIPTION = Sideways = scrub              # optional
+    V_ACTION = none
+    H_ACTION = keys:left,right
+    TWIST_ACTION = keys:left,right
+    BUTTON_1 = key:space
+    BUTTON_2 = key:home
+    SCROLL_H_SENS = 4                           # any profile key is an override
+
+`MODE` is not allowed inside a mode file. Any other key from [configuration.md](configuration.md)
+is a settings override. The overrides are applied after the device profile and before the app
+profile.
+
+Limits: up to 64 mode files, each up to 64 KiB, up to 128 overrides per file, regular files only.
+Invalid lines or files are skipped with a warning in the log.
+
+## Built-in modes
+
+| Mode | Behavior |
+|---|---|
+| `normal` | All channels `default`, no bindings. Scroll, Ctrl+scroll zoom, `NAV_BUTTON` and `CLICK_BUTTON`. |
+| `off` | All channels `none`. Switches control off without `ENABLED = 0`. |
+| `timeline` | Vertical `none`, horizontal and twist `keys:left,right`. Scrubbing and single frames for video editing. |
+
+The first start also seeds three example files into `~/.config/dofscroll/modes/`:
+`browse-keys` (page up/down, left/right, zoom, Enter and Esc on buttons 1 and 2), `cycle-modes`
+(button 2 = `mode:next`) and `timeline` (adds Space on button 1 and Home on button 2).
+
+## Channel actions
+
+For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`) and `TWIST_ACTION` (`ZOOM`):
+
+| Value | Effect |
+|---|---|
+| `default` | The channel's normal behavior: vertical wheel, horizontal wheel, twist = zoom with dominance detection. |
+| `none` | Channel off. |
+| `wheel_v`, `wheel_h` | Vertical or horizontal mouse wheel. |
+| `zoom` | Hold Ctrl and send the mouse wheel. |
+| `keys:<neg>,<pos>` | Key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection. Dead zone, curve, smoothing and sensitivity of the channel apply. |
+
+## Button actions
+
+`BUTTON_<n> = <action>`. Buttons are numbered from 1 (`BUTTON_1` is the first button), in mode files
+and in the main config alike. `BUTTON_0` is rejected with "buttons are numbered from 1". At most 32.
+`n` must not exceed the factory button count of the device model (Pro 15, Compact 2, Enterprise 31;
+table in `src/device_db.cpp`). The count is not the one `spacenavd` reports.
+
+| Action | Effect |
+|---|---|
+| `none` | Nothing. |
+| `click`, `rightclick`, `middleclick` | Mouse button, held while the device button is held (drag works). |
+| `nav` | While held, X/Y send arrow keys instead of scrolling. |
+| `key:<name>` | Holds the key while the button is held. |
+| `mode:<id>` | Switches to mode `<id>` when the button is pressed. |
+| `mode:next` | Switches to the next loaded mode in alphabetical order of id, built-ins included, wrapping around. |
+
+A binding in the active mode for a button wins over a `BUTTON_<n>` binding in the main config for
+the same button.
+
+A switch by `mode:` stays until the daemon restarts, the config or modes directory reloads, or
+another switch happens. Held keys and buttons are released on every switch. An unknown mode id in
+a mode file is dropped with a warning.
+
+A mode whose three channel actions are all `default` runs the normal path, so dominance-based zoom
+and `NAV_BUTTON`/`CLICK_BUTTON` still work, and its button bindings apply in addition.
+
+## Key names
+
+Names are lower case.
+
+| Group | Names |
+|---|---|
+| Modifiers | `ctrl`, `shift`, `alt`, `super` |
+| Arrows and navigation | `up`, `down`, `left`, `right`, `home`, `end`, `pageup`, `pagedown`, `insert`, `delete` |
+| Editing | `space`, `enter`, `esc`, `tab`, `backspace` |
+| Function keys | `f1` to `f12` |
+| Letters and digits | `a` to `z`, `0` to `9` |
+| Plus and minus | `plus`, `minus` (main keyboard), `kp_plus`, `kp_minus` (keypad) |
+
+`plus` is the main-keyboard plus. On X11 it is resolved from the keyboard layout. On uinput it
+is sent as Shift and `=` (a US-style layout is assumed). `kp_plus` and `kp_minus` are the keypad keys and
+do not depend on the layout. Programs differ in which of them they accept for zoom.
+
+## Example: timeline mode
+
+For video editing (for example in DaVinci Resolve, whose behavior is not verified here):
+
+    [app:resolve]
+    MODE = timeline
+    SCROLL_H_SENS = 4     # scrubbing
+    ZOOM_SENS = 1         # single frames
+
+The timeline must have keyboard focus. Reverse the twist with `ZOOM_SIGN = -1`.
+
+## Add your own mode
+
+1. Create `~/.config/dofscroll/modes/<id>.conf` with the keys above.
+2. Wait about a second (automatic reload), or run `systemctl --user kill -s HUP dofscroll.service`.
+3. Select it with `MODE = <id>` in a profile, from the tray "Mode" menu, or with a `mode:<id>`
+   button action.
+4. Check `journalctl --user -u dofscroll.service` for warnings about skipped lines.

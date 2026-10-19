@@ -2,6 +2,11 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Tests for src/modes.cpp - plain assert tests, no framework.
 #undef NDEBUG
+#ifndef _WIN32
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -25,9 +30,7 @@ static void writeFile(const std::string &name, const std::string &content) {
 
 static void clearDir() {
     tu::removeAll(g_dir);
-    std::error_code ec;
-    std::filesystem::create_directories(g_dir, ec);
-    assert(!ec);
+    assert(std::filesystem::create_directories(g_dir));
 }
 
 static bool hasWarning(const std::vector<std::string> &w, const std::string &needle) {
@@ -230,21 +233,26 @@ static void testFileTypes() {
     clearDir();
     writeFile("real.conf", "V_ACTION = none\n");
     writeFile("target.txt", "V_ACTION = wheel_v\n");
-    assert(std::filesystem::create_directory(g_dir + "/dir.conf"));
-#ifndef _WIN32  // symlinks and FIFOs: POSIX only (symlink creation needs privileges on Windows)
+#ifndef _WIN32
     assert(symlink((g_dir + "/target.txt").c_str(), (g_dir + "/link.conf").c_str()) == 0);
     assert(symlink("does-not-exist", (g_dir + "/dangling.conf").c_str()) == 0);
     assert(mkfifo((g_dir + "/fifo.conf").c_str(), 0600) == 0);  // must not block
 #endif
+    assert(std::filesystem::create_directory(g_dir + "/dir.conf"));
     std::vector<std::string> w;
     ModeSet ms = loadModes(g_dir, &w);
     assert(ms.find("real"));
-    assert(!ms.find("link") && !ms.find("dangling") && !ms.find("dir") && !ms.find("fifo"));
+    assert(!ms.find("dir"));
     assert(hasWarning(w, "dir.conf"));
 #ifndef _WIN32
+    assert(!ms.find("link") && !ms.find("dangling") && !ms.find("fifo"));
     assert(hasWarning(w, "link.conf") && hasWarning(w, "fifo.conf"));
+#endif
 
-    // foreign owner: only testable as root (chown needs privilege)
+    // foreign owner: only testable as root (chown needs privilege); POSIX only
+#ifdef _WIN32
+    std::cout << "test_modes: foreign-owner check skipped (Windows)\n";
+#else
     if (geteuid() == 0) {
         clearDir();
         writeFile("mine.conf", "V_ACTION = none\n");
@@ -297,8 +305,32 @@ static void testResolveWithMode() {
     assert(s.zoom.sensitivity == 4);      // app beats mode
 }
 
+static void testModeSwitchBinding() {
+    ButtonActionType t;
+    Key k;
+    std::string err, id;
+    assert(parseButtonAction("mode:timeline", &t, &k, &err, &id) && t == ButtonActionType::ModeSwitch && id == "timeline");
+    assert(parseButtonAction(" Mode:NEXT ", &t, &k, &err, &id) && id == "next");
+    assert(!parseButtonAction("mode:", &t, &k, &err) && !err.empty());
+    assert(!parseButtonAction("mode:bad name", &t, &k, &err));
+    assert(parseButtonAction("mode:x", &t, &k, &err));  // id pointer is optional
+
+    clearDir();
+    writeFile("a.conf", "BUTTON_1 = mode:timeline\nBUTTON_2 = mode:next\nBUTTON_3 = mode:nosuch\n");
+    std::vector<std::string> w;
+    ModeSet ms = loadModes(g_dir, &w);
+    const ModeDef *m = ms.find("a");
+    assert(m && m->buttons.size() == 2);
+    assert(m->buttons[0].type == ButtonActionType::ModeSwitch && m->buttons[0].mode == "timeline");
+    assert(m->buttons[1].mode == "next");
+    assert(hasWarning(w, "unknown mode 'nosuch'"));
+    // the main config accepts the syntax too
+    Settings s;
+    assert(applyKey(s, "BUTTON_2", "mode:next", &err) && s.buttons[2] == "mode:next");
+}
+
 int main() {
-    g_dir = tu::makeTempDir("test_modes");
+    g_dir = tu::tmpRoot() + "/test_modes." + std::to_string(tu::pid());
     testIds();
     testGrammar();
     testBuiltins();
@@ -308,6 +340,7 @@ int main() {
     testFileTypes();
     testStamp();
     testResolveWithMode();
+    testModeSwitchBinding();
     tu::removeAll(g_dir);
     std::cout << "test_modes: all tests passed\n";
     return 0;

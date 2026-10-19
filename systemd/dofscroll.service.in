@@ -3,9 +3,9 @@ Description=SpaceMouse multi-axis scroll and zoom translator (dofscroll)
 After=graphical-session.target
 
 [Service]
-ExecStart=/usr/local/bin/dofscroll
+ExecStart=@DOFSCROLL_BINDIR@/dofscroll
 # Safeguard after a crash/SIGKILL (XTest keys would otherwise stay pressed, see docs/security.md S3)
-ExecStopPost=-/usr/local/bin/dofscroll --release-keys
+ExecStopPost=-@DOFSCROLL_BINDIR@/dofscroll --release-keys
 Restart=always
 RestartSec=1s
 

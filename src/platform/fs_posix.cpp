@@ -139,7 +139,9 @@ ReadResult DirHandle::readFileBounded(const std::string &name, size_t cap, const
 }
 
 bool createFileExclusive(const std::string &path, const std::string &data) {
-    const int out = ::open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
+    const std::string tmp = path + ".tmp." + std::to_string(static_cast<long>(::getpid()));
+    ::unlink(tmp.c_str());  // leftover of an earlier run with the same pid
+    const int out = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
     if (out < 0) return false;
     size_t off = 0;
     bool ok = true;
@@ -153,9 +155,17 @@ bool createFileExclusive(const std::string &path, const std::string &data) {
         off += static_cast<size_t>(n);
     }
     if (::close(out) != 0) ok = false;
-    if (!ok) ::unlink(path.c_str());
+    // link() fails with EEXIST instead of overwriting, and the final name only ever holds a
+    // complete file (a kill in between leaves only the temp file).
+    if (ok && ::link(tmp.c_str(), path.c_str()) != 0) ok = false;
+    ::unlink(tmp.c_str());
     return ok;
 }
+
+bool removeFile(const std::string &path) { return ::unlink(path.c_str()) == 0; }
+bool removeDir(const std::string &path) { return ::rmdir(path.c_str()) == 0; }
+bool renamePath(const std::string &from, const std::string &to) { return ::rename(from.c_str(), to.c_str()) == 0; }
+long processId() { return static_cast<long>(::getpid()); }
 
 MkdirResult mkdirPrivate(const std::string &path, std::string *err) {
     if (::mkdir(path.c_str(), 0700) == 0) return MkdirResult::Created;

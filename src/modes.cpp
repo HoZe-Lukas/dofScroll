@@ -145,7 +145,7 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
             }
             ButtonBinding b;
             b.button = std::atoi(num.c_str());
-            if (!parseButtonAction(value, &b.type, &b.key, &err)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
+            if (!parseButtonAction(value, &b.type, &b.key, &err, &b.mode)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
             bool replaced = false;
             for (ButtonBinding &e : out->buttons)
                 if (e.button == b.button) { e = b; replaced = true; }
@@ -215,7 +215,8 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
     return true;
 }
 
-bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key, std::string *err) {
+bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key, std::string *err,
+                       std::string *modeId) {
     const std::string t = lower(trim(text));
     ButtonActionType ty;
     Key k = Key::Space;
@@ -228,8 +229,13 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
         const std::string name = trim(t.substr(4));
         if (!parseKeyName(name, &k)) return fail(err, "unknown key '" + name + "'");
         ty = ButtonActionType::Key;
+    } else if (t.compare(0, 5, "mode:") == 0) {
+        const std::string id = trim(t.substr(5));
+        if (!validModeId(id)) return fail(err, "mode:<id> needs a mode id ([a-z0-9_-], max. 32 characters) or 'next'");
+        ty = ButtonActionType::ModeSwitch;
+        if (modeId) *modeId = id;
     } else {
-        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name>");
+        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next");
     }
     if (type) *type = ty;
     if (key) *key = k;
@@ -300,6 +306,19 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
         for (ModeDef &e : set.modes)
             if (e.id == m.id) { e = m; replaced = true; break; }
         if (!replaced) set.modes.push_back(m);
+    }
+    // Mode switch targets can only be checked once all files are loaded.
+    for (ModeDef &m : set.modes) {
+        auto &bs = m.buttons;
+        for (size_t i = 0; i < bs.size();) {
+            if (bs[i].type == ButtonActionType::ModeSwitch && bs[i].mode != "next" && !set.find(bs[i].mode)) {
+                warnAll("mode " + m.id + ": BUTTON_" + std::to_string(bs[i].button) + ": unknown mode '" +
+                        bs[i].mode + "' - binding ignored");
+                bs.erase(bs.begin() + static_cast<long>(i));
+            } else {
+                ++i;
+            }
+        }
     }
     return set;
 }

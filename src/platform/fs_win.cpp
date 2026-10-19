@@ -304,19 +304,28 @@ ReadResult DirHandle::readFileBounded(const std::string &name, size_t cap, const
 bool createFileExclusive(const std::string &path, const std::string &data) {
     PrivateSecurity sec(false);
     const std::wstring wp = native(path);
-    Handle h(::CreateFileW(wp.c_str(), GENERIC_WRITE, 0, sec.get(), CREATE_NEW,
+    const std::wstring wtmp = native(path + ".tmp." + std::to_string(processId()));
+    ::DeleteFileW(wtmp.c_str());  // leftover of an earlier run with the same pid
+    Handle h(::CreateFileW(wtmp.c_str(), GENERIC_WRITE, 0, sec.get(), CREATE_NEW,
                            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
     if (!h.valid()) return false;
     std::string why;
-    bool ok = writeAll(h.h, data, &why);
-    if (ok && !::FlushFileBuffers(h.h)) ok = false;
-    if (!ok) {
-        ::CloseHandle(h.h);
-        h.h = INVALID_HANDLE_VALUE;
-        ::DeleteFileW(wp.c_str());
-    }
+    bool ok = writeAll(h.h, data, &why) && ::FlushFileBuffers(h.h);
+    ::CloseHandle(h.h);
+    h.h = INVALID_HANDLE_VALUE;
+    // Without MOVEFILE_REPLACE_EXISTING the move fails if the destination exists: never overwrites,
+    // and the final name only ever holds the complete content.
+    if (ok && !::MoveFileExW(wtmp.c_str(), wp.c_str(), MOVEFILE_WRITE_THROUGH)) ok = false;
+    if (!ok) ::DeleteFileW(wtmp.c_str());
     return ok;
 }
+
+bool removeFile(const std::string &path) { return ::DeleteFileW(native(path).c_str()) != 0; }
+bool removeDir(const std::string &path) { return ::RemoveDirectoryW(native(path).c_str()) != 0; }
+bool renamePath(const std::string &from, const std::string &to) {
+    return ::MoveFileExW(native(from).c_str(), native(to).c_str(), MOVEFILE_WRITE_THROUGH) != 0;
+}
+long processId() { return static_cast<long>(::GetCurrentProcessId()); }
 
 MkdirResult mkdirPrivate(const std::string &path, std::string *err) {
     const std::wstring w = native(path);

@@ -76,18 +76,34 @@ void ModeRunner::syncKeys(const std::bitset<kKeyCount> &want) {
     keys_held_ = want;
 }
 
-ModeRunner::Wanted ModeRunner::bindings(uint32_t buttons) const {
+ModeRunner::Wanted ModeRunner::bindings(const Settings &s, uint32_t buttons) const {
     Wanted w;
-    for (const ButtonBinding &b : mode_.buttons) {
-        if (!buttonHeld(buttons, b.button - 1)) continue;  // bindings are 1-based
+    auto apply = [&w](const ButtonBinding &b) {
         switch (b.type) {
-        case ButtonActionType::Unbound: break;
+        case ButtonActionType::Unbound:
+        case ButtonActionType::ModeSwitch: break;  // ModeSwitch acts on the press edge, see tick()
         case ButtonActionType::Click: w.mouse |= 1u << 1; break;
         case ButtonActionType::MiddleClick: w.mouse |= 1u << 2; break;
         case ButtonActionType::RightClick: w.mouse |= 1u << 3; break;
         case ButtonActionType::Nav: w.nav = true; break;
         case ButtonActionType::Key: w.keys[idx(b.key)] = true; break;
         }
+    };
+    for (const ButtonBinding &b : mode_.buttons) {
+        if (!buttonHeld(buttons, b.button - 1)) continue;  // bindings are 1-based
+        apply(b);
+    }
+    // BUTTON_<n> from the resolved profile; the mode's own binding for n wins.
+    for (const auto &kv : s.buttons) {
+        if (!buttonHeld(buttons, kv.first - 1)) continue;
+        bool in_mode = false;
+        for (const ButtonBinding &b : mode_.buttons)
+            if (b.button == kv.first) in_mode = true;
+        if (in_mode) continue;
+        ButtonBinding b;
+        b.button = kv.first;
+        if (!parseButtonAction(kv.second, &b.type, &b.key, nullptr)) continue;
+        apply(b);
     }
     return w;
 }
@@ -99,6 +115,11 @@ void ModeRunner::tapKeys(Key neg, Key pos, int n) {
 
 void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh,
                       double dt) {
+    for (const ButtonBinding &b : mode_.buttons) {
+        if (b.type != ButtonActionType::ModeSwitch || switch_request_.size()) continue;
+        if (buttonHeld(buttons, b.button - 1) && !buttonHeld(prev_buttons_, b.button - 1)) switch_request_ = b.mode;
+    }
+    prev_buttons_ = buttons;
     if (legacy_) tickLegacy(s, raw, buttons, fresh, dt);
     else tickCustom(s, raw, buttons, fresh, dt);
 }
@@ -106,7 +127,7 @@ void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, b
 // Legacy path: same logic as before modes existed, plus the mode's button bindings.
 void ModeRunner::tickLegacy(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh,
                             double dt) {
-    Wanted w = bindings(buttons);
+    Wanted w = bindings(s, buttons);
     const bool nav_active =
         fresh && ((s.nav_button_enabled && buttonHeld(buttons, s.nav_button)) || w.nav);
 
@@ -160,7 +181,7 @@ void ModeRunner::tickLegacy(const Settings &s, const RawAxes &raw, uint32_t butt
 // in = wheel up, so wheel actions on the twist are inverted on the vertical wheel.
 void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh,
                             double dt) {
-    Wanted w = bindings(buttons);
+    Wanted w = bindings(s, buttons);
     const bool nav_active = fresh && w.nav;
     syncMouse(w.mouse);
 

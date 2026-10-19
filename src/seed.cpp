@@ -40,13 +40,43 @@ bool mkdirs(const std::string &dir) {
     return fs::mkdirPrivate(dir, nullptr) != fs::MkdirResult::Failed && isDir(dir);
 }
 
-// Copies src to dst. Refuses symlinks, non-regular and oversized sources; never overwrites dst.
+// Copies src to dst. Refuses symlinks, non-regular and oversized sources; never overwrites dst;
+// dst only ever holds the complete file (see fs::createFileExclusive).
 bool copyFile(const std::string &src, const std::string &dst) {
     fs::ReadOptions opt;
     opt.refuseLinks = true;
     std::string data;
     if (!fs::readFileBounded(src, kMaxFileBytes, opt, &data).ok()) return false;
     return fs::createFileExclusive(dst, data);
+}
+
+// Removes the regular files of a temporary directory and the directory itself (best effort).
+void removeTempDir(const std::string &dir) {
+    std::vector<std::string> names;
+    bool capped = false;
+    if (fs::listDir(dir, 0, &names, &capped)) {
+        for (const std::string &n : names) {
+            if (n == "." || n == "..") continue;
+            fs::FileInfo fi;
+            const std::string f = dir + "/" + n;
+            if (fs::lstatPath(f, &fi) && !fi.isDir) fs::removeFile(f);
+        }
+    }
+    fs::removeDir(dir);
+}
+
+// Cleans up "modes.tmp.*" directories that an interrupted earlier run left behind.
+void removeStaleModeTemps(const std::string &cfgDir) {
+    std::vector<std::string> stale, names;
+    bool capped = false;
+    if (fs::listDir(cfgDir, 0, &names, &capped)) {
+        for (const std::string &n : names) {
+            fs::FileInfo fi;
+            if (n.rfind("modes.tmp.", 0) == 0 && fs::lstatPath(cfgDir + "/" + n, &fi) && fi.isDir)
+                stale.push_back(cfgDir + "/" + n);
+        }
+    }
+    for (const auto &p : stale) removeTempDir(p);
 }
 
 std::string exeDir() {
@@ -112,11 +142,20 @@ bool seedDefaults(std::string *log) {
         }
         std::sort(names.begin(), names.end());
         if (names.size() > kMaxModeFiles) names.resize(kMaxModeFiles);
-        if (!names.empty() && fs::mkdirPrivate(modesPath, nullptr) == fs::MkdirResult::Created) {
-            int cnt = 0;
-            for (const auto &n : names)
-                if (copyFile(srcModes + "/" + n, modesPath + "/" + n)) ++cnt;
-            if (cnt) msg += std::string(msg.empty() ? "" : ", ") + std::to_string(cnt) + " mode file(s)";
+        if (!names.empty()) {
+            removeStaleModeTemps(cfgDir);
+            const std::string tmpDir = cfgDir + "/modes.tmp." + std::to_string(fs::processId());
+            if (fs::mkdirPrivate(tmpDir, nullptr) == fs::MkdirResult::Created) {
+                int cnt = 0;
+                for (const auto &n : names)
+                    if (copyFile(srcModes + "/" + n, tmpDir + "/" + n)) ++cnt;
+                // Publish the complete set in one step: an interrupted run never leaves a partial
+                // modes/ directory that would be treated as "already seeded".
+                if (cnt > 0 && fs::renamePath(tmpDir, modesPath))
+                    msg += std::string(msg.empty() ? "" : ", ") + std::to_string(cnt) + " mode file(s)";
+                else
+                    removeTempDir(tmpDir);
+            }
         }
     }
     if (msg.empty()) return false;
