@@ -269,7 +269,8 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
         long bn = 0;
         if (num.empty() || num.size() > 3 || num.find_first_not_of("0123456789") != std::string::npos ||
             (bn = std::strtol(num.c_str(), nullptr, 10)) < 1 || bn > kMaxButtons)
-            return setErr(err, "BUTTON_<n> needs n in 1.." + std::to_string(kMaxButtons));
+            return setErr(err, "BUTTON_<n> needs n in 1.." + std::to_string(kMaxButtons) +
+                                   " (the daemon tracks at most 32 buttons)");
         ButtonActionType bt;
         Key bk = Key::Space;
         if (!parseButtonAction(value, &bt, &bk, err)) return false;
@@ -551,6 +552,9 @@ void ProfileSet::setSectionFromSettings(size_t i, const Settings &s) {
             }
             if (need) out.push_back(w);
         }
+        // Unbinds: a button bound in global/devices but absent in s needs an explicit "none".
+        for (const auto &b : all.buttons)
+            if (!s.buttons.count(b.first)) out.emplace_back("BUTTON_" + std::to_string(b.first), "none");
         sections[i].kv = out;
     }
 }

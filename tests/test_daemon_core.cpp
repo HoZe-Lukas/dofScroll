@@ -315,7 +315,47 @@ static void testModeSwitchButton() {
     CHECK(r.core->runner().mode().id == "off", "fixed target mode:off");
 }
 
+// Precedence: global < device < mode overrides < app.
+static void testModeVsAppPrecedence() {
+    Rig r("[global]\nTICK_HZ = 250\nMODE = m\n[app:x]\nZOOM_SENS = 8\n",
+          {{"m.conf", "ZOOM_SENS = 1\n"}});
+    r.run(0.1);
+    CHECK(r.core->settings().zoom.sensitivity == 1, "mode overrides global (%d)", r.core->settings().zoom.sensitivity);
+    r.win.cls = "x";
+    r.run(0.3);
+    CHECK(r.core->settings().zoom.sensitivity == 8, "app beats mode override (%d)", r.core->settings().zoom.sensitivity);
+}
+
+// BUTTON_<n> in the main config acts at runtime; a normal.conf file mode applies at startup.
+static void testConfigButtonsAndNormalFile() {
+    Rig r(std::string(BASE_CONF) + "BUTTON_2 = rightclick\n[app:x]\nBUTTON_2 = none\n");
+    r.run(0.1);
+    r.src.pushButton(0, 1, true);
+    r.run(0.1);
+    r.src.pushButton(0, 1, false);
+    r.run(0.1);
+    CHECK(r.rec.mouse.size() == 2 && r.rec.mouse[0] == "+3", "[global] BUTTON_2 right click");
+    r.rec.mouse.clear();
+    r.win.cls = "x";
+    r.run(0.3);
+    r.src.pushButton(0, 1, true);
+    r.run(0.1);
+    r.src.pushButton(0, 1, false);
+    r.run(0.1);
+    CHECK(r.rec.mouse.empty(), "app section unbinds");
+
+    Rig n(BASE_CONF, {{"normal.conf", "BUTTON_1 = click\n"}});
+    n.run(0.1);
+    n.src.pushButton(0, 0, true);
+    n.run(0.1);
+    n.src.pushButton(0, 0, false);
+    n.run(0.1);
+    CHECK(!n.rec.mouse.empty() && n.rec.mouse[0] == "+1", "normal.conf applies at startup");
+}
+
 int main() {
+    testModeVsAppPrecedence();
+    testConfigButtonsAndNormalFile();
     testModeSwitchButton();
     testMotion();
     testStaleWatchdog();

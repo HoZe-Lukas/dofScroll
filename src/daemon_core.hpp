@@ -140,6 +140,7 @@ private:
     Settings settings_;
     std::string match_desc_, backend_cfg_, device_, wm_class_;
     std::string mode_override_;  // runtime mode switch by a button; cleared on reload
+    bool mode_applied_ = false;  // selectMode activated a mode at least once
     std::string warned_mode_;  // unknown mode id already warned about
     bool warn_buttons_ = false;
 

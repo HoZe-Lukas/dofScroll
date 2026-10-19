@@ -296,12 +296,17 @@ bool DaemonCore::selectMode(Settings &next, bool force) {
         }
         m = &modes_.normal();
     }
+    // Precedence global < device < mode overrides < app: resolve again with the overrides.
     for (const auto &kv : m->overrides) {
+        Settings probe;
         std::string err;
-        if (!applyKey(next, kv.first, kv.second, &err))
+        if (!applyKey(probe, kv.first, kv.second, &err))
             std::cerr << LOG << "Mode " << sanitizeForLog(m->id) << ": " << sanitizeForLog(err) << std::endl;
     }
-    if (!force && runner_->mode().id == m->id) return false;
+    next = profiles_.resolve(device_, wm_class_, &m->overrides);
+    // The very first activation also applies "normal" (a file mode may override the built-in).
+    if (!force && mode_applied_ && runner_->mode().id == m->id) return false;
+    mode_applied_ = true;
     runner_->setMode(*m);
     std::cerr << LOG << "Mode: " << sanitizeForLog(m->id)
               << (runner_->legacyPath() ? " (default channels)" : "") << std::endl;

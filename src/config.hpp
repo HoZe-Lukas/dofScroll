@@ -64,7 +64,7 @@ constexpr size_t kMaxMixTerms = 12;            // terms per MIX expression
 constexpr size_t kMaxCurvePoints = 64;         // points per CURVE
 constexpr size_t kMaxLateralAxes = 6;          // axes in ZOOM_LATERAL
 constexpr double kMaxZoomExitRatio = 100.0;
-constexpr long kMaxButtons = 64;               // highest accepted BUTTON_<n>
+constexpr long kMaxButtons = 32;               // highest accepted BUTTON_<n> (the daemon button mask is 32 bits)
 
 struct Term {
     Axis axis;
