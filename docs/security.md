@@ -342,7 +342,8 @@ description below is the state before the fix.
 - **Finding:** positive: `spawnDetached` uses `g_spawn_async` with an argv array, no shell
   (`src/dofscroll_tray.cpp`); the config path is passed as a single argument. GUI values are
   validated with the same parser (`parseMix`/`applyKey`) before writing, profile patterns must
-  not contain `]` or line breaks - **no config injection through the GUI**. But:
+  not contain control characters or line breaks (and no `]` followed by `#` or `;`, which would
+  end the section header early; saving refuses it) - **no config injection through the GUI**. But:
   `G_SPAWN_SEARCH_PATH` searches `systemctl`/`xdg-open` via `PATH`. With the hardened unit,
   `xdg-open` and the editor started by it inherit the tray sandbox (only `~/.config/dofscroll`
   and `/run/user/UID` writable, only `AF_UNIX`/`AF_NETLINK`). A freshly started editor then
@@ -748,6 +749,38 @@ Known gaps, stated plainly:
 
 ---
 
+## 10. Live feed
+
+The daemon publishes the current axes, buttons and its own interpretation (channel outputs, active
+mode) to the UI at 30 Hz (`src/live_feed/`, protocol in `port-architecture.md`). On Windows and macOS
+the daemon owns the device exclusively, so the UI cannot read it directly.
+
+- **Transport.** POSIX: Unix domain socket `live.sock` in the runtime directory, created 0600 in a
+  directory that is verified to be a real directory of the current user without group/other write
+  access (same code as the macOS reload socket, `src/platform/unix_socket.cpp`); the peer uid is
+  checked on accept (`SO_PEERCRED` / `getpeereid`), and the client refuses a socket or server of
+  another user. Windows: outbound-only named pipe `\\.\pipe\dofscroll-live-<user sid>` with a DACL
+  that grants only the current user, `PIPE_REJECT_REMOTE_CLIENTS`, `FILE_FLAG_FIRST_PIPE_INSTANCE`
+  (a squatted name makes the daemon fail instead of serving); the client verifies that the pipe
+  server runs as the same user.
+- **Who can read it.** Any process of the same user can connect and read the sample stream: raw
+  SpaceMouse deflection, button state and the active mode id. That is no more than the same process
+  could get from the device itself on Linux (libspnav) and is not a secret; it contains no keystrokes,
+  no window titles and no file content. Other users, remote machines and sandboxes without access to
+  the runtime directory cannot connect.
+- **No commands.** The feed is one-way. The server never reads from a connection (on Windows the
+  pipe is outbound-only), so there is no parser, command or state change reachable from a client.
+  Changing settings stays with the config file and the reload channel.
+- **Denial of service.** The server never blocks the tick thread: non-blocking accept and write,
+  at most 4 clients, frames are dropped for slow clients and the client is disconnected after 30
+  consecutive dropped frames, the rate is limited to 30 Hz (maximum 60) and nothing is encoded while
+  no client is connected. `LIVE_FEED = 0` switches the feature off; connections are then closed
+  immediately.
+- **Untrusted input in the client.** The client treats the stream as untrusted although it is local:
+  magic, version, frame length (at most 78 payload bytes), every field range, NaN/Inf, reserved bits
+  and the mode id characters are validated, the read buffer is bounded and any violation drops the
+  connection (reconnect with backoff).
+
 ## Known limitations
 
 These findings of the [October 2026 review](security-review-2026-10.md) stay open for 0.1.
@@ -770,3 +803,13 @@ Nothing here is hidden by the rest of this document; the review has the details.
   weaker limits than the other loaders; harden it before use.
 - **Runtime files (F14).** Temporary file names in the runtime directory are predictable; exploiting
   that needs write access to the user's own runtime directory.
+
+## 11. Text and encoding
+
+All text is UTF-8 and is handled byte-safe (`docs/encoding.md`). Guarantees: no string is cut inside
+a multi-byte sequence, log and status lines never contain control characters (`sanitizeForLog`),
+and display text from files (mode name, description) has control characters removed and invalid
+bytes shown as U+FFFD. Known limit: look-alike (homoglyph) and bidirectional control characters are
+valid text and are shown as they are. A profile or mode name can therefore look like another one
+in the UI or in the log; matching is exact for every non-ASCII byte, so a look-alike never matches
+the profile it imitates. Only use mode files from sources you trust (see section 7).

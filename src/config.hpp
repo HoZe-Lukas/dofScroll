@@ -58,6 +58,7 @@ namespace spn {
 // (docs/security.md). Valid configurations are far below them.
 constexpr size_t kMaxConfigBytes = 1u << 20;   // file size (1 MiB)
 constexpr size_t kMaxLineBytes = 8192;         // line length
+constexpr size_t kMaxPatternBytes = 4096;      // [app:...]/[device:...] name, in bytes
 constexpr size_t kMaxSections = 256;           // sections incl. [global]
 constexpr size_t kMaxKeysPerSection = 512;     // unique keys per section
 constexpr size_t kMaxMixTerms = 12;            // terms per MIX expression
@@ -109,6 +110,8 @@ struct Settings {
     // Control active at all? false (typically in an [app:*] profile, e.g. Blender with its
     // own 3D navigation): the daemon then produces no output at all.
     bool enabled = true;
+    // Publish the live feed (axes, buttons, channel outputs) to the UI while a client is connected.
+    bool live_feed = true;
     std::string mode = "normal";  // mode id (see modes.hpp)
     // Button bindings from BUTTON_<n> keys (n = 1..kMaxButtons): canonical action text as
     // accepted by parseButtonAction (none | click | rightclick | middleclick | nav | key:<name>).
@@ -156,8 +159,9 @@ struct ProfileSet {
     // against a device override). Signature unchanged.
     void setSectionFromSettings(size_t i, const Settings &s);
     static constexpr size_t npos = static_cast<size_t>(-1);
-    // Pattern valid? (non-empty after trim, no ']' and no line break -
-    // otherwise it does not survive save+load). *out = trimmed pattern.
+    // Pattern valid? (non-empty after trim, at most kMaxPatternBytes, no control
+    // character or line break - otherwise it does not survive save+load; ']' is fine).
+    // *out = trimmed pattern.
     static bool normalizePattern(const std::string &pattern, std::string *out);
     // Finds/creates a section, returns its index. Invalid pattern (see
     // normalizePattern) -> npos, the caller MUST check. The pattern is trimmed.

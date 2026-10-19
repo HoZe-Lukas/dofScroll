@@ -18,6 +18,7 @@
 
 #include "../fs.hpp"
 #include "../platform.hpp"
+#include "../unix_socket.hpp"
 #include "mac_activewin.hpp"
 #include "mac_hid_input.hpp"
 #include "mac_output.hpp"
@@ -39,57 +40,18 @@ std::string homeDirectory() {
 // so the fallback uses the short fixed /tmp, protected by the 0700 owner-checked subdirectory.
 std::string tmpDirectory() { return "/tmp"; }
 
-// The directory must be a real directory (no symlink) of the current user that nobody else can
-// write to. Anything else could let another user plant a socket we would then talk to.
-bool dirTrusted(const std::string &dir, std::string *err) {
-    struct stat st;
-    if (::lstat(dir.c_str(), &st) != 0) {
-        *err = dir + ": " + std::strerror(errno);
-        return false;
-    }
-    if (!S_ISDIR(st.st_mode) || st.st_uid != ::geteuid() || (st.st_mode & 022) != 0) {
-        *err = dir + ": not a directory of the current user or writable by others";
-        return false;
-    }
-    return true;
-}
+// Socket plumbing (trusted directory, stale-socket handling, bind 0600, peer uid) is shared with the
+// live feed: src/platform/unix_socket.cpp.
+using usock::fillAddr;
+using usock::newSocket;
 
 ReloadSocket socketLocation() {
     const PlatformPaths p = platformPaths();
     return reloadSocketPath(p.runtimeDir, static_cast<unsigned long>(::geteuid()), tmpDirectory());
 }
 
-// Creates the socket directory (private) and verifies it.
 bool prepareSocketDir(const ReloadSocket &loc, std::string *err) {
-    const std::string dir = socketDir(loc.path);
-    if (loc.fallback) {
-        std::string why;
-        if (fs::mkdirPrivate(dir, &why) == fs::MkdirResult::Failed) {
-            *err = dir + ": " + why;
-            return false;
-        }
-    } else if (!fs::mkdirsPrivate(dir, err)) {
-        return false;
-    }
-    return dirTrusted(dir, err);
-}
-
-bool fillAddr(const std::string &path, struct sockaddr_un *addr) {
-    std::memset(addr, 0, sizeof *addr);
-    if (path.empty() || path.size() >= sizeof addr->sun_path) return false;
-    addr->sun_family = AF_UNIX;
-    std::memcpy(addr->sun_path, path.c_str(), path.size() + 1);
-    addr->sun_len = static_cast<unsigned char>(SUN_LEN(addr));
-    return true;
-}
-
-int newSocket() {
-    const int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0) return -1;
-    const int one = 1;
-    ::setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof one);
-    ::fcntl(fd, F_SETFD, FD_CLOEXEC);
-    return fd;
+    return usock::prepareDir(socketDir(loc.path), loc.fallback, err);
 }
 
 class SocketReloadListener : public ReloadListener {
@@ -110,52 +72,8 @@ public:
             return false;
         }
         if (!prepareSocketDir(loc, err)) return false;
-        struct sockaddr_un addr;
-        if (!fillAddr(loc.path, &addr)) {
-            *err = loc.path + ": socket path too long";
-            return false;
-        }
-
-        // A leftover file is removed only if it is our own socket that nobody listens on.
-        struct stat st;
-        if (::lstat(loc.path.c_str(), &st) == 0) {
-            if (!S_ISSOCK(st.st_mode) || st.st_uid != ::geteuid()) {
-                *err = loc.path + ": exists and is not a socket of the current user";
-                return false;
-            }
-            const int probe = newSocket();
-            if (probe >= 0) {
-                const bool alive = ::connect(probe, reinterpret_cast<struct sockaddr *>(&addr), sizeof addr) == 0;
-                ::close(probe);
-                if (alive) {
-                    *err = "another dofscroll instance is already listening on " + loc.path;
-                    return false;
-                }
-            }
-            ::unlink(loc.path.c_str());
-        }
-
-        const int fd = newSocket();
-        if (fd < 0) {
-            *err = std::string("socket: ") + std::strerror(errno);
-            return false;
-        }
-        const mode_t oldMask = ::umask(0177);  // the socket file is created 0600
-        const int rc = ::bind(fd, reinterpret_cast<struct sockaddr *>(&addr), sizeof addr);
-        const int bindErr = errno;
-        ::umask(oldMask);
-        if (rc != 0) {
-            ::close(fd);
-            *err = loc.path + ": bind: " + std::strerror(bindErr);
-            return false;
-        }
-        ::chmod(loc.path.c_str(), 0600);
-        if (::listen(fd, 8) != 0 || ::fcntl(fd, F_SETFL, ::fcntl(fd, F_GETFL, 0) | O_NONBLOCK) != 0) {
-            *err = loc.path + ": listen: " + std::strerror(errno);
-            ::close(fd);
-            ::unlink(loc.path.c_str());
-            return false;
-        }
+        const int fd = usock::listenAt(loc.path, 8, err);
+        if (fd < 0) return false;
         fd_ = fd;
         path_ = loc.path;
         return true;
@@ -173,9 +91,8 @@ public:
                 if (errno == EINTR) continue;
                 break;  // EAGAIN: nothing pending (or a real error: nothing to do about it here)
             }
-            uid_t euid = 0;
-            gid_t egid = 0;
-            if (::getpeereid(c, &euid, &egid) == 0 && reloadPeerAllowed(euid, ::geteuid())) got = true;
+            uid_t peer = 0;
+            if (usock::peerUid(c, &peer) && reloadPeerAllowed(peer, ::geteuid())) got = true;
             ::close(c);
         }
         return got;

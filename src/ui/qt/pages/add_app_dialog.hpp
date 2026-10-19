@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "page_registry.hpp"
+#include "profiles_env.hpp"
 #include "ui/model/app_picker_model.hpp"
 
 class QLabel;
@@ -24,7 +24,7 @@ class QDialogButtonBox;
 class AddAppDialog : public QDialog {
     Q_OBJECT
 public:
-    AddAppDialog(PageContext &ctx, const std::vector<std::string> &configured, QWidget *parent = nullptr);
+    AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent = nullptr);
     ~AddAppDialog() override;
     QString matchString() const;  // validated, trimmed (valid after exec() == Accepted)
 
@@ -37,7 +37,7 @@ private:
     void tickCapture();
     void validate();
 
-    PageContext &ctx_;
+    const ProfilesEnv &ctx_;
     spn::AppPickerModel model_;
     spn::CaptureNextFocus capture_;
     QElapsedTimer clock_;

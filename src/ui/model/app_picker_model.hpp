@@ -36,7 +36,7 @@ inline bool validateProfilePattern(const std::string &typed, std::string *normal
         std::string t = typed;
         const bool blank = t.find_first_not_of(" \t\r\n") == std::string::npos;
         *err = blank ? "The match string is empty"
-                     : "The match string must not contain ']' or line breaks";
+                     : "The match string must not contain line breaks or control characters, and must be shorter";
     }
     return false;
 }

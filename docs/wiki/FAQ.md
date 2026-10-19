@@ -26,6 +26,9 @@ No. The daemon and tray run as your user in systemd user units. Only enabling `s
 **Which devices are supported?**
 On Linux, models `spacenavd` supports. Factory button counts are known for the six models on [Buttons](Buttons); only Pro and Compact are tested.
 
+**Should I map a button to Esc, Enter or a click in dofscroll or in the driver?**
+If it is the same everywhere and always, set it in the driver: it works in every program and survives dofscroll being stopped. If it should apply only in a certain mode or profile (Space as play/pause in `timeline`), bind it in dofscroll (`key:`, `click`). dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [Buttons](Buttons).
+
 **How many buttons can I bind?**
 Up to the factory count of your model (2 for Compact, 15 for Pro), numbered from 1. See [Buttons](Buttons).
 

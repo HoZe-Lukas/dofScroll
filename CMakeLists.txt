@@ -75,6 +75,10 @@ else()
 endif()
 if(WIN32 AND NOT MSVC)
   target_compile_definitions(dofscroll_flags INTERFACE NOMINMAX WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0A00)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # Source files and string literals are UTF-8 (the MSVC equivalent is /utf-8 above).
+    target_compile_options(dofscroll_flags INTERFACE -finput-charset=UTF-8 -fexec-charset=UTF-8)
+  endif()
 endif()
 # The hardening flags below are GCC/Clang on Linux (ELF linker options); see docs/security.md
 # for the Windows (set in cmake/windows.cmake) and macOS notes.
@@ -110,10 +114,15 @@ file(GLOB BACKEND_SRC CONFIGURE_DEPENDS
 set(CORE_SRC ${ALL_SRC})
 list(REMOVE_ITEM CORE_SRC ${PROGRAM_SRC} ${BACKEND_SRC})
 # File-system layer: one implementation per OS family (src/platform/fs.hpp).
+# Live feed (src/live_feed/): portable server/client plus one transport per OS family.
+list(APPEND CORE_SRC ${CMAKE_SOURCE_DIR}/src/live_feed/live_feed.cpp)
 if(WIN32)
-  list(APPEND CORE_SRC ${CMAKE_SOURCE_DIR}/src/platform/fs_win.cpp)
+  list(APPEND CORE_SRC ${CMAKE_SOURCE_DIR}/src/platform/fs_win.cpp
+       ${CMAKE_SOURCE_DIR}/src/live_feed/live_feed_win.cpp)
 else()
-  list(APPEND CORE_SRC ${CMAKE_SOURCE_DIR}/src/platform/fs_posix.cpp)
+  list(APPEND CORE_SRC ${CMAKE_SOURCE_DIR}/src/platform/fs_posix.cpp
+       ${CMAKE_SOURCE_DIR}/src/platform/unix_socket.cpp
+       ${CMAKE_SOURCE_DIR}/src/live_feed/live_feed_posix.cpp)
 endif()
 
 add_library(dofscroll_core STATIC ${CORE_SRC})

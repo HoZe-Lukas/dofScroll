@@ -49,8 +49,13 @@ picks up `tests/test_*.cpp` automatically; re-run cmake after adding one).
 
 ## English only
 
+All files are UTF-8 without BOM (`scripts/check-utf8.sh`; PowerShell scripts stay ASCII). Text handling rules: `docs/encoding.md`.
+
 Everything in the repository is English: code comments, identifiers, documentation, log, error
 and test messages, commit messages. The only exception is translations in `po/*.po`.
+
+This is enforced by `scripts/check-english.sh` (part of the `lint` job): it fails on German
+characters and unmistakably German words outside `po/`. Run it before you push.
 
 ## Branches and pull requests
 
@@ -61,6 +66,10 @@ and test messages, commit messages. The only exception is translations in `po/*.
 4. Push the branch and open a pull request against `main`. State what you verified and what
    needs real hardware. CI (`.github/workflows/ci.yml`) must be green.
 5. Releases are made by the maintainer, see `docs/releasing.md`.
+
+## Feature proposals
+
+dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. Proposals that only re-implement driver button mapping (always the same key or click) will not be accepted; features that act on the axes, modes or profiles, or bindings that depend on the active mode, are welcome.
 
 ## Adding a mode
 

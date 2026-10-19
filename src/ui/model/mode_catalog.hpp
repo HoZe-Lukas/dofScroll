@@ -20,6 +20,7 @@
 // mouse is moved; importSafetyNote() is the text the view shows before an imported file is kept.
 #pragma once
 #include <cctype>
+#include "utf8.hpp"
 #include <string>
 #include <vector>
 
@@ -149,10 +150,8 @@ public:
         const size_t a = s.find_first_not_of(' ');
         if (a == std::string::npos) return "";
         s = s.substr(a, s.find_last_not_of(' ') - a + 1);
-        if (s.size() > 64) {
-            s.resize(64);
-            while (!s.empty() && (static_cast<unsigned char>(s.back()) & 0xC0) == 0x80) s.pop_back();  // keep UTF-8 whole
-        }
+        s = utf8::sanitizeDisplay(s, 64);  // invalid bytes -> U+FFFD, cut on a character boundary
+        s = utf8::trim(s);
         return s;
     }
 

@@ -88,7 +88,8 @@ std::string exeDir() {
 // <exe_dir>/../share/dofscroll/examples, /usr/local/share/..., /usr/share/...
 std::string findExamplesDir() {
     std::vector<std::string> c;
-    if (const char *e = std::getenv("DOFSCROLL_EXAMPLES"); e && *e) c.push_back(toSlashes(e));
+    const std::string envEx = fs::getEnvUtf8("DOFSCROLL_EXAMPLES");
+    if (!envEx.empty()) c.push_back(toSlashes(envEx));
     const std::string ed = exeDir();
     if (!ed.empty()) {
         c.push_back(ed + "/examples");

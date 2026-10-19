@@ -2,6 +2,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Architecture
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons](Buttons).
+
 One shared core and a thin platform layer per OS. The source code is the reference for behavior and the headers are the contracts. Full text: [docs/port-architecture.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-architecture.md).
 
 ## Layers

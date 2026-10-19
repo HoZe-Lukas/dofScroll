@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "hid_descriptor.hpp"
+#include "utf8.hpp"
 
 #include "platform/fs.hpp"
 
@@ -129,6 +130,7 @@ bool parseHidDescriptor(const std::string &text, HidDescriptor &out, std::string
             if (val.empty() || val.size() > 128) return fail(err, ln, "invalid name");
             for (char c : val)
                 if (static_cast<unsigned char>(c) < 0x20) return fail(err, ln, "invalid name");
+            if (!spn::utf8::isValid(val)) return fail(err, ln, "name is not valid UTF-8");
             d.name = val;
         } else if (key == "id") {
             // id = 0x256f:0xc635
@@ -162,7 +164,7 @@ bool parseHidDescriptor(const std::string &text, HidDescriptor &out, std::string
             if (!parseType(*t, a.type)) return fail(err, ln, "invalid type");
             if (s) {
                 char *end = nullptr;
-                a.scale = std::strtod(s->c_str(), &end);
+                a.scale = spn::strtodC(s->c_str(), &end);
                 if (s->empty() || *end != '\0' || !std::isfinite(a.scale) || a.scale == 0.0)
                     return fail(err, ln, "invalid scale");
             }

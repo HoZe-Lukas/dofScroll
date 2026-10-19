@@ -9,6 +9,7 @@
 #include <thread>
 
 #include "log_sanitize.hpp"
+#include "mode_request.hpp"
 #include "platform/fs.hpp"
 #include "profile_match.hpp"
 
@@ -241,6 +242,7 @@ bool DaemonCore::initialize() {
     loadConfig();
     modes_dir_ = d_.modesDir ? d_.modesDir() : d_.paths.configDir + "/modes";
     loadModeSet();
+    clearModeRequest(d_.paths.runtimeDir);  // a request left over from before this start is stale
     // First resolution without device/program, so BACKEND/TICK_HZ from [global] are
     // known at startup.
     settings_ = profiles_.resolve("", "");
@@ -384,6 +386,18 @@ void DaemonCore::updateProfile(int64_t now_ns) {
         std::cerr << LOG << "Reload requested: reloading config and modes" << std::endl;
         loadConfig();
         loadModeSet();
+        // Runtime mode request of the tray (src/mode_request.hpp): applied like a button switch,
+        // after the reload cleared the previous override.
+        const std::string req = takeModeRequest(d_.paths.runtimeDir);
+        if (!req.empty()) {
+            if (modes_.find(req)) {
+                mode_override_ = req;
+                std::cerr << LOG << "Mode requested: " << sanitizeForLog(req) << std::endl;
+            } else {
+                std::cerr << LOG << "WARNING: requested mode '" << sanitizeForLog(req)
+                          << "' is not loaded" << std::endl;
+            }
+        }
         need_resolve = true;
         modes_changed = true;
         next_cfg_poll_ = now_ns + CONFIG_POLL_NS;
@@ -468,6 +482,9 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
             raw[i] = reader_.axes[i].load(std::memory_order_relaxed);
     }
     uint32_t buttons = reader_.button_mask.load(std::memory_order_relaxed);
+    const RawAxes live_raw = raw;  // the live feed shows the device even while output is idle
+    const uint32_t live_buttons = buttons;
+    const bool live_fresh = fresh;
 
     // The tray evaluates the mouse itself (tab "Axes"/wizard): treat inputs as
     // "no deflection, no button" - held keys (click, Ctrl) are then released cleanly.
@@ -513,6 +530,25 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
     {
         const std::string req = runner_->takeSwitchRequest();
         if (!req.empty()) switchMode(req);
+    }
+
+    if (d_.liveFeed) {
+        live_.active = settings_.live_feed;
+        if (live_.active) {
+            const ModeRunner::Info &i = runner_->info();
+            live_.axes = live_raw;
+            live_.buttons = live_buttons;
+            live_.fresh = live_fresh;
+            live_.v = static_cast<float>(i.rate_v);
+            live_.h = static_cast<float>(i.rate_h);
+            live_.zoom = static_cast<float>(i.twist);
+            live_.zooming = i.zooming;
+            live_.nav = i.nav;
+            live_.enabled = enabled;
+            live_.idle = idle;
+            live_.mode = runner_->mode().id;
+        }
+        d_.liveFeed(live_, now_ns);
     }
 
     if (d_.debug && now_ns >= next_debug_ &&

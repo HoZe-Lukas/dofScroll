@@ -2,6 +2,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Development
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons](Buttons).
+
 Authoritative: [CONTRIBUTING.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/CONTRIBUTING.md) and [AGENTS.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/AGENTS.md). By contributing you agree that your contribution is licensed under `GPL-3.0-or-later`.
 
 ## Build and test

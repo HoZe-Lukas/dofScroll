@@ -6,7 +6,8 @@
 #pragma once
 #include <QWidget>
 
-#include "page_registry.hpp"
+#include "profiles_env.hpp"
+#include "ui_context.hpp"
 
 class QLabel;
 class QPushButton;
@@ -17,7 +18,7 @@ class QTreeWidgetItem;
 class ProfilesPage : public QWidget {
     Q_OBJECT
 public:
-    ProfilesPage(PageContext &ctx, QWidget *parent = nullptr);
+    explicit ProfilesPage(const UiContext &ctx, QWidget *parent = nullptr);
     int profileCount() const;          // tree entries below the default mode
     bool modeSelectorVisible() const;  // false for the default mode
 
@@ -43,7 +44,8 @@ private:
     QWidget *buildModeInfo(size_t section);
     QWidget *buildOverrides(size_t section);
 
-    PageContext &ctx_;
+    const UiContext &ctx_;
+    ProfilesEnv env_;
     QTreeWidget *tree_;
     QScrollArea *scroll_;
     QLabel *status_;
@@ -53,4 +55,4 @@ private:
     bool rebuildQueued_ = false;
 };
 
-QWidget *createProfilesPage(PageContext &ctx, QWidget *parent);
+QWidget *createProfilesPage(const UiContext &ctx);

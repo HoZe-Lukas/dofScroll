@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "../autostart.hpp"
+#include "../utf8.hpp"
 #include "autostart_platform.hpp"
 
 namespace spn {
@@ -94,6 +95,7 @@ inline bool quoteRunValue(const std::string &path, std::string *out, std::string
     if (!drive && !unc) return fail("path is not absolute");
     for (unsigned char c : path)
         if (c < 0x20 || c == 0x7f || c == '"') return fail("unsupported character in path");
+    if (!utf8::isValid(path)) return fail("path is not valid UTF-8");
     if (out) *out = "\"" + path + "\"";
     return true;
 }
@@ -131,7 +133,7 @@ inline std::string xmlEscape(const std::string &s) {
 inline bool plistPathOk(const std::string &p) {
     if (p.empty() || p[0] != '/') return false;
     for (unsigned char c : p) if (c < 0x20 || c == 0x7f) return false;
-    return true;
+    return utf8::isValid(p);  // XML in UTF-8: invalid bytes would make launchd reject the file
 }
 
 // daemon: restart after a crash only (same keys as packaging/macos/*.plist.in); UI: started once

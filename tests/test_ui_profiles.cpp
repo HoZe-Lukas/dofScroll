@@ -127,7 +127,7 @@ static void testTree() {
     assert(ProfileTreeModel::add(sm, Section::APP, "  zeta app ", &err) != ProfileSet::npos);
     assert(ProfileTreeModel::add(sm, Section::APP, "Alpha", &err) != ProfileSet::npos);
     assert(ProfileTreeModel::add(sm, Section::DEVICE, "Some Mouse", &err) != ProfileSet::npos);
-    assert(ProfileTreeModel::add(sm, Section::APP, "bad]name", &err) == ProfileSet::npos && !err.empty());
+    assert(ProfileTreeModel::add(sm, Section::APP, "bad\nname", &err) == ProfileSet::npos && !err.empty());
     assert(ProfileTreeModel::add(sm, Section::APP, "   ", &err) == ProfileSet::npos);
 
     std::vector<ProfileEntry> e = ProfileTreeModel::entries(sm);
@@ -222,7 +222,7 @@ static void testUtf8() {
         "caf\xc3\xa9.exe",                            // accent
         "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x82\xa2\xe3\x83\x97\xe3\x83\xaa",  // CJK
         "rocket \xf0\x9f\x9a\x80 app",              // emoji (4-byte)
-        "a#b;c=d [x",                                   // '#', ';', '=', '[' (no ']')
+        "a#b;c=d [x] y]",                               // '#', ';', '=', brackets incl. ']'
         "  padded name  "};
     SettingsModel sm;
     ProfileSet ps;
@@ -236,8 +236,8 @@ static void testUtf8() {
     for (size_t k = 0; k + 1 < names.size(); ++k) assert(sm.profiles().find(Section::APP, names[k]) != ProfileSet::npos);
     assert(sm.profiles().find(Section::APP, "padded name") != ProfileSet::npos);
 
-    // Rejected with a message: ']' and line breaks (cannot be stored), blank.
-    for (const char *bad : {"x]y", "a\nb", "a\rb", "", "   "}) {
+    // Rejected with a message: line breaks and control characters (cannot be stored), blank.
+    for (const char *bad : {"a\nb", "a\rb", "a\tb", "", "   "}) {
         assert(ProfileTreeModel::add(sm, Section::APP, bad, &err) == ProfileSet::npos);
         assert(!err.empty());
     }
@@ -280,7 +280,7 @@ static void testUtf8() {
 
     DevicePickerModel dm;
     DeviceInfo d;
-    d.name = "Ger\xc3\xa4t \xe2\x84\xa2 [1";
+    d.name = "Ger\xc3\xa4t \xe2\x84\xa2 [1]";
     dm.setDevices({d});
     assert(dm.rows("\xe2\x84\xa2").size() == 1);
     assert(ProfileTreeModel::add(sm, Section::DEVICE, d.name, &err) != ProfileSet::npos);

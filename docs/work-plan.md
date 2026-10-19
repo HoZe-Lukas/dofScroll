@@ -65,6 +65,8 @@ time are not possible on Linux until direct HID access exists (package W1/W2 des
 - Version 0.1 installers are unsigned and not notarized; signing is added later when certificates exist (`docs/release-process.md`).
 - The git history of this repository is published as is.
 
+- Design principle (maintainer): dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [modes.md](modes.md#buttons-and-the-vendor-driver).
+
 ## Parity rule and matrix (maintainer decision, 2026-10-19)
 
 Every user-visible feature must work on Linux, Windows and macOS. A feature is "done" only when
@@ -78,8 +80,8 @@ compile on their runner). Toolkit-free logic is shared; platform parts are small
 | Active window / application profiles | `profile_match` | done | PR #3 | PR #4 |
 | Settings UI (Qt6) | `src/ui/model/` | W3 (GTK tray exists) | W3 | W3 |
 | Mode management in the UI (new, duplicate, import, edit) | ModeCatalog | W3 | W3 | W3 |
-| Running-program picker + capture next focus | `app_picker_model` | PR `feat/w3-app-picker` | **W17 (open)** | **W17 (open)** |
-| Start at login (daemon + UI) | `autostart.hpp` contract | GTK done, Qt W3 | W18 (PR `feat/w18-autostart-os`, Windows/macOS compile-only) | W18 (PR `feat/w18-autostart-os`, compile-only) |
+| Running-program picker + capture next focus | `app_picker_model` | PR `feat/w3-app-picker` | W17 (compile-checked) | W17 (compile-checked) |
+| Start at login (daemon + UI) | `autostart.hpp` contract | GTK done, Qt W3 | W18 (done, compile-checked) | W18 (done, compile-checked) |
 | Open file/folder/log in the default app | `ActionRunner` | W3 | W3 | W3 |
 | Live axes view and wizard (data feed from the daemon) | model | W3 (stage 3) | W3 (stage 3) | W3 (stage 3) |
 | Installers/packages | CPack/CI | RPM, DEB, TGZ done | W4 | W4 |
@@ -87,8 +89,8 @@ compile on their runner). Toolkit-free logic is shared; platform parts are small
 Open packages created by this rule:
 | Id | Package | Files | Depends on | Status |
 |---|---|---|---|---|
-| W17 | Running-program picker for Windows (`EnumWindows` + process executable name, same string as the foreground provider) and macOS (`NSWorkspace` runningApplications, regular apps, bundle id or name as the foreground provider reports), plus the device list from the HID backends | `src/platform/win/running_apps_win.cpp`, `src/platform/mac/running_apps_mac.mm`, tests, CMake hooks in `cmake/windows.cmake`, `cmake/macos.cmake` | picker PR and port PRs merged | open |
-| W18 | Start-at-login implementations behind `src/autostart.hpp`: Windows (Startup entry or scheduled task for daemon and UI), macOS (LaunchAgents for daemon and UI), Linux Qt UI unit | `src/platform/autostart_platform.hpp` (interface), `autostart_os.hpp` (pure parts), `src/platform/{win,mac,linux}/autostart_*.cpp`, `systemd/dofscroll-ui.service.in` | W3 core, port PRs merged | PR open (`feat/w18-autostart-os`); Windows/macOS parts compile and ctest only on their runners, not tried on real systems |
+| W17 | Running-program picker for Windows (`EnumWindows` + process executable name, same string as the foreground provider) and macOS (`NSWorkspace` runningApplications, regular apps, bundle id or name as the foreground provider reports), plus the device list from the HID backends | `src/platform/win/running_apps_win.cpp`, `src/platform/mac/running_apps_mac.mm`, tests, CMake hooks in `cmake/windows.cmake`, `cmake/macos.cmake` | picker PR and port PRs merged | done (compile-checked on the Windows/macOS runners; real-desktop behaviour unverified) |
+| W18 | Start-at-login implementations behind `src/autostart.hpp`: Windows (Startup entry or scheduled task for daemon and UI), macOS (LaunchAgents for daemon and UI), Linux Qt UI unit | `src/platform/win/`, `src/platform/mac/`, `src/platform/linux/` autostart files, packaging | W3 core, port PRs merged | open |
 
 Order that avoids conflicts: W0b touches core files and is merged first; W1/W2 start now with
 backends in new files (they only depend on the interfaces from W0a) and wire the daemon `main` once

@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "page_registry.hpp"
+#include "profiles_env.hpp"
 #include "ui/model/app_picker_model.hpp"
 
 class QDialogButtonBox;
@@ -17,7 +17,7 @@ class QTreeWidget;
 class AddDeviceDialog : public QDialog {
     Q_OBJECT
 public:
-    AddDeviceDialog(PageContext &ctx, const std::vector<std::string> &configured, QWidget *parent = nullptr);
+    AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent = nullptr);
     QString deviceName() const;  // validated, trimmed
 
 private:
@@ -25,7 +25,7 @@ private:
     void refill();
     void validate();
 
-    PageContext &ctx_;
+    const ProfilesEnv &ctx_;
     spn::DevicePickerModel model_;
     QLineEdit *search_, *manual_;
     QTreeWidget *list_;

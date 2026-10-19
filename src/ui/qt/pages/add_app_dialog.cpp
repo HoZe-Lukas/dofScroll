@@ -19,11 +19,10 @@
 using namespace spn;
 
 namespace {
-QString q(const std::string &s) { return QString::fromUtf8(s.data(), qsizetype(s.size())); }
 enum { kRoleMatch = Qt::UserRole, kRoleHasProfile };
 }  // namespace
 
-AddAppDialog::AddAppDialog(PageContext &ctx, const std::vector<std::string> &configured, QWidget *parent)
+AddAppDialog::AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent)
     : QDialog(parent), ctx_(ctx) {
     setWindowTitle(T("Add application"));
     resize(640, 520);
@@ -123,7 +122,7 @@ AddAppDialog::~AddAppDialog() { ++generation_; }
 
 QString AddAppDialog::matchString() const {
     std::string norm;
-    if (validateProfilePattern(manual_->text().toUtf8().toStdString(), &norm, nullptr)) return q(norm);
+    if (validateProfilePattern(manual_->text().toUtf8().toStdString(), &norm, nullptr)) return qs8(norm);
     return QString();
 }
 
@@ -180,11 +179,11 @@ void AddAppDialog::refill() {
     list_->clear();
     for (const AppRow &r : model_.rows(search_->text().toUtf8().toStdString())) {
         auto *it = new QTreeWidgetItem(list_);
-        it->setText(0, q(r.app.displayName.empty() ? r.app.matchString : r.app.displayName));
-        it->setText(1, q(r.app.matchString));
+        it->setText(0, qs8(r.app.displayName.empty() ? r.app.matchString : r.app.displayName));
+        it->setText(1, qs8(r.app.matchString));
         if (r.hasProfile) it->setText(2, T("Already has a profile"));
-        if (!r.app.windowTitle.empty()) it->setToolTip(0, q(r.app.windowTitle));
-        it->setData(0, kRoleMatch, q(r.app.matchString));
+        if (!r.app.windowTitle.empty()) it->setToolTip(0, qs8(r.app.windowTitle));
+        it->setData(0, kRoleMatch, qs8(r.app.matchString));
         it->setData(0, kRoleHasProfile, r.hasProfile);
     }
 }
@@ -206,8 +205,8 @@ void AddAppDialog::tickCapture() {
     const int64_t now = clock_.elapsed();
     if (capture_.tick(ctx_.activeWindow(), now)) {
         stopCapture();
-        manual_->setText(q(capture_.result()));
-        countdown_->setText(T("Captured:") + QLatin1Char(' ') + q(capture_.result()));
+        manual_->setText(qs8(capture_.result()));
+        countdown_->setText(T("Captured:") + QLatin1Char(' ') + qs8(capture_.result()));
         return;
     }
     if (capture_.state() == CaptureNextFocus::State::TimedOut) {

@@ -16,11 +16,10 @@
 using namespace spn;
 
 namespace {
-QString q(const std::string &s) { return QString::fromUtf8(s.data(), qsizetype(s.size())); }
 enum { kRoleName = Qt::UserRole };
 }  // namespace
 
-AddDeviceDialog::AddDeviceDialog(PageContext &ctx, const std::vector<std::string> &configured, QWidget *parent)
+AddDeviceDialog::AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent)
     : QDialog(parent), ctx_(ctx) {
     setWindowTitle(T("Add device"));
     resize(560, 440);
@@ -88,7 +87,7 @@ AddDeviceDialog::AddDeviceDialog(PageContext &ctx, const std::vector<std::string
 
 QString AddDeviceDialog::deviceName() const {
     std::string norm;
-    if (validateProfilePattern(manual_->text().toUtf8().toStdString(), &norm, nullptr)) return q(norm);
+    if (validateProfilePattern(manual_->text().toUtf8().toStdString(), &norm, nullptr)) return qs8(norm);
     return QString();
 }
 
@@ -106,10 +105,10 @@ void AddDeviceDialog::refill() {
     list_->clear();
     for (const DeviceRow &r : model_.rows(search_->text().toUtf8().toStdString())) {
         auto *it = new QTreeWidgetItem(list_);
-        it->setText(0, q(r.dev.name));
-        it->setText(1, q(r.idString));
+        it->setText(0, qs8(r.dev.name));
+        it->setText(1, qs8(r.idString));
         if (r.hasProfile) it->setText(2, T("Already has a profile"));
-        it->setData(0, kRoleName, q(r.dev.name));
+        it->setData(0, kRoleName, qs8(r.dev.name));
     }
 }
 

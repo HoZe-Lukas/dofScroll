@@ -34,6 +34,7 @@
 #include "../../common.hpp"
 #include "../../config.hpp"
 #include "../../daemon_core.hpp"
+#include "../../live_feed/live_feed.hpp"
 #include "../../modes.hpp"
 #include "../../output.hpp"
 #include "../fs.hpp"
@@ -83,6 +84,7 @@ void printText(const std::string &text) {
         if (::AttachConsole(ATTACH_PARENT_PROCESS)) {
             h = ::CreateFileW(L"CONOUT$", GENERIC_WRITE, FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
             console = true;
+            ::SetConsoleOutputCP(CP_UTF8);  // the text is UTF-8; otherwise the console shows mojibake
         }
     }
     if (h && h != INVALID_HANDLE_VALUE) {
@@ -376,6 +378,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         };
         deps.removeStatus = [statusPath] { fs::removeFile(statusPath); };
     }
+    deps.liveFeed = makeLiveFeedSink(paths.runtimeDir);  // UI data feed, see src/live_feed/
     deps.debug = debug;
 
     DaemonCore *core = new DaemonCore(std::move(deps));
