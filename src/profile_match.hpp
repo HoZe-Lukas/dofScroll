@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Trefferlogik fuer [device:*]/[app:*]-Profile (Teilstring, Gross/Klein egal).
-// Header-only, damit Daemon und Unit-Tests dieselbe Funktion nutzen.
+// Matching logic for [device:*]/[app:*] profiles (substring, case-insensitive).
+// Header-only so that the daemon and unit tests use the same function.
 #pragma once
 #include <cctype>
 #include <string>
@@ -13,8 +13,8 @@ inline std::string lowerAscii(std::string s) {
     return s;
 }
 
-// Gleiche Trefferlogik wie ProfileSet::resolve. Leeres Muster oder leerer
-// Text treffen nie.
+// Same matching logic as ProfileSet::resolve. An empty pattern or empty
+// text never matches.
 inline bool patternMatches(const std::string &pattern, const std::string &text) {
     if (pattern.empty() || text.empty()) return false;
     return lowerAscii(text).find(lowerAscii(pattern)) != std::string::npos;

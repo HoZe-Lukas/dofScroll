@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <!-- Puck: Draufsicht auf die SpaceMouse-Kappe. Heller Puck mit dunklem
-       Rand und dunklem Pfeil - bleibt auf dunklen UND hellen Panels erkennbar. -->
+  <!-- Puck: top view of the SpaceMouse cap. Light puck with a dark
+       border and dark arrow - stays recognizable on dark AND light panels. -->
   <circle cx="12" cy="12" r="11" fill="#eceff4" stroke="#2e3440" stroke-width="1.2"/>
 
-  <!-- 4-Wege-Pfeil: Auslenkung in jede Richtung wird zu Scroll/Pan -->
+  <!-- 4-way arrow: deflection in any direction becomes scroll/pan -->
   <g transform="translate(12,12) scale(0.72) translate(-12,-12)" fill="#2e3440">
     <path d="M12 2L8 6h3v4H6V7l-4 5 4 5v-3h5v4H8l4 4 4-4h-3v-4h5v3l4-5-4-5v3h-5V6h3z"/>
   </g>
 
-  <!-- Zentraler Punkt: Ursprung/Nullstellung der SpaceMouse -->
+  <!-- Center dot: origin/neutral position of the SpaceMouse -->
   <circle cx="12" cy="12" r="1.6" fill="#5e81ac" stroke="#eceff4" stroke-width="0.6"/>
 </svg>

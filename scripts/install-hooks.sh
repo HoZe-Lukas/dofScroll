@@ -1,12 +1,12 @@
 #!/bin/sh
-# Verlinkt den Pre-commit-Hook des Repos: .git/hooks/pre-commit -> scripts/pre-commit
+# Links the repo's pre-commit hook: .git/hooks/pre-commit -> scripts/pre-commit
 #
-# Aufruf:  scripts/install-hooks.sh [--force]
-#   - idempotent: ist der Link schon gesetzt, passiert nichts
-#   - ein vorhandener fremder Hook wird nie still ueberschrieben: interaktiv wird
-#     nachgefragt, ohne Terminal nur mit --force; in beiden Faellen wird er
-#     vorher nach pre-commit.bak.<Zeitstempel> gesichert
-#   - Umgehung des Hooks im Einzelfall: git commit --no-verify
+# Usage:  scripts/install-hooks.sh [--force]
+#   - idempotent: if the link is already set, nothing happens
+#   - an existing foreign hook is never silently overwritten: interactively the user
+#     is asked, without a terminal only with --force; in both cases it is backed
+#     up to pre-commit.bak.<timestamp> first
+#   - bypassing the hook in a single case: git commit --no-verify
 
 set -eu
 
@@ -15,30 +15,30 @@ case "${1:-}" in
   "") ;;
   --force) force=1 ;;
   -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
-  *) echo "Aufruf: $0 [--force]" >&2; exit 2 ;;
+  *) echo "Usage: $0 [--force]" >&2; exit 2 ;;
 esac
 
 top=$(git rev-parse --show-toplevel 2>/dev/null) || {
-  echo "install-hooks: nicht in einem Git-Repository" >&2
+  echo "install-hooks: not in a Git repository" >&2
   exit 1
 }
 src="$top/scripts/pre-commit"
-[ -f "$src" ] || { echo "install-hooks: $src fehlt" >&2; exit 1; }
+[ -f "$src" ] || { echo "install-hooks: $src is missing" >&2; exit 1; }
 chmod +x "$src"
 
 if hp=$(git config --get core.hooksPath 2>/dev/null) && [ -n "$hp" ]; then
-  echo "install-hooks: WARNUNG - core.hooksPath=$hp ist gesetzt; Git nutzt dann" >&2
-  echo "  NICHT .git/hooks. Hook dort selbst einbinden oder core.hooksPath entfernen." >&2
+  echo "install-hooks: WARNING - core.hooksPath=$hp is set; Git then uses" >&2
+  echo "  NOT .git/hooks. Install the hook there yourself or remove core.hooksPath." >&2
 fi
 
-# Hook-Verzeichnis (beruecksichtigt auch Worktrees / abweichendes GIT_DIR)
+# Hook directory (also handles worktrees / a different GIT_DIR)
 hooks=$(git rev-parse --git-path hooks)
 case "$hooks" in /*) ;; *) hooks="$(pwd)/$hooks" ;; esac
 mkdir -p "$hooks"
 dst="$hooks/pre-commit"
 
-# Relativer Link, wenn das Hook-Verzeichnis das uebliche <repo>/.git/hooks ist
-# (ueberlebt Verschieben des Repos), sonst absolut.
+# Relative link if the hook directory is the usual <repo>/.git/hooks
+# (survives moving the repo), otherwise absolute.
 if [ "$(cd "$hooks" && pwd -P)" = "$(cd "$top" && pwd -P)/.git/hooks" ]; then
   link="../../scripts/pre-commit"
 else
@@ -46,27 +46,27 @@ else
 fi
 
 if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$link" ]; then
-  echo "install-hooks: bereits installiert ($dst -> $link)"
+  echo "install-hooks: already installed ($dst -> $link)"
   exit 0
 fi
 
 if [ -e "$dst" ] || [ -L "$dst" ]; then
-  echo "install-hooks: es existiert bereits ein anderer Hook: $dst"
+  echo "install-hooks: a different hook already exists: $dst"
   if [ -L "$dst" ]; then echo "  (Symlink -> $(readlink "$dst"))"; fi
   if [ "$force" -ne 1 ]; then
     if [ -t 0 ] && [ -t 1 ]; then
-      printf "Sichern und durch Link auf scripts/pre-commit ersetzen? [j/N] "
+      printf "Back up and replace with a link to scripts/pre-commit? [y/N] "
       read -r ans || ans=""
-      case "$ans" in j|J|y|Y|ja|Ja|yes) ;; *) echo "abgebrochen, nichts geaendert."; exit 1 ;; esac
+      case "$ans" in j|J|y|Y|ja|Ja|yes) ;; *) echo "aborted, nothing changed."; exit 1 ;; esac
     else
-      echo "install-hooks: kein Terminal - nichts geaendert (ersetzen mit --force)." >&2
+      echo "install-hooks: no terminal - nothing changed (replace with --force)." >&2
       exit 1
     fi
   fi
   bak="$dst.bak.$(date +%Y%m%d%H%M%S)"
   mv "$dst" "$bak"
-  echo "install-hooks: alter Hook gesichert nach $bak"
+  echo "install-hooks: old hook backed up to $bak"
 fi
 
 ln -s "$link" "$dst"
-echo "install-hooks: installiert ($dst -> $link)"
+echo "install-hooks: installed ($dst -> $link)"

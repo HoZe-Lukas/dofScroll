@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Unit-Test fuer die Zaehlung angesteckter 3Dconnexion-Geraete (reiner Text-Parser).
+// Unit test for counting connected 3Dconnexion devices (pure text parser).
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -14,7 +14,7 @@ static int g_fail = 0;
     do {                                                                                 \
         long va = (a), vb = (b);                                                         \
         if (va != vb) {                                                                  \
-            std::fprintf(stderr, "FAIL %s:%d: %s = %ld, erwartet %ld\n", __FILE__, __LINE__, #a, va, vb); \
+            std::fprintf(stderr, "FAIL %s:%d: %s = %ld, expected %ld\n", __FILE__, __LINE__, #a, va, vb); \
             ++g_fail;                                                                    \
         }                                                                                \
     } while (0)
@@ -28,19 +28,19 @@ int main() {
     CHECK_EQ(countSpaceMiceInText(""), 0);
     CHECK_EQ(countSpaceMiceInText(entry("Logitech USB Keyboard") + entry("AT Translated Set 2 keyboard")), 0);
     CHECK_EQ(countSpaceMiceInText(entry("3Dconnexion SpaceMouse Pro")), 1);
-    // zwei Geraete (auch gleichen Namens) -> 2, Fremdgeraete zaehlen nicht
+    // two devices (also with the same name) -> 2, foreign devices are not counted
     CHECK_EQ(countSpaceMiceInText(entry("Foo") + entry("3Dconnexion SpaceMouse Pro") +
                                   entry("3Dconnexion SpaceMouse Compact")), 2);
     CHECK_EQ(countSpaceMiceInText(entry("3Dconnexion SpaceMouse Compact") +
                                   entry("3Dconnexion SpaceMouse Compact")), 2);
-    // Gross-/Kleinschreibung, Neben-Eingabeknoten
+    // case-insensitivity, secondary input nodes
     CHECK_EQ(countSpaceMiceInText(entry("3DCONNEXION spacemouse wireless")), 1);
     CHECK_EQ(countSpaceMiceInText(entry("3Dconnexion Universal Receiver") +
                                   entry("3Dconnexion Universal Receiver Keyboard") +
                                   entry("3Dconnexion Universal Receiver Consumer Control")), 1);
-    // Name nur in anderer Zeile (z.B. Phys/Sysfs) zaehlt nicht
+    // name only in another line (e.g. Phys/Sysfs) does not count
     CHECK_EQ(countSpaceMiceInText("N: Name=\"Foo\"\nS: Sysfs=/devices/3Dconnexion\n"), 0);
-    // ohne abschliessenden Zeilenumbruch
+    // without a trailing newline
     CHECK_EQ(countSpaceMiceInText("N: Name=\"3Dconnexion SpaceMouse Pro\""), 1);
 
     if (g_fail) return 1;

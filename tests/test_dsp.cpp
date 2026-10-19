@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Unit-Tests fuer src/dsp.cpp (assert-basiert, eigenes main).
+// Unit tests for src/dsp.cpp (assert-based, own main).
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -30,9 +30,9 @@ static void testCurve() {
     assert(applyCurve(c, 0) == 0.0);
     assert(near(applyCurve(c, 50), 5.0, 1e-9));
     assert(near(applyCurve(c, 200), 200.0, 1e-9));
-    assert(near(applyCurve(c, 125), 125 * 0.55, 1e-9));  // Mitte 50..200
+    assert(near(applyCurve(c, 125), 125 * 0.55, 1e-9));  // middle of 50..200
     assert(near(applyCurve(c, -125), -125 * 0.55, 1e-9));
-    assert(near(applyCurve(c, 1000), 3000.0, 1e-9));      // geklemmt auf Faktor 3
+    assert(near(applyCurve(c, 1000), 3000.0, 1e-9));      // clamped to factor 3
     assert(near(applyCurve(c, 275), 275 * 2.0, 1e-9));
 }
 
@@ -80,12 +80,12 @@ static void testAccumulator() {
         assert(std::abs(sum - rate) <= 1.0);
         assert(sum >= 36 && sum <= 38);
     }
-    StepAccumulator a;  // negativ + Vorzeichenwechsel
+    StepAccumulator a;  // negative + sign change
     int sum = 0;
     for (int i = 0; i < 250; ++i) sum += a.add(-20.0, 0.004);
-    assert(sum == -20 || sum == -19);  // Rundungsrest
+    assert(sum == -20 || sum == -19);  // rounding remainder
     assert(a.add(0.0, 0.004) == 0);
-    assert(a.add(1000.0, 0.0005) == 0);   // 0.5 Rest, kein Schritt
+    assert(a.add(1000.0, 0.0005) == 0);   // 0.5 remainder, no step
     assert(a.add(-1000.0, 0.0015) == -1); // 0.5 - 1.5 = -1.0
     assert(a.add(0.0, 0.004) == 0);
 }
@@ -94,7 +94,7 @@ static void testZoom() {
     Settings s;  // dz 40, enter 40ms, exit_ratio 1.5
     s.zoom_enter_ms = 40;
     const double dt = 0.004;
-    {   // reiner Twist: nicht frueher als enter_ms
+    {   // pure twist: not earlier than enter_ms
         ZoomDetector z;
         int tick = 0;
         while (!z.update(100, 0, s, dt)) { ++tick; assert(tick < 100); }
@@ -102,41 +102,41 @@ static void testZoom() {
         assert(tick + 1 == 10);
         assert(z.active());
     }
-    {   // Scroll mit Twist-Leck: twist < lateral -> nie
+    {   // scroll with twist leak: twist < lateral -> never
         ZoomDetector z;
         for (int i = 0; i < 1000; ++i) assert(!z.update(60, 200, s, dt));
     }
-    {   // Unterbrechung setzt Kandidat zurueck
+    {   // interruption resets the candidate
         ZoomDetector z;
         for (int i = 0; i < 9; ++i) assert(!z.update(100, 0, s, dt));
         assert(!z.update(10, 0, s, dt));
         for (int i = 0; i < 9; ++i) assert(!z.update(100, 0, s, dt));
         assert(z.update(100, 0, s, dt));
     }
-    {   // Hysterese
+    {   // hysteresis
         ZoomDetector z;
         for (int i = 0; i < 20; ++i) z.update(100, 0, s, dt);
         assert(z.active());
-        assert(z.update(100, 140, s, dt));    // 140 <= 150 -> bleibt
-        assert(!z.update(100, 160, s, dt));   // > 150 -> aus
+        assert(z.update(100, 140, s, dt));    // 140 <= 150 -> stays on
+        assert(!z.update(100, 160, s, dt));   // > 150 -> off
         z.reset();
         for (int i = 0; i < 20; ++i) z.update(100, 0, s, dt);
         assert(z.update(41, 0, s, dt));
-        assert(!z.update(40, 0, s, dt));      // <= Deadzone -> aus
+        assert(!z.update(40, 0, s, dt));      // <= deadzone -> off
     }
-    {   // Messwerte: Drehen
+    {   // measured values: twist
         RawAxes raw{};
         raw[AX_X] = 82; raw[AX_Y] = 144; raw[AX_Z] = 90; raw[AX_RX] = 35;
         raw[AX_RY] = 350; raw[AX_RZ] = 111;
         double lat = lateralMax(s.zoom_lateral, raw);
-        assert(lat == 111.0);  // y zaehlt nicht zu x z rx rz
+        assert(lat == 111.0);  // y is not part of x z rx rz
         double tw = std::fabs(evalMix(s.zoom.mix, raw) * s.zoom.sign);
         assert(tw == 350.0);
         ZoomDetector z; bool on = false;
         for (int i = 0; i < 20; ++i) on = z.update(tw, lat, s, dt);
         assert(on);
     }
-    {   // Messwerte: seitlich schieben
+    {   // measured values: push sideways
         RawAxes raw{};
         raw[AX_X] = 350; raw[AX_RY] = 70;
         double lat = lateralMax(s.zoom_lateral, raw);
@@ -146,19 +146,19 @@ static void testZoom() {
     }
 }
 
-// Regression S2 (docs/security.md): extreme Config-Werte duerfen weder inf/NaN
-// noch eine Klickflut erzeugen.
+// Regression S2 (docs/security.md): extreme config values must produce neither inf/NaN
+// nor a flood of clicks.
 static void testExtremeValuesBounded() {
     Settings s;
     ChannelCfg c = s.scroll_v;
-    c.curve_exp = 60.0;  // ueber der Config-Grenze: DSP muss trotzdem begrenzen
+    c.curve_exp = 60.0;  // above the config limit: DSP must still bound it
     c.sensitivity = 255;
     Channel ch;
     double rate = ch.processValue(c, 350.0, 0.004);
     assert(std::isfinite(rate) && std::fabs(rate) <= 20000.0);
 
     c.curve_exp = 1.0;
-    c.curve_points = {{0, 0}, {350, 1e6}};  // Faktor weit ueber der Config-Grenze
+    c.curve_points = {{0, 0}, {350, 1e6}};  // factor far above the config limit
     rate = Channel().processValue(c, 350.0, 0.004);
     assert(std::isfinite(rate) && std::fabs(rate) <= 20000.0);
 
@@ -176,6 +176,6 @@ int main() {
     testChannel();
     testAccumulator();
     testZoom();
-    std::puts("test_dsp: alle Tests bestanden");
+    std::puts("test_dsp: all tests passed");
     return 0;
 }

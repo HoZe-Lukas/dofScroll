@@ -1,8 +1,8 @@
-# uinput-Zugriff fuer dofscroll
+# uinput access for dofscroll
 
-Unter Wayland kann kein XTest genutzt werden. Das uinput-Backend legt stattdessen ein
-virtuelles Eingabegeraet ueber `/dev/uinput` an. Dafuer braucht der Nutzer Schreibrechte
-auf dieses Device, die standardmaessig nur root hat.
+XTest cannot be used under Wayland. Instead, the uinput backend creates a virtual input
+device via `/dev/uinput`. For this the user needs write access to that device, which by
+default only root has.
 
 ## Installation
 
@@ -11,41 +11,40 @@ sudo cp packaging/70-dofscroll-uinput.rules /etc/udev/rules.d/
 sudo udevadm control --reload && sudo udevadm trigger
 ```
 
-Die Regel setzt `MODE="0600"` und `TAG+="uaccess"`: systemd-logind vergibt per ACL den
-Zugriff nur an den Nutzer der gerade aktiven lokalen Sitzung am Seat. Danach einmal ab- und
-wieder anmelden (bzw. `udevadm trigger` abwarten). Reine SSH-Sitzungen und
-Hintergrundprozesse anderer Nutzer erhalten keinen Zugriff.
+The rule sets `MODE="0600"` and `TAG+="uaccess"`: systemd-logind grants access via ACL
+only to the user of the currently active local session at the seat. Afterwards log out and
+back in once (or wait for `udevadm trigger` to finish). Pure SSH sessions and background
+processes of other users get no access.
 
-Falls `/dev/uinput` fehlt: `sudo modprobe uinput` (dauerhaft per
-`/etc/modules-load.d/uinput.conf` mit dem Inhalt `uinput`).
+If `/dev/uinput` is missing: `sudo modprobe uinput` (permanently via
+`/etc/modules-load.d/uinput.conf` containing `uinput`).
 
-Pruefen: `ls -l /dev/uinput` zeigt `crw------- root root` plus ACL (`+`); `getfacl
-/dev/uinput` listet den angemeldeten Nutzer mit `rw-`.
+Verify: `ls -l /dev/uinput` shows `crw------- root root` plus an ACL (`+`); `getfacl
+/dev/uinput` lists the logged-in user with `rw-`.
 
-## Warnung: nicht in die Gruppe `input` aufnehmen
+## Warning: do not add yourself to the `input` group
 
-Frueher wurde empfohlen, den Nutzer mit `usermod -aG input` aufzunehmen. Das ist
-**nicht mehr noetig und nicht empfohlen**: Die Gruppe `input` hat Lesezugriff auf alle
-`/dev/input/event*` (typisch `root:input 0660`). Jeder Prozess des Nutzers kann damit alle
-Tastaturen systemweit mitlesen (Keylogging, auch Passwoerter in `sudo`, Sperrbildschirm
-oder Konsole), unabhaengig von der X11-/Wayland-Isolation. Wer die Gruppe bereits hat,
-sollte sie entfernen (`sudo gpasswd -d "$USER" input`), sofern nichts anderes sie braucht.
-Falls zwingend eine Gruppe noetig ist (headless/SSH): eigene Gruppe nur fuer `/dev/uinput`
-anlegen, nicht `input`.
+It used to be recommended to add the user with `usermod -aG input`. This is
+**no longer necessary and not recommended**: the `input` group has read access to all
+`/dev/input/event*` (typically `root:input 0660`). Any process of the user can then read
+all keyboards system-wide (keylogging, including passwords in `sudo`, the lock screen or
+the console), regardless of X11/Wayland isolation. If you are already in the group, you
+should remove yourself (`sudo gpasswd -d "$USER" input`), unless something else needs it.
+If a group is absolutely required (headless/SSH): create a dedicated group only for
+`/dev/uinput`, not `input`.
 
-## Hinweis
+## Note
 
-Ist `/dev/uinput` auf einem Rechner `0666`, ist das eine Fehlkonfiguration (jeder lokale
-Account koennte Tastendruecke in fremde Sitzungen einspeisen). Ursache in anderen
-udev-Regeln unter `/etc/udev/rules.d` bzw. `/usr/lib/udev/rules.d` suchen und beheben.
-Unter X11 genuegt das Backend `x11` (Standard bei `BACKEND=auto`); dann wird `/dev/uinput`
-gar nicht gebraucht.
+If `/dev/uinput` is `0666` on a machine, that is a misconfiguration (any local account
+could inject keystrokes into other sessions). Look for the cause in other udev rules under
+`/etc/udev/rules.d` or `/usr/lib/udev/rules.d` and fix it. Under X11 the `x11` backend is
+sufficient (the default with `BACKEND=auto`); `/dev/uinput` is then not needed at all.
 
-## Hinweis: andere Regeln koennen diese Regel ueberstimmen
+## Note: other rules can override this rule
 
-udev wendet Regeldateien in lexikalischer Reihenfolge an, spaetere gewinnen. Eine eigene
-Regel wie `/etc/udev/rules.d/99-uinput.rules` mit `KERNEL=="uinput", MODE="0666"` setzt
-`/dev/uinput` fuer **alle** lokalen Nutzer und Dienste beschreibbar und hebt die Regel
-`70-dofscroll-uinput.rules` auf. Pruefen: `ls -l /dev/uinput` (soll nicht `crw-rw-rw-` sein)
-und `grep -rl uinput /etc/udev/rules.d /usr/lib/udev/rules.d`. Unter X11 wird uinput gar
-nicht gebraucht (BACKEND=auto nimmt XTest); die Regel wird nur fuer Wayland benoetigt.
+udev applies rule files in lexical order, later ones win. A custom rule such as
+`/etc/udev/rules.d/99-uinput.rules` with `KERNEL=="uinput", MODE="0666"` makes
+`/dev/uinput` writable for **all** local users and services and overrides the rule
+`70-dofscroll-uinput.rules`. Check: `ls -l /dev/uinput` (must not be `crw-rw-rw-`)
+and `grep -rl uinput /etc/udev/rules.d /usr/lib/udev/rules.d`. Under X11 uinput is not
+needed at all (BACKEND=auto uses XTest); the rule is only needed for Wayland.
