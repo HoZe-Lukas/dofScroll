@@ -10,6 +10,7 @@ Vertical tabs on the left pick a category, horizontal tabs on top pick the page 
 
 | Category | Page (tab) | Content |
 |---|---|---|
+| Overview | Overview | Daemon state, quick actions and one card per profile (mode and what it overrides); "Open" jumps to the profile |
 | Profiles | Profiles | Device and application profiles, per-profile mode dropdown, overrides, button bindings |
 | Profiles | Channels | Scroll, zoom and other output channels: sensitivity, dead zone, direction, curve preview |
 | Modes | Modes | Built-in and file modes: new, duplicate, import, edit, delete |

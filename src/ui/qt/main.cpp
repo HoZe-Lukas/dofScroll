@@ -38,6 +38,52 @@ static void printUsage() {
                 "  --restart    wait for a running instance to exit, then start (used by the tray)\n");
 }
 
+// Lets the event loop run until the layouts have settled: a resize or a palette change posts layout
+// requests, which are handled by the next round, so one processEvents() is not enough for a picture.
+static void settle() {
+    for (int i = 0; i < 4; ++i) QApplication::processEvents();
+}
+
+// Overview: it is the first page, shows one card per profile of the configuration, and a card opens
+// its profile on the Profiles page.
+static bool overviewSelfTest(MainWindow &w) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "overview self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    w.show();
+    settle();
+    check(w.currentPageId() == QStringLiteral("overview"), "the Overview is the first page");
+    check(w.overviewCardCount() == 3, "one card per profile (device, two programs)");
+    check(w.showPage(QStringLiteral("profiles")) && w.currentPageId() == QStringLiteral("profiles"), "showPage");
+    check(w.showPage(QStringLiteral("overview")), "back to the Overview");
+    // the cards wrap and keep their height when the window is made narrower or wider
+    for (const QSize &size : {QSize(1500, 820), QSize(960, 560), QSize(720, 460), QSize(1100, 700)}) {
+        w.resize(size);
+        settle();
+        check(w.overviewCardsFit(), "cards keep their height after a resize");
+        check(w.overviewCardsFillWidth(), "cards share the width after a resize");
+    }
+    // ... and wrap: more columns in a wide window than in a narrow one, never fewer than one
+    w.resize(1500, 820);
+    settle();
+    const int wideColumns = w.overviewColumns();
+    w.resize(720, 460);
+    settle();
+    check(wideColumns > w.overviewColumns() && w.overviewColumns() >= 1, "cards wrap to fewer columns in a narrow window");
+    w.resize(960, 560);
+    // the cards open their profile: section 1 is the device profile, 3 the last program profile
+    for (size_t section : {size_t(1), size_t(3)}) {
+        w.openOverviewProfile(static_cast<int>(section));
+        settle();
+        check(w.currentPageId() == QStringLiteral("profiles") && w.selectedProfileIs(section), "a card opens its profile");
+        w.showPage(QStringLiteral("overview"));
+    }
+    std::printf("overview self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
 // Themes: Dark and Light change the palette of the application, the left tab icons follow it, and
 // "System" brings the original palette back. Without the SVG module the icons are skipped.
 static bool themeSelfTest(MainWindow &w) {
@@ -61,7 +107,7 @@ static bool themeSelfTest(MainWindow &w) {
         spn::ui::ThemeColors colors;
         check(spn::ui::themeColors(t, &colors), "colours of a forced theme");
         applyTheme(t);
-        QApplication::processEvents();
+        settle();
         const QColor win = QApplication::palette().color(QPalette::Window);
         check(win == QColor(colors.window.r, colors.window.g, colors.window.b), "palette window colour");
 #ifdef QT_SVG_LIB
@@ -70,9 +116,12 @@ static bool themeSelfTest(MainWindow &w) {
               "tab icons use the text colour of the theme");
 #endif
         check(!w.grab().isNull(), "window renders");
+        w.showPage(QStringLiteral("overview"));
+        settle();
+        check(w.overviewCardsFit(), "the Overview cards keep their height after a theme change");
     }
     applyTheme(spn::ui::Theme::System);
-    QApplication::processEvents();
+    settle();
     check(QApplication::palette().color(QPalette::Window) == original.color(QPalette::Window), "System restores the palette");
     std::printf("theme self-test: %s\n", ok ? "ok" : "failed");
     return ok;
@@ -126,6 +175,12 @@ int main(int argc, char **argv) {
         ctx.runtimeDir = (tmp.path() + QStringLiteral("/run")).toStdString();
         QDir().mkpath(tmp.path() + QStringLiteral("/modes"));
         QDir().mkpath(QString::fromUtf8(screenshotDir));
+        // Example profiles, so that the Overview shows cards.
+        QFile conf(tmp.path() + QStringLiteral("/dofscroll.conf"));
+        if (!conf.open(QIODevice::WriteOnly)) return 1;
+        conf.write("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\nBUTTON_1 = key:space\n\n"
+                   "[app:blender]\nENABLED = 0\n\n[app:gimp]\n");
+        conf.close();
         MainWindow w(ctx);
         w.show();
         // Light at three sizes, dark at the medium size (the layout does not depend on the colours).
@@ -137,7 +192,7 @@ int main(int argc, char **argv) {
             w.resize(sz.w, sz.h);
             for (const std::string &id : w.pageIds()) {
                 w.showPage(QString::fromStdString(id));
-                QApplication::processEvents();
+                settle();
                 const QString file = QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-%2-%3.png")
                                          .arg(QString::fromLatin1(sz.theme), QString::fromLatin1(sz.name),
                                               QString::fromStdString(id));
@@ -163,6 +218,11 @@ int main(int argc, char **argv) {
         if (!mode.open(QIODevice::WriteOnly)) return 1;
         mode.write("NAME = Mine\nBUTTON_1 = key:space\n");
         mode.close();
+        // A configuration with profiles, so that the Overview has cards to show and to open.
+        QFile conf(tmp.path() + QStringLiteral("/dofscroll.conf"));
+        if (!conf.open(QIODevice::WriteOnly)) return 1;
+        conf.write("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\n\n[app:blender]\nENABLED = 0\n");
+        conf.close();
 
         MainWindow w(ctx);
         w.show();
@@ -174,9 +234,10 @@ int main(int argc, char **argv) {
         std::printf("self-test: entries=%d profiles=%d modes=%d tray-modes=%d tray-entries=%d tray-available=%d\n",
                     w.pageCount(), w.profileCount(), modes.modeCount(), tray.modeMenuCount(),
                     tray.menuEntryCount(), avail ? 1 : 0);
-        const bool ok = w.pageCount() == 5 && w.categoryCount() == 4 && w.profileCount() >= 0 && !w.profilePageHasModeSelector() && modes.modeCount() == 4 &&
+        const bool ok = w.pageCount() == 6 && w.categoryCount() == 5 && w.profileCount() >= 0 && !w.profilePageHasModeSelector() && modes.modeCount() == 4 &&
                         tray.modeMenuCount() == 4 && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
+        if (!overviewSelfTest(w)) return 1;
         if (!themeSelfTest(w)) return 1;
         return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen
     }

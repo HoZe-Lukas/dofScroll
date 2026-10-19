@@ -47,6 +47,8 @@ if(DOFSCROLL_UI)
     src/ui/qt/pages/general_page.cpp
     src/ui/qt/pages/general_page.hpp
     src/ui/qt/pages/modes_page.cpp
+    src/ui/qt/pages/overview_page.cpp
+    src/ui/qt/pages/overview_page.hpp
     src/ui/qt/pages/modes_page.hpp
     src/ui/qt/pages/profiles_page.cpp
     src/ui/qt/pages/profiles_page.hpp

@@ -24,6 +24,7 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QTreeWidget>
+#include <QTreeWidgetItemIterator>
 #include <QVBoxLayout>
 
 #include "add_app_dialog.hpp"
@@ -185,6 +186,16 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
     tree_->setCurrentItem(select);
     block.unblock();
     rebuildContent();
+}
+
+bool ProfilesPage::selectSection(size_t section) {
+    for (QTreeWidgetItemIterator it(tree_); *it; ++it) {
+        if ((*it)->data(0, kRoleSection).toInt() == int(section) && (*it)->flags() & Qt::ItemIsSelectable) {
+            tree_->setCurrentItem(*it);  // onSelectionChanged rebuilds the content
+            return true;
+        }
+    }
+    return false;
 }
 
 void ProfilesPage::onSelectionChanged() { rebuildContent(); }

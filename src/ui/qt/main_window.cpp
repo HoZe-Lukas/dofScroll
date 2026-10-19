@@ -17,6 +17,7 @@
 #include "common.hpp"
 #include "config.hpp"
 #include "pages/page_registry.hpp"
+#include "pages/overview_page.hpp"
 #include "pages/profiles_page.hpp"
 #include "platform/fs.hpp"
 #include "ui/model/runtime_files.hpp"
@@ -72,6 +73,7 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
                 if (page.id != f.id) continue;
                 QWidget *w = f.create(ctx_);
                 if (page.id == "profiles") profilesPage_ = w;
+                if (page.id == "overview") overviewPage_ = w;
                 if (tabs) tabs->addTab(w, T(f.title));
                 else host = w;
             }
@@ -79,6 +81,11 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
         categories_->addWidget(tabs ? static_cast<QWidget *>(tabs) : host);
     }
     connect(categoryBar_, &QTabBar::currentChanged, categories_, &QStackedWidget::setCurrentIndex);
+    // The Overview opens other pages: a card selects its profile, the buttons show a page.
+    if (auto *overview = qobject_cast<OverviewPage *>(overviewPage_)) {
+        connect(overview, &OverviewPage::openProfile, this, [this](int section) { openOverviewProfile(section); });
+        connect(overview, &OverviewPage::openPage, this, [this](const QString &id) { showPage(id); });
+    }
     setCentralWidget(central);
 
     // Bottom: the daemon state, the same line as the tray's first entry.
@@ -132,6 +139,7 @@ void MainWindow::updateStatus() {
     const bool ok = spn::ui::readStatusFile(ctx_.runtimeDir, &text);  // the daemon's directory on every OS
     status_.update(text, ok, static_cast<int64_t>(std::time(nullptr)));
     if (statusLabel_) statusLabel_->setText(QString::fromStdString(status_.mainLine(strings_)));
+    if (auto *overview = qobject_cast<OverviewPage *>(overviewPage_)) overview->refresh();
 }
 
 void MainWindow::bringToFront() {
@@ -167,6 +175,45 @@ MainWindow::~MainWindow() { delete takeCentralWidget(); }
 int MainWindow::pageCount() const { return static_cast<int>(spn::ui::navPageCount(nav_)); }
 
 int MainWindow::categoryCount() const { return static_cast<int>(nav_.size()); }
+
+void MainWindow::openOverviewProfile(int section) {
+    showPage(QStringLiteral("profiles"));
+    if (auto *p = qobject_cast<ProfilesPage *>(profilesPage_)) p->selectSection(static_cast<size_t>(section));
+}
+
+bool MainWindow::overviewCardsFillWidth() const {
+    const auto *o = qobject_cast<const OverviewPage *>(overviewPage_);
+    return o && o->cardsFillWidth();
+}
+
+int MainWindow::overviewColumns() const {
+    const auto *o = qobject_cast<const OverviewPage *>(overviewPage_);
+    return o ? o->cardColumns() : 0;
+}
+
+bool MainWindow::overviewCardsFit() const {
+    const auto *o = qobject_cast<const OverviewPage *>(overviewPage_);
+    return o && o->cardsFit();
+}
+
+int MainWindow::overviewCardCount() const {
+    const auto *o = qobject_cast<const OverviewPage *>(overviewPage_);
+    return o ? o->profileCardCount() : 0;
+}
+
+QString MainWindow::currentPageId() const {
+    const int c = categoryBar_->currentIndex();
+    if (c < 0 || c >= static_cast<int>(nav_.size())) return QString();
+    int p = 0;
+    if (const auto *tabs = qobject_cast<const QTabWidget *>(categories_->widget(c))) p = tabs->currentIndex();
+    const auto &pages = nav_[static_cast<size_t>(c)].pages;
+    return p >= 0 && p < static_cast<int>(pages.size()) ? QString::fromStdString(pages[static_cast<size_t>(p)].id) : QString();
+}
+
+bool MainWindow::selectedProfileIs(size_t section) const {
+    const auto *p = qobject_cast<const ProfilesPage *>(profilesPage_);
+    return p && p->selectedSection() == section;
+}
 
 int MainWindow::profileCount() const {
     const auto *p = qobject_cast<const ProfilesPage *>(profilesPage_);

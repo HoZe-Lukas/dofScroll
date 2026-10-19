@@ -23,6 +23,7 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 
 | Category | Page (tab) | Content |
 |---|---|---|
+| Overview | Overview | The state of the daemon, quick actions (add a profile, release all keys, restart the daemon or the interface) and one card per device or program profile with its mode and a one-line summary of what it overrides; "Open" shows the profile on the Profiles page. Every profile of the configuration has a card |
 | Profiles | Profiles | Per-device and per-program profiles, see below |
 | Profiles | Channels | Scroll, zoom and the other output channels: sensitivity, dead zone, direction, curve preview |
 | Modes | Modes | The available modes (built-in and files in the modes folder): new, duplicate, import, edit, delete; a reminder that mode files can press any key |

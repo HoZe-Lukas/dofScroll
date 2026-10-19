@@ -41,6 +41,13 @@ public:
     bool categoryIconsLoaded() const;
     QIcon categoryIcon(int index) const;  // the icon of a left tab (null if there is none)
     int profileCount() const;                 // profiles listed on the Profiles page
+    int overviewCardCount() const;            // profile cards on the Overview page
+    int overviewColumns() const;              // columns of the card grid
+    bool overviewCardsFit() const;
+    bool overviewCardsFillWidth() const;            // no squashed card after a resize
+    void openOverviewProfile(int section);    // what a click on an Overview card does (also used by the self-test)
+    QString currentPageId() const;            // registry id of the page that is shown
+    bool selectedProfileIs(size_t section) const;  // is this profile selected on the Profiles page?
     bool profilePageHasModeSelector() const;  // false for the default mode
 
 protected:
@@ -62,4 +69,5 @@ private:
     QStackedWidget *categories_ = nullptr;
     QLabel *statusLabel_ = nullptr;
     QWidget *profilesPage_ = nullptr;  // the "Profiles" page from the registry
+    QWidget *overviewPage_ = nullptr;  // the "Overview" page from the registry
 };

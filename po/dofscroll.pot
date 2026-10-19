@@ -1870,3 +1870,47 @@ msgstr ""
 #: src/ui/qt/pages/general_page.cpp
 msgid "Could not save the theme: "
 msgstr ""
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Overview"
+msgstr ""
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Quick actions"
+msgstr ""
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Add a profile..."
+msgstr ""
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Set up a program or a device on the Profiles page"
+msgstr ""
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "No program or device has its own profile yet. A profile changes the mode or single settings for one program or one device."
+msgstr ""
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "%1 device profile(s), %2 program profile(s). The default mode is %3."
+msgstr ""
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Program"
+msgstr ""
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Open"
+msgstr ""
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Open profile"
+msgstr ""
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "+%1 more"
+msgstr ""
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Uses the default settings"
+msgstr ""

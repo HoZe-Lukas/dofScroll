@@ -2039,3 +2039,47 @@ msgstr "Wird sofort angewendet und gemerkt."
 #: src/ui/qt/pages/general_page.cpp
 msgid "Could not save the theme: "
 msgstr "Das Farbschema konnte nicht gespeichert werden: "
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Overview"
+msgstr "Übersicht"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Quick actions"
+msgstr "Schnellaktionen"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Add a profile..."
+msgstr "Profil hinzufügen..."
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Set up a program or a device on the Profiles page"
+msgstr "Ein Programm oder ein Gerät auf der Seite Profile einrichten"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "No program or device has its own profile yet. A profile changes the mode or single settings for one program or one device."
+msgstr "Noch hat kein Programm und kein Gerät ein eigenes Profil. Ein Profil ändert den Modus oder einzelne Einstellungen für ein Programm oder ein Gerät."
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "%1 device profile(s), %2 program profile(s). The default mode is %3."
+msgstr "%1 Geräteprofil(e), %2 Programmprofil(e). Der Standardmodus ist %3."
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Program"
+msgstr "Programm"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Open"
+msgstr "Öffnen"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Open profile"
+msgstr "Profil öffnen"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "+%1 more"
+msgstr "+%1 weitere"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Uses the default settings"
+msgstr "Verwendet die Standardeinstellungen"
