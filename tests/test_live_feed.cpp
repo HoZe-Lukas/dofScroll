@@ -221,7 +221,10 @@ void testServerRateAndIdle() {
     LiveSample o;
     assert(p.feed(cp->out.data(), cp->out.size()));
     uint32_t expect = 0;
-    while (p.next(&o)) assert(o.seq == expect++);
+    while (p.next(&o)) {
+        assert(o.seq == expect);
+        expect++;
+    }
     assert(expect == srv.framesSent() && p.error() == LiveParseError::Ok);
 
     // the server never reads: bytes a client sends are ignored
