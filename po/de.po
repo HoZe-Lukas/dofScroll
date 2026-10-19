@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: dofscroll\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 10:52+0200\n"
+"POT-Creation-Date: 2026-10-19 10:57+0200\n"
 "PO-Revision-Date: 2026-10-19 00:00+0000\n"
 "Last-Translator: Lukas Hois-Zelinka\n"
 "Language-Team: German\n"
@@ -15,33 +15,85 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/dofscroll_tray.cpp:135
+#: src/dofscroll_tray.cpp:162
+msgid ""
+"Start the SpaceMouse daemon and this tray icon automatically when you log in "
+"(takes effect at the next login)"
+msgstr ""
+"SpaceMouse-Dienst und dieses Tray-Symbol beim Anmelden automatisch starten "
+"(wirkt ab der nächsten Anmeldung)"
+
+#: src/dofscroll_tray.cpp:165
+msgid ""
+"Enabled only until the next reboot (by a temporary link); it cannot be "
+"changed here"
+msgstr ""
+"Nur bis zum nächsten Neustart aktiviert (durch einen temporären Link); hier "
+"nicht änderbar"
+
+#: src/dofscroll_tray.cpp:168
+msgid ""
+"The units have no [Install] section or are enabled indirectly; they cannot "
+"be changed here"
+msgstr ""
+"Die Units haben keinen [Install]-Abschnitt oder sind indirekt aktiviert; "
+"hier nicht änderbar"
+
+#: src/dofscroll_tray.cpp:171
+msgid ""
+"The units are masked (systemctl --user unmask dofscroll.service dofscroll-"
+"tray.service)"
+msgstr ""
+"Die Units sind maskiert (systemctl --user unmask dofscroll.service dofscroll-"
+"tray.service)"
+
+#: src/dofscroll_tray.cpp:174
+msgid ""
+"systemd does not know the dofscroll units, for example when running from a "
+"build folder. Install the package, see docs/installation.md"
+msgstr ""
+"systemd kennt die dofscroll-Units nicht, zum Beispiel beim Start aus einem "
+"Build-Ordner. Paket installieren, siehe docs/installation.md"
+
+#: src/dofscroll_tray.cpp:179
+msgid "Could not read the autostart state from systemd"
+msgstr "Der Autostart-Zustand konnte nicht von systemd gelesen werden"
+
+#: src/dofscroll_tray.cpp:215
+msgid "Could not run systemctl: "
+msgstr "systemctl konnte nicht gestartet werden: "
+
+#: src/dofscroll_tray.cpp:217
+msgid "systemctl failed: "
+msgstr "systemctl ist fehlgeschlagen: "
+
+#: src/dofscroll_tray.cpp:247
 msgid "Scroll vertical"
 msgstr "Scrollen vertikal"
 
-#: src/dofscroll_tray.cpp:136
+#: src/dofscroll_tray.cpp:248
 msgid "Scroll horizontal"
 msgstr "Scrollen horizontal"
 
-#: src/dofscroll_tray.cpp:137
+#: src/dofscroll_tray.cpp:249
 msgid "Zoom"
 msgstr "Zoom"
 
-#: src/dofscroll_tray.cpp:332 src/dofscroll_tray.cpp:2375
+#: src/dofscroll_tray.cpp:444 src/dofscroll_tray.cpp:2510
 #, c-format
 msgid "Device: %s"
 msgstr "Gerät: %s"
 
-#: src/dofscroll_tray.cpp:333 src/dofscroll_tray.cpp:2372
+#: src/dofscroll_tray.cpp:445 src/dofscroll_tray.cpp:2507
 #, c-format
 msgid "Program: %s"
 msgstr "Programm: %s"
 
-#: src/dofscroll_tray.cpp:334
+#: src/dofscroll_tray.cpp:446
 msgid "Global"
 msgstr "Global"
 
-#: src/dofscroll_tray.cpp:344
+#: src/dofscroll_tray.cpp:456
 msgid ""
 "Global base settings. Device and program profiles override only individual "
 "values of them."
@@ -49,7 +101,7 @@ msgstr ""
 "Globale Grundeinstellungen. Geräte- und Programmprofile überschreiben davon "
 "nur einzelne Werte."
 
-#: src/dofscroll_tray.cpp:348
+#: src/dofscroll_tray.cpp:460
 #, c-format
 msgid ""
 "The effective values are shown (Global + this profile). Only deviations from "
@@ -64,23 +116,23 @@ msgstr[1] ""
 "Angezeigt werden die wirksamen Werte (Global + dieses Profil). Gespeichert "
 "werden nur Abweichungen von Global - derzeit %d Werte."
 
-#: src/dofscroll_tray.cpp:556
+#: src/dofscroll_tray.cpp:668
 msgid "Output (clipped)"
 msgstr "Ausgabe (gekappt)"
 
-#: src/dofscroll_tray.cpp:556
+#: src/dofscroll_tray.cpp:668
 msgid "Output"
 msgstr "Ausgabe"
 
-#: src/dofscroll_tray.cpp:558
+#: src/dofscroll_tray.cpp:670
 msgid "Input 0..350"
 msgstr "Eingabe 0..350"
 
-#: src/dofscroll_tray.cpp:625
+#: src/dofscroll_tray.cpp:737
 msgid "Axis mix"
 msgstr "Achsen-Mix"
 
-#: src/dofscroll_tray.cpp:626
+#: src/dofscroll_tray.cpp:738
 msgid ""
 "Sum of [+-][weight*]axis, axes: x y z rx ry rz.\n"
 "Examples: \"z + rx\", \"x - rz\", \"0.5*rx + z\", \"-ry\". Empty = channel "
@@ -89,66 +141,66 @@ msgstr ""
 "Summe aus [+-][Gewicht*]Achse, Achsen: x y z rx ry rz.\n"
 "Beispiele: \"z + rx\", \"x - rz\", \"0.5*rx + z\", \"-ry\". Leer = Kanal aus."
 
-#: src/dofscroll_tray.cpp:629
+#: src/dofscroll_tray.cpp:741
 msgid "Sensitivity"
 msgstr "Empfindlichkeit"
 
-#: src/dofscroll_tray.cpp:631
+#: src/dofscroll_tray.cpp:743
 msgid "0..255, 0 = channel off"
 msgstr "0..255, 0 = Kanal aus"
 
-#: src/dofscroll_tray.cpp:632
+#: src/dofscroll_tray.cpp:744
 msgid "Deadzone"
 msgstr "Totzone"
 
-#: src/dofscroll_tray.cpp:634
+#: src/dofscroll_tray.cpp:746
 msgid "Raw sensor units; nothing happens below this"
 msgstr "Rohsensor-Einheiten, unterhalb davon passiert nichts"
 
-#: src/dofscroll_tray.cpp:635
+#: src/dofscroll_tray.cpp:747
 msgid "Smoothing (ms)"
 msgstr "Glättung (ms)"
 
-#: src/dofscroll_tray.cpp:637
+#: src/dofscroll_tray.cpp:749
 msgid "Low-pass time constant, 0 = off"
 msgstr "Zeitkonstante des Tiefpasses, 0 = aus"
 
-#: src/dofscroll_tray.cpp:639
+#: src/dofscroll_tray.cpp:751
 msgid "Invert direction"
 msgstr "Richtung invertieren"
 
-#: src/dofscroll_tray.cpp:660
+#: src/dofscroll_tray.cpp:772
 msgid "Adjust by one step (0.05)"
 msgstr "Um einen Schritt (0,05) verstellen"
 
-#: src/dofscroll_tray.cpp:672
+#: src/dofscroll_tray.cpp:784
 msgid "Curve (exponent)"
 msgstr "Kurve (Exponent)"
 
-#: src/dofscroll_tray.cpp:673
+#: src/dofscroll_tray.cpp:785
 msgid "1.0 = linear, >1 = finer at small deflections"
 msgstr "1,0 = linear, >1 = feiner bei kleinen Ausschlägen"
 
-#: src/dofscroll_tray.cpp:676
+#: src/dofscroll_tray.cpp:788
 msgid "empty = exponent applies, e.g. 0:0 50:0.1 200:1 350:3"
 msgstr "leer = Exponent gilt, z. B. 0:0 50:0.1 200:1 350:3"
 
-#: src/dofscroll_tray.cpp:698
+#: src/dofscroll_tray.cpp:810
 msgid ""
 "Point list expected: \"input:factor ...\" (use the slider for an exponent)"
 msgstr ""
 "Punktliste erwartet: \"Eingabe:Faktor ...\" (für einen Exponenten den Regler "
 "benutzen)"
 
-#: src/dofscroll_tray.cpp:701
+#: src/dofscroll_tray.cpp:813
 msgid "invalid point list"
 msgstr "ungültige Punktliste"
 
-#: src/dofscroll_tray.cpp:704
+#: src/dofscroll_tray.cpp:816
 msgid "Curve (points)"
 msgstr "Kurve (Punkte)"
 
-#: src/dofscroll_tray.cpp:705
+#: src/dofscroll_tray.cpp:817
 msgid ""
 "Optional: ascending \"input:factor\" pairs, e.g. \"0:0 50:0.1 200:1 "
 "350:3\".\n"
@@ -163,92 +215,92 @@ msgstr ""
 "Geschwindigkeit, dazwischen wird linear interpoliert. Überschreibt den "
 "Exponenten."
 
-#: src/dofscroll_tray.cpp:739
+#: src/dofscroll_tray.cpp:851
 msgid "Zoom must dominate against"
 msgstr "Zoom muss dominieren gegen"
 
-#: src/dofscroll_tray.cpp:740
+#: src/dofscroll_tray.cpp:852
 msgid ""
 "Zoom only starts if the twist is stronger than the strongest of these axes"
 msgstr ""
 "Zoom startet nur, wenn die Drehung stärker ist als die stärkste dieser Achsen"
 
-#: src/dofscroll_tray.cpp:741
+#: src/dofscroll_tray.cpp:853
 msgid "Entry time (ms)"
 msgstr "Einstiegszeit (ms)"
 
-#: src/dofscroll_tray.cpp:743
+#: src/dofscroll_tray.cpp:855
 msgid "How long the twist must dominate before zoom engages"
 msgstr "So lange muss die Drehung dominieren, bevor Zoom einrastet"
 
-#: src/dofscroll_tray.cpp:744
+#: src/dofscroll_tray.cpp:856
 msgid "Exit ratio"
 msgstr "Austrittsverhältnis"
 
-#: src/dofscroll_tray.cpp:746
+#: src/dofscroll_tray.cpp:858
 msgid ""
 "Hysteresis: zoom only ends once a lateral axis is stronger by this factor"
 msgstr ""
 "Hysterese: Zoom endet erst, wenn eine Seitenachse um diesen Faktor stärker "
 "ist"
 
-#: src/dofscroll_tray.cpp:749
+#: src/dofscroll_tray.cpp:861
 msgid "Reset to Global"
 msgstr "Auf Global zurücksetzen"
 
-#: src/dofscroll_tray.cpp:752
+#: src/dofscroll_tray.cpp:864
 msgid "Reset the channel including zoom detection to the global values"
 msgstr "Kanal inklusive Zoom-Erkennung auf die globalen Werte zurücksetzen"
 
-#: src/dofscroll_tray.cpp:753
+#: src/dofscroll_tray.cpp:865
 msgid "Reset the channel to the global values"
 msgstr "Kanal auf die globalen Werte zurücksetzen"
 
-#: src/dofscroll_tray.cpp:794
+#: src/dofscroll_tray.cpp:906
 msgid "Output backend"
 msgstr "Ausgabe-Backend"
 
-#: src/dofscroll_tray.cpp:795
+#: src/dofscroll_tray.cpp:907
 msgid "auto: Wayland -> uinput, otherwise X11 (with fallback)"
 msgstr "auto: Wayland -> uinput, sonst X11 (mit Fallback)"
 
-#: src/dofscroll_tray.cpp:796
+#: src/dofscroll_tray.cpp:908
 msgid "Changing the backend only takes effect after the daemon is restarted."
 msgstr "Ein Backend-Wechsel wird erst nach einem Neustart des Daemons wirksam."
 
-#: src/dofscroll_tray.cpp:799
+#: src/dofscroll_tray.cpp:911
 msgid "Tick rate (Hz)"
 msgstr "Tickrate (Hz)"
 
-#: src/dofscroll_tray.cpp:801
+#: src/dofscroll_tray.cpp:913
 msgid "How many times per second the daemon generates events (30..1000)"
 msgstr "Wie oft pro Sekunde der Daemon Ereignisse erzeugt (30..1000)"
 
-#: src/dofscroll_tray.cpp:815
+#: src/dofscroll_tray.cpp:927
 msgid "Use nav button"
 msgstr "Nav-Taste verwenden"
 
-#: src/dofscroll_tray.cpp:816
+#: src/dofscroll_tray.cpp:928
 msgid "Nav button (arrow keys instead of scroll)"
 msgstr "Nav-Taste (Pfeiltasten statt Scrollen)"
 
-#: src/dofscroll_tray.cpp:817
+#: src/dofscroll_tray.cpp:929
 msgid "Use click button"
 msgstr "Klick-Taste verwenden"
 
-#: src/dofscroll_tray.cpp:818
+#: src/dofscroll_tray.cpp:930
 msgid "Click button (left mouse button)"
 msgstr "Klick-Taste (linke Maustaste)"
 
-#: src/dofscroll_tray.cpp:820 src/dofscroll_tray.cpp:2596
+#: src/dofscroll_tray.cpp:932 src/dofscroll_tray.cpp:2731
 msgid "Restart daemon"
 msgstr "Daemon neu starten"
 
-#: src/dofscroll_tray.cpp:828
+#: src/dofscroll_tray.cpp:940
 msgid "General"
 msgstr "Allgemein"
 
-#: src/dofscroll_tray.cpp:867
+#: src/dofscroll_tray.cpp:979
 msgid ""
 "spacenavd is not reachable - the live display starts automatically as soon "
 "as the service is running (check with: systemctl status spacenavd)."
@@ -256,53 +308,53 @@ msgstr ""
 "spacenavd ist nicht erreichbar - die Live-Anzeige startet automatisch, "
 "sobald der Dienst läuft (prüfen mit: systemctl status spacenavd)."
 
-#: src/dofscroll_tray.cpp:871
+#: src/dofscroll_tray.cpp:983
 #, c-format
 msgid "Connected to spacenavd. Device: %s - %s buttons, %s axes"
 msgstr "Mit spacenavd verbunden. Gerät: %s - %s Tasten, %s Achsen"
 
-#: src/dofscroll_tray.cpp:872
+#: src/dofscroll_tray.cpp:984
 msgid "(no name reported)"
 msgstr "(kein Name gemeldet)"
 
-#: src/dofscroll_tray.cpp:888
+#: src/dofscroll_tray.cpp:1000
 #, c-format
 msgid "This device has %d buttons (0..%d)"
 msgstr "Dieses Gerät hat %d Tasten (0..%d)"
 
-#: src/dofscroll_tray.cpp:1181
+#: src/dofscroll_tray.cpp:1293
 msgid "+ up: lift / press"
 msgstr "+ hoch: Heben / Drücken"
 
-#: src/dofscroll_tray.cpp:1182
+#: src/dofscroll_tray.cpp:1294
 msgid "Twist the cap"
 msgstr "Kappe drehen"
 
-#: src/dofscroll_tray.cpp:1183 src/axis_wizard.hpp:80
+#: src/dofscroll_tray.cpp:1295 src/axis_wizard.hpp:80
 msgid "Tilt forward/back"
 msgstr "Kippen vor/zurück"
 
-#: src/dofscroll_tray.cpp:1184
+#: src/dofscroll_tray.cpp:1296
 msgid "+ right: push sideways"
 msgstr "+ rechts: seitlich schieben"
 
-#: src/dofscroll_tray.cpp:1185 src/axis_wizard.hpp:81
+#: src/dofscroll_tray.cpp:1297 src/axis_wizard.hpp:81
 msgid "Tilt sideways"
 msgstr "Seitlich kippen"
 
-#: src/dofscroll_tray.cpp:1186
+#: src/dofscroll_tray.cpp:1298
 msgid "+ toward user: push forward/back"
 msgstr "+ zum Nutzer: vor/zurück schieben"
 
-#: src/dofscroll_tray.cpp:1191
+#: src/dofscroll_tray.cpp:1303
 msgid "View: obliquely from front above (user in front)"
 msgstr "Ansicht: schräg von vorn oben (Nutzer vorn)"
 
-#: src/dofscroll_tray.cpp:1267
+#: src/dofscroll_tray.cpp:1379
 msgid "(off)"
 msgstr "(aus)"
 
-#: src/dofscroll_tray.cpp:1280
+#: src/dofscroll_tray.cpp:1392
 msgid ""
 "Pull the cap toward you, then push it forward - level, without tilting. "
 "Toward you first!"
@@ -310,11 +362,11 @@ msgstr ""
 "Kappe zu dir ziehen und danach nach vorn schieben - waagerecht, ohne zu "
 "kippen. Zuerst zu dir!"
 
-#: src/dofscroll_tray.cpp:1282
+#: src/dofscroll_tray.cpp:1394
 msgid "Toward you = positive (scroll down)."
 msgstr "Zu dir = positiv (Scrollen nach unten)."
 
-#: src/dofscroll_tray.cpp:1283
+#: src/dofscroll_tray.cpp:1395
 msgid ""
 "Tilt the cap toward you, then forward (tilt the top, without pushing). "
 "Toward you first!"
@@ -322,49 +374,49 @@ msgstr ""
 "Kappe zu dir kippen und danach nach vorn kippen (die Oberseite neigen, ohne "
 "zu schieben). Zuerst zu dir!"
 
-#: src/dofscroll_tray.cpp:1285
+#: src/dofscroll_tray.cpp:1397
 msgid "Tilting toward you = positive (scroll down). Optional - can be skipped."
 msgstr ""
 "Zu dir kippen = positiv (Scrollen nach unten). Optional - kann übersprungen "
 "werden."
 
-#: src/dofscroll_tray.cpp:1286
+#: src/dofscroll_tray.cpp:1398
 msgid ""
 "Push the cap to the right and back - level, without tilting. Right first!"
 msgstr ""
 "Kappe nach rechts schieben und zurück - waagerecht, ohne zu kippen. Zuerst "
 "nach rechts!"
 
-#: src/dofscroll_tray.cpp:1287
+#: src/dofscroll_tray.cpp:1399
 msgid "Right = positive (scroll right)."
 msgstr "Rechts = positiv (Scrollen nach rechts)."
 
-#: src/dofscroll_tray.cpp:1288
+#: src/dofscroll_tray.cpp:1400
 msgid "Tilt the cap sideways: tilt to the right and back. Right first!"
 msgstr ""
 "Kappe seitlich kippen: nach rechts kippen und zurück. Zuerst nach rechts!"
 
-#: src/dofscroll_tray.cpp:1289
+#: src/dofscroll_tray.cpp:1401
 msgid "Tilting right = positive (scroll right). Optional - can be skipped."
 msgstr ""
 "Nach rechts kippen = positiv (Scrollen nach rechts). Optional - kann "
 "übersprungen werden."
 
-#: src/dofscroll_tray.cpp:1290
+#: src/dofscroll_tray.cpp:1402
 msgid "Twist the cap clockwise (seen from above) and back. Clockwise first!"
 msgstr ""
 "Kappe im Uhrzeigersinn drehen (von oben gesehen) und zurück. Zuerst im "
 "Uhrzeigersinn!"
 
-#: src/dofscroll_tray.cpp:1291
+#: src/dofscroll_tray.cpp:1403
 msgid "Clockwise = positive (zoom in)."
 msgstr "Uhrzeigersinn = positiv (hineinzoomen)."
 
-#: src/dofscroll_tray.cpp:1323
+#: src/dofscroll_tray.cpp:1435
 msgid "Detected mapping:"
 msgstr "Erkannte Zuordnung:"
 
-#: src/dofscroll_tray.cpp:1327
+#: src/dofscroll_tray.cpp:1439
 #, c-format
 msgid ""
 "\"Apply\" sets these axis mixes in the profile \"%s\" and resets the "
@@ -373,63 +425,63 @@ msgstr ""
 "\"Übernehmen\" setzt diese Achsen-Mixe im Profil \"%s\" und stellt die "
 "Richtungsschalter (\"Richtung invertieren\") auf normal."
 
-#: src/dofscroll_tray.cpp:1331
+#: src/dofscroll_tray.cpp:1443
 msgid "The mapping is incomplete and cannot be applied."
 msgstr "Die Zuordnung ist unvollständig und kann nicht übernommen werden."
 
-#: src/dofscroll_tray.cpp:1333
+#: src/dofscroll_tray.cpp:1445
 #, c-format
 msgid "Error: %s"
 msgstr "Fehler: %s"
 
-#: src/dofscroll_tray.cpp:1334
+#: src/dofscroll_tray.cpp:1446
 #, c-format
 msgid "Warning: %s"
 msgstr "Warnung: %s"
 
-#: src/dofscroll_tray.cpp:1346
+#: src/dofscroll_tray.cpp:1458
 #, c-format
 msgid "Step %d of %d: %s%s"
 msgstr "Schritt %d von %d: %s%s"
 
-#: src/dofscroll_tray.cpp:1348
+#: src/dofscroll_tray.cpp:1460
 msgid " (optional)"
 msgstr " (optional)"
 
-#: src/dofscroll_tray.cpp:1349
+#: src/dofscroll_tray.cpp:1461
 msgid "Result"
 msgstr "Ergebnis"
 
-#: src/dofscroll_tray.cpp:1372
+#: src/dofscroll_tray.cpp:1484
 #, c-format
 msgid "Measuring - move now! %.1f s left"
 msgstr "Messung läuft - jetzt bewegen! Noch %.1f s"
 
-#: src/dofscroll_tray.cpp:1376
+#: src/dofscroll_tray.cpp:1488
 msgid "Measurement complete"
 msgstr "Messung abgeschlossen"
 
-#: src/dofscroll_tray.cpp:1380
+#: src/dofscroll_tray.cpp:1492
 msgid "Ready - click \"Start\", then move (3 s)"
 msgstr "Bereit - \"Start\" klicken, dann bewegen (3 s)"
 
-#: src/dofscroll_tray.cpp:1381
+#: src/dofscroll_tray.cpp:1493
 msgid "No connection to spacenavd"
 msgstr "Keine Verbindung zu spacenavd"
 
-#: src/dofscroll_tray.cpp:1386
+#: src/dofscroll_tray.cpp:1498
 msgid "Skipped."
 msgstr "Übersprungen."
 
-#: src/dofscroll_tray.cpp:1394
+#: src/dofscroll_tray.cpp:1506
 msgid "_Measure again"
 msgstr "_Nochmal messen"
 
-#: src/dofscroll_tray.cpp:1394 src/dofscroll_tray.cpp:1553
+#: src/dofscroll_tray.cpp:1506 src/dofscroll_tray.cpp:1665
 msgid "_Start"
 msgstr "_Start"
 
-#: src/dofscroll_tray.cpp:1453
+#: src/dofscroll_tray.cpp:1565
 #, c-format
 msgid ""
 "The twist axis %s is listed under \"Zoom must dominate against\" for zoom - "
@@ -438,44 +490,44 @@ msgstr ""
 "Die Dreh-Achse %s steht bei Zoom unter \"Zoom muss dominieren gegen\" - dort "
 "bitte abwählen, sonst rastet Zoom nie ein."
 
-#: src/dofscroll_tray.cpp:1468
+#: src/dofscroll_tray.cpp:1580
 #, c-format
 msgid "Internal error while applying: %s"
 msgstr "Interner Fehler beim Übernehmen: %s"
 
-#: src/dofscroll_tray.cpp:1503
+#: src/dofscroll_tray.cpp:1615
 msgid "Connection to spacenavd lost - measurement aborted."
 msgstr "Verbindung zu spacenavd verloren - Messung abgebrochen."
 
-#: src/dofscroll_tray.cpp:1545 src/dofscroll_tray.cpp:1681
+#: src/dofscroll_tray.cpp:1657 src/dofscroll_tray.cpp:1793
 msgid "Learn axes"
 msgstr "Achsen einlernen"
 
-#: src/dofscroll_tray.cpp:1550 src/dofscroll_tray.cpp:1690
+#: src/dofscroll_tray.cpp:1662 src/dofscroll_tray.cpp:1802
 msgid "_Cancel"
 msgstr "_Abbrechen"
 
-#: src/dofscroll_tray.cpp:1551
+#: src/dofscroll_tray.cpp:1663
 msgid "_Back"
 msgstr "_Zurück"
 
-#: src/dofscroll_tray.cpp:1552
+#: src/dofscroll_tray.cpp:1664
 msgid "_Skip"
 msgstr "Ü_berspringen"
 
-#: src/dofscroll_tray.cpp:1554
+#: src/dofscroll_tray.cpp:1666
 msgid "_Next"
 msgstr "_Weiter"
 
-#: src/dofscroll_tray.cpp:1555
+#: src/dofscroll_tray.cpp:1667
 msgid "_Apply"
 msgstr "Über_nehmen"
 
-#: src/dofscroll_tray.cpp:1614
+#: src/dofscroll_tray.cpp:1726
 msgid "Highlight channel"
 msgstr "Kanal hervorheben"
 
-#: src/dofscroll_tray.cpp:1615
+#: src/dofscroll_tray.cpp:1727
 msgid ""
 "The axes of this channel (from its axis mix in the selected profile) are "
 "highlighted in the sketch and the live display"
@@ -483,12 +535,12 @@ msgstr ""
 "Die Achsen dieses Kanals (aus seinem Achsen-Mix im gewählten Profil) werden "
 "in Skizze und Live-Anzeige hervorgehoben"
 
-#: src/dofscroll_tray.cpp:1630
+#: src/dofscroll_tray.cpp:1742
 #, c-format
 msgid "Scroll V: %s     Scroll H: %s     Zoom: %s"
 msgstr "Scroll V: %s     Scroll H: %s     Zoom: %s"
 
-#: src/dofscroll_tray.cpp:1633
+#: src/dofscroll_tray.cpp:1745
 #, c-format
 msgid ""
 "<b>%s</b> uses: <b>%s</b>\n"
@@ -497,7 +549,7 @@ msgstr ""
 "<b>%s</b> verwendet: <b>%s</b>\n"
 "<small>%s  (Profil: %s)</small>"
 
-#: src/dofscroll_tray.cpp:1641
+#: src/dofscroll_tray.cpp:1753
 msgid ""
 "Which direction of an axis counts as positive depends on the device - the "
 "wizard below determines axes and signs automatically."
@@ -505,11 +557,11 @@ msgstr ""
 "Welche Richtung einer Achse positiv zählt, hängt vom Gerät ab - der "
 "Assistent unten ermittelt Achsen und Vorzeichen automatisch."
 
-#: src/dofscroll_tray.cpp:1644
+#: src/dofscroll_tray.cpp:1756
 msgid "SpaceMouse axes"
 msgstr "Achsen der SpaceMouse"
 
-#: src/dofscroll_tray.cpp:1654
+#: src/dofscroll_tray.cpp:1766
 msgid ""
 "Raw values from spacenavd, range -350..350 (center = at rest). Own, read-"
 "only connection - only active while this window is open."
@@ -517,11 +569,11 @@ msgstr ""
 "Rohwerte von spacenavd, Bereich -350..350 (Mitte = Ruhe). Eigene, rein "
 "lesende Verbindung - nur aktiv, solange dieses Fenster offen ist."
 
-#: src/dofscroll_tray.cpp:1657
+#: src/dofscroll_tray.cpp:1769
 msgid "Live display"
 msgstr "Live-Anzeige"
 
-#: src/dofscroll_tray.cpp:1663
+#: src/dofscroll_tray.cpp:1775
 msgid ""
 "The wizard guides you through five short movements (3 s each) and derives "
 "the axis mixes for vertical scroll, horizontal scroll and zoom, including "
@@ -531,28 +583,28 @@ msgstr ""
 "daraus die Achsen-Mixe für vertikales Scrollen, horizontales Scrollen und "
 "Zoom samt Richtung."
 
-#: src/dofscroll_tray.cpp:1672
+#: src/dofscroll_tray.cpp:1784
 #, c-format
 msgid "The result applies to the profile selected above: %s"
 msgstr "Das Ergebnis gilt für das oben gewählte Profil: %s"
 
-#: src/dofscroll_tray.cpp:1676
+#: src/dofscroll_tray.cpp:1788
 msgid "Learn axes…"
 msgstr "Achsen einlernen…"
 
-#: src/dofscroll_tray.cpp:1689
+#: src/dofscroll_tray.cpp:1801
 msgid "New device profile"
 msgstr "Neues Geräteprofil"
 
-#: src/dofscroll_tray.cpp:1689
+#: src/dofscroll_tray.cpp:1801
 msgid "New program profile"
 msgstr "Neues Programmprofil"
 
-#: src/dofscroll_tray.cpp:1691
+#: src/dofscroll_tray.cpp:1803
 msgid "_Create"
 msgstr "_Anlegen"
 
-#: src/dofscroll_tray.cpp:1698
+#: src/dofscroll_tray.cpp:1810
 msgid ""
 "The profile applies when the device name of the SpaceMouse (as spacenavd "
 "reports it, e.g. \"SpaceMouse Pro\" or \"SpaceMouse Compact\"; it is in the "
@@ -564,7 +616,7 @@ msgstr ""
 "Start des Daemons im Journal: journalctl --user -u dofscroll.service) diesen "
 "Text enthält. Groß-/Kleinschreibung egal, Teiltext genügt."
 
-#: src/dofscroll_tray.cpp:1703
+#: src/dofscroll_tray.cpp:1815
 msgid ""
 "The profile applies when the WM_CLASS of the active window contains this "
 "text (\"instance class\" is compared in lowercase, e.g. \"navigator firefox"
@@ -582,30 +634,30 @@ msgstr ""
 "ausschalten (z. B. Blender mit eigener 3D-Navigation): Profil anlegen und "
 "darin \"Steuerung in diesem Profil aktiv\" abwählen."
 
-#: src/dofscroll_tray.cpp:1714
+#: src/dofscroll_tray.cpp:1826
 msgid "e.g. SpaceMouse Pro"
 msgstr "z. B. SpaceMouse Pro"
 
-#: src/dofscroll_tray.cpp:1714
+#: src/dofscroll_tray.cpp:1826
 msgid "e.g. firefox"
 msgstr "z. B. firefox"
 
-#: src/dofscroll_tray.cpp:1731
+#: src/dofscroll_tray.cpp:1843
 msgid "Pattern must not be empty or contain ']'"
 msgstr "Das Muster darf nicht leer sein und kein ']' enthalten"
 
-#: src/dofscroll_tray.cpp:1750
+#: src/dofscroll_tray.cpp:1862
 msgid "Invalid pattern: it must not be empty or contain ']' or a line break."
 msgstr ""
 "Ungültiges Muster: Es darf nicht leer sein und kein ']' oder Zeilenumbruch "
 "enthalten."
 
-#: src/dofscroll_tray.cpp:1770
+#: src/dofscroll_tray.cpp:1882
 #, c-format
 msgid "Delete profile \"%s\"?"
 msgstr "Profil \"%s\" löschen?"
 
-#: src/dofscroll_tray.cpp:1834
+#: src/dofscroll_tray.cpp:1946
 msgid ""
 "There are no program or device profiles yet. Create one with \"New program "
 "profile...\" above; it then appears here."
@@ -613,12 +665,12 @@ msgstr ""
 "Es gibt noch keine Programm- oder Geräteprofile. Lege oben mit \"Neues "
 "Programmprofil...\" eines an; es erscheint dann hier."
 
-#: src/dofscroll_tray.cpp:1846
+#: src/dofscroll_tray.cpp:1958
 #, c-format
 msgid "%s (missing)"
 msgstr "%s (fehlt)"
 
-#: src/dofscroll_tray.cpp:1872
+#: src/dofscroll_tray.cpp:1984
 msgid ""
 "A mode defines what the three channels and the buttons do. Modes are loaded "
 "from the modes folder; the choice is saved as MODE in the profile."
@@ -626,35 +678,39 @@ msgstr ""
 "Ein Modus legt fest, was die drei Kanäle und die Tasten tun. Modi werden aus "
 "dem Modi-Ordner geladen; die Auswahl wird als MODE im Profil gespeichert."
 
-#: src/dofscroll_tray.cpp:1883
+#: src/dofscroll_tray.cpp:1995
 msgid "Application modes"
 msgstr "Anwendungsmodi"
 
-#: src/dofscroll_tray.cpp:1891 src/dofscroll_tray.cpp:1913
+#: src/dofscroll_tray.cpp:2003 src/dofscroll_tray.cpp:2025
 msgid "Profile"
 msgstr "Profil"
 
-#: src/dofscroll_tray.cpp:1900
+#: src/dofscroll_tray.cpp:2012
 msgid "New device profile..."
 msgstr "Neues Geräteprofil..."
 
-#: src/dofscroll_tray.cpp:1901
+#: src/dofscroll_tray.cpp:2013
 msgid "New program profile..."
 msgstr "Neues Programmprofil..."
 
-#: src/dofscroll_tray.cpp:1902
+#: src/dofscroll_tray.cpp:2014
 msgid "Delete profile"
 msgstr "Profil löschen"
 
-#: src/dofscroll_tray.cpp:1952
+#: src/dofscroll_tray.cpp:2064
 msgid "dofscroll - Settings"
 msgstr "dofscroll - Einstellungen"
 
-#: src/dofscroll_tray.cpp:2010
+#: src/dofscroll_tray.cpp:2097
+msgid "Start at login"
+msgstr "Beim Anmelden starten"
+
+#: src/dofscroll_tray.cpp:2145
 msgid "Control active in this profile"
 msgstr "Steuerung in diesem Profil aktiv"
 
-#: src/dofscroll_tray.cpp:2015
+#: src/dofscroll_tray.cpp:2150
 msgid ""
 "Off = the SpaceMouse generates no scroll/zoom/key events in this profile, e."
 "g. for programs with their own 3D navigation such as Blender: create a "
@@ -664,94 +720,94 @@ msgstr ""
 "Tastenereignisse, z. B. für Programme mit eigener 3D-Navigation wie Blender: "
 "Programmprofil anlegen und das hier abschalten"
 
-#: src/dofscroll_tray.cpp:2026
+#: src/dofscroll_tray.cpp:2161
 msgid "Channels"
 msgstr "Kanäle"
 
-#: src/dofscroll_tray.cpp:2027
+#: src/dofscroll_tray.cpp:2162
 msgid "Axes"
 msgstr "Achsen"
 
-#: src/dofscroll_tray.cpp:2344
+#: src/dofscroll_tray.cpp:2479
 msgid "Edit mode file:"
 msgstr "Moduldatei bearbeiten:"
 
-#: src/dofscroll_tray.cpp:2345
+#: src/dofscroll_tray.cpp:2480
 msgid "Create editable copy of"
 msgstr "Bearbeitbare Kopie erstellen von"
 
-#: src/dofscroll_tray.cpp:2352
+#: src/dofscroll_tray.cpp:2487
 msgid "Open modes folder"
 msgstr "Modi-Ordner öffnen"
 
-#: src/dofscroll_tray.cpp:2364
+#: src/dofscroll_tray.cpp:2499
 msgid "Daemon not running / no status data"
 msgstr "Daemon läuft nicht / keine Statusdaten"
 
-#: src/dofscroll_tray.cpp:2366
+#: src/dofscroll_tray.cpp:2501
 #, c-format
 msgid "Profile: %s"
 msgstr "Profil: %s"
 
-#: src/dofscroll_tray.cpp:2368
+#: src/dofscroll_tray.cpp:2503
 msgid " (paused)"
 msgstr " (pausiert)"
 
-#: src/dofscroll_tray.cpp:2369
+#: src/dofscroll_tray.cpp:2504
 msgid " (disabled)"
 msgstr " (deaktiviert)"
 
-#: src/dofscroll_tray.cpp:2371
+#: src/dofscroll_tray.cpp:2506
 #, c-format
 msgid "Mode: %s"
 msgstr "Modus: %s"
 
-#: src/dofscroll_tray.cpp:2377
+#: src/dofscroll_tray.cpp:2512
 #, c-format
 msgid "%d SpaceMice connected, only '%s' is reported"
 msgstr "%d SpaceMice angesteckt, nur '%s' wird gemeldet"
 
-#: src/dofscroll_tray.cpp:2416
+#: src/dofscroll_tray.cpp:2551
 msgid "No log yet (daemon older than this version or not running)"
 msgstr "Noch kein Log (Daemon älter als diese Version oder läuft nicht)"
 
-#: src/dofscroll_tray.cpp:2456
+#: src/dofscroll_tray.cpp:2591
 msgid "dofscroll - Log"
 msgstr "dofscroll - Log"
 
-#: src/dofscroll_tray.cpp:2475
+#: src/dofscroll_tray.cpp:2610
 msgid "Refresh"
 msgstr "Aktualisieren"
 
-#: src/dofscroll_tray.cpp:2476
+#: src/dofscroll_tray.cpp:2611
 msgid "Copy"
 msgstr "Kopieren"
 
-#: src/dofscroll_tray.cpp:2477
+#: src/dofscroll_tray.cpp:2612
 msgid "Close"
 msgstr "Schließen"
 
-#: src/dofscroll_tray.cpp:2584
+#: src/dofscroll_tray.cpp:2719
 msgid "Determining status..."
 msgstr "Status wird ermittelt..."
 
-#: src/dofscroll_tray.cpp:2589
+#: src/dofscroll_tray.cpp:2724
 msgid "Mode"
 msgstr "Modus"
 
-#: src/dofscroll_tray.cpp:2594
+#: src/dofscroll_tray.cpp:2729
 msgid "Settings…"
 msgstr "Einstellungen…"
 
-#: src/dofscroll_tray.cpp:2595
+#: src/dofscroll_tray.cpp:2730
 msgid "Open config file"
 msgstr "Konfigurationsdatei öffnen"
 
-#: src/dofscroll_tray.cpp:2597
+#: src/dofscroll_tray.cpp:2732
 msgid "Show log..."
 msgstr "Log anzeigen..."
 
-#: src/dofscroll_tray.cpp:2599
+#: src/dofscroll_tray.cpp:2734
 msgid "Quit"
 msgstr "Beenden"
 

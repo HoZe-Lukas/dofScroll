@@ -117,6 +117,12 @@ Do these steps once per machine. Steps 1 and 5 need root.
 
         systemctl --user enable --now dofscroll.service dofscroll-tray.service
 
+   Later you can switch the autostart on or off with the "Start at login" checkbox in the
+   tray's settings window. It runs `systemctl --user enable` or `disable` (without `--now`) for
+   both units, so it affects the next login only. The checkbox is greyed out, with a tooltip,
+   if the units are masked, static, enabled only until reboot, or unknown to systemd (for
+   example when the tray runs from a build folder instead of an installed package).
+
 5. Optional, only for Wayland or if you set `BACKEND = uinput`: activate the udev rule for
    `/dev/uinput`.
    The package deliberately does not activate the rule (it makes `/dev/uinput` accessible to the
