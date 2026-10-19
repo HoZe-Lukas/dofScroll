@@ -3,6 +3,7 @@
 // Unit tests for src/ui/model/mode_catalog.hpp.
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 
 #include "testutil.hpp"
@@ -14,7 +15,10 @@ using Origin = ModeCatalog::Origin;
 
 static std::string put(const std::string &path, const std::string &text) {
     std::string err;
-    assert(fs::writeFileReplace(path, text, &err));
+    if (!fs::writeFileReplace(path, text, &err)) {
+        std::fprintf(stderr, "writeFileReplace(%s) failed: %s\n", path.c_str(), err.c_str());
+        std::abort();
+    }
     return path;
 }
 
