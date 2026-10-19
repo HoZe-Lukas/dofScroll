@@ -8,11 +8,11 @@
 #include <cstdlib>
 #include <fstream>
 #include <string>
-#include <unistd.h>
 #include <vector>
 
 #include "daemon_core.hpp"
 #include "platform/fake_input.hpp"
+#include "testutil.hpp"
 
 using namespace spn;
 
@@ -86,10 +86,7 @@ struct Rig {
     std::unique_ptr<DaemonCore> core;
 
     explicit Rig(const std::string &config) {
-        char tmpl[] = "/tmp/dofscroll-core-test-XXXXXX";
-        char *d = mkdtemp(tmpl);
-        assert(d);
-        dir = d;
+        dir = tu::makeTempDir("dofscroll-core-test");
         conf = dir + "/dofscroll.conf";
         writeFile(conf, config);
         DeviceInfo di;
@@ -112,8 +109,7 @@ struct Rig {
         assert(core->reader().connect());
     }
     ~Rig() {
-        unlink(conf.c_str());
-        rmdir(dir.c_str());
+        tu::removeAll(dir);
     }
 
     void pump() {

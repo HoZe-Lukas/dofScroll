@@ -8,8 +8,6 @@
 // (the daemon simply feeds raw = 0 then, simulated directly here) and the nav/click
 // buttons (see test_mode_runner.cpp).
 #undef NDEBUG
-#include <unistd.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -24,6 +22,7 @@
 #include "mode_runner.hpp"
 #include "modes.hpp"
 #include "output.hpp"
+#include "testutil.hpp"
 
 using namespace spn;
 
@@ -175,7 +174,7 @@ static void testScenarios() {
 
 // --- Config helpers -------------------------------------------------------
 static std::string tmpPath() {
-    return "/tmp/test_scenarios_" + std::to_string(getpid()) + ".conf";
+    return tu::tmpRoot() + "/test_scenarios_" + std::to_string(tu::pid()) + ".conf";
 }
 static ProfileSet loadFromString(const std::string &text) {
     std::string path = tmpPath();

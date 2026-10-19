@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#
+# Windows and macOS builds: the shared core and all unit tests (no tray, no Linux backends), plus
+# the platform daemon once cmake/windows.cmake / cmake/macos.cmake exist. ci.yml stays the Linux
+# workflow. These jobs are the only place where Windows/macOS code is compiled and tested; they
+# cannot verify behavior with real hardware.
+name: ports
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ports-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Third-party actions are pinned to full commit SHAs (tag in the comment).
+#   actions/checkout = v4.2.2
+
+jobs:
+  windows-msvc:
+    name: Windows (MSVC) build + ctest
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Configure
+        run: cmake -S . -B build -DDOFSCROLL_WERROR=ON
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+  windows-mingw:
+    name: Windows (MinGW-w64) build + ctest
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      MSYSTEM: MINGW64
+      CHERE_INVOKING: "1"
+    defaults:
+      run:
+        shell: C:\msys64\usr\bin\bash.exe -leo pipefail {0}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Install toolchain
+        run: pacman -S --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DDOFSCROLL_WERROR=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  macos:
+    name: macOS build + ctest
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Configure
+        run: cmake -S . -B build -DDOFSCROLL_WERROR=ON
+      - name: Build
+        run: cmake --build build --parallel 4
+      - name: Test
+        run: ctest --test-dir build --output-on-failure

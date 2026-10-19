@@ -671,3 +671,38 @@ The daemon writes two files into `$XDG_RUNTIME_DIR` (private, `0700`, owned by t
   already act as the user (A2); they contain no secrets except the name of the active program.
 - On a clean exit the daemon removes the status file; the log file stays (tmpfs, gone at logout).
 - `devices_seen` reads `/proc/bus/input/devices` (read access only, no `/sys`).
+
+## 9. Windows and macOS: the file-system layer
+
+The shared core reaches the file system only through `src/platform/fs.hpp` (implementations:
+`fs_posix.cpp` for Linux and macOS, `fs_win.cpp` for Windows). The POSIX implementation is the
+code that used to be spread over `config.cpp`, `modes.cpp`, `seed.cpp` and `hid_descriptor.cpp`,
+moved without functional change; the Linux and macOS properties from sections 2 and 7 therefore
+hold on both. What the layer guarantees, and what it does not, per OS:
+
+| Property | Linux / macOS (POSIX) | Windows |
+|---|---|---|
+| No symlink at the final path component (mode files, HID descriptors, seeding sources, new files) | `O_NOFOLLOW`, `O_EXCL` | `FILE_FLAG_OPEN_REPARSE_POINT`, then the reparse tag is checked: symlinks and junctions are refused; `CREATE_NEW` for new files |
+| Regular file only (no FIFO/device/directory), size cap checked on the open handle | `fstat` + `S_ISREG`, `O_NONBLOCK` | `GetFileInformationByHandle` + `GetFileType == FILE_TYPE_DISK` |
+| Mode files owned by the current user | `st_uid == geteuid()` | owner SID equals the user's token SID or `BUILTIN\Administrators` (files written by an elevated process are owned by that group) |
+| Private directories/files (`0700`/`0600`) | `mkdir(.., 0700)`, `O_CREAT, 0600` | explicit protected DACL (current user + SYSTEM, nothing inherited); if the descriptor cannot be built the object inherits the ACL of `%APPDATA%`, which is already limited to the user, SYSTEM and Administrators |
+| Atomic config save (temp file + rename, old file survives a failure) | `openat` + `renameat` + `fsync` | temp file in the same directory + `MoveFileExW(REPLACE_EXISTING, WRITE_THROUGH)`, retried briefly on sharing violations |
+| Symlinked config keeps the link when saved | yes (link resolved up to 16 levels) | the link is resolved once with `GetFinalPathNameByHandleW`; the target is replaced, the link stays |
+| Directory swapped between listing and opening mode files | closed by `openat` on a held directory descriptor | **not closed**: files are opened by path (no `openat` equivalent). An attacker needs write access to the parent directory, i.e. already is the user (A2) |
+| Mode bits of an existing config are kept, setuid/sticky dropped | yes | not applicable (ACL of the new temp file, which is private) |
+| Legacy-config migration (`spnav-scroll` names) | yes (Linux and macOS) | not applicable, never shipped there |
+
+Known gaps, stated plainly:
+
+- The Windows code is compiled with MSVC and MinGW and its pure logic and the file operations are
+  exercised by `test_fs` and the other tests on the GitHub `windows-latest` runner (and locally
+  under Wine for MinGW builds). Symlink refusal can only be tested where the CI user may create
+  symlinks; the test skips otherwise. The owner-SID and DACL code paths have no negative test
+  (a file owned by another account cannot be created on the runner).
+- Only the final path component is protected against links (as on Linux): a symlinked or
+  junctioned *parent* directory is followed. This is covered by the same argument as S8/A2.
+- Windows hardening flags: MSVC enables `/GS`, `/DYNAMICBASE` and `/NXCOMPAT` by default;
+  control-flow guard (`/guard:cf`) is not enabled yet; the `-fstack-protector`/`-pie`/`relro` set of the
+  Linux build is not applicable. The hardening check script is Linux-only.
+- macOS: the sandbox/entitlement story (hardened runtime, notarization) belongs to packaging
+  (package W4), not to this layer.

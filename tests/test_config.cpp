@@ -4,13 +4,15 @@
 // Build/run:
 //   g++ -std=c++17 -Wall -Wextra -Isrc tests/test_config.cpp src/config.cpp -o test_config && ./test_config
 #undef NDEBUG
+#ifndef _WIN32
 #include <signal.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
 
 #include <chrono>
-#include <dirent.h>
+#include <filesystem>
 
 #include <cassert>
 #include <cmath>
@@ -23,6 +25,7 @@
 #include <iostream>
 
 #include "config.hpp"
+#include "testutil.hpp"
 
 using namespace spn;
 
@@ -59,8 +62,26 @@ static bool settingsEq(const Settings &a, const Settings &b) {
 
 static std::string tmpPath(const char *name) {
     const char *d = std::getenv("TMPDIR");
-    return std::string(d && *d ? d : ".") + "/" + name + "." + std::to_string(::getpid());
+    return std::string(d && *d ? d : ".") + "/" + name + "." + std::to_string(tu::pid());
 }
+
+// Restores the variables that select the configuration base directory (all OSes).
+struct EnvGuard {
+    struct Var { const char *name; bool had; std::string value; };
+    std::vector<Var> vars;
+    EnvGuard() {
+        for (const char *n : {"XDG_CONFIG_HOME", "HOME", "APPDATA"}) {
+            const char *v = std::getenv(n);
+            vars.push_back({n, v != nullptr, v ? v : ""});
+        }
+    }
+    ~EnvGuard() {
+        for (const Var &v : vars) {
+            if (v.had) tu::setEnv(v.name, v.value);
+            else tu::unsetEnv(v.name);
+        }
+    }
+};
 
 static void writeFile(const std::string &path, const std::string &content) {
     std::ofstream f(path, std::ios::binary);
@@ -283,12 +304,19 @@ static void testSaveLoad() {
     std::getline(f, first);
     assert(!first.empty() && first[0] == '#');
     // the temp file must not be left over
-    std::string tmp = p + ".tmp." + std::to_string(::getpid());
+    std::string tmp = p + ".tmp." + std::to_string(tu::pid());
     assert(!std::ifstream(tmp));
     std::remove(p.c_str());
 
     // not writable
+#ifdef __linux__
     assert(!saveProfiles("/proc/nonexistent/x.conf", ps, &err) && !err.empty());
+#else
+    // a regular file as the parent "directory" cannot be created through
+    writeFile(p, "x");
+    assert(!saveProfiles(p + "/x/y.conf", ps, &err) && !err.empty());
+    std::remove(p.c_str());
+#endif
 }
 
 static void testBrokenAndMisc() {
@@ -325,11 +353,22 @@ static void testBrokenAndMisc() {
     std::remove(p.c_str());
 
     // defaultConfigPath
+#ifdef __linux__
     setenv("XDG_CONFIG_HOME", "/xdg", 1);
     assert(defaultConfigPath() == "/xdg/dofscroll/dofscroll.conf");
     unsetenv("XDG_CONFIG_HOME");
     setenv("HOME", "/home/x", 1);
     assert(defaultConfigPath() == "/home/x/.config/dofscroll/dofscroll.conf");
+#else
+    {
+        EnvGuard guard;
+        const std::string root = tu::makeTempDir("spn_cfgbase");
+        const std::string base = tu::useConfigBase(root);
+        assert(defaultConfigPath() == base + "/dofscroll/dofscroll.conf");
+        assert(legacyConfigPath() == base + "/spnav-scroll.conf");
+        tu::removeAll(root);
+    }
+#endif
 }
 
 // Regression S2 (docs/security.md): upper bounds for curve and mix weights.
@@ -349,31 +388,39 @@ static void testUpperBounds() {
 
 // Review fixes: symlink, mode, RESPONSE_CURVE, ']', BOM, directory, device override.
 static void testReviewFixes() {
-    char tmpl[] = "/tmp/spn_cfgXXXXXX";
-    assert(mkdtemp(tmpl));
-    std::string d = tmpl, err;
+    std::string d = tu::makeTempDir("spn_cfg"), err;
 
-    // 1+2: symlink stays, content lands in the target, mode stays
+    // 1+2: symlink stays, content lands in the target, mode stays (POSIX; Windows: plain file)
     std::string real = d + "/real.conf", link = d + "/link.conf";
     { std::ofstream(real) << "SCROLL_V_SENS = 1\n"; }
+#ifndef _WIN32
     assert(chmod(real.c_str(), 0640) == 0);
     assert(symlink("real.conf", link.c_str()) == 0);
+#else
+    link = real;
+#endif
     ProfileSet ps;
     assert(loadProfiles(link, &ps, nullptr));
     Settings g = ps.sectionSettings(0);
     g.scroll_v.sensitivity = 9;
     ps.setSectionFromSettings(0, g);
     assert(saveProfiles(link, ps, &err));
+#ifndef _WIN32
     struct stat lst, rst;
     assert(lstat(link.c_str(), &lst) == 0 && S_ISLNK(lst.st_mode));
     assert(stat(real.c_str(), &rst) == 0 && (rst.st_mode & 07777) == 0640);
+#endif
     ProfileSet back;
     assert(loadProfiles(real, &back, nullptr));
     assert(back.sectionSettings(0).scroll_v.sensitivity == 9);
     // new file: 0600
     std::string fresh = d + "/sub/new.conf";
     assert(saveProfiles(fresh, ps, &err));
+#ifndef _WIN32
     assert(stat(fresh.c_str(), &rst) == 0 && (rst.st_mode & 07777) == 0600);
+#else
+    assert(tu::exists(fresh));
+#endif
     // create_directories error is reported
     assert(!saveProfiles(real + "/x/y.conf", ps, &err) && !err.empty());
 
@@ -393,8 +440,7 @@ static void testReviewFixes() {
     assert(t == 1 && p4.sections[1].pattern == "fox" && p4.findOrAdd(Section::APP, "FOX") == 1);
     p4.sections[1].pattern = "bad]";  // injected by hand
     assert(!saveProfiles(d + "/bad.conf", p4, &err) && !err.empty());
-    struct stat bst;
-    assert(stat((d + "/bad.conf").c_str(), &bst) != 0);
+    assert(!tu::exists(d + "/bad.conf"));
 
     // 6: BOM
     std::string bom = d + "/bom.conf";
@@ -430,23 +476,15 @@ static void testReviewFixes() {
     // device section stays diffable against global
     assert(p5.sections[dv].kv.size() == 1);
 
-    std::string cmd = "rm -rf " + d;
-    assert(system(cmd.c_str()) == 0);
+    tu::removeAll(d);
 }
 
-static std::string mkTmpDir() {
-    char tmpl[] = "/tmp/spn_auditXXXXXX";
-    assert(mkdtemp(tmpl));
-    return tmpl;
-}
+static std::string mkTmpDir() { return tu::makeTempDir("spn_audit"); }
 
 static size_t countTmpFiles(const std::string &dir) {
     size_t n = 0;
-    DIR *d = opendir(dir.c_str());
-    assert(d);
-    while (struct dirent *e = readdir(d))
-        if (std::string(e->d_name).find(".tmp.") != std::string::npos) n++;
-    closedir(d);
+    for (const auto &e : std::filesystem::directory_iterator(dir))
+        if (e.path().filename().string().find(".tmp.") != std::string::npos) n++;
     return n;
 }
 
@@ -573,21 +611,27 @@ static void testAuditFixes() {
 
     // 3: FIFO / directory rejected (a FIFO without a writer must not block)
     {
+        ProfileSet ps;
+#ifndef _WIN32
         std::string fifo = d + "/fifo.conf";
         assert(mkfifo(fifo.c_str(), 0600) == 0);
-        ProfileSet ps;
         w.clear();
         assert(!loadProfiles(fifo, &ps, &w));
         assert(w.size() == 1 && w[0].find("not a regular file") != std::string::npos);
+#endif
         w.clear();
         assert(!loadProfiles(d, &ps, &w) && w.size() == 1);
+#ifndef _WIN32
         // symlinked config stays readable, dangling = defaults
         writeFile(d + "/t.conf", "ZOOM_SENS = 6\n");
         assert(symlink("t.conf", (d + "/l.conf").c_str()) == 0);
         assert(loadProfiles(d + "/l.conf", &ps, nullptr) && ps.resolve("", "").zoom.sensitivity == 6);
         assert(symlink("nowhere", (d + "/dangling.conf").c_str()) == 0);
         assert(loadProfiles(d + "/dangling.conf", &ps, nullptr) && ps.sections.size() == 1);
+#endif
     }
+
+#ifndef _WIN32
 
     // 5: symlink loop -> error, link stays a link; chain < 16 ok
     {
@@ -625,6 +669,8 @@ static void testAuditFixes() {
         assert((st.st_mode & 07777) == 0755);
     }
 
+#endif  // _WIN32 (symlink loop, chain, setuid mode)
+
     // 6: kv validation on save
     {
         std::string p = d + "/kv.conf";
@@ -652,6 +698,7 @@ static void testAuditFixes() {
     }
 
     // 7: relative XDG ignored, empty HOME -> passwd
+#ifdef __linux__
     {
         const char *oldHome = std::getenv("HOME");
         std::string saved = oldHome ? oldHome : "";
@@ -667,14 +714,20 @@ static void testAuditFixes() {
         unsetenv("HOME");
         assert(defaultConfigPath() == pth);
         if (oldHome) setenv("HOME", saved.c_str(), 1);
-
-        // a new directory is created with 0700
+    }
+#endif
+    {
+        // a new directory is created private (0700 on POSIX)
         std::string p = d + "/new/sub/x.conf";
         ProfileSet ps;
         assert(saveProfiles(p, ps, &err));
+#ifndef _WIN32
         struct stat st;
         assert(stat((d + "/new").c_str(), &st) == 0 && (st.st_mode & 0777) == 0700);
         assert(stat((d + "/new/sub").c_str(), &st) == 0 && (st.st_mode & 0777) == 0700);
+#else
+        assert(tu::exists(d + "/new/sub/x.conf"));
+#endif
     }
 
     // 8: merge duplicates
@@ -690,6 +743,7 @@ static void testAuditFixes() {
 
     // 4: error paths on save - write/fsync errors remove the temp file
     {
+#ifndef _WIN32
         struct rlimit old, lim;
         getrlimit(RLIMIT_FSIZE, &old);
         void (*oldh)(int) = signal(SIGXFSZ, SIG_IGN);
@@ -707,10 +761,14 @@ static void testAuditFixes() {
         std::ifstream f(p);
         std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
         assert(content == "ZOOM_SENS = 2\n");
+#else
+        ProfileSet ps;
+#endif
         // target is a directory -> error, no leftovers
-        assert(mkdir((d + "/isdir.conf").c_str(), 0700) == 0);
+        assert(std::filesystem::create_directory(d + "/isdir.conf"));
         assert(!saveProfiles(d + "/isdir.conf", ps, &err));
         assert(countTmpFiles(d) == 0);
+#ifndef _WIN32
         // directory not writable (only if not root): error, no leftovers
         if (geteuid() != 0) {
             std::string ro = d + "/ro";
@@ -718,12 +776,13 @@ static void testAuditFixes() {
             assert(!saveProfiles(ro + "/x.conf", ps, &err));
             chmod(ro.c_str(), 0700);
         }
+#endif
     }
 
     // 4: a stale temp file (old pid name or similar) does not disturb saving
     {
         std::string p = d + "/stale.conf";
-        writeFile(p + ".tmp." + std::to_string(::getpid()), "stale");
+        writeFile(p + ".tmp." + std::to_string(tu::pid()), "stale");
         writeFile(p + ".tmp.0000000000000000", "stale");
         ProfileSet ps;
         assert(saveProfiles(p, ps, &err));
@@ -733,10 +792,10 @@ static void testAuditFixes() {
         assert(loadProfiles(p, &back, nullptr));
     }
 
-    std::string cmd = "rm -rf " + d;
-    assert(system(cmd.c_str()) == 0);
+    tu::removeAll(d);
 }
 
+#ifdef __linux__
 static std::string slurp(const std::string &p) {
     std::ifstream f(p, std::ios::binary);
     return std::string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
@@ -855,6 +914,7 @@ static void testMigration() {
     else unsetenv("XDG_CONFIG_HOME");
     assert(system(("rm -rf " + d).c_str()) == 0);
 }
+#endif  // __linux__ (legacy migration and XDG rules)
 
 // ---- BUTTON_<n> keys, MODE key and mode-override precedence
 static void testButtonsAndModes() {
@@ -949,7 +1009,9 @@ int main() {
     testBrokenAndMisc();
     testReviewFixes();
     testAuditFixes();
+#ifdef __linux__
     testMigration();
+#endif
     testButtonsAndModes();
     std::cout << "test_config: all tests passed\n";
     return 0;

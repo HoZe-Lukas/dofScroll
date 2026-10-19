@@ -2,18 +2,17 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Tests for src/modes.cpp - plain assert tests, no framework.
 #undef NDEBUG
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
 
 #include "config.hpp"
 #include "modes.hpp"
+#include "testutil.hpp"
 
 using namespace spn;
 
@@ -25,7 +24,10 @@ static void writeFile(const std::string &name, const std::string &content) {
 }
 
 static void clearDir() {
-    assert(system(("rm -rf '" + g_dir + "' && mkdir -p '" + g_dir + "'").c_str()) == 0);
+    tu::removeAll(g_dir);
+    std::error_code ec;
+    std::filesystem::create_directories(g_dir, ec);
+    assert(!ec);
 }
 
 static bool hasWarning(const std::vector<std::string> &w, const std::string &needle) {
@@ -228,15 +230,19 @@ static void testFileTypes() {
     clearDir();
     writeFile("real.conf", "V_ACTION = none\n");
     writeFile("target.txt", "V_ACTION = wheel_v\n");
+    assert(std::filesystem::create_directory(g_dir + "/dir.conf"));
+#ifndef _WIN32  // symlinks and FIFOs: POSIX only (symlink creation needs privileges on Windows)
     assert(symlink((g_dir + "/target.txt").c_str(), (g_dir + "/link.conf").c_str()) == 0);
     assert(symlink("does-not-exist", (g_dir + "/dangling.conf").c_str()) == 0);
-    assert(mkdir((g_dir + "/dir.conf").c_str(), 0700) == 0);
     assert(mkfifo((g_dir + "/fifo.conf").c_str(), 0600) == 0);  // must not block
+#endif
     std::vector<std::string> w;
     ModeSet ms = loadModes(g_dir, &w);
     assert(ms.find("real"));
     assert(!ms.find("link") && !ms.find("dangling") && !ms.find("dir") && !ms.find("fifo"));
-    assert(hasWarning(w, "link.conf") && hasWarning(w, "fifo.conf") && hasWarning(w, "dir.conf"));
+    assert(hasWarning(w, "dir.conf"));
+#ifndef _WIN32
+    assert(hasWarning(w, "link.conf") && hasWarning(w, "fifo.conf"));
 
     // foreign owner: only testable as root (chown needs privilege)
     if (geteuid() == 0) {
@@ -250,6 +256,7 @@ static void testFileTypes() {
     } else {
         std::cout << "test_modes: foreign-owner check skipped (not root)\n";
     }
+#endif
 }
 
 static void testStamp() {
@@ -291,7 +298,7 @@ static void testResolveWithMode() {
 }
 
 int main() {
-    g_dir = "/tmp/test_modes." + std::to_string(::getpid());
+    g_dir = tu::makeTempDir("test_modes");
     testIds();
     testGrammar();
     testBuiltins();
@@ -301,7 +308,7 @@ int main() {
     testFileTypes();
     testStamp();
     testResolveWithMode();
-    assert(system(("rm -rf '" + g_dir + "'").c_str()) == 0);
+    tu::removeAll(g_dir);
     std::cout << "test_modes: all tests passed\n";
     return 0;
 }

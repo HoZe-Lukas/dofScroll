@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <filesystem>
 #include <string>
 
 #include "hid_descriptor.hpp"
+#include "testutil.hpp"
 
 using namespace spn;
 
@@ -116,10 +115,7 @@ static void testFiles(const char *devicesDir) {
     for (const auto &d : all) assert(d.factoryButtons > 0);
 
     // limits, symlinks, directories
-    char tmpl[] = "/tmp/test_hid_descriptor_XXXXXX";
-    char *dir = mkdtemp(tmpl);
-    assert(dir);
-    std::string base = dir;
+    std::string base = tu::makeTempDir("test_hid_descriptor");
     {
         std::ofstream(base + "/ok.conf") << kGood;
         std::string big = kGood;
@@ -127,18 +123,26 @@ static void testFiles(const char *devicesDir) {
         std::ofstream(base + "/big.conf") << big;
         std::ofstream(base + "/bad.conf") << "name = X\n";
         std::ofstream(base + "/ignored.txt") << kGood;
+#ifndef _WIN32  // symlinks need privileges on Windows: not exercised there
         assert(symlink((base + "/ok.conf").c_str(), (base + "/link.conf").c_str()) == 0);
-        assert(mkdir((base + "/dir.conf").c_str(), 0700) == 0);
+#endif
+        assert(std::filesystem::create_directory(base + "/dir.conf"));
     }
     all.clear();
     errs.clear();
     assert(loadHidDescriptorDir(base, all, errs));
     assert(all.size() == 1 && all[0].name == "Test Mouse");
+#ifndef _WIN32
     assert(errs.size() == 4);  // big, bad, dir, link
+#else
+    assert(errs.size() == 3);  // big, bad, dir
+#endif
 
     HidDescriptor d;
     std::string err;
+#ifndef _WIN32
     assert(!loadHidDescriptorFile(base + "/link.conf", d, err));
+#endif
     assert(!loadHidDescriptorFile(base + "/missing.conf", d, err));
     assert(!loadHidDescriptorDir(base + "/nope", all, errs));
 
@@ -153,8 +157,7 @@ static void testFiles(const char *devicesDir) {
     assert(loadHidDescriptorDir(base, all, errs));
     assert(all.size() <= kMaxDescriptorFiles);
 
-    std::string cmd = "rm -rf '" + base + "'";
-    assert(std::system(cmd.c_str()) == 0);
+    tu::removeAll(base);
 }
 
 int main() {
