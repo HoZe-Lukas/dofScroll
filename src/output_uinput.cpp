@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // uinput backend: creates a virtual input device (Wayland-capable, no X11 needed).
+// Limitation: uinput knows nothing about the keyboard layout. The key "plus" is sent as
+// Shift+KEY_EQUAL, which yields "+" on a US layout only; other layouts may produce another
+// character. Use "kp_plus" for a layout independent plus.
 #include "key_tables.hpp"
 #include "output.hpp"
 
@@ -136,10 +139,31 @@ public:
         bool &st = held_[keyIndex(k)];
         if (st == down) return;
         st = down;
+        const bool sh = keyNeedsShift(k);
+        const int shc = keyCode(Key::Shift);
+        if (down && sh && !held_[keyIndex(Key::Shift)] && !shiftByUs_) {
+            shiftByUs_ = true;
+            push(EV_KEY, shc, 1);
+        }
         push(EV_KEY, keyCode(k), down ? 1 : 0);
+        if (!down && sh && shiftByUs_) {
+            shiftByUs_ = false;
+            push(EV_KEY, shc, 0);
+        }
     }
 
     void tapKey(Key k) override {
+        const bool shiftAdded = keyNeedsShift(k) && !held_[keyIndex(Key::Shift)] && !shiftByUs_;
+        if (shiftAdded) {
+            push(EV_KEY, keyCode(Key::Shift), 1);
+            tapBody(k);
+            push(EV_KEY, keyCode(Key::Shift), 0);
+        } else {
+            tapBody(k);
+        }
+    }
+
+    void tapBody(Key k) {
         bool wasDown = held_[keyIndex(k)];
         if (wasDown) push(EV_KEY, keyCode(k), 0);
         push(EV_KEY, keyCode(k), 1);
@@ -174,6 +198,10 @@ public:
 
 private:
     void doReleaseAll() {
+        if (shiftByUs_) {
+            shiftByUs_ = false;
+            push(EV_KEY, keyCode(Key::Shift), 0);
+        }
         for (size_t i = 0; i < kKeyCount; ++i) {
             if (held_[i]) {
                 held_[i] = false;
@@ -258,6 +286,7 @@ private:
     bool created_ = false;
     bool hiRes_ = false;
     bool held_[kKeyCount] = {};
+    bool shiftByUs_ = false;  // Shift pressed on behalf of "plus"
     bool btnHeld_[3] = {};
     std::vector<input_event> buf_;
 };

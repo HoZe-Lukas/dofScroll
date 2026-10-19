@@ -17,6 +17,7 @@ namespace spn {
     X(Esc, "esc") X(Tab, "tab") X(Backspace, "backspace") X(Delete, "delete")                  \
     X(Insert, "insert") X(Home, "home") X(End, "end") X(PageUp, "pageup")                      \
     X(PageDown, "pagedown") X(Minus, "minus") X(Plus, "plus")                                  \
+    X(KpPlus, "kp_plus") X(KpMinus, "kp_minus")                                                \
     X(F1, "f1") X(F2, "f2") X(F3, "f3") X(F4, "f4") X(F5, "f5") X(F6, "f6") X(F7, "f7")        \
     X(F8, "f8") X(F9, "f9") X(F10, "f10") X(F11, "f11") X(F12, "f12")                          \
     X(A, "a") X(B, "b") X(C, "c") X(D, "d") X(E, "e") X(F, "f") X(G, "g") X(H, "h") X(I, "i")  \

@@ -6,6 +6,7 @@
 #include "xerrors.hpp"
 
 #include <X11/Xlib.h>
+#include <X11/XKBlib.h>
 #include <X11/keysym.h>
 #include <X11/extensions/XTest.h>
 
@@ -61,20 +62,27 @@ public:
 
     void setKey(Key k, bool down) override {
         if (!dpy_) return;
+        if (k == Key::Plus && down) resolvePlus();
         const unsigned kc = code(k);
         if (!kc) return;
         if (down == (keysDown_.count(kc) != 0)) return;  // idempotent
+        if (k == Key::Plus && down) pressPlusShift();
         XTestFakeKeyEvent(dpy_, kc, down ? True : False, CurrentTime);
         if (down) keysDown_.insert(kc); else keysDown_.erase(kc);
+        if (k == Key::Plus && !down) releasePlusShift();
     }
 
     void tapKey(Key k) override {
         if (!dpy_) return;
+        if (k == Key::Plus) resolvePlus();
         const unsigned kc = code(k);
         if (!kc) return;
+        const bool plus = k == Key::Plus;
+        if (plus) pressPlusShift();
         XTestFakeKeyEvent(dpy_, kc, True, CurrentTime);
         XTestFakeKeyEvent(dpy_, kc, False, CurrentTime);
         keysDown_.erase(kc);
+        if (plus) releasePlusShift();
     }
 
     void mouseButton(int button, bool down) override {
@@ -98,7 +106,7 @@ public:
             if (kc) XTestFakeKeyEvent(dpy_, kc, False, CurrentTime);
         }
         for (int b = 1; b <= 3; ++b) XTestFakeButtonEvent(dpy_, b, False, CurrentTime);
-        doReleaseAll();
+        doReleaseAll();  // also releases a Shift pressed for "plus"
     }
 
     void flush() override { if (dpy_) XFlush(dpy_); }
@@ -108,6 +116,7 @@ private:
         if (!dpy_) return;
         for (unsigned kc : keysDown_) XTestFakeKeyEvent(dpy_, kc, False, CurrentTime);
         keysDown_.clear();
+        releasePlusShift();
         for (int b : buttonsDown_) XTestFakeButtonEvent(dpy_, b, False, CurrentTime);
         buttonsDown_.clear();
     }
@@ -119,10 +128,45 @@ private:
             XTestFakeButtonEvent(dpy_, button, False, CurrentTime);
         }
     }
+    // Resolves "plus" (keysym XK_plus) against the current keyboard map: keycode and whether
+    // Shift is needed (keysym on level 1). Only group 0 is considered, so with another active
+    // group the result may differ. Falls back to the keypad plus (KP_Add) if not found.
+    void resolvePlus() {
+        const size_t idx = static_cast<size_t>(Key::Plus);
+        plusShift_ = false;
+        const KeyCode kc = XKeysymToKeycode(dpy_, XK_plus);
+        if (kc) {
+            if (XkbKeycodeToKeysym(dpy_, kc, 0, 0) == XK_plus) {
+                codes_[idx] = kc;
+                return;
+            }
+            if (XkbKeycodeToKeysym(dpy_, kc, 0, 1) == XK_plus) {
+                codes_[idx] = kc;
+                plusShift_ = true;
+                return;
+            }
+        }
+        codes_[idx] = XKeysymToKeycode(dpy_, XK_KP_Add);
+    }
+    // Shift around "plus" is only pressed if the user does not already hold Shift.
+    void pressPlusShift() {
+        if (!plusShift_ || shiftByUs_) return;
+        const unsigned sh = code(Key::Shift);
+        if (!sh || keysDown_.count(sh)) return;
+        XTestFakeKeyEvent(dpy_, sh, True, CurrentTime);
+        shiftByUs_ = true;
+    }
+    void releasePlusShift() {
+        if (!shiftByUs_) return;
+        shiftByUs_ = false;
+        XTestFakeKeyEvent(dpy_, code(Key::Shift), False, CurrentTime);
+    }
     unsigned code(Key k) const { return codes_[static_cast<size_t>(k)]; }
 
     Display *dpy_ = nullptr;
     unsigned codes_[kKeyCount] = {};
+    bool plusShift_ = false;   // "plus" needs Shift on the current layout
+    bool shiftByUs_ = false;   // Shift pressed on behalf of "plus"
     std::set<unsigned> keysDown_;
     std::set<int> buttonsDown_;
 };

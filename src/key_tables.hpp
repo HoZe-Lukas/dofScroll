@@ -3,8 +3,10 @@
 // Key -> X11 keysym / Linux KEY_* code tables. Header-only and free of any X11 or
 // uinput calls, so they can be unit-tested without a display (tests/test_keys.cpp).
 // The switches list every Key without a default, so -Wswitch flags a missing entry.
-// "plus" maps to the keypad plus key (layout independent, works with Ctrl for zoom);
-// "minus" maps to the main-block minus key.
+// "plus" and "minus" are the main-keyboard keys; "kp_plus" / "kp_minus" are the keypad keys.
+// "plus" is the keysym XK_plus: the X11 backend resolves it against the current keyboard map
+// (adding Shift when needed). The uinput backend has no layout information and sends
+// Shift+KEY_EQUAL (US layout), see keyNeedsShift().
 #pragma once
 #include <X11/keysym.h>
 #include <linux/input-event-codes.h>
@@ -36,7 +38,9 @@ inline unsigned long keyToKeysym(Key k) {
     case Key::PageUp: return XK_Page_Up;
     case Key::PageDown: return XK_Page_Down;
     case Key::Minus: return XK_minus;
-    case Key::Plus: return XK_KP_Add;
+    case Key::Plus: return XK_plus;
+    case Key::KpPlus: return XK_KP_Add;
+    case Key::KpMinus: return XK_KP_Subtract;
     case Key::F1: return XK_F1;
     case Key::F2: return XK_F2;
     case Key::F3: return XK_F3;
@@ -113,7 +117,9 @@ inline int keyToLinuxCode(Key k) {
     case Key::PageUp: return KEY_PAGEUP;
     case Key::PageDown: return KEY_PAGEDOWN;
     case Key::Minus: return KEY_MINUS;
-    case Key::Plus: return KEY_KPPLUS;
+    case Key::Plus: return KEY_EQUAL;  // with Shift, see keyNeedsShift()
+    case Key::KpPlus: return KEY_KPPLUS;
+    case Key::KpMinus: return KEY_KPMINUS;
     case Key::F1: return KEY_F1;
     case Key::F2: return KEY_F2;
     case Key::F3: return KEY_F3;
@@ -166,6 +172,9 @@ inline int keyToLinuxCode(Key k) {
     }
     return KEY_RESERVED;
 }
+
+// True if the Linux code of the key must be sent together with Shift (US layout assumption).
+inline bool keyNeedsShift(Key k) { return k == Key::Plus; }
 
 // Linux button code for mouse buttons 1/2/3 (0 for anything else).
 inline int mouseButtonToLinuxCode(int button) {
