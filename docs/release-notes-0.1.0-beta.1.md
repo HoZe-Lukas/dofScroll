@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
-# dofscroll 0.1.0-beta.1 (draft release notes)
+# dofscroll 0.1.0-beta.1
 
 Pre-release. Not a stable release. Summary of what is on `main` since `v0.1.0-rc2`.
 
