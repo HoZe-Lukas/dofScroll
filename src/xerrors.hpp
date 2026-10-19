@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Gemeinsame X11-Fehlerhandler (prozessweit, einmal installiert).
-// Wird von output_x11.cpp und activewin.cpp genutzt; die Init-Reihenfolge ist egal,
-// da der Installer idempotent ist.
+// Shared X11 error handlers (process-wide, installed once).
+// Used by output_x11.cpp and activewin.cpp; init order does not matter
+// because the installer is idempotent.
 #pragma once
 
 #include <X11/Xlib.h>
@@ -12,8 +12,8 @@
 
 namespace spn {
 
-// Wird vom X-Fehlerhandler im aufrufenden Thread gesetzt (BadWindow auf gerade
-// geschlossenen Fenstern ist normal). Aufrufer setzen es vor der Abfrage auf 0.
+// Set by the X error handler in the calling thread (BadWindow on just-closed
+// windows is normal). Callers reset it to 0 before the query.
 inline thread_local int g_xerror = 0;
 
 inline int xErrorHandler(Display *, XErrorEvent *) {
@@ -21,17 +21,17 @@ inline int xErrorHandler(Display *, XErrorEvent *) {
     return 0;
 }
 
-// Xlib verlangt, dass ein IO-Error-Handler nicht zurueckkehrt (sonst exit(1) mit
-// laufenden Threads/statischen Destruktoren). Daher: kurze Meldung per write(2)
-// und sofort _exit(1); ExecStopPost --release-keys gibt Tasten danach frei.
+// Xlib requires an IO error handler not to return (otherwise exit(1) with running
+// threads/static destructors). So: short message via write(2) and an immediate
+// _exit(1); ExecStopPost --release-keys releases keys afterwards.
 inline int xIOErrorHandler(Display *) {
-    static const char msg[] = "dofscroll: X11-Verbindung verloren, beende\n";
+    static const char msg[] = "dofscroll: X11 connection lost, exiting\n";
     ssize_t r = write(2, msg, sizeof msg - 1);
     (void)r;
     _exit(1);
 }
 
-// Idempotent und thread-sicher.
+// Idempotent and thread-safe.
 inline void installXErrorHandlers() {
     static std::once_flag once;
     std::call_once(once, [] {

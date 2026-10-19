@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// X11-Ausgabe ueber die XTest-Extension.
+// X11 output via the XTest extension.
+#include "key_tables.hpp"
 #include "output.hpp"
 #include "xerrors.hpp"
 
@@ -13,7 +14,7 @@
 namespace spn {
 namespace {
 
-// Obergrenze fuer Klicks pro Aufruf (Schutz vor INT_MIN-Negation und Event-Fluten).
+// Upper bound for clicks per call (protects against INT_MIN negation and event floods).
 constexpr int kMaxSteps = 200;
 int clampSteps(int n) { return n > kMaxSteps ? kMaxSteps : (n < -kMaxSteps ? -kMaxSteps : n); }
 
@@ -21,7 +22,7 @@ class X11Output : public Output {
 public:
     ~X11Output() override {
         if (dpy_) {
-            // Im Destruktor die eigene Implementierung ueber nicht-virtuellen Helfer nutzen
+            // In the destructor use the non-virtual helper (no virtual dispatch)
             doReleaseAll();
             XFlush(dpy_);
             XCloseDisplay(dpy_);
@@ -31,24 +32,21 @@ public:
     const char *name() const override { return "x11"; }
 
     bool init(std::string *err) override {
-        installXErrorHandlers();  // gemeinsam (xerrors.hpp), idempotent
+        installXErrorHandlers();  // shared (xerrors.hpp), idempotent
         dpy_ = XOpenDisplay(nullptr);
         if (!dpy_) {
-            if (err) *err = "X11: XOpenDisplay fehlgeschlagen (kein DISPLAY oder X-Server nicht erreichbar)";
+            if (err) *err = "X11: XOpenDisplay failed (no DISPLAY or X server unreachable)";
             return false;
         }
         int ev = 0, er = 0, maj = 0, min = 0;
         if (!XTestQueryExtension(dpy_, &ev, &er, &maj, &min)) {
-            if (err) *err = "X11: XTest-Extension nicht verfuegbar";
+            if (err) *err = "X11: XTest extension not available";
             XCloseDisplay(dpy_);
             dpy_ = nullptr;
             return false;
         }
-        kCtrl_ = XKeysymToKeycode(dpy_, XK_Control_L);
-        kUp_ = XKeysymToKeycode(dpy_, XK_Up);
-        kDown_ = XKeysymToKeycode(dpy_, XK_Down);
-        kLeft_ = XKeysymToKeycode(dpy_, XK_Left);
-        kRight_ = XKeysymToKeycode(dpy_, XK_Right);
+        for (size_t i = 0; i < kKeyCount; ++i)
+            codes_[i] = XKeysymToKeycode(dpy_, keyToKeysym(static_cast<Key>(i)));
         return true;
     }
 
@@ -80,7 +78,7 @@ public:
     }
 
     void mouseButton(int button, bool down) override {
-        if (!dpy_ || button < 1) return;
+        if (!dpy_ || button < 1 || button > 3) return;
         if (down == (buttonsDown_.count(button) != 0)) return;
         XTestFakeButtonEvent(dpy_, button, down ? True : False, CurrentTime);
         if (down) buttonsDown_.insert(button); else buttonsDown_.erase(button);
@@ -90,11 +88,16 @@ public:
 
     void forceReleaseAll() override {
         if (!dpy_) return;
-        const unsigned codes[] = {kCtrl_, XKeysymToKeycode(dpy_, XK_Control_R), kUp_, kDown_,
-                                  kLeft_, kRight_};
-        for (unsigned kc : codes)
+        // Independent of our own state: a crashed earlier process may have left keys down.
+        for (unsigned kc : codes_)
             if (kc) XTestFakeKeyEvent(dpy_, kc, False, CurrentTime);
-        XTestFakeButtonEvent(dpy_, 1, False, CurrentTime);
+        // Right-hand modifier variants are not in the Key table but may be stuck too.
+        const KeySym extra[] = {XK_Control_R, XK_Shift_R, XK_Alt_R, XK_Super_R};
+        for (KeySym ks : extra) {
+            const unsigned kc = XKeysymToKeycode(dpy_, ks);
+            if (kc) XTestFakeKeyEvent(dpy_, kc, False, CurrentTime);
+        }
+        for (int b = 1; b <= 3; ++b) XTestFakeButtonEvent(dpy_, b, False, CurrentTime);
         doReleaseAll();
     }
 
@@ -116,19 +119,10 @@ private:
             XTestFakeButtonEvent(dpy_, button, False, CurrentTime);
         }
     }
-    unsigned code(Key k) const {
-        switch (k) {
-            case Key::Ctrl: return kCtrl_;
-            case Key::Up: return kUp_;
-            case Key::Down: return kDown_;
-            case Key::Left: return kLeft_;
-            case Key::Right: return kRight_;
-        }
-        return 0;
-    }
+    unsigned code(Key k) const { return codes_[static_cast<size_t>(k)]; }
 
     Display *dpy_ = nullptr;
-    unsigned kCtrl_ = 0, kUp_ = 0, kDown_ = 0, kLeft_ = 0, kRight_ = 0;
+    unsigned codes_[kKeyCount] = {};
     std::set<unsigned> keysDown_;
     std::set<int> buttonsDown_;
 };
