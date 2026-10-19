@@ -59,6 +59,13 @@ Not part of W1: tray / settings UI (package W3), installer and code signing (W4)
   `Local\dofscroll-quit` first, ends it after a timeout, then runs `--release-keys`.
   Compile/link only in CI, unverified on hardware: the end-session handling and the event.
 
+## Running programs (picker)
+
+`src/platform/win/running_apps_win.cpp` lists programs for the "Add application" dialog with
+`EnumWindows` (visible, titled, non-tool, non-cloaked, unowned windows); the match string is the
+same lower-case executable name as the foreground provider. Processes that deny access are skipped.
+Compile-checked and smoke-tested by `running_apps_selftest`; unverified on a real desktop.
+
 ## Active window caveats (unverified)
 
 - Packaged / UWP apps may report `ApplicationFrameHost.exe` as the foreground process instead of the

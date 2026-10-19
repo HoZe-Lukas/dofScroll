@@ -76,12 +76,18 @@ capture-next-focus, dedupe) lives in `src/ui/model/app_picker_model.hpp` and
 `src/platform/running_apps_util.hpp`.
 
 - Linux/X11: done (`platform/linux/running_apps_x11.cpp`); Wayland returns an empty list with an error.
-- Windows (to be added in the Windows port branch): `EnumWindows` over visible top-level windows,
-  `GetWindowThreadProcessId` and `QueryFullProcessImageNameW`, with the same executable-name rule as
-  the foreground provider.
-- macOS (to be added in the macOS port branch): `NSWorkspace.runningApplications` with
-  `activationPolicy == regular`; bundle identifier or localized name exactly as the foreground
-  provider reports it.
+- Windows: done, compile-checked (`platform/win/running_apps_win.cpp`): `EnumWindows` over visible,
+  non-tool, non-cloaked, titled, unowned top-level windows, `QueryFullProcessImageNameW` (access
+  denied: window skipped), match string through `winMatchString` (the foreground provider's
+  `exeNameLower` rule; the UWP frame host is never listed), display name from the version resource.
+- macOS: done, compile-checked (`platform/mac/running_apps_mac.mm`): `NSWorkspace.runningApplications`
+  with `activationPolicy == regular`, match string through `macMatchString` (bundle identifier,
+  else localized name, lowercased, as `mac_activewin.mm`), icon hint = bundle path.
+- The pure rules are in `platform/running_apps_os.hpp` (tested on Linux in
+  `tests/test_running_apps_os.cpp`). `running_apps_selftest` runs the provider on the Windows/macOS
+  runner and asserts only "no crash, well-formed list" (an empty list is accepted).
+- Device list for `DevicePickerModel`: `listInputDevices()` opens the platform `InputSource`, takes
+  its `devices()` snapshot and closes it again.
 
 ## Live feed
 
