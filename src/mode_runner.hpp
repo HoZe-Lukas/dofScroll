@@ -95,6 +95,7 @@ private:
 
     Channel ch_v_, ch_h_, ch_zoom_;
     StepAccumulator acc_v_, acc_h_, acc_zoom_;
+    int8_t step_v_ = 0, step_h_ = 0, step_zoom_ = 0;  // step: channels: 0 armed, +1/-1 fired on that side
     ZoomDetector zoom_;
     std::bitset<kKeyCount> keys_held_;
     uint8_t mouse_held_ = 0;  // bit n = mouse button n (1 left, 2 middle, 3 right)

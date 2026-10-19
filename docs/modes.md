@@ -63,6 +63,7 @@ For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`) and `TWIST_ACTION` 
 | `wheel_v`, `wheel_h` | Vertical or horizontal mouse wheel. |
 | `zoom` | Hold Ctrl and send the mouse wheel. |
 | `keys:<neg>,<pos>` | Key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection. Dead zone, curve, smoothing and sensitivity of the channel apply. Each argument can be a chord, see below. |
+| `step:<neg>,<pos>` | One key tap per push instead of a rate, with hysteresis; see below. |
 
 ## Button actions
 
@@ -193,6 +194,24 @@ For video editing (for example in DaVinci Resolve, whose behavior is not verifie
     ZOOM_SENS = 1         # single frames
 
 The timeline must have keyboard focus. Reverse the twist with `ZOOM_SIGN = -1`.
+
+### `step:<neg>,<pos>`: one key press per push
+
+`keys:` turns the deflection into a repeat rate, which is right for scrubbing and wrong for
+discrete targets such as slides: a firm push skips several, and holding it pages through the deck.
+`step:` taps `<neg>` or `<pos>` (same grammar as `keys:`, chords allowed) exactly once per push:
+
+    V_ACTION = step:pageup,pagedown
+
+The channel goes through the same processing as for `keys:` (dead zone, curve, smoothing,
+sensitivity, sign). The tap fires when the processed value, a rate in steps per second
+(`deflection * SENS / 20` for a linear curve), reaches `STEP_TRIGGER` (default 20, see
+[configuration](configuration.md)). It re-arms only after the value has fallen to half of the
+trigger; there is no auto-repeat while the push is held. Pushing to the other side fires the other
+key (each side re-arms on its own). The state resets on mode change, reload and `releaseAll`.
+Because the trigger is measured after `*_SENS`, a channel with a low sensitivity needs a lower
+`STEP_TRIGGER`. The chord warning rules below apply to `step:` exactly as to `keys:`. How the
+trigger level feels on a real device is not verified; tune `STEP_TRIGGER`.
 
 ### Key chords in `keys:`
 

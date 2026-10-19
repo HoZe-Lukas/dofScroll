@@ -186,6 +186,111 @@ static void testChordChannels() {
     }
 }
 
+static void testStepChannels() {
+    Settings s;
+    s.scroll_v.deadzone = 0;
+    s.scroll_v.smooth_ms = 0.0;
+    s.step_trigger = 20.0;  // rate = deflection * 5 / 2500 * 125 = deflection / 4: fires at 80, re-arms at 40
+    auto stepMode = [](Key neg, Key pos) {
+        ModeDef m = mode("st");
+        m.v = act(ChannelActionType::Step, neg, pos);
+        m.h = act(ChannelActionType::Off);
+        m.twist = act(ChannelActionType::Off);
+        return m;
+    };
+    {  // a sustained push fires exactly once, even when held for seconds
+        RunnerRec o;
+        ModeRunner r(&o);
+        r.setMode(stepMode(Key::PageUp, Key::PageDown));
+        CHECK(!r.legacyPath(), "step is a custom-path mode");
+        run(r, s, axis(AX_Z, 300), 0, 3.0);
+        CHECK(o.count("tap:pagedown") == 1 && o.count("tap:pageup") == 0 && o.ev.size() == 1, "one tap while held");
+        // release and push again fires again
+        run(r, s, axis(AX_Z, 0), 0, 0.1);
+        run(r, s, axis(AX_Z, 300), 0, 1.0);
+        CHECK(o.count("tap:pagedown") == 2, "second push, second tap");
+    }
+    {  // hysteresis: oscillation between the trigger and half of it does not fire again
+        RunnerRec o;
+        ModeRunner r(&o);
+        r.setMode(stepMode(Key::PageUp, Key::PageDown));
+        run(r, s, axis(AX_Z, 90), 0, 0.2);   // rate 22.5 >= 20: fires
+        run(r, s, axis(AX_Z, 60), 0, 0.2);   // rate 15, above half (10): still latched
+        run(r, s, axis(AX_Z, 90), 0, 0.2);
+        run(r, s, axis(AX_Z, 60), 0, 0.2);
+        run(r, s, axis(AX_Z, 90), 0, 0.2);
+        CHECK(o.count("tap:pagedown") == 1, "oscillation above the re-arm level fires once");
+        run(r, s, axis(AX_Z, 30), 0, 0.2);   // rate 7.5 <= 10: re-armed
+        run(r, s, axis(AX_Z, 90), 0, 0.2);
+        CHECK(o.count("tap:pagedown") == 2, "fires again after falling to half the trigger");
+    }
+    {  // a push barely outside the dead zone does not fire
+        RunnerRec o;
+        ModeRunner r(&o);
+        Settings d;  // default dead zone and sensitivity
+        r.setMode(stepMode(Key::PageUp, Key::PageDown));
+        run(r, d, axis(AX_Z, 45), 0, 1.0);
+        CHECK(o.ev.empty(), "small deflection: no tap");
+        run(r, d, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o.count("tap:pagedown") == 1, "deliberate push with the defaults fires");
+    }
+    {  // reversal: the other direction fires, one tap per side
+        RunnerRec o;
+        ModeRunner r(&o);
+        r.setMode(stepMode(Key::PageUp, Key::PageDown));
+        run(r, s, axis(AX_Z, 300), 0, 0.5);
+        run(r, s, axis(AX_Z, -300), 0, 0.5);
+        CHECK(o.count("tap:pagedown") == 1 && o.count("tap:pageup") == 1, "reversal fires the other key once");
+        run(r, s, axis(AX_Z, 0), 0, 0.1);
+        run(r, s, axis(AX_Z, -300), 0, 0.5);
+        CHECK(o.count("tap:pageup") == 2, "negative side re-arms through the center");
+    }
+    {  // a mode change resets the state: the held push fires again in the new mode
+        RunnerRec o;
+        ModeRunner r(&o);
+        r.setMode(stepMode(Key::PageUp, Key::PageDown));
+        run(r, s, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o.count("tap:pagedown") == 1, "fired");
+        r.setMode(stepMode(Key::PageUp, Key::PageDown));
+        run(r, s, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o.count("tap:pagedown") == 2, "state reset by the mode change");
+        r.releaseAll();
+        run(r, s, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o.count("tap:pagedown") == 3, "state reset by releaseAll");
+    }
+    {  // a chord is tapped with its modifiers; a larger trigger needs a firmer push
+        RunnerRec o;
+        ModeRunner r(&o);
+        ModeDef m = stepMode(Key::PageUp, Key::PageDown);
+        m.v.posMods.k[0] = Key::Ctrl;
+        m.v.posMods.n = 1;
+        r.setMode(m);
+        run(r, s, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o.ev.size() == 3 && o.ev[0] == "+ctrl" && o.ev[1] == "tap:pagedown" && o.ev[2] == "-ctrl", "chord step");
+        Settings firm = s;
+        firm.step_trigger = 200.0;
+        RunnerRec o2;
+        ModeRunner r2(&o2);
+        r2.setMode(stepMode(Key::PageUp, Key::PageDown));
+        run(r2, firm, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o2.ev.empty(), "300/4 = 75 is below a trigger of 200");
+    }
+    {  // twist and horizontal channels work the same way
+        RunnerRec o;
+        ModeRunner r(&o);
+        ModeDef m = mode("st");
+        m.v = act(ChannelActionType::Off);
+        m.h = act(ChannelActionType::Step, Key::Left, Key::Right);
+        m.twist = act(ChannelActionType::Step, Key::Home, Key::End);
+        r.setMode(m);
+        Settings d;
+        run(r, d, axis(AX_X, 300), 0, 1.0);
+        CHECK(o.count("tap:right") == 1, "H step");
+        run(r, d, axis(AX_RY, 300), 0, 1.0);
+        CHECK(o.count("tap:end") == 1 || o.count("tap:home") == 1, "twist step");
+    }
+}
+
 static void testCustomChannels() {
     Settings s;
     {  // V none, H keys left/right
@@ -433,6 +538,7 @@ int main() {
     testLegacyNavAndClick();
     testCustomChannels();
     testChordChannels();
+    testStepChannels();
     testReleases();
     if (failures) {
         std::fprintf(stderr, "%d check(s) failed\n", failures);

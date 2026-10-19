@@ -174,12 +174,13 @@ std::string chordRisk(const ModeDef &m) {
     bool hasRiskyKeys = false, hasZoom = false;
     for (const ChannelAction *a : {&m.v, &m.h, &m.twist}) {
         if (a->type == ChannelActionType::Zoom) hasZoom = true;
-        if (a->type != ChannelActionType::Keys) continue;
+        if (!a->usesKeys()) continue;
+        const std::string what = a->type == ChannelActionType::Step ? "a step: channel presses " : "a keys: channel presses ";
         const struct { Key key; const ChordMods &mods; } args[2] = {{a->neg, a->negMods}, {a->pos, a->posMods}};
         for (const auto &arg : args) {
             if (arg.mods.n == 0) {
                 if (!isNavKey(arg.key)) hasRiskyKeys = true;
-                if (isModifierKey(arg.key)) why.push_back(std::string("a keys: channel presses ") + keyName(arg.key));
+                if (isModifierKey(arg.key)) why.push_back(what + keyName(arg.key));
                 continue;
             }
             // Chords: Ctrl and/or Shift with a navigation key is harmless; Alt/Super or any other key is not.
@@ -187,7 +188,7 @@ std::string chordRisk(const ModeDef &m) {
             if ((bits & 12u) != 0 || !isNavKey(arg.key)) {
                 std::string name;
                 for (uint8_t i = 0; i < arg.mods.n; ++i) name += std::string(keyName(arg.mods.k[i])) + "+";
-                why.push_back("a keys: channel presses " + name + keyName(arg.key));
+                why.push_back(what + name + keyName(arg.key));
             }
         }
     }
@@ -261,17 +262,18 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
     else if (t == "wheel_v") a.type = ChannelActionType::WheelV;
     else if (t == "wheel_h") a.type = ChannelActionType::WheelH;
     else if (t == "zoom") a.type = ChannelActionType::Zoom;
-    else if (t.compare(0, 5, "keys:") == 0) {
+    else if (t.compare(0, 5, "keys:") == 0 || t.compare(0, 5, "step:") == 0) {
+        const bool step = t[0] == 's';
         const std::string rest = t.substr(5);
         const size_t comma = rest.find(',');
         if (comma == std::string::npos || rest.find(',', comma + 1) != std::string::npos)
-            return fail(err, "keys:<neg>,<pos> expects exactly two keys or key chords");
+            return fail(err, std::string(step ? "step" : "keys") + ":<neg>,<pos> expects exactly two keys or key chords");
         if (!parseChord(trim(rest.substr(0, comma)), &a.neg, &a.negMods, err) ||
             !parseChord(trim(rest.substr(comma + 1)), &a.pos, &a.posMods, err))
             return false;
-        a.type = ChannelActionType::Keys;
+        a.type = step ? ChannelActionType::Step : ChannelActionType::Keys;
     } else {
-        return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos> (keys may be chords like ctrl+pageup)");
+        return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos> | step:<neg>,<pos> (keys may be chords like ctrl+pageup)");
     }
     if (out) *out = a;
     return true;

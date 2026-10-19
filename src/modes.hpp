@@ -76,14 +76,16 @@ struct ChordMods {
     bool operator==(const ChordMods &o) const { return mask() == o.mask(); }
 };
 
-enum class ChannelActionType { Default, Off, WheelV, WheelH, Zoom, Keys };
+// Keys: a rate of key taps (keys:<neg>,<pos>); Step: one tap per push (step:<neg>,<pos>), both use neg/pos.
+enum class ChannelActionType { Default, Off, WheelV, WheelH, Zoom, Keys, Step };
 struct ChannelAction {
     ChannelActionType type = ChannelActionType::Default;
     Key neg = Key::Up, pos = Key::Down;  // only for Keys: the key of the chord
+    bool usesKeys() const { return type == ChannelActionType::Keys || type == ChannelActionType::Step; }
     ChordMods negMods = ChordMods(), posMods = ChordMods();         // only for Keys: modifiers held while the key is tapped
     bool operator==(const ChannelAction &o) const {
         return type == o.type &&
-               (type != ChannelActionType::Keys ||
+               (!usesKeys() ||
                 (neg == o.neg && pos == o.pos && negMods == o.negMods && posMods == o.posMods));
     }
 };

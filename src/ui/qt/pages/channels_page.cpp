@@ -336,6 +336,10 @@ private:
             addCurve(grid, &row, pre + "CURVE", g.id);
             if (g.id == "zoom") addZoomDetection(grid, &row);
         } else {
+            const QString stepHelp = T("Push strength at which a step: channel action taps its key once "
+                                       "(steps per second after sensitivity)");
+            spinRow(grid, &row, T("Step trigger"), stepHelp,
+                    [&](QLabel *hl) -> QWidget * { return dblSpin("STEP_TRIGGER", 0.5, 10000, 1, 1, stepHelp, hl); });
             const QString tickHelp = T("How many times per second the daemon generates events (30..1000)");
             spinRow(grid, &row, T("Tick rate (Hz)"), tickHelp,
                     [&](QLabel *hl) -> QWidget * { return intSpin("TICK_HZ", 30, 1000, tickHelp, hl); });

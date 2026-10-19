@@ -46,6 +46,7 @@ The daemon reloads the directory when it changes (about a second), or run `syste
 | `wheel_v`, `wheel_h` | Vertical or horizontal mouse wheel |
 | `zoom` | Hold Ctrl and send the mouse wheel |
 | `keys:<neg>,<pos>` | Key presses for negative and positive deflection; the rate follows the deflection. Each key can be a chord such as `ctrl+pageup` (up to four modifiers, then one key) |
+| `step:<neg>,<pos>` | One key tap per push (no repeat while held); fires at `STEP_TRIGGER` (steps per second after sensitivity, default 20) and re-arms at half of it. Same keys and chords as `keys:` |
 
 ## Button actions
 

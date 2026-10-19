@@ -223,7 +223,7 @@ public:
             g.push_back(x);
         }
         g.push_back({"zoom_detect", "Zoom detection", {"ZOOM_LATERAL", "ZOOM_ENTER_MS", "ZOOM_EXIT_RATIO"}, false});
-        g.push_back({"general", "General", {"ENABLED", "BACKEND", "TICK_HZ"}, false});
+        g.push_back({"general", "General", {"ENABLED", "STEP_TRIGGER", "BACKEND", "TICK_HZ"}, false});
         return g;
     }
     // Mode-dependent parts of the page of section i (see the rules above). Channel values are not

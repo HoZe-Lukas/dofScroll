@@ -17,6 +17,7 @@
 //   ZOOM_LATERAL = x z rx rz       # axes the zoom twist has to dominate
 //   ZOOM_ENTER_MS = 40
 //   ZOOM_EXIT_RATIO = 1.5
+//   STEP_TRIGGER = 20              # level at which a step: channel action fires (steps/s)
 //   BACKEND = auto                 # auto | x11 | uinput
 //   TICK_HZ = 250
 //   MODE = normal                  # mode id (see modes.hpp), e.g. timeline in [app:resolve]
@@ -65,6 +66,7 @@ constexpr size_t kMaxMixTerms = 12;            // terms per MIX expression
 constexpr size_t kMaxCurvePoints = 64;         // points per CURVE
 constexpr size_t kMaxLateralAxes = 6;          // axes in ZOOM_LATERAL
 constexpr double kMaxZoomExitRatio = 100.0;
+constexpr double kMinStepTrigger = 0.5, kMaxStepTrigger = 10000.0;
 constexpr long kMaxButtons = 32;               // highest accepted BUTTON_<n> (the daemon button mask is 32 bits)
 
 struct Term {
@@ -101,6 +103,7 @@ struct Settings {
     std::vector<Axis> zoom_lateral;   // default: x z rx rz
     int zoom_enter_ms = 40;
     double zoom_exit_ratio = 1.5;
+    double step_trigger = 20.0;       // step: channel actions fire at this rate (steps/s after the channel processing)
     std::string backend = "auto";     // auto | x11 | uinput
     int tick_hz = 250;                // 30..1000
     int nav_button = 0;

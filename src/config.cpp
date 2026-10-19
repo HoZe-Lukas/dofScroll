@@ -244,6 +244,11 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
         s.zoom_exit_ratio = std::min(kMaxZoomExitRatio, std::max(1.0, d));
         return true;
     }
+    if (key == "STEP_TRIGGER") {
+        if (!parseDouble(value, &d)) return setErr(err, "number expected");
+        s.step_trigger = std::min(kMaxStepTrigger, std::max(kMinStepTrigger, d));
+        return true;
+    }
     if (key == "BACKEND") {
         std::string v = lower(trim(value));
         if (v != "auto" && v != "x11" && v != "uinput")
@@ -461,6 +466,7 @@ std::vector<KV> allKeys(const Settings &s) {
     kv.emplace_back("ZOOM_LATERAL", lateralToString(s.zoom_lateral));
     kv.emplace_back("ZOOM_ENTER_MS", std::to_string(s.zoom_enter_ms));
     kv.emplace_back("ZOOM_EXIT_RATIO", fmtNum(s.zoom_exit_ratio));
+    kv.emplace_back("STEP_TRIGGER", fmtNum(s.step_trigger));
     kv.emplace_back("BACKEND", s.backend);
     kv.emplace_back("TICK_HZ", std::to_string(s.tick_hz));
     kv.emplace_back("ENABLED", s.enabled ? "1" : "0");

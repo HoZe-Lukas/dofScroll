@@ -154,6 +154,8 @@ int main() {
         m.v.posMods.k[0] = Key::Ctrl;
         m.v.posMods.n = 1;
         assert(channelActionText(m.v) == "keys:shift+ctrl+pageup,ctrl+pagedown");
+        m.v.type = ChannelActionType::Step;
+        assert(channelActionText(m.v) == "step:shift+ctrl+pageup,ctrl+pagedown");
         m.buttons.push_back({1, ButtonActionType::Key, Key::Space, ""});
         m.buttons.push_back({2, ButtonActionType::ModeSwitch, Key::Space, "next"});
         m.overrides.emplace_back("SCROLL_H_SENS", "4");

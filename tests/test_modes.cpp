@@ -68,6 +68,25 @@ static void testGrammar() {
     }
     assert(ChannelAction() == ChannelAction());
 
+    // step: same grammar as keys:, own type, compared and warned like keys:
+    assert(parseChannelAction("step:pageup,pagedown", &a, &err) && a.type == ChannelActionType::Step &&
+           a.neg == Key::PageUp && a.pos == Key::PageDown);
+    assert(parseChannelAction(" STEP: ctrl+pageup , ctrl+pagedown", &a, &err) && a.type == ChannelActionType::Step &&
+           a.negMods.n == 1 && a.posMods.n == 1);
+    {
+        ChannelAction k, st;
+        assert(parseChannelAction("keys:left,right", &k, nullptr) && parseChannelAction("step:left,right", &st, nullptr));
+        assert(!(k == st) && st == st);
+        ChannelAction st2;
+        assert(parseChannelAction("step:left,up", &st2, nullptr) && !(st == st2));
+        assert(st.usesKeys() && k.usesKeys() && !ChannelAction().usesKeys());
+    }
+    for (const char *bad : {"step:", "step:left", "step:left,right,up", "step:ctrl+ctrl+a,b", "step:ctrl+shift,b",
+                            "step:left,nonsense"}) {
+        err.clear();
+        assert(!parseChannelAction(bad, &a, &err) && !err.empty());
+    }
+
     // key chords: modifiers + one key, in any order, each modifier once, at most four
     assert(parseChannelAction("keys:ctrl+pageup,ctrl+pagedown", &a, &err) && a.type == ChannelActionType::Keys &&
            a.neg == Key::PageUp && a.pos == Key::PageDown && a.negMods.n == 1 && a.negMods.k[0] == Key::Ctrl &&
@@ -421,6 +440,13 @@ static void testSecurityHardening() {
     assert(hasWarning(w, "mode kmod can press shortcut chords"));
     assert(hasWarning(w, "mode zk can press shortcut chords"));
     assert(!hasWarning(w, "mode safe"));
+    writeFile("snav.conf", "H_ACTION = step:ctrl+pageup,ctrl+pagedown\n");
+    writeFile("sdel.conf", "H_ACTION = step:ctrl+w,ctrl+q\nV_ACTION = step:left,right\n");
+    w.clear();
+    ms = loadModes(g_dir, &w);
+    assert(ms.find("snav") && ms.find("sdel"));
+    assert(!hasWarning(w, "mode snav"));
+    assert(hasWarning(w, "mode sdel can press shortcut chords") && hasWarning(w, "step: channel presses ctrl+w"));
     assert(ms.find("cnav") && ms.find("calt") && ms.find("csup") && ms.find("cdel"));
     assert(!hasWarning(w, "mode cnav"));  // Ctrl/Shift with navigation keys: no warning
     assert(hasWarning(w, "mode calt can press shortcut chords") && hasWarning(w, "alt+left"));

@@ -22,6 +22,19 @@ int stepOrReset(StepAccumulator &acc, double rate, double dt) {
     return acc.add(rate, dt);
 }
 
+// step: channel action. One tap per push with hysteresis: fires when the rate reaches the trigger on
+// a side while armed (+1: positive, -1: negative), re-arms when it has fallen to half the trigger.
+// The state is the side that fired last. Returns the signed number of taps (-1, 0 or 1).
+int stepFire(int8_t &state, double rate, double trigger) {
+    if (state > 0 && rate <= trigger / 2.0) state = 0;
+    if (state < 0 && rate >= -trigger / 2.0) state = 0;
+    if (state == 0) {
+        if (rate >= trigger) { state = 1; return 1; }
+        if (rate <= -trigger) { state = -1; return -1; }
+    }
+    return 0;
+}
+
 constexpr size_t idx(Key k) { return static_cast<size_t>(k); }
 
 }  // namespace
@@ -38,6 +51,7 @@ void ModeRunner::resetState() {
     acc_v_.reset();
     acc_h_.reset();
     acc_zoom_.reset();
+    step_v_ = step_h_ = step_zoom_ = 0;
     zoom_.reset();
 }
 
@@ -254,14 +268,26 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
     if (zooming) {
         acc_v_.reset();
         acc_h_.reset();
+        step_v_ = step_h_ = 0;
         nt = acc_zoom_.add(rate_zoom, dt);
     } else {
-        if (tt == ChannelActionType::Zoom || tt == ChannelActionType::Off) acc_zoom_.reset();
-        else nt = stepOrReset(acc_zoom_, rate_zoom, dt);
-        if (tv != ChannelActionType::Off) nv = stepOrReset(acc_v_, rate_v, dt);
-        else acc_v_.reset();
-        if (th != ChannelActionType::Off) nh = stepOrReset(acc_h_, rate_h, dt);
-        else acc_h_.reset();
+        // Channels with a step: action use the armed/fired state instead of the accumulator.
+        auto channel = [&](ChannelActionType t, StepAccumulator &acc, int8_t &step, double rate) {
+            if (t == ChannelActionType::Step) {
+                acc.reset();
+                return stepFire(step, rate, s.step_trigger);
+            }
+            step = 0;
+            if (t == ChannelActionType::Off) {
+                acc.reset();
+                return 0;
+            }
+            return stepOrReset(acc, rate, dt);
+        };
+        // The twist channel does not accumulate for zoom itself (the zoom detection does).
+        nt = channel(tt == ChannelActionType::Zoom ? ChannelActionType::Off : tt, acc_zoom_, step_zoom_, rate_zoom);
+        nv = channel(tv, acc_v_, step_v_, rate_v);
+        nh = channel(th, acc_h_, step_h_, rate_h);
     }
 
     std::bitset<kKeyCount> keys = w.keys;
@@ -284,6 +310,7 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
             if (nav_active) tapKeys(Key::Left, Key::Right, n);
             else out_->wheelH(n);
             break;
+        case ChannelActionType::Step:
         case ChannelActionType::Keys:
             for (int i = n; i > 0; --i) tapChord(a.pos, a.posMods);
             for (int i = n; i < 0; ++i) tapChord(a.neg, a.negMods);
