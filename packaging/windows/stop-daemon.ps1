@@ -42,10 +42,17 @@ if (-not $ExePath) {
 }
 $ExePath = [System.IO.Path]::GetFullPath($ExePath)
 
+# Process.Path is empty when this script runs in 32-bit PowerShell (the NSIS installer starts that one)
+# and looks at a 64-bit process; the WMI/CIM executable path works from both.
+function Get-ProcPath($p) {
+    if ($p.Path) { return $p.Path }
+    try { return (Get-CimInstance -ClassName Win32_Process -Filter "ProcessId=$($p.Id)" -ErrorAction Stop).ExecutablePath } catch { return $null }
+}
+
 $sid = (Get-Process -Id $PID).SessionId
 function Get-Daemon {
     @(Get-Process -Name 'dofscroll' -ErrorAction SilentlyContinue | Where-Object {
-        $_.SessionId -eq $sid -and $_.Path -and ([string]::Equals($_.Path, $ExePath, [System.StringComparison]::OrdinalIgnoreCase))
+        $_.SessionId -eq $sid -and ($pp = Get-ProcPath $_) -and ([string]::Equals($pp, $ExePath, [System.StringComparison]::OrdinalIgnoreCase))
     })
 }
 
@@ -53,7 +60,7 @@ $procs = Get-Daemon
 if ($procs.Count -eq 0) {
     # help to find out why nothing matched (shown in the installer log)
     Write-Output "stop-daemon: expected path '$ExePath', session $sid"
-    Get-Process -Name 'dofscroll' -ErrorAction SilentlyContinue | ForEach-Object { Write-Output "stop-daemon: saw pid $($_.Id) session $($_.SessionId) path '$($_.Path)'" }
+    Get-Process -Name 'dofscroll' -ErrorAction SilentlyContinue | ForEach-Object { Write-Output "stop-daemon: saw pid $($_.Id) session $($_.SessionId) path '$(Get-ProcPath $_)'" }
 }
 foreach ($p in $procs) {
     if (-not $PSCmdlet.ShouldProcess("dofscroll.exe (pid $($p.Id))", 'stop')) { continue }
