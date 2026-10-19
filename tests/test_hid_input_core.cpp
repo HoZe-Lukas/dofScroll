@@ -32,8 +32,9 @@ static const char *kPro =
     "buttons = report=3 offset=0 bits=32\n";
 
 static void s16(std::vector<uint8_t> &v, int x) {
-    v.push_back(static_cast<uint8_t>(x & 0xff));
-    v.push_back(static_cast<uint8_t>((x >> 8) & 0xff));
+    const unsigned u = static_cast<unsigned>(static_cast<uint16_t>(x));  // two's complement, no negative shift
+    v.push_back(static_cast<uint8_t>(u & 0xff));
+    v.push_back(static_cast<uint8_t>((u >> 8) & 0xff));
 }
 
 int main() {
