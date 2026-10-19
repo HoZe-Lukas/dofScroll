@@ -25,6 +25,13 @@ int main() {
         assert(parseKeyName(keyName(k), &back) && back == k);
     }
     assert(syms.size() == kKeyCount && codes.size() == kKeyCount);
+    assert(Key::Plus != Key::KpPlus && keyToKeysym(Key::Plus) != keyToKeysym(Key::KpPlus));
+    assert(keyToKeysym(Key::Plus) == XK_plus && keyToKeysym(Key::KpPlus) == XK_KP_Add);
+    assert(keyToKeysym(Key::KpMinus) == XK_KP_Subtract && keyToKeysym(Key::Minus) == XK_minus);
+    assert(keyToLinuxCode(Key::KpPlus) == KEY_KPPLUS && keyToLinuxCode(Key::KpMinus) == KEY_KPMINUS);
+    assert(keyNeedsShift(Key::Plus) && !keyNeedsShift(Key::KpPlus) && !keyNeedsShift(Key::Minus));
+    Key plus = Key::Count_, kpp = Key::Count_;
+    assert(parseKeyName("plus", &plus) && parseKeyName("kp_plus", &kpp) && plus != kpp);
     Key dummy;
     assert(!parseKeyName("nonexistent", &dummy));
     assert(mouseButtonToLinuxCode(1) == BTN_LEFT);
