@@ -27,7 +27,7 @@ If Qt cannot be installed in a job (the `install-qt-action` step is `continue-on
 builds the daemon without the UI and warns; the file names then contain `-daemon-only`
 (`dofscroll-<v>-windows-x64-daemon-only-setup.exe`, `...-daemon-only-portable.zip`,
 `dofscroll-<v>-macos-arm64-daemon-only.dmg`). Qt versions are the ones of `ui.yml`
-(6.8.3 MSVC on Windows, 6.9.3 on macOS); all actions are pinned to commit SHAs.
+(6.8.3 MSVC on Windows, 6.9.3 on macOS), installed with a pinned `aqtinstall` instead of `install-qt-action` (that action uses an unpinned `setup-python`, which the repository action policy rejects); all actions are pinned to commit SHAs.
 
 Both jobs test their package before uploading: the Windows job installs silently with autostart
 selected, runs `dofscroll.exe --version` and `dofscroll-ui.exe --self-test` from the install folder
