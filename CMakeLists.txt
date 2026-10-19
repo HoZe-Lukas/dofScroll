@@ -77,7 +77,7 @@ if(WIN32 AND NOT MSVC)
   target_compile_definitions(dofscroll_flags INTERFACE NOMINMAX WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0A00)
 endif()
 # The hardening flags below are GCC/Clang on Linux (ELF linker options); see docs/security.md
-# for the Windows (/GS, /DYNAMICBASE, CFG are MSVC defaults) and macOS notes.
+# for the Windows (set in cmake/windows.cmake) and macOS notes.
 if(DOFSCROLL_HARDEN AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_compile_options(dofscroll_flags INTERFACE
     -fstack-protector-strong -D_GLIBCXX_ASSERTIONS -Wformat -Wformat-security)

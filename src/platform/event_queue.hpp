@@ -25,6 +25,7 @@ public:
             std::lock_guard<std::mutex> lk(mu_);
             if (closed_) return;
             if (q_.size() >= max_) dropOneMotion();
+            if (q_.size() >= max_ * kHardFactor) return;  // flood of non-motion events: drop, stay bounded
             q_.push_back(e);
         }
         cv_.notify_one();
@@ -66,7 +67,7 @@ public:
 
 private:
     // Drops the oldest Motion event; if there is none, the queue grows past max_ (those are
-    // rare button/device events).
+    // rare button/device events) up to the hard limit.
     void dropOneMotion() {
         for (auto it = q_.begin(); it != q_.end(); ++it)
             if (it->type == InputEventType::Motion) {
@@ -75,6 +76,7 @@ private:
             }
     }
 
+    static constexpr size_t kHardFactor = 4;  // hard limit = kHardFactor * maxEvents
     size_t max_;
     mutable std::mutex mu_;
     std::condition_variable cv_;

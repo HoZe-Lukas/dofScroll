@@ -256,14 +256,15 @@ bool decodeHidReport(const HidDescriptor &d, const uint8_t *data, size_t len, Hi
     for (int i = 0; i < 6; ++i) {
         const HidAxis &a = d.axes[i];
         if (!a.present || a.reportId != rid) continue;
-        if (a.offset + typeSize(a.type) > plen) continue;
+        // written as a subtraction: no overflow of offset + size for any offset
+        if (a.offset > plen || typeSize(a.type) > plen - a.offset) continue;
         out.axis[i] = readValue(payload + a.offset, a.type) * a.scale;
         out.axisSet[i] = true;
         any = true;
     }
     if (d.hasButtons && d.buttonReport == rid) {
         const size_t nbytes = (d.buttonBits + 7) / 8;
-        if (d.buttonOffset + nbytes <= plen) {
+        if (d.buttonOffset <= plen && nbytes <= plen - d.buttonOffset) {
             uint32_t v = 0;
             for (size_t b = 0; b < nbytes; ++b) v |= static_cast<uint32_t>(payload[d.buttonOffset + b]) << (8 * b);
             if (d.buttonBits < 32) v &= (1u << d.buttonBits) - 1u;
