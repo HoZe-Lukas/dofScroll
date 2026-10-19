@@ -20,6 +20,7 @@ namespace {
 
 std::string utf8(NSString *s) {
     if (s == nil) return std::string();
+    s = [s precomposedStringWithCanonicalMapping];  // NFC, as the foreground provider
     const char *p = [s UTF8String];
     return p ? std::string(p) : std::string();
 }

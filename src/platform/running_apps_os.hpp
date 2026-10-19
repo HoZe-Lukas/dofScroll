@@ -8,9 +8,11 @@
 #include <cctype>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "platform.hpp"
+#include "../utf8.hpp"
 #include "running_apps.hpp"
 #include "running_apps_util.hpp"
 #include "win/win_paths.hpp"
@@ -42,9 +44,9 @@ inline std::string winMatchString(const std::string &imagePath) {
 // otherwise the file name without extension of the (original case) image path.
 inline std::string winDisplayName(const std::string &fileDescription, const std::string &imagePath) {
     std::string d = fileDescription;
-    while (!d.empty() && std::isspace(static_cast<unsigned char>(d.back()))) d.pop_back();
+    while (!d.empty() && utf8::isSpace(d.back())) d.pop_back();
     size_t b = 0;
-    while (b < d.size() && std::isspace(static_cast<unsigned char>(d[b]))) b++;
+    while (b < d.size() && utf8::isSpace(d[b])) b++;
     d.erase(0, b);
     if (!d.empty()) return truncateUtf8(d, 128);
     const size_t cut = imagePath.find_last_of("/\\");
@@ -66,12 +68,10 @@ inline bool winWindowListable(const WinWindowFlags &f) {
 }
 
 // macOS: matchString exactly as mac_activewin.mm (bundle identifier, else localized name, bytes
-// lowercased with the C locale rules). "" when both are empty.
+// lowercased, ASCII letters only; the macOS provider hands over NFC text). "" when both are empty.
 inline std::string macMatchString(const std::string &bundleId, const std::string &localizedName) {
     std::string s = bundleId.empty() ? localizedName : bundleId;
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return s;
+    return utf8::lowerAscii(std::move(s));  // ASCII letters only; bytes >= 0x80 are untouched
 }
 
 // Device list for the DevicePickerModel: the snapshot of an opened input backend (the same
