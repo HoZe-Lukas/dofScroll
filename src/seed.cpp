@@ -3,38 +3,31 @@
 // First-start seeding, see seed.hpp.
 #include "seed.hpp"
 
-#include <dirent.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include <algorithm>
-#include <cerrno>
 #include <cstdlib>
 #include <string>
 #include <vector>
 
 #include "config.hpp"
 #include "modes.hpp"
+#include "platform/fs.hpp"
+#include "platform/path_rules.hpp"
 
 namespace spn {
 namespace {
 
-constexpr off_t kMaxFileBytes = 64 * 1024;  // per example file
-constexpr size_t kMaxModeFiles = 64;        // per seeding run
+constexpr size_t kMaxFileBytes = 64 * 1024;  // per example file
+constexpr size_t kMaxModeFiles = 64;         // per seeding run
 
-bool lexists(const std::string &p) {
-    struct stat st;
-    return ::lstat(p.c_str(), &st) == 0;
-}
+bool lexists(const std::string &p) { return fs::pathExists(p); }
 
 bool isDir(const std::string &p) {
-    struct stat st;
-    return ::stat(p.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
+    fs::FileInfo i;
+    return fs::statPath(p, &i) && i.isDir;
 }
 
 std::string dirName(const std::string &p) {
-    const size_t i = p.rfind('/');
+    const size_t i = fs::lastSeparator(p);
     return i == std::string::npos ? std::string(".") : (i == 0 ? std::string("/") : p.substr(0, i));
 }
 
@@ -44,105 +37,67 @@ bool mkdirs(const std::string &dir) {
     if (isDir(dir)) return true;
     const std::string parent = dirName(dir);
     if (parent != dir && !isDir(parent) && !mkdirs(parent)) return false;
-    return (::mkdir(dir.c_str(), 0700) == 0 || errno == EEXIST) && isDir(dir);
+    return fs::mkdirPrivate(dir, nullptr) != fs::MkdirResult::Failed && isDir(dir);
 }
 
-// Copies src to dst. Refuses symlinks, non-regular and oversized sources; never overwrites dst.
+// Copies src to dst. Refuses symlinks, non-regular and oversized sources; never overwrites dst;
+// dst only ever holds the complete file (see fs::createFileExclusive).
 bool copyFile(const std::string &src, const std::string &dst) {
-    const int in = ::open(src.c_str(), O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
-    if (in < 0) return false;
-    struct stat st;
-    if (::fstat(in, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size > kMaxFileBytes) {
-        ::close(in);
-        return false;
-    }
+    fs::ReadOptions opt;
+    opt.refuseLinks = true;
     std::string data;
-    char buf[4096];
-    for (;;) {
-        const ssize_t n = ::read(in, buf, sizeof buf);
-        if (n < 0 && errno == EINTR) continue;
-        if (n <= 0) break;
-        data.append(buf, static_cast<size_t>(n));
-        if (static_cast<off_t>(data.size()) > kMaxFileBytes) {
-            ::close(in);
-            return false;
-        }
-    }
-    ::close(in);
-    const std::string tmp = dst + ".tmp." + std::to_string(static_cast<long>(::getpid()));
-    ::unlink(tmp.c_str());  // leftover of an earlier run with the same pid
-    const int out = ::open(tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
-    if (out < 0) return false;
-    size_t off = 0;
-    bool ok = true;
-    while (off < data.size()) {
-        const ssize_t n = ::write(out, data.data() + off, data.size() - off);
-        if (n < 0 && errno == EINTR) continue;
-        if (n <= 0) {
-            ok = false;
-            break;
-        }
-        off += static_cast<size_t>(n);
-    }
-    if (::close(out) != 0) ok = false;
-    // link() fails with EEXIST instead of overwriting, and the final name only ever holds a
-    // complete file (a kill in between leaves only the temp file).
-    if (ok && ::link(tmp.c_str(), dst.c_str()) != 0) ok = false;
-    ::unlink(tmp.c_str());
-    return ok;
+    if (!fs::readFileBounded(src, kMaxFileBytes, opt, &data).ok()) return false;
+    return fs::createFileExclusive(dst, data);
 }
 
 // Removes the regular files of a temporary directory and the directory itself (best effort).
 void removeTempDir(const std::string &dir) {
-    if (DIR *d = ::opendir(dir.c_str())) {
-        while (const dirent *e = ::readdir(d)) {
-            const std::string n = e->d_name;
+    std::vector<std::string> names;
+    bool capped = false;
+    if (fs::listDir(dir, 0, &names, &capped)) {
+        for (const std::string &n : names) {
             if (n == "." || n == "..") continue;
-            struct stat st;
+            fs::FileInfo fi;
             const std::string f = dir + "/" + n;
-            if (::lstat(f.c_str(), &st) == 0 && !S_ISDIR(st.st_mode)) ::unlink(f.c_str());
+            if (fs::lstatPath(f, &fi) && !fi.isDir) fs::removeFile(f);
         }
-        ::closedir(d);
     }
-    ::rmdir(dir.c_str());
+    fs::removeDir(dir);
 }
 
 // Cleans up "modes.tmp.*" directories that an interrupted earlier run left behind.
 void removeStaleModeTemps(const std::string &cfgDir) {
-    std::vector<std::string> stale;
-    if (DIR *d = ::opendir(cfgDir.c_str())) {
-        while (const dirent *e = ::readdir(d)) {
-            const std::string n = e->d_name;
-            struct stat st;
-            if (n.rfind("modes.tmp.", 0) == 0 && ::lstat((cfgDir + "/" + n).c_str(), &st) == 0 &&
-                S_ISDIR(st.st_mode))
+    std::vector<std::string> stale, names;
+    bool capped = false;
+    if (fs::listDir(cfgDir, 0, &names, &capped)) {
+        for (const std::string &n : names) {
+            fs::FileInfo fi;
+            if (n.rfind("modes.tmp.", 0) == 0 && fs::lstatPath(cfgDir + "/" + n, &fi) && fi.isDir)
                 stale.push_back(cfgDir + "/" + n);
         }
-        ::closedir(d);
     }
     for (const auto &p : stale) removeTempDir(p);
 }
 
 std::string exeDir() {
-    char buf[4096];
-    const ssize_t n = ::readlink("/proc/self/exe", buf, sizeof buf - 1);
-    if (n <= 0) return "";
-    buf[n] = 0;
-    return dirName(buf);
+    const std::string exe = fs::executablePath();
+    return exe.empty() ? std::string() : dirName(exe);
 }
 
 // First existing examples directory: $DOFSCROLL_EXAMPLES, <exe_dir>/examples,
 // <exe_dir>/../share/dofscroll/examples, /usr/local/share/..., /usr/share/...
 std::string findExamplesDir() {
     std::vector<std::string> c;
-    if (const char *e = std::getenv("DOFSCROLL_EXAMPLES"); e && *e) c.push_back(e);
+    if (const char *e = std::getenv("DOFSCROLL_EXAMPLES"); e && *e) c.push_back(toSlashes(e));
     const std::string ed = exeDir();
     if (!ed.empty()) {
         c.push_back(ed + "/examples");
         c.push_back(ed + "/../share/dofscroll/examples");
     }
+#ifndef _WIN32
     c.push_back("/usr/local/share/dofscroll/examples");
     c.push_back("/usr/share/dofscroll/examples");
+#endif
     for (const auto &d : c)
         if (isDir(d)) return d;
     return "";
@@ -174,29 +129,29 @@ bool seedDefaults(std::string *log) {
     if (needModes) {
         const std::string srcModes = ex + "/modes";
         std::vector<std::string> names;
-        if (DIR *d = ::opendir(srcModes.c_str())) {
-            while (const dirent *e = ::readdir(d)) {
-                const std::string n = e->d_name;
+        std::vector<std::string> all;
+        bool capped = false;
+        if (fs::listDir(srcModes, 0, &all, &capped)) {
+            for (const std::string &n : all) {
                 if (n.empty() || n[0] == '.' || !endsWith(n, ".conf")) continue;
-                struct stat st;
-                // lstat + S_ISREG rejects symlinks
-                if (::lstat((srcModes + "/" + n).c_str(), &st) != 0 || !S_ISREG(st.st_mode)) continue;
+                fs::FileInfo fi;
+                // lstat + regular-file check rejects symlinks
+                if (!fs::lstatPath(srcModes + "/" + n, &fi) || !fi.isFile) continue;
                 names.push_back(n);
             }
-            ::closedir(d);
         }
         std::sort(names.begin(), names.end());
         if (names.size() > kMaxModeFiles) names.resize(kMaxModeFiles);
         if (!names.empty()) {
             removeStaleModeTemps(cfgDir);
-            const std::string tmpDir = cfgDir + "/modes.tmp." + std::to_string(static_cast<long>(::getpid()));
-            if (::mkdir(tmpDir.c_str(), 0700) == 0) {
+            const std::string tmpDir = cfgDir + "/modes.tmp." + std::to_string(fs::processId());
+            if (fs::mkdirPrivate(tmpDir, nullptr) == fs::MkdirResult::Created) {
                 int cnt = 0;
                 for (const auto &n : names)
                     if (copyFile(srcModes + "/" + n, tmpDir + "/" + n)) ++cnt;
                 // Publish the complete set in one step: an interrupted run never leaves a partial
                 // modes/ directory that would be treated as "already seeded".
-                if (cnt > 0 && ::rename(tmpDir.c_str(), modesPath.c_str()) == 0)
+                if (cnt > 0 && fs::renamePath(tmpDir, modesPath))
                     msg += std::string(msg.empty() ? "" : ", ") + std::to_string(cnt) + " mode file(s)";
                 else
                     removeTempDir(tmpDir);

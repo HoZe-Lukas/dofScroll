@@ -5,10 +5,6 @@
 #include "config.hpp"
 #include "modes.hpp"
 
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include <algorithm>
 #include <cerrno>
 #include <cmath>
@@ -16,11 +12,15 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
-#include <pwd.h>
-#include <sys/random.h>
-#include <time.h>
-
 #include <sstream>
+
+#include "platform/fs.hpp"
+
+#ifndef _WIN32
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 namespace spn {
 
@@ -163,7 +163,7 @@ bool parseCurve(const std::string &text, ChannelCfg *c, std::string *err) {
     std::vector<std::pair<double, double>> pts;
     for (const std::string &t : toks) {
         size_t p = t.find(':');
-        double in, f;
+        double in = 0, f = 0;
         if (p == std::string::npos || !parseDouble(t.substr(0, p), &in) ||
             !parseDouble(t.substr(p + 1), &f))
             return setErr(err, "CURVE: invalid point '" + t + "'");
@@ -626,9 +626,9 @@ void ProfileSet::remove(size_t i) {
 
 namespace {
 
-bool isAbs(const char *p) { return p && p[0] == '/'; }
-
+#ifndef _WIN32
 // Reads from fd to EOF into *out, at most `cap` bytes. *toobig = true if there is more.
+// (Only the legacy-config migration still reads through a raw descriptor.)
 bool readBounded(int fd, size_t cap, std::string *out, bool *toobig, int *err) {
     *toobig = false;
     char buf[16384];
@@ -644,42 +644,7 @@ bool readBounded(int fd, size_t cap, std::string *out, bool *toobig, int *err) {
         out->append(buf, static_cast<size_t>(n));
     }
 }
-
-// Creates all directory components with mode 0700 (existing ones stay untouched).
-bool mkdirs0700(const std::string &dir, std::string *emsg) {
-    size_t i = 0;
-    while (i <= dir.size()) {
-        size_t j = dir.find('/', i);
-        if (j == std::string::npos) j = dir.size();
-        std::string cur = dir.substr(0, j);
-        if (!cur.empty() && cur != "." && cur != ".." && j > i) {
-            if (::mkdir(cur.c_str(), 0700) != 0 && errno != EEXIST) {
-                *emsg = cur + ": " + std::strerror(errno);
-                return false;
-            }
-        }
-        i = j + 1;
-    }
-    return true;
-}
-
-void randomSuffix(char out[17]) {
-    unsigned char r[8];
-    ssize_t n = ::getrandom(r, sizeof r, 0);
-    if (n != static_cast<ssize_t>(sizeof r)) {
-        int fd = ::open("/dev/urandom", O_RDONLY | O_CLOEXEC);
-        n = fd >= 0 ? ::read(fd, r, sizeof r) : -1;
-        if (fd >= 0) ::close(fd);
-        if (n != static_cast<ssize_t>(sizeof r)) {  // last resort: time + PID
-            struct timespec ts;
-            ::clock_gettime(CLOCK_REALTIME, &ts);
-            unsigned long long v = static_cast<unsigned long long>(ts.tv_nsec) * 6364136223846793005ULL ^
-                                   static_cast<unsigned long long>(::getpid());
-            std::memcpy(r, &v, sizeof r);
-        }
-    }
-    for (int k = 0; k < 8; k++) std::snprintf(out + 2 * k, 3, "%02x", r[k]);
-}
+#endif
 
 // Checks a raw pair of a section before writing.
 bool validPair(const KV &p, std::string *why) {
@@ -700,20 +665,9 @@ bool validPair(const KV &p, std::string *why) {
 namespace {
 
 // Base config directory (without trailing slash).
-std::string configBaseDir() {
-    const char *xdg = std::getenv("XDG_CONFIG_HOME");
-    if (isAbs(xdg)) return xdg;  // relative -> ignore (XDG spec)
-    const char *home = std::getenv("HOME");
-    if (home && *home) return std::string(home) + "/.config";
-    struct passwd *pw = ::getpwuid(::getuid());
-    if (pw && isAbs(pw->pw_dir)) return std::string(pw->pw_dir) + "/.config";
-    return "./.config";
-}
+std::string configBaseDir() { return fs::userConfigBase(); }
 
-bool lexists(const std::string &p) {
-    struct stat st;
-    return ::lstat(p.c_str(), &st) == 0;
-}
+bool lexists(const std::string &p) { return fs::pathExists(p); }
 
 }  // namespace
 
@@ -735,6 +689,13 @@ std::string defaultConfigPath() {
     return np;
 }
 
+#ifdef _WIN32
+// Windows has no legacy locations (the project never shipped there under an older name).
+bool migrateLegacyConfig(std::string *log) {
+    if (log) *log = "no old configuration to migrate (not applicable on this platform)";
+    return false;
+}
+#else
 bool migrateLegacyConfig(std::string *log) {
     auto fail = [&](const std::string &msg) {
         if (log) *log = msg;
@@ -797,7 +758,7 @@ bool migrateLegacyConfig(std::string *log) {
     }
 
     std::string emsg;
-    if (!mkdirs0700(dir, &emsg)) return fail(emsg);
+    if (!fs::mkdirsPrivate(dir, &emsg)) return fail(emsg);
     int dfd = ::open(dir.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (dfd < 0) return fail(dir + ": " + std::strerror(errno));
     struct DirGuard { int fd; ~DirGuard() { ::close(fd); } } guard{dfd};
@@ -819,7 +780,7 @@ bool migrateLegacyConfig(std::string *log) {
     int fd = -1;
     for (int attempt = 0; attempt < 8 && fd < 0; attempt++) {
         char suf[17];
-        randomSuffix(suf);
+        fs::randomHex16(suf);
         tmp = std::string(base) + ".tmp." + suf;
         fd = ::openat(dfd, tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
         if (fd < 0 && errno != EEXIST) return fail(dir + "/" + tmp + ": " + std::strerror(errno));
@@ -848,6 +809,7 @@ bool migrateLegacyConfig(std::string *log) {
     if (log) *log = okMsg;
     return true;
 }
+#endif  // _WIN32
 
 bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::string> *warnings) {
     ProfileSet ps;
@@ -863,36 +825,26 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
         nwarn++;
         warnings->push_back(path + ":" + std::to_string(line) + ": " + msg);
     };
-    // Open once, then work only through the fd (no stat/open race).
-    int fd = ::open(path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-    if (fd < 0) {
-        int e = errno;
-        if (e == ENOENT) { if (out) *out = ps; return true; }  // missing file = defaults
-        if (warnings) warnings->push_back(path + ": " + std::strerror(e));
+    // Open once, then work only through the handle (no stat/open race); see platform/fs.hpp.
+    const std::string tooBigMsg = path + ": file too large (max. " + std::to_string(kMaxConfigBytes) + " bytes)";
+    std::string data;
+    const fs::ReadResult rr = fs::readFileBounded(path, kMaxConfigBytes, fs::ReadOptions(), &data);
+    switch (rr.status) {
+    case fs::ReadStatus::Ok:
+        break;
+    case fs::ReadStatus::NotFound:
+        if (out) *out = ps;  // missing file = defaults
+        return true;
+    case fs::ReadStatus::OpenFailed:
+    case fs::ReadStatus::ReadFailed:
+        if (warnings) warnings->push_back(path + ": " + rr.sysError);
         return false;
-    }
-    struct stat st;
-    if (::fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
-        ::close(fd);
+    case fs::ReadStatus::NotRegular:
+    case fs::ReadStatus::NotOwned:
         if (warnings) warnings->push_back(path + ": not a regular file");
         return false;
-    }
-    const std::string tooBigMsg = path + ": file too large (max. " + std::to_string(kMaxConfigBytes) + " bytes)";
-    if (st.st_size > 0 && static_cast<size_t>(st.st_size) > kMaxConfigBytes) {
-        ::close(fd);
-        if (warnings) warnings->push_back(tooBigMsg);
-        return false;
-    }
-    std::string data;
-    bool toobig = false;
-    int rerr = 0;
-    bool rok = readBounded(fd, kMaxConfigBytes, &data, &toobig, &rerr);
-    ::close(fd);
-    if (!rok) {
-        if (warnings) warnings->push_back(path + ": " + std::strerror(rerr));
-        return false;
-    }
-    if (toobig) {
+    case fs::ReadStatus::TooLargeBySize:
+    case fs::ReadStatus::TooLargeWhileReading:
         if (warnings) warnings->push_back(tooBigMsg);
         return false;
     }
@@ -1020,80 +972,7 @@ bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *er
         }
     }
 
-    // Resolve symlink: temp next to the real target, so the link is preserved.
-    std::string real = path;
-    bool resolved = false;
-    for (int depth = 0; depth <= 16; depth++) {
-        struct stat lst;
-        if (::lstat(real.c_str(), &lst) != 0 || !S_ISLNK(lst.st_mode)) { resolved = true; break; }
-        if (depth == 16) break;
-        std::string l(4096, '\0');
-        ssize_t n = ::readlink(real.c_str(), &l[0], l.size());
-        if (n < 0) return setErr(err, real + ": " + std::strerror(errno));
-        l.resize(static_cast<size_t>(n));
-        if (l.empty()) return setErr(err, real + ": empty symlink");
-        if (l[0] == '/') {
-            real = l;
-        } else {
-            size_t slash = real.rfind('/');
-            real = (slash == std::string::npos ? std::string() : real.substr(0, slash + 1)) + l;
-        }
-    }
-    if (!resolved) return setErr(err, path + ": " + std::strerror(ELOOP) + " (more than 16 symlinks)");
-
-    std::string dir, base;
-    {
-        size_t slash = real.rfind('/');
-        if (slash == std::string::npos) { dir = "."; base = real; }
-        else { dir = slash == 0 ? "/" : real.substr(0, slash); base = real.substr(slash + 1); }
-    }
-    if (base.empty() || base == "." || base == "..") return setErr(err, real + ": invalid file name");
-    if (dir != "." && dir != "/") {
-        std::string emsg;
-        if (!mkdirs0700(dir, &emsg)) return setErr(err, emsg);
-    }
-    // Open the directory once; temp file, rename and fsync all go through this handle.
-    int dfd = ::open(dir.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (dfd < 0) return setErr(err, dir + ": " + std::strerror(errno));
-    struct DirGuard { int fd; ~DirGuard() { ::close(fd); } } guard{dfd};
-
-    mode_t mode = 0600;
-    struct stat est;
-    if (::fstatat(dfd, base.c_str(), &est, AT_SYMLINK_NOFOLLOW) == 0) {
-        if (!S_ISREG(est.st_mode)) return setErr(err, real + ": not a regular file");
-        mode = est.st_mode & 0777;  // never carry over setuid/setgid/sticky
-    }
-
-    std::string tmp;
-    int fd = -1;
-    for (int attempt = 0; attempt < 8 && fd < 0; attempt++) {
-        char suf[17];
-        randomSuffix(suf);
-        tmp = base + ".tmp." + suf;
-        fd = ::openat(dfd, tmp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
-        if (fd < 0 && errno != EEXIST) return setErr(err, dir + "/" + tmp + ": " + std::strerror(errno));
-    }
-    if (fd < 0) return setErr(err, dir + "/" + base + ".tmp.*: " + std::strerror(EEXIST));
-
-    std::string m;
-    const std::string data = os.str();
-    size_t off = 0;
-    while (off < data.size()) {
-        ssize_t n = ::write(fd, data.data() + off, data.size() - off);
-        if (n < 0 && errno == EINTR) continue;
-        if (n <= 0) { m = tmp + ": write failed: " + std::strerror(n < 0 ? errno : EIO); break; }
-        off += static_cast<size_t>(n);
-    }
-    if (m.empty() && ::fchmod(fd, mode) != 0) m = tmp + ": chmod: " + std::strerror(errno);
-    if (m.empty() && ::fsync(fd) != 0) m = tmp + ": fsync: " + std::strerror(errno);
-    if (::close(fd) != 0 && m.empty()) m = tmp + ": close: " + std::strerror(errno);
-    if (m.empty() && ::renameat(dfd, tmp.c_str(), dfd, base.c_str()) != 0) m = real + ": " + std::strerror(errno);
-    if (!m.empty()) {
-        (void)::unlinkat(dfd, tmp.c_str(), 0);
-        return setErr(err, m);
-    }
-    (void)::fsync(dfd);  // persist the directory entry (best effort)
-    return true;
+    return fs::writeFileReplace(path, os.str(), err);
 }
 
 }  // namespace spn

@@ -7,9 +7,9 @@
 #include <cmath>
 #include <iostream>
 #include <thread>
-#include <sys/stat.h>
 
 #include "log_sanitize.hpp"
+#include "platform/fs.hpp"
 #include "profile_match.hpp"
 
 namespace spn {
@@ -200,12 +200,12 @@ DaemonCore::DaemonCore(DaemonDeps deps)
 
 DaemonCore::FileStamp DaemonCore::statFile(const std::string &path) {
     FileStamp f;
-    struct stat st;
-    if (::stat(path.c_str(), &st) == 0) {
+    fs::FileInfo fi;
+    if (fs::statPath(path, &fi)) {
         f.exists = true;
-        f.mtime_ns = (int64_t)st.st_mtim.tv_sec * 1'000'000'000 + st.st_mtim.tv_nsec;
-        f.size = (int64_t)st.st_size;
-        f.ino = (uint64_t)st.st_ino;
+        f.mtime_ns = fi.mtimeNs;
+        f.size = fi.size;
+        f.ino = fi.fileId;
     }
     return f;
 }

@@ -6,6 +6,9 @@
 # fast: -Werror build + all tests (incl. example config validation)
 # full: fast + ASan/UBSan tests + cppcheck + hardening check of the -Werror build.
 # Everything is built in subdirectories of BIN; the main build is never touched.
+if(NOT DEFINED CORE_ONLY)
+  set(CORE_ONLY OFF)
+endif()
 set(fail 0)
 set(CT ${CMAKE_COMMAND})
 get_filename_component(CTEST_DIR "${CMAKE_COMMAND}" DIRECTORY)
@@ -25,7 +28,7 @@ endfunction()
 
 set(WD ${BIN}/check-werror)
 step(werror-configure COMMAND ${CT} -S ${SRC} -B ${WD} -DDOFSCROLL_WERROR=ON
-     -DDOFSCROLL_TRAY=${WITH_TRAY})
+     -DDOFSCROLL_TRAY=${WITH_TRAY} -DDOFSCROLL_CORE_ONLY=${CORE_ONLY})
 step(werror-build COMMAND ${CT} --build ${WD} -j4)
 step(test COMMAND ${CTEST_EXE} --test-dir ${WD} --output-on-failure)
 
@@ -41,7 +44,7 @@ if(MODE STREQUAL "full")
   if(asan_rc EQUAL 0)
     set(AD ${BIN}/check-asan)
     step(asan-configure COMMAND ${CT} -S ${SRC} -B ${AD} -DDOFSCROLL_SANITIZE=ON
-         -DDOFSCROLL_TRAY=OFF)
+         -DDOFSCROLL_TRAY=OFF -DDOFSCROLL_CORE_ONLY=${CORE_ONLY})
     step(asan-build COMMAND ${CT} --build ${AD} -j4)
     step(asan-test COMMAND ${CTEST_EXE} --test-dir ${AD} --output-on-failure)
   elseif(REQUIRE_ASAN)
