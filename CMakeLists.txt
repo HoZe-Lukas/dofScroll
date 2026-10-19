@@ -12,12 +12,13 @@
 #   cmake --install build --prefix /usr         # or: cpack --config build/CPackConfig.cmake
 #
 # Options: DOFSCROLL_TRAY (ON, needs GTK3 + appindicator), DOFSCROLL_HARDEN (ON),
-#          DOFSCROLL_SANITIZE (OFF, ASan/UBSan), DOFSCROLL_WERROR (OFF).
+#          DOFSCROLL_SANITIZE (OFF, ASan/UBSan), DOFSCROLL_WERROR (OFF),
+#          DOFSCROLL_CORE_ONLY (ON outside Linux: core library + tests, no daemon/tray; the
+#          Windows and macOS backends are added by cmake/windows.cmake and cmake/macos.cmake).
 #
 # Packaging notes: Linux packages (RPM, DEB, TGZ) are produced by CPack, see
 # packaging/cpack/DofscrollCPack.cmake. Windows and macOS packages are not
-# produced by this build: the daemon depends on X11, libspnav and uinput
-# (see docs/windows-mac.md).
+# produced by this build (see docs/windows-mac.md).
 
 cmake_minimum_required(VERSION 3.16)
 project(dofscroll VERSION 0.1.0 LANGUAGES CXX
@@ -32,27 +33,52 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # -O2 without NDEBUG: the tests rely on assert(), which NDEBUG would remove.
-set(CMAKE_CXX_FLAGS_RELEASE "-O2" CACHE STRING "" FORCE)
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g" CACHE STRING "" FORCE)
+if(MSVC)
+  set(CMAKE_CXX_FLAGS_RELEASE "/O2 /Ob2" CACHE STRING "" FORCE)
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/O2 /Ob1 /Zi" CACHE STRING "" FORCE)
+else()
+  set(CMAKE_CXX_FLAGS_RELEASE "-O2" CACHE STRING "" FORCE)
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g" CACHE STRING "" FORCE)
+endif()
 
 option(DOFSCROLL_TRAY     "Build the GTK tray (needs gtk3 + appindicator)" ON)
 option(DOFSCROLL_HARDEN   "Enable hardening compiler/linker flags" ON)
 option(DOFSCROLL_SANITIZE "Build with ASan/UBSan" OFF)
 option(DOFSCROLL_WERROR   "Treat warnings as errors" OFF)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  option(DOFSCROLL_CORE_ONLY "Build only the core library and the tests" OFF)
+else()
+  option(DOFSCROLL_CORE_ONLY "Build only the core library and the tests" ON)
+endif()
 
 include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
 include(CTest)
-find_package(PkgConfig REQUIRED)
+if(NOT DOFSCROLL_CORE_ONLY)
+  find_package(PkgConfig REQUIRED)
+endif()
 find_package(Threads REQUIRED)
 
 # ---- flags ------------------------------------------
 add_library(dofscroll_flags INTERFACE)
-target_compile_options(dofscroll_flags INTERFACE -Wall -Wextra)
-if(DOFSCROLL_WERROR)
-  target_compile_options(dofscroll_flags INTERFACE -Werror)
+if(MSVC)
+  target_compile_options(dofscroll_flags INTERFACE /W4 /utf-8 /permissive- /EHsc)
+  target_compile_definitions(dofscroll_flags INTERFACE _CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN)
+  if(DOFSCROLL_WERROR)
+    target_compile_options(dofscroll_flags INTERFACE /WX)
+  endif()
+else()
+  target_compile_options(dofscroll_flags INTERFACE -Wall -Wextra)
+  if(DOFSCROLL_WERROR)
+    target_compile_options(dofscroll_flags INTERFACE -Werror)
+  endif()
 endif()
-if(DOFSCROLL_HARDEN)
+if(WIN32 AND NOT MSVC)
+  target_compile_definitions(dofscroll_flags INTERFACE NOMINMAX WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0A00)
+endif()
+# The hardening flags below are GCC/Clang on Linux (ELF linker options); see docs/security.md
+# for the Windows (/GS, /DYNAMICBASE, CFG are MSVC defaults) and macOS notes.
+if(DOFSCROLL_HARDEN AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_compile_options(dofscroll_flags INTERFACE
     -fstack-protector-strong -D_GLIBCXX_ASSERTIONS -Wformat -Wformat-security)
   # _FORTIFY_SOURCE only works with optimization
@@ -83,11 +109,22 @@ file(GLOB BACKEND_SRC CONFIGURE_DEPENDS
      ${CMAKE_SOURCE_DIR}/src/output*.cpp ${CMAKE_SOURCE_DIR}/src/activewin.cpp)
 set(CORE_SRC ${ALL_SRC})
 list(REMOVE_ITEM CORE_SRC ${PROGRAM_SRC} ${BACKEND_SRC})
+# File-system layer: one implementation per OS family (src/platform/fs.hpp).
+if(WIN32)
+  list(APPEND CORE_SRC ${CMAKE_SOURCE_DIR}/src/platform/fs_win.cpp)
+else()
+  list(APPEND CORE_SRC ${CMAKE_SOURCE_DIR}/src/platform/fs_posix.cpp)
+endif()
 
 add_library(dofscroll_core STATIC ${CORE_SRC})
 target_include_directories(dofscroll_core PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(dofscroll_core PUBLIC dofscroll_flags Threads::Threads)
+if(WIN32)
+  target_link_libraries(dofscroll_core PUBLIC advapi32 bcrypt)
+endif()
 
+set(DOFSCROLL_BUILD_TRAY OFF)
+if(NOT DOFSCROLL_CORE_ONLY)
 # ---- daemon -----------------------------------------------------------------
 pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11 xtst)
 find_library(SPNAV_LIB spnav REQUIRED)
@@ -99,7 +136,6 @@ target_include_directories(dofscroll PRIVATE ${SPNAV_INCLUDE})
 target_link_libraries(dofscroll PRIVATE dofscroll_core PkgConfig::X11 ${SPNAV_LIB})
 
 # ---- tray (optional) --------------------------------------------------------
-set(DOFSCROLL_BUILD_TRAY OFF)
 if(DOFSCROLL_TRAY)
   pkg_check_modules(GTK3 IMPORTED_TARGET gtk+-3.0 appindicator3-0.1)
   if(GTK3_FOUND)
@@ -111,6 +147,7 @@ if(DOFSCROLL_TRAY)
     message(WARNING "gtk3/appindicator not found: dofscroll-tray is not built")
   endif()
 endif()
+endif()  # NOT DOFSCROLL_CORE_ONLY
 
 # ---- tests ------------------------------------------------------------------
 file(GLOB TEST_SRC CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/tests/test_*.cpp)
@@ -148,7 +185,7 @@ endif()
 # They configure/build in <build>/check-werror and <build>/check-asan.
 option(DOFSCROLL_REQUIRE_ASAN "check: missing libasan/libubsan is an error (CI)" OFF)
 set(CHECK_COMMON -DSRC=${CMAKE_SOURCE_DIR} -DBIN=${CMAKE_BINARY_DIR}
-    -DWITH_TRAY=${DOFSCROLL_TRAY} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER})
+    -DWITH_TRAY=${DOFSCROLL_TRAY} -DCORE_ONLY=${DOFSCROLL_CORE_ONLY} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER})
 if(DOFSCROLL_REQUIRE_ASAN)
   list(APPEND CHECK_COMMON -DREQUIRE_ASAN=1)
 endif()
@@ -181,8 +218,10 @@ add_custom_target(uninstall COMMAND ${CMAKE_COMMAND}
                   -P ${CMAKE_SOURCE_DIR}/cmake/Uninstall.cmake USES_TERMINAL VERBATIM)
 
 # ---- install ----------------------------------------------------------------
+if(NOT DOFSCROLL_CORE_ONLY)
 install(TARGETS dofscroll RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES systemd/dofscroll.service DESTINATION ${CMAKE_INSTALL_LIBDIR}/systemd/user)
+endif()
 if(DOFSCROLL_BUILD_TRAY)
   install(TARGETS dofscroll-tray RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   install(FILES icons/dofscroll-tray.svg
