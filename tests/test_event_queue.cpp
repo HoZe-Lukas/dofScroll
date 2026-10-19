@@ -65,6 +65,14 @@ int main() {
     q.push(motion(7));
     assert(q.wait(&e, 0) == WaitResult::Event && e.axes[0] == 7);
 
+    {  // non-motion floods stay bounded (hard limit 4 * max), motion keeps flowing
+        EventQueue f(4);
+        InputEvent b;
+        b.type = InputEventType::Button;
+        for (int i = 0; i < 1000; ++i) f.push(b);
+        assert(f.size() == 16);
+    }
+
     std::puts("test_event_queue: ok");
     return 0;
 }

@@ -40,6 +40,8 @@ extern "C" {  // some header sets (MinGW-w64) lack the C linkage guards of the H
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <cstdio>
 #include <iostream>
 #include <memory>
@@ -60,6 +62,7 @@ namespace spn {
 namespace {
 
 constexpr int kRescanMs = 2000;
+constexpr unsigned kEmptyReadsFree = 8;  // empty completions tolerated before the reader backs off
 const char *const kLog = "[dofscroll] ";
 
 // DEVPKEY_Device_ContainerId {8c7ed206-3f8a-4827-b3ab-ae9e1faefc6c}, 2 (defined here so no
@@ -186,6 +189,60 @@ Probe probe(const Found &f, std::string *why) {
     wchar_t name[128] = L"";
     if (::HidD_GetProductString(h, name, sizeof name - sizeof(wchar_t))) p.product = narrow(name);
     return p;
+}
+
+// HidD_* calls (attributes, preparsed data, strings) can block for a long time on a misbehaving
+// device or driver, and scan() runs on the manager thread that close() joins. So the probe runs on
+// a helper thread; the manager waits for it in short slices, up to kProbeTimeoutMs and only while
+// the source is running. A probe that does not finish is abandoned: CancelSynchronousIo is
+// requested, the helper thread is detached and closes the handle itself once it returns.
+constexpr int kProbeTimeoutMs = 3000;
+constexpr int kProbeSliceMs = 50;
+
+struct ProbeJob {
+    std::mutex mu;
+    std::condition_variable cv;
+    bool done = false;
+    bool abandoned = false;
+    Probe result;
+    std::string why;
+};
+
+Probe probeBounded(const Found &f, const std::atomic<bool> &running, std::string *why) {
+    auto job = std::make_shared<ProbeJob>();
+    std::thread th([job, f] {
+        std::string w;
+        Probe p = probe(f, &w);
+        std::lock_guard<std::mutex> lk(job->mu);
+        if (job->abandoned) {
+            if (p.h != INVALID_HANDLE_VALUE) ::CloseHandle(p.h);
+            return;
+        }
+        job->result = std::move(p);
+        job->why = std::move(w);
+        job->done = true;
+        job->cv.notify_all();
+    });
+    HANDLE native = th.native_handle();
+    std::unique_lock<std::mutex> lk(job->mu);
+    int waited = 0;
+    while (!job->done && running && waited < kProbeTimeoutMs) {
+        job->cv.wait_for(lk, std::chrono::milliseconds(kProbeSliceMs));
+        waited += kProbeSliceMs;
+    }
+    if (!job->done) {
+        job->abandoned = true;
+        ::CancelSynchronousIo(native);  // best effort; the thread is detached either way
+        lk.unlock();
+        th.detach();
+        *why = running ? "probe timed out (device or driver does not answer)" : "stopped";
+        return Probe();
+    }
+    Probe out = std::move(job->result);
+    *why = job->why;
+    lk.unlock();
+    th.join();
+    return out;
 }
 
 // One accepted device with its reader thread.
@@ -321,7 +378,7 @@ private:
             const auto it = std::find_if(found.begin(), found.end(), [&](const Found &f) { return f.path == path; });
             if (it == found.end()) continue;
             std::string why;
-            Probe p = probe(*it, &why);
+            Probe p = probeBounded(*it, running_, &why);
             if (p.h == INVALID_HANDLE_VALUE) {
                 // sharing violations may be temporary (driver start-up): retry at the next rescan
                 std::cerr << kLog << "HID interface " << sanitizeForLog(path, 96) << ": " << why << std::endl;
@@ -383,6 +440,7 @@ private:
             return;
         }
         std::vector<InputEvent> ev;
+        unsigned emptyReads = 0;  // consecutive completed reads with 0 bytes
         for (;;) {
             ::ResetEvent(ov.hEvent);
             DWORD n = 0;
@@ -397,6 +455,17 @@ private:
                     break;
                 }
                 if (!::GetOverlappedResult(d.h, &ov, &n, FALSE)) break;
+            }
+            if (n == 0) {
+                // A read that completes at once with no data would spin this thread at 100% CPU
+                // (misbehaving driver): back off, 5 ms doubling up to 500 ms, interruptible by stop.
+                if (++emptyReads > kEmptyReadsFree) {
+                    const unsigned shift = std::min(emptyReads - kEmptyReadsFree - 1, 7u);
+                    const DWORD delay = std::min<DWORD>(500, 5u << shift);
+                    if (::WaitForSingleObject(d.stopEvt, delay) == WAIT_OBJECT_0) break;
+                }
+            } else {
+                emptyReads = 0;
             }
             if (n > 0) {
                 ev.clear();
@@ -417,7 +486,7 @@ private:
     std::vector<std::string> rejected_;
     std::thread mgr_;
     HANDLE stopMgr_ = nullptr;
-    bool running_ = false;
+    std::atomic<bool> running_{false};
 };
 
 }  // namespace
