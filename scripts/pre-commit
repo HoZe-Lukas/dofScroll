@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 # Git pre-commit hook for dofscroll (POSIX sh).
 #
 # Installation: scripts/install-hooks.sh (links .git/hooks/pre-commit to this file).

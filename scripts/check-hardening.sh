@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 # Checks ELF binaries for hardening (readelf/objdump/nm only, no checksec).
 # Usage: scripts/check-hardening.sh BINARY [BINARY ...]
 # Exit 0 = all checks passed, 1 = at least one failed, 2 = usage error.
