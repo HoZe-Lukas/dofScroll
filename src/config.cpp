@@ -163,7 +163,7 @@ bool parseCurve(const std::string &text, ChannelCfg *c, std::string *err) {
     std::vector<std::pair<double, double>> pts;
     for (const std::string &t : toks) {
         size_t p = t.find(':');
-        double in, f;
+        double in = 0, f = 0;
         if (p == std::string::npos || !parseDouble(t.substr(0, p), &in) ||
             !parseDouble(t.substr(p + 1), &f))
             return setErr(err, "CURVE: invalid point '" + t + "'");

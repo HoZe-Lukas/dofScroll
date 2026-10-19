@@ -21,15 +21,15 @@ static int failures = 0;
     std::fprintf(stderr, "FAIL %s:%d: %s -- ", __FILE__, __LINE__, #cond); \
     std::fprintf(stderr, __VA_ARGS__); std::fprintf(stderr, "\n"); } } while (0)
 
-struct Rec {
+struct DcRec {
     int wv = 0, wh = 0, abs_zoom = 0, ctrl_presses = 0;
     bool ctrl = false;
     std::vector<std::string> mouse;
 };
 
 struct RecOutput : Output {
-    Rec *r;
-    explicit RecOutput(Rec *rec) : r(rec) {}
+    DcRec *r;
+    explicit RecOutput(DcRec *rec) : r(rec) {}
     const char *name() const override { return "rec"; }
     bool init(std::string *) override { return true; }
     void wheelV(int n) override {
@@ -78,15 +78,14 @@ static void writeFile(const std::string &p, const std::string &text) {
 
 struct Rig {
     std::string dir, conf;
-    Rec rec;
+    DcRec rec;
     TestSource src;
     FakeWindow win;
     FakeReload reload;
     int64_t now = 10'000'000'000;  // fake clock (ns), well above the stale window
     std::unique_ptr<DaemonCore> core;
 
-    explicit Rig(const std::string &config) {
-        dir = tu::makeTempDir("dofscroll-core-test");
+    explicit Rig(const std::string &config) : dir(tu::makeTempDir("dofscroll-core-test")) {
         conf = dir + "/dofscroll.conf";
         writeFile(conf, config);
         DeviceInfo di;
@@ -99,7 +98,7 @@ struct Rig {
         deps.reload = &reload;
         deps.paths.configDir = dir;  // config: <dir>/dofscroll.conf, modes: <dir>/modes (absent)
         deps.paths.runtimeDir = dir;
-        Rec *rp = &rec;
+        DcRec *rp = &rec;
         deps.makeOutput = [rp](const std::string &, std::string *) {
             return std::unique_ptr<Output>(new RecOutput(rp));
         };
@@ -141,7 +140,7 @@ static void testMotion() {
     CHECK(r.rec.abs_zoom == 0 && r.rec.ctrl_presses == 0, "zoom while scrolling");
     r.src.pushMotion(0, 0, 0, 0, 0, 0, 0);
     r.run(0.3);
-    r.rec = Rec();
+    r.rec = DcRec();
     r.src.pushMotion(0, 82, 144, 90, 35, 350, 111);
     r.run(1.0);
     CHECK(r.rec.abs_zoom > 0 && r.rec.ctrl_presses >= 1, "twist must zoom (zoom=%d)", r.rec.abs_zoom);
