@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Platform-independent daemon core (see daemon_core.hpp).
 #include "daemon_core.hpp"
+#include "device_db.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -85,6 +86,11 @@ std::string DeviceReader::deviceName() const {
     return dev_name_;
 }
 
+std::vector<DeviceInfo> DeviceReader::deviceList() const {
+    std::lock_guard<std::mutex> lk(name_mutex_);
+    return dev_list_;
+}
+
 void DeviceReader::start() {
     std::thread t(&DeviceReader::loop, this);
     t.detach();
@@ -107,6 +113,7 @@ void DeviceReader::publishDeviceInfo() {
     {
         std::lock_guard<std::mutex> lk(name_mutex_);
         dev_name_ = name;
+        dev_list_ = devs;
     }
     dev_generation.fetch_add(1, std::memory_order_release);
 }
@@ -431,6 +438,22 @@ void DaemonCore::updateProfile(int64_t now_ns) {
         next_devcount_ = 0;  // recount right after a (re)connect
         std::string name = reader_.deviceName();
         warn_buttons_ = true;
+        if (d_.liveFeed) {
+            live_.devices.clear();
+            for (const DeviceInfo &di : reader_.deviceList()) {
+                if (live_.devices.size() >= kLiveMaxDevices) break;
+                LiveDevice ld;
+                ld.id = static_cast<uint8_t>(di.id);
+                ld.vendor = static_cast<uint16_t>(di.vendor);
+                ld.product = static_cast<uint16_t>(di.product);
+                ld.reportedButtons = di.reportedButtons;
+                ld.factoryButtons = factoryButtonCount(di.name, di.reportedButtons);
+                ld.axes = di.axes;
+                ld.name = di.name;
+                live_.devices.push_back(std::move(ld));
+            }
+            live_.devicesRev++;
+        }
         if (name != device_) {
             device_ = name;
             need_resolve = true;

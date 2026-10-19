@@ -8,6 +8,8 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <string>
+#include <vector>
 
 #include "live_feed/live_feed.hpp"
 
@@ -38,8 +40,27 @@ public:
 
     // Polls the client and feeds every received sample; returns how many arrived.
     int pump(LiveFeedClient &client, int64_t nowNs) {
-        return client.poll(nowNs, [&](const LiveSample &s) { update(s, nowNs); });
+        const int n = client.poll(nowNs, [&](const LiveSample &s) { update(s, nowNs); });
+        if (client.infoCount() != infoSeen_) {  // new device list (or reconnect with a fresh one)
+            infoSeen_ = client.infoCount();
+            devices_ = client.devices();
+            hasDevices_ = true;
+        } else if (client.state() != LiveFeedClient::State::Connected) {
+            devices_.clear();  // daemon gone: its device list is no longer known
+            hasDevices_ = false;
+        }
+        return n;
     }
+
+    // Device info frame of the daemon. hasDevices() is false until the first frame arrives and
+    // while the feed is unavailable (consumers then fall back to the status file).
+    bool hasDevices() const { return hasDevices_; }
+    const std::vector<LiveDevice> &devices() const { return devices_; }
+    uint32_t infoRevision() const { return infoSeen_; }
+    // Name of the first device ("" if none), and the number of configurable buttons: the factory
+    // count of the first device (0 if no device is known).
+    std::string deviceName() const { return devices_.empty() ? std::string() : devices_.front().name; }
+    int factoryButtons() const { return devices_.empty() ? 0 : devices_.front().factoryButtons; }
 
     bool hasSample() const { return has_; }
     const LiveSample &latest() const { return latest_; }
@@ -66,6 +87,9 @@ private:
     int64_t lastNs_ = 0;
     bool has_ = false, seeded_ = false;
     uint64_t samples_ = 0;
+    std::vector<LiveDevice> devices_;
+    uint32_t infoSeen_ = 0;
+    bool hasDevices_ = false;
 };
 
 }  // namespace spn

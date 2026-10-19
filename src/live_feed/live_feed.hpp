@@ -70,6 +70,7 @@ private:
         std::unique_ptr<FeedConn> conn;
         std::vector<uint8_t> pending;  // unsent rest of a partially written frame
         int droppedInRow = 0;
+        bool needInfo = true;          // device info frame not sent yet (connect or device-list change)
     };
     std::unique_ptr<FeedListener> listener_;
     LiveFeedOptions opt_;
@@ -77,6 +78,9 @@ private:
     std::vector<Client> clients_;
     int64_t nextAccept_ = 0, nextFrame_ = 0;
     uint32_t seq_ = 0;
+    std::vector<uint8_t> infoFrame_;  // current device info frame
+    uint32_t infoRev_ = 0;
+    bool haveInfo_ = false;
     uint64_t sent_ = 0, dropped_ = 0, disconnects_ = 0;
 
     void acceptNew(bool keep);
@@ -108,6 +112,11 @@ public:
     // samples delivered.
     int poll(int64_t nowNs, const std::function<void(const LiveSample &)> &onSample);
 
+    // Device info of the daemon (valid while Connected; empty until the first info frame, which the
+    // daemon sends right after connecting). infoCount() increases with every info frame received.
+    const std::vector<LiveDevice> &devices() const { return parser_.devices(); }
+    uint32_t infoCount() const { return infoTotal_ + parser_.infoCount(); }
+
     State state() const { return state_; }
     const std::string &lastError() const { return err_; }
     uint64_t samples() const { return samples_; }
@@ -122,6 +131,7 @@ private:
     std::string err_;
     int64_t nextConnect_ = 0, backoff_;
     uint64_t samples_ = 0, connects_ = 0;
+    uint32_t infoTotal_ = 0;  // info frames of earlier connections (keeps infoCount() monotonic)
 
     void drop(int64_t nowNs, const std::string &why, State st);
 };
