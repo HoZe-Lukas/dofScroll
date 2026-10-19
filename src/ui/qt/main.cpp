@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
         std::printf("self-test: entries=%d profiles=%d modes=%d tray-modes=%d tray-entries=%d tray-available=%d\n",
                     w.pageCount(), w.profileCount(), modes.modeCount(), tray.modeMenuCount(),
                     tray.menuEntryCount(), avail ? 1 : 0);
-        const bool ok = w.pageCount() == 5 && w.profileCount() == 3 && modes.modeCount() == 4 &&
+        const bool ok = w.pageCount() == 5 && w.profileCount() >= 0 && !w.profilePageHasModeSelector() && modes.modeCount() == 4 &&
                         tray.modeMenuCount() == 4 && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
         return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen

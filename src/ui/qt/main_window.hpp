@@ -34,7 +34,6 @@ private slots:
 
 private:
     void updateStatus();
-    void rebuildProfilePage(QTreeWidgetItem *profile);
 
     // Declared before ctx_ and the widgets: the pages reference them.
     spn::ui::SettingsModel settings_;
@@ -44,6 +43,5 @@ private:
     UiContext ctx_;
     QTreeWidget *nav_;
     QStackedWidget *stack_;
-    QWidget *profilePage_ = nullptr;
-    bool modeSelectorVisible_ = false;
+    QWidget *profilesPage_ = nullptr;  // the "Profiles" page from the registry
 };

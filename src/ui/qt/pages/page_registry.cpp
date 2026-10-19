@@ -8,6 +8,7 @@
 #include "pages/channels_page.hpp"
 #include "pages/general_page.hpp"
 #include "pages/modes_page.hpp"
+#include "pages/profiles_page.hpp"
 #include "ui_i18n.hpp"
 
 // One line per page, in navigation order; each page declares its factory in its own header.
@@ -17,6 +18,7 @@ const std::vector<PageFactory> &pageFactories() {
         {"general", "General", createGeneralPage},
         {"axes", "Axes", createAxesPage},
         {"modes", "Modes", makeModesPage},
+        {"profiles", "Profiles", createProfilesPage},
     };
     return factories;
 }

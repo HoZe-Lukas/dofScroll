@@ -324,6 +324,29 @@ public:
         dirty_ = true;
         return idx;
     }
+    // Renames a device/app profile (changes its match string). Fails for [global], for an invalid
+    // pattern and when another profile of the same kind already uses it (case-insensitive).
+    bool renameSection(size_t i, const std::string &pattern, std::string *err) {
+        if (i == 0 || i >= ps_.sections.size()) return failb(err, "this profile cannot be renamed");
+        std::string norm;
+        if (!ProfileSet::normalizePattern(pattern, &norm))
+            return failb(err, "invalid profile name (empty, ']' or line break)");
+        auto low = [](std::string s) {
+            for (char &c : s) c = char(std::tolower(static_cast<unsigned char>(c)));
+            return s;
+        };
+        for (size_t k = 1; k < ps_.sections.size(); ++k)
+            if (k != i && ps_.sections[k].kind == ps_.sections[i].kind &&
+                low(ps_.sections[k].pattern) == low(norm))
+                return failb(err, "a profile with this name already exists");
+        if (ps_.sections[i].pattern == norm) return true;
+        ps_.sections[i].pattern = norm;
+        ProfileSet fresh;  // drops the stale search index
+        fresh.sections = ps_.sections;
+        ps_ = fresh;
+        dirty_ = true;
+        return true;
+    }
     bool removeSection(size_t i, std::string *err) {
         if (i == 0 || i >= ps_.sections.size()) return failb(err, "this profile cannot be removed");
         ps_.remove(i);
