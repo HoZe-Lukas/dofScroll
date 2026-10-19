@@ -137,9 +137,8 @@ void testRejects() {
         run({'D', 'F', 'L', 'V', 9}, LiveParseError::EVersionMismatch);
     }
     {  // length shorter than the fixed part / inconsistent with mode_len
-        std::vector<uint8_t> f = good;
-        f[6] = 10, f[7] = 0;
-        f.resize(kLiveHeaderBytes + 10);
+        std::vector<uint8_t> f = {'D', 'F', 'L', 'V', kLiveVersion, kLiveTypeSample, 10, 0};
+        f.insert(f.end(), 10, 0);
         run(f, LiveParseError::EBadLength);
         run(mut(kLiveHeaderBytes + 45, 3), LiveParseError::EBadLength);
         run(mut(kLiveHeaderBytes + 45, 200), LiveParseError::EBadLength);
@@ -255,13 +254,13 @@ void testSlowClients() {
     int64_t t = 1000 * MS;
     srv.publish(sample(), t);
     assert(srv.clientCount() == 2);
+    assert(sp->out.size() == 10);  // never more than the buffer took, and never blocked
     for (int i = 0; i < 20 && srv.clientCount() == 2; i++) {
         t += 40 * MS;
         srv.publish(sample(), t);
     }
     assert(srv.clientCount() == 1 && srv.disconnects() == 1 && srv.framesDropped() >= 5);
-    assert(sp->out.size() == 10);  // never more than the buffer took, and never blocked
-    assert(!fp->out.empty());
+    assert(!fp->out.empty());  // the slow client was destroyed, only the fast one is left
 
     // a client that drains again before the limit keeps its connection; frames stay whole
     auto *lp2 = new FakeListener;
