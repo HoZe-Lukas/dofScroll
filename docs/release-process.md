@@ -52,7 +52,8 @@ Everything is UTF-8 / Unicode. The NSIS script uses `Unicode true`, all paths an
 are quoted, and the PowerShell scripts are ASCII-only and use `-LiteralPath` for file paths. The
 macOS LaunchAgent script XML-escapes the daemon path (`&`, `<`, `>`) and handles spaces and
 non-ASCII characters. The dry-run checks this: the Windows job installs, upgrades and uninstalls
-in a folder named with spaces, umlauts, CJK, an emoji and an ampersand; the macOS job runs the
+in a plain folder and in a folder with a space in its name (Windows restricts the characters
+in paths, so the test stays basic); the macOS job uses a folder with spaces, umlauts, CJK, an emoji and an ampersand and runs the
 daemon, the UI self-test and the LaunchAgent install/uninstall (in a sandbox `HOME`, nothing is
 loaded into launchd) from such a folder.
 
