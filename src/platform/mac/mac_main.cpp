@@ -34,6 +34,7 @@
 #include "../../output.hpp"
 #include "../fs.hpp"
 #include "../platform.hpp"
+#include "../suspend_probe.hpp"
 #include "mac_output.hpp"
 #include "mac_paths.hpp"
 #include "mac_power.hpp"
@@ -348,6 +349,7 @@ int main(int argc, char **argv) {
     deps.modesDir = [paths] { return paths.configDir + "/modes"; };
     deps.writeStatus = [status](const std::string &b, int64_t n) { status->update(b, n); };
     deps.removeStatus = [status] { status->remove(); };
+    deps.suspendRequested = FileSuspendProbe(paths.runtimeDir);  // UI axis assistant pauses the output
     deps.liveFeed = makeLiveFeedSink(paths.runtimeDir);  // UI data feed, see src/live_feed/
     deps.debug = debug;
 

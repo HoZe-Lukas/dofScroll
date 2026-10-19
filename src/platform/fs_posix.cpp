@@ -162,6 +162,17 @@ bool createFileExclusive(const std::string &path, const std::string &data) {
     return ok;
 }
 
+bool touchFilePrivate(const std::string &path) {
+    // O_NOFOLLOW: a link at the final name is refused; O_NONBLOCK: a FIFO cannot hang the open.
+    const int fd = ::open(path.c_str(), O_WRONLY | O_CREAT | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK, 0600);
+    if (fd < 0) return false;
+    struct stat st;
+    bool ok = ::fstat(fd, &st) == 0 && S_ISREG(st.st_mode) && st.st_uid == ::geteuid() && (st.st_mode & 077) == 0;
+    if (ok) ok = ::futimens(fd, nullptr) == 0;
+    ::close(fd);
+    return ok;
+}
+
 bool removeFile(const std::string &path) { return ::unlink(path.c_str()) == 0; }
 bool removeDir(const std::string &path) { return ::rmdir(path.c_str()) == 0; }
 bool renamePath(const std::string &from, const std::string &to) { return ::rename(from.c_str(), to.c_str()) == 0; }

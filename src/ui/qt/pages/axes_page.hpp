@@ -14,6 +14,7 @@
 #include "live_feed/live_feed.hpp"
 #include "ui_context.hpp"
 #include "ui/model/axes_model.hpp"
+#include "ui/model/suspend_heartbeat.hpp"
 
 class QLabel;
 class QProgressBar;
@@ -38,6 +39,8 @@ public:
     void pollOnce(int64_t nowNs);
     spn::ui::AxesSession &session() { return *session_; }
     bool wizardVisible() const;
+    bool wantsSuspend() const;
+    const spn::ui::SuspendHeartbeat &suspend() const { return *suspend_; }
     void openWizard();
     void cancelWizard();
 
@@ -58,6 +61,7 @@ private:
     QElapsedTimer clock_;
     std::unique_ptr<spn::LiveFeedClient> client_;
     std::unique_ptr<spn::ui::AxesSession> session_;
+    std::unique_ptr<spn::ui::SuspendHeartbeat> suspend_;
     QTimer *timer_ = nullptr;
     QStackedWidget *stack_ = nullptr;
 

@@ -23,6 +23,7 @@
 
 #include "config.hpp"
 #include "ui/model/settings_model.hpp"
+#include "ui/model/suspend_heartbeat.hpp"
 #include "ui_i18n.hpp"
 #if defined(__APPLE__)
 #include "platform/mac/mac_paths.hpp"
@@ -192,6 +193,10 @@ AxesPage::AxesPage(const UiContext &ctx, const AxesPageEnv &env, QWidget *parent
     client_ = std::make_unique<LiveFeedClient>(connector_);
     session_ = std::make_unique<AxesSession>(*client_);
     clock_.start();
+    // The daemon sends no output while this page evaluates the mouse (like the GTK tray); the file
+    // is removed when the page is hidden, destroyed or the application quits.
+    suspend_ = std::make_unique<SuspendHeartbeat>(ctx_.runtimeDir);
+    connect(qApp, &QCoreApplication::aboutToQuit, this, [this] { suspend_->stop(); });
 
     auto *outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
@@ -211,6 +216,7 @@ AxesPage::AxesPage(const UiContext &ctx, const AxesPageEnv &env, QWidget *parent
 }
 
 AxesPage::~AxesPage() {
+    suspend_->stop();
     if (wiz::trHook() == &wizardTranslate) wiz::trHook() = [](const char *s) { return s; };
 }
 
@@ -356,10 +362,18 @@ void AxesPage::showEvent(QShowEvent *e) {
 void AxesPage::hideEvent(QHideEvent *e) {
     QWidget::hideEvent(e);
     timer_->stop();
+    suspend_->stop();  // leaving the page, closing the window: output resumes at once
     if (session_->wizard().measuring()) session_->wizard().connectionLost();
 }
 
+// Pause while the page is visible in the active window (live bars) or the assistant is open.
+bool AxesPage::wantsSuspend() const {
+    if (!isVisible()) return false;
+    return wizardVisible() || window()->isActiveWindow();
+}
+
 void AxesPage::pollOnce(int64_t nowNs) {
+    suspend_->update(wantsSuspend(), nowNs);
     const bool finished = session_->poll(nowNs);
     refreshLive(nowNs);
     if (wizardVisible() || finished) refreshWizard(nowNs);

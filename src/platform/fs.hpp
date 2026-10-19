@@ -80,6 +80,11 @@ bool createFileExclusive(const std::string &path, const std::string &data);
 // On failure *err holds a one-line message.
 bool writeFileReplace(const std::string &path, const std::string &data, std::string *err);
 
+// Creates the file empty (user-only) or sets its modification time to now, never following a link at
+// the final name. false when the path is a link, a directory, another user's file or the call fails.
+// Used for heartbeat files: the content is irrelevant, the age is the message.
+bool touchFilePrivate(const std::string &path);
+
 bool removeFile(const std::string &path);          // unlink (never follows a link at the end)
 bool removeDir(const std::string &path);           // rmdir (empty directories only)
 // Renames a file or directory; the destination of a directory rename must not exist (POSIX also

@@ -39,6 +39,7 @@
 #include "../../output.hpp"
 #include "../fs.hpp"
 #include "../platform.hpp"
+#include "../suspend_probe.hpp"
 #include "win_objects.hpp"
 #include "win_output.hpp"
 #include "win_paths.hpp"
@@ -362,6 +363,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     deps.activeWindow = win_p;
     deps.reload = reload_p;
     deps.paths = paths;  // config: <configDir>/dofscroll.conf, modes: <configDir>/modes (core defaults)
+    deps.suspendRequested = FileSuspendProbe(paths.runtimeDir);  // UI axis assistant pauses the output
     deps.makeOutput = [](const std::string &b, std::string *l) { return makeOutput(b, l); };
     if (!statusPath.empty()) {
         deps.writeStatus = [throttle, statusPath](const std::string &body, int64_t nowNs) {

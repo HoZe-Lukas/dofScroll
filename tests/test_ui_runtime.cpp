@@ -8,12 +8,22 @@
 #include <map>
 #include <string>
 
+#include <chrono>
+#include <filesystem>
+
 #include "common.hpp"
+#include "platform/suspend_probe.hpp"
 #include "platform/win/win_paths.hpp"
 #include "testutil.hpp"
+#ifndef _WIN32
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
 #include "ui/model/action_runner.hpp"
 #include "ui/model/runtime_files.hpp"
 #include "ui/model/settings_model.hpp"
+#include "ui/model/suspend_heartbeat.hpp"
 #include "ui/model/status_model.hpp"
 
 using namespace spn;
@@ -115,7 +125,125 @@ static void testReloadAfterSave() {
     std::puts("ok reload after save");
 }
 
+static void ageFile(const std::string &path, int seconds) {
+    namespace sf = std::filesystem;
+    sf::last_write_time(sf::u8path(path), sf::file_time_type::clock::now() - std::chrono::seconds(seconds));
+}
+
+static void testSuspendHeartbeat() {
+    const int64_t ms = 1000000;
+    const std::string dir = tu::makeTempDir("dofscroll-ui-susp");
+    const std::string file = suspendFilePathIn(dir);
+    FileSuspendProbe probe(dir);
+    assert(!probe());  // no file
+
+    {
+        SuspendHeartbeat hb(dir);
+        assert(hb.available() && !hb.active() && !tu::exists(file));
+        hb.update(false, 0);  // nothing wanted: nothing created
+        assert(!tu::exists(file));
+        hb.update(true, 1000 * ms);
+        assert(hb.active() && hb.fileMade() && tu::exists(file) && probe());
+        // refreshed only when due (every 200 ms): a file removed behind its back stays away until then
+        assert(fs::removeFile(file));
+        hb.update(true, 1100 * ms);
+        assert(!tu::exists(file));
+        hb.update(true, 1200 * ms);
+        assert(tu::exists(file));
+        // an older timestamp (clock jump back) refreshes at once
+        assert(fs::removeFile(file));
+        hb.update(true, 500 * ms);
+        assert(tu::exists(file));
+        // the end of the condition removes the file
+        hb.update(false, 600 * ms);
+        assert(!hb.active() && !tu::exists(file) && !probe());
+        hb.update(true, 700 * ms);
+        assert(tu::exists(file));
+    }  // destructor: the file is gone (page destroyed, application quit)
+    assert(!tu::exists(file));
+
+    // explicit stop is idempotent
+    SuspendHeartbeat hb2(dir);
+    hb2.update(true, 0);
+    hb2.stop();
+    hb2.stop();
+    assert(!tu::exists(file));
+
+    // no runtime directory: no file anywhere, no crash
+    SuspendHeartbeat none("");
+    none.update(true, 0);
+    assert(!none.available() && !none.fileMade());
+
+    // the daemon ignores a stale heartbeat (UI crashed) and accepts a fresh one
+    hb2.update(true, 0);
+    assert(probe());
+    ageFile(file, 5);
+    assert(!probe());
+    hb2.update(true, 10 * 1000 * ms);
+    assert(probe());
+
+    // pure decision around SUSPEND_MAX_AGE_MS
+    const int64_t now = 10000 * ms, maxAge = static_cast<int64_t>(SUSPEND_MAX_AGE_MS) * ms;
+    assert(suspendHeartbeatFresh(now, now) && suspendHeartbeatFresh(now - maxAge, now));
+    assert(!suspendHeartbeatFresh(now - maxAge - ms, now) && !suspendHeartbeatFresh(now + maxAge + ms, now));
+    assert(SuspendHeartbeat::kIntervalNs < maxAge);
+    hb2.stop();
+    tu::removeAll(dir);
+    std::puts("ok suspend heartbeat");
+}
+
+#ifndef _WIN32
+static void testSuspendHeartbeatSecurity() {
+    const std::string dir = tu::makeTempDir("dofscroll-ui-susp");
+    const std::string file = suspendFilePathIn(dir);
+    FileSuspendProbe probe(dir);
+    // created user-only
+    assert(fs::touchFilePrivate(file));
+    struct stat st;
+    assert(::lstat(file.c_str(), &st) == 0 && S_ISREG(st.st_mode) && (st.st_mode & 077) == 0);
+    fs::removeFile(file);
+
+    // a link at the name is never followed: the target keeps its time, nothing is made or removed
+    {
+        std::string err;
+        assert(fs::writeFileReplace(dir + "/target", "keep\n", &err));
+    }
+    ageFile(dir + "/target", 100);
+    struct stat before;
+    assert(::stat((dir + "/target").c_str(), &before) == 0);
+    assert(::symlink((dir + "/target").c_str(), file.c_str()) == 0);
+    assert(!fs::touchFilePrivate(file));
+    SuspendHeartbeat hb(dir);
+    hb.update(true, 0);
+    assert(hb.active() && !hb.fileMade());
+    struct stat after;
+    assert(::stat((dir + "/target").c_str(), &after) == 0 && before.st_mtime == after.st_mtime);
+    assert(!probe());  // and the daemon does not follow it either
+    hb.stop();
+    assert(tu::exists(file));  // not ours: left alone
+    fs::removeFile(file);
+
+    // a group/other-accessible file or a directory is not a heartbeat
+    {
+        std::string err;
+        assert(fs::writeFileReplace(file, "", &err));
+        ::chmod(file.c_str(), 0644);
+        assert(!fs::touchFilePrivate(file));
+        fs::removeFile(file);
+        assert(::mkdir(file.c_str(), 0700) == 0);
+        assert(!fs::touchFilePrivate(file) && !probe());
+        ::rmdir(file.c_str());
+    }
+    tu::removeAll(dir);
+    std::puts("ok suspend heartbeat security");
+}
+#endif
+
 int main() {
+    testSuspendHeartbeat();
+#ifndef _WIN32
+    testSuspendHeartbeatSecurity();
+#endif
     testReloadAfterSave();
     testRuntimeDirPerOs();
     testStatusRead();

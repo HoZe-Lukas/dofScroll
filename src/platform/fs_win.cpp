@@ -359,6 +359,23 @@ bool createFileExclusive(const std::string &path, const std::string &data) {
     return ok;
 }
 
+bool touchFilePrivate(const std::string &path) {
+    if (!pathOk(path)) return false;
+    PrivateSecurity sec(false);
+    // OPEN_ALWAYS creates the file with the private ACL or opens the existing one; the reparse point
+    // itself is opened (never its target) and refused below.
+    Handle h(::CreateFileW(native(path).c_str(), FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES,
+                           FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, sec.get(), OPEN_ALWAYS,
+                           FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+    if (!h.valid()) return false;
+    BY_HANDLE_FILE_INFORMATION info;
+    if (!::GetFileInformationByHandle(h.h, &info)) return false;
+    if (info.dwFileAttributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) return false;
+    FILETIME now;
+    ::GetSystemTimeAsFileTime(&now);
+    return ::SetFileTime(h.h, nullptr, nullptr, &now) != 0;
+}
+
 bool removeFile(const std::string &path) { return pathOk(path) && ::DeleteFileW(native(path).c_str()) != 0; }
 bool removeDir(const std::string &path) { return pathOk(path) && ::RemoveDirectoryW(native(path).c_str()) != 0; }
 bool renamePath(const std::string &from, const std::string &to) {
