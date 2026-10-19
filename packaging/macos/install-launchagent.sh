@@ -55,22 +55,18 @@ esac
 AGENT_DIR="$HOME/Library/LaunchAgents"
 PLIST="$AGENT_DIR/$LABEL.plist"
 
-# The paths end up in an XML file and in a sed expression: refuse characters that would need
-# escaping instead of trying to escape them.
-for v in "$DAEMON"; do
-    case "$v" in
-        *'|'* | *'&'* | *'\'* | *'<'* | *'>'* | *'"'* | *"'"*)
-            echo "install-launchagent: unsupported character in path: $v" >&2
-            exit 1 ;;
-    esac
-    if [ "$(printf '%s' "$v" | wc -l)" -ne 0 ]; then
-        echo "install-launchagent: line break in path" >&2
-        exit 1
-    fi
-done
+# The path ends up in an XML file: spaces and non-ASCII (UTF-8) characters are fine, & < > are
+# escaped below. Only a line break is refused.
+if [ "$(printf '%s' "$DAEMON" | wc -l)" -ne 0 ]; then
+    echo "install-launchagent: line break in path" >&2
+    exit 1
+fi
 
 render() {
-    sed -e "s|@DAEMON_PATH@|$DAEMON|g" "$TEMPLATE"
+    # 1. XML-escape (& first), 2. escape the characters that are special in a sed replacement.
+    esc=$(printf '%s' "$DAEMON" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
+        | sed -e 's/[|&\\]/\\&/g')
+    sed -e "s|@DAEMON_PATH@|$esc|g" "$TEMPLATE"
 }
 
 DOMAIN="gui/$(id -u)"

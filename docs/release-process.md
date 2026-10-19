@@ -37,6 +37,16 @@ daemon and the UI self-test from the bundle. Both unpack the package and run
 `scripts/scan-package-paths.sh`, which fails when any file (binaries included) contains the runner
 workspace, a CPack staging or a runner home path.
 
+## Text encoding and special characters
+
+Everything is UTF-8 / Unicode. The NSIS script uses `Unicode true`, all paths and the Run values
+are quoted, and the PowerShell scripts are ASCII-only and use `-LiteralPath` for file paths. The
+macOS LaunchAgent script XML-escapes the daemon path (`&`, `<`, `>`) and handles spaces and
+non-ASCII characters. The dry-run checks this: the Windows job installs, upgrades and uninstalls
+in a folder named with spaces, umlauts, CJK, an emoji and an ampersand; the macOS job runs the
+daemon, the UI self-test and the LaunchAgent install/uninstall (in a sandbox `HOME`, nothing is
+loaded into launchd) from such a folder.
+
 ## Windows installer
 
 - **Tool: NSIS 3.** It is free, needs no .NET or WiX toolset, is installed on `windows-latest`

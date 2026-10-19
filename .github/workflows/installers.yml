@@ -65,7 +65,9 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $dir = Join-Path $env:RUNNER_TEMP 'dofscroll-inst'
+          # Round trip twice: a plain folder and a folder with spaces and non-ASCII characters (umlauts,
+          # CJK, an emoji and an ampersand), built from code points so that this file stays ASCII.
+          $odd = 'dofscroll ' + [char]0xE4 + [char]0xF6 + [char]0xFC + ' & ' + [char]0x65E5 + [char]0x672C + [char]0x8A9E + ' ' + [char]::ConvertFromUtf32(0x1F600)
           $setup = (Get-ChildItem dist-installers -Filter '*-setup.exe' | Select-Object -First 1).FullName
           $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
           # every program runs with a time limit, so that a hang fails the step instead of the job
@@ -75,7 +77,11 @@ jobs:
             if (-not $pr.WaitForExit(120000)) { Stop-Process -Id $pr.Id -Force; throw "$label timed out" }
             if ($pr.ExitCode -ne 0) { throw "$label failed: exit code $($pr.ExitCode)" }
           }
-          Invoke-Limited $setup @('/S', '/AUTOSTART=1', "/D=$dir") 'silent install'
+          function Test-RoundTrip($dir, $twice) {
+          Write-Output "=== round trip in: $dir"
+          # one argument string: /D= must be last and unquoted, even with spaces in the path
+          Invoke-Limited $setup "/S /AUTOSTART=1 /D=$dir" 'silent install'
+          if ($twice) { Invoke-Limited $setup "/S /AUTOSTART=1 /D=$dir" 'silent upgrade (stops a running daemon first)' }
           Get-ChildItem $dir | Select-Object -ExpandProperty Name
           foreach ($f in 'dofscroll.exe', 'uninstall.exe', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'devices', 'examples', 'icons', 'scripts\install-autostart.ps1') {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "missing after install: $f" }
@@ -91,10 +97,14 @@ jobs:
             Invoke-Limited $ui @('--self-test') 'dofscroll-ui.exe --self-test'
           }
           # _?= keeps the uninstaller in place so that the wait really waits for it
-          Invoke-Limited (Join-Path $dir 'uninstall.exe') @('/S', "_?=$dir") 'silent uninstall'
+          Invoke-Limited (Join-Path $dir 'uninstall.exe') "/S _?=$dir" 'silent uninstall'
           if (Get-ItemProperty -Path $runKey -Name 'dofscroll' -ErrorAction SilentlyContinue) { throw 'autostart value still present after uninstall' }
           if (Test-Path (Join-Path $dir 'dofscroll.exe')) { throw 'dofscroll.exe still present after uninstall' }
           if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\dofscroll') { throw 'uninstall entry still present' }
+          Remove-Item -LiteralPath $dir -Recurse -Force
+          }
+          Test-RoundTrip (Join-Path $env:RUNNER_TEMP 'dofscroll-inst') $false
+          Test-RoundTrip (Join-Path $env:RUNNER_TEMP $odd) $true
       - name: Scan packages for runner or staging paths
         shell: bash
         run: |
@@ -168,6 +178,32 @@ jobs:
             env -u QT_ROOT_DIR -u DYLD_FRAMEWORK_PATH QT_QPA_PLATFORM=offscreen \
               "$mnt/dofscroll.app/Contents/MacOS/dofscroll-ui" --self-test
           fi
+          # Round trip in a folder with spaces and non-ASCII characters (umlauts, CJK, an emoji and an
+          # ampersand; UTF-8 bytes written as octal escapes so that this file stays ASCII). HOME points
+          # into the sandbox folder, so no real LaunchAgent is touched; nothing is loaded into launchd.
+          odd="$(printf 'dofscroll \303\244\303\266\303\274 & \346\227\245\346\234\254\350\252\236 \360\237\230\200')"
+          sandbox="$RUNNER_TEMP/$odd"
+          rm -rf "$sandbox" && mkdir -p "$sandbox/home" "$sandbox/pkg"
+          cp -R "$mnt/." "$sandbox/pkg/"
+          if [ -d "$sandbox/pkg/dofscroll.app" ]; then
+            res="$sandbox/pkg/dofscroll.app/Contents/Resources"
+            d="$res/daemon/dofscroll"
+            codesign --verify --deep --strict "$sandbox/pkg/dofscroll.app"
+            env -u QT_ROOT_DIR -u DYLD_FRAMEWORK_PATH QT_QPA_PLATFORM=offscreen \
+              "$sandbox/pkg/dofscroll.app/Contents/MacOS/dofscroll-ui" --self-test
+          else
+            res="$sandbox/pkg/dofscroll"
+            d="$res/dofscroll"
+          fi
+          "$d" --version
+          HOME="$sandbox/home" sh "$res/launchagent/install-launchagent.sh" --daemon "$d" --no-load
+          plist="$sandbox/home/Library/LaunchAgents/io.github.dofscroll.daemon.plist"
+          plutil -lint "$plist"
+          test "$(plutil -extract ProgramArguments.0 raw -o - "$plist")" = "$d"
+          grep -q '&amp;' "$plist"
+          HOME="$sandbox/home" sh "$res/launchagent/uninstall-launchagent.sh"
+          test ! -e "$plist"
+          rm -rf "$sandbox"
           rm -rf "$RUNNER_TEMP/scan" && mkdir -p "$RUNNER_TEMP/scan"
           cp -R "$mnt/." "$RUNNER_TEMP/scan/"
           sh scripts/scan-package-paths.sh "$RUNNER_TEMP/scan" \
