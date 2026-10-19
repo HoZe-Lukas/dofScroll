@@ -51,6 +51,16 @@ if(DOFSCROLL_BUILD_DAEMON)
   install(DIRECTORY ${CMAKE_SOURCE_DIR}/devices DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll)
 endif()
 
+# W17: running-programs provider (src/platform/mac/running_apps_mac.mm, already in MAC_SRC through
+# the glob above); the self-test runs it on the runner (asserts only: no crash, a list).
+if(DOFSCROLL_BUILD_DAEMON AND BUILD_TESTING)
+  add_executable(running_apps_selftest ${CMAKE_SOURCE_DIR}/tests/selftest_running_apps.cpp
+    ${CMAKE_SOURCE_DIR}/src/platform/mac/running_apps_mac.mm)
+  target_link_libraries(running_apps_selftest PRIVATE dofscroll_core "-framework AppKit")
+  set_target_properties(running_apps_selftest PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+  add_test(NAME running_apps_selftest COMMAND running_apps_selftest)
+endif()
+
 # W18: renders the LaunchAgent plists into a temporary directory (nothing is loaded into launchd)
 if(BUILD_TESTING)
   add_executable(autostart_mac_render tests/autostart_mac_render.cpp src/platform/mac/autostart_mac.cpp)

@@ -3,6 +3,8 @@
 // "Channels" page: vertical scroll, horizontal scroll, zoom and daemon settings of [global], with
 // a live curve preview per channel. Thin view over SettingsModel and channels_page_model.hpp.
 #pragma once
-#include "page_registry.hpp"
+#include <QWidget>
 
-QWidget *createChannelsPage(PageContext &ctx);
+#include "ui_context.hpp"
+
+QWidget *createChannelsPage(const UiContext &ctx);

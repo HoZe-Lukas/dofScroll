@@ -2,6 +2,8 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Devices and verifying a device
 
+Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons](Buttons).
+
 Supported on Linux: models that `spacenavd` supports. Tested on hardware: SpaceMouse Pro and SpaceMouse Compact (RHEL 9, X11, KDE Plasma). All other models are untested. Full text: [docs/devices.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/devices.md). Button counts: [Buttons](Buttons).
 
 ## Device description files

@@ -21,6 +21,7 @@
 #include "config.hpp"
 #include "daemon_core.hpp"
 #include "device_count.hpp"
+#include "live_feed/live_feed.hpp"
 #include "modes.hpp"
 #include "output.hpp"
 #include "platform/linux/runtime_files.hpp"
@@ -149,6 +150,7 @@ int main(int argc, char **argv) {
     deps.removeStatus = [status] { status->remove(); };
     // spacenavd reports only one device when several are attached: count them via /proc.
     deps.countDevices = [] { return countSpaceMice(); };
+    deps.liveFeed = makeLiveFeedSink(paths.runtimeDir);  // UI data feed, see src/live_feed/
     deps.debug = debug;
 
     DaemonCore *core = new DaemonCore(std::move(deps));

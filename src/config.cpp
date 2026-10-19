@@ -253,6 +253,11 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
         s.tick_hz = static_cast<int>(std::clamp(n, 30L, 1000L));
         return true;
     }
+    if (key == "LIVE_FEED") {
+        if (!parseBool(value, &b)) return setErr(err, "0/1 expected");
+        s.live_feed = b;
+        return true;
+    }
     if (key == "MODE") {
         std::string v = lower(trim(value));
         if (!validModeId(v)) return setErr(err, "mode id expected ([a-z0-9_-], max. 32 characters)");
@@ -456,6 +461,7 @@ std::vector<KV> allKeys(const Settings &s) {
     kv.emplace_back("BACKEND", s.backend);
     kv.emplace_back("TICK_HZ", std::to_string(s.tick_hz));
     kv.emplace_back("ENABLED", s.enabled ? "1" : "0");
+    kv.emplace_back("LIVE_FEED", s.live_feed ? "1" : "0");
     kv.emplace_back("MODE", s.mode);
     kv.emplace_back("NAV_BUTTON", std::to_string(s.nav_button));
     kv.emplace_back("NAV_BUTTON_ENABLED", s.nav_button_enabled ? "1" : "0");

@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-#include "page_registry.hpp"
+#include "pages/page_registry.hpp"
 
-#include <QHBoxLayout>
 #include <QLabel>
-#include <QListWidget>
-#include <QPushButton>
 #include <QVBoxLayout>
 #include <QWidget>
 
-#include "channels_page.hpp"
-#include "general_page.hpp"
+#include "pages/channels_page.hpp"
+#include "pages/general_page.hpp"
+#include "pages/modes_page.hpp"
+#include "ui_i18n.hpp"
 
 namespace {
 
@@ -24,41 +23,18 @@ QWidget *placeholderPage(const char *title) {
     return w;
 }
 
-QWidget *axesPlaceholder(PageContext &) { return placeholderPage("Axes"); }
-
-// Thin placeholder until the modes page lands: the list and actions will be driven by ModeCatalog.
-QWidget *modesPlaceholder(PageContext &) {
-    auto *w = new QWidget;
-    auto *l = new QVBoxLayout(w);
-    l->addWidget(new QLabel(QStringLiteral("<b>") + T("Modes") + QStringLiteral("</b>")));
-    auto *hint = new QLabel(T("Mode files can press any key. Only use mode files from trusted "
-                              "sources."));
-    hint->setWordWrap(true);
-    l->addWidget(hint);
-    auto *row = new QHBoxLayout;
-    auto *list = new QListWidget(w);
-    list->addItem(T("not implemented yet"));
-    row->addWidget(list, 1);
-    auto *buttons = new QVBoxLayout;
-    for (const QString &b : {T("New mode"), T("Duplicate"), T("Import file..."), T("Edit"),
-                             T("Delete"), T("Open modes folder")})
-        buttons->addWidget(new QPushButton(b, w));
-    buttons->addStretch(1);
-    row->addLayout(buttons);
-    l->addLayout(row, 1);
-    return w;
-}
+// Replaced by the real page of its branch: point the registry line below to it.
+QWidget *axesPlaceholder(const UiContext &) { return placeholderPage("Axes"); }
 
 }  // namespace
 
-const PageInfo *pageRegistry(int *count) {
-    // One page per line: add yours here (navigation order).
-    static const PageInfo pages[] = {
-        {"channels", "Channels", &createChannelsPage},
-        {"general", "General", &createGeneralPage},
-        {"axes", "Axes", &axesPlaceholder},
-        {"modes", "Modes", &modesPlaceholder},
+// One line per page, in navigation order; each page declares its factory in its own header.
+const std::vector<PageFactory> &pageFactories() {
+    static const std::vector<PageFactory> factories = {
+        {"channels", "Channels", createChannelsPage},
+        {"general", "General", createGeneralPage},
+        {"axes", "Axes", axesPlaceholder},
+        {"modes", "Modes", makeModesPage},
     };
-    if (count) *count = int(sizeof(pages) / sizeof(pages[0]));
-    return pages;
+    return factories;
 }

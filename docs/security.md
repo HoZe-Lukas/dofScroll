@@ -748,6 +748,38 @@ Known gaps, stated plainly:
 
 ---
 
+## 10. Live feed
+
+The daemon publishes the current axes, buttons and its own interpretation (channel outputs, active
+mode) to the UI at 30 Hz (`src/live_feed/`, protocol in `port-architecture.md`). On Windows and macOS
+the daemon owns the device exclusively, so the UI cannot read it directly.
+
+- **Transport.** POSIX: Unix domain socket `live.sock` in the runtime directory, created 0600 in a
+  directory that is verified to be a real directory of the current user without group/other write
+  access (same code as the macOS reload socket, `src/platform/unix_socket.cpp`); the peer uid is
+  checked on accept (`SO_PEERCRED` / `getpeereid`), and the client refuses a socket or server of
+  another user. Windows: outbound-only named pipe `\\.\pipe\dofscroll-live-<user sid>` with a DACL
+  that grants only the current user, `PIPE_REJECT_REMOTE_CLIENTS`, `FILE_FLAG_FIRST_PIPE_INSTANCE`
+  (a squatted name makes the daemon fail instead of serving); the client verifies that the pipe
+  server runs as the same user.
+- **Who can read it.** Any process of the same user can connect and read the sample stream: raw
+  SpaceMouse deflection, button state and the active mode id. That is no more than the same process
+  could get from the device itself on Linux (libspnav) and is not a secret; it contains no keystrokes,
+  no window titles and no file content. Other users, remote machines and sandboxes without access to
+  the runtime directory cannot connect.
+- **No commands.** The feed is one-way. The server never reads from a connection (on Windows the
+  pipe is outbound-only), so there is no parser, command or state change reachable from a client.
+  Changing settings stays with the config file and the reload channel.
+- **Denial of service.** The server never blocks the tick thread: non-blocking accept and write,
+  at most 4 clients, frames are dropped for slow clients and the client is disconnected after 30
+  consecutive dropped frames, the rate is limited to 30 Hz (maximum 60) and nothing is encoded while
+  no client is connected. `LIVE_FEED = 0` switches the feature off; connections are then closed
+  immediately.
+- **Untrusted input in the client.** The client treats the stream as untrusted although it is local:
+  magic, version, frame length (at most 78 payload bytes), every field range, NaN/Inf, reserved bits
+  and the mode id characters are validated, the read buffer is bounded and any violation drops the
+  connection (reconnect with backoff).
+
 ## Known limitations
 
 These findings of the [October 2026 review](security-review-2026-10.md) stay open for 0.1.

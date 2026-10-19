@@ -32,6 +32,7 @@
 
 #include "ui/model/channels_page_model.hpp"
 #include "ui/model/curve_preview.hpp"
+#include "ui_i18n.hpp"
 
 namespace {
 
@@ -128,7 +129,7 @@ const KeyText kChannelKeys[] = {
 
 class ChannelsPage : public QWidget {
 public:
-    explicit ChannelsPage(PageContext &ctx) : QWidget(nullptr), ctx_(ctx) {
+    explicit ChannelsPage(const UiContext &ctx) : QWidget(nullptr), ctx_(ctx) {
         auto *outer = new QVBoxLayout(this);
         outer->setContentsMargins(0, 0, 0, 0);
         auto *scroll = new QScrollArea(this);
@@ -175,7 +176,7 @@ private:
     // ---- model access ----
     bool value(const std::string &key, std::string *out) {
         SettingsModel::Value v;
-        if (!ctx_.settings.value(0, key, &v)) return false;
+        if (!ctx_.settings->value(0, key, &v)) return false;
         *out = v.text;
         return true;
     }
@@ -186,7 +187,7 @@ private:
     // Validates and stores; shows the model's message at the row on failure.
     bool apply(const std::string &key, const std::string &text, QLabel *help, const QString &helpText) {
         std::string err;
-        if (ctx_.settings.setValue(0, key, text, &err)) {
+        if (ctx_.settings->setValue(0, key, text, &err)) {
             if (help) setHelp(help, helpText, false);
             changed();
             return true;
@@ -209,8 +210,8 @@ private:
     }
     void flush() {
         saveTimer_.stop();
-        if (!ctx_.settings.dirty()) return;
-        const SettingsModel::SaveResult r = ctx_.settings.save(ctx_.strings);
+        if (!ctx_.settings->dirty()) return;
+        const SettingsModel::SaveResult r = ctx_.settings->save(*ctx_.strings);
         if (r.saved && r.reloaded) message_->setText(T("Saved."));
         else if (r.saved) message_->setText(T("Saved, but the daemon was not notified: ") + qs8(r.error));
         else message_->setText(T("Not saved: ") + qs8(r.error));
@@ -220,14 +221,14 @@ private:
         refreshPreviews();
     }
     void refreshPreviews() {
-        const spn::Settings s = ctx_.settings.effective(0);
+        const spn::Settings s = ctx_.settings->effective(0);
         for (auto &p : previews_) {
             const spn::ChannelCfg &c = p.first == "scroll_v" ? s.scroll_v : p.first == "scroll_h" ? s.scroll_h : s.zoom;
             p.second->setChannel(c);
         }
     }
     void onResetGroup(const SettingsModel::Group &g) {
-        if (spn::ui::resetGroup(ctx_.settings, g)) {
+        if (spn::ui::resetGroup(*ctx_.settings, g)) {
             refreshAll();
             changed();
         }
@@ -237,7 +238,7 @@ private:
                                   T("Reset all settings on this page to the built-in defaults?")) !=
             QMessageBox::Yes)
             return;
-        if (spn::ui::restoreAllDefaults(ctx_.settings)) {
+        if (spn::ui::restoreAllDefaults(*ctx_.settings)) {
             refreshAll();
             changed();
         }
@@ -445,7 +446,7 @@ private:
 
         const std::string gid = groupId;
         refreshers_.push_back([this, slider, spin, pts, gid] {
-            const spn::Settings s = ctx_.settings.effective(0);
+            const spn::Settings s = ctx_.settings->effective(0);
             const spn::ChannelCfg &c = gid == "scroll_v" ? s.scroll_v : gid == "scroll_h" ? s.scroll_h : s.zoom;
             QSignalBlocker b1(slider), b2(spin);
             spin->setValue(c.curve_exp);
@@ -497,7 +498,7 @@ private:
         grid->addWidget(lat, *row + 1, 1);
         *row += 2;
         refreshers_.push_back([this, boxes] {
-            const unsigned mask = spn::ui::lateralMask(ctx_.settings.effective(0));
+            const unsigned mask = spn::ui::lateralMask(ctx_.settings->effective(0));
             for (size_t i = 0; i < boxes->size(); ++i) {
                 QSignalBlocker b((*boxes)[i]);
                 (*boxes)[i]->setChecked((mask >> unsigned(i)) & 1u);
@@ -512,7 +513,7 @@ private:
                 [&](QLabel *hl) -> QWidget * { return dblSpin("ZOOM_EXIT_RATIO", 1.0, 10.0, 0.05, 2, exitHelp, hl); });
     }
 
-    PageContext &ctx_;
+    UiContext ctx_;
     WheelGuard *guard_ = nullptr;
     QLabel *message_ = nullptr;
     QTimer saveTimer_;
@@ -522,4 +523,4 @@ private:
 
 }  // namespace
 
-QWidget *createChannelsPage(PageContext &ctx) { return new ChannelsPage(ctx); }
+QWidget *createChannelsPage(const UiContext &ctx) { return new ChannelsPage(ctx); }

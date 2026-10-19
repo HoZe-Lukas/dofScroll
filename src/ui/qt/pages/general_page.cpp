@@ -19,6 +19,7 @@
 #include "platform/autostart_platform.hpp"
 #include "ui/model/general_page_model.hpp"
 #include "ui/model/ui_settings.hpp"
+#include "ui_i18n.hpp"
 
 namespace {
 
@@ -33,7 +34,7 @@ struct AutoResult {
 
 class GeneralPage : public QWidget {
 public:
-    explicit GeneralPage(PageContext &ctx) : QWidget(nullptr), ctx_(ctx) {
+    explicit GeneralPage(const UiContext &ctx) : QWidget(nullptr), ctx_(ctx) {
         auto *col = new QVBoxLayout(this);
 
         // ---- start at login ----
@@ -81,7 +82,7 @@ public:
         // ---- configuration file ----
         auto *cfgBox = new QGroupBox(T("Configuration file"));
         auto *cl = new QVBoxLayout(cfgBox);
-        auto *path = new QLabel(ctx.configPath);
+        auto *path = new QLabel(qs8(ctx.configPath));
         path->setTextInteractionFlags(Qt::TextSelectableByMouse);
         path->setWordWrap(true);
         cl->addWidget(path);
@@ -95,7 +96,7 @@ public:
         cl->addWidget(configMsg_);
         QObject::connect(open, &QPushButton::clicked, this, [this] {
             std::string err;
-            if (ctx_.actions.openPath(ctx_.configPath.toUtf8().toStdString(), &err)) configMsg_->setText(QString());
+            if (ctx_.runner->openPath(ctx_.configPath, &err)) configMsg_->setText(QString());
             else configMsg_->setText(T("Could not open the file: ") + qs8(err));
         });
         col->addWidget(cfgBox);
@@ -136,7 +137,7 @@ private:
 
     void refreshStatus() {
         QStringList lines;
-        for (const std::string &s : statusBlockLines(ctx_.status, ctx_.strings)) lines << qs8(s);
+        for (const std::string &s : statusBlockLines(*ctx_.status, *ctx_.strings)) lines << qs8(s);
         statusLabel_->setText(lines.join(QLatin1Char('\n')));
     }
 
@@ -147,7 +148,7 @@ private:
         busy_ = true;
         autostart_->setEnabled(false);
         autostartMsg_->setText(T("Working..."));
-        ActionRunner *runner = &ctx_.actions;
+        ActionRunner *runner = ctx_.runner;
         QThread *t = QThread::create([this, runner, change, enable] {
             AutoResult r;
             if (change) r.setOk = runner->setAutostart(enable, &r.setErr);
@@ -161,7 +162,7 @@ private:
 
     void onAutostartDone(const AutoResult &r) {
         busy_ = false;
-        const AutostartView v = autostartView(r.state, r.detail, ctx_.strings);
+        const AutostartView v = autostartView(r.state, r.detail, *ctx_.strings);
         {
             QSignalBlocker b(autostart_);
             autostart_->setCheckState(v.partial ? Qt::PartiallyChecked : v.checked ? Qt::Checked : Qt::Unchecked);
@@ -190,7 +191,7 @@ private:
         }
     }
 
-    PageContext &ctx_;
+    UiContext ctx_;
     QCheckBox *autostart_ = nullptr;
     QLabel *autostartMsg_ = nullptr;
     QComboBox *language_ = nullptr;
@@ -204,4 +205,4 @@ private:
 
 }  // namespace
 
-QWidget *createGeneralPage(PageContext &ctx) { return new GeneralPage(ctx); }
+QWidget *createGeneralPage(const UiContext &ctx) { return new GeneralPage(ctx); }

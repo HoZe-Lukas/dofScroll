@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "daemon_core.hpp"
+#include "mode_request.hpp"
 #include "platform/fake_input.hpp"
 #include "testutil.hpp"
 
@@ -89,6 +90,7 @@ struct Rig {
     std::unique_ptr<DaemonCore> core;
 
     std::vector<std::string> status;
+    std::vector<LiveSample> live;  // what the live feed sink received, one entry per tick
     explicit Rig(const std::string &config, const std::vector<std::pair<std::string, std::string>> &modeFiles = {})
         : dir(tu::makeTempDir("dofscroll-core-test")) {
         conf = dir + "/dofscroll.conf";
@@ -113,6 +115,7 @@ struct Rig {
         };
         deps.clock = [this] { return now; };
         deps.writeStatus = [this](const std::string &body, int64_t) { status.push_back(body); };
+        deps.liveFeed = [this](const LiveSample &s, int64_t) { live.push_back(s); };
         core = std::make_unique<DaemonCore>(std::move(deps));
         assert(core->initialize());
         assert(core->reader().connect());
@@ -169,6 +172,26 @@ static void testStaleWatchdog() {
     int before = r.rec.wv;
     r.run(0.5);
     CHECK(r.rec.wv == before, "stale deflection must not scroll on");
+}
+
+static void testLiveFeedSink() {
+    Rig r(BASE_CONF);
+    r.src.pushMotion(0, 69, 286, 350, 145, 56, 155);
+    r.run(0.15);  // inside the 250 ms stale window
+    CHECK(r.live.size() >= 30, "sink must be called once per tick");
+    const LiveSample &s = r.live.back();
+    CHECK(s.active && s.enabled && !s.idle && s.fresh, "live flags");
+    CHECK(s.axes[AX_X] == 69 && s.axes[AX_Y] == 286 && s.axes[AX_Z] == 350, "raw axes in the sample");
+    CHECK(s.v != 0.0f && s.mode == "normal", "channel output and mode in the sample");
+    Rig off("[global]\nLIVE_FEED = 0\n");
+    off.run(0.1);
+    CHECK(!off.live.empty() && !off.live.back().active, "LIVE_FEED = 0 marks the sample inactive");
+    // A profile with ENABLED = 0 stops the output but the feed still shows the device.
+    Rig dis("[global]\nENABLED = 0\n");
+    dis.src.pushMotion(0, 69, 286, 350, 145, 56, 155);
+    dis.run(0.1);
+    CHECK(dis.live.back().idle && !dis.live.back().enabled && dis.live.back().axes[AX_Z] == 350,
+          "feed shows raw axes while idle");
 }
 
 static void testButtonBinding() {
@@ -312,6 +335,38 @@ static void testModeSwitchButton() {
     CHECK(r.core->runner().mode().id == "off", "fixed target mode:off");
 }
 
+// Runtime mode request from the tray: file in the runtime directory + reload, [global] untouched.
+static void testModeRequest() {
+    Rig r(std::string(BASE_CONF), {{"alpha.conf", "BUTTON_3 = key:space\n"}});
+    r.run(0.1);
+    CHECK(r.core->runner().mode().id == "normal", "starts in the default mode");
+    std::string err;
+    CHECK(writeModeRequest(r.dir, "alpha", &err), "write request: %s", err.c_str());
+    r.run(0.1);
+    CHECK(r.core->runner().mode().id == "normal", "no switch without a reload request");
+    r.reload.pending = true;
+    r.run(0.05);
+    CHECK(r.core->runner().mode().id == "alpha", "request applied (%s)", r.core->runner().mode().id.c_str());
+    CHECK(!tu::exists(modeRequestPath(r.dir)), "request file is consumed");
+    CHECK(statusMode(r) == "alpha", "status shows the requested mode");
+    // a request for an unknown mode keeps the default; the next plain reload drops the override
+    CHECK(writeModeRequest(r.dir, "nope", &err), "write");
+    r.reload.pending = true;
+    r.run(0.05);
+    CHECK(r.core->runner().mode().id == "normal", "unknown mode: default (%s)", r.core->runner().mode().id.c_str());
+    CHECK(writeModeRequest(r.dir, "alpha", &err), "write");
+    r.reload.pending = true;
+    r.run(0.05);
+    r.reload.pending = true;
+    r.run(0.05);
+    CHECK(r.core->runner().mode().id == "normal", "a plain reload drops the override");
+    // junk in the file is ignored
+    writeFile(modeRequestPath(r.dir), "../../etc/passwd\n");
+    r.reload.pending = true;
+    r.run(0.05);
+    CHECK(r.core->runner().mode().id == "normal" && !tu::exists(modeRequestPath(r.dir)), "invalid id ignored");
+}
+
 // Precedence: global < device < mode overrides < app.
 static void testModeVsAppPrecedence() {
     Rig r("[global]\nTICK_HZ = 250\nMODE = m\n[app:x]\nZOOM_SENS = 8\n",
@@ -372,8 +427,10 @@ int main() {
     testModeSwitchButton();
     testMotion();
     testStaleWatchdog();
+    testLiveFeedSink();
     testButtonBinding();
     testReload();
+    testModeRequest();
     testAutoReload();
     testDeviceAndWindowProfiles();
     testDeviceRemovedReleasesState();

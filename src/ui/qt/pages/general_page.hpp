@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // "General" page: start at login, language, read-only status block, config file, version.
 #pragma once
-#include "page_registry.hpp"
+#include <QWidget>
 
-QWidget *createGeneralPage(PageContext &ctx);
+#include "ui_context.hpp"
+
+QWidget *createGeneralPage(const UiContext &ctx);
