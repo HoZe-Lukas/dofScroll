@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    container: rockylinux:9
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf install -y epel-release
+          dnf install -y gcc-c++ make cmake git gettext pkgconf-pkg-config spacenavd \
+            libspnav-devel libX11-devel libXtst-devel gtk3-devel libappindicator-gtk3-devel
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DDOFSCROLL_WERROR=ON
+      - name: Build
+        run: cmake --build build -j4
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Makefile build and tests
+        run: make -j4 && make test
+      - name: Package
+        run: |
+          dnf install -y rpm-build
+          cd build && cpack -G "TGZ;RPM"
+
+  asan:
+    runs-on: ubuntu-latest
+    container: rockylinux:9
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf install -y epel-release
+          dnf install -y gcc-c++ make cmake git libasan libubsan pkgconf-pkg-config spacenavd \
+            libspnav-devel libX11-devel libXtst-devel
+      - uses: actions/checkout@v4
+      - name: Configure (ASan/UBSan, no tray)
+        run: cmake -S . -B build-asan -DDOFSCROLL_SANITIZE=ON -DDOFSCROLL_TRAY=OFF
+      - name: Build
+        run: cmake --build build-asan -j4
+      - name: Test
+        run: ctest --test-dir build-asan --output-on-failure
+
+  cppcheck:
+    runs-on: ubuntu-latest
+    container: rockylinux:9
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf install -y epel-release
+          dnf install -y cppcheck make gcc-c++ git
+      - uses: actions/checkout@v4
+      - name: Static analysis
+        run: make lint
