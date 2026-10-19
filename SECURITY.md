@@ -33,7 +33,7 @@ pre-1.0 (0.x); older 0.x releases are not patched, please update.
 ## Scope
 
 In scope: the `dofscroll` daemon, the tray application, the packaging files (systemd units,
-udev rule, install scripts) and the CI workflows in this repository. The project's threat model
+the optional udev rule, install scripts) and the CI workflows in this repository. The project's threat model
 and hardening measures are described in `docs/security.md`.
 
 Out of scope: vulnerabilities in third-party components (`spacenavd`, `libspnav`, the GTK stack,

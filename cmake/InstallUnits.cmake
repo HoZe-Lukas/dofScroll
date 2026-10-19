@@ -1,10 +1,20 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 # Included from cmake_install.cmake: renders systemd/*.service.in for the install prefix.
+# The prefix the files will have on the target system. Under CPack, CMAKE_INSTALL_PREFIX is
+# the staging directory (<build>/_CPack_Packages/...), which must never end up in a unit;
+# DOFSCROLL_PACKAGING_PREFIX (= CPACK_PACKAGING_INSTALL_PREFIX, baked in at configure time,
+# the CPack variable itself is not visible in the install script) is the final location
+# there. CPack staging is recognised by its fixed directory name. A plain
+# `cmake --install --prefix X` has no CPack variable and keeps using X.
+set(_final_prefix "${CMAKE_INSTALL_PREFIX}")
+if(DOFSCROLL_PACKAGING_PREFIX AND CMAKE_INSTALL_PREFIX MATCHES "/_CPack_Packages/")
+  set(_final_prefix "${DOFSCROLL_PACKAGING_PREFIX}")
+endif()
 if(IS_ABSOLUTE "${DOFSCROLL_BINDIR_REL}")
   set(DOFSCROLL_BINDIR "${DOFSCROLL_BINDIR_REL}")
 else()
-  set(DOFSCROLL_BINDIR "${CMAKE_INSTALL_PREFIX}/${DOFSCROLL_BINDIR_REL}")
+  set(DOFSCROLL_BINDIR "${_final_prefix}/${DOFSCROLL_BINDIR_REL}")
 endif()
 set(_dir "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/systemd/user")
 file(MAKE_DIRECTORY "${_dir}")

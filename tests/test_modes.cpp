@@ -333,6 +333,58 @@ static void testModeSwitchBinding() {
     assert(applyKey(s, "BUTTON_2", "mode:next", &err) && s.buttons[2] == "mode:next");
 }
 
+static void testSecurityHardening() {
+    std::vector<std::string> w;
+    std::string err;
+    // F5: process-level keys are rejected as overrides
+    clearDir();
+    writeFile("evil.conf", "ENABLED = 0\nBACKEND = uinput\ntick_hz = 1000\nSCROLL_V_SENS = 3\n");
+    ModeSet ms = loadModes(g_dir, &w);
+    const ModeDef *m = ms.find("evil");
+    assert(m && m->overrides.size() == 1 && m->overrides[0].first == "SCROLL_V_SENS");
+    assert(hasWarning(w, "ENABLED is not allowed in a mode file"));
+    assert(hasWarning(w, "BACKEND is not allowed"));
+    assert(hasWarning(w, "TICK_HZ is not allowed"));
+    assert(hasWarning(w, "evil.conf:1"));
+
+    // F2: chord warnings, one per mode, mode still loads
+    clearDir();
+    writeFile("mod.conf", "BUTTON_1 = key:ctrl\nBUTTON_2 = key:alt\n");
+    writeFile("kmod.conf", "TWIST_ACTION = keys:shift,f1\n");
+    writeFile("zk.conf", "V_ACTION = zoom\nH_ACTION = keys:w,w\n");
+    writeFile("safe.conf", "BUTTON_1 = key:space\nH_ACTION = keys:left,right\nV_ACTION = wheel_v\n");
+    w.clear();
+    ms = loadModes(g_dir, &w);
+    assert(ms.find("mod") && ms.find("kmod") && ms.find("zk") && ms.find("safe"));
+    int n = 0;
+    for (const std::string &x : w)
+        if (x.find("mode mod can press shortcut chords") != std::string::npos) n++;
+    assert(n == 1);
+    assert(hasWarning(w, "mode kmod can press shortcut chords"));
+    assert(hasWarning(w, "mode zk can press shortcut chords"));
+    assert(!hasWarning(w, "mode safe"));
+
+    // shipped example modes: no chord warning
+    std::string src = __FILE__;
+    src = src.substr(0, src.rfind('/')) + "/../examples/modes";
+    w.clear();
+    ms = loadModes(src, &w);
+    assert(ms.find("browse-keys"));
+    assert(w.empty());
+
+    // F9: NUL bytes
+    clearDir();
+    static const char nulText[] = "SCROLL_V_SENS = 3\0junk\nBUTTON_1 = key:space\0x\nSCROLL_H_SENS = 4\n";
+    writeFile("nulbyte.conf", std::string(nulText, sizeof nulText - 1));  // not "nul": a reserved Windows device name
+    w.clear();
+    ms = loadModes(g_dir, &w);
+    m = ms.find("nulbyte");
+    assert(m && m->overrides.size() == 1 && m->overrides[0].second == "4" && m->buttons.empty());
+    assert(hasWarning(w, "NUL byte"));
+    Settings s;
+    assert(!applyKey(s, "SCROLL_V_SENS", std::string("3\0junk", 6), &err) && err.find("NUL") != std::string::npos);
+}
+
 int main() {
     g_dir = tu::tmpRoot() + "/test_modes." + std::to_string(tu::pid());
     testIds();
@@ -345,6 +397,7 @@ int main() {
     testStamp();
     testResolveWithMode();
     testModeSwitchBinding();
+    testSecurityHardening();
     tu::removeAll(g_dir);
     std::cout << "test_modes: all tests passed\n";
     return 0;

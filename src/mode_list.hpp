@@ -4,7 +4,13 @@
 // per program ([app:*]) and per device ([device:*]) profile, each row choosing the mode
 // (config key MODE) for that profile. Header-only; unit-tested in tests/test_mode_list.cpp.
 #pragma once
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <cerrno>
 #include <cstddef>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -127,6 +133,112 @@ inline bool setGlobalMode(ProfileSet &ps, const std::string &mode_id) {
             found = true;
         }
     if (!found) kv.emplace_back("MODE", mode_id);
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Editing modes from the tray: which "edit" entries exist, template text for a built-in mode,
+// and safe creation of a new mode file (never overwrites).
+// ---------------------------------------------------------------------------
+
+struct EditEntry {
+    std::string id;
+    std::string text;      // "<display name> (<id>)", or just the id
+    bool has_file = true;  // false: built-in without a file -> "create editable copy"
+};
+
+// One entry per loaded mode, in load order. A mode loaded from a file has a file; a pure
+// built-in (ModeDef::builtin) has none.
+inline std::vector<EditEntry> buildEditEntries(const ModeSet &ms) {
+    std::vector<EditEntry> out;
+    for (const ModeDef &m : ms.modes) {
+        EditEntry e;
+        e.id = m.id;
+        e.text = (m.label.empty() || m.label == m.id) ? m.id : m.label + " (" + m.id + ")";
+        e.has_file = !m.builtin;
+        out.push_back(e);
+    }
+    return out;
+}
+
+// <dir>/<id>.conf, or "" if the id is not a valid mode id or dir is empty.
+inline std::string modeFilePath(const std::string &dir, const std::string &id) {
+    if (dir.empty() || !validModeId(id)) return std::string();
+    return dir + "/" + id + ".conf";
+}
+
+inline std::string channelActionText(const ChannelAction &a) {
+    switch (a.type) {
+        case ChannelActionType::Default: return "default";
+        case ChannelActionType::Off: return "none";
+        case ChannelActionType::WheelV: return "wheel_v";
+        case ChannelActionType::WheelH: return "wheel_h";
+        case ChannelActionType::Zoom: return "zoom";
+        case ChannelActionType::Keys: return std::string("keys:") + keyName(a.neg) + "," + keyName(a.pos);
+    }
+    return "default";
+}
+
+// Template mode file text for a mode (normally a built-in): NAME/DESCRIPTION, the channel
+// actions, the buttons and the overrides, with explanatory comments. loadModes parses it back
+// into an equivalent mode.
+inline std::string modeTemplate(const ModeDef &m) {
+    std::string t;
+    t += "# Mode \"" + m.id + "\" - editable copy. Save the file; the daemon reloads it by itself.\n";
+    t += "# A file of the same name replaces the built-in mode. Documentation: docs/modes.md\n";
+    t += "# Channel actions: default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos>\n";
+    t += "# Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next\n";
+    t += "# Buttons are numbered from 1: BUTTON_1 = key:space\n\n";
+    t += "NAME = " + (m.label.empty() ? m.id : m.label) + "\n";
+    if (!m.description.empty()) t += "DESCRIPTION = " + m.description + "\n";
+    t += "V_ACTION = " + channelActionText(m.v) + "\n";
+    t += "H_ACTION = " + channelActionText(m.h) + "\n";
+    t += "TWIST_ACTION = " + channelActionText(m.twist) + "\n";
+    for (const ButtonBinding &b : m.buttons) {
+        std::string v;
+        switch (b.type) {
+            case ButtonActionType::Unbound: continue;
+            case ButtonActionType::Click: v = "click"; break;
+            case ButtonActionType::RightClick: v = "rightclick"; break;
+            case ButtonActionType::MiddleClick: v = "middleclick"; break;
+            case ButtonActionType::Nav: v = "nav"; break;
+            case ButtonActionType::Key: v = std::string("key:") + keyName(b.key); break;
+            case ButtonActionType::ModeSwitch: v = "mode:" + b.mode; break;
+        }
+        t += "BUTTON_" + std::to_string(b.button) + " = " + v + "\n";
+    }
+    for (const auto &kv : m.overrides) t += kv.first + " = " + kv.second + "\n";
+    return t;
+}
+
+// Creates <dir>/<id>.conf with the given content, mode 0600, exclusively (O_EXCL, no symlink
+// following): an existing file is never touched. The directory is created (0700) if missing.
+// On success *path receives the file path. false + *err otherwise.
+inline bool createModeFile(const std::string &dir, const std::string &id, const std::string &content,
+                           std::string *path, std::string *err) {
+    auto fail = [&](const std::string &m) {
+        if (err) *err = m;
+        return false;
+    };
+    const std::string p = modeFilePath(dir, id);
+    if (p.empty()) return fail("invalid mode id or directory");
+    if (mkdir(dir.c_str(), 0700) != 0 && errno != EEXIST) return fail(std::string("mkdir: ") + strerror(errno));
+    int fd = open(p.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
+    if (fd < 0) return fail(errno == EEXIST ? std::string("file already exists") : strerror(errno));
+    size_t off = 0;
+    while (off < content.size()) {
+        ssize_t n = write(fd, content.data() + off, content.size() - off);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) {
+            std::string e = strerror(errno);
+            close(fd);
+            unlink(p.c_str());
+            return fail("write: " + e);
+        }
+        off += size_t(n);
+    }
+    if (close(fd) != 0) return fail(std::string("close: ") + strerror(errno));
+    if (path) *path = p;
     return true;
 }
 

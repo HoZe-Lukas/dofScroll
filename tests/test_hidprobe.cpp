@@ -75,8 +75,9 @@ static void testSummary() {
 }
 
 static void put16(uint8_t *p, int v) {
-    p[0] = uint8_t(v & 0xff);
-    p[1] = uint8_t((v >> 8) & 0xff);
+    const uint16_t u = static_cast<uint16_t>(v);  // two's complement without shifting a negative int
+    p[0] = uint8_t(u & 0xff);
+    p[1] = uint8_t((u >> 8) & 0xff);
 }
 
 static void testChecker() {
