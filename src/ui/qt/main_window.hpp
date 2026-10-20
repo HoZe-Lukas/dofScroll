@@ -20,6 +20,8 @@
 #include "ui_context.hpp"
 
 class QCloseEvent;
+class QMoveEvent;
+class QResizeEvent;
 class QEvent;
 class QLabel;
 class QProxyStyle;
@@ -51,6 +53,8 @@ public:
     bool overviewCardsFit() const;
     bool overviewCardsFillWidth() const;            // no squashed card after a resize
     void openOverviewProfile(int section);    // what a click on an Overview card does (also used by the self-test)
+    static QSize defaultWindowSize();  // 1280x820 on a large screen, smaller on a small one
+    static QWidget *scrollable(QWidget *page);  // the page inside a scroll area (see main_window.cpp)
     QWidget *currentPage() const;             // the page that is shown (a tab of the category or its only page)
     QString currentPageId() const;            // registry id of the page that is shown
     bool selectedProfileIs(size_t section) const;  // is this profile selected on the Profiles page?
@@ -78,9 +82,12 @@ signals:
 
 protected:
     void closeEvent(QCloseEvent *e) override;
+    void resizeEvent(QResizeEvent *e) override;  // size and position are saved shortly after the last change
+    void moveEvent(QMoveEvent *e) override;
     bool event(QEvent *e) override;  // a palette change redraws the icons and the tab style
 
 private:
+    QLabel *categoryTitle_ = nullptr;  // large title above the category
     void updateStatus();
     void savePage();
     void refreshAppearance();  // tab icons in the colour of the palette, tab style on top of the current style
@@ -102,6 +109,7 @@ private:
     QLabel *trayNote_ = nullptr;       // status bar note when there is no tray
     std::string statePath_;            // ui.conf the window state is kept in ("" = not kept)
     bool restoring_ = false;
+    QTimer *stateTimer_ = nullptr;       // single shot: saves the geometry after a resize or move
     bool trayAvailable_ = true;
     bool trayNoticeShown_ = false;
 };

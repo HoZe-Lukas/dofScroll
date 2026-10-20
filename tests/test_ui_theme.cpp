@@ -97,6 +97,13 @@ static void testThemesAreReadable() {
         assert(contrastRatio(c.text, c.base) >= 7.0);
         assert(contrastRatio(c.buttonText, c.button) >= 7.0);
         assert(minTextContrast(c) >= 4.5);
+        assert(minAccentContrast(c) >= 3.0);  // focus ring and selection marks (WCAG 1.4.11)
+        assert(contrastRatio(c.highlightedText, c.highlight) >= 4.5);  // text on a primary button
+        assert(contrastRatio(c.placeholderText, c.surface) >= 4.5);    // muted help text on a card
+        assert(contrastRatio(c.windowText, c.accentSoft) >= 7.0);      // label of the selected tab or row
+        assert(contrastRatio(c.border, c.window) >= 1.15 && !(c.border == c.window));
+        // the style sheet colours derive from any base palette (the System theme)
+        assert(minTextContrast(finishColors(c)) >= 4.5);
     }
     ThemeColors none;
     assert(!themeColors(Theme::System, &none));

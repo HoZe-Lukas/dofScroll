@@ -3,6 +3,7 @@
 // dofscroll-ui: Qt6 Widgets tray icon and settings window (see docs/ui-options.md).
 #include <QApplication>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QLocale>
 #include <QLockFile>
@@ -23,6 +24,10 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSlider>
+#include <QSpinBox>
+#include <QVBoxLayout>
+#include <QWheelEvent>
 #include <QComboBox>
 #include <QLineEdit>
 #include <QListWidget>
@@ -38,9 +43,12 @@
 #include <ctime>
 
 #include "main_window.hpp"
+#include "pages/add_app_dialog.hpp"
+#include "pages/add_device_dialog.hpp"
 #include "pages/axes_page.hpp"
 #include "button_row.hpp"
 #include "common.hpp"
+#include "pages/profiles_env.hpp"
 #include "pages/button_modes_page.hpp"
 #include "pages/channels_page.hpp"
 #include "pages/extensions_page.hpp"
@@ -80,6 +88,75 @@ static void printUsage() {
 // requests, which are handled by the next round, so one processEvents() is not enough for a picture.
 static void settle() {
     for (int i = 0; i < 4; ++i) QApplication::processEvents();
+}
+
+// The wheel never changes a combo box, spin box or slider; it scrolls the surrounding scroll area.
+// At the default window size no page needs to scroll: the content each page asks for fits the
+// area next to the sidebar (the window is bigger than the largest page, minus the chrome).
+static bool defaultSizeFitsSelfTest(MainWindow &w) {
+    bool ok = true;
+    w.show();
+    const int chromeW = 260, chromeH = 190;  // sidebar, title, page tabs, status bar
+    for (const std::string &id : w.pageIds()) {
+        w.showPage(QString::fromStdString(id));
+        settle();
+        const QWidget *page = w.currentPage();
+        if (!page) continue;
+        const QSize hint = page->minimumSizeHint();  // what the layout needs at least (sizeHint depends on the platform font)
+        if (hint.height() > spn::ui::tokens::kDefaultWindowHeight - chromeH ||
+            hint.width() > spn::ui::tokens::kDefaultWindowWidth - chromeW) {
+            std::fprintf(stderr, "default size self-test failed: page %s needs %dx%d\n", id.c_str(), hint.width(), hint.height());
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+static bool wheelSelfTest() {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "wheel self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    installLook();
+    QScrollArea area;
+    auto *content = new QWidget;
+    auto *lay = new QVBoxLayout(content);
+    auto *combo = new QComboBox;
+    combo->addItems({QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c")});
+    auto *spin = new QSpinBox;
+    spin->setRange(0, 100);
+    spin->setValue(50);
+    auto *slider = new QSlider(Qt::Horizontal);
+    slider->setRange(0, 100);
+    slider->setValue(50);
+    lay->addWidget(combo);
+    lay->addWidget(spin);
+    lay->addWidget(slider);
+    auto *filler = new QWidget;
+    filler->setMinimumHeight(2000);  // the page is much taller than the viewport
+    lay->addWidget(filler);
+    area.setWidgetResizable(true);
+    area.setWidget(content);
+    area.resize(400, 300);
+    area.show();
+    settle();
+    check(area.verticalScrollBar()->maximum() > 0, "the test page scrolls");
+    for (QWidget *w : std::initializer_list<QWidget *>{combo, spin, slider}) {
+        area.verticalScrollBar()->setValue(0);
+        for (int delta : {-120, 120, -240}) {
+            const QPointF local = QPointF(w->width() / 2.0, w->height() / 2.0);
+            QWheelEvent e(local, w->mapToGlobal(local), QPoint(), QPoint(0, delta), Qt::NoButton, Qt::NoModifier,
+                          Qt::ScrollUpdate, false);
+            QApplication::sendEvent(w, &e);
+        }
+        check(combo->currentIndex() == 0, "the wheel does not change the combo box");
+        check(spin->value() == 50, "the wheel does not change the spin box");
+        check(slider->value() == 50, "the wheel does not change the slider");
+        check(area.verticalScrollBar()->value() != 0, "the wheel scrolls the page instead");
+    }
+    std::printf("wheel self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
 }
 
 // Button modes page: lists the files, edits one in the page and saves it, creates and deletes one.
@@ -326,7 +403,9 @@ static QLineEdit *lineEditNamed(QWidget *root, const QString &name) {
 
 static bool underScrollArea(const QWidget *w) {
     for (const QWidget *p = w->parentWidget(); p; p = p->parentWidget())
-        if (qobject_cast<const QAbstractScrollArea *>(p) && !qobject_cast<const QTreeWidget *>(p)) return true;
+        if (qobject_cast<const QAbstractScrollArea *>(p) && !qobject_cast<const QTreeWidget *>(p) &&
+            p->objectName() != QLatin1String("pageScroll"))  // the scroll area around the whole page does not count
+            return true;
     return false;
 }
 
@@ -915,6 +994,26 @@ static bool overviewSelfTest(MainWindow &w) {
 // Window state: size, position and page survive a close and a new window; a geometry that is off all
 // screens is ignored and the minimum size holds; a hidden window comes back on the saved page; closing
 // hides the window with a tray and quits without one.
+// A resize or move is saved shortly afterwards, without closing the window.
+static bool windowAutosaveSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    const std::string path = (tmpPath + QStringLiteral("/window-autosave/ui.conf")).toStdString();
+    MainWindow w(ctx);
+    w.enableStatePersistence(path);
+    w.show();
+    settle();
+    w.resize(1111, 777);
+    QElapsedTimer t;
+    t.start();
+    while (t.elapsed() < 1600) QApplication::processEvents(QEventLoop::AllEvents, 50);
+    const spn::ui::UiSettings saved = spn::ui::loadUiSettings(path);
+    if (!saved.window.valid || saved.window.w != 1111 || saved.window.h != 777) {
+        std::fprintf(stderr, "window autosave self-test failed: the geometry was not saved after the resize\n");
+        ok = false;
+    }
+    return ok;
+}
+
 static bool windowStateSelfTest(const UiContext &ctx, const QString &tmpPath) {
     bool ok = true;
     auto check = [&ok](bool cond, const char *what) {
@@ -931,7 +1030,7 @@ static bool windowStateSelfTest(const UiContext &ctx, const QString &tmpPath) {
         QObject::connect(&a, &MainWindow::quitRequested, [&quits] { ++quits; });
         QObject::connect(&a, &MainWindow::hiddenToTray, [&notices] { ++notices; });
         a.enableStatePersistence(path);  // no file yet: defaults
-        check(a.size() == QSize(960, 560), "no file: the default size");
+        check(a.size() == MainWindow::defaultWindowSize(), "no file: the default size");
         a.show();
         check(a.showPage(QString::fromStdString(ids[2])), "select a page");
         a.resize(900, 540);
@@ -984,11 +1083,17 @@ static bool windowStateSelfTest(const UiContext &ctx, const QString &tmpPath) {
         return c.size();
     };
     QPoint at;
-    check(sizeAfter("window = 90000,90000,900,540\n", &at) == QSize(960, 560), "off all screens: ignored");
+    check(sizeAfter("window = 90000,90000,900,540\n", &at) == MainWindow::defaultWindowSize(), "off all screens: ignored");
     check(sizeAfter("window = 10,10,100,100\n", &at) == QSize(spn::ui::tokens::kMinWindowWidth, spn::ui::tokens::kMinWindowHeight) &&
               at == QPoint(10, 10),
           "the minimum size holds");
-    check(sizeAfter("window = nonsense\npage = ..\n", &at) == QSize(960, 560), "junk: defaults");
+    check(sizeAfter("window = nonsense\npage = ..\n", &at) == MainWindow::defaultWindowSize(), "junk: defaults");
+    {
+        const QSize d = MainWindow::defaultWindowSize();
+        check(d.width() >= spn::ui::tokens::kMinWindowWidth && d.height() >= spn::ui::tokens::kMinWindowHeight &&
+                  d.width() <= spn::ui::tokens::kDefaultWindowWidth && d.height() <= spn::ui::tokens::kDefaultWindowHeight,
+              "the default size is between the minimum and 1280x820");
+    }
     std::printf("window state self-test: %s\n", ok ? "ok" : "failed");
     return ok;
 }
@@ -1066,6 +1171,7 @@ int main(int argc, char **argv) {
     QApplication::setApplicationName(QStringLiteral("dofscroll"));
     QApplication::setApplicationVersion(QStringLiteral(DOFSCROLL_VERSION));
     QApplication::setQuitOnLastWindowClosed(false);
+    installLook();  // spacing scale, font, style sheet and the wheel guard, for every window and dialog
 
     // Catalog converted from po/de.po at build time (dofscroll_<lang>.qm next to the binary).
     // The language comes from the per-user UI settings (General page): "en" = no catalog.
@@ -1116,7 +1222,7 @@ int main(int argc, char **argv) {
         w.show();
         // Light at three sizes, dark at the medium size (the layout does not depend on the colours).
         static const struct { const char *theme; const char *name; int w, h; } shots[] = {
-            {"light", "small", 720, 460}, {"light", "medium", 960, 560}, {"light", "wide", 1500, 820}, {"dark", "medium", 960, 560}};
+            {"light", "small", 720, 480}, {"light", "medium", 960, 560}, {"light", "wide", 1500, 820}, {"dark", "medium", 960, 560}};
         int written = 0;
         for (const auto &sz : shots) {
             applyTheme(spn::ui::themeFromId(sz.theme));
@@ -1141,6 +1247,17 @@ int main(int argc, char **argv) {
                 settle();
                 if (page.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-mode-editor.png"))) ++written;
             }
+        }
+        {   // the dialogs (minimum-ish size and the default one)
+            ProfilesEnv env;
+            AddDeviceDialog device(env, {});
+            device.show();
+            settle();
+            if (device.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-dialog-add-device.png"))) ++written;
+            AddAppDialog appDialog(env, {});
+            appDialog.show();
+            settle();
+            if (appDialog.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-dialog-add-app.png"))) ++written;
         }
         std::printf("screenshots: %d files in %s\n", written, screenshotDir);
         return written > 0 ? 0 : 1;
@@ -1197,7 +1314,10 @@ int main(int argc, char **argv) {
         if (!accessibilitySelfTest(w)) return 1;
         if (!profilesPageSelfTest(w, tmp.path(), [&w] { return accessibilitySelfTest(w); })) return 1;
         if (!themeSelfTest(w)) return 1;
+        if (!wheelSelfTest()) return 1;
+        if (!defaultSizeFitsSelfTest(w)) return 1;
         if (!windowStateSelfTest(ctx, tmp.path())) return 1;
+        if (!windowAutosaveSelfTest(ctx, tmp.path())) return 1;
         return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen
     }
 

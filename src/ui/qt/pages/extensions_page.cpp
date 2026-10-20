@@ -3,6 +3,7 @@
 #include "pages/extensions_page.hpp"
 
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
@@ -49,6 +50,8 @@ ExtensionsPage::ExtensionsPage(const UiContext &ctx, QWidget *parent)
     tree_ = new QTreeWidget(this);
     tree_->setColumnCount(3);
     tree_->setHeaderLabels({T("Name"), T("Type"), T("Origin")});
+    tree_->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);  // never cut a name or a type
+    tree_->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     tree_->setRootIsDecorated(false);
     tree_->setAccessibleName(T("Extensions"));
     row->addWidget(tree_, 1);

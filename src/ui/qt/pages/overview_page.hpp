@@ -77,6 +77,10 @@ private:
     QLineEdit *filter_ = nullptr;
     QWidget *cardHost_ = nullptr;
     QGridLayout *cardGrid_ = nullptr;
+    QGridLayout *quickGrid_ = nullptr;
+    std::vector<QPushButton *> quickButtons_;
+    int quickColumns_ = 0;
+    void layoutQuickActions();
     std::vector<QFrame *> cards_;
     QString cardsKey_;  // what the cards were built from, to rebuild only when it changed
     int columns_ = 1;

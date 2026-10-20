@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// "Profiles" page: tree (Default mode, device profiles, application profiles) on the left and the
+// "Profiles" page: tree (Global, device profiles, application profiles) on the left and the
 // profile page on the right. The right side is rebuilt whenever the selected profile or its
 // effective mode changes. All decisions come from the models in src/ui/model/.
 #pragma once

@@ -50,8 +50,8 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     content->setMaximumWidth(kMaxContentWidth);
     content_ = content;
     auto *col = new QVBoxLayout(content);
-    col->setContentsMargins(kSpaceLg, kSpaceLg, kSpaceLg, kSpaceLg);
-    col->setSpacing(kSpaceLg);
+    col->setContentsMargins(kPageMargin, kSpaceLg, kPageMargin, kPageMargin);
+    col->setSpacing(kSectionGap);
     scroll->setWidget(content);
 
     // ---- status ----
@@ -89,37 +89,34 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     // ---- quick actions ----
     auto *actionBox = new QGroupBox(T("Quick actions"));
     auto *al = new QVBoxLayout(actionBox);
-    // Three short rows instead of one long one: the page has to fit the smallest window.
-    auto *row = new QHBoxLayout;   // profiles
-    auto *infoRow = new QHBoxLayout;   // log and documentation
-    auto *daemonRow = new QHBoxLayout;   // what acts on the daemon
-    for (QHBoxLayout *r : {row, infoRow, daemonRow}) r->setSpacing(kSpaceSm);
+    quickGrid_ = new QGridLayout;  // the buttons wrap to more rows in a narrow window (layoutQuickActions)
+    quickGrid_->setContentsMargins(0, 0, 0, 0);
+    quickGrid_->setHorizontalSpacing(kRowGap);
+    quickGrid_->setVerticalSpacing(kRowGap);
     auto *addProfile = new QPushButton(T("Add a profile..."));
     addProfile->setToolTip(T("Set up a program or a device on the Profiles page"));
     connect(addProfile, &QPushButton::clicked, this, [this] { emit openPage(QStringLiteral("profiles")); });
-    row->addWidget(addProfile);
+    quickButtons_.push_back(addProfile);
     auto *newForRunning = new QPushButton(T("New profile for the running program..."));
     newForRunning->setObjectName(QStringLiteral("new-program-profile"));
     newForRunning->setToolTip(T("Pick one of the running programs and give it its own profile"));
     connect(newForRunning, &QPushButton::clicked, this, [this] { emit newProgramProfile(); });
-    row->addWidget(newForRunning);
+    quickButtons_.push_back(newForRunning);
     const std::vector<spn::ui::OverviewAction> actions = spn::ui::overviewActions();
     for (size_t i = 0; i < actions.size(); ++i) {
         auto *b = new QPushButton(T(actions[i].label.c_str()));
         b->setObjectName(qs8("action-" + actions[i].id));
         if (actions[i].id == "open_log") b->setToolTip(T("Show the end of the daemon log"));
         connect(b, &QPushButton::clicked, this, [this, i] { runAction(static_cast<int>(i)); });
-        (actions[i].id == "open_log" ? infoRow : daemonRow)->addWidget(b);
+        quickButtons_.push_back(b);
     }
     auto *docs = new QPushButton(T("Documentation"));
     docs->setObjectName(QStringLiteral("documentation"));
     docs->setToolTip(T("Open the documentation of the interface in your browser"));
     connect(docs, &QPushButton::clicked, this, [this] { openDocumentation(); });
-    infoRow->addWidget(docs);
-    for (QHBoxLayout *r : {row, infoRow, daemonRow}) {
-        r->addStretch(1);
-        al->addLayout(r);
-    }
+    quickButtons_.push_back(docs);
+    al->addLayout(quickGrid_);
+    layoutQuickActions();
     auto *modeRow = new QHBoxLayout;
     auto *modeLabel = new QLabel(T("Active mode:"));
     mode_ = new QComboBox;
@@ -277,11 +274,11 @@ void OverviewPage::rebuildCards(const spn::ui::OverviewData &d, const std::vecto
         const spn::ui::OverviewProfile &p = d.profiles[index];
         auto *card = new QFrame(cardHost_);
         card->setFrameShape(QFrame::StyledPanel);
-        card->setAutoFillBackground(true);
+        card->setProperty("card", true);  // rounded, tinted inset card (theme.cpp)
         card->setToolTip(qs8(p.details));  // every setting of the profile, the summary shows the first ones
         auto *cl = new QVBoxLayout(card);
-        cl->setContentsMargins(kSpaceMd, kSpaceMd, kSpaceMd, kSpaceMd);
-        cl->setSpacing(kSpaceXs);
+        cl->setContentsMargins(kCardPadding, kCardPadding, kCardPadding, kCardPadding);
+        cl->setSpacing(kSpaceSm);
         auto *kind = note(p.kind == spn::Section::DEVICE ? T("Device") : T("Program"));
         auto *name = new QLabel(qs8(p.name));
         QFont f = name->font();
@@ -343,10 +340,28 @@ void OverviewPage::rebuildGettingStarted(const std::vector<spn::ui::GettingStart
     }
 }
 
+// The quick action buttons in as many columns as fit (at least one), so the row never forces the
+// page wider than the window.
+void OverviewPage::layoutQuickActions() {
+    int widest = 0;
+    for (const QPushButton *b : quickButtons_) widest = std::max(widest, b->sizeHint().width());
+    const int available = width() - 2 * spn::ui::tokens::kPageMargin - 2 * spn::ui::tokens::kCardPadding;
+    const int cell = widest + spn::ui::tokens::kRowGap;
+    int columns = width() > 0 ? std::max(1, (available + spn::ui::tokens::kRowGap) / cell) : 1;
+    columns = std::min(columns, static_cast<int>(quickButtons_.size()));
+    if (columns == quickColumns_) return;
+    quickColumns_ = columns;
+    while (quickGrid_->count() > 0) delete quickGrid_->takeAt(0);
+    for (size_t i = 0; i < quickButtons_.size(); ++i)
+        quickGrid_->addWidget(quickButtons_[i], static_cast<int>(i) / columns, static_cast<int>(i) % columns);
+    for (int c = 0; c <= columns; ++c) quickGrid_->setColumnStretch(c, c == columns ? 1 : 0);
+    quickGrid_->invalidate();
+}
+
 void OverviewPage::layoutCards() {
     // From the width of the page, not of the card host: the host can be held wide by the minimum width
     // of the cards of the current columns (a larger font), which would then never let it wrap.
-    const int available = std::min(this->width(), spn::ui::tokens::kMaxContentWidth) - 4 * spn::ui::tokens::kSpaceLg;
+    const int available = std::min(this->width(), spn::ui::tokens::kMaxContentWidth) - 2 * spn::ui::tokens::kPageMargin - 2 * spn::ui::tokens::kCardPadding;
     // As many columns as fit, but not more than there are cards: a row of few cards fills the width.
     const int columns = std::max(1, std::min(available / kCardMinWidth, static_cast<int>(cards_.size())));
     if (columns == columns_ && cardGrid_->count() == static_cast<int>(cards_.size())) return;
@@ -397,12 +412,14 @@ bool OverviewPage::eventFilter(QObject *watched, QEvent *e) {
 
 void OverviewPage::resizeEvent(QResizeEvent *e) {
     QWidget::resizeEvent(e);
+    layoutQuickActions();
     layoutCards();
 }
 
 void OverviewPage::showEvent(QShowEvent *e) {
     QWidget::showEvent(e);
     refresh();
+    layoutQuickActions();
     layoutCards();
 }
 

@@ -80,12 +80,16 @@ protected:
         const QPalette &pal = palette();
         const int rh = rowHeight();
         const QFontMetrics fm = fontMetrics();
-        const int labelW = fm.horizontalAdvance(QStringLiteral("Scroll H")) + 12;
+        int labelW = 0;  // the widest label, translated names included, so that none is cut
+        for (const QString &l : axisLabel_) labelW = std::max(labelW, fm.horizontalAdvance(l));
+        for (const QString &l : chanLabel_) labelW = std::max(labelW, fm.horizontalAdvance(l));
+        labelW += 18;
         const int valueW = fm.horizontalAdvance(QStringLiteral("-00000")) + 8;
         const int barX = labelW, barW = std::max(40, width() - labelW - valueW - 4);
         const bool live = vm_->hasData();
         const bool paused = vm_->paused();
-        const QColor track = pal.color(QPalette::Mid);
+        QColor track = pal.color(QPalette::WindowText);  // a soft track: the text colour at low strength
+        track.setAlpha(36);
         const QColor text = pal.color(QPalette::Text);
         const QColor bar = pal.color(live && !paused ? QPalette::Active : QPalette::Disabled, QPalette::Highlight);
         const QColor peak = pal.color(QPalette::Link);
@@ -97,7 +101,7 @@ protected:
             p.drawText(QRect(0, y, labelW - 6, rh), Qt::AlignVCenter | Qt::AlignRight, label);
             p.setPen(Qt::NoPen);
             p.setBrush(track);
-            p.drawRoundedRect(r, 3, 3);
+            p.drawRoundedRect(r, 5, 5);
             const int cx = r.center().x();
             const int len = int(std::lround(frac * (r.width() / 2.0)));
             p.setBrush(bar);
@@ -134,8 +138,8 @@ protected:
             const int col = (b - 1) % perRow, rowNo = (b - 1) / perRow;
             const QRect r(2 + col * cell, y + rowNo * cell, rh, rh);
             const bool down = vm_->buttonDown(b);
-            p.setPen(QPen(track, 1));
-            p.setBrush(down ? pal.color(QPalette::Highlight) : Qt::NoBrush);
+            p.setPen(QPen(pal.color(QPalette::Mid), 1));
+            p.setBrush(down ? QBrush(pal.color(QPalette::Highlight)) : QBrush(Qt::NoBrush));
             p.drawRoundedRect(r, 4, 4);
             p.setPen(down ? pal.color(QPalette::HighlightedText) : text);
             buf_.setNum(b);

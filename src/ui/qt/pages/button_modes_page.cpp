@@ -25,6 +25,7 @@
 #include "key_combo.hpp"
 #include "platform/fs.hpp"
 #include "qt_action_runner.hpp"
+#include "ui/model/design_tokens.hpp"
 #include "ui/model/ui_links.hpp"
 #include "ui_i18n.hpp"
 #include "unsaved_prompt.hpp"
@@ -78,7 +79,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
 
     auto *right = new QWidget(split);
     auto *rl = new QVBoxLayout(right);
-    rl->setContentsMargins(0, 0, 0, 0);
+    rl->setContentsMargins(spn::ui::tokens::kRowGap, 0, 0, 0);  // a gap to the list
     auto *form = new QFormLayout;
     name_ = new QLineEdit(right);
     name_->setAccessibleName(T("Name"));
@@ -93,10 +94,11 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     auto *ah = new QHBoxLayout(argHost_);
     ah->setContentsMargins(0, 0, 0, 0);
     auto *actionRow = new QWidget(right);
-    auto *arl = new QHBoxLayout(actionRow);
-    arl->setContentsMargins(0, 0, 0, 0);
-    arl->addWidget(kind_, 1);
-    arl->addWidget(argHost_, 1);
+    auto *arl = new QVBoxLayout(actionRow);  // the argument (key combination, mode, ...) below the action:
+    arl->setContentsMargins(0, 0, 0, 0);     // side by side it makes the page wider than a window
+    arl->setSpacing(spn::ui::tokens::kRowGap);
+    arl->addWidget(kind_);
+    arl->addWidget(argHost_);
     form->addRow(T("Name:"), name_);
     form->addRow(T("Description:"), description_);
     form->addRow(T("Action:"), actionRow);
@@ -107,6 +109,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     rl->addLayout(form);
     auto *editRow = new QHBoxLayout;
     saveBtn_ = new QPushButton(T("Save"), right);
+    saveBtn_->setProperty("primary", true);  // the accent button of the page
     saveBtn_->setToolTip(T("Write the changes to the button mode file"));
     revertBtn_ = new QPushButton(T("Revert"), right);
     revertBtn_->setToolTip(T("Discard the changes and reload the file"));

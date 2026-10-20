@@ -22,12 +22,14 @@ enum { kRoleName = Qt::UserRole };
 AddDeviceDialog::AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent)
     : QDialog(parent), ctx_(ctx) {
     setWindowTitle(T("Add device"));
-    resize(560, 440);
+    resize(640, 500);
     model_.setConfigured(configured);
 
     auto *l = new QVBoxLayout(this);
-    l->addWidget(new QLabel(T("Pick a connected device or type its name. The profile applies while that "
-                              "device is used.")));
+    auto *intro = new QLabel(T("Pick a connected device or type its name. The profile applies while that "
+                              "device is used."));
+    intro->setWordWrap(true);
+    l->addWidget(intro);
     auto *top = new QHBoxLayout;
     search_ = new QLineEdit(this);
     search_->setPlaceholderText(T("Search by name or vendor:product"));

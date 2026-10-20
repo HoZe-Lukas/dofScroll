@@ -16,6 +16,12 @@
 // The palette of a theme (all roles that the widgets use, the disabled group included).
 QPalette paletteFor(const spn::ui::ThemeColors &colors);
 
+// One-time setup of the look: the spacing scale of all layouts, a slightly larger base font, the
+// application style sheet and the filter that keeps the mouse wheel from changing combo boxes,
+// spin boxes and sliders (the wheel scrolls the surrounding page instead). applyTheme calls it
+// too; safe to call repeatedly.
+void installLook();
+
 // Applies a theme to the application: Light and Dark switch to the Fusion style (the native styles
 // of Windows and macOS ignore a custom palette) with the dofscroll palette; System restores the
 // style and the palette the application started with. Safe to call repeatedly.
