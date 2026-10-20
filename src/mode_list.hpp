@@ -189,7 +189,7 @@ inline std::string buttonActionText(const ButtonBinding &b) {
         case ButtonActionType::RightClick: return "rightclick";
         case ButtonActionType::MiddleClick: return "middleclick";
         case ButtonActionType::Nav: return "nav";
-        case ButtonActionType::Key: return std::string("key:") + keyName(b.key);
+        case ButtonActionType::Key: return keyActionText(b.key, b.mods);
         case ButtonActionType::ModeSwitch: return "mode:" + b.mode;
         case ButtonActionType::ToggleNav: return "toggle:nav";
         case ButtonActionType::ToggleMode: return "toggle:mode:" + b.mode;

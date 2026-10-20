@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "pages/button_modes_page.hpp"
 
+#include <memory>
 #include <QComboBox>
+#include <cstdio>
 #include <QDir>
 #include <QFileDialog>
 #include <QFile>
@@ -332,14 +334,12 @@ void ButtonModesPage::rebuildActionArg() {
     argWidget_ = nullptr;
     auto *lay = argHost_->layout();
     if (binding_.kind == BindingKind::Key) {
-        auto *kc = makeKeyCombo(qs(binding_.arg), argHost_);
-        kc->setAccessibleName(T("Key"));
-        connect(kc, &QComboBox::activated, this, [this, kc](int) {
-            if (!kc->currentData().isValid()) return;
-            binding_.arg = kc->currentData().toString().toStdString();
+        // modifier boxes plus the key: a chord such as ctrl+0 is tapped once per press
+        auto chord = std::make_shared<std::string>(binding_.arg);
+        argWidget_ = chordPicker(argHost_, this, chord.get(), T("Key"), [this, chord] {
+            binding_.arg = *chord;
             markDirty(false);
         });
-        argWidget_ = kc;
     } else if (binding_.kind == BindingKind::Mode || binding_.kind == BindingKind::ToggleMode ||
                binding_.kind == BindingKind::HoldMode) {
         auto *mc = new QComboBox(argHost_);
@@ -407,7 +407,10 @@ bool ButtonModesPage::stageEdit(const QString &name, const QString &description,
     name_->setText(name);
     description_->setText(description);
     Binding b;
-    if (!spn::ui::parseBinding(action.toStdString(), &b)) return false;
+    if (!spn::ui::parseBinding(action.toStdString(), &b)) {
+        std::fprintf(stderr, "button modes: cannot parse the binding '%s'\n", qPrintable(action));
+        return false;
+    }
     binding_ = b;
     int idx = 0;
     for (int i = 0; i < kind_->count(); ++i)
@@ -432,13 +435,19 @@ spn::ui::Autosave::Outcome ButtonModesPage::writeForm() {
     const std::string id = shownId_.toStdString();
     if (id.empty() || !catalog_.find(id)) return {false, true, "no button mode is selected"};
     const std::string action = composedAction();
-    if (action.empty()) return {false, true, "choose a key or a joystick mode first"};
+    if (action.empty()) {
+        std::fprintf(stderr, "button modes: the form composes no action\n");
+        return {false, true, "choose a key or a joystick mode first"};
+    }
     // a CYCLE list of the file (see button-modes.md) stays while the action still is mode:next / mode:prev
     const ButtonModeCatalog::Entry *entry = catalog_.find(id);
     const std::vector<std::string> cycle = entry && (action == "mode:next" || action == "mode:prev") ? entry->cycle : std::vector<std::string>();
     const ButtonModeCatalog::Result r =
         catalog_.save(id, name_->text().toUtf8().toStdString(), description_->text().toUtf8().toStdString(), action, cycle);
-    if (!r.ok) return {false, true, r.error};
+    if (!r.ok) {
+        std::fprintf(stderr, "button modes: saving '%s' failed: %s\n", action.c_str(), r.error.c_str());
+        return {false, true, r.error};
+    }
     dirty_ = false;
     keepForm_ = true;  // the list shows the new name; the form stays as it is (the caret does not jump)
     populate(qs(id));

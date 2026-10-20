@@ -153,7 +153,7 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
             }
             ButtonBinding b;
             b.button = std::atoi(num.c_str());
-            if (!parseButtonAction(value, &b.type, &b.key, &err, &b.mode)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
+            if (!parseButtonAction(value, &b.type, &b.key, &err, &b.mode, &b.mods)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
             bool replaced = false;
             for (ButtonBinding &e : out->buttons)
                 if (e.button == b.button) { e = b; replaced = true; }
@@ -176,12 +176,13 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
 
 bool isModifierKey(Key k) { return k == Key::Ctrl || k == Key::Alt || k == Key::Shift || k == Key::Super; }
 
-// Navigation-like keys: Ctrl+<these> is not a destructive shortcut (Ctrl+arrows, Ctrl+PageUp, Ctrl+plus).
+// Navigation-like keys: Ctrl+<these> is not a destructive shortcut (Ctrl+arrows, Ctrl+PageUp, the zoom keys Ctrl+plus,
+// Ctrl+minus and Ctrl+0).
 bool isNavKey(Key k) {
     switch (k) {
         case Key::Up: case Key::Down: case Key::Left: case Key::Right: case Key::Space: case Key::Enter:
         case Key::Esc: case Key::Home: case Key::End: case Key::PageUp: case Key::PageDown: case Key::Minus:
-        case Key::Plus: case Key::KpPlus: case Key::KpMinus:
+        case Key::Plus: case Key::KpPlus: case Key::KpMinus: case Key::N0:
             return true;
         default:
             return false;
@@ -192,8 +193,10 @@ bool isNavKey(Key k) {
 std::string chordRisk(const ModeDef &m) {
     std::vector<std::string> why;
     for (const ButtonBinding &b : m.buttons)
-        if (b.type == ButtonActionType::Key && isModifierKey(b.key))
+        if (b.type == ButtonActionType::Key && b.mods.n == 0 && isModifierKey(b.key))
             why.push_back("BUTTON_" + std::to_string(b.button) + " presses " + keyName(b.key));
+        else if (b.type == ButtonActionType::Key && chordNeedsWarning(b.key, b.mods))
+            why.push_back("BUTTON_" + std::to_string(b.button) + " presses " + keyActionText(b.key, b.mods).substr(4));
     bool hasRiskyKeys = false, hasZoom = false;
     for (const ChannelAction *a : {&m.v, &m.h, &m.twist, &m.vSplit.push, &m.vSplit.tilt, &m.hSplit.push, &m.hSplit.tilt}) {
         if (a->type == ChannelActionType::Zoom) hasZoom = true;
@@ -335,8 +338,17 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
     return true;
 }
 
+bool chordNeedsWarning(Key key, const ChordMods &mods) { return mods.n > 0 && ((mods.mask() & 12u) != 0 || !isNavKey(key)); }
+
+std::string keyActionText(Key key, const ChordMods &mods) {
+    std::string s = "key:";
+    for (uint8_t i = 0; i < mods.n; ++i) s += std::string(keyName(mods.k[i])) + "+";
+    return s + keyName(key);
+}
+
 bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key, std::string *err,
-                       std::string *modeId) {
+                       std::string *modeId, ChordMods *mods) {
+    if (mods) *mods = ChordMods();
     const std::string t = lower(trim(text));
     ButtonActionType ty;
     Key k = Key::Space;
@@ -368,7 +380,13 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
     }
     else if (t.compare(0, 4, "key:") == 0) {
         const std::string name = trim(t.substr(4));
-        if (!parseKeyName(name, &k)) return fail(err, "unknown key '" + name + "'");
+        ChordMods m;
+        if (name.find('+') == std::string::npos) {
+            if (!parseKeyName(name, &k)) return fail(err, "unknown key '" + name + "'");
+        } else if (!parseChord(name, &k, &m, err)) {
+            return false;
+        }
+        if (mods) *mods = m;
         ty = ButtonActionType::Key;
     } else if (t.compare(0, 5, "mode:") == 0) {
         std::string id = trim(t.substr(5));
@@ -387,7 +405,7 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
         ty = ButtonActionType::ModeSwitch;
         if (modeId) *modeId = id;
     } else {
-        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | mode:prev | toggle:nav | toggle:mode:<id> | hold:mode:<id> | buttonmode:<id>");
+        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name> | key:<mod>+<key> | mode:<id> | mode:next | mode:prev | toggle:nav | toggle:mode:<id> | hold:mode:<id> | buttonmode:<id>");
     }
     if (type) *type = ty;
     if (key) *key = k;

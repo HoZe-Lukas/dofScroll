@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "button_row.hpp"
 
+#include <memory>
 #include <QComboBox>
 #include <QGridLayout>
 #include <QLabel>
@@ -59,13 +60,12 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
     QWidget *arg = nullptr;
     const BindingKind bk = row.binding.kind;
     if (bk == BindingKind::Key) {
-        auto *kc = makeKeyCombo(qs8(row.binding.arg), parent);
-        kc->setAccessibleName(T("Key of button") + QStringLiteral(" %1").arg(row.number));
-        QObject::connect(kc, &QComboBox::activated, owner, [handlers, kc](int) {
-            if (!kc->currentData().isValid() || !handlers.setArgument) return;
-            handlers.setArgument(Binding{BindingKind::Key, kc->currentData().toString().toUtf8().toStdString()});
-        });
-        arg = kc;
+        // modifier boxes plus the key: "key:ctrl+0" is a chord that is tapped once per press
+        auto chord = std::make_shared<std::string>(row.binding.arg);
+        arg = chordPicker(parent, owner, chord.get(), T("Key of button") + QStringLiteral(" %1").arg(row.number),
+                          [handlers, chord] {
+                              if (handlers.setArgument) handlers.setArgument(Binding{BindingKind::Key, *chord});
+                          });
     } else if (bk == BindingKind::Mode || bk == BindingKind::ToggleMode || bk == BindingKind::HoldMode) {
         auto *mc = new QComboBox(parent);
         mc->setAccessibleName(T("Joystick mode of button") + QStringLiteral(" %1").arg(row.number));

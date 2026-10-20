@@ -110,7 +110,9 @@ ModeRunner::Wanted ModeRunner::bindings(const Settings &s, uint32_t buttons) con
         case ButtonActionType::MiddleClick: w.mouse |= 1u << 2; break;
         case ButtonActionType::RightClick: w.mouse |= 1u << 3; break;
         case ButtonActionType::Nav: w.nav = true; break;
-        case ButtonActionType::Key: w.keys[idx(b.key)] = true; break;
+        case ButtonActionType::Key:
+            if (b.mods.n == 0) w.keys[idx(b.key)] = true;  // a chord is tapped on the press edge, see tick()
+            break;
         }
     };
     for (const ButtonBinding &b : mode_.buttons) {
@@ -126,7 +128,7 @@ ModeRunner::Wanted ModeRunner::bindings(const Settings &s, uint32_t buttons) con
         if (in_mode) continue;
         ButtonBinding b;
         b.button = kv.first;
-        if (!parseButtonAction(kv.second, &b.type, &b.key, nullptr)) continue;
+        if (!parseButtonAction(kv.second, &b.type, &b.key, nullptr, nullptr, &b.mods)) continue;
         apply(b);
     }
     if (nav_latched_) w.nav = true;
@@ -138,9 +140,11 @@ std::vector<ButtonBinding> ModeRunner::edgeBindings(const Settings &s) const {
         return t == ButtonActionType::ModeSwitch || t == ButtonActionType::ToggleNav || t == ButtonActionType::ToggleMode ||
                t == ButtonActionType::HoldMode;
     };
+    // a key chord (key:ctrl+0) acts once on the press edge too
+    auto isChord = [](const ButtonBinding &b) { return b.type == ButtonActionType::Key && b.mods.n > 0; };
     std::vector<ButtonBinding> out;
     for (const ButtonBinding &b : mode_.buttons)
-        if (isEdge(b.type)) out.push_back(b);
+        if (isEdge(b.type) || isChord(b)) out.push_back(b);
     for (const auto &kv : s.buttons) {
         bool in_mode = false;
         for (const ButtonBinding &b : mode_.buttons)
@@ -148,8 +152,8 @@ std::vector<ButtonBinding> ModeRunner::edgeBindings(const Settings &s) const {
         if (in_mode) continue;
         ButtonBinding b;
         b.button = kv.first;
-        if (!parseButtonAction(kv.second, &b.type, &b.key, nullptr, &b.mode)) continue;
-        if (isEdge(b.type)) out.push_back(b);
+        if (!parseButtonAction(kv.second, &b.type, &b.key, nullptr, &b.mode, &b.mods)) continue;
+        if (isEdge(b.type) || isChord(b)) out.push_back(b);
     }
     return out;
 }
@@ -192,7 +196,9 @@ void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, b
     const uint32_t pressed = buttons & ~prev_buttons_;
     for (const ButtonBinding &b : pressed ? edgeBindings(s) : std::vector<ButtonBinding>()) {
         if (!buttonHeld(pressed, b.button - 1)) continue;
-        if (b.type == ButtonActionType::ToggleNav) {
+        if (b.type == ButtonActionType::Key) {
+            tapChord(b.key, b.mods);  // one tap per press, nothing on release: the modifiers pressed here are released at once
+        } else if (b.type == ButtonActionType::ToggleNav) {
             nav_latched_ = !nav_latched_;
         } else if (switch_request_.empty()) {
             if (b.type == ButtonActionType::HoldMode) {

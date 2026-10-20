@@ -190,6 +190,29 @@ drop-downs, spin boxes and buttons are real controls), state is never shown by c
 and "Done:"/"To do:" are written out), and the themes meet the contrast limits of
 `tests/test_ui_theme.cpp`.
 
+## Accessibility
+
+What the Light and Dark themes guarantee, and how each point is tested. `tests/test_ui_theme.cpp` is
+toolkit-free (colour tokens in `src/ui/model/theme_colors.hpp`); the Qt checks are in
+`dofscroll-ui --self-test`.
+
+| Item | Guarantee | Test |
+|---|---|---|
+| Text contrast | Body text 7:1; muted help text, links, error, warning, success and info text, text on buttons, cards, hovered rows and the selection at least 4.5:1 | `test_ui_theme` (`testThemesAreReadable`, `testAccessibility`) |
+| Selected rows | Name 7:1 and the muted second line 4.5:1 on the selection, selected, hovered and unfocused, in every list and tree (joystick modes, button modes, profile tree, dialogs), also in the System theme | `test_ui_theme`; self-test "selection contrast" renders the lists and measures the pixels |
+| Non-text contrast | Borders of inputs, buttons, boxes, radio buttons, the off state of switches, slider grooves, scroll bar handles, the accent and the focus ring: at least 3:1 against window, card, input, hover and selection | `test_ui_theme` (`minAccentContrast`, `testAccessibility`) |
+| Focus | Every button, input, box, switch, slider, list, tree and tab shows a 2 px ring in the focus colour; the style sheet never removes it | style sheet in `src/ui/qt/theme.cpp`; the ring colour is tested (3:1) |
+| Colour alone | Status colours always come with a word or symbol (written "Error", "Done:"/"To do:", origin names); on/off is a switch with a knob position, not only a colour | `accessibility` self-test, review rule |
+| Colour-vision deficiencies | Status, accent, focus and border colours keep 3:1 luminance contrast after a protanopia, deuteranopia and tritanopia simulation (Machado matrices); selected text keeps 7:1 | `test_ui_theme` (`simulateCvd`) |
+| Operating system | System follows the platform palette (light or dark). A high-contrast request (Qt 6.10 `contrastPreference`, Windows high-contrast mode) switches the style sheet off so that the platform palette is shown unchanged. On other systems or older Qt nothing is detected | code review; needs a human on the platform |
+| Font size | The base font is the system font (plus 8%); the interface has no fixed pixel font sizes; at 150% and 200% font size no label or button is cut off | self-test "font scale" |
+| Motion | The interface has no animations, so there is nothing to reduce | none needed |
+| Screen readers, keyboard | Every input has an accessible name; the tab order follows the layout; Escape closes dialogs | `accessibility` self-test |
+
+Not yet covered: a guaranteed 24 px target size is met by the 32 to 34 px control heights but is not
+asserted per control; the 200% font scale is checked for clipping, not for beauty; screen readers
+were not tried on hardware.
+
 ## Appearance
 
 Settings > Appearance sets the theme: **System default** (the look of the platform), **Light** or
@@ -209,6 +232,8 @@ window you look at. The page shows as many button cells as the factory button co
 device (see below), or the highest button it has seen when no device information is available.
 
 ## Joystick modes and button modes
+
+The key of a button action can be a chord: the "Press key" action shows the check boxes ctrl, shift, alt and super next to the key list. With a modifier ticked the action is `key:<mod>+<key>` (for example `key:ctrl+0`), which is tapped once per press; without one it is a plain key that is held while the button is held. The built-in button mode "Reset zoom" is `key:ctrl+0`.
 
 There are two kinds of modes. A **joystick mode** says what the axes (and optionally buttons)
 do: scroll, zoom, keys. A **button mode** is a named behavior of a single button (a key, a click,

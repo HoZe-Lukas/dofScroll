@@ -80,13 +80,15 @@ bool parseButtonModeText(const std::string &text, ButtonMode *out, std::vector<s
             std::string err, target;
             ButtonActionType t;
             Key k;
-            if (!parseButtonAction(value, &t, &k, &err, &target)) { warn(lineno, "ACTION: " + err + " - line ignored"); continue; }
+            ChordMods cm;
+            if (!parseButtonAction(value, &t, &k, &err, &target, &cm)) { warn(lineno, "ACTION: " + err + " - line ignored"); continue; }
             if (t == ButtonActionType::ButtonMode) {
                 warn(lineno, "ACTION: a button mode cannot refer to another button mode - line ignored");
                 continue;
             }
             out->type = t;
             out->key = k;
+            out->mods = cm;
             out->target = target;
             out->action = utf8::lowerAscii(value);
             haveAction = true;
@@ -142,6 +144,10 @@ ButtonModeSet loadButtonModes(const std::string &dir, std::vector<std::string> *
         b.id = e.id;
         b.path = e.path;
         if (!parseButtonModeText(e.text, &b, warnings)) continue;
+        // Same rule as for mode files (docs/modes.md, Safety): Alt or Super in a chord, or Ctrl/Shift with a key
+        // that is not a navigation key, is worth a warning. The built-in button modes ship with the program: no warning.
+        if (b.type == ButtonActionType::Key && chordNeedsWarning(b.key, b.mods))
+            warnAll("button mode " + b.id + " presses the shortcut chord " + keyActionText(b.key, b.mods).substr(4) + " - read the file before use");
         bool replaced = false;
         for (ButtonMode &x : set.modes)
             if (x.id == b.id) { x = b; replaced = true; break; }
@@ -176,6 +182,7 @@ ModeDef expandMode(const ModeDef &m, const ButtonModeSet &set, std::set<std::str
         if (bm) {
             b.type = bm->type;
             b.key = bm->key;
+            b.mods = bm->mods;
             b.mode = bm->target;
         } else {
             if (missing) missing->insert(b.mode);

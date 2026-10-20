@@ -37,6 +37,7 @@ struct ButtonMode {
     std::string path;
     ButtonActionType type = ButtonActionType::Unbound;
     Key key = Key::Space;
+    ChordMods mods;           // modifiers of a key: chord (n = 0 for a plain key)
     std::string target;       // mode id for ModeSwitch / ToggleMode ("next:a,b" with a cycle list)
     std::vector<std::string> cycle;  // CYCLE ids (validated, deduplicated); empty = all modes
     bool builtin = false;     // from the embedded library (builtin_library.hpp): no file, path is empty

@@ -57,6 +57,28 @@ int main() {
             const ButtonMode *b = lib.find(id);
             assert(b && b->builtin && b->path.empty() && !b->label.empty());
         }
+        {   // reset-zoom: a built-in chord, no warning (bw is empty above), expands to the chord text
+            const ButtonMode *rz = lib.find("reset-zoom");
+            assert(rz && rz->builtin && rz->type == ButtonActionType::Key && rz->key == Key::N0 && rz->mods.n == 1 &&
+                   rz->mods.k[0] == Key::Ctrl && rz->action == "key:ctrl+0");
+            assert(rz->label == "Reset zoom" && rz->description.find("Ctrl+0") != std::string::npos);
+            Settings sz;
+            std::string e2;
+            assert(applyKey(sz, "BUTTON_2", "buttonmode:reset-zoom", &e2));
+            std::set<std::string> miss;
+            expandSettings(sz, lib, &miss);
+            assert(miss.empty() && sz.buttons[2] == "key:ctrl+0");
+            ModeDef md;
+            md.id = "m";
+            ButtonBinding bb;
+            bb.button = 4;
+            bb.type = ButtonActionType::ButtonMode;
+            bb.mode = "reset-zoom";
+            md.buttons.push_back(bb);
+            const ModeDef ex = expandMode(md, lib, &miss);
+            assert(miss.empty() && ex.buttons[0].type == ButtonActionType::Key && ex.buttons[0].key == Key::N0 &&
+                   ex.buttons[0].mods.n == 1 && ex.buttons[0].mods.k[0] == Key::Ctrl);
+        }
         assert(lib.find("latch-nav")->type == ButtonActionType::ToggleNav);
         assert(lib.find("prev-mode")->type == ButtonActionType::ModeSwitch && lib.find("prev-mode")->target == "prev");
         // every built-in is expandable like an installed file
@@ -93,6 +115,24 @@ int main() {
         const ButtonMode *latch = ex.find("latch-nav"), *next = ex.find("next-mode");
         assert(latch && latch->label == "Navigation latch" && latch->type == ButtonActionType::ToggleNav);
         assert(next && next->label == "Next mode" && next->type == ButtonActionType::ModeSwitch && next->target == "next");
+    }
+
+    // a user's own button mode with a chord: same warning rule as for mode files (docs/modes.md, Safety);
+    // ctrl+0 (the zoom reset, also as a copy of the shipped file) and ctrl+pageup give none
+    clearDir();
+    writeFile("closer.conf", "ACTION = key:ctrl+w\n");
+    writeFile("zoomer.conf", "ACTION = key:ctrl+0\n");
+    writeFile("alter.conf", "ACTION = key:alt+left\n");
+    writeFile("pager.conf", "ACTION = key:ctrl+pageup\n");
+    writeFile("plain.conf", "ACTION = key:space\n");
+    writeFile("broken.conf", "ACTION = key:ctrl+shift+alt+super+ctrl+a\n");
+    {
+        std::vector<std::string> cw;
+        const ButtonModeSet cs = loadButtonModes(g_dir, &cw);
+        assert(cs.find("closer") && cs.find("closer")->mods.n == 1 && hasWarning(cw, "button mode closer presses the shortcut chord ctrl+w"));
+        assert(hasWarning(cw, "button mode alter presses the shortcut chord alt+left"));
+        assert(cs.find("zoomer") && !hasWarning(cw, "zoomer") && !hasWarning(cw, "pager") && !hasWarning(cw, "plain"));
+        assert(!cs.find("broken") && hasWarning(cw, "broken.conf"));  // too many modifiers: the file is skipped
     }
 
     // a file identical to a shipped example is the built-in, not the user's own file

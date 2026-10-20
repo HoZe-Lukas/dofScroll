@@ -134,6 +134,33 @@ static void testGrammar() {
     assert(parseButtonAction("nav", &t, &k, &err) && t == ButtonActionType::Nav);
     assert(parseButtonAction("key:space", &t, &k, &err) && t == ButtonActionType::Key && k == Key::Space);
     assert(parseButtonAction(" key: F5 ", &t, &k, &err) && k == Key::F5);
+    {   // key chords in a button action: key:<mod>+...+<key>, same grammar and limits as keys:
+        ChordMods cm;
+        assert(parseButtonAction("key:ctrl+0", &t, &k, &err, nullptr, &cm) && t == ButtonActionType::Key && k == Key::N0 &&
+               cm.n == 1 && cm.k[0] == Key::Ctrl);
+        assert(parseButtonAction(" KEY: Ctrl + Shift + N ", &t, &k, &err, nullptr, &cm) && k == Key::N && cm.n == 2 &&
+               cm.k[0] == Key::Ctrl && cm.k[1] == Key::Shift);
+        assert(parseButtonAction("key:super+alt+ctrl+shift+f5", &t, &k, &err, nullptr, &cm) && cm.n == 4 && cm.k[0] == Key::Super &&
+               k == Key::F5);
+        assert(parseButtonAction("key:space", &t, &k, &err, nullptr, &cm) && cm.n == 0 && k == Key::Space);  // plain key unchanged
+        assert(parseButtonAction("key:ctrl", &t, &k, &err, nullptr, &cm) && cm.n == 0 && k == Key::Ctrl);    // a lone modifier is a plain key
+        assert(parseButtonAction("key:ctrl+0", &t, &k, &err) && t == ButtonActionType::Key);                  // mods pointer is optional
+        parseButtonAction("key:ctrl+shift+n", &t, &k, &err, nullptr, &cm);
+        assert(keyActionText(k, cm) == "key:ctrl+shift+n");
+        for (const char *bad : {"key:ctrl+shift+alt+super+ctrl+a", "key:ctrl+ctrl+a", "key:ctrl+nonsense", "key:ctrl+", "key:+a",
+                                "key:ctrl+shift", "key:a+b", "key:ctrl+shift+alt+super+shift+a", "key:ctrl++0"}) {
+            err.clear();
+            assert(!parseButtonAction(bad, &t, &k, &err, nullptr, &cm) && !err.empty());
+        }
+        assert(!chordNeedsWarning(Key::Space, ChordMods()));
+        ChordMods c1;
+        parseButtonAction("key:ctrl+0", &t, &k, &err, nullptr, &c1);
+        assert(!chordNeedsWarning(Key::N0, c1));  // the zoom reset: documented as harmless like ctrl+plus
+        parseButtonAction("key:ctrl+w", &t, &k, &err, nullptr, &c1);
+        assert(chordNeedsWarning(Key::W, c1));
+        parseButtonAction("key:alt+left", &t, &k, &err, nullptr, &c1);
+        assert(chordNeedsWarning(Key::Left, c1));
+    }
     for (const char *bad : {"", "press", "key:", "key:nonsense", "keys:a,b", "click now", "key"}) {
         err.clear();
         assert(!parseButtonAction(bad, &t, &k, &err) && !err.empty());
@@ -576,6 +603,24 @@ static void testSecurityHardening() {
     assert(ms.find("snav") && ms.find("sdel"));
     assert(!hasWarning(w, "mode snav"));
     assert(hasWarning(w, "mode sdel can press shortcut chords") && hasWarning(w, "step: channel presses ctrl+w"));
+    // button chords in a mode file: parsed into the binding, warned about by the same rules as keys:
+    writeFile("bz.conf", "BUTTON_1 = key:ctrl+0\nBUTTON_2 = key:ctrl+pageup\n");
+    writeFile("bw.conf", "BUTTON_1 = key:ctrl+w\n");
+    writeFile("ba.conf", "BUTTON_1 = key:alt+left\n");
+    writeFile("bbad.conf", "BUTTON_1 = key:ctrl+shift+alt+super+ctrl+a\nBUTTON_2 = key:space\n");
+    w.clear();
+    ms = loadModes(g_dir, &w);
+    {
+        const ModeDef *bz = ms.find("bz");
+        assert(bz && bz->buttons.size() == 2 && bz->buttons[0].type == ButtonActionType::Key && bz->buttons[0].key == Key::N0 &&
+               bz->buttons[0].mods.n == 1 && bz->buttons[0].mods.k[0] == Key::Ctrl);
+        assert(!hasWarning(w, "mode bz"));  // ctrl+0 and ctrl+pageup: no warning
+        assert(hasWarning(w, "mode bw can press shortcut chords") && hasWarning(w, "BUTTON_1 presses ctrl+w"));
+        assert(hasWarning(w, "mode ba can press shortcut chords"));
+        const ModeDef *bb = ms.find("bbad");
+        assert(bb && bb->buttons.size() == 1 && bb->buttons[0].button == 2);  // the invalid chord line is dropped
+        assert(hasWarning(w, "at most 4 modifiers") || hasWarning(w, "appears twice"));
+    }
     assert(ms.find("cnav") && ms.find("calt") && ms.find("csup") && ms.find("cdel"));
     assert(!hasWarning(w, "mode cnav"));  // Ctrl/Shift with navigation keys: no warning
     assert(hasWarning(w, "mode calt can press shortcut chords") && hasWarning(w, "alt+left"));

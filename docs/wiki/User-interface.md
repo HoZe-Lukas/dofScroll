@@ -24,7 +24,7 @@ Nothing in the window has a Save button: every change is saved by itself (switch
 
 ## Appearance
 
-Settings > Appearance: System default, Light or Dark. It applies at once and is remembered (`ui.conf`, `theme = system|light|dark`). Text keeps a contrast of at least 7:1 (4.5:1 for hints, links and the selection) in both themes.
+Settings > Appearance: System default, Light or Dark. It applies at once and is remembered (`ui.conf`, `theme = system|light|dark`). Text keeps a contrast of at least 7:1 (4.5:1 for hints, links and the selection) in both themes. Selected rows, focus rings (2 px) and control borders are tested for contrast too, status colours are checked for colour-vision deficiencies, the interface follows the system font size, and a high-contrast request of the system is honoured (see `docs/ui.md`, section Accessibility).
 
 ## Profiles and the program picker
 

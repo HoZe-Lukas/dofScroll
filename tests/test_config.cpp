@@ -622,6 +622,28 @@ static void testAuditFixes() {
         assert(t.buttons[3] == "buttonmode:latch-nav");
     }
 
+    // BUTTON_<n> = key:<chord>: validated like keys:, canonical text, round trip, a file loads without a warning
+    {
+        Settings s;
+        assert(applyKey(s, "BUTTON_1", " Key: Ctrl + 0 ", &err) && s.buttons[1] == "key:ctrl+0");
+        assert(applyKey(s, "BUTTON_2", "key:shift+ctrl+n", &err) && s.buttons[2] == "key:shift+ctrl+n");
+        assert(applyKey(s, "BUTTON_3", "key:space", &err) && s.buttons[3] == "key:space");
+        for (const char *bad : {"key:ctrl+", "key:ctrl+ctrl+a", "key:a+b", "key:ctrl+shift+alt+super+ctrl+a", "key:ctrl+shift"}) {
+            err.clear();
+            assert(!applyKey(s, "BUTTON_4", bad, &err) && !err.empty());
+        }
+        Settings t;
+        for (const KV &kv : allKeys(s)) assert(applyKey(t, kv.first, kv.second, &err));
+        assert(t.buttons[1] == "key:ctrl+0" && t.buttons[2] == "key:shift+ctrl+n" && t.buttons[3] == "key:space");
+        const std::string cp = tmpPath("chord.conf");
+        writeFile(cp, "[global]\nBUTTON_1 = key:ctrl+0\nBUTTON_2 = buttonmode:reset-zoom\n");
+        ProfileSet cps;
+        std::vector<std::string> cw;
+        assert(loadProfiles(cp, &cps, &cw) && cw.empty());
+        assert(cps.resolve("", "").buttons[1] == "key:ctrl+0");
+        std::remove(cp.c_str());
+    }
+
     // STEP_TRIGGER: default, parsing, clamping, round trip through allKeys
     {
         Settings s;

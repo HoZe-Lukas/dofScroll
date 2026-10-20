@@ -8,7 +8,7 @@ Exactly one joystick mode is active: the one named by `MODE` in the resolved pro
 
 ## Built-in joystick modes
 
-Nine joystick modes (`normal`, `off`, `timeline`, `slides`, `media`, `map`, `precision`, `tabs`, `browse`) and four button modes (`latch-nav`, `next-mode`, `prev-mode`, `cycle-favorites`) are built into the program on every system. Nothing has to be copied into your folder to use them. Each one, with its channel actions, overrides and use, is described on [Built-in joystick modes](Built-in-modes). To propose or send a new one, see [Joystick mode requests and contributions](Contributing-modes).
+Nine joystick modes (`normal`, `off`, `timeline`, `slides`, `media`, `map`, `precision`, `tabs`, `browse`) and five button modes (`latch-nav`, `next-mode`, `prev-mode`, `cycle-favorites`, `reset-zoom`) are built into the program on every system. Nothing has to be copied into your folder to use them. Each one, with its channel actions, overrides and use, is described on [Built-in joystick modes](Built-in-modes). To propose or send a new one, see [Joystick mode requests and contributions](Contributing-modes).
 
 A file in the joystick modes folder with the id of a built-in joystick mode replaces it.
 
@@ -72,6 +72,7 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 | `click`, `rightclick`, `middleclick` | Mouse button, held while the device button is held |
 | `nav` | While held, X/Y send arrow keys instead of scrolling |
 | `key:<name>` | Holds the key while the button is held |
+| `key:<mod>+<key>` | A chord such as `key:ctrl+0`, tapped once per press (same grammar as the chords in `keys:`) |
 | `mode:<id>` | Switches to joystick mode `<id>` on press |
 | `mode:next` | Switches to the next loaded joystick mode in alphabetical order of id (built-ins included), wrapping around |
 | `toggle:nav` | Every press switches the navigation mode on or off (latched `nav`) |

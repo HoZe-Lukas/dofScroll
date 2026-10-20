@@ -139,6 +139,7 @@ A button mode has one `ACTION` (one button action as in `BUTTON_<n>`, see [Butto
 | `next-mode` | `mode:next` | none (all joystick modes, alphabetical) |
 | `prev-mode` | `mode:prev` | none (all joystick modes, alphabetical) |
 | `cycle-favorites` | `mode:next` | `timeline, normal` |
+| `reset-zoom` | `key:ctrl+0` | none |
 
 ### `latch-nav`
 
@@ -163,3 +164,9 @@ Good for: the second button of a pair with `next-mode`.
 ACTION `mode:next`, `CYCLE = timeline, normal`. DESCRIPTION: "Cycles through a chosen list of joystick modes". Each press goes to the next entry of the list, in that order, wrapping around; if the current joystick mode is not in the list the first entry is used. Unknown ids are skipped. For the opposite direction use a copy with `ACTION = mode:prev` and the same list.
 
 Good for: a short list of your own favorite modes. Edit the list in an editable copy (the built-in list is only a starting point).
+
+### `reset-zoom`
+
+ACTION `key:ctrl+0`. DESCRIPTION: "Sends Ctrl+0: resets the zoom in most programs (browsers, editors, image viewers)". Each press taps Ctrl+0 once; holding the button does not repeat it.
+
+Good for: a button that puts the zoom of the current program back to 100%. It is a named behavior that a profile or a joystick mode picks per button; if you want Ctrl+0 on a button everywhere and always, the vendor driver can do that too. Whether Ctrl+0 resets the zoom depends on the program.

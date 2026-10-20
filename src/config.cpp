@@ -286,9 +286,10 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
                                    " (the daemon tracks at most 32 buttons)");
         ButtonActionType bt;
         Key bk = Key::Space;
-        if (!parseButtonAction(value, &bt, &bk, err)) return false;
+        ChordMods bmods;
+        if (!parseButtonAction(value, &bt, &bk, err, nullptr, &bmods)) return false;
         std::string canon = lower(trim(value));
-        if (bt == ButtonActionType::Key) canon = std::string("key:") + keyName(bk);
+        if (bt == ButtonActionType::Key) canon = keyActionText(bk, bmods);
         s.buttons[static_cast<int>(bn)] = canon;
         return true;
     }

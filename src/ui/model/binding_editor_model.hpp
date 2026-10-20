@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Editor logic for one button binding (BUTTON_<n>): splits the action text into a kind plus an
 // argument (key name or mode id) and composes it back, and lists the choices for the view.
-// Actions: none, click, rightclick, middleclick, nav, key:<name>, mode:<id>, mode:next, toggle:nav,
+// Actions: none, click, rightclick, middleclick, nav, key:<name> (also a chord: key:ctrl+0), mode:<id>, mode:next, toggle:nav,
 // toggle:mode:<id>, buttonmode:<id>.
 #pragma once
 #include <cctype>
@@ -100,10 +100,13 @@ inline bool parseBinding(const std::string &text, Binding *out) {
         }
     }
     if (t.rfind("key:", 0) == 0) {
+        // a plain key name or a chord (key:ctrl+0): the argument is the text after "key:", modifiers as written
+        ButtonActionType type = ButtonActionType::Unbound;
         Key key;
-        if (!parseKeyName(t.substr(4), &key)) return false;
+        ChordMods mods;
+        if (!parseButtonAction(t, &type, &key, nullptr, nullptr, &mods) || type != ButtonActionType::Key) return false;
         out->kind = BindingKind::Key;
-        out->arg = keyName(key);
+        out->arg = keyActionText(key, mods).substr(4);
         return true;
     }
     if (t.rfind("buttonmode:", 0) == 0) {

@@ -132,8 +132,10 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     profileFilter_->setAccessibleName(T("Search profiles"));
     profileFilter_->setToolTip(T("Show only the programs and devices whose name contains this text"));
     ll->addWidget(profileFilter_);
-    left->setMinimumWidth(170);
+    // No explicit minimum width on the pane: an explicit minimum replaces the layout's own minimum, and the
+    // buttons below ("Add application...") would be squeezed at a larger font. The list sets the floor.
     tree_ = new QTreeWidget(left);
+    tree_->setMinimumWidth(170);
     tree_->setMinimumHeight(160);
     tree_->setHeaderHidden(true);
     tree_->setAccessibleName(T("Profiles"));
@@ -657,7 +659,8 @@ QWidget *ProfilesPage::buildEnabled(size_t section) {
     auto *l = new QGridLayout(box);
     l->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
     l->setColumnStretch(0, 1);
-    auto *check = new QCheckBox(T("Send scroll, zoom and key events while this profile is active"));
+    // The switch keeps a short text (a check box cannot wrap); the sentence is a wrapped label under it.
+    auto *check = new QCheckBox(T("Send events"));
     check->setChecked(v.text == "1");
     check->setAccessibleName(T("Send events"));
     check->setToolTip(T("Switch this off for a program that reads the SpaceMouse itself") + QStringLiteral("\n") +
@@ -681,9 +684,13 @@ QWidget *ProfilesPage::buildEnabled(size_t section) {
     };
     refresh();
     l->addWidget(check, 0, 0, 1, 2);
+    auto *what = new QLabel(T("Send scroll, zoom and key events while this profile is active"));
+    what->setWordWrap(true);
+    what->setForegroundRole(QPalette::PlaceholderText);
+    l->addWidget(what, 1, 0, 1, 2);
     origin->setWordWrap(true);
-    l->addWidget(origin, 1, 0);
-    l->addWidget(reset, 1, 1);
+    l->addWidget(origin, 2, 0);
+    l->addWidget(reset, 2, 1);
     connect(check, &QCheckBox::toggled, this, [this, section, refresh](bool on) {
         std::string err;
         if (!ctx_.settings->setValue(section, "ENABLED", on ? "1" : "0", &err)) {

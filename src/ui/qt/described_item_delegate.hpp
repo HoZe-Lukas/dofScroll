@@ -12,6 +12,7 @@
 #include <QStyledItemDelegate>
 
 #include "ui/model/design_tokens.hpp"
+#include "theme.hpp"
 
 enum { kRoleDescription = Qt::UserRole + 1, kRoleOrigin = Qt::UserRole + 2 };
 
@@ -43,20 +44,25 @@ public:
         const QFontMetrics fm(opt.font);
         painter->save();
         painter->setFont(opt.font);
-        painter->setPen(opt.palette.color(opt.state & QStyle::State_Selected ? QPalette::HighlightedText : QPalette::Text));
+        const bool selected = opt.state & QStyle::State_Selected;
+        auto nameColor = [&] { return selected ? selectedTextColor(false) : opt.palette.color(QPalette::Text); };
+        auto mutedColor = [&] { return selected ? selectedTextColor(true) : opt.palette.color(QPalette::PlaceholderText); };
+        painter->setPen(nameColor());
         // the origin ("Built in", "Your file") sits at the right end of the name line, muted
-        const QString origin = index.data(kRoleOrigin).toString();
+        // (a long origin such as "Your file, replaces the built-in ..." is cut to a third of the row and never covers the name)
+        const QString fullOrigin = index.data(kRoleOrigin).toString();
+        const QString origin = fm.elidedText(fullOrigin, Qt::ElideRight, textRect.width() / 3);
         const int originWidth = origin.isEmpty() ? 0 : fm.horizontalAdvance(origin) + spn::ui::tokens::kSpaceMd;
         painter->drawText(QRect(textRect.left(), textRect.top() + pad, textRect.width() - originWidth, fm.height()),
                           Qt::AlignLeft | Qt::AlignVCenter, fm.elidedText(title, Qt::ElideRight, textRect.width() - originWidth));
         if (!origin.isEmpty()) {
-            painter->setPen(opt.palette.color(opt.state & QStyle::State_Selected ? QPalette::HighlightedText : QPalette::PlaceholderText));
+            painter->setPen(mutedColor());
             painter->drawText(QRect(textRect.left(), textRect.top() + pad, textRect.width(), fm.height()), Qt::AlignRight | Qt::AlignVCenter, origin);
-            painter->setPen(opt.palette.color(opt.state & QStyle::State_Selected ? QPalette::HighlightedText : QPalette::Text));
+            painter->setPen(nameColor());
         }
         const QString desc = index.data(kRoleDescription).toString();
         if (!desc.isEmpty()) {
-            painter->setPen(opt.palette.color(opt.state & QStyle::State_Selected ? QPalette::HighlightedText : QPalette::PlaceholderText));
+            painter->setPen(mutedColor());
             painter->drawText(QRect(textRect.left(), textRect.top() + pad + fm.height(), textRect.width(), textRect.height()),
                               Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, desc);
         }
