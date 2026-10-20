@@ -173,7 +173,9 @@ void OverviewPage::rebuildCards() {
 
 // Cards wrap: as many columns as fit with kCardMinWidth each, at least one.
 void OverviewPage::layoutCards() {
-    const int available = cardHost_->width() > 0 ? cardHost_->width() : this->width();
+    // From the width of the page, not of the card host: the host can be held wide by the minimum width
+    // of the cards of the current columns (a larger font), which would then never let it wrap.
+    const int available = this->width() - 4 * spn::ui::tokens::kSpaceLg;
     // As many columns as fit, but not more than there are cards: a row of few cards fills the width.
     const int columns = std::max(1, std::min(available / kCardMinWidth, static_cast<int>(cards_.size())));
     if (columns == columns_ && cardGrid_->count() == static_cast<int>(cards_.size())) return;
