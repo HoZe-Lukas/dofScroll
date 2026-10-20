@@ -129,8 +129,12 @@ the privacy grants stable across updates. Needs a paid Apple developer account.
 - That any of the supported models is detected and that the report layouts in `devices/*.conf`
   match the real hardware (also unverified on Windows and Linux).
 - Whether `IOHIDManager` can read the device while the 3Dconnexion driver runs. The driver may
-  seize the device exclusively; opening it from another process can then fail. Quitting the driver
-  is the documented workaround.
+  seize the device exclusively; opening it from another process can then fail
+  (`kIOReturnExclusiveAccess`, the daemon says so in its log and in the interface). dofscroll is
+  meant to run next to the driver, so a conflict is a bug of dofscroll to be fixed, not something to
+  work around by quitting the driver: `scripts/test-driver-coexistence.sh` (in the app under
+  `Contents/Resources/diagnostics`) finds out and writes one report file for issue #37; the options
+  for a conflict are in [port-architecture.md](port-architecture.md#if-the-driver-holds-the-device-exclusively).
 - Motion, buttons, scroll and zoom output in real applications. Ctrl+scroll zoom may behave
   differently per app (macOS apps often use Cmd+scroll or pinch gestures).
 - The Input Monitoring / Accessibility prompts and their wording per macOS version, behavior
@@ -143,9 +147,10 @@ the privacy grants stable across updates. Needs a paid Apple developer account.
 ## Vendor driver settings
 
 The vendor driver (System Settings pane) can translate motion or buttons into events for
-applications; turn off per-app navigation and button assignment for apps handled by this tool, or
-quit the driver while testing, to avoid doubled input. See `windows-mac.md` for what the driver
-exposes and the reported lack of generic scrolling in browsers.
+applications. It stays installed and running; dofscroll is designed to work next to it. Where input
+doubles in a program, switch dofscroll off for that program (`ENABLED = 0` in an `[app:...]`
+profile). See `windows-mac.md` for what the driver exposes and the reported lack of generic
+scrolling in browsers, and [troubleshooting.md](troubleshooting.md#the-official-3dconnexion-driver-and-dofscroll).
 
 ## References
 

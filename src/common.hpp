@@ -44,6 +44,8 @@ constexpr long SUSPEND_MAX_AGE_MS = 600;
 //                          profile=<match_desc>  device=<name>  app=<WM_CLASS>
 //                          mode=<id of the active mode, e.g. normal, off, timeline>
 //                          enabled=0|1  paused=0|1  devices_seen=<number of USB 3Dconnexion devices>
+//                          input_issue=blocked|silent (only when set: the device cannot be read or
+//                          sent nothing yet, see platform/input_diag.hpp)
 //                          session=active|inactive (inactive: another login session is in front)
 //                          updated=<unix seconds>
 //   dofscroll.log     copy of the daemon log lines (stderr), rolling: at most

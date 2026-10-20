@@ -296,6 +296,11 @@ if(BUILD_TESTING)
     add_test(NAME postinst_migration
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_postinst_migration.sh ${CMAKE_SOURCE_DIR})
   endif()
+  find_program(BASH_EXECUTABLE bash)
+  if(BASH_EXECUTABLE AND NOT WIN32)  # guided driver coexistence test (macOS script), fake hidprobe
+    add_test(NAME coexistence_script
+             COMMAND ${BASH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_coexistence_script.sh ${CMAKE_SOURCE_DIR})
+  endif()
 endif()
 endif()  # NOT DOFSCROLL_CORE_ONLY
 

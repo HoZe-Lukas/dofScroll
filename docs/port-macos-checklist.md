@@ -10,6 +10,24 @@ been done yet. Record macOS version, Mac model/architecture, SpaceMouse model an
 Setup: build (`cmake -S . -B build && cmake --build build -j4`), run `build/dofscroll` once from a
 terminal, then continue with the permission step.
 
+## 0. Does dofscroll run next to the official 3Dconnexion driver? (do this first, about 5 minutes)
+
+Policy: the official driver stays installed and running (CAD programs need it); dofscroll is designed
+to work next to it. If both cannot read the device at the same time, that is a bug of dofscroll to be
+fixed. Nothing about this has been verified on hardware yet. The test changes nothing and never stops
+the driver:
+
+    sh /Applications/dofscroll.app/Contents/Resources/diagnostics/test-driver-coexistence.sh
+
+(the source tree has it as `scripts/test-driver-coexistence.sh`; Terminal needs the Input Monitoring
+permission for `dofscroll-hidprobe`).
+
+- [ ] The script ran to the end and wrote `dofscroll-driver-test-report.txt`; attached to issue #37.
+- [ ] Test A (driver running): the report says whether the device opened and whether reports arrived.
+- [ ] Test B (driver and dofscroll together): scrolling once, not twice; the CAD program still reacts
+      normally; dofscroll reacts.
+- [ ] Test C is optional and for diagnosis only (you quit the driver yourself, the script never does).
+
 ## 1. Permissions
 
 - [ ] First start shows an Input Monitoring prompt or the daemon logs that the permission is
@@ -76,6 +94,6 @@ terminal, then continue with the permission step.
 
 ## 9. Vendor driver
 
-- [ ] 3Dconnexion driver installed and running: does dofscroll receive reports? Do events double?
-- [ ] Driver quit: dofscroll alone works.
-- [ ] Driver per-app navigation switched off: no doubled input.
+- [ ] 3Dconnexion driver installed and running: does dofscroll receive reports? Do events double? (Section 0 answers this.)
+- [ ] A program where events double: `ENABLED = 0` for it in dofscroll's `[app:...]` profile removes the double input.
+- [ ] Diagnosis only (the tester quits the driver; never advice for normal users): driver quit, dofscroll alone works.

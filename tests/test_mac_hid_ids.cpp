@@ -60,6 +60,8 @@ int main() {
     assert(macPermissionMessage(MacAccess::Denied).find("Input Monitoring permission missing") == 0);
     assert(macOpenFailureMessage(kMacIoReturnNotPermitted).find("Input Monitoring") != std::string::npos);
     assert(macOpenFailureMessage(kMacIoReturnExclusiveAccess).find("exclusively") != std::string::npos);
+    assert(macOpenFailureMessage(kMacIoReturnExclusiveAccess).find("3Dconnexion driver") != std::string::npos);
+    assert(macOpenFailureMessage(kMacIoReturnExclusiveAccess).find("quit") == std::string::npos);
     assert(macOpenFailureMessage(-1).find("IOReturn 0xFFFFFFFF") != std::string::npos);
 
     std::puts("test_mac_hid_ids: ok");

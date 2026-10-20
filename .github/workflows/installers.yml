@@ -102,12 +102,17 @@ jobs:
             }
           }
           Get-ChildItem $dir | Select-Object -ExpandProperty Name
-          foreach ($f in 'dofscroll.exe', 'uninstall.exe', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'devices', 'examples', 'icons', 'scripts\install-autostart.ps1') {
+          foreach ($f in 'dofscroll.exe', 'dofscroll-hidprobe.exe', 'scripts\test-driver-coexistence.ps1', 'uninstall.exe', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'devices', 'examples', 'icons', 'scripts\install-autostart.ps1') {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "missing after install: $f" }
           }
           $v = (Get-ItemProperty -Path $runKey -Name 'dofscroll').dofscroll
           if ($v -ne ('"' + (Join-Path $dir 'dofscroll.exe') + '"')) { throw "unexpected Run value: $v" }
           Invoke-Limited (Join-Path $dir 'dofscroll.exe') @('--version') 'dofscroll.exe --version'
+          Invoke-Limited (Join-Path $dir 'dofscroll-hidprobe.exe') @('--version') 'dofscroll-hidprobe.exe --version'
+          Invoke-Limited (Join-Path $dir 'dofscroll-hidprobe.exe') @('--help') 'dofscroll-hidprobe.exe --help'
+          $rep = Join-Path $env:RUNNER_TEMP 'coexistence-report.txt'
+          Invoke-Limited 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $dir 'scripts\test-driver-coexistence.ps1') + '"'), '-NonInteractive', '-ReportPath', ('"' + $rep + '"')) 'test-driver-coexistence.ps1 -NonInteractive'
+          if (-not (Select-String -LiteralPath $rep -Pattern 'A: device opened while the driver runs:' -Quiet)) { throw 'coexistence report lacks the test A verdict' }
           $ui = Join-Path $dir 'dofscroll-ui.exe'
           if (Test-Path $ui) {
             # the Qt runtime comes from the install folder, not from the runner's Qt
@@ -143,6 +148,9 @@ jobs:
         run: |
           rm -rf "$RUNNER_TEMP/scan" && mkdir -p "$RUNNER_TEMP/scan"
           for z in dist-installers/*.zip; do unzip -q "$z" -d "$RUNNER_TEMP/scan"; done
+          # the diagnostic tool and the guided driver test are part of the portable ZIP
+          find "$RUNNER_TEMP/scan" -name dofscroll-hidprobe.exe | grep -q .
+          find "$RUNNER_TEMP/scan" -name test-driver-coexistence.ps1 | grep -q .
           ws="$GITHUB_WORKSPACE"
           sh scripts/scan-package-paths.sh "$RUNNER_TEMP/scan" \
             "$ws" "${ws//\\//}" "_CPack_Packages" "C:\\Users\\runneradmin" 'C:/Users/runneradmin'
@@ -212,6 +220,16 @@ jobs:
             d="$mnt/dofscroll/dofscroll"
           fi
           "$d" --version
+          # the diagnostic tool and the guided driver test are part of the image
+          probe="$(dirname "$d")/dofscroll-hidprobe"
+          test -x "$probe"
+          "$probe" --version
+          "$probe" --help >/dev/null
+          if [ -d "$mnt/dofscroll.app" ]; then script="$mnt/dofscroll.app/Contents/Resources/diagnostics/test-driver-coexistence.sh"
+          else script="$(dirname "$d")/test-driver-coexistence.sh"; fi
+          test -x "$script"
+          bash "$script" --non-interactive --report "$RUNNER_TEMP/coexistence-report.txt" >/dev/null
+          grep -q '^A: device opened while the driver runs:' "$RUNNER_TEMP/coexistence-report.txt"
           if [ -d "$mnt/dofscroll.app" ]; then
             # the frameworks must come from the bundle, not from the runner's Qt
             env -u QT_ROOT_DIR -u DYLD_FRAMEWORK_PATH QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORM_PLUGIN_PATH="$qt_platforms" \

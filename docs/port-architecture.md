@@ -128,6 +128,90 @@ security notes in `security.md` section 10.
   while a client is connected and never blocks. `LiveFeedClient` (toolkit-free, reconnecting) and
   `src/ui/model/live_feed_model.hpp` (latest sample, min/max/peak tracking, device list) serve the UI.
 
+## If the driver holds the device exclusively
+
+Status: **a plan, nothing of it is implemented, and whether it is needed is not known.** dofscroll is
+meant to run next to the official 3Dconnexion driver (3DxWare, 3Dconnexion Software), which the user
+keeps installed and running for CAD programs; "quit the driver" is not an acceptable answer. The raw
+HID readers (`win_hid_input.cpp`: shared open, never exclusive; `mac_hid_input.cpp`: IOHIDManager
+without seize) may or may not receive reports while the driver runs. The guided test
+(`scripts/test-driver-coexistence.*`, issues #36 and #37) decides. If it shows that Windows or macOS
+blocks the second reader, this is the implementation plan, in this order.
+
+Facts below come from public, partly old sources (forum posts from about 2007 to 2015, third-party
+code). Each is marked **[source]** with a link or **[unverified]**; the current vendor SDK
+documentation was not read (it needs the SDK download and its license).
+
+### (i) Read the SpaceMouse through the vendor's client API, loaded at runtime
+
+- **macOS: `3DconnexionClient.framework`.** An application registers with the driver
+  (`RegisterConnexionClient(signature, name, mode, mask)`), installs a message handler and receives
+  axis data (`kConnexionCmdHandleAxis`) and button data (`kConnexionCmdHandleButtons`); a 3Dconnexion
+  answer for OS X developers names mode `kConnexionClientModeTakeOver` with mask `kConnexionMaskAxis`
+  (or `kConnexionMaskAll`), and says the handler must compare the client id in each message with its
+  own. [source: <https://forum.3dconnexion.com/viewtopic.php?p=714>,
+  <https://forum.3dconnexion.com/viewtopic.php?p=732>; FreeCAD uses TakeOver with `kConnexionMaskAll`:
+  <https://gitea.suzanne.soy/suzanne.soy/FreeCAD/commit/b5688aade5daaccbbaf1ed7e067ff858f9f4ab17>]
+- **Does the driver deliver events to a client that is not frontmost?** One 2007 report: a client with
+  its own signature got events only while its application was in front, a wildcard client
+  (`kConnexionClientWildcard`) got them regardless of focus; the same answer advises against the
+  wildcard because per-application settings in the preference pane need a real signature.
+  [source: <https://forum.3dconnexion.com/viewtopic.php?p=732>] For a background program such as
+  dofscroll this is the central question. **[unverified for current drivers]**
+- **What take-over mode does to the CAD program** (does the driver stop sending to the CAD program
+  while a take-over client exists, or only to the frontmost one?) is not documented in the sources
+  found. **[unverified]** It is the risk of this option: dofscroll must not take the device away from
+  the CAD program. Registering with a mask of the axes only, and testing with a CAD program running,
+  is the first experiment.
+- **What registering needs:** the framework (present on a machine that has the driver), a signature
+  and a name; no window. **[source, 2007]**
+- **Windows: 3DxWare input API (`TDxInput`, COM).** A 3Dconnexion staff member said the COM API can
+  deliver events without a window handle and that a hidden window also works for a background program;
+  events can be polled or received through a connection point. [source:
+  <https://forum.3dconnexion.com/viewtopic.php?p=21138>, <https://forum.3dconnexion.com/viewtopic.php?p=3833>]
+  A moderator called `TDxInput` unsupported, and developers point to the Raw Input API or the newer
+  3DxWare 10 SDK instead [source: <https://forum.3dconnexion.com/viewtopic.php?p=15566>]. Whether keys
+  and buttons that the driver maps to its own functions still arrive is unclear; one post says
+  they must be assigned as plain buttons in the driver panel [same source]. **[unverified for current
+  drivers; the current SDK name and interface were not looked up]**
+- **License (needs a decision by the maintainer).** The SDK is proprietary, see
+  [windows-mac.md](windows-mac.md#sdk-access-and-license): its license restricts redistribution and use
+  of the headers and libraries. Loading the framework or the COM server that the user's own driver
+  installed, at runtime (`dlopen` on the framework path, `CoCreateInstance` on the registered class),
+  without bundling any SDK file and without the SDK headers (the few declarations written from the
+  public documentation, if that is allowed), keeps the SDK out of the dofscroll binary. Whether that is
+  enough for a GPL-3.0-or-later program, and whether the SDK license allows writing such declarations at
+  all, is a legal question that nobody here has answered. Do not implement until the maintainer decides.
+
+### (ii) A small broker (as Space Juggler does)
+
+A tool called Space Juggler was named to the maintainer as a macOS broker between the driver and other
+programs; its source and README were not read for this plan and a web search did not find the project,
+so what follows is the general idea, not a description of that tool **[unverified]**. The problem
+it addresses is reported elsewhere: from macOS Big Sur on the driver opens the device exclusively, so
+HIDAPI readers get nothing [source: <https://godotforums.org/d/28882/51>], and a plugin author says
+the proper fix is the client framework API, not direct reads [source: <https://pypi.org/project/napari-spacemouse>].
+The idea: one small helper process is the only client of the
+driver (through the client API of option (i), or by reading the device when the driver is not there),
+and forwards the data to dofscroll, so that dofscroll never has to compete for the device. It moves
+the license and take-over questions of (i) into the helper and adds a process to install, start and
+keep alive; it is only worth it if (i) works but cannot be done inside the daemon. **[unverified]**
+
+### (iii) No access for dofscroll where the driver holds the device
+
+Tell the user to use the driver's own per-application profiles (documented in
+[windows-mac.md](windows-mac.md)) for what the driver already does, and keep dofscroll for what the
+driver does not do (shaped scroll and zoom from the six axes, keys from axes, per-program and
+per-device profiles). This is the fallback if (i) and (ii) turn out to be impossible or not
+permitted; it loses most of dofscroll on that system, so it is the last option, not the plan.
+
+### What exists now
+
+When the open is refused, the daemon logs an explicit line and the interface shows "SpaceMouse found
+but cannot be read" (`src/platform/input_diag.hpp`, status key `input_issue`); a device that opens
+but sends nothing for 45 seconds gets a softer hint. Both are covered by unit tests; neither has met a
+real driver.
+
 ## Open points
 
 - The HID report layout of each device generation (translation and rotation as separate reports,

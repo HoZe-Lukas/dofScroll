@@ -52,7 +52,7 @@ CI builds an installer (`dofscroll-<version>-windows-x64-setup.exe`) and a porta
 2. SmartScreen shows "Windows protected your PC": click **More info**, then **Run anyway**.
 3. Optional component "Start the daemon at logon" (off by default). The Start menu entry opens the settings window (`dofscroll-ui.exe`); `dofscroll.exe` is the daemon without a window.
 4. Config: `%APPDATA%\dofscroll\dofscroll.conf` (same format as on Linux). Log: `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
-5. If the 3Dconnexion driver is installed, disable its per-application navigation for the programs you test, otherwise scrolling is doubled.
+5. The official 3Dconnexion driver can stay installed and running; dofscroll is designed to work next to it (not verified on hardware yet). Please run the 5 minute test `powershell -ExecutionPolicy Bypass -File scripts\test-driver-coexistence.ps1` from the install folder and attach its file to issue #36, see [Requirements](Requirements). The diagnostic tool `dofscroll-hidprobe.exe` is next to `dofscroll.exe`.
 
 Uninstall: Settings > Apps > dofscroll; your configuration stays. Details: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md), [port-windows.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-windows.md), [port-windows-checklist.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-windows-checklist.md).
 

@@ -27,6 +27,7 @@
 #include "button_modes.hpp"
 #include "modes.hpp"
 #include "output.hpp"
+#include "platform/input_diag.hpp"
 #include "platform/platform.hpp"
 #include "platform/session_monitor.hpp"
 
@@ -91,6 +92,13 @@ public:
     // Incremented after every (re)connect or device change, after the name was set under the
     // mutex. The main thread only compares this number per tick and fetches the name on change.
     std::atomic<uint64_t> dev_generation{0};
+    // Motion and button events received since the last (re)connect, and the clock (ns) of that
+    // connect: the daemon core reports a device that never sent anything (platform/input_diag.hpp).
+    std::atomic<uint64_t> events_since_connect{0};
+    std::atomic<int64_t> connected_ns{0};
+    // The source refuses to open a matching device (another program holds it).
+    bool accessBlocked() const { return src_->accessBlocked(); }
+    const char *sourceName() const { return src_->name(); }
 
     DeviceReader(InputSource *src, std::function<int64_t()> clock, bool debug);
 
@@ -114,6 +122,7 @@ private:
     std::string dev_name_;
     std::vector<DeviceInfo> dev_list_;
     int delay_ms_ = 500;
+    std::string last_open_err_;
 
     void publishDeviceInfo();
     void backoffSleep(const char *why);
@@ -184,6 +193,7 @@ private:
     bool suspended_ = false, prev_enabled_ = true, prev_idle_ = false;
     uint64_t seen_generation_ = 0;
     int devices_seen_ = 0;
+    InputIssue input_issue_ = InputIssue::Clear;
     int64_t quiet_since_ = 0, last_safety_log_ = 0;
     bool safety_done_ = true;  // the net already ran for the current quiet period
     bool safety_logged_ = false;

@@ -10,7 +10,8 @@
 // mac_hid_ids.hpp and are unit-tested.
 //
 // UNVERIFIED without hardware: that a device opened with kIOHIDOptionsTypeNone (not seized) delivers
-// reports while the 3Dconnexion driver is running, whether the report buffer carries the report id
+// reports while the 3Dconnexion driver is running (scripts/test-driver-coexistence.sh finds out;
+// when the open is refused, accessBlocked() makes the daemon say so, platform/input_diag.hpp), whether the report buffer carries the report id
 // (both cases are handled, see macRawReport), sleep/wake behavior, and the exact permission prompts.
 #include "mac_hid_input.hpp"
 
@@ -134,6 +135,8 @@ public:
 
     std::vector<DeviceInfo> devices() const override { return core_.devices(); }
 
+    bool accessBlocked() const override { return blocked_; }
+
     void close() override { shutdown(); }
 
 private:
@@ -192,6 +195,7 @@ private:
         if (r != kIOReturnSuccess) {
             IOHIDManagerUnscheduleFromRunLoop(mgr, rl, kCFRunLoopDefaultMode);
             CFRelease(mgr);
+            blocked_ = static_cast<int32_t>(r) == kMacIoReturnExclusiveAccess;
             ready->set_value(macOpenFailureMessage(static_cast<int32_t>(r)));
             return;
         }
@@ -200,6 +204,7 @@ private:
             std::lock_guard<std::mutex> lk(loopMu_);
             loop_ = rl;
         }
+        blocked_ = false;
         ready->set_value("");
 
         // Matching callbacks for already attached devices fire on the first run-loop passes.
@@ -289,6 +294,7 @@ private:
     std::atomic<bool> running_{false};
     std::atomic<bool> stop_{false};
     std::atomic<bool> threadDone_{true};
+    std::atomic<bool> blocked_{false};  // IOHIDManagerOpen answered kIOReturnExclusiveAccess
     std::mutex loopMu_;
     CFRunLoopRef loop_ = nullptr;  // guarded by loopMu_ (owns one retain while set)
     bool permissionChecked_ = false;

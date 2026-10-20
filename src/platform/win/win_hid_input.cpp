@@ -54,6 +54,7 @@ extern "C" {  // some header sets (MinGW-w64) lack the C linkage guards of the H
 #include "../../log_sanitize.hpp"
 #include "../event_queue.hpp"
 #include "../hid_input_core.hpp"
+#include "../input_diag.hpp"
 #include "win_hid_input.hpp"
 #include "win_hid_path.hpp"
 
@@ -144,6 +145,7 @@ struct Probe {
     USHORT inLen = 0;
     unsigned vid = 0, pid = 0;
     std::string product;
+    bool blockedError = false;  // CreateFile was refused: sharing violation or access denied
 };
 
 HANDLE openPath(const std::string &path) {
@@ -159,9 +161,8 @@ Probe probe(const Found &f, std::string *why) {
     HANDLE h = openPath(f.path);
     if (h == INVALID_HANDLE_VALUE) {
         const DWORD e = ::GetLastError();
-        *why = (e == ERROR_SHARING_VIOLATION || e == ERROR_ACCESS_DENIED)
-                   ? "cannot open (in use by another program or driver; error " + std::to_string(e) + ")"
-                   : "cannot open (error " + std::to_string(e) + ")";
+        *why = winOpenFailureMessage(static_cast<unsigned>(e));
+        p.blockedError = winOpenErrorMeansBlocked(static_cast<unsigned>(e));
         return p;
     }
     HIDD_ATTRIBUTES at;
@@ -207,6 +208,7 @@ struct ProbeJob {
     Probe result;
     std::string why;
 };
+
 
 Probe probeBounded(const Found &f, const std::atomic<bool> &running, std::string *why) {
     auto job = std::make_shared<ProbeJob>();
@@ -297,6 +299,9 @@ public:
         return core_ ? core_->devices() : std::vector<DeviceInfo>();
     }
 
+    // A matching interface exists but CreateFile was refused and no device is open.
+    bool accessBlocked() const override { return blocked_; }
+
     void close() override { closeImpl(); }
 
 private:
@@ -371,9 +376,13 @@ private:
         std::vector<std::string> known = rejected_;
         for (auto &d : devs_) known.push_back(d->path);
         const PathDiff nw = diffPaths(known, presentPaths);
-        if (nw.added.empty()) return;
+        if (nw.added.empty()) {
+            if (found.empty()) blocked_ = false;  // unplugged: nothing is refused any more
+            return;
+        }
 
         std::vector<Probe> probes;
+        bool anyRefused = false;
         for (const std::string &path : nw.added) {
             const auto it = std::find_if(found.begin(), found.end(), [&](const Found &f) { return f.path == path; });
             if (it == found.end()) continue;
@@ -381,11 +390,16 @@ private:
             Probe p = probeBounded(*it, running_, &why);
             if (p.h == INVALID_HANDLE_VALUE) {
                 // sharing violations may be temporary (driver start-up): retry at the next rescan
-                std::cerr << kLog << "HID interface " << sanitizeForLog(path, 96) << ": " << why << std::endl;
+                if (p.blockedError) anyRefused = true;
+                if (why != lastWhy_) {  // the rescan repeats every 2 s: log a changed message once
+                    std::cerr << kLog << "HID interface " << sanitizeForLog(path, 96) << ": " << why << std::endl;
+                    lastWhy_ = why;
+                }
                 continue;
             }
             probes.push_back(std::move(p));
         }
+        blocked_ = anyRefused && probes.empty() && devs_.empty();
         std::vector<HidCandidate> cands;
         for (const Probe &p : probes) cands.push_back(p.cand);
         std::vector<std::string> busy;
@@ -487,6 +501,8 @@ private:
     std::thread mgr_;
     HANDLE stopMgr_ = nullptr;
     std::atomic<bool> running_{false};
+    std::atomic<bool> blocked_{false};
+    std::string lastWhy_;  // scan() thread only (guarded by devMu_)
 };
 
 }  // namespace
