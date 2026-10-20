@@ -110,7 +110,7 @@ jobs:
           Invoke-Limited (Join-Path $dir 'dofscroll-hidprobe.exe') @('--version') 'dofscroll-hidprobe.exe --version'
           Invoke-Limited (Join-Path $dir 'dofscroll-hidprobe.exe') @('--help') 'dofscroll-hidprobe.exe --help'
           $rep = Join-Path $env:RUNNER_TEMP 'coexistence-report.txt'
-          Invoke-Limited 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $dir 'scripts\test-driver-coexistence.ps1'), '-NonInteractive', '-ReportPath', $rep) 'test-driver-coexistence.ps1 -NonInteractive'
+          Invoke-Limited 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $dir 'scripts\test-driver-coexistence.ps1') + '"'), '-NonInteractive', '-ReportPath', ('"' + $rep + '"')) 'test-driver-coexistence.ps1 -NonInteractive'
           if (-not (Select-String -LiteralPath $rep -Pattern 'A: device opened while the driver runs:' -Quiet)) { throw 'coexistence report lacks the test A verdict' }
           $ui = Join-Path $dir 'dofscroll-ui.exe'
           if (Test-Path $ui) {
