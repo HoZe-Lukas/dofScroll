@@ -11,9 +11,9 @@ Examples: a button that always sends Esc belongs in the driver. A button that se
 - **Linux, spacenavd:** in `/etc/spnavrc`, `kbmapN = <keysym>` maps button N (zero-based) to a key, for example `kbmap0 = Escape` (experimental upstream). Restart spacenavd or send it SIGHUP. Source: spacenavd's upstream `doc/example-spnavrc`; a mouse-click mapping was not found there (not verified).
 - **Windows and macOS:** assign buttons in the 3Dconnexion driver's settings. Menu names differ per version and were not verified here.
 
-The driver works in every program and keeps working when dofscroll is stopped. dofscroll's own `key:`, `click`, `rightclick` and `middleclick` actions stay fully supported: use them for mode-specific bindings (active only while that joystick mode is active), or if you have no driver.
+The driver works in every program and keeps working when dofscroll is stopped. dofscroll's own `key:`, `click`, `rightclick` and `middleclick` actions stay fully supported: use them for joystick-mode-specific bindings (active only while that joystick mode is active), or if you have no driver.
 
-If the driver also maps the axes to scroll or pan in some programs, turn that off per application to avoid double input. Details: [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#buttons-and-the-vendor-driver) and [docs/windows-mac.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/windows-mac.md).
+If the driver also maps the axes to scroll or pan in some programs and input doubles there, switch dofscroll off for that program (`ENABLED = 0` in its `[app:...]` profile). Details: [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#buttons-and-the-vendor-driver) and [docs/windows-mac.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/windows-mac.md).
 
 ## Binding buttons in dofscroll
 
@@ -22,7 +22,7 @@ Buttons are numbered **from 1**: `BUTTON_1` is the first button. `BUTTON_0` is r
 ```
 BUTTON_1 = nav
 BUTTON_3 = mode:next
-# in a mode file such as timeline.conf:
+# in a joystick mode file such as timeline.conf:
 BUTTON_2 = key:space
 ```
 

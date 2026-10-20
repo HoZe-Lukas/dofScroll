@@ -4,6 +4,8 @@
 
 A button does nothing or input arrives twice: check the driver mapping first, see [Buttons](Buttons). dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch or toggle joystick modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles.
 
+**Official 3Dconnexion driver (Windows, macOS):** keep it installed and running; dofscroll is designed to work next to it. No scrolling and "SpaceMouse found but cannot be read", scrolling twice, or a CAD program that stops reacting: run the 5 minute coexistence test (`scripts\test-driver-coexistence.ps1` on Windows, `diagnostics/test-driver-coexistence.sh` inside the app on macOS; it changes nothing and never stops the driver) and attach `dofscroll-driver-test-report.txt` to issue #36 (Windows) or #37 (macOS). Where input doubles in one program, switch dofscroll off for it (`ENABLED = 0` in `[app:...]`). Not verified on hardware yet. Details: [Requirements](Requirements) and [docs/troubleshooting.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/troubleshooting.md#the-official-3dconnexion-driver-and-dofscroll).
+
 Full guide: [docs/troubleshooting.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/troubleshooting.md). This page covers Linux; the Windows and macOS ports are unverified on hardware (see their checklists under [Installation](Installation)).
 
 ## Quick checks
@@ -55,7 +57,7 @@ Force a backend with `BACKEND = x11` or `uinput` in `[global]` and restart the d
 
 ## Other problems
 
-- **Tray icon missing:** KDE Plasma is supported; GNOME needs an AppIndicator extension. A package built without Qt6 has no tray. Without a tray the Qt interface opens its window minimized; it also starts minimized to the tray, so no window appears at start.
+- **Tray icon missing:** KDE Plasma is supported; GNOME needs an AppIndicator extension. A build from source without Qt6 has no tray (the release packages bundle Qt). Without a tray the Qt interface opens its window minimized; it also starts minimized to the tray, so no window appears at start.
 - **UI in German:** the UI follows the locale; force English with `LANGUAGE=C`.
 - **Wrong direction or axis:** set `<CH>_SIGN = -1`, change `<CH>_MIX`, or run "Learn axes" in the tray. Changes in `/etc/spnavrc` change axis meaning too.
 - **Keys stay pressed after a crash:** run `dofscroll --release-keys` or restart the service. After SIGKILL under X11 keys held through XTest are not released (known limitation, see [Security](Security)).

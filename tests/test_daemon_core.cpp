@@ -815,7 +815,38 @@ static void testLogSanitized() {
     CHECK(out.find("ENABLED is not allowed") != std::string::npos, "mode ENABLED rejection logged");
 }
 
+// A raw HID source that finds the device but gets no report, or is refused: the status file says so.
+static void testInputIssue() {
+    {  // silent: only after kSilentInputNs without any event, and only for HID sources
+        Rig r(BASE_CONF);
+        r.src.setName("hid");
+        r.run(1.0);
+        CHECK(r.status.back().find("input_issue=") == std::string::npos, "no hint right after the start");
+        r.now += kSilentInputNs;
+        r.run(0.1);
+        CHECK(r.status.back().find("input_issue=silent\n") != std::string::npos, "silent hint missing");
+        r.src.pushMotion(0, 10, 0, 0, 0, 0, 0);  // one report: the hint goes away
+        r.run(0.1);
+        CHECK(r.status.back().find("input_issue=") == std::string::npos, "hint stays after a report");
+    }
+    {  // other sources (spacenavd, fake) never get the hint
+        Rig r(BASE_CONF);
+        r.run(1.0);
+        r.now += kSilentInputNs;
+        r.run(0.1);
+        CHECK(r.status.back().find("input_issue=") == std::string::npos, "hint for a non-HID source");
+    }
+    {  // blocked: at once
+        Rig r(BASE_CONF);
+        r.src.setName("iokit");
+        r.src.setBlocked(true);
+        r.run(0.1);
+        CHECK(r.status.back().find("input_issue=blocked\n") != std::string::npos, "blocked missing");
+    }
+}
+
 int main() {
+    testInputIssue();
     testButtonModes();
     testLogSanitized();
     testModeVsAppPrecedence();

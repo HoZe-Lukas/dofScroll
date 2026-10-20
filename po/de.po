@@ -336,9 +336,6 @@ msgstr "_Zurück"
 msgid "e.g. firefox"
 msgstr "z. B. firefox"
 
-msgid "Application modes"
-msgstr "Anwendungsmodi"
-
 msgid "Profile"
 msgstr "Profil"
 
@@ -351,10 +348,6 @@ msgstr "Kanäle"
 
 msgid "Axes"
 msgstr "Achsen"
-
-#: src/ui/qt/pages/modes_page.cpp:82
-msgid "Open modes folder"
-msgstr "Modi-Ordner öffnen"
 
 #: src/ui/model/status_model.hpp:93
 msgid "Daemon not running / no status data"
@@ -378,11 +371,6 @@ msgstr "Kopieren"
 
 msgid "Close"
 msgstr "Schließen"
-
-#: src/ui/model/tray_menu_model.hpp:87
-#: src/ui/qt/pages/profiles_page.cpp:254 src/ui/qt/pages/profiles_page.cpp:257
-msgid "Mode"
-msgstr "Modus"
 
 msgid "Open config file"
 msgstr "Konfigurationsdatei öffnen"
@@ -479,17 +467,6 @@ msgstr "Daemon: läuft"
 msgid "Daemon: not running"
 msgstr "Daemon: läuft nicht"
 
-#: src/ui/model/mode_catalog.hpp:292
-msgid ""
-"A mode file can press any key, including shortcut chords (Ctrl, Alt, Super), "
-"whenever a button is pressed or the mouse is moved. Only keep files from "
-"sources you trust and read the file first."
-msgstr ""
-"Eine Moduldatei kann beliebige Tasten drücken, auch Tastenkombinationen "
-"(Strg, Alt, Super), sobald eine Taste gedrückt oder die Maus bewegt wird. "
-"Nur Dateien aus vertrauenswürdigen Quellen behalten und die Datei vorher "
-"lesen."
-
 #: src/ui/model/settings_model.hpp:451
 msgid "Too many profiles"
 msgstr "Zu viele Profile"
@@ -514,21 +491,9 @@ msgstr "die Konfiguration kann nicht geschrieben werden"
 msgid "saved, but the daemon could not be notified"
 msgstr "gespeichert, aber der Daemon konnte nicht benachrichtigt werden"
 
-#: src/ui/model/settings_model.hpp:517
-msgid ""
-"[global]: MODE is only supported for the default mode; move it to a device "
-"or app profile"
-msgstr ""
-"[global]: MODE wird nur für den Standardmodus unterstützt; in ein Geräte- "
-"oder Programmprofil verschieben"
-
 #: src/ui/model/status_model.hpp:94
 msgid "Profile: %1"
 msgstr "Profil: %1"
-
-#: src/ui/model/status_model.hpp:98
-msgid "Mode: %1"
-msgstr "Modus: %1"
 
 #: src/ui/model/status_model.hpp:104
 msgid "Program: %1"
@@ -541,6 +506,25 @@ msgstr "Gerät: %1"
 #: src/ui/model/status_model.hpp:111
 msgid "%1 SpaceMice connected, only '%2' is reported"
 msgstr "%1 SpaceMice angeschlossen, gemeldet wird nur „%2“"
+
+#: src/ui/model/status_model.hpp:117
+msgid ""
+"SpaceMouse found but cannot be read: another program, possibly the 3Dconnexion driver, holds it "
+"exclusively. See docs/troubleshooting.md, section \"The official 3Dconnexion driver and dofscroll\""
+msgstr ""
+"Die SpaceMouse wurde gefunden, kann aber nicht gelesen werden: Ein anderes Programm, möglicherweise der "
+"3Dconnexion-Treiber, hält sie exklusiv. Siehe docs/troubleshooting.md, Abschnitt \"The official 3Dconnexion "
+"driver and dofscroll\""
+
+#: src/ui/model/status_model.hpp:120
+msgid ""
+"No input from the SpaceMouse yet. Move the cap. If nothing arrives, another program, possibly the "
+"3Dconnexion driver, may be holding the device. See docs/troubleshooting.md, section \"The official "
+"3Dconnexion driver and dofscroll\""
+msgstr ""
+"Noch keine Eingabe von der SpaceMouse. Bewegen Sie die Kappe. Kommt nichts an, hält möglicherweise ein anderes "
+"Programm, etwa der 3Dconnexion-Treiber, das Gerät. Siehe docs/troubleshooting.md, Abschnitt \"The official "
+"3Dconnexion driver and dofscroll\""
 
 #: src/ui/model/tray_controller.hpp:71
 msgid "No log file: the runtime directory is not available"
@@ -709,17 +693,9 @@ msgstr "Scrollen V"
 msgid "Scroll H"
 msgstr "Scrollen H"
 
-#: src/ui/qt/pages/axes_page.cpp:150 src/ui/qt/pages/profiles_page.cpp:268
-msgid "Mode:"
-msgstr "Modus:"
-
 #: src/ui/qt/pages/axes_page.cpp:152
 msgid "disabled"
 msgstr "deaktiviert"
-
-#: src/ui/qt/pages/axes_page.cpp:153
-msgid "navigation mode"
-msgstr "Navigationsmodus"
 
 #: src/ui/qt/pages/axes_page.cpp:154
 msgid "zooming"
@@ -847,14 +823,6 @@ msgstr "Kurvenvorschau"
 #: src/ui/qt/pages/channels_page.cpp:86
 msgid "%1 steps/s"
 msgstr "%1 Schritte/s"
-
-#: src/ui/qt/pages/channels_page.cpp:141
-msgid ""
-"These settings apply to every mode and profile. Changes are saved "
-"immediately and the daemon reloads them."
-msgstr ""
-"Diese Einstellungen gelten für jeden Modus und jedes Profil. Änderungen "
-"werden sofort gespeichert und der Daemon lädt sie neu."
 
 #: src/ui/qt/pages/channels_page.cpp:156 src/ui/qt/pages/channels_page.cpp:237
 msgid "Restore defaults"
@@ -1007,76 +975,27 @@ msgstr "eingebaut"
 msgid "file"
 msgstr "Datei"
 
-#: src/ui/qt/pages/modes_page.cpp:35
-msgid "file, replaces the built-in mode"
-msgstr "Datei, ersetzt den eingebauten Modus"
-
 #: src/ui/qt/pages/modes_page.cpp:49 src/ui/qt/pages/modes_page.cpp:61
 #: src/ui/qt/pages/modes_page.cpp:180
 msgid "Modes"
 msgstr "Modi"
 
-#: src/ui/qt/pages/modes_page.cpp:53
-msgid "Mode files can press any key. Only use mode files from trusted sources."
-msgstr ""
-"Moduldateien können beliebige Tasten drücken. Nur Moduldateien aus "
-"vertrauenswürdigen Quellen verwenden."
-
-#: src/ui/qt/pages/modes_page.cpp:62
-msgid "All modes: built-in modes and the files in the modes folder"
-msgstr "Alle Modi: eingebaute Modi und die Dateien im Modi-Ordner"
-
-#: src/ui/qt/pages/modes_page.cpp:65
-msgid "Details of the selected mode"
-msgstr "Details des gewählten Modus"
-
-#: src/ui/qt/pages/modes_page.cpp:77 src/ui/qt/pages/modes_page.cpp:196
-msgid "New mode"
-msgstr "Neuer Modus"
-
-#: src/ui/qt/pages/modes_page.cpp:77
-msgid "Create a mode file from a commented template and open it in your editor"
-msgstr ""
-"Eine Moduldatei aus einer kommentierten Vorlage erstellen und im Editor "
-"öffnen"
-
 #: src/ui/qt/pages/modes_page.cpp:78 src/ui/qt/pages/modes_page.cpp:208
 msgid "Duplicate"
 msgstr "Duplizieren"
-
-#: src/ui/qt/pages/modes_page.cpp:78
-msgid "Copy the selected mode under a new name"
-msgstr "Den gewählten Modus unter neuem Namen kopieren"
 
 #: src/ui/qt/pages/modes_page.cpp:79
 msgid "Import file..."
 msgstr "Datei importieren..."
 
-#: src/ui/qt/pages/modes_page.cpp:79
-msgid "Add a mode file from somewhere else (you see its warnings first)"
-msgstr ""
-"Eine Moduldatei von anderswo hinzufügen (Warnungen werden vorher angezeigt)"
-
 #: src/ui/qt/pages/modes_page.cpp:80 src/ui/qt/pages/modes_page.cpp:266
 msgid "Edit"
 msgstr "Bearbeiten"
-
-#: src/ui/qt/pages/modes_page.cpp:80 src/ui/qt/pages/profiles_page.cpp:479
-msgid "Open the mode file in your default editor"
-msgstr "Die Moduldatei im Standardeditor öffnen"
 
 #: src/ui/qt/pages/modes_page.cpp:81 src/ui/qt/pages/modes_page.cpp:286
 #: src/ui/qt/pages/modes_page.cpp:287
 msgid "Delete"
 msgstr "Löschen"
-
-#: src/ui/qt/pages/modes_page.cpp:81
-msgid "Delete the mode file (file modes only)"
-msgstr "Die Moduldatei löschen (nur Datei-Modi)"
-
-#: src/ui/qt/pages/modes_page.cpp:82
-msgid "Show the folder with the mode files"
-msgstr "Den Ordner mit den Moduldateien anzeigen"
 
 #: src/ui/qt/pages/modes_page.cpp:158
 msgid "Name: %1"
@@ -1098,21 +1017,9 @@ msgstr "Datei: %1"
 msgid "Warnings:"
 msgstr "Warnungen:"
 
-#: src/ui/qt/pages/modes_page.cpp:169
-msgid "Warnings for the modes folder:"
-msgstr "Warnungen für den Modi-Ordner:"
-
 #: src/ui/qt/pages/modes_page.cpp:186
 msgid "Could not open the file."
 msgstr "Die Datei konnte nicht geöffnet werden."
-
-#: src/ui/qt/pages/modes_page.cpp:196
-msgid "Name of the new mode:"
-msgstr "Name des neuen Modus:"
-
-#: src/ui/qt/pages/modes_page.cpp:199
-msgid "Could not create the mode."
-msgstr "Der Modus konnte nicht erstellt werden."
 
 #: src/ui/qt/pages/modes_page.cpp:208
 msgid "Name of the copy:"
@@ -1122,31 +1029,9 @@ msgstr "Name der Kopie:"
 msgid "%1 (copy)"
 msgstr "%1 (Kopie)"
 
-#: src/ui/qt/pages/modes_page.cpp:212
-msgid "Could not duplicate the mode."
-msgstr "Der Modus konnte nicht dupliziert werden."
-
-#: src/ui/qt/pages/modes_page.cpp:217 src/ui/qt/pages/modes_page.cpp:226
-#: src/ui/qt/pages/modes_page.cpp:242
-msgid "Import mode file"
-msgstr "Moduldatei importieren"
-
-#: src/ui/qt/pages/modes_page.cpp:218
-msgid "Mode files (*.conf);;All files (*)"
-msgstr "Moduldateien (*.conf);;Alle Dateien (*)"
-
-#: src/ui/qt/pages/modes_page.cpp:226
-msgid "A mode with this id already exists. Name for the imported mode:"
-msgstr ""
-"Ein Modus mit dieser ID existiert bereits. Name für den importierten Modus:"
-
 #: src/ui/qt/pages/modes_page.cpp:232
 msgid "This file cannot be imported."
 msgstr "Diese Datei kann nicht importiert werden."
-
-#: src/ui/qt/pages/modes_page.cpp:235
-msgid "Import the mode \"%1\"?"
-msgstr "Den Modus „%1“ importieren?"
 
 #: src/ui/qt/pages/modes_page.cpp:240
 msgid "The file has no loader warnings."
@@ -1156,47 +1041,13 @@ msgstr "Die Datei hat keine Ladewarnungen."
 msgid "Import"
 msgstr "Importieren"
 
-#: src/ui/qt/pages/modes_page.cpp:252
-msgid "Could not import the mode."
-msgstr "Der Modus konnte nicht importiert werden."
-
-#: src/ui/qt/pages/modes_page.cpp:267
-msgid ""
-"The built-in mode \"%1\" is not a file. Create an editable file with the "
-"same id? It replaces the built-in mode until you delete the file. To keep "
-"the original, use Duplicate instead."
-msgstr ""
-"Der eingebaute Modus „%1“ ist keine Datei. Eine bearbeitbare Datei mit "
-"derselben ID erstellen? Sie ersetzt den eingebauten Modus, bis die Datei "
-"gelöscht wird. Um das Original zu behalten, stattdessen „Duplizieren“ "
-"verwenden."
-
 #: src/ui/qt/pages/modes_page.cpp:273
 msgid "Could not create the file."
 msgstr "Die Datei konnte nicht erstellt werden."
 
-#: src/ui/qt/pages/modes_page.cpp:282
-msgid "Delete the mode file \"%1\"?"
-msgstr "Die Moduldatei „%1“ löschen?"
-
-#: src/ui/qt/pages/modes_page.cpp:284
-msgid ""
-"This file replaces the built-in mode \"%1\"; the built-in mode comes back."
-msgstr ""
-"Diese Datei ersetzt den eingebauten Modus „%1“; der eingebaute Modus kommt "
-"zurück."
-
 #: src/ui/qt/pages/modes_page.cpp:285
 msgid "This cannot be undone."
 msgstr "Das kann nicht rückgängig gemacht werden."
-
-#: src/ui/qt/pages/modes_page.cpp:294
-msgid "Could not delete the mode."
-msgstr "Der Modus konnte nicht gelöscht werden."
-
-#: src/ui/qt/pages/modes_page.cpp:300
-msgid "Could not create the modes folder."
-msgstr "Der Modi-Ordner konnte nicht erstellt werden."
 
 #: src/ui/qt/pages/profiles_page.cpp:95
 msgid "Profiles"
@@ -1243,27 +1094,6 @@ msgstr "Speichern"
 msgid "Write the configuration and tell the daemon to reload it"
 msgstr "Die Konfiguration schreiben und den Daemon zum Neuladen auffordern"
 
-#: src/ui/qt/pages/profiles_page.cpp:170 src/ui/qt/pages/profiles_page.cpp:229
-#: src/ui/qt/pages/profiles_page.cpp:262
-msgid "Default mode"
-msgstr "Standardmodus"
-
-#: src/ui/qt/pages/profiles_page.cpp:233
-msgid ""
-"Settings of the default mode. Device and application profiles inherit from "
-"it unless they choose another mode or override a value."
-msgstr ""
-"Einstellungen des Standardmodus. Geräte- und Programmprofile erben davon, "
-"außer sie wählen einen anderen Modus oder überschreiben einen Wert."
-
-#: src/ui/qt/pages/profiles_page.cpp:238
-msgid ""
-"This profile names a mode that is not installed; it behaves like the default "
-"mode until you choose another one."
-msgstr ""
-"Dieses Profil nennt einen Modus, der nicht installiert ist; es verhält sich "
-"wie der Standardmodus, bis ein anderer gewählt wird."
-
 #: src/ui/qt/pages/profiles_page.cpp:264
 msgid "not installed"
 msgstr "nicht installiert"
@@ -1302,10 +1132,6 @@ msgstr "Aktion der Taste"
 msgid "Key of button"
 msgstr "Tastaturtaste der Taste"
 
-#: src/ui/qt/pages/profiles_page.cpp:339
-msgid "Mode of button"
-msgstr "Modus der Taste"
-
 #: src/ui/qt/pages/profiles_page.cpp:372
 msgid "Unbind"
 msgstr "Belegung aufheben"
@@ -1325,18 +1151,6 @@ msgstr "Die eigene Belegung dieses Profils entfernen und die geerbte verwenden"
 #: src/ui/qt/pages/profiles_page.cpp:388
 msgid "Advanced: let dofscroll send keys or clicks"
 msgstr "Erweitert: dofscroll Tasten oder Klicks senden lassen"
-
-#: src/ui/qt/pages/profiles_page.cpp:393
-msgid ""
-"A mapping that is the same everywhere is usually better set in the vendor "
-"driver (see docs/modes.md, \"Buttons and the vendor driver\"). Bindings that "
-"only apply in a certain mode or profile are a dofscroll feature: set them in "
-"that profile."
-msgstr ""
-"Eine Belegung, die überall gleich ist, stellt man meist besser im "
-"Herstellertreiber ein (siehe docs/modes.md, „Buttons and the vendor "
-"driver“). Belegungen, die nur in einem bestimmten Modus oder Profil gelten, "
-"sind eine dofscroll-Funktion: in diesem Profil einstellen."
 
 #: src/ui/qt/pages/profiles_page.cpp:408
 msgid "Navigation and click buttons"
@@ -1361,31 +1175,6 @@ msgstr "Horizontales Scrollen:"
 #: src/ui/qt/pages/profiles_page.cpp:464
 msgid "Twist:"
 msgstr "Drehen:"
-
-#: src/ui/qt/pages/profiles_page.cpp:468
-msgid "This mode binds no buttons."
-msgstr "Dieser Modus belegt keine Tasten."
-
-#: src/ui/qt/pages/profiles_page.cpp:470
-msgid "Button bindings of this mode:"
-msgstr "Tastenbelegungen dieses Modus:"
-
-#: src/ui/qt/pages/profiles_page.cpp:476
-msgid "These settings come from the mode file and are read-only here."
-msgstr ""
-"Diese Einstellungen stammen aus der Moduldatei und sind hier "
-"schreibgeschützt."
-
-#: src/ui/qt/pages/profiles_page.cpp:477
-msgid "Edit mode file"
-msgstr "Moduldatei bearbeiten"
-
-#: src/ui/qt/pages/profiles_page.cpp:480
-msgid ""
-"Built-in modes have no file; duplicate the mode on the Modes page to edit it"
-msgstr ""
-"Eingebaute Modi haben keine Datei; zum Bearbeiten den Modus auf der Modi-"
-"Seite duplizieren"
 
 #: src/ui/qt/pages/profiles_page.cpp:491
 msgid "Overrides for this profile"
@@ -1463,18 +1252,6 @@ msgstr "Der laufende Daemon kann nicht beendet werden"
 msgid "Cannot restart the interface through the service manager"
 msgstr "Die Oberfläche kann nicht über den Dienstmanager neu gestartet werden"
 
-#: src/ui/model/status_model.hpp:100
-msgid "Navigation mode on"
-msgstr "Navigationsmodus an"
-
-#: src/ui/model/binding_editor_model.hpp:36
-msgid "Navigation mode on/off (press to switch)"
-msgstr "Navigationsmodus an/aus (Taste drücken zum Umschalten)"
-
-#: src/ui/model/binding_editor_model.hpp:37
-msgid "Toggle mode (press again to go back)"
-msgstr "Modus umschalten (erneut drücken für zurück)"
-
 #: src/ui/qt/main_window.cpp:57
 msgid "Categories"
 msgstr "Kategorien"
@@ -1532,14 +1309,6 @@ msgid "Set up a program or a device on the Profiles page"
 msgstr "Ein Programm oder ein Gerät auf der Seite Profile einrichten"
 
 #: src/ui/qt/pages/overview_page.cpp
-msgid "No program or device has its own profile yet. A profile changes the mode or single settings for one program or one device."
-msgstr "Noch hat kein Programm und kein Gerät ein eigenes Profil. Ein Profil ändert den Modus oder einzelne Einstellungen für ein Programm oder ein Gerät."
-
-#: src/ui/qt/pages/overview_page.cpp
-msgid "%1 device profile(s), %2 program profile(s). The default mode is %3."
-msgstr "%1 Geräteprofil(e), %2 Programmprofil(e). Der Standardmodus ist %3."
-
-#: src/ui/qt/pages/overview_page.cpp
 msgid "Program"
 msgstr "Programm"
 
@@ -1590,10 +1359,6 @@ msgstr "aus diesem Geräteprofil"
 #: src/ui/model/effective_model.hpp
 msgid "from this program profile"
 msgstr "aus diesem Programmprofil"
-
-#: src/ui/model/effective_model.hpp
-msgid "from mode \"%1\""
-msgstr "aus dem Modus „%1“"
 
 #: src/ui/qt/pages/channels_page.cpp
 msgid "Step trigger"
@@ -1807,14 +1572,6 @@ msgstr "Der Tastenmodus-Ordner konnte nicht angelegt werden."
 msgid "A button mode can press a key or click whenever its button is pressed. Only keep files from sources you trust and read the file first."
 msgstr "Ein Tastenmodus kann eine Taste drücken oder klicken, sobald seine Taste gedrückt wird. Behalten Sie nur Dateien aus vertrauenswürdigen Quellen und lesen Sie die Datei zuerst."
 
-#: src/ui/model/binding_editor_model.hpp
-msgid "Previous mode"
-msgstr "Vorheriger Modus"
-
-#: src/ui/model/binding_editor_model.hpp
-msgid "Mode while held"
-msgstr "Modus, solange gedrückt"
-
 #: src/ui/qt/pages/mode_editor_widget.cpp
 msgid "Default (as in the profile)"
 msgstr "Standard (wie im Profil)"
@@ -1852,10 +1609,6 @@ msgid "Warnings of the saved file"
 msgstr "Warnungen der gespeicherten Datei"
 
 #: src/ui/qt/pages/mode_editor_widget.cpp
-msgid "Write the changes to the mode file"
-msgstr "Änderungen in die Moduldatei schreiben"
-
-#: src/ui/qt/pages/mode_editor_widget.cpp
 msgid "Close editor"
 msgstr "Editor schließen"
 
@@ -1880,10 +1633,6 @@ msgid "positive"
 msgstr "positiv"
 
 #: src/ui/qt/pages/mode_editor_widget.cpp
-msgid "Edit mode: %1"
-msgstr "Modus bearbeiten: %1"
-
-#: src/ui/qt/pages/mode_editor_widget.cpp
 msgid "Vertical push"
 msgstr "Vertikale Auslenkung"
 
@@ -1904,24 +1653,12 @@ msgid "Settings overrides"
 msgstr "Einstellungs-Überschreibungen"
 
 #: src/ui/qt/pages/mode_editor_widget.cpp
-msgid "Values that apply while this mode is active (for example the sensitivity)."
-msgstr "Werte, die gelten, solange dieser Modus aktiv ist (zum Beispiel die Empfindlichkeit)."
-
-#: src/ui/qt/pages/mode_editor_widget.cpp
 msgid "The saved file has no loader warnings."
 msgstr "Die gespeicherte Datei hat keine Lade-Warnungen."
 
 #: src/ui/qt/pages/mode_editor_widget.cpp
 msgid "The file changed on disk while you were editing. Overwrite it with your changes?"
 msgstr "Die Datei wurde auf der Platte geändert, während Sie sie bearbeitet haben. Mit Ihren Änderungen überschreiben?"
-
-#: src/ui/qt/pages/mode_editor_widget.cpp
-msgid "Could not save the mode."
-msgstr "Der Modus konnte nicht gespeichert werden."
-
-#: src/ui/qt/pages/mode_editor_widget.cpp
-msgid "Edit the mode here: name, channels, buttons and overrides"
-msgstr "Den Modus hier bearbeiten: Name, Kanäle, Tasten und Überschreibungen"
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Extensions"
@@ -1960,10 +1697,6 @@ msgid "Delete \"%1\"?"
 msgstr "„%1“ löschen?"
 
 #: src/ui/qt/pages/extensions_page.cpp
-msgid "The built-in mode comes back."
-msgstr "Der eingebaute Modus kommt zurück."
-
-#: src/ui/qt/pages/extensions_page.cpp
 msgid "Could not create the folder."
 msgstr "Der Ordner konnte nicht angelegt werden."
 
@@ -1986,10 +1719,6 @@ msgstr "eingebaut"
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "your file"
 msgstr "Ihre Datei"
-
-#: src/ui/qt/pages/extensions_page.cpp
-msgid "your file, replaces the built-in mode"
-msgstr "Ihre Datei, ersetzt den eingebauten Modus"
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "example, not installed"
@@ -2048,16 +1777,8 @@ msgid "Rename"
 msgstr "Umbenennen"
 
 #: src/ui/qt/pages/modes_page.cpp
-msgid "Give the mode file a new name and id (profiles that use it are listed first)"
-msgstr "Der Moduldatei einen neuen Namen und eine neue ID geben (Profile, die sie verwenden, werden vorher aufgelistet)"
-
-#: src/ui/qt/pages/modes_page.cpp
 msgid "Export..."
 msgstr "Exportieren..."
-
-#: src/ui/qt/pages/modes_page.cpp
-msgid "Save a copy of the mode file somewhere else"
-msgstr "Eine Kopie der Moduldatei an anderer Stelle speichern"
 
 #: src/ui/qt/pages/modes_page.cpp
 msgid "Used by: no profile"
@@ -2068,36 +1789,8 @@ msgid "Used by:"
 msgstr "Verwendet von:"
 
 #: src/ui/qt/pages/modes_page.cpp
-msgid "selected as the mode"
-msgstr "als Modus gewählt"
-
-#: src/ui/qt/pages/modes_page.cpp
 msgid "switched to by button %1"
 msgstr "wird von Taste %1 aktiviert"
-
-#: src/ui/qt/pages/modes_page.cpp
-msgid "Export mode file"
-msgstr "Moduldatei exportieren"
-
-#: src/ui/qt/pages/modes_page.cpp
-msgid "Could not export the mode."
-msgstr "Der Modus konnte nicht exportiert werden."
-
-#: src/ui/qt/pages/modes_page.cpp
-msgid "Could not rename the mode."
-msgstr "Der Modus konnte nicht umbenannt werden."
-
-#: src/ui/qt/pages/modes_page.cpp
-msgid "New name of the mode:"
-msgstr "Neuer Name des Modus:"
-
-#: src/ui/qt/pages/modes_page.cpp
-msgid ""
-"The id of the mode changes from \"%1\" to \"%2\". These profiles still refer "
-"to the old id and will fall back to the default mode until you change them:"
-msgstr ""
-"Die ID des Modus ändert sich von „%1“ zu „%2“. Diese Profile verweisen noch "
-"auf die alte ID und fallen auf den Standardmodus zurück, bis Sie sie ändern:"
 
 #: src/ui/qt/pages/profiles_page.cpp
 msgid "Search profiles..."
@@ -2155,10 +1848,6 @@ msgstr "Es gibt ungespeicherte Änderungen. Speichern?"
 msgid "The profile \"%1\" has unsaved changes. Save them?"
 msgstr "Das Profil \"%1\" hat ungespeicherte Änderungen. Speichern?"
 
-#: src/ui/qt/pages/mode_editor_widget.cpp
-msgid "Mode sections"
-msgstr "Bereiche des Modus"
-
 #: src/ui/qt (Overview, log viewer, Channels filter)
 msgid "What do you want to do?"
 msgstr "Was möchten Sie tun?"
@@ -2178,14 +1867,6 @@ msgstr "Achsen prüfen"
 #: src/ui/qt (Overview, log viewer, Channels filter)
 msgid "Move the cap and see which axis reacts; the assistant sets the axis mixes"
 msgstr "Kappe bewegen und sehen, welche Achse reagiert; der Assistent setzt die Achsmischungen"
-
-#: src/ui/qt (Overview, log viewer, Channels filter)
-msgid "Switch modes"
-msgstr "Modi wechseln"
-
-#: src/ui/qt (Overview, log viewer, Channels filter)
-msgid "Modes change what the axes and buttons do"
-msgstr "Modi ändern, was die Achsen und Tasten tun"
 
 #: src/ui/qt (Overview, log viewer, Channels filter)
 msgid "New profile for the running program..."
@@ -2210,26 +1891,6 @@ msgstr "Dokumentation"
 #: src/ui/qt (Overview, log viewer, Channels filter)
 msgid "Open the documentation of the interface in your browser"
 msgstr "Die Dokumentation der Oberfläche im Browser öffnen"
-
-#: src/ui/qt (Overview, log viewer, Channels filter)
-msgid "Active mode:"
-msgstr "Aktiver Modus:"
-
-#: src/ui/qt (Overview, log viewer, Channels filter)
-msgid "Active mode"
-msgstr "Aktiver Modus"
-
-#: src/ui/qt (Overview, log viewer, Channels filter)
-msgid "Switches the mode of the running daemon until the next reload or restart. The default mode in the configuration stays as it is."
-msgstr "Wechselt den Modus des laufenden Daemons bis zum nächsten Neuladen oder Neustart. Der Standardmodus in der Konfiguration bleibt unverändert."
-
-#: src/ui/qt (Overview, log viewer, Channels filter)
-msgid "The daemon is not running, so there is no mode to switch."
-msgstr "Der Daemon läuft nicht, daher gibt es keinen Modus zum Wechseln."
-
-#: src/ui/qt (Overview, log viewer, Channels filter)
-msgid "Filter profiles by name, mode or setting"
-msgstr "Profile nach Name, Modus oder Einstellung filtern"
 
 #: src/ui/qt (Overview, log viewer, Channels filter)
 msgid "Filter profiles"

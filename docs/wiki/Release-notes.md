@@ -6,6 +6,14 @@ Design principle: dofscroll complements the vendor driver instead of duplicating
 
 Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
 
+## 1.0.1
+
+Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact); other Linux distributions
+install-tested in CI containers; Windows and macOS built by CI, never run with a real device. Fix release:
+the Linux packages (RPM, DEB, TGZ) now contain their own Qt 6.9.3 (the same version as Windows and macOS)
+and install on RHEL 9 with any Qt 6 or none, instead of requiring Qt 6.10 from the system. Full notes:
+[docs/release-notes-1.0.1.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.0.1.md).
+
 ## 1.0.0
 
 Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact); other Linux distributions

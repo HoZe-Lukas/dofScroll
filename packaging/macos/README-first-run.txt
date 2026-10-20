@@ -32,6 +32,15 @@ This build is NOT signed with an Apple Developer ID and NOT notarized. It is sig
    delete ~/Library/LaunchAgents/io.github.dofscroll.ui.plist), then drag dofscroll.app to the Trash. Your configuration in
    ~/Library/Application Support/dofscroll stays until you delete it.
 
+6. Does it run next to the official 3Dconnexion driver? (a 5 minute test, please run it)
+   You can keep the 3Dconnexion driver installed and running: dofscroll is designed to work next to it.
+   Whether both can read the SpaceMouse at the same time on a real Mac has not been verified yet.
+   Run in a terminal (it changes nothing and writes dofscroll-driver-test-report.txt):
+       sh /Applications/dofscroll.app/Contents/Resources/diagnostics/test-driver-coexistence.sh
+   Then attach the file to issue #37 of the project. The diagnostic tool it uses can also be run by hand:
+       /Applications/dofscroll.app/Contents/Resources/daemon/dofscroll-hidprobe --list
+   (Terminal needs the Input Monitoring permission for it, as for the daemon.)
+
 The program has not been tested with a real SpaceMouse on macOS yet.
 Licenses: LICENSE and THIRD-PARTY-NOTICES.md next to this file.
 Project: https://github.com/HoZe-Lukas/dofScroll

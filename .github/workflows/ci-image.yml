@@ -12,10 +12,12 @@ on:
     branches: [main]
     paths:
       - "packaging/ci/**"
+      - "packaging/qt.env"
       - ".github/workflows/ci-image.yml"
   pull_request:
     paths:
       - "packaging/ci/**"
+      - "packaging/qt.env"
       - ".github/workflows/ci-image.yml"
   schedule:
     - cron: "41 3 * * 1"   # weekly, Monday 03:41 UTC
@@ -50,7 +52,7 @@ jobs:
             name="ghcr.io/${owner}/dofscroll-ci-rocky9"
             [ "$target" = qt ] && name="${name}-qt"
             for i in 1 2 3; do
-              docker build --target "$target" -t "${name}:latest" -f packaging/ci/rocky9.Dockerfile packaging/ci && break
+              docker build --target "$target" -t "${name}:latest" -f packaging/ci/rocky9.Dockerfile packaging && break
               echo "::warning::build of $name failed (attempt $i/3)"; sleep 20
               [ "$i" = 3 ] && { echo "::error::build of $name failed after 3 attempts"; exit 1; }
             done
@@ -65,10 +67,20 @@ jobs:
             find /usr/include -name "spnav*.h" | grep -q .
             ls /usr/lib64/libasan.so* /usr/lib64/libubsan.so*
             if pkg-config --exists Qt6Widgets; then echo "the base image must not contain Qt"; exit 1; fi'
-          docker run --rm "ghcr.io/${owner}/dofscroll-ci-rocky9-qt:latest" sh -c '
+          . packaging/qt.env
+          docker run --rm -e WANT="$QT_VERSION" "ghcr.io/${owner}/dofscroll-ci-rocky9-qt:latest" sh -c '
             set -e
-            pkg-config --exists Qt6Widgets Qt6Svg
-            ls /usr/lib64/qt6/bin/lrelease* /usr/bin/lrelease* 2>/dev/null | head -1'
+            test -f "$CMAKE_PREFIX_PATH/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake"
+            test -f "$CMAKE_PREFIX_PATH/lib/cmake/Qt6Svg/Qt6SvgConfig.cmake"
+            command -v lrelease patchelf
+            qt="$(qmake -query QT_VERSION)"
+            echo "Qt in the image: $qt ($CMAKE_PREFIX_PATH), packaging/qt.env: $WANT"
+            test "$qt" = "$WANT"
+            # Qt comes from /opt/qt only: the packages bundle it and must not be built against another
+            if pkg-config --exists Qt6Widgets; then echo "the qt image must not contain a system Qt"; exit 1; fi' > qt-image.txt || { cat qt-image.txt; exit 1; }
+          cat qt-image.txt
+          echo "### Qt build image" >> "$GITHUB_STEP_SUMMARY"
+          grep '^Qt in the image' qt-image.txt >> "$GITHUB_STEP_SUMMARY"
       - name: Push (not for pull requests)
         if: ${{ github.event_name != 'pull_request' }}
         env:

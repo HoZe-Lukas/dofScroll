@@ -51,7 +51,7 @@ Good for: a program or device profile where the device must stay quiet. No butto
 | H | `keys:left,right` |
 | Twist | `keys:left,right` |
 
-No overrides. DESCRIPTION: "Sideways = scrub, twist = single frames". Defined in code. It has no button bindings of its own (a key that is always the same belongs in the vendor driver; a mode-dependent one can go into a joystick mode file of your own).
+No overrides. DESCRIPTION: "Sideways = scrub, twist = single frames". Defined in code. It has no button bindings of its own (a key that is always the same belongs in the vendor driver; a joystick-mode-dependent one can go into a joystick mode file of your own).
 
 Good for: stepping and scrubbing in video editors and similar timelines, for example `[app:resolve]` with `MODE = timeline` (DaVinci Resolve's behavior is not verified here).
 
@@ -151,7 +151,7 @@ Good for: a latched navigation mode instead of holding the `nav` button.
 
 ACTION `mode:next`, no `CYCLE`. DESCRIPTION: "Switches to the next joystick mode". Each press switches to the next joystick mode in alphabetical order of id, wrapping around.
 
-Good for: trying all joystick modes, or a quick switch when you have only a few modes. Add a `CYCLE` list in a copy to restrict it.
+Good for: trying all joystick modes, or a quick switch when you have only a few joystick modes. Add a `CYCLE` list in a copy to restrict it.
 
 ### `prev-mode`
 
@@ -163,7 +163,7 @@ Good for: the second button of a pair with `next-mode`.
 
 ACTION `mode:next`, `CYCLE = timeline, normal`. DESCRIPTION: "Cycles through a chosen list of joystick modes". Each press goes to the next entry of the list, in that order, wrapping around; if the current joystick mode is not in the list the first entry is used. Unknown ids are skipped. For the opposite direction use a copy with `ACTION = mode:prev` and the same list.
 
-Good for: a short list of your own favorite modes. Edit the list in an editable copy (the built-in list is only a starting point).
+Good for: a short list of your own favorite joystick modes. Edit the list in an editable copy (the built-in list is only a starting point).
 
 ### `reset-zoom`
 

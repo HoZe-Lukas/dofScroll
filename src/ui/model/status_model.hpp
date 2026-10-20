@@ -9,7 +9,7 @@
 //   m.state();                 // NoStatus / Stale / Running / Paused / Disabled
 //   m.mainLine(strings);       // "Profile: global (paused)  |  Mode: normal"
 //   m.infoLine(strings);       // "Program: firefox  |  Device: SpaceMouse Pro"
-//   m.warningLine(strings);    // several devices connected, or ""
+//   m.warningLine(strings);    // device cannot be read (input_issue), several devices connected, or ""
 // Texts from the file are untrusted: control characters are replaced and long values truncated.
 #pragma once
 #include <cstdint>
@@ -17,6 +17,7 @@
 #include <string>
 
 #include "log_sanitize.hpp"
+#include "platform/input_diag.hpp"
 #include "ui/model/strings.hpp"
 
 namespace spn::ui {
@@ -27,6 +28,7 @@ struct DaemonStatus {
     std::string toggle;  // what button toggles hold: "nav", "mode:<id>", both separated by a space, or empty
     bool enabled = true, paused = false;
     int devices_seen = 0;
+    InputIssue input_issue = InputIssue::Clear;  // device found but cannot be read / sends nothing
     bool has_updated = false;
     int64_t updated = 0;  // unix seconds
 };
@@ -53,6 +55,7 @@ inline DaemonStatus parseStatus(const std::string &text) {
         else if (k == "enabled") d.enabled = v != "0";
         else if (k == "paused") d.paused = v == "1";
         else if (k == "devices_seen") d.devices_seen = int(std::strtol(v.c_str(), nullptr, 10));
+        else if (k == "input_issue") d.input_issue = inputIssueFromKey(v);
         else if (k == "updated") {
             d.updated = std::strtoll(v.c_str(), nullptr, 10);
             d.has_updated = true;
@@ -122,7 +125,18 @@ public:
         return "";
     }
     std::string warningLine(const StringProvider &s) const {
-        if (!daemonRunning() || status_.devices_seen < 2) return "";
+        if (!daemonRunning()) return "";
+        // A device that cannot be read matters more than the hint about several devices.
+        // The literals must equal inputIssueTextBlocked()/inputIssueTextSilent() (tests/test_input_diag.cpp):
+        // gettext extracts only string literals.
+        if (status_.input_issue == InputIssue::Blocked)
+            return s.tr("SpaceMouse found but cannot be read: another program, possibly the 3Dconnexion driver, holds it "
+                        "exclusively. See docs/troubleshooting.md, section \"The official 3Dconnexion driver and dofscroll\"");
+        if (status_.input_issue == InputIssue::Silent)
+            return s.tr("No input from the SpaceMouse yet. Move the cap. If nothing arrives, another program, possibly the "
+                        "3Dconnexion driver, may be holding the device. See docs/troubleshooting.md, section \"The official "
+                        "3Dconnexion driver and dofscroll\"");
+        if (status_.devices_seen < 2) return "";
         return format(s.tr("%1 SpaceMice connected, only '%2' is reported"),
                       {std::to_string(status_.devices_seen), clean(status_.device, 60)});
     }

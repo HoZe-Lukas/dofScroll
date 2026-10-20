@@ -33,6 +33,9 @@ $daemon = Join-Path $rel 'dofscroll.exe'
 $ui = Join-Path $rel 'dofscroll-ui.exe'
 if (-not (Test-Path -LiteralPath $daemon)) { throw "not built: $daemon" }
 $hasUi = Test-Path -LiteralPath $ui
+# The diagnostic tool ships with every package (docs/devices.md, scripts\test-driver-coexistence.ps1).
+$probe = Join-Path $rel 'dofscroll-hidprobe.exe'
+if (-not (Test-Path -LiteralPath $probe)) { throw "not built: $probe" }
 $suffix = if ($hasUi) { '' } else { '-daemon-only' }
 $base = "dofscroll-$version-windows-x64$suffix"
 
@@ -43,6 +46,7 @@ if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
 
 Copy-Item $daemon $stage
+Copy-Item $probe $stage
 Copy-Item -Recurse (Join-Path $root 'devices') (Join-Path $stage 'devices')
 Copy-Item -Recurse (Join-Path $root 'examples') (Join-Path $stage 'examples')
 Copy-Item -Recurse (Join-Path $root 'icons') (Join-Path $stage 'icons')
@@ -50,6 +54,7 @@ Copy-Item (Join-Path $root 'LICENSE'), (Join-Path $root 'THIRD-PARTY-NOTICES.md'
 $scripts = Join-Path $stage 'scripts'
 New-Item -ItemType Directory -Force -Path $scripts | Out-Null
 Copy-Item (Join-Path $root 'packaging\windows\*.ps1') $scripts -Exclude 'build-installer.ps1'
+Copy-Item (Join-Path $root 'scripts\test-driver-coexistence.ps1') $scripts
 
 if ($hasUi) {
     Copy-Item $ui $stage
@@ -80,6 +85,10 @@ Unpack this folder anywhere and start dofscroll.exe (daemon, no window) and dofs
 (settings window and tray icon, when present). Windows SmartScreen may warn because the program
 is not code-signed: More info > Run anyway. Configuration: %APPDATA%\dofscroll\dofscroll.conf.
 Autostart for the current user: scripts\install-autostart.ps1 (remove: scripts\uninstall-autostart.ps1).
+Diagnostics: dofscroll-hidprobe.exe (run it from a terminal: dofscroll-hidprobe --list) and the guided
+test "can dofscroll run next to the official 3Dconnexion driver?":
+    powershell -ExecutionPolicy Bypass -File scripts\test-driver-coexistence.ps1
+It takes about 5 minutes and writes dofscroll-driver-test-report.txt (see docs/devices.md).
 Licenses: LICENSE, THIRD-PARTY-NOTICES.md.
 "@ | Set-Content -Encoding utf8 (Join-Path $stage 'README-portable.txt')
 

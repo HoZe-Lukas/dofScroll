@@ -127,7 +127,16 @@ void DeviceReader::backoffSleep(const char *why) {
 
 bool DeviceReader::connect() {
     std::string err;
-    if (!src_->open(&err)) return false;
+    if (!src_->open(&err)) {
+        if (!err.empty() && err != last_open_err_) {  // once per distinct reason, the retry loop repeats
+            std::cerr << LOG << sanitizeForLog(err, 300) << std::endl;
+            last_open_err_ = err;
+        }
+        return false;
+    }
+    last_open_err_.clear();
+    events_since_connect.store(0, std::memory_order_relaxed);
+    connected_ns.store(clock_(), std::memory_order_relaxed);
     std::cerr << LOG << "connected to " << src_->name() << std::endl;
     publishDeviceInfo();
     return true;
@@ -146,6 +155,7 @@ void DeviceReader::disconnect() {
 // Only stores the latest state. Nothing is sent here, so irregular event timing does not
 // affect the flow.
 void DeviceReader::handle(const InputEvent &e) {
+    if (e.type != InputEventType::DevicesChanged) events_since_connect.fetch_add(1, std::memory_order_relaxed);
     switch (e.type) {
     case InputEventType::Motion:
         for (int i = 0; i < AX_COUNT; ++i) axes[i].store(e.axes[i], std::memory_order_relaxed);
@@ -179,7 +189,7 @@ void DeviceReader::loop() {
             backoffSleep(why.c_str());
         }
 
-        const int64_t connected_ns = clock_();
+        const int64_t t_connect_ns = clock_();
         bool got_event = false;
         while (true) {
             InputEvent ev;
@@ -191,7 +201,7 @@ void DeviceReader::loop() {
         }
 
         disconnect();
-        if (got_event || clock_() - connected_ns >= HEALTHY_NS) delay_ms_ = MIN_DELAY_MS;
+        if (got_event || clock_() - t_connect_ns >= HEALTHY_NS) delay_ms_ = MIN_DELAY_MS;
         std::string why = "Connection to " + std::string(src_->name()) + " lost";
         backoffSleep(why.c_str());
     }
@@ -621,6 +631,18 @@ void DaemonCore::updateProfile(int64_t now_ns) {
         }
         hint_key_ = devices_seen_ >= 2 ? key : std::string();
     }
+
+    // A device that is found but cannot be read (platform/input_diag.hpp): logged once per change,
+    // shown through the status file (input_issue=) in the UI.
+    {
+        const int64_t since = now_ns - reader_.connected_ns.load(std::memory_order_relaxed);
+        const InputIssue is = decideInputIssue(reader_.sourceName(), reader_.accessBlocked(), devices_seen_,
+                                               reader_.events_since_connect.load(std::memory_order_relaxed), since);
+        if (is != input_issue_) {
+            input_issue_ = is;
+            if (is != InputIssue::Clear) std::cerr << LOG << inputIssueText(is) << std::endl;
+        }
+    }
 }
 
 // Safety net: see SAFETY_QUIET_NS. Runs after the runner's tick, so the activity it looks at
@@ -712,6 +734,8 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
                            "\npaused=" + (suspended_ ? "1" : "0") +
                            "\ndevices_seen=" + std::to_string(devices_seen_) +
                            (d_.input && !d_.input->pathLabel().empty() ? "\ninput=" + d_.input->pathLabel() : std::string()) +
+                           (input_issue_ == InputIssue::Clear ? std::string()
+                                                             : std::string("\ninput_issue=") + inputIssueKey(input_issue_)) +
                            "\nsession=" + (session_active_ ? "active" : "inactive") + "\n",
                        now_ns);
 

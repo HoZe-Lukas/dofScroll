@@ -80,7 +80,7 @@ The shipped units (`dofscroll.service`, `dofscroll-ui.service`) are systemd user
 
 ### Qt runtime
 
-`dofscroll-ui` is a Qt 6 program. The RPM requires `qt6-qtbase-gui` and `qt6-qtsvg` (AppStream on RHEL 9); the DEB depends on the `libqt6*` packages found at build time (Debian 12: `libqt6widgets6`, `libqt6gui6`, `libqt6svg6`). Your package manager installs them. If Qt 6 was not available when a package was built, the package has the daemon only: no tray, no settings window. The package build is not verified on a real desktop.
+`dofscroll-ui` is a Qt 6 program, and **the Linux packages (RPM, DEB, TGZ) contain their own Qt 6.9.3** and the libraries it needs, in `/usr/lib/dofscroll` (since 1.0.1; the 1.0.0 RPM required Qt 6.10 from the system). Nothing to install for Qt, no EPEL for Qt, and the Qt of your distribution is not used. It works on RHEL 9 with any Qt 6 or none, and the same on Debian 12 and Ubuntu 24.04. Required from the system: glibc and `libstdc++` (always there), `spacenavd` (the device service, EPEL on the RHEL family) and the daemon's `libspnav`, `libX11`, `libXtst` (the package manager installs them). The TGZ runs the interface from any folder with nothing but the C library. Qt is LGPL-3.0, dynamically linked and replaceable; license texts and the list of bundled libraries are in `/usr/share/doc/dofscroll/third-party/`. Qt 6.4 or newer is needed only to build from source. The package build is not verified on a real desktop (tray, KDE look and Wayland need a real desktop).
 
 ### Optional: kdotool
 
@@ -111,8 +111,9 @@ What is known and what is not:
 - **Not a requirement:** dofscroll does not need the driver. Installing it is optional. Whether installing it is a good idea is exactly the unresolved question above.
 - **Double input:** a community note warns that with the driver installed it may also emit its own keyboard and mouse emulation, so check for double input (source 2).
 - **Axes:** raw HID axes can differ from what the driver delivers (one report: tilt and twist swapped without a driver profile, source 7). If an axis moves the wrong way, adjust it with `<CH>_SIGN` or the mix settings, see [Troubleshooting](Troubleshooting).
-- **If scrolling happens twice:** in the driver's control panel turn off the driver's own navigation (pan, zoom) and button assignments for the programs you use with dofscroll, or exit the driver's background process while testing.
-- **If the device cannot be opened:** look in `%LOCALAPPDATA%\dofscroll\dofscroll.log` for the Windows error. Exit the 3Dconnexion driver's background process and check whether dofscroll then receives input. If it does, the driver is holding the device.
+- **Do I need the official driver? Does it work together?** No for dofscroll; yes for your CAD programs. Keep it installed and running: dofscroll is designed to work next to it. Whether both really run at the same time on Windows is exactly what the coexistence test finds out (about 5 minutes, it changes nothing and never stops the driver): `powershell -ExecutionPolicy Bypass -File scripts\test-driver-coexistence.ps1` from the install folder. It writes `dofscroll-driver-test-report.txt`; attach it to issue #36. Verification on real Windows machines is still pending and is the top priority.
+- **If scrolling happens twice in a program:** switch dofscroll off for that program (`ENABLED = 0` in its `[app:...]` profile). Please also report it with the test file.
+- **If the device cannot be opened:** the daemon logs the Windows error (32 sharing violation or 5 access denied) in `%LOCALAPPDATA%\dofscroll\dofscroll.log` and the interface shows "SpaceMouse found but cannot be read". If both programs cannot read the device at the same time, that is a bug of dofscroll to be fixed: please report it with the test file. See [docs/troubleshooting.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/troubleshooting.md#the-official-3dconnexion-driver-and-dofscroll).
 
 ### Input path: the official driver's interface or direct HID (Windows)
 
@@ -136,7 +137,7 @@ The official 3Dconnexion driver can stay installed and running for your CAD prog
 - [ ] A SpaceMouse model from the table, plugged in
 - [ ] Windows 10 or 11
 - [ ] You accept the SmartScreen warning for the unsigned installer
-- [ ] The 3Dconnexion driver is optional. If you have it: be ready to turn off its per-application navigation or quit it if input doubles or the device cannot be opened
+- [ ] The 3Dconnexion driver is optional for dofscroll. If you have it (you need it for CAD programs): keep it running and run the coexistence test (section above)
 - [ ] You know the result is untested on hardware: please report what you see
 
 ## macOS
@@ -151,8 +152,9 @@ dofscroll reads the SpaceMouse through `IOHIDManager`, matched on the vendor and
 - **Community reports (not official, not run by us):** on macOS the picture is worse than on Windows. Programs that open the device through hidapi report that the 3Dconnexion helper holds the device exclusively and they get no reports until the helper is quit (CloudCompare, source 5). hidapi seizes the device by default; one project switched to shared mode (hidapi 0.12 or newer) to open it while the driver runs, but its author had not tested that on a Mac (source 4). One tool for macOS stops the driver's helper while it runs (source 1).
 - **Our code:** dofscroll opens the device without seizing it (`kIOHIDOptionsTypeNone`, never the seize option). Whether that mode delivers reports while the driver is running is **UNRESOLVED**: the code comment says so, and nobody has tried it. The macOS checklist tests both cases.
 - **Not a requirement:** dofscroll does not need the driver.
-- **If scrolling happens twice:** in the driver's settings (System Settings, 3Dconnexion section) turn off per-application navigation and button assignment for the programs you use with dofscroll, or quit the driver while testing.
-- **If the device cannot be read** (no input although the permissions are granted): quit the driver and restart the dofscroll daemon.
+- **Do I need the official driver? Does it work together?** No for dofscroll; yes for your CAD programs. Keep it installed and running: dofscroll is designed to work next to it. Whether both really run at the same time on a Mac is exactly what the coexistence test finds out (about 5 minutes, it changes nothing and never stops the driver): `sh /Applications/dofscroll.app/Contents/Resources/diagnostics/test-driver-coexistence.sh`. It writes `dofscroll-driver-test-report.txt`; attach it to issue #37. Verification on real Macs is still pending and is the top priority.
+- **If scrolling happens twice in a program:** switch dofscroll off for that program (`ENABLED = 0` in its `[app:...]` profile). Please also report it with the test file.
+- **If the device cannot be read** (no input although the permissions are granted): the daemon logs `kIOReturnExclusiveAccess` and the interface shows "SpaceMouse found but cannot be read". If the driver's helper holds the device, that is a bug of dofscroll to be fixed: please report it with the test file. The options if the test confirms it are in [docs/port-architecture.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-architecture.md#if-the-driver-holds-the-device-exclusively).
 
 ### Input path: the official driver's interface or direct HID (macOS)
 
@@ -181,7 +183,7 @@ The app is only ad-hoc signed and **not notarized**: Gatekeeper blocks the first
 - [ ] An Apple silicon Mac
 - [ ] You can approve Gatekeeper's "Open Anyway" for the unsigned app
 - [ ] You will grant Input Monitoring and Accessibility to the daemon binary inside the app
-- [ ] The 3Dconnexion driver is optional; if installed, be ready to quit it or turn off its per-application navigation
+- [ ] The 3Dconnexion driver is optional for dofscroll; if installed (CAD programs need it), keep it running and run the coexistence test (section above)
 - [ ] You know the result is untested on hardware: please report what you see
 
 ## Driver versus SDK, and what the research found
@@ -207,7 +209,7 @@ Community sources only; the official 3Dconnexion pages could not be fetched, and
 
 ## Building from source
 
-The build needs a C++17 compiler, CMake 3.16 or newer, `libspnav` and the X11 and XTest development headers on Linux, `gettext` for the German translation, and Qt 6 Widgets (with SVG) for the interface. Package names per distribution and the `check-deps` target are in [Installation](Installation).
+The build needs a C++17 compiler, CMake 3.16 or newer, `libspnav` and the X11 and XTest development headers on Linux, `gettext` for the German translation, and Qt 6.4 or newer (Widgets, with SVG) for the interface. Package names per distribution and the `check-deps` target are in [Installation](Installation).
 
 ## What only a human can verify
 

@@ -26,6 +26,12 @@ struct DeviceInfo {
 };
 
 // ---- small helpers -------------------------------------------------------------------
+inline int popcount32(uint32_t v) {  // portable: __builtin_popcount does not exist on MSVC
+    int n = 0;
+    for (; v; v &= v - 1) ++n;
+    return n;
+}
+
 inline std::string hex2(unsigned v) {
     char b[8];
     std::snprintf(b, sizeof b, "%02x", v & 0xff);
@@ -438,7 +444,7 @@ public:
                                       hi, hi + 1, d_.factoryButtons);
                         v.push_back({Status::Warn, b});
                     } else {
-                        int n = __builtin_popcount(seenBits_);
+                        int n = popcount32(seenBits_);
                         bool all = n >= d_.factoryButtons;
                         std::snprintf(b, sizeof b,
                                       "%d distinct button bit(s) seen, highest %d, factory_buttons=%d%s.",

@@ -29,7 +29,11 @@ public:
         e.down = down;
         push(e);
     }
-    const char *name() const override { return "fake"; }
+    // Tests: pose as another source ("hid", "iokit") and as one whose device cannot be opened.
+    void setName(const char *n) { name_ = n; }
+    void setBlocked(bool b) { blocked_ = b; }
+    bool accessBlocked() const override { return blocked_; }
+    const char *name() const override { return name_; }
     bool open(std::string *) override { open_ = true; return true; }
     WaitResult wait(InputEvent *out, int) override {
         if (!open_) return WaitResult::Closed;
@@ -45,6 +49,8 @@ private:
     std::vector<DeviceInfo> devs_;
     std::deque<InputEvent> q_;
     bool open_ = false;
+    const char *name_ = "fake";
+    bool blocked_ = false;
 };
 
 }  // namespace spn

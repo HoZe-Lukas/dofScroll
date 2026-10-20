@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#
+# Weekly check of the Qt that the packages bundle (packaging/qt.env): the Linux, Windows and macOS
+# packages ship Qt, so a Qt security fix is a release of ours. The job lists the Qt versions of the
+# pinned minor release on download.qt.io and warns when a newer patch release exists. Informational:
+# it never fails the build; the warning and the job summary say what to change (one line in
+# packaging/qt.env, then docs/release-process.md).
+name: qt-update-check
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"   # weekly, Monday 05:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Third-party actions are pinned to full commit SHAs (tag in the comment).
+#   actions/checkout = v7.0.1
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Newer patch release of the pinned Qt?
+        run: |
+          . packaging/qt.env
+          python3 -m venv "$RUNNER_TEMP/aqt-venv"
+          "$RUNNER_TEMP/aqt-venv/bin/pip" install --quiet "aqtinstall==${AQT_VERSION}"
+          minor="${QT_VERSION%.*}"
+          latest="$("$RUNNER_TEMP/aqt-venv/bin/aqt" list-qt linux desktop --spec "$minor" --latest-version | tail -1)"
+          echo "pinned: $QT_VERSION, newest $minor.x on download.qt.io: $latest"
+          {
+            echo "Qt pinned in packaging/qt.env: **$QT_VERSION**; newest $minor.x: **${latest:-unknown}**"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$latest" ]; then
+            echo "::warning::could not read the Qt versions from download.qt.io"
+          elif [ "$latest" != "$QT_VERSION" ] && [ "$(printf '%s\n%s\n' "$QT_VERSION" "$latest" | sort -V | tail -1)" = "$latest" ]; then
+            echo "::warning::Qt $latest is available (pinned: $QT_VERSION): the packages ship Qt, so bump QT_VERSION in packaging/qt.env and release (docs/release-process.md)"
+            echo "Update available: change QT_VERSION in packaging/qt.env." >> "$GITHUB_STEP_SUMMARY"
+          fi

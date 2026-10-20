@@ -78,8 +78,23 @@ decode nothing and return false; axes that do not fit into a short report are sk
 ## Verifying a device with hidprobe
 
 The shipped `devices/*.conf` layouts have not been verified on hardware. `dofscroll-hidprobe`
-(built by default on Linux, option `-DDOFSCROLL_HIDPROBE=OFF` to skip, installed to `bin`) lets
-you check them. It only reads `/dev/hidraw*` and never writes to the device.
+(built by default on Linux, Windows and macOS, option `-DDOFSCROLL_HIDPROBE=OFF` to skip) lets you
+check them. It only reads the device (Linux: `/dev/hidraw*`, Windows: the HID interface through
+`hid.dll`, macOS: IOHIDManager) and never writes to it.
+
+Where it is:
+
+| System | Path |
+|---|---|
+| Linux | `dofscroll-hidprobe` in `bin` of the package (`/usr/bin`) |
+| Windows installer | `dofscroll-hidprobe.exe` in the install folder (default `%LOCALAPPDATA%\Programs\dofscroll`), next to `dofscroll.exe` |
+| Windows ZIP | `dofscroll-hidprobe.exe` in the unpacked folder, next to `dofscroll.exe` |
+| macOS image | `dofscroll.app/Contents/Resources/daemon/dofscroll-hidprobe` (the daemon-only image: `dofscroll/dofscroll-hidprobe`) |
+
+It is a command line program: open a terminal (PowerShell or cmd on Windows, Terminal on macOS) and
+run it by its full path, or from its folder. It finds the `devices` folder next to itself. On
+macOS the program that runs it (Terminal) needs the Input Monitoring permission, as the daemon does.
+Windows does not expose the raw report descriptor, so `--descriptor` says it is unavailable there.
 
 ```sh
 dofscroll-hidprobe --list                 # devices, vid:pid, and whether a devices/*.conf entry matches
@@ -89,9 +104,15 @@ dofscroll-hidprobe --check                # live decoded axes/buttons, verdict a
 dofscroll-hidprobe --guided               # asks you to push, tilt, twist, press; writes hidprobe-report.txt
 ```
 
-Options: `--device /dev/hidrawN` (default: first device with a description), `--devices-dir DIR`
-or `--conf FILE` (default: `./devices`, then the installed share directory), `--seconds N`
-(`0` = until Ctrl-C), `--report FILE`. Run it from the source tree so `./devices` is found.
+Options: `--device PATH` (a path as printed by `--list`, e.g. `/dev/hidrawN`; default: first device
+with a description), `--devices-dir DIR` or `--conf FILE` (default: `./devices`, then `devices` next
+to the program, then the installed share directory), `--seconds N` (`0` = until Ctrl-C),
+`--report FILE`, `--version`, `--help`.
+
+`--check` ends with one machine-readable line, for example
+`RESULT opened=yes reports=412 axes_moved=tx,ty,tz buttons_seen=2`, or, when the device cannot be
+opened, `RESULT opened=no error="..."`. Exit codes of `--check`: `0` reports received, `3` the device
+opened but sent no report, `1` the device could not be opened, `2` usage error.
 
 `--check` prints one verdict per check: report ids seen, report lengths against the lengths the
 description needs (and against the device's own report descriptor), axes that moved with the
@@ -123,8 +144,19 @@ arrive, a device often exposes several hidraw nodes; try the others of the same 
 `--device`. If that also fails, stop `spacenavd` briefly, check the cable or receiver, and run
 again. Unrecognised or mismatching results are best reported with the `--guided` file.
 
+### Windows and macOS: does dofscroll run next to the official driver?
+
+The tool is also what the guided coexistence test uses
+(`scripts\test-driver-coexistence.ps1` on Windows, `scripts/test-driver-coexistence.sh` on macOS; both
+are part of the packages, see [installation.md](installation.md)). It takes about 5 minutes, changes
+nothing, never stops the driver, and writes `dofscroll-driver-test-report.txt` for issue #36
+(Windows) or #37 (macOS). On Windows and macOS the tool opens the device exactly like the daemon does
+(shared, never exclusive; macOS without seizing), so "hidprobe can read while the driver runs" is the
+same question as "dofscroll can". Details: [troubleshooting.md](troubleshooting.md#the-official-3dconnexion-driver-and-dofscroll).
+
 ### Other platforms
 
 The platform code is one small interface (`tools/hidprobe/hidprobe_backend.hpp`: list devices,
-read the report descriptor, read raw reports). A Windows (hid.dll) or macOS (IOHID) backend only
-has to implement it; only the Linux backend exists so far.
+read the report descriptor, read raw reports). The backends are `reader_linux.cpp` (hidraw),
+`reader_win.cpp` (SetupAPI and `hid.dll`) and `reader_mac.cpp` (IOHIDManager). The Windows and macOS
+backends are compiled by CI but have not been run on real hardware.

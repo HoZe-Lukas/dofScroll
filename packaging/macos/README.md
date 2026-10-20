@@ -60,7 +60,8 @@ sh packaging/macos/uninstall-launchagent.sh
 
 ## Vendor driver
 
-If the 3Dconnexion driver is installed it may translate motion itself and double the input, or
-hold the device so that dofscroll cannot read it. Quit the driver or switch off its per-application
-navigation while testing. Behaviour with the driver running is unverified; see
-`docs/port-macos.md`.
+dofscroll is meant to run next to the official 3Dconnexion driver, which you keep installed and running.
+If both cannot read the device at the same time on your Mac, that is a bug of dofscroll to be fixed.
+Behaviour with the driver running is unverified; the guided test (`diagnostics/test-driver-coexistence.sh`
+in the app, `dofscroll-hidprobe` next to the daemon) finds out and writes one report file for the
+issue tracker. See `docs/troubleshooting.md` and `docs/port-macos.md`.

@@ -11,6 +11,24 @@ Setup: copy `dofscroll.exe`, `devices\` and `examples\` into one folder. Start f
 `dofscroll.exe --version` first. The daemon has no console window; read
 `%LOCALAPPDATA%\dofscroll\dofscroll.log` and `dofscroll-status`.
 
+## 0. Does dofscroll run next to the official 3Dconnexion driver? (do this first, about 5 minutes)
+
+Policy: the official driver stays installed and running (CAD programs need it); dofscroll is designed
+to work next to it. If both cannot read the device at the same time, that is a bug of dofscroll to be
+fixed. Nothing about this has been verified on hardware yet. The test changes nothing and never stops
+the driver:
+
+    powershell -ExecutionPolicy Bypass -File scripts\test-driver-coexistence.ps1
+
+(in the install folder or the unpacked ZIP; the source tree has it in `scripts\`; build tree: pass
+`-ProbePath build\Release\dofscroll-hidprobe.exe`).
+
+- [ ] The script ran to the end and wrote `dofscroll-driver-test-report.txt`; attached to issue #36.
+- [ ] Test A (driver running): the report says whether the device opened and whether reports arrived.
+- [ ] Test B (driver and dofscroll together): scrolling once, not twice; the CAD program still reacts
+      normally; dofscroll reacts.
+- [ ] Test C is optional and for diagnosis only (you stop the driver yourself, the script never does).
+
 ## 1. Start, files, paths
 
 - [ ] `dofscroll.exe --version` prints a version and exits with code 0.
@@ -95,9 +113,9 @@ For each axis, push/tilt/twist gently and fully; check direction and magnitude (
 
 Run sections 2, 3 and 5 twice:
 
-- [ ] Driver installed and running (default settings): does dofscroll still receive reports? Is the output doubled (driver and dofscroll both scroll)?
-- [ ] Driver installed with per-application navigation / button assignments disabled for the test program.
-- [ ] Driver background process exited: dofscroll alone.
+- [ ] Driver installed and running (default settings): does dofscroll still receive reports? Is the output doubled (driver and dofscroll both scroll)? (Section 0 answers this.)
+- [ ] A program where the output is doubled: `ENABLED = 0` for it in dofscroll's `[app:...]` profile removes the double input.
+- [ ] Diagnosis only (the tester stops the driver; never advice for normal users): driver background process exited, dofscroll alone.
 - [ ] Record whether opening the device fails (log shows a Windows error) while the driver runs, and with which driver version.
 - [ ] Driver not installed at all.
 

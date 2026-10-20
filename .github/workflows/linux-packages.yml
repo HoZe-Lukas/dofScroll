@@ -4,8 +4,12 @@
 # Reusable workflow: builds the Linux packages in distribution containers and uploads them as
 # artifacts (packages-rpm-tgz, packages-deb). It never creates a release: ci.yml calls it for
 # tags and its release job attaches the artifacts; linux-packages-dry-run.yml calls it on demand.
-# The packages contain the Qt interface (dofscroll-ui) when the distribution provides Qt6; if the
-# Qt install fails the package has only the daemon and the job log and summary say so (no failure).
+# The packages BUNDLE Qt (version from packaging/qt.env, download.qt.io via aqtinstall) and the
+# libraries it needs in /usr/lib/dofscroll (scripts/bundle-qt-linux.sh): they need no Qt from the
+# system (#116), only spacenavd for the device. RPM and TGZ are built in the Rocky 9 image, the DEB on
+# Debian 12; both are the oldest supported distributions, so the copied libraries run on newer ones.
+# The jobs check the package metadata (no Qt or bundled library in Requires or Provides), the layout,
+# the RUNPATH, and the license files.
 name: linux-packages
 
 on:
@@ -26,8 +30,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Qt version
+        run: |
+          . packaging/qt.env
+          echo "Qt $QT_VERSION (packaging/qt.env), image Qt: $(qmake -query QT_VERSION)"
+          test "$(qmake -query QT_VERSION)" = "$QT_VERSION" || { echo "::error::the build image has a different Qt than packaging/qt.env: rebuild it (ci-image workflow)" >&2; exit 1; }
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DDOFSCROLL_BUNDLE_QT=ON
       - name: Build
         run: cmake --build build -j4
       - name: Package
@@ -52,10 +61,44 @@ jobs:
             test -f /tmp/scan/rpm/usr/share/icons/hicolor/scalable/apps/dofscroll.svg
             echo "::notice::RPM contains the Qt interface (dofscroll-ui)"
             echo "RPM: Qt interface included" >> "$GITHUB_STEP_SUMMARY"
+            . packaging/qt.env
+            rpm -qpR build/dofscroll-*.rpm | sort -u > /tmp/requires.txt
+            rpm -qp --provides build/dofscroll-*.rpm > /tmp/provides.txt
+            echo "--- RPM requires (Qt and the bundled libraries must not appear):"; cat /tmp/requires.txt
+            if grep -E '^(libQt6|libicu|libGL|libEGL|libOpenGL|libxcb-|libxkbcommon|libfontconfig|libfreetype|libglib|libdbus|libwayland|libharfbuzz|libpng|qt6-)' /tmp/requires.txt; then
+              echo "::error::the RPM requires Qt or a library that is bundled" >&2; exit 1
+            fi
+            if grep -E '\.so' /tmp/provides.txt; then
+              echo "::error::the RPM provides a bundled library to other packages" >&2; exit 1
+            fi
+            echo "--- RPM files in lib/dofscroll:"; rpm -qpl build/dofscroll-*.rpm | grep dofscroll/lib | grep -c '\.so' || true
+            rpm -qpl build/dofscroll-*.rpm | grep -E 'dofscroll/lib/lib(Qt6Core|Qt6Gui|Qt6Widgets|Qt6Svg|Qt6DBus|icuuc|xcb\.so)|dofscroll/plugins/platforms/lib'
+            rpm -qpl build/dofscroll-*.rpm | grep -q 'third-party/Qt-LGPL-3.0-only.txt'
+            rpm -qpl build/dofscroll-*.rpm | grep -q 'doc/dofscroll/THIRD-PARTY-NOTICES.md'
+            rpm -qpl build/dofscroll-*.rpm | grep -q 'third-party/bundled-libraries.txt'
+            if rpm -qpl build/dofscroll-*.rpm | grep -q '\.build-id'; then echo "::error::the RPM has build-id links of bundled libraries" >&2; exit 1; fi
+            # the executable: relative RPATH/RUNPATH into the bundle, and the bundle has the Qt of qt.env
+            readelf -d /tmp/scan/rpm/usr/bin/dofscroll-ui | grep -E 'RPATH|RUNPATH' | tee /tmp/rpath.txt
+            grep -F "\$ORIGIN/../lib/dofscroll/lib" /tmp/rpath.txt
+            QT_QPA_PLATFORM=offscreen /tmp/scan/rpm/usr/bin/dofscroll-ui --version | tee /tmp/uiver.txt
+            grep -q "^Qt $QT_VERSION " /tmp/uiver.txt
+            env -u LD_LIBRARY_PATH ldd /tmp/scan/rpm/usr/bin/dofscroll-ui | grep -E 'libQt6Core|not found'
+            if env -u LD_LIBRARY_PATH ldd /tmp/scan/rpm/usr/bin/dofscroll-ui | grep -E 'libQt6|libicu' | grep -v '/lib/dofscroll/lib/'; then
+              echo "::error::dofscroll-ui loads Qt from outside lib/dofscroll" >&2; exit 1
+            fi
+            {
+              echo "RPM bundles Qt $QT_VERSION ($(rpm -qpl build/dofscroll-*.rpm | grep -c 'dofscroll/lib/.*\.so') libraries). Requires (no Qt):"
+              echo '```'; cat /tmp/requires.txt | grep -v -E '^(rpmlib|rtld)'; echo '```'
+              echo "Sizes: RPM $(du -h build/dofscroll-*.rpm | cut -f1), TGZ $(du -h build/dofscroll-*.tar.gz | cut -f1)"
+            } >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::notice::RPM has no tray or settings window: Qt6 is missing in the build image (packaging/ci/rocky9.Dockerfile, target qt)"
-            echo "RPM: daemon only (no Qt6)" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::the RPM has no dofscroll-ui (packaging/ci/rocky9.Dockerfile, target qt)" >&2; exit 1
           fi
+          tgz="$(echo /tmp/scan/tgz/dofscroll-*-Linux)"
+          test -x "$tgz/usr/bin/dofscroll-ui"
+          test -f "$tgz/usr/lib/dofscroll/lib/libQt6Core.so.6"
+          test -f "$tgz/usr/share/doc/dofscroll/third-party/bundled-libraries.txt"
+          QT_QPA_PLATFORM=offscreen "$tgz/usr/bin/dofscroll-ui" --version | head -2
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: packages-rpm-tgz
@@ -76,17 +119,11 @@ jobs:
           retry apt-get update
           retry apt-get install -y --no-install-recommends g++ make cmake git ca-certificates gettext file \
             pkg-config dpkg-dev desktop-file-utils libspnav-dev libx11-dev libxtst-dev
-      - name: Install Qt6 (optional, without it the package has only the daemon)
-        id: qt
-        continue-on-error: true
-        run: |
-          retry() { for i in 1 2 3; do timeout 600 "$@" && return 0; echo "::warning::attempt $i/3 failed or timed out: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
-          retry apt-get install -y --no-install-recommends qt6-base-dev libqt6svg6-dev qt6-l10n-tools \
-            libgl1-mesa-dev
-          echo "qt=yes" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Install Qt (packaging/qt.env, aqtinstall) and the libraries it needs
+        run: sh packaging/ci/debian12-qt.sh "$GITHUB_WORKSPACE"
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DDOFSCROLL_BUNDLE_QT=ON -DCMAKE_PREFIX_PATH=/opt/qt/current
       - name: Build
         run: cmake --build build -j4
       - name: Package
@@ -103,16 +140,28 @@ jobs:
             echo "a packaged unit has an ExecStart outside /usr/bin" >&2; exit 1
           fi
           test -z "$(find /tmp/scan -path '*/usr/lib/udev/*' -type f)"
-          for f in build/dofscroll*.deb; do dpkg-deb -f "$f" Depends; done
-          if [ -x /tmp/scan/usr/bin/dofscroll-ui ]; then
-            desktop-file-validate /tmp/scan/usr/share/applications/dofscroll.desktop
-            test -f /tmp/scan/usr/share/icons/hicolor/scalable/apps/dofscroll.svg
-            echo "::notice::DEB contains the Qt interface (dofscroll-ui)"
-            echo "DEB: Qt interface included" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "::notice::DEB has no tray or settings window: Qt6 was not available in Debian 12 (qt install: ${{ steps.qt.outcome }})"
-            echo "DEB: daemon only (no Qt6)" >> "$GITHUB_STEP_SUMMARY"
+          . packaging/qt.env
+          deps="$(dpkg-deb -f build/dofscroll*.deb Depends)"
+          echo "--- DEB Depends: $deps"
+          if echo "$deps" | tr ',' '\n' | sed 's/^ *//' | grep -i -E '^(libqt6|libicu|libgl1|libegl|libopengl|libxcb-|libxkbcommon|libfontconfig|libfreetype|libglib|libdbus|libwayland|libharfbuzz|libpng)'; then
+            echo "::error::the DEB depends on Qt or a library that is bundled" >&2; exit 1
           fi
+          test -x /tmp/scan/usr/bin/dofscroll-ui
+          desktop-file-validate /tmp/scan/usr/share/applications/dofscroll.desktop
+          test -f /tmp/scan/usr/share/icons/hicolor/scalable/apps/dofscroll.svg
+          test -f /tmp/scan/usr/lib/dofscroll/lib/libQt6Core.so.6
+          test -f /tmp/scan/usr/share/doc/dofscroll/third-party/Qt-LGPL-3.0-only.txt
+          test -f /tmp/scan/usr/share/doc/dofscroll/THIRD-PARTY-NOTICES.md
+          test -f /tmp/scan/usr/share/doc/dofscroll/third-party/bundled-libraries.txt
+          readelf -d /tmp/scan/usr/bin/dofscroll-ui | grep -E 'RPATH|RUNPATH' | tee /tmp/rpath.txt
+          grep -F "\$ORIGIN/../lib/dofscroll/lib" /tmp/rpath.txt
+          QT_QPA_PLATFORM=offscreen /tmp/scan/usr/bin/dofscroll-ui --version | tee /tmp/uiver.txt
+          grep -q "^Qt $QT_VERSION " /tmp/uiver.txt
+          echo "::notice::DEB contains the Qt interface with Qt $QT_VERSION bundled"
+          {
+            echo "DEB bundles Qt $QT_VERSION. Depends (no Qt): $deps"
+            echo "Size: DEB $(du -h build/dofscroll*.deb | cut -f1)"
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: packages-deb

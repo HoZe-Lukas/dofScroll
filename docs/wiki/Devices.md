@@ -26,7 +26,7 @@ The report layout in the shipped files is the commonly used 3Dconnexion layout a
 
 ## Verifying a device with hidprobe
 
-`dofscroll-hidprobe` (Linux, built by default, option `-DDOFSCROLL_HIDPROBE=OFF` to skip) reads `/dev/hidraw*` and never writes to the device.
+`dofscroll-hidprobe` (built by default on Linux, Windows and macOS, option `-DDOFSCROLL_HIDPROBE=OFF` to skip) never writes to the device. Linux reads `/dev/hidraw*`; the Windows installer and ZIP ship `dofscroll-hidprobe.exe` next to `dofscroll.exe`, the macOS app has it in `dofscroll.app/Contents/Resources/daemon/` (run it from a terminal; the Windows and macOS backends are not tried on hardware yet). `--check` ends with a `RESULT` line and exits with 3 when the device opened but sent nothing.
 
 ```sh
 dofscroll-hidprobe --list                 # devices, vid:pid, matching description

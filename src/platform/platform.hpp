@@ -60,6 +60,9 @@ public:
     // Optional: id of the path the data comes from right now, "driver" or "hid"; empty when the source
     // has no such choice (Linux) or none is active yet. Thread-safe.
     virtual std::string pathLabel() const { return std::string(); }
+    // True while a matching device exists but opening it was refused (another program, possibly the
+    // vendor driver, holds it). Default: never. See platform/input_diag.hpp.
+    virtual bool accessBlocked() const { return false; }
 };
 
 // ---- Active window ---------------------------------------------------------------------------

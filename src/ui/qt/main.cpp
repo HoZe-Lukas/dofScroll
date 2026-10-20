@@ -17,6 +17,8 @@
 #include <QLocale>
 #include <QLockFile>
 #include <QStandardPaths>
+#include <QProxyStyle>
+#include <QStyle>
 #include <QSystemTrayIcon>
 #include <QTemporaryDir>
 #include <QAccessible>
@@ -96,7 +98,7 @@ static void printUsage() {
                 "  Settings window and tray icon for dofscroll (Qt). Qt options such as\n"
                 "  -platform are passed through.\n"
                 "  -h, --help   print this text and exit\n"
-                "  --version    print the version and exit\n"
+                "  --version    print the version and the Qt version in use, then exit\n"
                 "  --self-test  headless self-test with temporary directories\n"
                 "  --screenshots <dir>  render every page at three sizes into PNG files, then exit\n"
                 "  --restart    wait for a running instance to exit, then start (used by the tray)\n");
@@ -2308,7 +2310,9 @@ int main(int argc, char **argv) {
     // Handled before QApplication exists: no window, no lock, no display needed.
     for (int i = 1; i < argc; ++i) {
         if (!std::strcmp(argv[i], "--version")) {
-            std::printf("dofscroll-ui %s\n", DOFSCROLL_VERSION);
+            // First line: the program and its version (scripts and docs parse it). Second line: the Qt
+            // that is running (the Linux packages bundle their own Qt, so this tells which one is used).
+            std::printf("dofscroll-ui %s\nQt %s (built with Qt %s)\n", DOFSCROLL_VERSION, qVersion(), QT_VERSION_STR);
             return 0;
         }
         if (!std::strcmp(argv[i], "--help") || !std::strcmp(argv[i], "-h")) {
@@ -2320,7 +2324,17 @@ int main(int argc, char **argv) {
         if (!std::strcmp(argv[i], spn::ui::restartFlag())) restarted = true;
     }
 
+#if defined(DOFSCROLL_BUNDLED_QT)
+    // The bundled Qt (Linux packages) has no KDE or GNOME platform theme plugin: take the colour scheme
+    // (light or dark) from the desktop portal and use Qt's own Fusion style. Set only while the
+    // application object is created, so programs started from here do not inherit it.
+    const bool setTheme = qEnvironmentVariableIsEmpty("QT_QPA_PLATFORMTHEME");
+    if (setTheme) qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
+#endif
     QApplication app(argc, argv);
+#if defined(DOFSCROLL_BUNDLED_QT)
+    if (setTheme) qunsetenv("QT_QPA_PLATFORMTHEME");
+#endif
     QApplication::setApplicationName(QStringLiteral("dofscroll"));
     QApplication::setApplicationVersion(QStringLiteral(DOFSCROLL_VERSION));
     QApplication::setQuitOnLastWindowClosed(false);
@@ -2536,6 +2550,19 @@ int main(int argc, char **argv) {
         std::printf("self-test: entries=%d profiles=%d modes=%d tray-modes=%d tray-entries=%d tray-available=%d\n",
                     w.pageCount(), w.profileCount(), modes.modeCount(), tray.modeMenuCount(),
                     tray.menuEntryCount(), avail ? 1 : 0);
+#if defined(Q_OS_LINUX)
+        // No platform theme (offscreen, or the bundled Qt without KDE and GNOME plugins) means Qt's own
+        // Fusion style, the base of our style sheet; a style such as "windows" would look different.
+        // (our SpacingStyle is a proxy: ask its base style)
+        const QStyle *baseStyle = QApplication::style();
+        if (const auto *proxy = qobject_cast<const QProxyStyle *>(baseStyle)) baseStyle = proxy->baseStyle();
+        const QString styleName = baseStyle->name();
+        std::printf("self-test: qt=%s style=%s\n", qVersion(), qPrintable(styleName));
+        if (styleName.compare(QStringLiteral("fusion"), Qt::CaseInsensitive) != 0) {
+            std::fprintf(stderr, "self-test failed: the base style is %s, expected fusion\n", qPrintable(styleName));
+            return 1;
+        }
+#endif
         // every built-in (however many the embedded library holds) plus the one mode file of this test
         const int expectedModes = static_cast<int>(spn::loadModes("", nullptr).modes.size()) + 1;
         bool tipsOk = static_cast<int>(tray.modeMenuToolTips().size()) == expectedModes;

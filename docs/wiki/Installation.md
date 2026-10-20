@@ -13,11 +13,11 @@ Before you install, check [Requirements](Requirements) (supported systems, drive
 
 | Format | Command | Notes |
 |---|---|---|
-| RPM (built on Rocky Linux 9) | `sudo dnf install -y epel-release`, then `sudo dnf install ./dofscroll-*.rpm` | `spacenavd` comes from EPEL on RHEL 9 and its clones |
+| RPM (built on Rocky Linux 9) | `sudo dnf install -y epel-release`, then `sudo dnf install ./dofscroll-*.rpm` | `spacenavd` comes from EPEL on RHEL 9 and its clones; Qt is inside the package, nothing else to install |
 | DEB (built on Debian 12) | `sudo apt install ./dofscroll_*.deb` | Whether `spacenavd` is in your release's repositories is unverified |
-| TGZ | `tar xzf dofscroll-*-Linux.tar.gz`, then `sudo cp -a dofscroll-*-Linux/usr/. /usr/` | You install the run-time dependencies yourself |
+| TGZ | `tar xzf dofscroll-*-Linux.tar.gz`, then `sudo cp -a dofscroll-*-Linux/usr/. /usr/` | Self-contained interface (own Qt): `dofscroll-ui` runs from the unpacked folder; the daemon needs `libspnav` and the X11 libraries from your distribution |
 
-The RPM and DEB files have not been installed on a real machine yet. A package installs `/usr/bin/dofscroll` and `/usr/bin/dofscroll-ui` (only when Qt6 was available at build time; otherwise the package has the daemon only), a menu entry, the user units in `/usr/lib/systemd/user`, examples in `/usr/share/dofscroll/examples/`, and the uinput udev rule as an inactive example under `/usr/share/dofscroll/udev/`.
+The RPM and DEB files have not been installed on a real machine yet. A package installs `/usr/bin/dofscroll` and `/usr/bin/dofscroll-ui` (with its own Qt 6.9.3 in `/usr/lib/dofscroll`, which is why the packages are 27 to 35 MB), a menu entry, the user units in `/usr/lib/systemd/user`, examples in `/usr/share/dofscroll/examples/`, and the uinput udev rule as an inactive example under `/usr/share/dofscroll/udev/`.
 
 ## First-time setup (Linux)
 
@@ -52,7 +52,7 @@ CI builds an installer (`dofscroll-<version>-windows-x64-setup.exe`) and a porta
 2. SmartScreen shows "Windows protected your PC": click **More info**, then **Run anyway**.
 3. Optional component "Start the daemon at logon" (off by default). The Start menu entry opens the settings window (`dofscroll-ui.exe`); `dofscroll.exe` is the daemon without a window.
 4. Config: `%APPDATA%\dofscroll\dofscroll.conf` (same format as on Linux). Log: `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
-5. If the 3Dconnexion driver is installed, do not stop it: dofscroll then reads the device through the driver's interface (setting `INPUT`, default `auto`, see [Requirements](Requirements)). Disable the driver's own per-application navigation for the programs you test, otherwise scrolling is doubled.
+5. The official 3Dconnexion driver can stay installed and running; dofscroll works next to it and never asks you to stop it: with the driver installed it reads the device through the driver's interface (setting `INPUT`, default `auto`), otherwise directly (not verified on hardware yet). Please run the 5 minute test `powershell -ExecutionPolicy Bypass -File scripts\test-driver-coexistence.ps1` from the install folder and attach its file to issue #36, see [Requirements](Requirements). The diagnostic tool `dofscroll-hidprobe.exe` is next to `dofscroll.exe`.
 
 Uninstall: Settings > Apps > dofscroll; your configuration stays. Details: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md), [port-windows.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-windows.md), [port-windows-checklist.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-windows-checklist.md).
 

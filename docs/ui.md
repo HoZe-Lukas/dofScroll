@@ -36,7 +36,10 @@ modifier keys), large click targets, and help text in a muted colour. The look i
 place, `src/ui/qt/theme.cpp`: an application style sheet built from the theme colours
 (`src/ui/model/theme_colors.hpp`; "System" keeps the platform palette and light/dark choice and
 only adds the shapes and our accent) and a layout style that gives every layout that does not set
-its own numbers the same margins and gaps. The numbers are tokens in
+its own numbers the same margins and gaps. In the Linux packages (which bundle their own Qt, see
+[installation.md](installation.md)) no KDE or GNOME platform theme exists, so "System" means Qt's
+Fusion style (the base of the style sheet) with the light or dark scheme that the desktop reports through the XDG
+desktop portal; `--self-test` checks on Linux that the base style is Fusion. The numbers are tokens in
 `src/ui/model/design_tokens.hpp`:
 
 | Token | Value (px) | Use |
@@ -79,7 +82,7 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 |---|---|---|
 | Overview | Overview | Only summarizes and links: the state of the daemon, task buttons, quick actions (see "Overview quick actions" below) and one card per device or program profile with its joystick mode, a one-line summary of what it overrides and how many settings that are; "Open" shows the profile on the Profiles page. Every profile of the configuration has a card, a filter box narrows the list |
 | Profiles | Profiles | The list of profiles (Global first, then devices, then programs) and the editor of the selected one with the tabs General, Channels, Buttons and Overrides, see "Profiles" below |
-| Modes | Joystick modes | The available joystick modes (built-in and files in the modes folder) with their origin and description: new, new from example, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every joystick mode the profiles that use it; a reminder that mode files can press any key |
+| Modes | Joystick modes | The available joystick modes (built-in and files in the joystick modes folder) with their origin and description: new, new from example, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every joystick mode the profiles that use it; a reminder that joystick mode files can press any key |
 | Modes | Button modes | The button mode files (`buttons/`): create, new from example, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
 | Device | Device | The connected devices and their button count (the number of button rows a profile offers), the daemon state |
 | Device | Axes | Live bars of the six axes (and, while the active joystick mode splits a scroll channel, the push and tilt parts of that channel) and the axis assistant (wizard) that detects which axis does what |
@@ -468,7 +471,7 @@ LaunchAgent on macOS. If the interface is not installed, only the daemon is swit
 
 The interface says **Joystick mode** for what the axes do (config key `MODE`, files in `modes/`)
 and **Button mode** for the named behavior of one button (`buttons/`, `buttonmode:<id>`); the plain
-word "mode" is not used (the one exception is the sidebar entry "Modes", the category that holds both kinds as tabs). "Navigation" is the arrow-key action of a button, not a mode. The titles of
+word "mode" is not used (the one exception is the sidebar entry "Modes", the category that holds both kinds as tabs). "Navigation" is the arrow-key action of a button, not a joystick mode. `scripts/check-terms.sh` (run by the lint job) fails when a translatable UI string says plain "mode". The titles of
 the pages and tabs come from one place, `src/ui/model/ui_terms.hpp`; to rename a kind, change the
 constant there and the texts that carry the word (search the old word in `src/ui`, `po/de.po` and
 `docs`: the sentences in `src/ui/qt/pages/*.cpp`, the model texts in

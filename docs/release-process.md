@@ -17,9 +17,11 @@ Decision for version 0.1: **all Windows and macOS packages are unsigned**.
 
 Install smoke test: after packaging, `linux-smoke.yml` (called by `ci.yml` as job `linux-smoke` and
 by `linux-packages-dry-run.yml`) downloads `packages-rpm-tgz` and `packages-deb` and installs them
-in fresh containers (Rocky 9, Fedora 42; Debian 12, Debian 13, Ubuntu 24.04), then runs
-`dofscroll --version`, `dofscroll --help` and `dofscroll-ui --version` (offscreen) via
-`scripts/smoke-install.sh`. Only Rocky 9 and Debian 12 are required entries; the others are
+in fresh containers (RPM: Rocky 9, Fedora 42; DEB: Debian 12, Debian 13, Ubuntu 24.04; the TGZ unpacked in
+bare Rocky 9, Debian 12, Ubuntu 24.04 and Fedora 42 containers), then runs
+`dofscroll --version`, `dofscroll --help`, `dofscroll-ui --version` and the offscreen `dofscroll-ui --self-test` via
+`scripts/smoke-install.sh`, with the Qt checks described under "Qt in the packages". Only Rocky 9 and
+Debian 12 are required entries; the others are
 `continue-on-error`. The `release` job does not list `linux-smoke` in `needs`, so the smoke test never
 gates publishing: read its summary before announcing a release. Per-distro verdicts are in the job
 summary.
@@ -35,8 +37,8 @@ run does the same).
 If Qt cannot be installed in a job (the `install-qt-action` step is `continue-on-error`), that job
 builds the daemon without the UI and warns; the file names then contain `-daemon-only`
 (`dofscroll-<v>-windows-x64-daemon-only-setup.exe`, `...-daemon-only-portable.zip`,
-`dofscroll-<v>-macos-arm64-daemon-only.dmg`). Qt versions are the ones of `ui.yml`
-(6.8.3 MSVC on Windows, 6.9.3 on macOS), installed with a pinned `aqtinstall` instead of `install-qt-action` (that action uses an unpinned `setup-python`, which the repository action policy rejects); all actions are pinned to commit SHAs.
+`dofscroll-<v>-macos-arm64-daemon-only.dmg`). The Qt version is the one of `packaging/qt.env` (the same on
+Windows, macOS and Linux; Windows kit `win64_msvc2022_64`), installed with a pinned `aqtinstall` instead of `install-qt-action` (that action uses an unpinned `setup-python`, which the repository action policy rejects); all actions are pinned to commit SHAs.
 
 Both jobs test their package before uploading: the Windows job installs silently with autostart
 selected, runs `dofscroll.exe --version` and `dofscroll-ui.exe --self-test` from the install folder
@@ -76,7 +78,7 @@ No release step depends on a package feed being up at that moment:
 
 The Rocky Linux 9 jobs (`build + ctest`, ASan/UBSan, cppcheck, CodeQL and the RPM package) run in
 prebuilt images from `ghcr.io/hoze-lukas/dofscroll-ci-rocky9` (and `-qt`, for the RPM job, which adds
-Qt6) instead of running `dnf` on every run. `packaging/ci/rocky9.Dockerfile` is the recipe;
+the Qt of `packaging/qt.env`, see "Qt in the packages") instead of running `dnf` on every run. `packaging/ci/rocky9.Dockerfile` is the recipe;
 `.github/workflows/ci-image.yml` builds and checks the images on pull requests that touch it, and
 pushes them on `main` and every Monday (distribution updates). The packages are public, so jobs pull
 them without a login.
@@ -85,6 +87,74 @@ A pull request that needs a new build dependency changes the Dockerfile; its own
 old image, so add the dependency in one pull request, merge it (the push to `main` publishes the new
 image) and use it in the next one. If the images are ever missing or broken, the Rocky jobs fail at
 the start: run the `ci-image` workflow by hand (Actions tab, "Run workflow").
+
+## Qt in the packages
+
+Every package that ships the interface ships **the same Qt**: the Linux packages (RPM, DEB, TGZ), the
+Windows installer and the macOS disk image bundle Qt 6.9.3 instead of using the Qt of the system. The
+version, and the aqtinstall version that downloads it, are in ONE file, `packaging/qt.env`; the CI
+image (`packaging/ci/rocky9.Dockerfile`, `packaging/ci/debian12-qt.sh`), `ui.yml`, `installers.yml`,
+`linux-packages.yml`, `linux-smoke.yml` and `qt-update-check.yml` read it.
+
+Why bundle on Linux (#116): a program built against Qt 6.N requires `libQt6Core.so.6(Qt_6.N)`, so the 1.0.0
+RPM, built against the newest EPEL Qt (6.10.3), could not be installed on RHEL 9 systems with the older
+EPEL Qt 6.6. Building against the oldest Qt would have helped only for the RPM; bundling makes all packages
+independent of the Qt of the system, the same everywhere, and tested with the Qt that is shipped.
+
+How it works (Linux):
+
+- The CI image and the Debian 12 job install Qt from download.qt.io with aqtinstall (`/opt/qt/current`) and the
+  runtime libraries that the Qt binaries link, so `scripts/bundle-qt-linux.sh` can copy them.
+- The release packages are configured with `-DDOFSCROLL_BUNDLE_QT=ON` (`cmake/Ui.cmake`). `cmake --install`
+  (and so CPack) runs `scripts/bundle-qt-linux.sh`, which follows the dependencies of `dofscroll-ui` and of the
+  chosen Qt plugins with `ldd`, copies everything except glibc, `libstdc++` and `libgcc_s` into
+  `usr/lib/dofscroll/lib` and `usr/lib/dofscroll/plugins`, strips the files, sets the RPATH of the libraries
+  to `$ORIGIN` (plugins: `$ORIGIN/../../lib`) with patchelf, verifies that everything resolves inside the
+  bundle, and writes `bundled-libraries.txt` (source package, version, license) and the license files of the
+  distribution packages into `usr/share/doc/dofscroll/third-party/`. `dofscroll-ui` gets the RPATH
+  `$ORIGIN/../lib/dofscroll/lib`, so the TGZ works from any folder. The script fails when a library, a license file or the
+  ICU license text of the ICU version that Qt ships is missing. The list of plugins (xcb, Wayland, offscreen,
+  portal theme, SVG and image formats) is in the script.
+- RPM: CPack passes spec macros (`DofscrollCPack.cmake`): the private libraries are no `Provides`, the Qt and OpenGL
+  sonames of the executable and the files below `lib/dofscroll` are no `Requires`, and no build-id links are
+  made (the bundled copies would collide with the system libraries). DEB: `dpkg-shlibdeps` looks into the
+  private directory. The packages depend only on `spacenavd` and the daemon's libraries.
+- The qt.io Qt needs glibc 2.28 or newer; the RPM and TGZ are built on Rocky Linux 9 and the DEB on Debian 12,
+  the oldest supported distributions, so the copied libraries run on newer ones.
+
+Checks:
+
+- `linux-packages.yml` (tag build and dry run): `rpm -qpR` and `--provides` must contain no Qt, OpenGL, xcb or other
+  bundled library, the layout and license files must be there, the RPATH must be the relative one, and
+  `dofscroll-ui --version` must report the Qt version of `packaging/qt.env`; the job summary lists the requirements
+  and the sizes. The DEB job checks `Depends` the same way.
+- `linux-smoke.yml` (install smoke test, `scripts/smoke-install.sh`): RPM on Rocky Linux 9 and Fedora 42, DEB on
+  Debian 12 and 13 and Ubuntu 24.04, TGZ unpacked in bare Rocky 9, Debian 12, Ubuntu 24.04 and Fedora 42 containers. The test asserts
+  that no Qt of the distribution was installed, `ldd /usr/bin/dofscroll-ui` resolves Qt, ICU and OpenGL from `lib/dofscroll`,
+  `--version` prints the expected Qt, `--self-test` passes offscreen, and the xcb and Wayland plugins load (they start and
+  report that there is no display).
+- `ui.yml`: `ui-linux` builds with the Qt of Ubuntu (6.4, the oldest Qt the sources support; building from source with
+  a system Qt must keep working), `ui-linux-pinned`, `ui-windows` and `ui-macos` with the Qt of `packaging/qt.env`.
+- `qt-update-check.yml` runs weekly and warns when a newer patch release of the pinned minor version exists.
+- Not verifiable in CI (needs a real desktop): the tray icon, the look under KDE Plasma and GNOME, and a native
+  Wayland session. The bundled Qt has no KDE or GNOME style plugin: the interface uses Qt's Fusion style with the
+  colours of the desktop portal.
+
+To bump Qt: change `QT_VERSION` in `packaging/qt.env` (one line). Then check
+`bundle-qt` messages of the build: when Qt ships another ICU version, add
+`third-party/licenses/ICU-<version>-LICENSE.txt` and update `THIRD-PARTY-NOTICES.md`, and run the
+`ci-image` workflow (it rebuilds the `-qt` image; the package job fails with a clear message while the image still
+has the old Qt). Merge the `packaging/ci` change first, because the image is published from `main`. Windows and
+macOS use the Qt version from the same file; the macOS build needs Qt 6.9 or newer (6.8 links the AGL
+framework, dropped in the macOS 15 SDK).
+
+**Security updates of Qt are our job now.** The packages bundle Qt and its libraries, so a Qt security fix reaches
+users only with a new dofscroll release (until now the distribution's Qt was updated by the distribution). Qt 6.9
+is a non-LTS branch: its patch releases stop some months after the next minor version appears, so plan a move to
+the then current LTS branch (6.8 or a later LTS) or the next minor version when the weekly check shows that 6.9
+gets no more patch releases. The weekly `qt-update-check` workflow warns about new patch releases; the
+bundled system libraries (glib, freetype, libpng, ...) come from Rocky Linux 9 or Debian 12 at build time and are updated
+by rebuilding in the refreshed images (the CI image is rebuilt weekly).
 
 ## Windows installer
 

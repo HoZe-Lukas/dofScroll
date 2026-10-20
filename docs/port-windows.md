@@ -99,12 +99,18 @@ runner test only, not tried on a real desktop.
 
 ## Vendor driver
 
-If the 3Dconnexion driver is installed it may also translate motion into scroll/zoom/keys for some
-applications, so results double up. Disable per-application navigation and button assignments in
-the driver panel for the apps handled here, or exit the driver's background process while testing.
+dofscroll is meant to run next to the official 3Dconnexion driver, which stays installed and running
+(the driver is needed for CAD programs). The driver may also translate motion into scroll/zoom/keys
+for some applications, so results can double up; where that happens, switch dofscroll off for that
+program (`ENABLED = 0` in an `[app:...]` profile).
 Whether the vendor driver prevents a second reader from opening the device (exclusive access) or
-whether both receive every report is **unresolved**; the checklist tests both cases (driver running
-and stopped). If opening fails, the daemon logs the Windows error and retries.
+whether both receive every report is **unresolved**: nothing has been tested on hardware. The guided
+test `scripts\test-driver-coexistence.ps1` (shipped in `scripts\` of the installer and the ZIP) finds
+out and writes one report file for issue #36. If opening fails, the daemon logs the Windows error
+(sharing violation or access denied) together with an explicit message, retries at every rescan and
+shows "SpaceMouse found but cannot be read" in the interface. If both cannot read at the same time,
+that is a bug of dofscroll to be fixed (options: [port-architecture.md](port-architecture.md#if-the-driver-holds-the-device-exclusively)).
+See [troubleshooting.md](troubleshooting.md#the-official-3dconnexion-driver-and-dofscroll).
 
 ## Signing
 

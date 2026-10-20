@@ -103,7 +103,15 @@ The tray icon of `dofscroll-ui` uses the StatusNotifierItem (AppIndicator) proto
 - Check `journalctl --user -u dofscroll-ui.service` for errors.
 - Without a tray (for example GNOME without the AppIndicator extension) dofscroll-ui opens its
   window minimized; restore it from the taskbar or the window list.
-- A package built without Qt6 has no tray and no settings window. Edit the config by hand.
+- A package built without Qt6 (a build from source without the Qt development packages) has no tray and no
+  settings window. Edit the config by hand. The release packages always contain the interface and their own Qt.
+- The tray icon and the look cannot be checked headless (`--self-test` reports `tray-available=0`).
+  The bundled Qt shows the tray through the StatusNotifierItem protocol (KDE Plasma natively, GNOME with the
+  AppIndicator extension) and uses its own Fusion style with the light/dark scheme of the desktop portal. If the
+  window looks wrong, `dofscroll-ui --version` shows the Qt in use and `QT_QPA_PLATFORM=xcb` or `wayland`
+  switches the platform plugin.
+- `ldd /usr/bin/dofscroll-ui | grep -E 'Qt|not found'` must show only paths below `/usr/lib/dofscroll/lib/`.
+  A "not found" means that a library that the package should bring is missing (report it with the output).
 
 The daemon works without the tray. The tray is only needed for the settings window and the first
 start seeding.
@@ -146,7 +154,7 @@ Translations are looked up in `$DOFSCROLL_LOCALEDIR`, `../share/locale` next to 
 
 ### A button does nothing, or input arrives twice
 
-dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch or toggle joystick modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. Check the driver mapping first: a button that sends the same key or click everywhere is mapped in `/etc/spnavrc` (Linux) or the 3Dconnexion driver settings (Windows, macOS), see [modes.md](modes.md#buttons-and-the-vendor-driver). Double input usually means the driver also scrolls or pans in that program; turn that off per application, see [windows-mac.md](windows-mac.md).
+dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch or toggle joystick modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. Check the driver mapping first: a button that sends the same key or click everywhere is mapped in `/etc/spnavrc` (Linux) or the 3Dconnexion driver settings (Windows, macOS), see [modes.md](modes.md#buttons-and-the-vendor-driver). Double input usually means the driver also scrolls or pans in that program: see [The official 3Dconnexion driver and dofscroll](#the-official-3dconnexion-driver-and-dofscroll) below and [windows-mac.md](windows-mac.md).
 
 ### Scrolling is inverted or on the wrong axis
 
@@ -236,6 +244,61 @@ Which path works next to the driver is not verified on hardware yet; please repo
 ### Duplicate input in a 3D program
 
 Both dofscroll and the program read the device. Add `[app:<WM_CLASS>]` with `ENABLED = 0`.
+
+### The official 3Dconnexion driver and dofscroll
+
+**Status: not verified on real hardware.** dofscroll is designed to run next to the official
+3Dconnexion driver (3DxWare on Windows, 3Dconnexion Software on macOS): you can, and for your CAD
+programs should, keep the driver installed and running. dofscroll does not need it. Whether both can
+read the SpaceMouse at the same time on a real Windows or macOS machine has not been tried yet
+(issues #36 and #37); that check is the top priority for the Windows and macOS ports. What is known so
+far comes from community reports that are not official and not run by us (see
+[the wiki page Requirements](https://github.com/HoZe-Lukas/dofScroll/wiki/Requirements)): on Windows both
+readers probably work, possibly with double input if the driver also emits its own mouse or keyboard
+events; on macOS the driver's helper may hold the device exclusively. On Linux there is no vendor
+driver, `spacenavd` takes its place and this section does not apply.
+
+If both cannot read the device at the same time on your system, **that is a bug of dofscroll to be
+fixed**, not something you have to work around. Please report it with the test file described below.
+
+Symptoms:
+
+- **No scrolling at all, and the Overview page shows "SpaceMouse found but cannot be read"** (or the log
+  has the same line): the device exists but opening it was refused. Windows: `CreateFile` failed with
+  error 32 (sharing violation) or 5 (access denied); macOS: `IOHIDManagerOpen` returned
+  `kIOReturnExclusiveAccess` (IOReturn 0xE00002C5). Another program holds the device exclusively.
+- **No scrolling at all, and the Overview page shows "No input from the SpaceMouse yet"**: the device
+  opened, but no report arrived in the 45 seconds after it was found. A SpaceMouse that nobody touches
+  sends nothing, so move the cap first. If still nothing arrives, another program (possibly the driver)
+  may keep the reports for itself. On macOS also check the Input Monitoring permission.
+- **Scrolling happens twice in a program**: the driver and dofscroll both translate the motion. Set
+  `ENABLED = 0` for that program in dofscroll's own profiles (the Profiles page, or an `[app:<name>]`
+  section), so only the driver acts there; the CAD programs, where you want the driver, are the typical
+  case. (Turning off the driver's own scroll and zoom for one particular 2D program in the driver's
+  per-application settings is possible as a one-time measure, but it is not the standard answer.)
+- **The CAD program stops reacting normally**: this must not happen. Report it with the test file.
+
+The checks (about 5 minutes, nothing is changed, the driver is never stopped):
+
+- Windows (from the install folder, or from the unpacked ZIP):
+  `powershell -ExecutionPolicy Bypass -File scripts\test-driver-coexistence.ps1`
+- macOS: `sh /Applications/dofscroll.app/Contents/Resources/diagnostics/test-driver-coexistence.sh`
+
+The script lists the SpaceMouse, finds out whether a 3Dconnexion driver is running, reads the device
+with `dofscroll-hidprobe` while the driver runs (test A), starts dofscroll next to the driver and asks
+you three yes/no questions (test B), and writes `dofscroll-driver-test-report.txt` in the current
+folder. The report has no user name and no personal paths (the home folder is written as `~`); attach
+it to issue #36 (Windows) or #37 (macOS). An optional test C repeats the reading with the driver
+stopped. It is for diagnosis only, normal users do not need it; the script never stops the driver
+itself. The tool can also be run by hand: `dofscroll-hidprobe --list` and `dofscroll-hidprobe --check`
+(see [devices.md](devices.md#verifying-a-device-with-hidprobe)).
+
+What the checks and messages are based on: the Windows daemon opens the device with
+`FILE_SHARE_READ | FILE_SHARE_WRITE` and never exclusively; the macOS daemon uses `IOHIDManager` with
+`kIOHIDOptionsTypeNone` and never the seize option. The message texts and the status line are unit
+tested; the behavior of the real driver is not tested at all. If the test shows that the driver blocks
+the second reader, the options are written down in
+[port-architecture.md](port-architecture.md#if-the-driver-holds-the-device-exclusively).
 
 ## Reporting a problem
 

@@ -3,7 +3,11 @@
 #
 # Qt6 Widgets user interface (dofscroll-ui). Included from CMakeLists.txt. Standalone: needs
 # Qt and the core library (config, file layer; no daemon code), so the UI jobs can build just this target (see docs/ui-options.md).
-find_package(Qt6 COMPONENTS Widgets QUIET)
+# Oldest Qt the sources build with: 6.4 (Debian 12 builds the DEB with Qt 6.4.2). An older Qt is
+# treated as "no Qt found", so the UI is skipped and the daemon builds alone. The release packages
+# bundle the Qt of packaging/qt.env (DOFSCROLL_BUNDLE_QT below, docs/release-process.md).
+set(DOFSCROLL_QT_MIN 6.4)
+find_package(Qt6 ${DOFSCROLL_QT_MIN} COMPONENTS Widgets QUIET)
 if(Qt6_FOUND)
   option(DOFSCROLL_UI "Build the Qt6 user interface (experimental)" ON)
 else()
@@ -11,8 +15,8 @@ else()
 endif()
 
 if(DOFSCROLL_UI)
-  find_package(Qt6 REQUIRED COMPONENTS Widgets)
-  find_package(Qt6 QUIET COMPONENTS Svg)   # SVG icon rendering; optional
+  find_package(Qt6 ${DOFSCROLL_QT_MIN} REQUIRED COMPONENTS Widgets)
+  find_package(Qt6 ${DOFSCROLL_QT_MIN} QUIET COMPONENTS Svg)   # SVG icon rendering; optional
   # Client side of the platform layer (platformPaths, requestReload; shared with the daemon, no
   # input backends) and platform autostart implementation (one interface, src/platform/autostart_platform.hpp)
   if(WIN32)
@@ -148,6 +152,29 @@ if(DOFSCROLL_UI)
   endif()
 
   install(TARGETS dofscroll-ui RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
+
+  # Linux packages (RPM, DEB, TGZ) carry their own Qt: libraries and plugins in <prefix>/lib/dofscroll,
+  # found through the relative RUNPATH of the executable, so nothing depends on the Qt of the system
+  # and the TGZ works unpacked anywhere. scripts/bundle-qt-linux.sh does the copying (docs/release-process.md).
+  option(DOFSCROLL_BUNDLE_QT "Linux: install Qt and the libraries it needs privately under lib/dofscroll" OFF)
+  if(DOFSCROLL_BUNDLE_QT AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set_target_properties(dofscroll-ui PROPERTIES INSTALL_RPATH "$ORIGIN/../lib/dofscroll/lib")
+    target_compile_definitions(dofscroll-ui PRIVATE DOFSCROLL_BUNDLED_QT=1)
+    install(CODE "
+      set(_root \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}\")
+      execute_process(COMMAND bash \"${CMAKE_SOURCE_DIR}/scripts/bundle-qt-linux.sh\"
+                      \"${QT6_INSTALL_PREFIX}\" \"\${_root}/lib/dofscroll\"
+                      \"$<TARGET_FILE:dofscroll-ui>\" \"\${_root}/${CMAKE_INSTALL_DOCDIR}/third-party\"
+                      RESULT_VARIABLE _bundle_rc)
+      if(NOT _bundle_rc EQUAL 0)
+        message(FATAL_ERROR \"bundling Qt failed (see the messages above)\")
+      endif()")
+    # Licenses of what the packages carry: Qt (LGPL-3.0, dynamically linked, replaceable) and ICU;
+    # the distribution libraries bring their own license files (third-party/<package>/).
+    install(FILES THIRD-PARTY-NOTICES.md DESTINATION ${CMAKE_INSTALL_DOCDIR})
+    install(DIRECTORY third-party/licenses/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/third-party
+            PATTERN "distro" EXCLUDE)   # texts for packages without a license file: copied by the bundle script
+  endif()
   if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     # Desktop integration (freedesktop): menu entry and icon. The user unit
     # dofscroll-ui.service is installed by cmake/Systemd.cmake. The German catalog goes next to
