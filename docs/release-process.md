@@ -76,7 +76,7 @@ No release step depends on a package feed being up at that moment:
 
 The Rocky Linux 9 jobs (`build + ctest`, ASan/UBSan, cppcheck, CodeQL and the RPM package) run in
 prebuilt images from `ghcr.io/hoze-lukas/dofscroll-ci-rocky9` (and `-qt`, for the RPM job, which adds
-Qt6) instead of running `dnf` on every run. `packaging/ci/rocky9.Dockerfile` is the recipe;
+Qt 6.6.3, see below) instead of running `dnf` on every run. `packaging/ci/rocky9.Dockerfile` is the recipe;
 `.github/workflows/ci-image.yml` builds and checks the images on pull requests that touch it, and
 pushes them on `main` and every Monday (distribution updates). The packages are public, so jobs pull
 them without a login.
@@ -85,6 +85,38 @@ A pull request that needs a new build dependency changes the Dockerfile; its own
 old image, so add the dependency in one pull request, merge it (the push to `main` publishes the new
 image) and use it in the next one. If the images are ever missing or broken, the Rocky jobs fail at
 the start: run the `ci-image` workflow by hand (Actions tab, "Run workflow").
+
+### Qt version of the Linux packages
+
+The RPM is built against the OLDEST supported Qt, 6.6.3 (aqtinstall, `/opt/qt` in the `-qt` image).
+Reason: a program built against Qt 6.N carries the symbol `qt_version_tag@Qt_6.N`, so rpm requires
+`libQt6Core.so.6(Qt_6.N)`; the 1.0.0 RPM was built against the then newest EPEL Qt (6.10.3) and could
+not be installed on RHEL 9 systems with the older EPEL Qt 6.6 (#116). Built against 6.6 it installs
+with every Qt >= 6.6 (the soname `libQt6*.so.6` is the same; the package uses the system libraries,
+the build Qt is not shipped and the binary has no RPATH) and runs with the newest Qt as well.
+aqtinstall is used because EPEL keeps only its newest Qt and the koji builds of 6.6.2 do not install
+on a current Rocky 9 (`qt6-linguist` needs LLVM 17).
+
+Checks that keep it so:
+
+- `linux-packages.yml` (tag build and dry run) prints the Qt lines of `rpm -qpR` into the job summary
+  and fails if the RPM requires a `Qt_6.N` symbol version above 6.6, has an RPATH/RUNPATH, or needs
+  a Qt library other than Core, Gui, Widgets and Svg.
+- `ui.yml` job `ui-linux-qt66` builds `dofscroll-ui` against Qt 6.6.3 in every pull request (APIs
+  newer than 6.6 fail to compile) and checks the symbol versions.
+- The install smoke test (`scripts/smoke-install.sh`) installs the 6.6-built RPM on Rocky 9 with the
+  newest Qt of EPEL and runs `dofscroll-ui --self-test`: forward compatibility. Backward
+  compatibility with a real Qt 6.6 repository cannot be tested in CI (EPEL has only the newest Qt),
+  so it is a manual check on a machine with Qt 6.6.
+- `cmake/Ui.cmake` (`DOFSCROLL_QT_MIN`) and the RPM dependencies (`qt6-qtbase-gui >= 6.6`,
+  `qt6-qtsvg >= 6.6`) state the minimum. The DEB is built on Debian 12 with its own Qt 6.4; the DEB
+  needs no pinning.
+
+To change the supported minimum, change together: `ARG QT_VERSION` in `packaging/ci/rocky9.Dockerfile`,
+`QT_VERSION` in the `ui-linux-qt66` job, `DOFSCROLL_QT_MIN` in `cmake/Ui.cmake`, the limit in the
+RPM check of `linux-packages.yml`, the check in `ci-image.yml`, and the requirement text in
+`docs/installation.md` and the wiki. Merge the Dockerfile change first (the image is published from
+`main`), then the rest.
 
 ## Windows installer
 

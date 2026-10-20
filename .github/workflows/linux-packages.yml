@@ -6,6 +6,8 @@
 # tags and its release job attaches the artifacts; linux-packages-dry-run.yml calls it on demand.
 # The packages contain the Qt interface (dofscroll-ui) when the distribution provides Qt6; if the
 # Qt install fails the package has only the daemon and the job log and summary say so (no failure).
+# The RPM is built against Qt 6.6 (the oldest supported, see packaging/ci/rocky9.Dockerfile) and
+# the job fails if the RPM requires a newer Qt symbol version (libQt6Core.so.6(Qt_6.N), N > 6).
 name: linux-packages
 
 on:
@@ -52,6 +54,26 @@ jobs:
             test -f /tmp/scan/rpm/usr/share/icons/hicolor/scalable/apps/dofscroll.svg
             echo "::notice::RPM contains the Qt interface (dofscroll-ui)"
             echo "RPM: Qt interface included" >> "$GITHUB_STEP_SUMMARY"
+            # The RPM must install with every Qt >= 6.6: a program built against Qt 6.N requires
+            # libQt6Core.so.6(Qt_6.N), so a build against a newer Qt makes the package uninstallable
+            # on systems with the older Qt (#116). Qt 6.6 is the oldest supported version.
+            qtreq="$(rpm -qpR build/dofscroll-*.rpm | grep -i -E 'qt' | sort -u)"
+            echo "--- RPM Qt requirements:"; echo "$qtreq"
+            qtmax="$(echo "$qtreq" | sed -n 's/^libQt6[A-Za-z0-9]*\.so\.6(Qt_6\.\([0-9][0-9]*\))(64bit)$/\1/p' | sort -n | tail -1)"
+            echo "highest required Qt symbol version: Qt_6.${qtmax:-none}"
+            {
+              echo "RPM Qt requirements (highest symbol version: Qt_6.${qtmax:-none}, maximum allowed: Qt_6.6):"
+              echo '```'; echo "$qtreq"; echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            if [ -z "$qtmax" ] || [ "$qtmax" -gt 6 ]; then
+              echo "::error::the RPM requires a Qt symbol version above Qt_6.6 (or none): build against Qt 6.6 (packaging/ci/rocky9.Dockerfile, docs/release-process.md)" >&2; exit 1
+            fi
+            if readelf -d /tmp/scan/rpm/usr/bin/dofscroll-ui | grep -E 'RPATH|RUNPATH'; then
+              echo "::error::dofscroll-ui has an RPATH/RUNPATH to the build Qt" >&2; exit 1
+            fi
+            if readelf -d /tmp/scan/rpm/usr/bin/dofscroll-ui | grep NEEDED | grep -v -E 'libQt6(Core|Gui|Widgets|Svg)\.so\.6' | grep -i qt; then
+              echo "::error::dofscroll-ui needs a Qt library other than Core, Gui, Widgets and Svg" >&2; exit 1
+            fi
           else
             echo "::notice::RPM has no tray or settings window: Qt6 is missing in the build image (packaging/ci/rocky9.Dockerfile, target qt)"
             echo "RPM: daemon only (no Qt6)" >> "$GITHUB_STEP_SUMMARY"

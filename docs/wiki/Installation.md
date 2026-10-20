@@ -13,7 +13,7 @@ Before you install, check [Requirements](Requirements) (supported systems, drive
 
 | Format | Command | Notes |
 |---|---|---|
-| RPM (built on Rocky Linux 9) | `sudo dnf install -y epel-release`, then `sudo dnf install ./dofscroll-*.rpm` | `spacenavd` comes from EPEL on RHEL 9 and its clones |
+| RPM (built on Rocky Linux 9) | `sudo dnf install -y epel-release`, then `sudo dnf install ./dofscroll-*.rpm` | `spacenavd` and Qt 6 (6.6 or newer) come from EPEL on RHEL 9 and its clones |
 | DEB (built on Debian 12) | `sudo apt install ./dofscroll_*.deb` | Whether `spacenavd` is in your release's repositories is unverified |
 | TGZ | `tar xzf dofscroll-*-Linux.tar.gz`, then `sudo cp -a dofscroll-*-Linux/usr/. /usr/` | You install the run-time dependencies yourself |
 

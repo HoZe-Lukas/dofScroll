@@ -67,8 +67,17 @@ jobs:
             if pkg-config --exists Qt6Widgets; then echo "the base image must not contain Qt"; exit 1; fi'
           docker run --rm "ghcr.io/${owner}/dofscroll-ci-rocky9-qt:latest" sh -c '
             set -e
-            pkg-config --exists Qt6Widgets Qt6Svg
-            ls /usr/lib64/qt6/bin/lrelease* /usr/bin/lrelease* 2>/dev/null | head -1'
+            test -f "$CMAKE_PREFIX_PATH/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake"
+            test -f "$CMAKE_PREFIX_PATH/lib/cmake/Qt6Svg/Qt6SvgConfig.cmake"
+            command -v lrelease
+            qt="$(qmake -query QT_VERSION)"
+            echo "Qt in the image: $qt ($CMAKE_PREFIX_PATH)"
+            case "$qt" in 6.6.*) ;; *) echo "the qt image must have Qt 6.6.x"; exit 1 ;; esac
+            # The system must not have its own Qt: the RPM is built against the pinned Qt only
+            if pkg-config --exists Qt6Widgets; then echo "the qt image must not contain a system Qt"; exit 1; fi' > qt-image.txt || { cat qt-image.txt; exit 1; }
+          cat qt-image.txt
+          echo "### Qt build image" >> "$GITHUB_STEP_SUMMARY"
+          grep '^Qt in the image' qt-image.txt >> "$GITHUB_STEP_SUMMARY"
       - name: Push (not for pull requests)
         if: ${{ github.event_name != 'pull_request' }}
         env:

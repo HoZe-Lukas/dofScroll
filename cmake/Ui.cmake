@@ -3,7 +3,10 @@
 #
 # Qt6 Widgets user interface (dofscroll-ui). Included from CMakeLists.txt. Standalone: needs
 # Qt and the core library (config, file layer; no daemon code), so the UI jobs can build just this target (see docs/ui-options.md).
-find_package(Qt6 COMPONENTS Widgets QUIET)
+# Qt 6.6 is the oldest supported version (the RPM is built against it, see docs/release-process.md);
+# an older Qt is treated as "no Qt found", so the UI is skipped and the daemon builds alone.
+set(DOFSCROLL_QT_MIN 6.6)
+find_package(Qt6 ${DOFSCROLL_QT_MIN} COMPONENTS Widgets QUIET)
 if(Qt6_FOUND)
   option(DOFSCROLL_UI "Build the Qt6 user interface (experimental)" ON)
 else()
@@ -11,8 +14,8 @@ else()
 endif()
 
 if(DOFSCROLL_UI)
-  find_package(Qt6 REQUIRED COMPONENTS Widgets)
-  find_package(Qt6 QUIET COMPONENTS Svg)   # SVG icon rendering; optional
+  find_package(Qt6 ${DOFSCROLL_QT_MIN} REQUIRED COMPONENTS Widgets)
+  find_package(Qt6 ${DOFSCROLL_QT_MIN} QUIET COMPONENTS Svg)   # SVG icon rendering; optional
   # Client side of the platform layer (platformPaths, requestReload; shared with the daemon, no
   # input backends) and platform autostart implementation (one interface, src/platform/autostart_platform.hpp)
   if(WIN32)

@@ -80,7 +80,7 @@ The shipped units (`dofscroll.service`, `dofscroll-ui.service`) are systemd user
 
 ### Qt runtime
 
-`dofscroll-ui` is a Qt 6 program. The RPM requires `qt6-qtbase-gui` and `qt6-qtsvg` (AppStream on RHEL 9); the DEB depends on the `libqt6*` packages found at build time (Debian 12: `libqt6widgets6`, `libqt6gui6`, `libqt6svg6`). Your package manager installs them. If Qt 6 was not available when a package was built, the package has the daemon only: no tray, no settings window. The package build is not verified on a real desktop.
+`dofscroll-ui` is a Qt 6 program. The RPM requires `qt6-qtbase-gui >= 6.6` and `qt6-qtsvg >= 6.6` (on RHEL 9 and its clones from EPEL). **Qt 6.6 or newer** is enough: the RPM is built against Qt 6.6 and also runs with newer versions, so it installs without upgrading an existing Qt 6.6 (since 1.0.1; the 1.0.0 RPM required Qt 6.10). The DEB depends on the `libqt6*` packages found at build time (Debian 12: `libqt6widgets6`, `libqt6gui6`, `libqt6svg6`). Your package manager installs them. If Qt 6 was not available when a package was built, the package has the daemon only: no tray, no settings window. The package build is not verified on a real desktop.
 
 ### Optional: kdotool
 
@@ -199,7 +199,7 @@ Community sources only; the official 3Dconnexion pages could not be fetched, and
 
 ## Building from source
 
-The build needs a C++17 compiler, CMake 3.16 or newer, `libspnav` and the X11 and XTest development headers on Linux, `gettext` for the German translation, and Qt 6 Widgets (with SVG) for the interface. Package names per distribution and the `check-deps` target are in [Installation](Installation).
+The build needs a C++17 compiler, CMake 3.16 or newer, `libspnav` and the X11 and XTest development headers on Linux, `gettext` for the German translation, and Qt 6.6 or newer (Widgets, with SVG) for the interface. Package names per distribution and the `check-deps` target are in [Installation](Installation).
 
 ## What only a human can verify
 

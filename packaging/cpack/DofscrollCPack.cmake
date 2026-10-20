@@ -29,11 +29,13 @@ set(CPACK_DEBIAN_PACKAGE_DEPENDS "spacenavd")
 # The Qt interface is part of the same package when the build found Qt6 (single package, no
 # subpackage). RPM names the Qt GUI runtime explicitly
 # (it carries the xcb platform plugin, which rpm's library scan cannot see); DEB gets the
-# libqt6* packages from SHLIBDEPS and the plugin lives in libqt6gui6.
+# libqt6* packages from SHLIBDEPS and the plugin lives in libqt6gui6. The minimum is Qt 6.6
+# (DOFSCROLL_QT_MIN in cmake/Ui.cmake); the RPM job builds against Qt 6.6, so rpm's own scan
+# requires libQt6Core.so.6(Qt_6.6) at most (checked in linux-packages.yml).
 if(TARGET dofscroll-ui AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  set(CPACK_RPM_PACKAGE_REQUIRES "spacenavd, qt6-qtbase-gui")
+  set(CPACK_RPM_PACKAGE_REQUIRES "spacenavd, qt6-qtbase-gui >= ${DOFSCROLL_QT_MIN}")
   if(TARGET Qt6::Svg)  # the icon is an SVG: needs the Qt SVG image plugin at run time
-    string(APPEND CPACK_RPM_PACKAGE_REQUIRES ", qt6-qtsvg")
+    string(APPEND CPACK_RPM_PACKAGE_REQUIRES ", qt6-qtsvg >= ${DOFSCROLL_QT_MIN}")
   endif()
 endif()
 

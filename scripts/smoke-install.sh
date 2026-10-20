@@ -7,6 +7,8 @@
 # Installs the packages with the distribution package manager (dependencies come from the
 # distribution repositories), then runs `dofscroll --version`, `dofscroll --help` and, if the
 # package contains it, `dofscroll-ui --version` headless (QT_QPA_PLATFORM=offscreen, no display).
+# The RPM is built against Qt 6.6 (the oldest supported) and installed here with the NEWEST Qt of
+# EPEL: the run proves the forward compatibility; the installed Qt version is printed.
 # Writes a one-line verdict to <out-dir>/summary.md and exits non-zero on any failure.
 set -u
 kind="$1"; pkgdir="$2"; out="$3"; image="$4"
@@ -55,10 +57,20 @@ echo "dofscroll --version: $ver"
 dofscroll --help >/dev/null 2>&1 || fail "dofscroll --help exited non-zero"
 
 ui="no UI"
+qt=""
 if command -v dofscroll-ui >/dev/null 2>&1; then
+    case "$kind" in
+    rpm) qt="$(rpm -q qt6-qtbase 2>/dev/null || echo 'qt6-qtbase: not installed')" ;;
+    deb) qt="$(dpkg-query -W -f='${Package} ${Version}' libqt6core6t64 2>/dev/null || dpkg-query -W -f='${Package} ${Version}' libqt6core6 2>/dev/null || echo 'libqt6core6: not installed')" ;;
+    esac
+    echo "installed Qt: $qt"
     QT_QPA_PLATFORM=offscreen dofscroll-ui --version >"$out/ui.txt" 2>&1 \
         || { cat "$out/ui.txt"; fail "dofscroll-ui --version exited non-zero: $(head -c 150 "$out/ui.txt" | tr '\n|' '  ')"; }
     echo "dofscroll-ui --version: $(cat "$out/ui.txt")"
-    ui="UI ok"
+    # The interface must start with the Qt of this distribution (headless self-test of the widgets)
+    QT_QPA_PLATFORM=offscreen dofscroll-ui --self-test >"$out/ui-selftest.txt" 2>&1 \
+        || { tail -n 20 "$out/ui-selftest.txt"; fail "dofscroll-ui --self-test exited non-zero: $(tail -c 150 "$out/ui-selftest.txt" | tr '\n|' '  ')"; }
+    echo "dofscroll-ui --self-test: ok"
+    ui="UI ok, $qt"
 fi
 echo "| $image | $kind | installed ok ($ver, $ui) | |" > "$out/summary.md"
