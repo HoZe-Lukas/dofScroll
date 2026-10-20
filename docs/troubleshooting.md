@@ -101,6 +101,8 @@ The tray uses AppIndicator (StatusNotifierItem).
 - GNOME: install and enable the AppIndicator extension (on RHEL:
   `gnome-shell-extension-appindicator`; the package name on other distributions is unverified).
 - Check `journalctl --user -u dofscroll-tray.service` for errors.
+- Without a tray (for example GNOME without the AppIndicator extension) dofscroll-ui opens its
+  window minimized; restore it from the taskbar or the window list.
 - Builds without GTK (`-DDOFSCROLL_TRAY=OFF`) have no tray. Edit the config by hand.
 
 The daemon works without the tray. The tray is only needed for the settings window and the first
@@ -114,6 +116,9 @@ folder). The directory is writable inside the unit sandbox (`ReadWritePaths=%t`)
 logout, so the lock never survives a reboot. A lock left by a killed instance is detected as stale
 at the next start.
 
+- No window at start is normal: the interface starts minimized to the tray. Click the tray icon,
+  then "Settings...", to show it. Without a system tray the window opens minimized; restore it
+  from the taskbar.
 - "dofscroll-ui is already running" (exit 0): a live instance holds the lock; the second start asks
   it to show its window. If you see no window or tray icon, check
   `systemctl --user status dofscroll-ui.service dofscroll-tray.service` (only one of the two runs).

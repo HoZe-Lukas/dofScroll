@@ -34,7 +34,6 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Device | Axes | Live bars of the six axes and the axis assistant (wizard) that detects which axis does what |
 | Settings | General | Output on/off, global mode, "Start at login", read-only status of the daemon |
 
-This is the first step of the redesign (#52): the pages are unchanged, only their place moved.
 
 ## Editing a joystick mode
 

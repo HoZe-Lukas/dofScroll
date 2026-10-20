@@ -66,7 +66,7 @@ in the tray.
 
 `NAV_BUTTON` and `CLICK_BUTTON` are older keys. They take the raw button index as `spacenavd`
 reports it, and the log shows the index of every pressed button in `--debug` mode. New setups
-should use `BUTTON_<n>` with `nav`, `click` and the other actions.
+should use `BUTTON_<n>` with `nav`, `toggle:nav`, `mode:<id>`, `mode:next`, `mode:prev`, `hold:mode:<id>`, `toggle:mode:<id>` and `buttonmode:<id>`.
 
 dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
 
