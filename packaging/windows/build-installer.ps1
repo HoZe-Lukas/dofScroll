@@ -89,7 +89,7 @@ $magick = Get-Command magick -ErrorAction SilentlyContinue
 if ($magick) {
     $ico = Join-Path $OutDir 'dofscroll.ico'
     try {
-        & $magick.Source -background none -density 384 (Join-Path $root 'icons\dofscroll-tray.svg') -define icon:auto-resize=256,64,48,32,16 $ico
+        & $magick.Source -background none -density 384 (Join-Path $root 'icons\dofscroll-app.svg') -define icon:auto-resize=256,64,48,32,16 $ico
         if ($LASTEXITCODE -eq 0 -and (Test-Path $ico)) { $icoArg = @("/DAPP_ICO=$ico") }
     } catch { Write-Warning "icon conversion failed: $_" }
 }

@@ -1,13 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <!-- Puck: top view of the SpaceMouse cap. Light puck with a dark
-       border and dark arrow - stays recognizable on dark AND light panels. -->
-  <circle cx="12" cy="12" r="11" fill="#eceff4" stroke="#2e3440" stroke-width="1.2"/>
-
-  <!-- 4-way arrow: deflection in any direction becomes scroll/pan -->
-  <g transform="translate(12,12) scale(0.72) translate(-12,-12)" fill="#2e3440">
-    <path d="M12 2L8 6h3v4H6V7l-4 5 4 5v-3h5v4H8l4 4 4-4h-3v-4h5v3l4-5-4-5v3h-5V6h3z"/>
-  </g>
-
-  <!-- Center dot: origin/neutral position of the SpaceMouse -->
-  <circle cx="12" cy="12" r="1.6" fill="#5e81ac" stroke="#eceff4" stroke-width="0.6"/>
+  <!-- dofscroll: top view of a SpaceMouse. A light base ring with a dark outline (readable on dark and light
+       panels), the blue cap in the middle, and the scroll chevrons above and below it with a clear gap. -->
+  <circle cx="12" cy="12" r="10.8" fill="#eceff4" stroke="#2e3440" stroke-width="1.6"/>
+  <path d="M12 3.6 15.4 7.2H8.6z" fill="#2e3440"/>
+  <path d="M12 20.4 15.4 16.8H8.6z" fill="#2e3440"/>
+  <circle cx="12" cy="12" r="3.9" fill="#5e81ac" stroke="#2e3440" stroke-width="1.3"/>
 </svg>

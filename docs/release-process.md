@@ -108,7 +108,7 @@ the start: run the `ci-image` workflow by hand (Actions tab, "Run workflow").
 
 - `dofscroll.app` (built by `packaging/macos/build-dmg.sh` around the CMake binaries):
   `Info.plist` with `LSUIElement` (menu bar program), bundle identifier `io.github.dofscroll.ui`,
-  version from `CMakeLists.txt`, an icon rendered from `icons/dofscroll-tray.svg` (skipped with a
+  version from `CMakeLists.txt`, an icon rendered from `icons/dofscroll-app.svg` (skipped with a
   note when Quick Look cannot render it), Qt frameworks added by `macdeployqt`.
 - The daemon, `devices/`, `examples/` and the LaunchAgent scripts and plist template are in
   `Contents/Resources/` (`daemon/`, `launchagent/`), not in `Contents/MacOS`, so the bundle seals.

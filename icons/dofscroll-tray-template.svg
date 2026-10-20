@@ -1,8 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <!-- Monochrome version of dofscroll-tray.svg for the macOS menu bar: only the shape counts (alpha),
-       macOS colors it for light and dark menu bars (template image, QIcon::setIsMask). -->
-  <circle cx="12" cy="12" r="10.4" fill="none" stroke="#000" stroke-width="1.6"/>
-  <g transform="translate(12,12) scale(0.72) translate(-12,-12)" fill="#000">
-    <path d="M12 2L8 6h3v4H6V7l-4 5 4 5v-3h5v4H8l4 4 4-4h-3v-4h5v3l4-5-4-5v3h-5V6h3z"/>
-  </g>
+  <!-- Monochrome version for the macOS menu bar: only the shape counts (alpha). -->
+  <circle cx="12" cy="12" r="10.4" fill="none" stroke="#000" stroke-width="1.8"/>
+  <path d="M12 3.9 15.2 7.1H8.8z" fill="#000"/>
+  <path d="M12 20.1 15.2 16.9H8.8z" fill="#000"/>
+  <circle cx="12" cy="12" r="3.7" fill="#000"/>
 </svg>
