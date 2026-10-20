@@ -13,7 +13,7 @@ Examples: a button that always sends Esc belongs in the driver. A button that se
 
 The driver works in every program and keeps working when dofscroll is stopped. dofscroll's own `key:`, `click`, `rightclick` and `middleclick` actions stay fully supported: use them for mode-specific bindings (active only while that joystick mode is active), or if you have no driver.
 
-If the driver also maps the axes to scroll or pan in some programs, turn that off per application to avoid double input. Details: [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#buttons-and-the-vendor-driver) and [docs/windows-mac.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/windows-mac.md).
+If the driver also maps the axes to scroll or pan in some programs and input doubles there, switch dofscroll off for that program (`ENABLED = 0` in its `[app:...]` profile). Details: [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#buttons-and-the-vendor-driver) and [docs/windows-mac.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/windows-mac.md).
 
 ## Binding buttons in dofscroll
 

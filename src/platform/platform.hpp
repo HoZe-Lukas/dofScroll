@@ -49,6 +49,9 @@ public:
     virtual WaitResult wait(InputEvent *out, int timeoutMs) = 0;
     virtual std::vector<DeviceInfo> devices() const = 0;  // current snapshot
     virtual void close() = 0;
+    // True while a matching device exists but opening it was refused (another program, possibly the
+    // vendor driver, holds it). Default: never. See platform/input_diag.hpp.
+    virtual bool accessBlocked() const { return false; }
 };
 
 // ---- Active window ---------------------------------------------------------------------------

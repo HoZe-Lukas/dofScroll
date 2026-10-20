@@ -15,8 +15,14 @@
 #include "log_sanitize.hpp"
 #include "hidprobe_backend.hpp"
 #include "hidprobe_core.hpp"
-#ifndef _WIN32
+#ifdef _WIN32
+#include "hidprobe_win.hpp"
+#else
 #include "hidprobe_posix.hpp"
+#endif
+
+#ifndef DOFSCROLL_VERSION
+#define DOFSCROLL_VERSION "unknown"
 #endif
 
 using namespace hidprobe;
@@ -25,10 +31,12 @@ using Clock = std::chrono::steady_clock;
 namespace {
 
 volatile std::sig_atomic_t g_stop = 0;
+std::string g_exeDir;  // directory of the program (from argv[0]); "" if argv[0] has no directory part
 void onSignal(int) { g_stop = 1; }
 
 struct Options {
     bool list = false, dump = false, check = false, descriptor = false, guided = false;
+    bool help = false, version = false;
     int seconds = -1;
     std::string device, devicesDir, confFile, reportPath = "hidprobe-report.txt";
 };
@@ -42,16 +50,24 @@ void usage() {
         "  --check                decode reports with the matching description, then print a verdict\n"
         "  --descriptor           print the HID report descriptor (hex + summary)\n"
         "  --guided               guided test (push/tilt/twist, press buttons), writes a report file\n"
+        "  --version              print the version and exit\n"
+        "  --help                 print this text and exit\n"
         "\n"
         "  --seconds N            duration of --dump (default 10) and --check (default 20); 0 = until Ctrl-C\n"
-        "  --device PATH          device node, e.g. /dev/hidraw3 (default: first device with a description)\n"
-        "  --devices-dir DIR      directory with *.conf descriptions (default: ./devices, then the\n"
-        "                         installed share directory)\n"
+        "  --device PATH          device path as printed by --list, e.g. /dev/hidraw3 (default: first device\n"
+        "                         with a description)\n"
+        "  --devices-dir DIR      directory with *.conf descriptions (default: ./devices, then devices next to\n"
+        "                         this program, then the installed share directory)\n"
         "  --conf FILE            use this single description file\n"
         "  --report FILE          output of --guided (default hidprobe-report.txt)\n"
         "\n"
-        "hidprobe never writes to the device. spacenavd may keep running: hidraw can be read by\n"
-        "several readers at once.");
+        "Exit codes of --check: 0 reports received, 3 the device opened but sent no report, 1 the\n"
+        "device could not be opened (a RESULT line says why), 2 usage error. --check ends with one\n"
+        "machine-readable line starting with RESULT.\n"
+        "\n"
+        "hidprobe never writes to the device. Linux: spacenavd may keep running (hidraw can be read by\n"
+        "several readers at once). Windows and macOS: whether it can read while the official\n"
+        "3Dconnexion driver runs is exactly what scripts/test-driver-coexistence.* finds out.");
 }
 
 bool parseArgs(int argc, char **argv, Options &o) {
@@ -62,7 +78,9 @@ bool parseArgs(int argc, char **argv, Options &o) {
             dst = argv[++i];
             return true;
         };
-        if (a == "--list") o.list = true;
+        if (a == "--help" || a == "-h") o.help = true;
+        else if (a == "--version") o.version = true;
+        else if (a == "--list") o.list = true;
         else if (a == "--dump") o.dump = true;
         else if (a == "--check") o.check = true;
         else if (a == "--descriptor") o.descriptor = true;
@@ -80,7 +98,7 @@ bool parseArgs(int argc, char **argv, Options &o) {
         else if (a == "--report") { if (!next(o.reportPath)) return false; }
         else return false;
     }
-    return o.list || o.dump || o.check || o.descriptor || o.guided;
+    return o.help || o.version || o.list || o.dump || o.check || o.descriptor || o.guided;
 }
 
 std::vector<spn::HidDescriptor> loadDescriptions(const Options &o) {
@@ -95,7 +113,12 @@ std::vector<spn::HidDescriptor> loadDescriptions(const Options &o) {
     }
     std::vector<std::string> dirs;
     if (!o.devicesDir.empty()) dirs.push_back(o.devicesDir);
-    else dirs = {"devices", "/usr/local/share/dofscroll/devices", "/usr/share/dofscroll/devices"};
+    else {
+        dirs.push_back("devices");
+        if (!g_exeDir.empty()) dirs.push_back(g_exeDir + "/devices");  // the Windows and macOS packages
+        dirs.push_back("/usr/local/share/dofscroll/devices");
+        dirs.push_back("/usr/share/dofscroll/devices");
+    }
     for (const auto &d : dirs)
         if (spn::loadHidDescriptorDir(d, all, errors) && !all.empty()) break;
     for (const auto &e : errors) std::fprintf(stderr, "warning: %s\n", e.c_str());
@@ -121,6 +144,7 @@ bool openStream(Session &s, std::unique_ptr<ReportStream> &st) {
     st = s.be.open(s.dev, err, denied);
     if (st) return true;
     std::fprintf(stderr, "error: %s\n", err.c_str());
+    std::printf("RESULT opened=no error=\"%s\"\n", spn::sanitizeForLog(err, 300).c_str());
     if (denied) std::fprintf(stderr, "%s\n", s.be.permissionHelp(s.dev).c_str());
     return false;
 }
@@ -169,6 +193,13 @@ void applyDescriptorLengths(Checker &c, const Session &s) {
     if (s.haveRdesc) c.setDescriptorLengths(summarizeDescriptor(s.rdesc).inputBytes);
 }
 
+std::string movedAxes(const Checker &c) {
+    std::string s;
+    for (int a = 0; a < 6; ++a)
+        if (c.axisMoved(a)) s += (s.empty() ? "" : ",") + std::string(axisName(a));
+    return s.empty() ? "none" : s;
+}
+
 int runCheck(Session &s, int seconds) {
     std::unique_ptr<ReportStream> st;
     if (!openStream(s, st)) return 1;
@@ -195,6 +226,13 @@ int runCheck(Session &s, int seconds) {
     }
     std::printf("\n\nVerdict (%zu reports):\n", chk.reportCount());
     printVerdicts(chk.verdicts());
+    std::printf("RESULT opened=yes reports=%zu axes_moved=%s buttons_seen=%d\n", chk.reportCount(),
+                movedAxes(chk).c_str(), popcount32(chk.seenButtons() | chk.rawButtons()));
+    if (chk.reportCount() == 0) {
+        std::puts("No report arrived. Did you move the cap? If you did, another program (possibly the "
+                  "3Dconnexion driver) may have the device for itself.");
+        return 3;
+    }
     return 0;
 }
 
@@ -286,7 +324,7 @@ int runGuided(Session &s, const Options &o) {
             uint32_t now = chk.seenButtons() | chk.rawButtons();
             if (now != known) {
                 known = now;
-                std::printf("  distinct button bits seen so far: %d\n", __builtin_popcount(known));
+                std::printf("  distinct button bits seen so far: %d\n", popcount32(known));
             }
             if (stdinLineReady()) break;
         }
@@ -327,9 +365,22 @@ int runGuided(Session &s, const Options &o) {
 
 int main(int argc, char **argv) {
     Options o;
+    if (argc > 0 && argv[0]) {
+        const std::string a0 = argv[0];
+        const size_t cut = a0.find_last_of("/\\");
+        if (cut != std::string::npos) g_exeDir = a0.substr(0, cut);
+    }
     if (!parseArgs(argc, argv, o)) {
         usage();
         return 2;
+    }
+    if (o.help) {
+        usage();
+        return 0;
+    }
+    if (o.version) {
+        std::puts("dofscroll-hidprobe " DOFSCROLL_VERSION);
+        return 0;
     }
     std::signal(SIGINT, onSignal);
     std::unique_ptr<HidBackend> be = makeBackend();
@@ -338,7 +389,7 @@ int main(int argc, char **argv) {
 
     if (o.list) {
         if (devs.empty())
-            std::puts("No HID devices found (is /dev/hidraw* present?).");
+            std::puts("No SpaceMouse found (Linux: is /dev/hidraw* present? Windows and macOS: is it plugged in?).");
         for (const auto &d : devs) {
             const spn::HidDescriptor *m = findDescriptor(descs, d.vid, d.pid);
             std::printf("%-14s %s  %s  [%s]\n", d.path.c_str(), vidpid(d.vid, d.pid).c_str(),
@@ -364,6 +415,7 @@ int main(int argc, char **argv) {
     }
     if (!found) {
         std::fprintf(stderr, "error: no device selected. Run --list and pass --device PATH.\n");
+        std::puts("RESULT opened=no error=\"no device selected\"");
         return 1;
     }
     s.desc = findDescriptor(descs, s.dev.vid, s.dev.pid);
@@ -372,6 +424,7 @@ int main(int argc, char **argv) {
         std::fprintf(stderr,
                      "error: no description for %s. Pass --conf FILE or --devices-dir DIR.\n",
                      vidpid(s.dev.vid, s.dev.pid).c_str());
+        std::puts("RESULT opened=no error=\"no device description\"");
         return 1;
     }
     s.haveRdesc = be->readDescriptor(s.dev, s.rdesc, s.rdescErr);

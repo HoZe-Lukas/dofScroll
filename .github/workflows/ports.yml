@@ -48,13 +48,33 @@ jobs:
         shell: pwsh
         run: |
           $bad = 0
-          foreach ($f in Get-ChildItem packaging/windows -Filter *.ps1) {
+          foreach ($f in @(Get-ChildItem packaging/windows -Filter *.ps1) + @(Get-Item scripts/test-driver-coexistence.ps1)) {
             $errs = $null
             [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errs)
             if ($errs) { $bad++; $errs | ForEach-Object { Write-Output "$($f.Name): $($_.Message)" } }
             else { Write-Output "$($f.Name): ok" }
           }
           if ($bad) { exit 1 }
+      - name: hidprobe and the driver coexistence script (no device on the runner)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $probe = (Resolve-Path 'build/Release/dofscroll-hidprobe.exe').Path
+          & $probe --version
+          if ($LASTEXITCODE -ne 0) { throw "hidprobe --version failed: $LASTEXITCODE" }
+          & $probe --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "hidprobe --help failed: $LASTEXITCODE" }
+          & $probe --list --devices-dir devices
+          if ($LASTEXITCODE -ne 0) { throw "hidprobe --list failed: $LASTEXITCODE" }
+          $report = Join-Path $env:RUNNER_TEMP 'coexistence-report.txt'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-driver-coexistence.ps1 -NonInteractive -ProbePath $probe -ReportPath $report
+          if ($LASTEXITCODE -ne 0) { throw "test-driver-coexistence.ps1 failed: $LASTEXITCODE" }
+          $text = Get-Content -Raw $report
+          Write-Output $text
+          foreach ($want in 'Driver running:', 'A: device opened while the driver runs:', 'A: reports received while the driver runs:', 'B: skipped', 'C: skipped') {
+            if ($text -notmatch [regex]::Escape($want)) { throw "report lacks: $want" }
+          }
+          if ($text.Contains($env:USERNAME) -and $env:USERNAME.Length -gt 3) { throw 'report contains the user name' }
       - name: Autostart round trip (HKCU of the runner)
         shell: pwsh
         run: |
@@ -141,7 +161,7 @@ jobs:
         shell: pwsh
         run: |
           $bad = 0
-          foreach ($f in Get-ChildItem packaging/windows -Filter *.ps1) {
+          foreach ($f in @(Get-ChildItem packaging/windows -Filter *.ps1) + @(Get-Item scripts/test-driver-coexistence.ps1)) {
             $errs = $null
             [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errs)
             if ($errs) { $bad++; $errs | ForEach-Object { Write-Output "$($f.Name): $($_.Message)" } }
@@ -224,6 +244,18 @@ jobs:
       - name: Packaging scripts parse (sh -n)
         run: |
           for f in packaging/macos/*.sh; do sh -n "$f"; done
+      - name: Driver coexistence script parses (bash -n) and runs without a device
+        run: |
+          set -eu
+          bash -n scripts/test-driver-coexistence.sh
+          probe=build/dofscroll-hidprobe
+          "$probe" --version
+          "$probe" --help >/dev/null
+          "$probe" --list --devices-dir devices
+          bash scripts/test-driver-coexistence.sh --non-interactive --probe "$probe" --report "$RUNNER_TEMP/coexistence-report.txt" >/dev/null
+          cat "$RUNNER_TEMP/coexistence-report.txt"
+          grep -q '^A: device opened while the driver runs:' "$RUNNER_TEMP/coexistence-report.txt"
+          ! grep -q "$HOME" "$RUNNER_TEMP/coexistence-report.txt"
       - name: shellcheck (if available)
         run: |
           if command -v shellcheck >/dev/null 2>&1; then

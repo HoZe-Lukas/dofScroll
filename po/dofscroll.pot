@@ -498,6 +498,19 @@ msgstr ""
 msgid "%1 SpaceMice connected, only '%2' is reported"
 msgstr ""
 
+#: src/ui/model/status_model.hpp:117
+msgid ""
+"SpaceMouse found but cannot be read: another program, possibly the 3Dconnexion driver, holds it "
+"exclusively. See docs/troubleshooting.md, section \"The official 3Dconnexion driver and dofscroll\""
+msgstr ""
+
+#: src/ui/model/status_model.hpp:120
+msgid ""
+"No input from the SpaceMouse yet. Move the cap. If nothing arrives, another program, possibly the "
+"3Dconnexion driver, may be holding the device. See docs/troubleshooting.md, section \"The official "
+"3Dconnexion driver and dofscroll\""
+msgstr ""
+
 #: src/ui/model/tray_controller.hpp:71
 msgid "No log file: the runtime directory is not available"
 msgstr ""

@@ -9,8 +9,9 @@
 #   --build DIR  CMake build directory with dofscroll and optionally dofscroll-ui (default: build)
 #   --out DIR    output directory (default: dist-installers)
 #
-# With dofscroll-ui present: dofscroll.app (UI, LSUIElement) with the daemon, devices, examples and
-# the LaunchAgent scripts inside Contents/Resources, Qt frameworks from macdeployqt (needs it in
+# With dofscroll-ui present: dofscroll.app (UI, LSUIElement) with the daemon, dofscroll-hidprobe, devices,
+# examples and the LaunchAgent scripts inside Contents/Resources (the guided driver test in
+# Contents/Resources/diagnostics), Qt frameworks from macdeployqt (needs it in
 # PATH), result dofscroll-<version>-macos-arm64.dmg. Without the UI: a plain folder with the
 # daemon, result dofscroll-<version>-macos-arm64-daemon-only.dmg.
 # Ad-hoc signing (codesign --sign -) is what lets arm64 code run; it is not a Developer ID signature.
@@ -31,6 +32,8 @@ ROOT=$(cd "$HERE/../.." && pwd)
 VERSION=$(sed -n 's/^project(dofscroll VERSION \([0-9][0-9.]*\).*/\1/p' "$ROOT/CMakeLists.txt")
 [ -n "$VERSION" ] || { echo "build-dmg: no project version in CMakeLists.txt" >&2; exit 1; }
 [ -f "$BUILD/dofscroll" ] || { echo "build-dmg: $BUILD/dofscroll not built" >&2; exit 1; }
+[ -f "$BUILD/dofscroll-hidprobe" ] || { echo "build-dmg: $BUILD/dofscroll-hidprobe not built" >&2; exit 1; }
+[ -f "$ROOT/scripts/test-driver-coexistence.sh" ] || { echo "build-dmg: scripts/test-driver-coexistence.sh missing" >&2; exit 1; }
 
 mkdir -p "$OUT"
 OUT=$(cd "$OUT" && pwd)
@@ -62,6 +65,17 @@ fi
 # Daemon with the data directories it looks for next to its executable.
 mkdir -p "$DAEMON_DIR"
 cp "$BUILD/dofscroll" "$DAEMON_DIR/dofscroll"
+# Diagnostic tool and the guided driver coexistence test: next to the daemon (they find ./devices
+# there). In the app they sit in Contents/Resources/daemon and Contents/Resources/diagnostics.
+cp "$BUILD/dofscroll-hidprobe" "$DAEMON_DIR/dofscroll-hidprobe"
+if [ "$HAS_UI" -eq 1 ]; then
+    mkdir -p "$RES/diagnostics"
+    cp "$ROOT/scripts/test-driver-coexistence.sh" "$RES/diagnostics/test-driver-coexistence.sh"
+    chmod 755 "$RES/diagnostics/test-driver-coexistence.sh"
+else
+    cp "$ROOT/scripts/test-driver-coexistence.sh" "$DAEMON_DIR/test-driver-coexistence.sh"
+    chmod 755 "$DAEMON_DIR/test-driver-coexistence.sh"
+fi
 cp -R "$ROOT/devices" "$DAEMON_DIR/devices"
 cp -R "$ROOT/examples" "$DAEMON_DIR/examples"
 mkdir -p "$RES/launchagent"
@@ -94,6 +108,7 @@ fi
 
 # Ad-hoc signing, inside out: the daemon first, then the bundle (which seals the frameworks too).
 codesign --force --sign - "$DAEMON_DIR/dofscroll"
+codesign --force --sign - "$DAEMON_DIR/dofscroll-hidprobe"
 if [ "$HAS_UI" -eq 1 ]; then
     codesign --force --deep --sign - "$APP"
     codesign --verify --deep --strict "$APP"

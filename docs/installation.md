@@ -363,8 +363,12 @@ are in [work-plan.md](work-plan.md); how the packages are built is in
    (`dofscroll-ui.exe`); `dofscroll.exe` is the daemon (no window).
 4. Config is read from `%APPDATA%\dofscroll\dofscroll.conf`, logs are in
    `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
-5. If the 3Dconnexion driver is installed, disable its per-application navigation for the programs
-   you test, otherwise scrolling is doubled ([port-windows.md](port-windows.md)).
+5. The official 3Dconnexion driver can stay installed and running: dofscroll is designed to work next
+   to it. Whether both can read the SpaceMouse at the same time is **not verified on real hardware yet**;
+   please run the 5 minute test and attach its file to issue #36:
+   `powershell -ExecutionPolicy Bypass -File scripts\test-driver-coexistence.ps1` (from the install folder).
+   The diagnostic tool `dofscroll-hidprobe.exe` sits next to `dofscroll.exe` (run it from a terminal:
+   `dofscroll-hidprobe --list`). See [troubleshooting.md](troubleshooting.md#the-official-3dconnexion-driver-and-dofscroll).
 6. The UI's "Start at login" switch writes the values `dofscroll` and `dofscroll-ui` under
    `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`; the installer's autostart component writes
    `dofscroll`, and the uninstaller removes both.
@@ -381,7 +385,8 @@ interface** restart the programs without the installer.
 the daemon and removes the program folder, the Start menu entries and the autostart value; your
 configuration in `%APPDATA%\dofscroll` stays. Silent install: `setup.exe /S /AUTOSTART=1`.
 The ZIP needs no installation: unpack it, start `dofscroll.exe`, and use
-`scripts\install-autostart.ps1` if you want autostart.
+`scripts\install-autostart.ps1` if you want autostart. Installer and ZIP both contain
+`dofscroll-hidprobe.exe` and `scripts\test-driver-coexistence.ps1`.
 
 `dofscroll-ui.exe` has no console of its own; started from cmd or PowerShell it writes `--help`,
 `--version` and `--self-test` output into that console (not when started by double click). The
@@ -413,6 +418,13 @@ this; [port-windows-checklist.md](port-windows-checklist.md) lists what a tester
    (`Contents/MacOS/dofscroll_de.qm`). Neither is verified on real hardware.
 7. **Uninstall:** run `.../launchagent/uninstall-launchagent.sh`, then move the app to the Trash.
    Configuration in `~/Library/Application Support/dofscroll` stays.
+8. **Together with the official 3Dconnexion driver:** keep the driver installed and running; dofscroll is
+   designed to work next to it, but this is **not verified on a real Mac yet**. Please run the 5 minute
+   test (it changes nothing) and attach its file to issue #37:
+   `sh /Applications/dofscroll.app/Contents/Resources/diagnostics/test-driver-coexistence.sh`.
+   The diagnostic tool is `/Applications/dofscroll.app/Contents/Resources/daemon/dofscroll-hidprobe`
+   (run it from Terminal, which needs the Input Monitoring permission: `... dofscroll-hidprobe --list`).
+   See [troubleshooting.md](troubleshooting.md#the-official-3dconnexion-driver-and-dofscroll).
 
 See [port-macos.md](port-macos.md) and [packaging/macos/README.md](../packaging/macos/README.md).
 Building from source on either system: `cmake -S . -B build && cmake --build build`.

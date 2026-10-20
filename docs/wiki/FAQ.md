@@ -12,7 +12,10 @@ There is a uinput backend that `BACKEND = auto` picks under Wayland, but it is u
 That is the maintainer's setup, the only one that can be verified on hardware today. XTest is simple and needs no special permissions; the uinput backend needs an opt-in rule because `/dev/uinput` works below the display server (see [Security](Security)).
 
 **Does it conflict with the vendor driver or other programs?**
-On Linux, `spacenavd` applies its own sensitivity, dead zone and axis settings first; keep it at defaults and tune in dofscroll. Programs that read the device themselves (Blender, CAD) get input twice unless you add `[app:<name>]` with `ENABLED = 0`. On Windows, disable the 3Dconnexion driver's per-application navigation for programs you test. The proprietary 3Dconnexion SDK is not used. See [Profiles](Profiles).
+On Linux, `spacenavd` applies its own sensitivity, dead zone and axis settings first; keep it at defaults and tune in dofscroll. Programs that read the device themselves (Blender, CAD) get input twice unless you add `[app:<name>]` with `ENABLED = 0`. On Windows and macOS the official 3Dconnexion driver can stay installed; see the next question. The proprietary 3Dconnexion SDK is not used. See [Profiles](Profiles).
+
+**Can I keep the official 3Dconnexion driver installed? Do I need it?**
+You do not need it for dofscroll, and you need it for your CAD programs, so keep it installed and running: dofscroll is designed to work next to it. On Linux there is no vendor driver (`spacenavd` takes its place). On Windows and macOS, whether both really run at the same time is not verified on real machines yet and is the top priority: the guided test finds out (about 5 minutes, it changes nothing and never stops the driver) and writes one file for issue #36 (Windows) or #37 (macOS). How to run it: [Requirements](Requirements). Community reports say Windows probably works and macOS may not; those are unconfirmed.
 
 **Can I use two SpaceMice?**
 On Linux through `spacenavd` they arrive as one merged stream, so `[device:*]` profiles apply to both and per-device joystick modes are not possible. The Windows and macOS ports read each device separately, but that is unverified on hardware.

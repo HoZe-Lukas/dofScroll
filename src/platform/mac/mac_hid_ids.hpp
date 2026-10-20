@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "../../hid_descriptor.hpp"
+#include "../input_diag.hpp"
 
 namespace spn {
 
@@ -92,8 +93,7 @@ inline std::string macOpenFailureMessage(int32_t ioReturn) {
     if (ioReturn == kMacIoReturnNotPermitted || ioReturn == kMacIoReturnNotPrivileged)
         return macPermissionMessage(MacAccess::Denied);
     if (ioReturn == kMacIoReturnExclusiveAccess)
-        return "the device is held exclusively by another program (the 3Dconnexion driver?): quit it or disable its "
-               "device access, then restart dofscroll";
+        return inputIssueTextBlocked();
     char buf[48];
     std::snprintf(buf, sizeof buf, "IOHIDManagerOpen failed (IOReturn 0x%08X)", static_cast<unsigned>(ioReturn));
     return buf;

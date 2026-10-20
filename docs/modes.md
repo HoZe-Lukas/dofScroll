@@ -199,10 +199,11 @@ port notes ([port-windows.md](port-windows.md), [port-macos.md](port-macos.md)).
 ### Avoiding double input
 
 The vendor driver may itself map the axes to scroll or pan in some applications. If an
-application then scrolls twice (once from the driver, once from dofscroll), turn off pan/zoom
-for that application in the driver's per-application settings, or disable the driver's
-scroll/pan behavior. Details and sources are in [windows-mac.md](windows-mac.md) and the
-`port-*.md` documents; they are not repeated here.
+application then scrolls twice (once from the driver, once from dofscroll), switch dofscroll off
+for that application (`ENABLED = 0` in its `[app:...]` profile). dofscroll is designed to run next
+to the driver, which stays installed and running; see
+[troubleshooting.md](troubleshooting.md#the-official-3dconnexion-driver-and-dofscroll). Details and
+sources are in [windows-mac.md](windows-mac.md) and the `port-*.md` documents.
 
 ## Key names
 
