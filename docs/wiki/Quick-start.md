@@ -26,7 +26,7 @@ On first start the tray writes `~/.config/dofscroll/dofscroll.conf` from [exampl
 | `tabs` | Sideways switches tabs (Ctrl+Page Up / Page Down) |
 | `timeline` | Sideways and twist press the left/right arrow keys; button 1 is Space, button 2 is Home (only in this joystick mode) |
 
-Also built in: `normal` and `off`. Switch the mode from the tray "Mode" menu, or set `MODE = browse` in a profile. Read a mode file before you use it, see [Modes](Modes).
+Also built in: `normal` and `off`. Switch the joystick mode from the tray "Joystick mode" menu, or set `MODE = browse` in a profile. Read a joystick mode file before you use it, see [Joystick modes](Modes).
 
 ## Next steps
 

@@ -41,7 +41,7 @@ inline std::vector<Example> availableButtonModeExamples(const ButtonModeCatalog 
     if (examplesDir.empty()) return out;
     const ButtonModeSet ex = loadButtonModes(examplesDir + "/buttons", nullptr);
     for (const ButtonMode &b : ex.modes) {
-        if (buttons.find(b.id)) continue;
+        if (b.builtin || buttons.find(b.id)) continue;
         out.push_back({b.id, b.label.empty() ? b.id : b.label, b.description, b.path});
     }
     return out;
@@ -83,8 +83,11 @@ inline std::string modeOriginText(ModeCatalog::Origin o, const StringProvider &s
     }
     return std::string();
 }
-// Button modes are always files of the user.
-inline std::string buttonModeOriginText(const StringProvider &s) { return s.tr("Your file"); }
+// Button modes: built in (examples embedded in the program), your file, or your file that replaces a built-in one.
+inline std::string buttonModeOriginText(bool builtin, bool replacesBuiltin, const StringProvider &s) {
+    if (builtin) return s.tr("Built in");
+    return replacesBuiltin ? s.tr("Your file, replaces the built-in button mode") : s.tr("Your file");
+}
 // Origin of an example that is offered but not installed.
 inline std::string exampleOriginText(const StringProvider &s) { return s.tr("Example, not installed yet"); }
 

@@ -183,7 +183,7 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
     check(page.selectButtonMode(QStringLiteral("latch-nav")) && page.catalog().find("latch-nav") &&
               page.catalog().find("latch-nav")->builtin,
           "a built-in button mode is listed");
-    check(!page.stageEdit(QStringLiteral("x"), QString(), QStringLiteral("click")) && !page.dirty(),
+    check(!page.stageEdit(QStringLiteral("x"), QString(), QStringLiteral("click")) && !page.pending(),
           "a built-in button mode cannot be edited in place");
     check(page.selectButtonMode(QStringLiteral("latch")), "select the file");
     check(page.editCurrent(QStringLiteral("Edited"), QStringLiteral("Changed"), QStringLiteral("key:space")),

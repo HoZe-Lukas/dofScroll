@@ -38,7 +38,7 @@ Invalid lines or files are skipped with a warning in the log.
 
 Nine joystick modes ship inside the program on every system. They need no file, no examples folder
 and no install path, and nothing is copied into your configuration directory. They appear
-everywhere a mode can be chosen (profile drop-downs, tray menu, Overview, `MODE = <id>`,
+everywhere a joystick mode can be chosen (profile drop-downs, tray menu, Overview, `MODE = <id>`,
 `mode:<id>` buttons) with the origin "Built in".
 
 | Joystick mode | Behavior |
@@ -53,7 +53,7 @@ everywhere a mode can be chosen (profile drop-downs, tray menu, Overview, `MODE 
 | `tabs` | Sideways = `ctrl+pageup` / `ctrl+pagedown` (previous / next tab in browsers and terminals; not verified in every program). |
 | `browse` | Up/down = page up/down, sideways = left/right, twist = zoom. |
 
-Their behavior in real programs is not verified. The built-in modes contain no button-to-key
+Their behavior in real programs is not verified. The built-in joystick modes contain no button-to-key
 bindings, see [Buttons and the vendor driver](#buttons-and-the-vendor-driver).
 
 The text of `slides`, `media`, `map`, `precision`, `tabs` and `browse` is the single source
@@ -71,13 +71,13 @@ unchanged `browse-keys.conf` or `cycle-modes.conf` is ignored by the loader, so 
 if you want it gone; a file you changed keeps working under its own id.
 
 There is no built-in `cycle-modes` mode: it only bound `mode:next` to button 2 in an otherwise default
-mode, which the button mode `next-mode` does better and in every mode.
+joystick mode, which the button mode `next-mode` does better and in every mode.
 
-**`mode:next` / `mode:prev` with the built-in library.** They cycle through *all* loaded modes in
+**`mode:next` / `mode:prev` with the built-in library.** They cycle through *all* loaded joystick modes in
 alphabetical order of the id, built-ins included: `browse`, `map`, `media`, `normal`, `off`,
 `precision`, `slides`, `tabs`, `timeline` plus your own, so the cycle is long. Use `mode:<id>` or
-`toggle:mode:<id>` for a short fixed set. Built-in modes have no bindings of their own, so a cycle
-started from a mode of yours stops at the next built-in unless you give that mode a binding too
+`toggle:mode:<id>` for a short fixed set. Built-in joystick modes have no bindings of their own, so a cycle
+started from a joystick mode of yours stops at the next built-in unless you give that joystick mode a binding too
 (create an editable copy, or switch back through the tray menu).
 
 ## Channel actions
@@ -385,4 +385,4 @@ The tray "Joystick mode" submenu lists, below the joystick mode choices, one ent
 The editor is started outside the tray's sandbox, like "Open config file". After saving, the
 daemon reloads the joystick modes by itself and the new entry appears in the menu within about a second.
 
-The built-in modes are good starting points: "Create editable copy" and change it.
+The built-in joystick modes are good starting points: "Create editable copy" and change it.

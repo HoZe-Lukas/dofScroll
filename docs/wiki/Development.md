@@ -42,7 +42,7 @@ CI ([.github/workflows/ci.yml](https://github.com/HoZe-Lukas/dofScroll/blob/main
 
 ## Add a joystick mode
 
-Create `<name>.conf` (id `[a-z0-9_-]{1,32}`) in `examples/modes/` for a shipped (built-in, embedded at build time) mode or in `~/.config/dofscroll/modes/` for personal use. Use `NAME`, `DESCRIPTION`, `V_ACTION`/`H_ACTION`/`TWIST_ACTION`, `BUTTON_<n>` (from 1, within the factory count) and settings overrides. Shipped modes are validated by `check-config` and CI and need SPDX headers and the safety note. See [Modes](Modes).
+Create `<name>.conf` (id `[a-z0-9_-]{1,32}`) in `examples/modes/` for a shipped (built-in, embedded at build time) joystick mode or in `~/.config/dofscroll/modes/` for personal use. Use `NAME`, `DESCRIPTION`, `V_ACTION`/`H_ACTION`/`TWIST_ACTION`, `BUTTON_<n>` (from 1, within the factory count) and settings overrides. Shipped joystick modes are validated by `check-config` and CI and need SPDX headers and the safety note. See [Joystick modes](Modes).
 
 ## Add a device description
 

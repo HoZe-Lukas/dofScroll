@@ -227,7 +227,9 @@ plain words ("Vertical push: scrolls vertically", "Horizontal push: taps Left or
 push", ...). The description field of both editors is always available.
 
 **Origin hints.** Every entry of the lists says where it comes from: "Built in", "Your file", "Your
-file, replaces the built-in joystick mode". **New from example...** (both pages) offers the
+file, replaces the built-in joystick mode" (button modes: "Built in", "Your file", "Your file, replaces the
+built-in button mode"). A built-in button mode has no file: "Create editable copy" makes a file with the same
+id that replaces it (a built-in joystick mode offers the same on "Edit"). **New from example...** (both pages) offers the
 examples that ship with dofscroll and are not in your folder yet ("Example, not installed yet"); the
 chosen one is copied like an import (checked, never overwrites) and selected. Delete removes only
 your own file (a file that replaces a built-in one brings the built-in back).

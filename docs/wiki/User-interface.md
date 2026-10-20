@@ -12,8 +12,8 @@ Vertical tabs on the left pick a category, horizontal tabs on top pick the page 
 |---|---|---|
 | Overview | Overview | Only summarizes and links: daemon state, task buttons (tune scroll and zoom = the Channels tab of Global, check the axes, switch joystick modes), quick actions (active joystick mode, open log, documentation, new profile for the running program, release keys, restarts) and one card per profile (joystick mode, what it overrides and how many settings, button bindings included) with a filter box; "Open" jumps to the profile |
 | Profiles | Profiles | The profile list (Global first, then devices, then programs) and the editor of the selected profile: General (joystick mode, output switch), Channels (scroll, zoom, curve preview, zoom detection), Buttons and Overrides. The same for Global |
-| Modes | Joystick modes | Built-in and file joystick modes with origin and description: new, new from example, duplicate, import, export, edit, delete |
-| Modes | Button modes | Button mode files (`buttons/`): new, new from example, edit in the page, duplicate, import, delete; chosen per button on the Profiles page |
+| Joystick modes | Joystick modes | Built-in and file joystick modes with origin and description: new, new from example, duplicate, import, export, edit, delete |
+| Joystick modes | Button modes | Button mode files (`buttons/`): new, new from example, edit in the page, duplicate, import, delete; chosen per button on the Profiles page |
 | Device | Device | The connected devices, their button count and the daemon state |
 | Device | Axes | Live bars of the six axes, axis assistant (output pauses while it is open) |
 | Settings | Settings | Output on/off, start at login, language, theme, tick rate and output backend, daemon status, "Show log...", "Documentation" |

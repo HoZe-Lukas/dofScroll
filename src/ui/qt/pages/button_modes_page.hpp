@@ -88,7 +88,7 @@ private:
     QLabel *fileLabel_ = nullptr;
     QPlainTextEdit *warnings_ = nullptr;
     QLabel *problem_ = nullptr;
-    QPushButton *newBtn_ = nullptr, *exampleBtn_ = nullptr, *exportBtn_ = nullptr, *dupBtn_ = nullptr, *importBtn_ = nullptr, *delBtn_ = nullptr,
+    QPushButton *newBtn_ = nullptr, *exampleBtn_ = nullptr, *exportBtn_ = nullptr, *copyBtn_ = nullptr, *dupBtn_ = nullptr, *importBtn_ = nullptr, *delBtn_ = nullptr,
                 *folderBtn_ = nullptr, *textEditorBtn_ = nullptr;
     std::unique_ptr<Autosaver> saver_;
     QtStrings ownStrings_;

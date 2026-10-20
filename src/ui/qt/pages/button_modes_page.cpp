@@ -164,8 +164,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     setTabOrder(exampleBtn_, dupBtn_);
     setTabOrder(dupBtn_, importBtn_);
     setTabOrder(importBtn_, copyBtn_);
-    setTabOrder(copyBtn_, delBtn_);
-    setTabOrder(importBtn_, exportBtn_);
+    setTabOrder(copyBtn_, exportBtn_);
     setTabOrder(exportBtn_, delBtn_);
     setTabOrder(delBtn_, folderBtn_);
 
@@ -259,7 +258,7 @@ void ButtonModesPage::populate(const QString &selectId) {
         for (const ButtonModeCatalog::Entry &b : catalog_.buttonModes()) {
             const QString id = qs(b.id), label = qs(b.label);
             auto *it = new QListWidgetItem((label == id ? id : label + QStringLiteral(" (") + id + QStringLiteral(")")) +
-                                           QStringLiteral("  -  ") + qs8(spn::ui::buttonModeOriginText(QtStrings())));
+                                           QStringLiteral("  -  ") + qs8(spn::ui::buttonModeOriginText(b.builtin, b.overridesBuiltin, QtStrings())));
             it->setData(kRoleId, id);
             it->setData(kRoleDescription, b.description.empty() ? qs8(spn::ui::noDescriptionText(QtStrings())) : qs(b.description));
             if (!b.warnings.empty()) it->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
@@ -294,12 +293,14 @@ void ButtonModesPage::loadForm() {
     shownId_ = e ? qs(e->id) : QString();
     updateWarnings();
     const bool has = e != nullptr;
+    const bool editable = has && !e->builtin;  // a built-in button mode has no file to edit
     for (QWidget *w : {static_cast<QWidget *>(name_), static_cast<QWidget *>(description_), static_cast<QWidget *>(kind_),
                        static_cast<QWidget *>(argHost_), static_cast<QWidget *>(textEditorBtn_)})
-        w->setEnabled(has);
+        w->setEnabled(editable);
     dupBtn_->setEnabled(has);
     exportBtn_->setEnabled(has);
-    delBtn_->setEnabled(has);
+    copyBtn_->setEnabled(has && e->builtin);
+    delBtn_->setEnabled(editable);
     dirty_ = false;
     showProblem(QString());
     loading_ = false;
@@ -479,7 +480,7 @@ void ButtonModesPage::onEditableCopy() {
             .arg(qs(id)),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     if (a != QMessageBox::Yes) return;
-    if (!confirmLeaveForm()) return;
+    flush();
     const ButtonModeCatalog::Result r = catalog_.makeEditableCopy(id);
     if (!r.ok) return showError(T("Could not create the file."), r.error);
     dirty_ = false;
@@ -614,7 +615,8 @@ QStringList ButtonModesPage::exampleIds() const {
 }
 
 QString ButtonModesPage::originOf(const QString &id) const {
-    return catalog_.find(id.toStdString()) ? qs(spn::ui::buttonModeOriginText(QtStrings())) : QString();
+    const ButtonModeCatalog::Entry *e = catalog_.find(id.toStdString());
+    return e ? qs8(spn::ui::buttonModeOriginText(e->builtin, e->overridesBuiltin, QtStrings())) : QString();
 }
 
 bool ButtonModesPage::exportButtonModeTo(const QString &id, const QString &dest) {
