@@ -81,6 +81,7 @@ private:
     QGridLayout *quickGrid_ = nullptr;
     std::vector<QPushButton *> quickButtons_;
     int quickColumns_ = 0;
+    bool replanQueued_ = false;  // a re-plan after a font or style change is waiting for the event loop
     void layoutQuickActions();
     std::vector<QFrame *> cards_;
     QString cardsKey_;  // what the cards were built from, to rebuild only when it changed
