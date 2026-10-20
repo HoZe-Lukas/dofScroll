@@ -183,7 +183,7 @@ int main() {
     // ---- used by profiles ----
     {
         ProfileSet ps;
-        ps.sections[0].kv = {{"BUTTON_4", "hold:mode:late"}, {"MODE", "late"}};  // MODE in [global] is not a use
+        ps.sections[0].kv = {{"BUTTON_4", "hold:mode:late"}, {"MODE", "late"}};  // [global] can select a mode too (not "normal": the saved file always says that)
         const size_t appIdx = ps.findOrAdd(Section::APP, "firefox");
         ps.sections[appIdx].kv = {{"mode", "late"}, {"BUTTON_1", "toggle:mode:late"}, {"BUTTON_2", "mode:late"},
                              {"BUTTON_3", "mode:other"}, {"BUTTON_5", "buttonmode:late"}, {"BUTTON_6", "key:space"}};
@@ -191,11 +191,13 @@ int main() {
         ps.sections[d].kv = {{"MODE", "other"}};
         const std::vector<ModeCatalog::ModeUse> u = ModeCatalog::usedBy(ps, "late");
         assert(u.size() == 2);
-        assert(u[0].section == 0 && !u[0].selects && u[0].buttons == std::vector<int>({4}));
+        assert(u[0].section == 0 && u[0].selects && u[0].buttons == std::vector<int>({4}));
         assert(u[1].kind == Section::APP && u[1].selects && u[1].buttons == std::vector<int>({1, 2}));
         assert(ModeCatalog::useTitle(u[0]) == "[global]" && ModeCatalog::useTitle(u[1]) == "[app:firefox]");
         assert(ModeCatalog::usedBy(ps, "other").size() == 2);   // the device selects it, the app has a button
         assert(ModeCatalog::usedBy(ps, "nosuch").empty() && ModeCatalog::usedBy(ps, "").empty());
+        ps.sections[0].kv = {{"MODE", "normal"}};
+        assert(ModeCatalog::usedBy(ps, "normal").empty());
     }
 
     // ---- export ----

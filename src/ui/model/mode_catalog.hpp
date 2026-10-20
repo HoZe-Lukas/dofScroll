@@ -303,8 +303,8 @@ public:
 
     // ---- used by profiles ----
     // A profile section that refers to a mode: its MODE key selects it (selects), and/or buttons
-    // switch to it (BUTTON_<n> = mode:<id>, toggle:mode:<id>, hold:mode:<id>). [global] can only
-    // refer through buttons. Toolkit-free, reads the raw keys of the sections.
+    // switch to it (BUTTON_<n> = mode:<id>, toggle:mode:<id>, hold:mode:<id>). [global] counts like
+    // any other profile (it can select a mode too). Toolkit-free, reads the raw keys of the sections.
     struct ModeUse {
         size_t section = 0;  // index in the ProfileSet
         Section::Kind kind = Section::GLOBAL;
@@ -326,7 +326,7 @@ public:
                 for (unsigned char c : kv.first) key += (c >= 'a' && c <= 'z') ? char(c - 32) : char(c);
                 std::string val = utf8::trim(kv.second);
                 if (key == "MODE") {
-                    if (i != 0 && val == id) u.selects = true;
+                    if (val == id && !(i == 0 && id == "normal")) u.selects = true;  // the saved [global] always says MODE = normal
                 } else if (key.compare(0, 7, "BUTTON_") == 0) {
                     ButtonActionType t = ButtonActionType::Unbound;
                     Key k = Key::Space;

@@ -1045,8 +1045,22 @@ bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *er
        << "# Note: comments in this file are NOT preserved when saving.\n"
        << "# Sections: [global], [device:NAME], [app:NAME] - overridden keys only.\n\n";
     os << "[global]\n";
-    for (const KV &p : allKeys(ps.sectionSettings(0)))
-        os << p.first << " = " << p.second << "\n";
+    {
+        // The deprecated NAV_BUTTON / CLICK_BUTTON keys are written only while they are in use
+        // (not the defaults): buttons are assigned with BUTTON_<n> now.
+        const std::vector<KV> defs = allKeys(Settings());
+        for (const KV &p : allKeys(ps.sectionSettings(0))) {
+            const bool legacy = p.first == "NAV_BUTTON" || p.first == "NAV_BUTTON_ENABLED" ||
+                                p.first == "CLICK_BUTTON" || p.first == "CLICK_BUTTON_ENABLED";
+            if (legacy) {
+                const KV *d = nullptr;
+                for (const KV &x : defs)
+                    if (x.first == p.first) d = &x;
+                if (d && d->second == p.second) continue;
+            }
+            os << p.first << " = " << p.second << "\n";
+        }
+    }
     for (size_t i = 1; i < ps.sections.size(); i++) {
         const Section &sec = ps.sections[i];
         std::string np;

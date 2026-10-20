@@ -196,7 +196,7 @@ static void testLayout() {
     const size_t app = ProfileTreeModel::add(sm, Section::APP, "viewer", &err);
 
     ProfilePageLayout g = profilePageLayout(sm, 0);
-    assert(!g.modeSelector && g.bindingEditor && !g.modeInfo && !g.overridesSection && !g.editModeFile);
+    assert(g.modeSelector && g.bindingEditor && !g.modeInfo && !g.overridesSection && !g.editModeFile);
 
     ProfilePageLayout l = profilePageLayout(sm, app);
     assert(l.modeSelector && l.bindingEditor && l.overridesSection && !l.modeInfo);
@@ -223,8 +223,10 @@ static void testLayout() {
     assert(sm.setMode(app, std::string("ghostmode"), &err));
     l = profilePageLayout(sm, app);
     assert(l.unknownMode && l.bindingEditor && !l.modeInfo);
-    // [global] never takes a mode
-    assert(!sm.setMode(0, 1, &err));
+    // [global] takes a mode like any profile (no "Default mode" entry there)
+    for (const auto &o : sm.modeOptions(0)) assert(!o.id.empty());
+    assert(sm.setMode(0, 1, &err, &changed) && changed && sm.isOverridden(0, "MODE"));
+    assert(profilePageLayout(sm, 0).modeSelector);
 }
 
 // Non-ASCII names, spaces and special characters in profile names (UTF-8, byte-exact).
