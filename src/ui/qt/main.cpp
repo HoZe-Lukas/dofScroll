@@ -814,7 +814,8 @@ int main(int argc, char **argv) {
     // The language comes from the per-user UI settings (General page): "en" = no catalog.
     const std::string lang = spn::ui::languageLocaleName(spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).language);
     QTranslator translator;
-    if (lang != "en" &&
+    // The self-test checks English texts: it never loads the catalog of the user's language setting.
+    if (lang != "en" && !selfTest &&
         translator.load(lang.empty() ? QLocale() : QLocale(QString::fromStdString(lang)),
                         QStringLiteral("dofscroll"), QStringLiteral("_"), QApplication::applicationDirPath()))
         QApplication::installTranslator(&translator);
