@@ -19,7 +19,9 @@ using namespace spn::ui;
 
 void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, const BindingRow &row,
                   const ButtonRowEnv &env, const ButtonRowHandlers &handlers) {
-    grid->addWidget(new QLabel(T("Button") + QStringLiteral(" %1").arg(row.number), parent), r, 0);
+    auto *numberLabel = new QLabel(T("Button") + QStringLiteral(" %1").arg(row.number), parent);
+    if (env.deviceButtons > 0) numberLabel->setToolTip(T("This device has %1 buttons").arg(env.deviceButtons));
+    grid->addWidget(numberLabel, r, 0);
     if (row.beyondLimit || !row.valid) {
         grid->addWidget(new QLabel(qs8(row.text) + QStringLiteral("  ") +
                                        (row.beyondLimit ? T("(above this device's button count)")

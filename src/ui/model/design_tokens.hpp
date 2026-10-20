@@ -17,5 +17,8 @@ constexpr int kSpaceXl = 24;
 constexpr int kIconSize = 20;        // icons on the tabs
 constexpr int kMinWindowWidth = 640; // smallest usable window (laptop with large fonts)
 constexpr int kMinWindowHeight = 420;
+// Pages made of cards and forms (Overview, Channels) stop growing at this width and stay centered
+// on a very wide window, so that lines and rows do not spread over the whole screen.
+constexpr int kMaxContentWidth = 1100;
 
 }  // namespace spn::ui::tokens

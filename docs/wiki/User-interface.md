@@ -10,14 +10,16 @@ Vertical tabs on the left pick a category, horizontal tabs on top pick the page 
 
 | Category | Page (tab) | Content |
 |---|---|---|
-| Overview | Overview | Daemon state, quick actions and one card per profile (mode and what it overrides); "Open" jumps to the profile |
+| Overview | Overview | Daemon state, task buttons (tune scroll and zoom, check the axes, switch modes), quick actions (active mode, open log, documentation, new profile for the running program, release keys, restarts) and one card per profile (mode and what it overrides, button bindings included) with a filter box; "Open" jumps to the profile |
 | Profiles | Profiles | Device and application profiles, per-profile mode dropdown, overrides, button bindings |
-| Profiles | Channels | Scroll, zoom and other output channels: sensitivity, dead zone, direction, curve preview |
+| Profiles | Channels | Scroll, zoom and other output channels: sensitivity, dead zone, direction, curve preview; filter box, and every row names its config key in the tooltip |
 | Modes | Modes | Built-in and file modes: new, duplicate, import, edit, delete |
 | Modes | Extensions | Modes and button modes with their origin; add a shipped example, remove your own file |
 | Modes | Button modes | Button mode files (`buttons/`): new, edit in the page, duplicate, import, delete; chosen per button on the Profiles page |
 | Device | Axes | Live bars of the six axes, axis assistant (output pauses while it is open) |
-| Settings | General | Output on/off, global mode, "Start at login", daemon status |
+| Settings | General | Output on/off, global mode, "Start at login", daemon status, "Show log...", "Documentation" |
+
+"Show log..." (Overview "Open log", General page, tray) opens a small window with the end of the daemon log (Refresh, Copy). "Documentation" opens the project documentation in your browser. "Active mode" on the Overview switches the running daemon to another mode until the next reload or restart (the same request as the tray's Mode menu). The axes step of "Getting started" is done once the axis assistant has been applied.
 
 ## Appearance
 

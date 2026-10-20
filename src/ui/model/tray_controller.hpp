@@ -66,7 +66,11 @@ public:
         h.modesDir = paths_.modesDir;
         h.setMode = [this](const std::string &id) { requestMode(id); };
         h.setEnabled = [this](bool on) { setEnabled(on); };
-        h.showLog = [this] {
+        // A view that shows the log itself (the Qt tray: in-app log dialog) sets hooks().showLog; without
+        // one the log file is handed to the system's default application.
+        const std::function<void()> viewLog = hooks_.showLog;
+        h.showLog = [this, viewLog] {
+            if (viewLog) return viewLog();
             const std::string p = logFilePathIn(paths_.runtimeDir);
             if (p.empty()) error_ = s_.tr("No log file: the runtime directory is not available");
             else if (!runner_.openPath(p, &error_) && error_.empty()) error_ = "cannot open the log file";

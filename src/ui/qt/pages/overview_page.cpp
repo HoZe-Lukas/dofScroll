@@ -2,12 +2,15 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "overview_page.hpp"
 
+#include <QAbstractItemView>
 #include <QApplication>
+#include <QComboBox>
 #include <QFrame>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QVBoxLayout>
@@ -15,7 +18,10 @@
 #include <algorithm>
 
 #include "ui/model/design_tokens.hpp"
+#include "log_dialog.hpp"
 #include "ui/model/overview_model.hpp"
+#include "ui/model/ui_links.hpp"
+#include "ui/model/ui_progress.hpp"
 #include "ui_i18n.hpp"
 
 namespace {
@@ -38,8 +44,11 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     auto *scroll = new QScrollArea;
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setAlignment(Qt::AlignHCenter | Qt::AlignTop);  // a very wide window: the content stays centered
     outer->addWidget(scroll);
     auto *content = new QWidget;
+    content->setMaximumWidth(kMaxContentWidth);
+    content_ = content;
     auto *col = new QVBoxLayout(content);
     col->setContentsMargins(kSpaceLg, kSpaceLg, kSpaceLg, kSpaceLg);
     col->setSpacing(kSpaceLg);
@@ -62,23 +71,66 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     sl->addWidget(warningLine_);
     col->addWidget(statusBox);
 
+    // ---- tasks: what the user usually wants, each opens the page that does it ----
+    auto *taskBox = new QGroupBox(T("What do you want to do?"));
+    auto *tl = new QHBoxLayout(taskBox);
+    tl->setSpacing(kSpaceSm);
+    for (const spn::ui::OverviewTask &task : spn::ui::overviewTasks()) {
+        auto *b = new QPushButton(T(task.label.c_str()));
+        b->setToolTip(T(task.tip.c_str()));
+        b->setObjectName(qs8("task-" + task.id));
+        const QString page = qs8(task.page);
+        connect(b, &QPushButton::clicked, this, [this, page] { emit openPage(page); });
+        tl->addWidget(b);
+    }
+    tl->addStretch(1);
+    col->addWidget(taskBox);
+
     // ---- quick actions ----
     auto *actionBox = new QGroupBox(T("Quick actions"));
     auto *al = new QVBoxLayout(actionBox);
-    auto *row = new QHBoxLayout;
-    row->setSpacing(kSpaceSm);
+    // Three short rows instead of one long one: the page has to fit the smallest window.
+    auto *row = new QHBoxLayout;   // profiles
+    auto *infoRow = new QHBoxLayout;   // log and documentation
+    auto *daemonRow = new QHBoxLayout;   // what acts on the daemon
+    for (QHBoxLayout *r : {row, infoRow, daemonRow}) r->setSpacing(kSpaceSm);
     auto *addProfile = new QPushButton(T("Add a profile..."));
     addProfile->setToolTip(T("Set up a program or a device on the Profiles page"));
     connect(addProfile, &QPushButton::clicked, this, [this] { emit openPage(QStringLiteral("profiles")); });
     row->addWidget(addProfile);
+    auto *newForRunning = new QPushButton(T("New profile for the running program..."));
+    newForRunning->setObjectName(QStringLiteral("new-program-profile"));
+    newForRunning->setToolTip(T("Pick one of the running programs and give it its own profile"));
+    connect(newForRunning, &QPushButton::clicked, this, [this] { emit newProgramProfile(); });
+    row->addWidget(newForRunning);
     const std::vector<spn::ui::OverviewAction> actions = spn::ui::overviewActions();
     for (size_t i = 0; i < actions.size(); ++i) {
         auto *b = new QPushButton(T(actions[i].label.c_str()));
+        b->setObjectName(qs8("action-" + actions[i].id));
+        if (actions[i].id == "open_log") b->setToolTip(T("Show the end of the daemon log"));
         connect(b, &QPushButton::clicked, this, [this, i] { runAction(static_cast<int>(i)); });
-        row->addWidget(b);
+        (actions[i].id == "open_log" ? infoRow : daemonRow)->addWidget(b);
     }
-    row->addStretch(1);
-    al->addLayout(row);
+    auto *docs = new QPushButton(T("Documentation"));
+    docs->setObjectName(QStringLiteral("documentation"));
+    docs->setToolTip(T("Open the documentation of the interface in your browser"));
+    connect(docs, &QPushButton::clicked, this, [this] { openDocumentation(); });
+    infoRow->addWidget(docs);
+    for (QHBoxLayout *r : {row, infoRow, daemonRow}) {
+        r->addStretch(1);
+        al->addLayout(r);
+    }
+    auto *modeRow = new QHBoxLayout;
+    auto *modeLabel = new QLabel(T("Active mode:"));
+    mode_ = new QComboBox;
+    mode_->setAccessibleName(T("Active mode"));
+    mode_->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    modeLabel->setBuddy(mode_);
+    connect(mode_, QOverload<int>::of(&QComboBox::activated), this, [this](int i) { switchMode(mode_->itemData(i).toString()); });
+    modeRow->addWidget(modeLabel);
+    modeRow->addWidget(mode_);
+    modeRow->addStretch(1);
+    al->addLayout(modeRow);
     actionMsg_ = note();
     actionMsg_->setVisible(false);  // only when an action failed
     al->addWidget(actionMsg_);
@@ -96,6 +148,14 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     auto *pl = new QVBoxLayout(profilesBox);
     profilesCount_ = note();
     pl->addWidget(profilesCount_);
+    filter_ = new QLineEdit;
+    filter_->setClearButtonEnabled(true);
+    filter_->setPlaceholderText(T("Filter profiles by name, mode or setting"));
+    filter_->setAccessibleName(T("Filter profiles"));
+    connect(filter_, &QLineEdit::textChanged, this, [this] { refresh(); });
+    pl->addWidget(filter_);
+    noMatch_ = note(T("No profile matches the filter."));
+    pl->addWidget(noMatch_);
     emptyState_ = new QFrame;
     auto *el = new QVBoxLayout(emptyState_);
     auto *emptyText = new QLabel(T("No program or device has its own profile yet. A profile changes the mode or single "
@@ -118,45 +178,107 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     refresh();
 }
 
+void OverviewPage::setProfileFilter(const QString &text) { filter_->setText(text); }
+
+int OverviewPage::contentWidth() const { return content_->width(); }
+QStringList OverviewPage::gettingStartedTexts() const { return gettingTexts_; }
+QString OverviewPage::actionMessage() const { return actionMsg_->isVisible() ? actionMsg_->text() : QString(); }
+
+void OverviewPage::showMessage(const std::string &err) {
+    actionMsg_->setText(qs8(err));
+    actionMsg_->setVisible(!err.empty());
+}
+
 void OverviewPage::refresh() {
     if (!ctx_.settings || !ctx_.status || !ctx_.strings) return;
-    const spn::ui::OverviewData d = spn::ui::buildOverview(*ctx_.settings, *ctx_.status, *ctx_.strings);
+    if (ctx_.modes) ctx_.modes->refreshIfChanged();
+    const spn::ui::OverviewData d =
+        spn::ui::buildOverview(*ctx_.settings, *ctx_.status, *ctx_.strings, ctx_.modes ? &ctx_.modes->modeSet() : nullptr);
     statusLine_->setText(qs8(d.statusLine));
     infoLine_->setText(qs8(d.infoLine));
     infoLine_->setVisible(!d.infoLine.empty());
     warningLine_->setText(qs8(d.warningLine));
     warningLine_->setVisible(!d.warningLine.empty());
+    const std::vector<size_t> shown = spn::ui::filterOverviewProfiles(d, filter_->text().toUtf8().toStdString());
     profilesCount_->setText(d.profiles.empty()
                                 ? QString()
                                 : T("%1 device profile(s), %2 program profile(s). The default mode is %3.")
                                       .arg(d.deviceProfiles).arg(d.appProfiles).arg(qs8(d.defaultMode)));
     profilesCount_->setVisible(!d.profiles.empty());
+    filter_->setVisible(!d.profiles.empty());
+    noMatch_->setVisible(!d.profiles.empty() && shown.empty());
     emptyState_->setVisible(d.profiles.empty());
+    rebuildModes(d);
     {
-        const std::vector<spn::ui::GettingStartedStep> steps = spn::ui::gettingStartedSteps(d, *ctx_.status, *ctx_.strings);
+        const bool axesDone = spn::ui::loadUiProgress(spn::ui::uiProgressPath(ctx_.configPath)).axisAssistantApplied;
+        const std::vector<spn::ui::GettingStartedStep> steps =
+            spn::ui::gettingStartedSteps(d, *ctx_.status, *ctx_.strings, axesDone);
         gettingBox_->setVisible(spn::ui::showGettingStarted(steps));
         if (gettingBox_->isVisible()) rebuildGettingStarted(steps);
     }
 
     // Rebuild the cards only when what they show changed (this runs every second).
     QString key;
-    for (const spn::ui::OverviewProfile &p : d.profiles)
-        key += QString::number(p.section) + QLatin1Char('|') + qs8(p.name) + QLatin1Char('|') + qs8(p.summary) + QLatin1Char('\n');
+    for (size_t i : shown) {
+        const spn::ui::OverviewProfile &p = d.profiles[i];
+        key += QString::number(p.section) + QLatin1Char('|') + qs8(p.name) + QLatin1Char('|') + qs8(p.summary) +
+               QLatin1Char('|') + qs8(p.details) + QLatin1Char('\n');
+    }
     if (key != cardsKey_) {
         cardsKey_ = key;
-        rebuildCards();
+        rebuildCards(d, shown);
     }
 }
 
-void OverviewPage::rebuildCards() {
+// The mode switch lists the loaded modes and marks the one the daemon runs. Without a running daemon
+// there is nobody to ask, so it is disabled. Not rebuilt while its list is open.
+void OverviewPage::rebuildModes(const spn::ui::OverviewData &d) {
+    QString key = QLatin1String(d.daemonRunning ? "1" : "0") + qs8(d.activeMode);
+    for (const spn::modelist::MenuEntry &e : d.modeChoices) key += QLatin1Char('|') + qs8(e.id) + QLatin1Char('=') + qs8(e.text);
+    if (key == modeKey_ || mode_->view()->isVisible()) return;
+    modeKey_ = key;
+    mode_->clear();
+    int current = -1;
+    for (const spn::modelist::MenuEntry &e : d.modeChoices) {
+        mode_->addItem(qs8(e.text), qs8(e.id));
+        if (e.active) current = mode_->count() - 1;
+    }
+    mode_->setCurrentIndex(current);
+    mode_->setEnabled(d.daemonRunning && mode_->count() > 0);
+    mode_->setToolTip(d.daemonRunning
+                          ? T("Switches the mode of the running daemon until the next reload or restart. The default "
+                              "mode in the configuration stays as it is.")
+                          : T("The daemon is not running, so there is no mode to switch."));
+}
+
+void OverviewPage::switchMode(const QString &id) {
+    if (!ctx_.runner || id.isEmpty()) return;
+    std::string err;
+    spn::ui::requestActiveMode(ctx_.runtimeDir, *ctx_.runner, id.toUtf8().toStdString(), &err);
+    showMessage(err);
+}
+
+void OverviewPage::openDocumentation() {
+    if (!ctx_.runner) return;
+    std::string err;
+    spn::ui::openDocs(*ctx_.runner, "ui.md", &err);
+    showMessage(err);
+}
+
+void OverviewPage::showLog() {
+    if (ctx_.strings) LogDialog::showFor(window(), ctx_.runtimeDir, *ctx_.strings);
+}
+
+void OverviewPage::rebuildCards(const spn::ui::OverviewData &d, const std::vector<size_t> &shown) {
     using namespace spn::ui::tokens;
     qDeleteAll(cards_);
     cards_.clear();
-    const spn::ui::OverviewData d = spn::ui::buildOverview(*ctx_.settings, *ctx_.status, *ctx_.strings);
-    for (const spn::ui::OverviewProfile &p : d.profiles) {
+    for (size_t index : shown) {
+        const spn::ui::OverviewProfile &p = d.profiles[index];
         auto *card = new QFrame(cardHost_);
         card->setFrameShape(QFrame::StyledPanel);
         card->setAutoFillBackground(true);
+        card->setToolTip(qs8(p.details));  // every setting of the profile, the summary shows the first ones
         auto *cl = new QVBoxLayout(card);
         cl->setContentsMargins(kSpaceMd, kSpaceMd, kSpaceMd, kSpaceMd);
         cl->setSpacing(kSpaceXs);
@@ -186,9 +308,10 @@ void OverviewPage::rebuildCards() {
 // Cards wrap: as many columns as fit with kCardMinWidth each, at least one.
 void OverviewPage::rebuildGettingStarted(const std::vector<spn::ui::GettingStartedStep> &steps) {
     QString key;
-    for (const auto &st : steps) key += qs8(st.id) + (st.done ? QLatin1Char('1') : QLatin1Char('0'));
+    for (const auto &st : steps) key += qs8(st.id) + (st.done ? QLatin1Char('1') : QLatin1Char('0')) + qs8(st.hint);
     if (key == gettingKey_) return;
     gettingKey_ = key;
+    gettingTexts_.clear();
     auto *lay = qobject_cast<QVBoxLayout *>(gettingBox_->layout());
     while (QLayoutItem *it = lay->takeAt(0)) {
         if (QWidget *w = it->widget()) w->deleteLater();
@@ -203,7 +326,10 @@ void OverviewPage::rebuildGettingStarted(const std::vector<spn::ui::GettingStart
     for (const spn::ui::GettingStartedStep &st : steps) {
         auto *row = new QHBoxLayout;
         // The state is written out: "Done:" / "To do:" (never only a colour or a symbol).
-        auto *label = new QLabel((st.done ? T("Done:") : T("To do:")) + QLatin1Char(' ') + qs8(st.text), gettingBox_);
+        QString text = (st.done ? T("Done:") : T("To do:")) + QLatin1Char(' ') + qs8(st.text);
+        if (!st.done && !st.hint.empty()) text += QLatin1Char(' ') + qs8(st.hint);
+        gettingTexts_ << text;
+        auto *label = new QLabel(text, gettingBox_);
         label->setWordWrap(true);
         row->addWidget(label, 1);
         if (!st.page.empty() && !st.done) {
@@ -220,7 +346,7 @@ void OverviewPage::rebuildGettingStarted(const std::vector<spn::ui::GettingStart
 void OverviewPage::layoutCards() {
     // From the width of the page, not of the card host: the host can be held wide by the minimum width
     // of the cards of the current columns (a larger font), which would then never let it wrap.
-    const int available = this->width() - 4 * spn::ui::tokens::kSpaceLg;
+    const int available = std::min(this->width(), spn::ui::tokens::kMaxContentWidth) - 4 * spn::ui::tokens::kSpaceLg;
     // As many columns as fit, but not more than there are cards: a row of few cards fills the width.
     const int columns = std::max(1, std::min(available / kCardMinWidth, static_cast<int>(cards_.size())));
     if (columns == columns_ && cardGrid_->count() == static_cast<int>(cards_.size())) return;
@@ -258,10 +384,10 @@ void OverviewPage::runAction(int index) {
     entry.action = actions[static_cast<size_t>(index)].action;
     spn::ui::TrayHooks hooks;
     hooks.quit = [] { QApplication::quit(); };  // "Restart interface" starts a new one, then this one ends
+    hooks.showLog = [this] { showLog(); };
     std::string err;
     const bool ok = spn::ui::performTrayAction(entry, *ctx_.runner, hooks, &err);
-    actionMsg_->setText(ok ? QString() : qs8(err));
-    actionMsg_->setVisible(!ok);
+    showMessage(ok ? std::string() : err);
 }
 
 bool OverviewPage::eventFilter(QObject *watched, QEvent *e) {

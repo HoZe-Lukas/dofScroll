@@ -25,6 +25,7 @@
 #include "key_combo.hpp"
 #include "platform/fs.hpp"
 #include "qt_action_runner.hpp"
+#include "ui/model/ui_links.hpp"
 #include "ui_i18n.hpp"
 #include "unsaved_prompt.hpp"
 
@@ -57,7 +58,17 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     addNote(T("A button mode is a named button behavior. Pick it for any button on the Profiles page; the same "
               "button mode can be used on several buttons."));
     addNote(T("A button mode can press a key or click. Only use button modes from trusted sources. An action that is "
-              "the same everywhere and always is better set in the vendor driver (see docs/modes.md)."));
+              "the same everywhere and always is better set in the vendor driver (see the documentation)."));
+    {
+        auto *docs = new QPushButton(T("Documentation"), this);
+        docs->setObjectName(QStringLiteral("documentation"));
+        docs->setToolTip(T("Open the documentation of the interface in your browser"));
+        connect(docs, &QPushButton::clicked, this, [this] {
+            std::string err;
+            if (ctx_.runner) spn::ui::openDocs(*ctx_.runner, "modes.md", &err);
+        });
+        root->addWidget(docs, 0, Qt::AlignLeft);
+    }
 
     auto *row = new QHBoxLayout;
     auto *split = new QSplitter(Qt::Horizontal, this);

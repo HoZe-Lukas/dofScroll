@@ -637,6 +637,8 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
     env.buttonModes = &buttonModes;
     env.modeIds = offered;
     env.strings = ctx_.strings;
+    // kMaxButtons: the device is not known, so there is no real count to name
+    env.deviceButtons = ctx_.settings->buttonLimit() < int(spn::kMaxButtons) ? ctx_.settings->buttonLimit() : 0;
     env.resetText = section == 0 ? T("Unbind") : T("Inherit");
     env.resetTip = section == 0 ? T("Remove this binding")
                                 : T("Remove this profile's own binding and use the inherited one");

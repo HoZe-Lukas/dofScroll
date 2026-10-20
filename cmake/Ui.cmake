@@ -46,6 +46,8 @@ if(DOFSCROLL_UI)
     src/ui/qt/pages/channels_page.hpp
     src/ui/qt/pages/general_page.cpp
     src/ui/qt/pages/general_page.hpp
+    src/ui/qt/pages/log_dialog.cpp
+    src/ui/qt/pages/log_dialog.hpp
     src/ui/qt/button_row.cpp
     src/ui/qt/button_row.hpp
     src/ui/qt/key_combo.hpp

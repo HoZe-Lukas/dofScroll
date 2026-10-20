@@ -20,6 +20,7 @@
 #include "platform/platform.hpp"
 #include "ui/model/release_keys.hpp"
 #include "ui/model/restart_plan.hpp"
+#include "ui/model/ui_links.hpp"
 #include "ui_i18n.hpp"
 
 bool QtActionRunner::openPath(const std::string &path, std::string *err) {
@@ -30,6 +31,18 @@ bool QtActionRunner::openPath(const std::string &path, std::string *err) {
     }
     if (!QDesktopServices::openUrl(QUrl::fromLocalFile(p))) {
         if (err) *err = T("No application could open %1").arg(p).toStdString();
+        return false;
+    }
+    return true;
+}
+
+bool QtActionRunner::openUrl(const std::string &url, std::string *err) {
+    if (!spn::ui::isOpenableUrl(url)) {
+        if (err) *err = T("Only https addresses are opened").toStdString();
+        return false;
+    }
+    if (!QDesktopServices::openUrl(QUrl(QString::fromStdString(url), QUrl::StrictMode))) {
+        if (err) *err = T("No application could open %1").arg(QString::fromStdString(url)).toStdString();
         return false;
     }
     return true;

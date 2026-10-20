@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 
+#include "mode_request.hpp"
 #include "testutil.hpp"
 #include "ui/model/overview_model.hpp"
 
@@ -83,11 +84,102 @@ static void testStatusAndActions() {
     assert(d.infoLine == "Program: firefox  |  Device: SpaceMouse Pro" && d.warningLine.empty());
 
     const std::vector<OverviewAction> a = overviewActions();
-    assert(a.size() == 3);
-    assert(a[0].id == "release_keys" && a[0].action == TrayAction::ReleaseAllKeys);
-    assert(a[1].id == "restart_daemon" && a[1].action == TrayAction::RestartDaemon);
-    assert(a[2].id == "restart_interface" && a[2].action == TrayAction::RestartInterface);
+    assert(a.size() == 4);
+    assert(a[0].id == "open_log" && a[0].action == TrayAction::OpenLog);
+    assert(a[1].id == "release_keys" && a[1].action == TrayAction::ReleaseAllKeys);
+    assert(a[2].id == "restart_daemon" && a[2].action == TrayAction::RestartDaemon);
+    assert(a[3].id == "restart_interface" && a[3].action == TrayAction::RestartInterface);
     for (const OverviewAction &x : a) assert(!x.label.empty());
+    // the open_log action runs the log hook of the view
+    int shown = 0;
+    TrayHooks hooks;
+    hooks.showLog = [&shown] { ++shown; };
+    RecordingActionRunner runner;
+    TrayEntry log;
+    log.action = a[0].action;
+    std::string err;
+    assert(performTrayAction(log, runner, hooks, &err) && shown == 1 && runner.calls.empty());
+}
+
+static void testTasks() {
+    const std::vector<OverviewTask> t = overviewTasks();
+    assert(t.size() == 3);
+    assert(t[0].id == "tune" && t[0].page == "channels");
+    assert(t[1].id == "axes" && t[1].page == "axes");
+    assert(t[2].id == "modes" && t[2].page == "modes");
+    for (const OverviewTask &x : t) assert(!x.label.empty() && !x.tip.empty());
+}
+
+static void testButtonOverrides() {
+    IdentityStrings id;
+    // button overrides are settings like the others: named in the summary, all of them in the details
+    SettingsModel m = loadModel("[global]\n\n[app:blender]\nMODE = timeline\nBUTTON_1 = key:space\nBUTTON_2 = key:enter\n"
+                                "BUTTON_3 = nav\nBUTTON_4 = key:tab\n");
+    StatusModel st;
+    const OverviewData d = buildOverview(m, st, id);
+    assert(d.profiles.size() == 1);
+    const OverviewProfile &p = d.profiles[0];
+    assert(p.overrides.size() == 4 && p.overrides[0] == "BUTTON_1 = key:space");
+    assert(p.summary == "Mode: timeline, BUTTON_1 = key:space, BUTTON_2 = key:enter, BUTTON_3 = nav, +1 more");
+    assert(p.details == "Mode: timeline\nBUTTON_1 = key:space\nBUTTON_2 = key:enter\nBUTTON_3 = nav\nBUTTON_4 = key:tab");
+    OverviewProfile none;
+    assert(profileDetails(none, id) == "Uses the default settings");
+}
+
+static void testFilterProfiles() {
+    IdentityStrings id;
+    SettingsModel m = loadModel(
+        "[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\nBUTTON_1 = key:space\n\n"
+        "[app:Blender]\nENABLED = 0\n");
+    StatusModel st;
+    const OverviewData d = buildOverview(m, st, id);
+    assert(filterOverviewProfiles(d, "").size() == 3);
+    assert(filterOverviewProfiles(d, "   ").size() == 3);
+    assert((filterOverviewProfiles(d, "BLENDER") == std::vector<size_t>{2}));      // ASCII case folded
+    assert((filterOverviewProfiles(d, "timeline") == std::vector<size_t>{1}));     // mode
+    assert((filterOverviewProfiles(d, "button_1 space") == std::vector<size_t>{1}));  // two words, any field
+    assert((filterOverviewProfiles(d, "sens") == std::vector<size_t>{0}));         // setting key
+    assert((filterOverviewProfiles(d, "device") == std::vector<size_t>{0}));       // kind
+    assert((filterOverviewProfiles(d, "program").size() == 2));
+    assert(filterOverviewProfiles(d, "nothing like it").empty());
+    assert(filterOverviewProfiles(d, "firefox blender").empty());  // every word has to match
+}
+
+static void testModeSwitch() {
+    IdentityStrings id;
+    SettingsModel m = loadModel("[global]\n");
+    StatusModel st;
+    const ModeSet ms = loadModes("", nullptr);  // built-in modes
+    OverviewData d = buildOverview(m, st, id, &ms);
+    assert(!d.modeChoices.empty() && d.activeMode == "normal");
+    int active = 0;
+    for (const auto &e : d.modeChoices) active += e.active;
+    assert(active == 1);
+    assert(buildOverview(m, st, id).modeChoices.empty());  // no modes given: nothing to switch to
+    // the running daemon decides which mode is marked
+    st.update("profile=global\ndevice=x\nmode=timeline\nenabled=1\npaused=0\ndevices_seen=1\nupdated=100\n", true, 100);
+    d = buildOverview(m, st, id, &ms);
+    assert(d.activeMode == "timeline");
+    for (const auto &e : d.modeChoices) assert(e.active == (e.id == "timeline"));
+    // a stale status is no running daemon: back to the default mode
+    st.update("profile=global\nmode=timeline\nenabled=1\nupdated=100\n", true, 500);
+    assert(buildOverview(m, st, id, &ms).activeMode == "normal");
+
+    // picking a mode writes the request and asks for a reload, like the tray
+    const std::string dir = tu::makeTempDir("dofscroll-overview-run");
+    RecordingActionRunner runner;
+    std::string err;
+    assert(requestActiveMode(dir, runner, "timeline", &err));
+    assert(runner.count(RecordingActionRunner::Kind::RequestReload) == 1);
+    assert(spn::fs::pathExists(spn::modeRequestPath(dir)));
+    // an invalid id or a missing runtime directory is refused before anything else happens
+    RecordingActionRunner runner2;
+    assert(!requestActiveMode(dir, runner2, "bad id!", &err) && !err.empty() && runner2.calls.empty());
+    assert(!requestActiveMode("", runner2, "timeline", &err) && runner2.calls.empty());
+    // a failing reload is reported
+    RecordingActionRunner failing;
+    failing.result = false;
+    assert(!requestActiveMode(dir, failing, "timeline", &err) && err == "failed");
 }
 
 static void testGettingStarted() {
@@ -98,13 +190,20 @@ static void testGettingStarted() {
     std::vector<GettingStartedStep> steps = gettingStartedSteps(d, st, id);
     assert(steps.size() == 3 && steps[0].id == "device" && steps[1].id == "axes" && steps[2].id == "profile");
     assert(!steps[0].done && !steps[2].done && showGettingStarted(steps));
-    assert(steps[1].page == "axes" && steps[2].page == "profiles" && steps[0].page.empty());
+    // the device step links to the Axes page (it shows what the daemon sees) and says why it is open
+    assert(steps[1].page == "axes" && steps[2].page == "profiles" && steps[0].page == "axes");
+    assert(!steps[0].hint.empty() && steps[1].hint.empty() && steps[2].hint.empty());
     for (const GettingStartedStep &x : steps) assert(!x.text.empty());
     // the daemon runs and sees a device
     st.update("profile=global\ndevice=Test Mouse\nmode=normal\nenabled=1\npaused=0\ndevices_seen=1\nupdated=100\n", true, 100);
     d = buildOverview(empty, st, id);
     steps = gettingStartedSteps(d, st, id);
     assert(steps[0].done && !steps[2].done && showGettingStarted(steps));
+    assert(steps[0].hint.empty());  // the daemon runs: nothing to hint
+    // the axes step is done once the assistant was applied
+    assert(!steps[1].done);
+    steps = gettingStartedSteps(d, st, id, true);
+    assert(steps[1].done && !steps[2].done && showGettingStarted(steps));
     // a profile exists: the guidance goes away (the axes step is advice, not a condition)
     SettingsModel one = loadModel("[global]\n\n[app:firefox]\n");
     d = buildOverview(one, st, id);
@@ -119,6 +218,10 @@ static void testGettingStarted() {
 
 int main() {
     testGettingStarted();
+    testTasks();
+    testButtonOverrides();
+    testFilterProfiles();
+    testModeSwitch();
     testSummary();
     testProfilesAndCounts();
     testStatusAndActions();

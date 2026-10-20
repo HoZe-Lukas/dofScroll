@@ -24,6 +24,7 @@
 #include "config.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/suspend_heartbeat.hpp"
+#include "ui/model/ui_progress.hpp"
 #include "ui_i18n.hpp"
 
 using namespace spn;
@@ -334,6 +335,10 @@ void AxesPage::applyWizard() {
     }
     w.reset();
     stack_->setCurrentIndex(0);
+    {  // the Overview's "Getting started" list counts the axes step as done
+        std::string ignored;
+        spn::ui::markAxisAssistantApplied(spn::ui::uiProgressPath(ctx_.configPath), &ignored);
+    }
     // The live page shows the outcome; a reload failure is reported but the file is saved.
     savedNote_ = r.reloaded ? T("Axis mixes saved to [global].")
                             : T("Axis mixes saved to [global]. %1").arg(qs(r.error));

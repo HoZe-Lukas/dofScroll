@@ -26,12 +26,15 @@
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWheelEvent>
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <vector>
 
 #include "ui/model/channels_page_model.hpp"
 #include "ui/model/curve_preview.hpp"
+#include "ui/model/design_tokens.hpp"
+#include "ui/model/ui_filter.hpp"
 #include "ui_i18n.hpp"
 
 namespace {
@@ -135,13 +138,25 @@ public:
         auto *scroll = new QScrollArea(this);
         scroll->setWidgetResizable(true);
         scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setAlignment(Qt::AlignHCenter | Qt::AlignTop);  // a very wide window: the content stays centered
         guard_ = new WheelGuard(scroll->verticalScrollBar(), this);
         auto *content = new QWidget;
+        content->setMaximumWidth(spn::ui::tokens::kMaxContentWidth);
         auto *col = new QVBoxLayout(content);
         auto *intro = new QLabel(T("These settings apply to every mode and profile. Changes are saved "
                                    "immediately and the daemon reloads them."));
         intro->setWordWrap(true);
         col->addWidget(intro);
+        filter_ = new QLineEdit;
+        filter_->setClearButtonEnabled(true);
+        filter_->setPlaceholderText(T("Filter settings by name, help text or config key"));
+        filter_->setAccessibleName(T("Filter settings"));
+        QObject::connect(filter_, &QLineEdit::textChanged, this, [this] { applyFilter(); });
+        col->addWidget(filter_);
+        noMatch_ = new QLabel(T("No setting matches the filter."));
+        noMatch_->setForegroundRole(QPalette::PlaceholderText);
+        noMatch_->setVisible(false);
+        col->addWidget(noMatch_);
         for (const SettingsModel::Group &g : spn::ui::channelPageGroups()) col->addWidget(buildGroup(g));
         col->addStretch(1);
         scroll->setWidget(content);
@@ -282,7 +297,8 @@ private:
     }
     // Label, editor (made with the helper label it reports errors to) and the helper text below it.
     template <class Make>
-    void spinRow(QGridLayout *grid, int *row, const QString &label, const QString &help, Make make) {
+    void spinRow(QGridLayout *grid, int *row, const std::string &key, const QString &label, const QString &help,
+                 Make make) {
         QLabel *hl = new QLabel(help);
         QWidget *editor = make(hl);
         auto *l = new QLabel(label);
@@ -292,12 +308,46 @@ private:
         hl->setWordWrap(true);
         hl->setForegroundRole(QPalette::PlaceholderText);
         grid->addWidget(hl, *row + 1, 1);
-        editor->setToolTip(help);
+        registerRow(key, label, help, {l, editor, hl});
         *row += 2;
+    }
+
+    // One setting row for the filter box and the hints: every widget of the row gets the help text
+    // and the config key as tooltip, the editors also as accessible description.
+    void registerRow(const std::string &key, const QString &label, const QString &help, std::vector<QWidget *> widgets) {
+        const spn::ui::IdentityStrings fallback;
+        const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
+        const QString tip = qs8(spn::ui::helpWithKey(help.toUtf8().toStdString(), key, strings));
+        for (QWidget *w : widgets) {
+            w->setToolTip(tip);
+            if (!qobject_cast<QLabel *>(w)) w->setAccessibleDescription(tip);
+        }
+        FilterRow r;
+        r.widgets = std::move(widgets);
+        r.fields = {label.toUtf8().toStdString(), help.toUtf8().toStdString(), key, currentTitle_};
+        r.group = currentBox_;
+        rows_.push_back(std::move(r));
+    }
+
+    // Shows the rows that match the filter box; a group without a matching row is hidden with its
+    // reset button.
+    void applyFilter() {
+        const std::string text = filter_->text().toUtf8().toStdString();
+        std::vector<QGroupBox *> shown;
+        for (const FilterRow &r : rows_) {
+            const bool match = spn::ui::matchesFilter(text, r.fields);
+            for (QWidget *w : r.widgets) w->setVisible(match);
+            if (match && std::find(shown.begin(), shown.end(), r.group) == shown.end()) shown.push_back(r.group);
+        }
+        for (QGroupBox *g : groups_) g->setVisible(std::find(shown.begin(), shown.end(), g) != shown.end());
+        noMatch_->setVisible(shown.empty());
     }
 
     QGroupBox *buildGroup(const SettingsModel::Group &g) {
         auto *box = new QGroupBox(T(g.title.c_str()));
+        currentBox_ = box;
+        currentTitle_ = g.title;
+        groups_.push_back(box);
         auto *grid = new QGridLayout(box);
         grid->setColumnStretch(1, 1);
         int row = 0;
@@ -310,7 +360,7 @@ private:
                 const QString help = T(kt.help);
                 const std::string suffix = kt.suffix;
                 if (suffix == "MIX") {
-                    spinRow(grid, &row, T(kt.label), help, [&](QLabel *hl) -> QWidget * {
+                    spinRow(grid, &row, key, T(kt.label), help, [&](QLabel *hl) -> QWidget * {
                         auto *e = new QLineEdit;
                         QObject::connect(e, &QLineEdit::editingFinished, this, [this, e, key, hl, help] {
                             if (apply(key, e->text().toUtf8().toStdString(), hl, help)) refreshAll();
@@ -322,13 +372,13 @@ private:
                         return e;
                     });
                 } else if (suffix == "SENS") {
-                    spinRow(grid, &row, T(kt.label), help,
+                    spinRow(grid, &row, key, T(kt.label), help,
                             [&](QLabel *hl) -> QWidget * { return intSpin(key, 0, 255, help, hl); });
                 } else if (suffix == "DEADZONE") {
-                    spinRow(grid, &row, T(kt.label), help,
+                    spinRow(grid, &row, key, T(kt.label), help,
                             [&](QLabel *hl) -> QWidget * { return intSpin(key, 0, 500, help, hl); });
                 } else {
-                    spinRow(grid, &row, T(kt.label), help,
+                    spinRow(grid, &row, key, T(kt.label), help,
                             [&](QLabel *hl) -> QWidget * { return dblSpin(key, 0, 500, 1, 1, help, hl); });
                 }
             }
@@ -338,15 +388,15 @@ private:
         } else {
             const QString stepHelp = T("Push strength at which a step: channel action taps its key once "
                                        "(steps per second after sensitivity)");
-            spinRow(grid, &row, T("Step trigger"), stepHelp,
+            spinRow(grid, &row, "STEP_TRIGGER", T("Step trigger"), stepHelp,
                     [&](QLabel *hl) -> QWidget * { return dblSpin("STEP_TRIGGER", 0.5, 10000, 1, 1, stepHelp, hl); });
             const QString tickHelp = T("How many times per second the daemon generates events (30..1000)");
-            spinRow(grid, &row, T("Tick rate (Hz)"), tickHelp,
+            spinRow(grid, &row, "TICK_HZ", T("Tick rate (Hz)"), tickHelp,
                     [&](QLabel *hl) -> QWidget * { return intSpin("TICK_HZ", 30, 1000, tickHelp, hl); });
 #if !defined(_WIN32) && !defined(__APPLE__)  // X11/uinput exist on Linux only (Windows: SendInput, macOS: CGEvent)
             const QString beHelp = T("auto: Wayland -> uinput, otherwise X11 (with fallback). Takes effect "
                                      "after the daemon is restarted.");
-            spinRow(grid, &row, T("Output backend"), beHelp, [&](QLabel *hl) -> QWidget * {
+            spinRow(grid, &row, "BACKEND", T("Output backend"), beHelp, [&](QLabel *hl) -> QWidget * {
                 auto *c = guarded(new QComboBox);
                 for (const char *id : {"auto", "x11", "uinput"}) c->addItem(QString::fromLatin1(id), QString::fromLatin1(id));
                 QObject::connect(c, QOverload<int>::of(&QComboBox::activated), this, [this, c, hl, beHelp](int) {
@@ -382,6 +432,7 @@ private:
             cb->setChecked(number(key) < 0);
         });
         grid->addWidget(cb, *row, 0, 1, 2);
+        registerRow(key, T("Invert direction"), help, {cb});
         *row += 1;
     }
 
@@ -427,6 +478,7 @@ private:
         expLabel->setWordWrap(true);
         expLabel->setForegroundRole(QPalette::PlaceholderText);
         grid->addWidget(expLabel, *row + 1, 1);
+        registerRow(key, T("Curve (exponent)"), expHelp, {l, pair, slider, spin, expLabel});
         *row += 2;
 
         auto *pts = new QLineEdit;
@@ -451,6 +503,7 @@ private:
         ptsLabel->setWordWrap(true);
         ptsLabel->setForegroundRole(QPalette::PlaceholderText);
         grid->addWidget(ptsLabel, *row + 1, 1);
+        registerRow(key, T("Curve (points)"), ptsHelp, {pl2, pts, ptsLabel});
         *row += 2;
 
         const std::string gid = groupId;
@@ -475,6 +528,7 @@ private:
 
         auto *preview = new CurveWidget(this);
         grid->addWidget(preview, *row, 0, 1, 2);
+        rows_.back().widgets.push_back(preview);  // the preview is shown with the points row
         *row += 1;
         previews_.emplace_back(groupId, preview);
     }
@@ -505,6 +559,9 @@ private:
         lat->setWordWrap(true);
         lat->setForegroundRole(QPalette::PlaceholderText);
         grid->addWidget(lat, *row + 1, 1);
+        std::vector<QWidget *> latWidgets = {l, box, lat};
+        for (QCheckBox *cb : *boxes) latWidgets.push_back(cb);
+        registerRow("ZOOM_LATERAL", T("Zoom must dominate against"), latHelp, latWidgets);
         *row += 2;
         refreshers_.push_back([this, boxes] {
             const unsigned mask = spn::ui::lateralMask(ctx_.settings->effective(0));
@@ -515,15 +572,26 @@ private:
         });
 
         const QString enterHelp = T("How long the twist must dominate before zoom engages");
-        spinRow(grid, row, T("Entry time (ms)"), enterHelp,
+        spinRow(grid, row, "ZOOM_ENTER_MS", T("Entry time (ms)"), enterHelp,
                 [&](QLabel *hl) -> QWidget * { return intSpin("ZOOM_ENTER_MS", 0, 1000, enterHelp, hl); });
         const QString exitHelp = T("Hysteresis: zoom only ends once a lateral axis is stronger by this factor");
-        spinRow(grid, row, T("Exit ratio"), exitHelp,
+        spinRow(grid, row, "ZOOM_EXIT_RATIO", T("Exit ratio"), exitHelp,
                 [&](QLabel *hl) -> QWidget * { return dblSpin("ZOOM_EXIT_RATIO", 1.0, 10.0, 0.05, 2, exitHelp, hl); });
     }
 
+    struct FilterRow {
+        std::vector<QWidget *> widgets;
+        std::vector<std::string> fields;  // label, help, config key, group title
+        QGroupBox *group = nullptr;
+    };
     UiContext ctx_;
     WheelGuard *guard_ = nullptr;
+    QLineEdit *filter_ = nullptr;
+    QLabel *noMatch_ = nullptr;
+    std::vector<FilterRow> rows_;
+    std::vector<QGroupBox *> groups_;
+    QGroupBox *currentBox_ = nullptr;  // group being built
+    std::string currentTitle_;
     QLabel *message_ = nullptr;
     QTimer saveTimer_;
     std::vector<std::function<void()>> refreshers_;

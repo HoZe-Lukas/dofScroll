@@ -12,6 +12,7 @@
 class QtActionRunner : public spn::ui::ActionRunner {
 public:
     bool openPath(const std::string &path, std::string *err) override;
+    bool openUrl(const std::string &url, std::string *err) override;
     bool setAutostart(bool enable, std::string *err) override;
     bool requestReload(std::string *err) override;
     bool releaseKeys(std::string *err) override;

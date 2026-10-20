@@ -7,6 +7,7 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMetaObject>
 #include <QProxyStyle>
 #include <QScreen>
 #include <QStackedWidget>
@@ -94,6 +95,11 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     if (auto *overview = qobject_cast<OverviewPage *>(overviewPage_)) {
         connect(overview, &OverviewPage::openProfile, this, [this](int section) { openOverviewProfile(section); });
         connect(overview, &OverviewPage::openPage, this, [this](const QString &id) { showPage(id); });
+        // "New profile for the running program": the Profiles page opens its running-program picker.
+        connect(overview, &OverviewPage::newProgramProfile, this, [this] {
+            if (!showPage(QStringLiteral("profiles")) || !profilesPage_) return;
+            QMetaObject::invokeMethod(profilesPage_, "addApplication", Qt::QueuedConnection);
+        });
     }
     setCentralWidget(central);
 
