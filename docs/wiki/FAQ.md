@@ -27,7 +27,7 @@ No. The daemon and tray run as your user in systemd user units. Only enabling `s
 The daemon has a stale-input watchdog and a safety net that releases held keys and buttons when the device is quiet. If something still hangs: tray menu "Release all keys" (both trays), or `dofscroll --release-keys` in a terminal, or restart the service. See [Troubleshooting](Troubleshooting).
 
 **What happened to the GTK tray?**
-It was removed in 0.1.0-beta.3: the Qt interface (`dofscroll-ui`) is the only tray and settings window on Linux, Windows and macOS. A package upgrade moves an enabled `dofscroll-tray.service` to `dofscroll-ui.service`. See [User interface](User-interface).
+It was removed in 0.1.0: the Qt interface (`dofscroll-ui`) is the only tray and settings window on Linux, Windows and macOS. A package upgrade moves an enabled `dofscroll-tray.service` to `dofscroll-ui.service`. See [User interface](User-interface).
 
 **Which devices are supported?**
 On Linux, models `spacenavd` supports. Factory button counts are known for the six models on [Buttons](Buttons); only Pro and Compact are tested.

@@ -6,7 +6,7 @@ dofscroll turns a 6DoF 3D mouse such as the 3Dconnexion SpaceMouse into smooth s
 
 dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch or toggle joystick modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [Buttons](Buttons).
 
-**Status: pre-release (0.1.0-beta.1).** Only one setup has been verified on real hardware. Everything else is built and unit-tested in CI but has not been run on a device.
+**Status: version 0.1.0 (a pre-release in the GitHub sense).** Only one setup has been verified on real hardware. Everything else is built and unit-tested in CI but has not been run on a device.
 
 ## Tested on
 

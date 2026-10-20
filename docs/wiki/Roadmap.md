@@ -21,7 +21,7 @@ Every user-visible feature must work on Linux, Windows and macOS. A feature is "
 - CMake build, CPack packages (RPM, DEB, TGZ), CI with sanitizers, cppcheck, secret scan, release workflow
 - Security review report and first fixes
 - Qt6 interface `dofscroll-ui`: Channels, General, Axes, Modes and Profiles pages, navigation, running-program picker, tray, start at login
-- Linux packages include the Qt interface when Qt6 is available at build time (the GTK tray was removed in 0.1.0-beta.3)
+- Linux packages include the Qt interface when Qt6 is available at build time (the GTK tray was removed in 0.1.0)
 - Unsigned Windows installer and ZIP and macOS DMG built by CI
 - Stuck-key safety net, `--release-keys`, and pausing output while the own session is not the active one
 
