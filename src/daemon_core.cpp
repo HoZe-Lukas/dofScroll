@@ -222,6 +222,7 @@ DaemonCore::FileStamp DaemonCore::statFile(const std::string &path) {
 void DaemonCore::loadConfig() {
     mode_override_.clear();  // a reload drops the button-selected mode
     toggled_mode_.clear();
+    hold_active_ = false;
     if (runner_) runner_->clearToggles();  // ... and the toggled navigation mode
     // Take the stamp before reading: if the file changes while reading, it is
     // noticed at the next check.
@@ -241,6 +242,7 @@ void DaemonCore::loadConfig() {
 void DaemonCore::loadModeSet() {
     mode_override_.clear();
     toggled_mode_.clear();
+    hold_active_ = false;
     if (runner_) runner_->clearToggles();
     modes_stamp_ = modesStamp(modes_dir_);  // before reading, like the config stamp
     std::vector<std::string> warnings;
@@ -249,11 +251,22 @@ void DaemonCore::loadModeSet() {
         std::cerr << LOG << "Modes: " << sanitizeForLog(w, 512) << std::endl;
 }
 
+void DaemonCore::loadButtonModeSet() {
+    button_modes_stamp_ = buttonModesStamp(button_modes_dir_);  // before reading, like the other stamps
+    std::vector<std::string> warnings;
+    button_modes_ = loadButtonModes(button_modes_dir_, &warnings);
+    warned_button_modes_.clear();
+    for (const std::string &w : warnings)
+        std::cerr << LOG << "Button modes: " << sanitizeForLog(w, 512) << std::endl;
+}
+
 bool DaemonCore::initialize() {
     config_path_ = d_.configPath ? d_.configPath() : d_.paths.configDir + "/dofscroll.conf";
     loadConfig();
     modes_dir_ = d_.modesDir ? d_.modesDir() : d_.paths.configDir + "/modes";
     loadModeSet();
+    button_modes_dir_ = d_.buttonModesDir ? d_.buttonModesDir() : d_.paths.configDir + "/buttons";
+    loadButtonModeSet();
     clearModeRequest(d_.paths.runtimeDir);  // a request left over from before this start is stale
     // First resolution without device/program, so BACKEND/TICK_HZ from [global] are
     // known at startup.
@@ -318,10 +331,19 @@ bool DaemonCore::selectMode(Settings &next, bool force) {
             std::cerr << LOG << "Mode " << sanitizeForLog(m->id) << ": " << sanitizeForLog(err) << std::endl;
     }
     next = profiles_.resolve(device_, wm_class_, &m->overrides);
+    // buttonmode:<id> references are replaced by the action of that button mode; at runtime only,
+    // the config and the mode files keep the reference.
+    std::set<std::string> missing;
+    expandSettings(next, button_modes_, &missing);
+    const ModeDef active = expandMode(*m, button_modes_, &missing);
+    for (const std::string &id : missing)
+        if (warned_button_modes_.insert(id).second)
+            std::cerr << LOG << "WARNING: unknown button mode '" << sanitizeForLog(id)
+                      << "', the button does nothing" << std::endl;
     // The very first activation also applies "normal" (a file mode may override the built-in).
     if (!force && mode_applied_ && runner_->mode().id == m->id) return false;
     mode_applied_ = true;
-    runner_->setMode(*m);
+    runner_->setMode(active);
     std::cerr << LOG << "Mode: " << sanitizeForLog(m->id)
               << (runner_->legacyPath() ? " (default channels)" : "") << std::endl;
     return true;
@@ -373,8 +395,29 @@ void DaemonCore::checkButtons() {
                   << " does not exist on this device" << std::endl;
 }
 
-// Button-triggered mode switch: "next" cycles through all modes in alphabetical id order.
+// Button-triggered mode switch: "next" / "prev" cycle through all modes in alphabetical id order.
 void DaemonCore::switchMode(const std::string &target) {
+    if (target == "release") {  // the button of a hold:mode: was released
+        endHold(true);
+        return;
+    }
+    if (target.compare(0, 5, "hold:") == 0) {
+        // The mode is effective while the button is held. What was in effect before the press (a
+        // runtime override, or none = the profile's mode) is restored on release.
+        const std::string hid = target.substr(5);
+        if (!modes_.find(hid)) return;
+        hold_prev_override_ = mode_override_;
+        hold_prev_toggled_ = toggled_mode_;
+        hold_active_ = true;
+        hold_id_ = hid;
+        mode_override_ = hid;
+        toggled_mode_.clear();
+        std::cerr << LOG << "Mode held: " << sanitizeForLog(hid) << std::endl;
+        applyProfile(true);
+        tick_period_ = periodFor(settings_.tick_hz);
+        return;
+    }
+    hold_active_ = false;  // any other switch ends a hold without restoring anything
     std::string id = target;
     if (target.compare(0, 7, "toggle:") == 0) {
         // toggle:mode:<id>: the second press (the switch is in effect and <id> is the effective
@@ -389,12 +432,18 @@ void DaemonCore::switchMode(const std::string &target) {
             tick_period_ = periodFor(settings_.tick_hz);
             return;
         }
-    } else if (target == "next") {
+    } else if (target == "next" || target == "prev") {
         std::vector<std::string> ids;
         for (const ModeDef &m : modes_.modes) ids.push_back(m.id);
         std::sort(ids.begin(), ids.end());
-        auto it = std::upper_bound(ids.begin(), ids.end(), runner_->mode().id);
-        id = it == ids.end() ? ids.front() : *it;
+        if (target == "next") {
+            auto it = std::upper_bound(ids.begin(), ids.end(), runner_->mode().id);
+            id = it == ids.end() ? ids.front() : *it;
+        } else {
+            // The id before the effective one; wraps from the first to the last.
+            auto it = std::lower_bound(ids.begin(), ids.end(), runner_->mode().id);
+            id = it == ids.begin() ? ids.back() : *(it - 1);
+        }
     }
     if (!modes_.find(id)) return;
     mode_override_ = id;
@@ -404,11 +453,25 @@ void DaemonCore::switchMode(const std::string &target) {
     tick_period_ = periodFor(settings_.tick_hz);
 }
 
+// Ends a hold:mode:. restore: go back to the state from before the press (release of the button,
+// suspend, ...). Does nothing when no hold is active or another switch already took over.
+void DaemonCore::endHold(bool restore) {
+    if (!hold_active_) return;
+    hold_active_ = false;
+    if (!restore || mode_override_ != hold_id_) return;
+    mode_override_ = hold_prev_override_;
+    toggled_mode_ = hold_prev_toggled_;
+    std::cerr << LOG << "Mode hold released" << std::endl;
+    applyProfile(true);
+    tick_period_ = periodFor(settings_.tick_hz);
+}
+
 std::string DaemonCore::toggleState() const {
     std::string t;
     if (runner_->navLatched()) t = "nav";
     if (!mode_override_.empty() && mode_override_ == toggled_mode_)
         t += (t.empty() ? "" : " ") + std::string("mode:") + mode_override_;
+    if (hold_active_ && mode_override_ == hold_id_) t += (t.empty() ? "" : " ") + std::string("hold:") + hold_id_;
     return t;
 }
 
@@ -420,12 +483,14 @@ void DaemonCore::updateProfile(int64_t now_ns) {
         std::cerr << LOG << "Reload requested: reloading config and modes" << std::endl;
         loadConfig();
         loadModeSet();
+        loadButtonModeSet();
         // Runtime mode request of the tray (src/mode_request.hpp): applied like a button switch,
         // after the reload cleared the previous override.
         const std::string req = takeModeRequest(d_.paths.runtimeDir);
         if (!req.empty()) {
             if (modes_.find(req)) {
                 mode_override_ = req;
+                hold_active_ = false;
                 std::cerr << LOG << "Mode requested: " << sanitizeForLog(req) << std::endl;
             } else {
                 std::cerr << LOG << "WARNING: requested mode '" << sanitizeForLog(req)
@@ -454,6 +519,12 @@ void DaemonCore::updateProfile(int64_t now_ns) {
         if (modesStamp(modes_dir_) != modes_stamp_) {
             std::cerr << LOG << "Modes changed, reloading" << std::endl;
             loadModeSet();
+            need_resolve = true;
+            modes_changed = true;
+        }
+        if (buttonModesStamp(button_modes_dir_) != button_modes_stamp_) {
+            std::cerr << LOG << "Button modes changed, reloading" << std::endl;
+            loadButtonModeSet();
             need_resolve = true;
             modes_changed = true;
         }
@@ -595,6 +666,7 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
         raw = RawAxes{};
         buttons = 0;
         if (!prev_idle_) {  // release everything held on entering suspend/disabled
+            endHold(true);  // a held mode must not stay in effect without the button
             runner_->releaseAll();
             runner_->clearToggles();
             output_->releaseAll();

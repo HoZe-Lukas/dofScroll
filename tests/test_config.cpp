@@ -611,6 +611,31 @@ static void testAuditFixes() {
         assert(s.zoom_lateral.size() == 6);
     }
 
+    // BUTTON_<n> = buttonmode:<id>: syntax checked, text kept (lower case), round trip through allKeys
+    {
+        Settings s;
+        assert(applyKey(s, "BUTTON_3", " ButtonMode:Latch-Nav ", &err) && s.buttons[3] == "buttonmode:latch-nav");
+        assert(!applyKey(s, "BUTTON_4", "buttonmode:", &err) && !err.empty());
+        assert(!applyKey(s, "BUTTON_4", "buttonmode:a b", &err));
+        Settings t;
+        for (const KV &kv : allKeys(s)) assert(applyKey(t, kv.first, kv.second, &err));
+        assert(t.buttons[3] == "buttonmode:latch-nav");
+    }
+
+    // STEP_TRIGGER: default, parsing, clamping, round trip through allKeys
+    {
+        Settings s;
+        assert(s.step_trigger == 20.0);
+        assert(applyKey(s, "STEP_TRIGGER", "35.5", &err) && s.step_trigger == 35.5);
+        assert(applyKey(s, "step_trigger", "0", &err) && s.step_trigger == kMinStepTrigger);
+        assert(applyKey(s, "STEP_TRIGGER", "1e9", &err) && s.step_trigger == kMaxStepTrigger);
+        assert(!applyKey(s, "STEP_TRIGGER", "fast", &err) && !err.empty());
+        assert(applyKey(s, "STEP_TRIGGER", "12", &err));
+        Settings t;
+        for (const KV &kv : allKeys(s)) assert(applyKey(t, kv.first, kv.second, &err));
+        assert(t.step_trigger == 12.0);
+    }
+
     // 9: ZOOM_EXIT_RATIO upper bound
     {
         Settings s;

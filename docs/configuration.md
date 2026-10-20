@@ -54,6 +54,7 @@ in the tray.
 | `ZOOM_LATERAL` | `x z rx rz` | Axes the twist must dominate to enter zoom. |
 | `ZOOM_ENTER_MS` | `40` | How long the twist must dominate before zoom latches. |
 | `ZOOM_EXIT_RATIO` | `1.5` | Zoom ends when another axis exceeds the twist by this factor (at least 1.0). |
+| `STEP_TRIGGER` | `20` | Level at which a `step:` channel action (see [modes](modes.md)) fires one key tap, measured in steps per second after the channel's dead zone, curve, smoothing and sensitivity (`deflection * SENS / 20`; 0.5 to 10000). The action re-arms at half of it. Raise it for a firmer push, lower it together with a low `*_SENS`. |
 | `BACKEND` | `auto` | `auto`, `x11` or `uinput`. `auto` picks uinput under Wayland, else X11. If the chosen backend fails, the other is tried. Needs a daemon restart. |
 | `TICK_HZ` | `250` | Tick rate 30 to 1000. Can differ per profile. |
 | `ENABLED` | `1` | `0` switches all output off (scroll, zoom, keys, clicks) and releases held keys. |
@@ -61,7 +62,7 @@ in the tray.
 | `LIVE_FEED` | `1` | `0` disables the live data feed to the UI (axes view, axis assistant); with `1` it only runs while a UI is connected. See `security.md`. |
 | `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | Button that turns X/Y into arrow keys while held. |
 | `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | Older key: button that is passed through as the left mouse button. A click that is the same everywhere is better set in the vendor driver, see [modes.md](modes.md#buttons-and-the-vendor-driver). |
-| `BUTTON_<n>` | none | Action of button `n`, same values as in mode files, see [modes.md](modes.md). |
+| `BUTTON_<n>` | none | Action of button `n`, same values as in mode files, see [modes.md](modes.md). `buttonmode:<id>` uses a named button behavior from `buttons/<id>.conf`, see [button-modes.md](button-modes.md). |
 
 `NAV_BUTTON` and `CLICK_BUTTON` are older keys. They take the raw button index as `spacenavd`
 reports it, and the log shows the index of every pressed button in `--debug` mode. New setups

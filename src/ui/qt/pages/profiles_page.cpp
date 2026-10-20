@@ -24,12 +24,17 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QTreeWidget>
+#include <QTreeWidgetItemIterator>
 #include <QVBoxLayout>
 
 #include "add_app_dialog.hpp"
 #include "add_device_dialog.hpp"
 #include "feed_dir.hpp"
+#include "key_combo.hpp"
 #include "ui/model/binding_editor_model.hpp"
+#include "ui/model/button_choice_model.hpp"
+#include <QStandardItem>
+#include "ui/model/effective_model.hpp"
 #include "ui/model/key_list.hpp"
 #include "ui/model/profile_tree_model.hpp"
 #include "platform_hooks.hpp"
@@ -49,20 +54,6 @@ QLabel *wrapLabel(const QString &text, QWidget *parent = nullptr) {
     return l;
 }
 
-// Key chooser: grouped list, group names are disabled header rows.
-QComboBox *makeKeyCombo(const QString &current, QWidget *parent) {
-    auto *c = new QComboBox(parent);
-    c->setMaxVisibleItems(20);
-    auto *model = qobject_cast<QStandardItemModel *>(c->model());
-    for (const KeyGroup &g : keyGroups()) {
-        c->addItem(T(g.title.c_str()));
-        if (model) model->item(c->count() - 1)->setFlags(Qt::NoItemFlags);
-        for (const std::string &k : g.keys) c->addItem(qs8(k), qs8(k));
-    }
-    const int i = c->findData(current);
-    if (i >= 0) c->setCurrentIndex(i);
-    return c;
-}
 }  // namespace
 
 QWidget *createProfilesPage(const UiContext &ctx) { return new ProfilesPage(ctx); }
@@ -187,6 +178,16 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
     rebuildContent();
 }
 
+bool ProfilesPage::selectSection(size_t section) {
+    for (QTreeWidgetItemIterator it(tree_); *it; ++it) {
+        if ((*it)->data(0, kRoleSection).toInt() == int(section) && (*it)->flags() & Qt::ItemIsSelectable) {
+            tree_->setCurrentItem(*it);  // onSelectionChanged rebuilds the content
+            return true;
+        }
+    }
+    return false;
+}
+
 void ProfilesPage::onSelectionChanged() { rebuildContent(); }
 
 void ProfilesPage::queueRebuild() {
@@ -243,6 +244,7 @@ void ProfilesPage::rebuildContent() {
     }
     if (layout.modeInfo) l->addWidget(buildModeInfo(section));
     if (layout.overridesSection) l->addWidget(buildOverrides(section));
+    if (layout.overridesSection) l->addWidget(buildEffective(section));
     l->addStretch(1);
 
     QWidget *old = scroll_->takeWidget();
@@ -251,11 +253,11 @@ void ProfilesPage::rebuildContent() {
 }
 
 QWidget *ProfilesPage::buildModeSelector(size_t section) {
-    auto *box = new QGroupBox(T("Mode"));
+    auto *box = new QGroupBox(T("Joystick mode"));
     auto *l = new QFormLayout(box);
     auto *combo = new QComboBox(box);
-    combo->setAccessibleName(T("Mode"));
-    combo->setToolTip(T("The mode that applies while this profile is active"));
+    combo->setAccessibleName(T("Joystick mode"));
+    combo->setToolTip(T("The joystick mode (what the axes do) that applies while this profile is active"));
     const std::vector<SettingsModel::ModeOption> opts = ctx_.settings->modeOptions(section);
     for (size_t i = 0; i < opts.size(); ++i) {
         const SettingsModel::ModeOption &o = opts[i];
@@ -265,7 +267,7 @@ QWidget *ProfilesPage::buildModeSelector(size_t section) {
         combo->addItem(text);
     }
     combo->setCurrentIndex(std::max(0, ctx_.settings->selectedModeOption(section)));
-    l->addRow(T("Mode:"), combo);
+    l->addRow(T("Joystick mode:"), combo);
     connect(combo, &QComboBox::activated, this, [this, section](int idx) {
         std::string err;
         bool changed = false;
@@ -286,14 +288,15 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
 
     auto *box = new QGroupBox(T("Button bindings"));
     auto *outer = new QVBoxLayout(box);
-    outer->addWidget(wrapLabel(T("Each button can switch the mode or hold the navigation mode (arrow keys "
-                                 "instead of scrolling).")));
+    outer->addWidget(wrapLabel(T("Each button can use a button mode, switch the mode or hold the navigation mode "
+                                 "(arrow keys instead of scrolling).")));
     auto *grid = new QGridLayout;
     grid->setColumnStretch(2, 1);
     outer->addLayout(grid);
 
     // Modes offered by "Switch to mode": every installed mode (built-in and files).
     const std::vector<std::string> offered = bindingModeIds(loadModes(ctx_.modesDir, nullptr));
+    const ButtonModeSet buttonModes = loadButtonModes(ctx_.buttonModesDir, nullptr);
 
     const bool advanced = !hasAdvancedSection(ctxKind) || advancedOpen_;
     int r = 0;
@@ -310,13 +313,26 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
         }
         auto *kind = new QComboBox;
         kind->setAccessibleName(T("Action of button") + QStringLiteral(" %1").arg(row.number));
-        const std::vector<BindingKindInfo> kinds = bindingKindsFor(ctxKind, advanced);
-        int cur = 0;
-        for (size_t i = 0; i < kinds.size(); ++i) {
-            kind->addItem(T(kinds[i].label), int(kinds[i].kind));
-            if (kinds[i].kind == row.binding.kind) cur = int(i);
+        const std::vector<ButtonChoice> choices = buttonChoices(
+            ctxKind, advanced, buttonModes,
+            row.binding.kind == BindingKind::ButtonMode ? row.binding.arg : std::string(), *ctx_.strings);
+        const int selected = selectedButtonChoice(choices, ctxKind, row);
+        ButtonChoice::Group lastGroup = ButtonChoice::Group::None;
+        for (size_t i = 0; i < choices.size(); ++i) {
+            const ButtonChoice &c = choices[i];
+            if (c.group != lastGroup && c.group != ButtonChoice::Group::None) {
+                // Group header: a disabled entry that cannot be chosen.
+                kind->addItem(c.group == ButtonChoice::Group::ButtonModes ? T("Button modes") : T("Actions"));
+                auto *item = qobject_cast<QStandardItemModel *>(kind->model())->item(kind->count() - 1);
+                item->setFlags(item->flags() & ~(Qt::ItemIsSelectable | Qt::ItemIsEnabled));
+                kind->setItemData(kind->count() - 1, QVariant(), Qt::UserRole);
+            }
+            lastGroup = c.group;
+            kind->addItem(qs8(c.label), int(i));
+            if (!c.tooltip.empty()) kind->setItemData(kind->count() - 1, qs8(c.tooltip), Qt::ToolTipRole);
+            if (int(i) == selected) kind->setCurrentIndex(kind->count() - 1);
         }
-        kind->setCurrentIndex(cur);
+        if (selected < 0) kind->setCurrentIndex(-1);
         grid->addWidget(kind, r, 1);
 
         QWidget *arg = nullptr;
@@ -334,7 +350,8 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
                 queueRebuild();
             });
             arg = kc;
-        } else if (row.binding.kind == BindingKind::Mode || row.binding.kind == BindingKind::ToggleMode) {
+        } else if (row.binding.kind == BindingKind::Mode || row.binding.kind == BindingKind::ToggleMode ||
+                   row.binding.kind == BindingKind::HoldMode) {
             auto *mc = new QComboBox(box);
             mc->setAccessibleName(T("Mode of button") + QStringLiteral(" %1").arg(row.number));
             std::vector<std::string> ids = offered;
@@ -353,13 +370,20 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
             });
             arg = mc;
         }
+        if (!arg && section > 0 && !row.overridden) {
+            // Inherited: say what it is, so the effect of "Default (inherit)" is visible.
+            arg = new QLabel(T("inherited:") + QLatin1Char(' ') + qs8(row.text), box);
+            arg->setForegroundRole(QPalette::PlaceholderText);
+        }
         if (arg) grid->addWidget(arg, r, 2);
 
-        connect(kind, &QComboBox::activated, this, [this, section, row, kind, kinds, offered](int idx) {
-            if (idx < 0 || size_t(idx) >= kinds.size()) return;
-            const Binding b = withKind(row.binding, kinds[size_t(idx)].kind, offered);
+        connect(kind, &QComboBox::activated, this, [this, section, row, kind, choices, offered](int idx) {
+            const QVariant data = kind->itemData(idx);
+            if (!data.isValid()) return;  // a group header
+            const size_t ci = size_t(data.toInt());
+            if (ci >= choices.size()) return;
             std::string err;
-            if (applyBinding(*ctx_.settings, section, row.number, b, &err))
+            if (applyButtonChoice(*ctx_.settings, section, row, choices[ci], offered, &err))
                 setStatus(T("Unsaved changes"));
             else
                 setStatus(qs8(err));
@@ -483,6 +507,43 @@ QWidget *ProfilesPage::buildModeInfo(size_t section) {
         if (!ctx_.settings->editModeFile(section, *ctx_.runner, &err)) setStatus(qs8(err));
     });
     l->addWidget(edit, 0, Qt::AlignLeft);
+    return box;
+}
+
+QWidget *ProfilesPage::buildEffective(size_t section) {
+    auto *box = new QGroupBox(T("Effective values"));
+    auto *outer = new QVBoxLayout(box);
+    outer->addWidget(wrapLabel(T("The value that applies in this profile and where it comes from.")));
+    auto *grid = new QGridLayout;
+    grid->setColumnStretch(2, 1);
+    int row = 0;
+    for (const EffectiveRow &r : effectiveRows(*ctx_.settings, section, *ctx_.strings)) {
+        auto *key = new QLabel(qs8(r.key), box);
+        auto *val = new QLabel(qs8(r.value), box);
+        auto *src = new QLabel(qs8(r.sourceText), box);
+        key->setAccessibleName(qs8(r.key));
+        val->setAccessibleName(qs8(r.key) + QStringLiteral(" = ") + qs8(r.value));
+        src->setAccessibleName(qs8(r.key) + QStringLiteral(": ") + qs8(r.sourceText));
+        grid->addWidget(key, row, 0);
+        grid->addWidget(val, row, 1);
+        grid->addWidget(src, row, 2);
+        if (r.canReset) {
+            auto *reset = new QToolButton(box);
+            reset->setText(T("Reset"));
+            reset->setToolTip(T("Remove the value of this profile and inherit it again"));
+            reset->setAccessibleName(T("Reset") + QLatin1Char(' ') + qs8(r.key));
+            const std::string k = r.key;
+            connect(reset, &QToolButton::clicked, this, [this, section, k] {
+                ctx_.settings->clearOverride(section, k);
+                setStatus(T("Unsaved changes"));
+                updateButtons();
+                queueRebuild();
+            });
+            grid->addWidget(reset, row, 3);
+        }
+        ++row;
+    }
+    outer->addLayout(grid);
     return box;
 }
 

@@ -11,6 +11,7 @@
 #include "config.hpp"
 #include "platform/platform.hpp"
 #include "ui/model/action_runner.hpp"
+#include "ui/model/button_mode_catalog.hpp"
 #include "ui/model/mode_catalog.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/status_model.hpp"
@@ -20,6 +21,7 @@ struct UiContext {
     spn::ui::ActionRunner *runner = nullptr;
     std::string configPath;   // <config dir>/dofscroll.conf
     std::string modesDir;     // <config dir>/modes
+    std::string buttonModesDir;  // <config dir>/buttons
     std::string runtimeDir;   // status, log and mode request; may be empty
     // Reloads the daemon's configuration after an atomic save; defaults to runner->requestReload.
     // Real channel per OS (src/platform/<os>/client_*.cpp): Linux `systemctl --user kill -s HUP
@@ -30,6 +32,7 @@ struct UiContext {
     spn::ui::SettingsModel *settings = nullptr;  // edit through it, then save()
     spn::ui::StatusModel *status = nullptr;      // daemon status, refreshed by the main window
     spn::ui::ModeCatalog *modes = nullptr;       // the modes folder
+    spn::ui::ButtonModeCatalog *buttonModes = nullptr;  // the button modes folder
     const spn::ui::StringProvider *strings = nullptr;
 };
 
@@ -39,6 +42,7 @@ inline UiContext makeUiContext(spn::ui::ActionRunner *runner) {
     c.runner = runner;
     c.configPath = spn::defaultConfigPath();  // as the daemon: includes the legacy-path fallback
     c.modesDir = p.configDir + "/modes";
+    c.buttonModesDir = p.configDir + "/buttons";
     c.runtimeDir = p.runtimeDir;
     if (runner) c.reload = spn::ui::reloadVia(*runner);
     return c;

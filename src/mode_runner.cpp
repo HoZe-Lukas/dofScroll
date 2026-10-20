@@ -22,6 +22,19 @@ int stepOrReset(StepAccumulator &acc, double rate, double dt) {
     return acc.add(rate, dt);
 }
 
+// step: channel action. One tap per push with hysteresis: fires when the rate reaches the trigger on
+// a side while armed (+1: positive, -1: negative), re-arms when it has fallen to half the trigger.
+// The state is the side that fired last. Returns the signed number of taps (-1, 0 or 1).
+int stepFire(int8_t &state, double rate, double trigger) {
+    if (state > 0 && rate <= trigger / 2.0) state = 0;
+    if (state < 0 && rate >= -trigger / 2.0) state = 0;
+    if (state == 0) {
+        if (rate >= trigger) { state = 1; return 1; }
+        if (rate <= -trigger) { state = -1; return -1; }
+    }
+    return 0;
+}
+
 constexpr size_t idx(Key k) { return static_cast<size_t>(k); }
 
 }  // namespace
@@ -38,6 +51,7 @@ void ModeRunner::resetState() {
     acc_v_.reset();
     acc_h_.reset();
     acc_zoom_.reset();
+    step_v_ = step_h_ = step_zoom_ = 0;
     zoom_.reset();
 }
 
@@ -84,7 +98,9 @@ ModeRunner::Wanted ModeRunner::bindings(const Settings &s, uint32_t buttons) con
         case ButtonActionType::Unbound:
         case ButtonActionType::ModeSwitch:
         case ButtonActionType::ToggleNav:
-        case ButtonActionType::ToggleMode: break;  // act on the press edge, see tick()
+        case ButtonActionType::ToggleMode:
+        case ButtonActionType::HoldMode:
+        case ButtonActionType::ButtonMode: break;  // act on the press edge, see tick(); ButtonMode is expanded by the daemon core
         case ButtonActionType::Click: w.mouse |= 1u << 1; break;
         case ButtonActionType::MiddleClick: w.mouse |= 1u << 2; break;
         case ButtonActionType::RightClick: w.mouse |= 1u << 3; break;
@@ -114,7 +130,8 @@ ModeRunner::Wanted ModeRunner::bindings(const Settings &s, uint32_t buttons) con
 
 std::vector<ButtonBinding> ModeRunner::edgeBindings(const Settings &s) const {
     auto isEdge = [](ButtonActionType t) {
-        return t == ButtonActionType::ModeSwitch || t == ButtonActionType::ToggleNav || t == ButtonActionType::ToggleMode;
+        return t == ButtonActionType::ModeSwitch || t == ButtonActionType::ToggleNav || t == ButtonActionType::ToggleMode ||
+               t == ButtonActionType::HoldMode;
     };
     std::vector<ButtonBinding> out;
     for (const ButtonBinding &b : mode_.buttons)
@@ -137,8 +154,35 @@ void ModeRunner::tapKeys(Key neg, Key pos, int n) {
     for (; n < 0; ++n) out_->tapKey(neg);
 }
 
+// Presses the modifiers that are not held yet (in the order written), taps the key and releases
+// only the modifiers pressed here (reverse order). A modifier held by a button or by zoom stays.
+void ModeRunner::tapChord(Key key, const ChordMods &mods) {
+    Key pressed[kMaxChordMods];
+    uint8_t np = 0;
+    for (uint8_t i = 0; i < mods.n; ++i)
+        if (!keys_held_[idx(mods.k[i])]) {
+            out_->setKey(mods.k[i], true);
+            pressed[np++] = mods.k[i];
+        }
+    out_->tapKey(key);
+    while (np > 0) out_->setKey(pressed[--np], false);
+}
+
 void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh,
                       double dt) {
+    // Release of the button that started a hold:mode: (remembered here, the mode that is active
+    // while holding need not bind it). Reported like a switch; the daemon ignores it when the hold
+    // has been ended by another switch.
+    const uint32_t released = prev_buttons_ & ~buttons;
+    if (hold_release_pending_ && switch_request_.empty()) {
+        switch_request_ = "release";
+        hold_release_pending_ = false;
+    }
+    if (hold_button_ > 0 && buttonHeld(released, hold_button_ - 1)) {
+        hold_button_ = 0;
+        if (switch_request_.empty()) switch_request_ = "release";
+        else hold_release_pending_ = true;
+    }
     // Press edges only; nothing to look at (or to parse) while no button went down.
     const uint32_t pressed = buttons & ~prev_buttons_;
     for (const ButtonBinding &b : pressed ? edgeBindings(s) : std::vector<ButtonBinding>()) {
@@ -146,7 +190,12 @@ void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, b
         if (b.type == ButtonActionType::ToggleNav) {
             nav_latched_ = !nav_latched_;
         } else if (switch_request_.empty()) {
-            switch_request_ = b.type == ButtonActionType::ToggleMode ? "toggle:" + b.mode : b.mode;
+            if (b.type == ButtonActionType::HoldMode) {
+                switch_request_ = "hold:" + b.mode;
+                hold_button_ = b.button;
+            } else {
+                switch_request_ = b.type == ButtonActionType::ToggleMode ? "toggle:" + b.mode : b.mode;
+            }
         }
     }
     prev_buttons_ = buttons;
@@ -240,14 +289,26 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
     if (zooming) {
         acc_v_.reset();
         acc_h_.reset();
+        step_v_ = step_h_ = 0;
         nt = acc_zoom_.add(rate_zoom, dt);
     } else {
-        if (tt == ChannelActionType::Zoom || tt == ChannelActionType::Off) acc_zoom_.reset();
-        else nt = stepOrReset(acc_zoom_, rate_zoom, dt);
-        if (tv != ChannelActionType::Off) nv = stepOrReset(acc_v_, rate_v, dt);
-        else acc_v_.reset();
-        if (th != ChannelActionType::Off) nh = stepOrReset(acc_h_, rate_h, dt);
-        else acc_h_.reset();
+        // Channels with a step: action use the armed/fired state instead of the accumulator.
+        auto channel = [&](ChannelActionType t, StepAccumulator &acc, int8_t &step, double rate) {
+            if (t == ChannelActionType::Step) {
+                acc.reset();
+                return stepFire(step, rate, s.step_trigger);
+            }
+            step = 0;
+            if (t == ChannelActionType::Off) {
+                acc.reset();
+                return 0;
+            }
+            return stepOrReset(acc, rate, dt);
+        };
+        // The twist channel does not accumulate for zoom itself (the zoom detection does).
+        nt = channel(tt == ChannelActionType::Zoom ? ChannelActionType::Off : tt, acc_zoom_, step_zoom_, rate_zoom);
+        nv = channel(tv, acc_v_, step_v_, rate_v);
+        nh = channel(th, acc_h_, step_h_, rate_h);
     }
 
     std::bitset<kKeyCount> keys = w.keys;
@@ -270,7 +331,11 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
             if (nav_active) tapKeys(Key::Left, Key::Right, n);
             else out_->wheelH(n);
             break;
-        case ChannelActionType::Keys: tapKeys(a.neg, a.pos, n); break;
+        case ChannelActionType::Step:
+        case ChannelActionType::Keys:
+            for (int i = n; i > 0; --i) tapChord(a.pos, a.posMods);
+            for (int i = n; i < 0; ++i) tapChord(a.neg, a.negMods);
+            break;
         }
     };
     emit(av, tv, nv, 1);

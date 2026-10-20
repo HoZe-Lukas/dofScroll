@@ -11,18 +11,20 @@
 using namespace spn::ui;
 
 static void testGrouping() {
-    const std::vector<NavInput> in = {{"profiles", "Profiles", "profiles"}, {"channels", "Channels", "profiles"},
+    const std::vector<NavInput> in = {{"overview", "Overview", "overview"},
+                                      {"profiles", "Profiles", "profiles"}, {"channels", "Channels", "profiles"},
                                       {"modes", "Modes", "modes"},          {"axes", "Axes", "device"},
                                       {"general", "General", "settings"}};
     std::vector<std::string> problems;
     const std::vector<NavCategory> nav = buildNavigation(in, &problems);
     assert(problems.empty());
-    assert(nav.size() == 4);
-    assert(nav[0].id == "profiles" && nav[1].id == "modes" && nav[2].id == "device" && nav[3].id == "settings");
-    assert(nav[0].pages.size() == 2 && nav[0].pages[0].id == "profiles" && nav[0].pages[1].id == "channels");
-    assert(navPageCount(nav) == 5);
+    assert(nav.size() == 5);
+    assert(nav[0].id == "overview" && nav[1].id == "profiles" && nav[2].id == "modes" && nav[3].id == "device" &&
+           nav[4].id == "settings");
+    assert(nav[1].pages.size() == 2 && nav[1].pages[0].id == "profiles" && nav[1].pages[1].id == "channels");
+    assert(navPageCount(nav) == 6);
     // a single page needs no top tab bar
-    assert(showTabBar(nav[0]) && !showTabBar(nav[1]) && !showTabBar(nav[2]) && !showTabBar(nav[3]));
+    assert(!showTabBar(nav[0]) && showTabBar(nav[1]) && !showTabBar(nav[2]) && !showTabBar(nav[3]) && !showTabBar(nav[4]));
 }
 
 static void testOrderFollowsTheRegistry() {
@@ -40,7 +42,7 @@ static void testProblemsAndEmpty() {
     assert(nav.size() == 1 && nav[0].id == "modes" && navPageCount(nav) == 1);  // x is dropped
     assert(buildNavigation({}).empty());
     // no categories without pages: an empty input gives no tabs at all
-    assert(navCategoryDefs().size() == 4);
+    assert(navCategoryDefs().size() == 5 && navCategoryDefs()[0].first == "overview");
 }
 
 int main() {

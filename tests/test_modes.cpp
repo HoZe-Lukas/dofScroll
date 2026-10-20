@@ -68,6 +68,60 @@ static void testGrammar() {
     }
     assert(ChannelAction() == ChannelAction());
 
+    // buttonmode:<id> in button actions: accepted syntactically (existence is checked at runtime)
+    {
+        ButtonActionType bt;
+        Key bk;
+        std::string bm;
+        assert(parseButtonAction("buttonmode:latch-nav", &bt, &bk, &err, &bm) && bt == ButtonActionType::ButtonMode &&
+               bm == "latch-nav");
+        assert(!parseButtonAction("buttonmode:Bad Id", &bt, &bk, &err, &bm) && !err.empty());
+    }
+
+    // step: same grammar as keys:, own type, compared and warned like keys:
+    assert(parseChannelAction("step:pageup,pagedown", &a, &err) && a.type == ChannelActionType::Step &&
+           a.neg == Key::PageUp && a.pos == Key::PageDown);
+    assert(parseChannelAction(" STEP: ctrl+pageup , ctrl+pagedown", &a, &err) && a.type == ChannelActionType::Step &&
+           a.negMods.n == 1 && a.posMods.n == 1);
+    {
+        ChannelAction k, st;
+        assert(parseChannelAction("keys:left,right", &k, nullptr) && parseChannelAction("step:left,right", &st, nullptr));
+        assert(!(k == st) && st == st);
+        ChannelAction st2;
+        assert(parseChannelAction("step:left,up", &st2, nullptr) && !(st == st2));
+        assert(st.usesKeys() && k.usesKeys() && !ChannelAction().usesKeys());
+    }
+    for (const char *bad : {"step:", "step:left", "step:left,right,up", "step:ctrl+ctrl+a,b", "step:ctrl+shift,b",
+                            "step:left,nonsense"}) {
+        err.clear();
+        assert(!parseChannelAction(bad, &a, &err) && !err.empty());
+    }
+
+    // key chords: modifiers + one key, in any order, each modifier once, at most four
+    assert(parseChannelAction("keys:ctrl+pageup,ctrl+pagedown", &a, &err) && a.type == ChannelActionType::Keys &&
+           a.neg == Key::PageUp && a.pos == Key::PageDown && a.negMods.n == 1 && a.negMods.k[0] == Key::Ctrl &&
+           a.posMods.n == 1);
+    assert(parseChannelAction("Keys: Ctrl + Shift + Tab , alt+left", &a, &err) && a.negMods.n == 2 &&
+           a.negMods.k[0] == Key::Ctrl && a.negMods.k[1] == Key::Shift && a.pos == Key::Left && a.posMods.n == 1);
+    {
+        ChannelAction x, y, z;
+        assert(parseChannelAction("keys:ctrl+shift+tab,left", &x, nullptr));
+        assert(parseChannelAction("keys:shift+ctrl+tab,left", &y, nullptr));  // order independent
+        assert(x == y);
+        assert(parseChannelAction("keys:ctrl+tab,left", &z, nullptr));
+        assert(!(x == z));
+        assert(parseChannelAction("keys:tab,left", &z, nullptr) && !(z == x) && z.negMods.n == 0);
+        assert(parseChannelAction("keys:ctrl+shift+alt+super+a,b", &z, nullptr) && z.negMods.n == 4);
+        // a lone modifier stays valid
+        assert(parseChannelAction("keys:ctrl,shift", &z, nullptr) && z.neg == Key::Ctrl && z.negMods.n == 0);
+    }
+    for (const char *bad : {"keys:ctrl+ctrl+a,b", "keys:ctrl+,b", "keys:+a,b", "keys:ctrl+shift,b",
+                            "keys:a+b,c", "keys:ctrl+nonsense,b", "keys:ctrl+shift+alt+super+ctrl+a,b",
+                            "keys:ctrl+a,b,c", "keys:ctrl+a"}) {
+        err.clear();
+        assert(!parseChannelAction(bad, &a, &err) && !err.empty());
+    }
+
     ButtonActionType t;
     Key k;
     assert(parseButtonAction("none", &t, &k, &err) && t == ButtonActionType::Unbound);
@@ -331,6 +385,21 @@ static void testModeSwitchBinding() {
     // the main config accepts the syntax too
     Settings s;
     assert(applyKey(s, "BUTTON_2", "mode:next", &err) && s.buttons[2] == "mode:next");
+    assert(applyKey(s, "BUTTON_3", "mode:prev", &err) && s.buttons[3] == "mode:prev");
+
+    // mode:prev is a reserved target like mode:next: always valid in a mode file, no warning
+    clearDir();
+    writeFile("p.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n");
+    writeFile("prev.conf", "V_ACTION = none\n");  // a mode of that name still loads
+    w.clear();
+    ms = loadModes(g_dir, &w);
+    m = ms.find("p");
+    assert(m && m->buttons.size() == 2 && m->buttons[0].type == ButtonActionType::ModeSwitch && m->buttons[0].mode == "prev");
+    assert(!hasWarning(w, "unknown mode") && ms.find("prev"));
+    ButtonActionType pt;
+    Key pk;
+    std::string pid;
+    assert(parseButtonAction("mode:prev", &pt, &pk, &err, &pid) && pt == ButtonActionType::ModeSwitch && pid == "prev");
 }
 
 static void testToggleBindings() {
@@ -345,7 +414,27 @@ static void testToggleBindings() {
     assert(!parseButtonAction("toggle:mode:", &t, &k, &err));
     assert(!parseButtonAction("toggle:mode:bad name", &t, &k, &err));
     assert(!parseButtonAction("toggle:mode:next", &t, &k, &err));
+    assert(!parseButtonAction("toggle:mode:prev", &t, &k, &err) && err.find("prev") != std::string::npos);
     assert(!parseButtonAction("toggle:key:space", &t, &k, &err));  // plain keys are the driver's job
+
+    // hold:mode:<id>: momentary mode while the button is held
+    assert(parseButtonAction("hold:mode:timeline", &t, &k, &err, &id) && t == ButtonActionType::HoldMode && id == "timeline");
+    assert(parseButtonAction(" Hold:Mode: Fine_1 ", &t, &k, &err, &id) && id == "fine_1");
+    for (const char *bad : {"hold:mode:", "hold:mode:next", "hold:mode:prev", "hold:mode:Bad Id", "hold:", "hold:nav", "hold:key:space"}) {
+        err.clear();
+        assert(!parseButtonAction(bad, &t, &k, &err) && !err.empty());
+    }
+    {
+        clearDir();
+        writeFile("h.conf", "BUTTON_1 = hold:mode:timeline\nBUTTON_2 = hold:mode:nosuch\n");
+        std::vector<std::string> hw;
+        const ModeSet hs = loadModes(g_dir, &hw);
+        const ModeDef *hm = hs.find("h");
+        assert(hm && hm->buttons.size() == 1 && hm->buttons[0].type == ButtonActionType::HoldMode && hm->buttons[0].mode == "timeline");
+        assert(hasWarning(hw, "unknown mode 'nosuch'"));
+        Settings hset;
+        assert(applyKey(hset, "BUTTON_4", "hold:mode:off", &err) && hset.buttons[4] == "hold:mode:off");
+    }
 
     clearDir();
     writeFile("a.conf", "BUTTON_1 = toggle:nav\nBUTTON_2 = toggle:mode:timeline\nBUTTON_3 = toggle:mode:nosuch\n");
@@ -381,6 +470,10 @@ static void testSecurityHardening() {
     writeFile("mod.conf", "BUTTON_1 = key:ctrl\nBUTTON_2 = key:alt\n");
     writeFile("kmod.conf", "TWIST_ACTION = keys:shift,f1\n");
     writeFile("zk.conf", "V_ACTION = zoom\nH_ACTION = keys:w,w\n");
+    writeFile("cnav.conf", "H_ACTION = keys:ctrl+pageup,ctrl+shift+pagedown\nV_ACTION = keys:shift+left,shift+right\n");
+    writeFile("calt.conf", "H_ACTION = keys:alt+left,alt+right\n");
+    writeFile("csup.conf", "H_ACTION = keys:super+left,super+right\n");
+    writeFile("cdel.conf", "H_ACTION = keys:ctrl+w,ctrl+q\n");
     writeFile("safe.conf", "BUTTON_1 = key:space\nH_ACTION = keys:left,right\nV_ACTION = wheel_v\n");
     w.clear();
     ms = loadModes(g_dir, &w);
@@ -392,6 +485,18 @@ static void testSecurityHardening() {
     assert(hasWarning(w, "mode kmod can press shortcut chords"));
     assert(hasWarning(w, "mode zk can press shortcut chords"));
     assert(!hasWarning(w, "mode safe"));
+    writeFile("snav.conf", "H_ACTION = step:ctrl+pageup,ctrl+pagedown\n");
+    writeFile("sdel.conf", "H_ACTION = step:ctrl+w,ctrl+q\nV_ACTION = step:left,right\n");
+    w.clear();
+    ms = loadModes(g_dir, &w);
+    assert(ms.find("snav") && ms.find("sdel"));
+    assert(!hasWarning(w, "mode snav"));
+    assert(hasWarning(w, "mode sdel can press shortcut chords") && hasWarning(w, "step: channel presses ctrl+w"));
+    assert(ms.find("cnav") && ms.find("calt") && ms.find("csup") && ms.find("cdel"));
+    assert(!hasWarning(w, "mode cnav"));  // Ctrl/Shift with navigation keys: no warning
+    assert(hasWarning(w, "mode calt can press shortcut chords") && hasWarning(w, "alt+left"));
+    assert(hasWarning(w, "mode csup can press shortcut chords"));
+    assert(hasWarning(w, "mode cdel can press shortcut chords") && hasWarning(w, "ctrl+w"));
 
     // shipped example modes: no chord warning
     const std::string src =
@@ -399,6 +504,15 @@ static void testSecurityHardening() {
     w.clear();
     ms = loadModes(src, &w);
     assert(ms.find("browse-keys"));
+    {
+        const ModeDef *tabs = ms.find("tabs");
+        assert(tabs && tabs->buttons.empty() && tabs->h.type == ChannelActionType::Keys &&
+               tabs->h.negMods.n == 1 && tabs->h.neg == Key::PageUp && tabs->h.pos == Key::PageDown);
+    }
+    for (const char *id : {"slides", "media", "map", "precision"}) {
+        const ModeDef *sm = ms.find(id);
+        assert(sm && sm->buttons.empty());  // axis-only examples
+    }
     assert(w.empty());
 
     // F9: NUL bytes

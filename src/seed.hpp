@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // First-start seeding: copy the example configuration (examples/default/dofscroll.conf) and
-// the example modes (examples/modes/*.conf) into the configuration directory if none exists
+// the example modes (examples/modes/*.conf) and the example button modes (examples/buttons/*.conf) into the configuration directory if none exists
 // there yet. Called by the tray at startup (the daemon has no write access to the
 // configuration directory).
 #pragma once

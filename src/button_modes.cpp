@@ -1,0 +1,146 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#include "button_modes.hpp"
+
+#include "conf_dir.hpp"
+#include "utf8.hpp"
+
+namespace spn {
+
+namespace {
+
+constexpr size_t kMaxLine = 4096;
+constexpr size_t kMaxLabel = 64;
+constexpr size_t kMaxDescription = 256;
+
+std::string trim(const std::string &s) { return utf8::trim(s); }
+
+}  // namespace
+
+const ButtonMode *ButtonModeSet::find(const std::string &id) const {
+    for (const ButtonMode &m : modes)
+        if (m.id == id) return &m;
+    return nullptr;
+}
+
+std::string buttonModesDir() {
+    const std::string p = modesDir();  // <base>/dofscroll/modes
+    const size_t slash = p.rfind('/');
+    return (slash == std::string::npos ? std::string(".") : p.substr(0, slash)) + "/buttons";
+}
+
+bool parseButtonModeText(const std::string &text, ButtonMode *out, std::vector<std::string> *warnings) {
+    auto warn = [&](size_t line, const std::string &msg) {
+        if (warnings && warnings->size() < 200)
+            warnings->push_back(out->path + ":" + std::to_string(line) + ": " + msg);
+    };
+    bool haveAction = false;
+    size_t pos = 0, lineno = 0;
+    while (pos < text.size()) {
+        size_t nl = text.find('\n', pos);
+        if (nl == std::string::npos) nl = text.size();
+        std::string raw = text.substr(pos, nl - pos);
+        pos = nl + 1;
+        lineno++;
+        if (raw.find('\0') != std::string::npos) { warn(lineno, "line contains a NUL byte - ignored"); continue; }
+        if (lineno == 1 && raw.compare(0, 3, "\xEF\xBB\xBF") == 0) raw.erase(0, 3);
+        if (raw.size() > kMaxLine) { warn(lineno, "line too long - ignored"); continue; }
+        const std::string line = trim(raw);
+        if (line.empty() || line[0] == '#' || line[0] == ';') continue;
+        if (line[0] == '[') { warn(lineno, "sections are not supported in button mode files - ignored"); continue; }
+        const size_t eq = line.find('=');
+        if (eq == std::string::npos) { warn(lineno, "line without '=' ignored"); continue; }
+        const std::string key = utf8::upperAscii(trim(line.substr(0, eq)));
+        std::string value = line.substr(eq + 1);
+        const std::string tv = trim(value);
+        if (!tv.empty() && tv[0] == '#') {
+            value.clear();
+        } else {
+            for (size_t p = 1; p < value.size(); p++)
+                if (value[p] == '#' && utf8::isSpace(value[p - 1])) {
+                    value.resize(p);
+                    break;
+                }
+        }
+        value = trim(value);
+        if (key == "NAME") {
+            out->label = utf8::sanitizeDisplay(value, kMaxLabel);
+        } else if (key == "DESCRIPTION") {
+            out->description = utf8::sanitizeDisplay(value, kMaxDescription);
+        } else if (key == "ACTION") {
+            std::string err, target;
+            ButtonActionType t;
+            Key k;
+            if (!parseButtonAction(value, &t, &k, &err, &target)) { warn(lineno, "ACTION: " + err + " - line ignored"); continue; }
+            if (t == ButtonActionType::ButtonMode) {
+                warn(lineno, "ACTION: a button mode cannot refer to another button mode - line ignored");
+                continue;
+            }
+            out->type = t;
+            out->key = k;
+            out->target = target;
+            out->action = utf8::lowerAscii(value);
+            haveAction = true;
+        } else {
+            warn(lineno, key + ": not allowed in a button mode file (NAME, DESCRIPTION, ACTION) - line ignored");
+        }
+    }
+    if (!haveAction) {
+        if (warnings && warnings->size() < 200) warnings->push_back(out->path + ": no valid ACTION - file ignored");
+        return false;
+    }
+    if (out->label.empty()) out->label = out->id;
+    return true;
+}
+
+ButtonModeSet loadButtonModes(const std::string &dir, std::vector<std::string> *warnings) {
+    ButtonModeSet set;
+    auto warnAll = [&](const std::string &m) {
+        if (warnings && warnings->size() < 200) warnings->push_back(m);
+    };
+    for (const confdir::Entry &e : confdir::readConfDir(dir, "button mode files", warnAll)) {
+        ButtonMode b;
+        b.id = e.id;
+        b.path = e.path;
+        if (parseButtonModeText(e.text, &b, warnings)) set.modes.push_back(b);
+    }
+    return set;
+}
+
+std::string buttonModesStamp(const std::string &dir) { return confdir::stamp(dir, "buttons"); }
+
+void expandSettings(Settings &s, const ButtonModeSet &set, std::set<std::string> *missing) {
+    for (auto &kv : s.buttons) {
+        ButtonActionType t;
+        Key k;
+        std::string id;
+        if (!parseButtonAction(kv.second, &t, &k, nullptr, &id) || t != ButtonActionType::ButtonMode) continue;
+        const ButtonMode *b = set.find(id);
+        if (b) {
+            kv.second = b->action;
+        } else {
+            kv.second = "none";
+            if (missing) missing->insert(id);
+        }
+    }
+}
+
+ModeDef expandMode(const ModeDef &m, const ButtonModeSet &set, std::set<std::string> *missing) {
+    ModeDef out = m;
+    for (ButtonBinding &b : out.buttons) {
+        if (b.type != ButtonActionType::ButtonMode) continue;
+        const ButtonMode *bm = set.find(b.mode);
+        if (bm) {
+            b.type = bm->type;
+            b.key = bm->key;
+            b.mode = bm->target;
+        } else {
+            if (missing) missing->insert(b.mode);
+            b.type = ButtonActionType::Unbound;
+            b.mode.clear();
+        }
+    }
+    return out;
+}
+
+}  // namespace spn

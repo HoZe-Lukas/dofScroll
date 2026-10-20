@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "conf_dir.hpp"
 #include "config.hpp"
 #include "platform/fs.hpp"
 #include "platform/path_rules.hpp"
@@ -19,10 +20,7 @@ namespace spn {
 
 namespace {
 
-constexpr size_t kMaxModeFiles = 64;
-constexpr size_t kMaxModeFileBytes = 64 * 1024;
 constexpr size_t kMaxModeOverrides = 128;
-constexpr size_t kMaxDirEntries = 4096;  // readdir cap (names inspected), against huge directories
 constexpr int kMaxModeButton = 32;       // highest button number in a mode file (1-based)
 constexpr size_t kMaxLabel = 64;
 constexpr size_t kMaxDescription = 256;
@@ -174,29 +172,28 @@ std::string chordRisk(const ModeDef &m) {
     bool hasRiskyKeys = false, hasZoom = false;
     for (const ChannelAction *a : {&m.v, &m.h, &m.twist}) {
         if (a->type == ChannelActionType::Zoom) hasZoom = true;
-        if (a->type != ChannelActionType::Keys) continue;
-        if (!isNavKey(a->neg) || !isNavKey(a->pos)) hasRiskyKeys = true;
-        if (isModifierKey(a->neg) || isModifierKey(a->pos))
-            why.push_back(std::string("a keys: channel presses ") + keyName(isModifierKey(a->neg) ? a->neg : a->pos));
+        if (!a->usesKeys()) continue;
+        const std::string what = a->type == ChannelActionType::Step ? "a step: channel presses " : "a keys: channel presses ";
+        const struct { Key key; const ChordMods &mods; } args[2] = {{a->neg, a->negMods}, {a->pos, a->posMods}};
+        for (const auto &arg : args) {
+            if (arg.mods.n == 0) {
+                if (!isNavKey(arg.key)) hasRiskyKeys = true;
+                if (isModifierKey(arg.key)) why.push_back(what + keyName(arg.key));
+                continue;
+            }
+            // Chords: Ctrl and/or Shift with a navigation key is harmless; Alt/Super or any other key is not.
+            const unsigned bits = arg.mods.mask();
+            if ((bits & 12u) != 0 || !isNavKey(arg.key)) {
+                std::string name;
+                for (uint8_t i = 0; i < arg.mods.n; ++i) name += std::string(keyName(arg.mods.k[i])) + "+";
+                why.push_back(what + name + keyName(arg.key));
+            }
+        }
     }
     if (hasRiskyKeys && hasZoom) why.push_back("zoom holds Ctrl while a keys: channel fires non-navigation keys");
     std::string out;
     for (const std::string &w : why) out += (out.empty() ? "" : "; ") + w;
     return out;
-}
-
-// Sorted names of "<id>.conf" entries (valid ids only). Scans at most kMaxDirEntries entries.
-// false if the directory cannot be opened.
-bool listConfNames(const std::string &dir, std::vector<std::string> *names, bool *capped) {
-    std::vector<std::string> all;
-    if (!fs::listDir(dir, kMaxDirEntries, &all, capped)) return false;
-    for (const std::string &n : all) {
-        if (n.size() <= 5 || n.compare(n.size() - 5, 5, ".conf") != 0) continue;
-        if (!validModeId(n.substr(0, n.size() - 5))) continue;
-        names->push_back(n);
-    }
-    std::sort(names->begin(), names->end());
-    return true;
 }
 
 }  // namespace
@@ -215,6 +212,32 @@ bool validModeId(const std::string &id) {
            !isReservedDeviceStem(id);
 }
 
+// <chord> = [<modifier>+]... <key>: modifiers (ctrl, shift, alt, super) at most once each, then
+// exactly one non-modifier key. A single name (also a lone modifier) is a plain key.
+static bool parseChord(const std::string &text, Key *key, ChordMods *mods, std::string *err) {
+    std::vector<std::string> parts;
+    size_t start = 0;
+    for (size_t pos; (pos = text.find('+', start)) != std::string::npos; start = pos + 1)
+        parts.push_back(trim(text.substr(start, pos - start)));
+    parts.push_back(trim(text.substr(start)));
+    ChordMods m;
+    for (size_t i = 0; i + 1 < parts.size(); ++i) {
+        Key mk;
+        if (!parseKeyName(parts[i], &mk)) return fail(err, "unknown key '" + parts[i] + "'");
+        if (!isModifierKey(mk)) return fail(err, "'" + parts[i] + "' is not a modifier (ctrl, shift, alt, super)");
+        for (uint8_t j = 0; j < m.n; ++j)
+            if (m.k[j] == mk) return fail(err, "modifier '" + parts[i] + "' appears twice");
+        if (m.n >= kMaxChordMods) return fail(err, "a chord has at most 4 modifiers");
+        m.k[m.n++] = mk;
+    }
+    Key last;
+    if (!parseKeyName(parts.back(), &last)) return fail(err, "unknown key '" + parts.back() + "'");
+    if (m.n > 0 && isModifierKey(last)) return fail(err, "a chord must end with a key that is not a modifier");
+    *key = last;
+    *mods = m;
+    return true;
+}
+
 bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err) {
     const std::string t = lower(trim(text));
     ChannelAction a;
@@ -223,18 +246,18 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
     else if (t == "wheel_v") a.type = ChannelActionType::WheelV;
     else if (t == "wheel_h") a.type = ChannelActionType::WheelH;
     else if (t == "zoom") a.type = ChannelActionType::Zoom;
-    else if (t.compare(0, 5, "keys:") == 0) {
+    else if (t.compare(0, 5, "keys:") == 0 || t.compare(0, 5, "step:") == 0) {
+        const bool step = t[0] == 's';
         const std::string rest = t.substr(5);
         const size_t comma = rest.find(',');
         if (comma == std::string::npos || rest.find(',', comma + 1) != std::string::npos)
-            return fail(err, "keys:<neg>,<pos> expects exactly two key names");
-        if (!parseKeyName(trim(rest.substr(0, comma)), &a.neg))
-            return fail(err, "unknown key '" + trim(rest.substr(0, comma)) + "'");
-        if (!parseKeyName(trim(rest.substr(comma + 1)), &a.pos))
-            return fail(err, "unknown key '" + trim(rest.substr(comma + 1)) + "'");
-        a.type = ChannelActionType::Keys;
+            return fail(err, std::string(step ? "step" : "keys") + ":<neg>,<pos> expects exactly two keys or key chords");
+        if (!parseChord(trim(rest.substr(0, comma)), &a.neg, &a.negMods, err) ||
+            !parseChord(trim(rest.substr(comma + 1)), &a.pos, &a.posMods, err))
+            return false;
+        a.type = step ? ChannelActionType::Step : ChannelActionType::Keys;
     } else {
-        return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos>");
+        return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos> | step:<neg>,<pos> (keys may be chords like ctrl+pageup)");
     }
     if (out) *out = a;
     return true;
@@ -253,9 +276,22 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
     else if (t == "toggle:nav") ty = ButtonActionType::ToggleNav;
     else if (t.compare(0, 12, "toggle:mode:") == 0) {
         const std::string id = trim(t.substr(12));
-        if (!validModeId(id) || id == "next")
-            return fail(err, "toggle:mode:<id> needs a mode id ([a-z0-9_-], max. 32 characters), not 'next'");
+        if (!validModeId(id) || id == "next" || id == "prev")
+            return fail(err, "toggle:mode:<id> needs a mode id ([a-z0-9_-], max. 32 characters), not 'next' or 'prev'");
         ty = ButtonActionType::ToggleMode;
+        if (modeId) *modeId = id;
+    }
+    else if (t.compare(0, 10, "hold:mode:") == 0) {
+        const std::string id = trim(t.substr(10));
+        if (!validModeId(id) || id == "next" || id == "prev")
+            return fail(err, "hold:mode:<id> needs a mode id ([a-z0-9_-], max. 32 characters), not 'next' or 'prev'");
+        ty = ButtonActionType::HoldMode;
+        if (modeId) *modeId = id;
+    }
+    else if (t.compare(0, 11, "buttonmode:") == 0) {
+        const std::string id = trim(t.substr(11));
+        if (!validModeId(id)) return fail(err, "buttonmode:<id> needs a button mode id ([a-z0-9_-], max. 32 characters)");
+        ty = ButtonActionType::ButtonMode;
         if (modeId) *modeId = id;
     }
     else if (t.compare(0, 4, "key:") == 0) {
@@ -268,7 +304,7 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
         ty = ButtonActionType::ModeSwitch;
         if (modeId) *modeId = id;
     } else {
-        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | toggle:nav | toggle:mode:<id>");
+        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | mode:prev | toggle:nav | toggle:mode:<id> | hold:mode:<id> | buttonmode:<id>");
     }
     if (type) *type = ty;
     if (key) *key = k;
@@ -290,49 +326,11 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
         if (warnings && warnings->size() < 200) warnings->push_back(m);
     };
 
-    std::vector<std::string> names;
-    bool capped = false;
-    if (!listConfNames(dir, &names, &capped)) return set;  // missing directory is no error
-    if (capped) warnAll(dir + ": too many entries - only the first " + std::to_string(kMaxDirEntries) + " were inspected");
-    if (names.size() > kMaxModeFiles) {
-        warnAll(dir + ": too many mode files (max. " + std::to_string(kMaxModeFiles) + ") - the rest is ignored");
-        names.resize(kMaxModeFiles);
-    }
-
-    fs::ReadOptions opt;
-    opt.refuseLinks = true;
-    opt.requireOwner = true;
-    fs::DirHandle dh;
-    std::string derr;
-    if (!dh.open(dir, &derr)) { warnAll(dir + ": " + derr); return set; }
-    for (const std::string &n : names) {
-        const std::string path = dir + "/" + n;
-        std::string text;
-        const fs::ReadResult rr = dh.readFileBounded(n, kMaxModeFileBytes, opt, &text);
-        switch (rr.status) {
-        case fs::ReadStatus::Ok:
-            break;
-        case fs::ReadStatus::NotFound:
-        case fs::ReadStatus::OpenFailed:
-            warnAll(path + ": " + rr.sysError + " - ignored");
-            continue;
-        case fs::ReadStatus::NotRegular:
-            warnAll(path + ": not a regular file - ignored");
-            continue;
-        case fs::ReadStatus::NotOwned:
-            warnAll(path + ": not owned by the current user - ignored");
-            continue;
-        case fs::ReadStatus::TooLargeBySize:
-            warnAll(path + ": file too large (max. " + std::to_string(kMaxModeFileBytes) + " bytes) - ignored");
-            continue;
-        case fs::ReadStatus::TooLargeWhileReading:
-        case fs::ReadStatus::ReadFailed:
-            warnAll(path + ": unreadable or too large - ignored");
-            continue;
-        }
-
+    for (const confdir::Entry &file : confdir::readConfDir(dir, "mode files", warnAll)) {
+        const std::string &path = file.path;
+        const std::string &text = file.text;
         ModeDef m;
-        m.id = n.substr(0, n.size() - 5);
+        m.id = file.id;
         if (!parseModeText(text, path, &m, warnings)) continue;
         if (m.label.empty()) m.label = m.id;
         const std::string risk = chordRisk(m);
@@ -346,8 +344,9 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
     for (ModeDef &m : set.modes) {
         auto &bs = m.buttons;
         for (size_t i = 0; i < bs.size();) {
-            const bool targets = bs[i].type == ButtonActionType::ModeSwitch || bs[i].type == ButtonActionType::ToggleMode;
-            if (targets && bs[i].mode != "next" && !set.find(bs[i].mode)) {
+            const bool targets = bs[i].type == ButtonActionType::ModeSwitch || bs[i].type == ButtonActionType::ToggleMode ||
+                                 bs[i].type == ButtonActionType::HoldMode;
+            if (targets && bs[i].mode != "next" && bs[i].mode != "prev" && !set.find(bs[i].mode)) {
                 warnAll("mode " + m.id + ": BUTTON_" + std::to_string(bs[i].button) + ": unknown mode '" +
                         bs[i].mode + "' - binding ignored");
                 bs.erase(bs.begin() + static_cast<long>(i));
@@ -359,19 +358,6 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
     return set;
 }
 
-std::string modesStamp(const std::string &dir) {
-    std::vector<std::string> names;
-    bool capped = false;
-    if (!listConfNames(dir, &names, &capped)) return "";
-    std::string s = "modes";
-    for (const std::string &n : names) {
-        fs::FileInfo fi;
-        if (!fs::lstatPath(dir + "/" + n, &fi)) continue;
-        s += "|" + n + ":" + std::to_string(static_cast<long long>(fi.mtimeNs / 1'000'000'000)) + "." +
-             std::to_string(static_cast<long long>(fi.mtimeNs % 1'000'000'000)) + ":" +
-             std::to_string(static_cast<long long>(fi.size));
-    }
-    return s;
-}
+std::string modesStamp(const std::string &dir) { return confdir::stamp(dir, "modes"); }
 
 }  // namespace spn

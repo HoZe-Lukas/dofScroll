@@ -42,9 +42,14 @@ Invalid lines or files are skipped with a warning in the log.
 | `off` | All channels `none`. Switches control off without `ENABLED = 0`. |
 | `timeline` | Vertical `none`, horizontal and twist `keys:left,right`. Scrubbing and single frames for video editing. |
 
-The first start also seeds three example files into `~/.config/dofscroll/modes/`:
-`browse-keys` (page up/down, left/right, zoom), `cycle-modes` (button 2 = `mode:next`) and
-`timeline` (adds Space on button 1 and Home on button 2, active only in that mode). The shipped
+The first start also seeds eight example files into `~/.config/dofscroll/modes/`:
+`browse-keys` (page up/down, left/right, zoom), `cycle-modes` (button 2 = `mode:next`),
+`timeline` (adds Space on button 1 and Home on button 2, active only in that mode) and four
+axis-only modes without button bindings: `slides` (up/down = page up/down, gentle rate), `media`
+(up/down, left/right and `j`/`l` for volume and seek; the keys are program-specific), `map` (arrow
+keys for panning, `minus`/`plus` for zoom; see Key names) and `precision` (default channels with
+low sensitivities). `tabs` sends `ctrl+pageup` / `ctrl+pagedown` on the horizontal channel (switch tabs
+in browsers and terminals; not verified in every program). Their behavior in real programs is not verified. The shipped
 examples contain no button-to-key bindings that would be the same in every mode, see [Buttons and the vendor driver](#buttons-and-the-vendor-driver).
 
 ## Channel actions
@@ -57,7 +62,8 @@ For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`) and `TWIST_ACTION` 
 | `none` | Channel off. |
 | `wheel_v`, `wheel_h` | Vertical or horizontal mouse wheel. |
 | `zoom` | Hold Ctrl and send the mouse wheel. |
-| `keys:<neg>,<pos>` | Key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection. Dead zone, curve, smoothing and sensitivity of the channel apply. |
+| `keys:<neg>,<pos>` | Key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection. Dead zone, curve, smoothing and sensitivity of the channel apply. Each argument can be a chord, see below. |
+| `step:<neg>,<pos>` | One key tap per push instead of a rate, with hysteresis; see below. |
 
 ## Button actions
 
@@ -74,8 +80,11 @@ table in `src/device_db.cpp`). The count is not the one `spacenavd` reports.
 | `key:<name>` | Holds the key while the button is held. |
 | `mode:<id>` | Switches to mode `<id>` when the button is pressed. |
 | `mode:next` | Switches to the next loaded mode in alphabetical order of id, built-ins included, wrapping around. |
+| `hold:mode:<id>` | The mode `<id>` is effective while the button is held; on release the state from before the press comes back: a `mode:<id>` / `toggle:mode:<id>` override that was in effect, else the mode the profile gives. Example: `BUTTON_3 = hold:mode:precision` (slow and fine while the button is held). The release is noticed even if the held mode does not bind the button. Any other mode switch during the hold ends it without restoring; a reload, suspend / `ENABLED = 0` / session switch and an unplugged device end it too (the previous state comes back). `next` and `prev` are not valid; an unknown id is dropped with a warning at load. The status file shows `hold:<id>` in the `toggle=` line. |
+| `mode:prev` | The mirror of `mode:next`: switches to the previous id in alphabetical order, wrapping from the first to the last. Stateless (no history). `next` and `prev` are reserved targets: a mode file called `next.conf` or `prev.conf` still loads, but `mode:next` and `mode:prev` always mean the cycle action. Not allowed in `toggle:mode:<id>`. |
 | `toggle:nav` | Every press switches the navigation mode on or off (arrow keys instead of scrolling), like a held `nav` button but latched. A held `nav` button and the latch add up. |
 | `toggle:mode:<id>` | The first press switches to mode `<id>`, the next press goes back to the mode the profile gives. `next` is not allowed. |
+| `buttonmode:<id>` | Behaves like the `ACTION` of the button mode file `buttons/<id>.conf`, see [button-modes.md](button-modes.md). Not nestable. An unknown id does nothing. |
 
 Toggles are state that only exists while the daemon runs. The status file shows it in the `toggle=` line
 (`nav`, `mode:<id>`, or both) and the tray shows "Navigation mode on" next to the mode. The state is cleared by
@@ -115,7 +124,7 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 | Where | What |
 |---|---|
 | Driver | A button mapping that is the same everywhere and always: Esc, Enter, a click, a shortcut. |
-| dofscroll | Bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes (`mode:next`, `mode:<id>`, `toggle:mode:<id>`), or work with the axis handling (`nav`, `toggle:nav`). Also: shaping scroll and zoom from the six axes, keys derived from axes (`keys:<neg>,<pos>`), per-program and per-device profiles. |
+| dofscroll | Bindings that depend on dofscroll's state: they apply only in a mode or profile, switch, toggle or hold modes (`mode:next`, `mode:prev`, `mode:<id>`, `toggle:mode:<id>`, `hold:mode:<id>`), or work with the axis handling (`nav`, `toggle:nav`). Also: shaping scroll and zoom from the six axes, keys derived from axes (`keys:<neg>,<pos>`), per-program and per-device profiles. |
 
 Examples: a button that always sends Esc belongs in the driver. A button that sends Space (play/pause) only while the `timeline` mode is active, a button with `mode:next` and a button with `nav` belong in dofscroll.
 
@@ -189,6 +198,36 @@ For video editing (for example in DaVinci Resolve, whose behavior is not verifie
 
 The timeline must have keyboard focus. Reverse the twist with `ZOOM_SIGN = -1`.
 
+### `step:<neg>,<pos>`: one key press per push
+
+`keys:` turns the deflection into a repeat rate, which is right for scrubbing and wrong for
+discrete targets such as slides: a firm push skips several, and holding it pages through the deck.
+`step:` taps `<neg>` or `<pos>` (same grammar as `keys:`, chords allowed) exactly once per push:
+
+    V_ACTION = step:pageup,pagedown
+
+The channel goes through the same processing as for `keys:` (dead zone, curve, smoothing,
+sensitivity, sign). The tap fires when the processed value, a rate in steps per second
+(`deflection * SENS / 20` for a linear curve), reaches `STEP_TRIGGER` (default 20, see
+[configuration](configuration.md)). It re-arms only after the value has fallen to half of the
+trigger; there is no auto-repeat while the push is held. Pushing to the other side fires the other
+key (each side re-arms on its own). The state resets on mode change, reload and `releaseAll`.
+Because the trigger is measured after `*_SENS`, a channel with a low sensitivity needs a lower
+`STEP_TRIGGER`. The chord warning rules below apply to `step:` exactly as to `keys:`. How the
+trigger level feels on a real device is not verified; tune `STEP_TRIGGER`.
+
+### Key chords in `keys:`
+
+Each of the two arguments is either a key or a chord: zero to four modifiers (`ctrl`, `shift`,
+`alt`, `super`, each at most once, any order) joined by `+` to exactly one key that is not a
+modifier, for example `keys:ctrl+pageup,ctrl+pagedown` (previous / next tab). `plus` and `minus`
+are key names, so `ctrl+plus` is valid. A lone modifier (`keys:ctrl,shift`) stays valid as before.
+
+One step presses the modifiers that are not held yet (in the order written), taps the key and
+releases only the modifiers it pressed, in reverse order. A modifier that is already held, for
+example Ctrl for zoom on another channel or a button with `key:ctrl`, stays held. Rate, dead zone,
+curve, smoothing and sensitivity are unchanged. Buttons (`key:`) stay single keys.
+
 ## Safety and sharing modes
 
 A mode file is code-like. While a device button is held or an axis is deflected, it can press
@@ -197,6 +236,11 @@ keys, Delete and Enter. Chords are reachable: Ctrl is held while a channel zooms
 action on another channel can send Ctrl+W or Ctrl+Q, and `key:ctrl` plus `key:alt` on two buttons
 combine with a third key. A mode file cannot type arbitrary text or send codes outside the key list,
 and every effect needs the physical device to be moved or pressed.
+
+Chords in `keys:` (for example `keys:ctrl+w,ctrl+q`) are sent as written. The daemon warns about
+a chord that contains `alt` or `super`, or that combines `ctrl` / `shift` with a key that is not a
+navigation key (arrows, Page Up/Down, Home, End, Space, Enter, Esc, plus/minus). A chord of `ctrl`
+and/or `shift` with a navigation key, like `ctrl+pageup`, produces no warning.
 
 Only use mode files from sources you trust, and read a file before you copy it into
 `~/.config/dofscroll/modes/`. When you review one, look for:

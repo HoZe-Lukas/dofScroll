@@ -5,7 +5,7 @@
 // top of the content). The window builds its tabs from this; the page registry only says which
 // category a page belongs to.
 //
-//   Categories, in this order: Profiles, Modes, Device, Settings.
+//   Categories, in this order: Overview, Profiles, Modes, Device, Settings.
 //   buildNavigation(pages) groups the pages in the order they have in the registry. A category
 //   without pages is left out. A page whose category is unknown is dropped and reported in
 //   *problems (the self-test and the model test fail on that, so a typo cannot hide a page).
@@ -33,7 +33,7 @@ struct NavCategory {
 // Category id and English title, in display order.
 inline const std::vector<std::pair<std::string, std::string>> &navCategoryDefs() {
     static const std::vector<std::pair<std::string, std::string>> d = {
-        {"profiles", "Profiles"}, {"modes", "Modes"}, {"device", "Device"}, {"settings", "Settings"}};
+        {"overview", "Overview"}, {"profiles", "Profiles"}, {"modes", "Modes"}, {"device", "Device"}, {"settings", "Settings"}};
     return d;
 }
 

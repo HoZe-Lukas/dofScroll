@@ -10,11 +10,17 @@ Vertical tabs on the left pick a category, horizontal tabs on top pick the page 
 
 | Category | Page (tab) | Content |
 |---|---|---|
+| Overview | Overview | Daemon state, quick actions and one card per profile (mode and what it overrides); "Open" jumps to the profile |
 | Profiles | Profiles | Device and application profiles, per-profile mode dropdown, overrides, button bindings |
 | Profiles | Channels | Scroll, zoom and other output channels: sensitivity, dead zone, direction, curve preview |
 | Modes | Modes | Built-in and file modes: new, duplicate, import, edit, delete |
+| Modes | Button modes | Button mode files (`buttons/`): new, edit in the page, duplicate, import, delete; chosen per button on the Profiles page |
 | Device | Axes | Live bars of the six axes, axis assistant (output pauses while it is open) |
 | Settings | General | Output on/off, global mode, "Start at login", daemon status |
+
+## Appearance
+
+Settings > Appearance: System default, Light or Dark. It applies at once and is remembered (`ui.conf`, `theme = system|light|dark`). Text keeps a contrast of at least 7:1 (4.5:1 for hints, links and the selection) in both themes.
 
 ## Profiles and the program picker
 

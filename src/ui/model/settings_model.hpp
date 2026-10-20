@@ -223,7 +223,7 @@ public:
             g.push_back(x);
         }
         g.push_back({"zoom_detect", "Zoom detection", {"ZOOM_LATERAL", "ZOOM_ENTER_MS", "ZOOM_EXIT_RATIO"}, false});
-        g.push_back({"general", "General", {"ENABLED", "BACKEND", "TICK_HZ"}, false});
+        g.push_back({"general", "General", {"ENABLED", "STEP_TRIGGER", "BACKEND", "TICK_HZ"}, false});
         return g;
     }
     // Mode-dependent parts of the page of section i (see the rules above). Channel values are not
@@ -372,6 +372,44 @@ public:
     }
     bool isOverridden(size_t i, const std::string &key) const {
         return i < ps_.sections.size() && hasKey(ps_.sections[i], upper(key));
+    }
+
+    // Value the effective mode of section i sets for key, else fallback.
+    std::string modeOverrideValue(size_t i, const std::string &key, const std::string &fallback) const {
+        if (i == 0 || i >= ps_.sections.size()) return fallback;
+        const ModeDef *m = modes_.find(effectiveMode(i));
+        if (m)
+            for (const auto &kv : m->overrides)
+                if (upper(kv.first) == upper(key)) return kv.second;
+        return fallback;
+    }
+    // Where the effective value of a key in section i comes from. Precedence (AGENTS.md):
+    // global < device < mode overrides < app.
+    enum class Source { BuiltIn, Global, Device, Mode, App };
+    bool sourceOf(size_t i, const std::string &key, Source *out) const {
+        const std::string k = upper(key);
+        if (i >= ps_.sections.size() || !isEditableKey(k)) return false;
+        const Section &s = ps_.sections[i];
+        const bool own = hasKey(s, k);
+        if (own && s.kind == Section::APP) {
+            *out = Source::App;
+            return true;
+        }
+        if (i > 0) {
+            const ModeDef *m = modes_.find(effectiveMode(i));
+            if (m)
+                for (const auto &kv : m->overrides)
+                    if (upper(kv.first) == k) {
+                        *out = Source::Mode;
+                        return true;
+                    }
+        }
+        if (own) {
+            *out = i == 0 ? Source::Global : Source::Device;
+            return true;
+        }
+        *out = i > 0 && hasKey(ps_.sections[0], k) ? Source::Global : Source::BuiltIn;
+        return true;
     }
 
     // Validates with applyKey and stores the canonical value as an override of the section.

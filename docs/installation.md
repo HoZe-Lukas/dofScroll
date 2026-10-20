@@ -118,7 +118,7 @@ Checked on the TGZ built on a RHEL 9 machine:
 | `/usr/bin/dofscroll-ui`, `/usr/bin/dofscroll_de.qm`, `/usr/share/applications/dofscroll.desktop`, `/usr/share/icons/hicolor/scalable/apps/dofscroll.svg`, `dofscroll-ui.service` | The Qt interface with its German catalog, menu entry, icon and user unit. Only in packages built where Qt6 was available (see "Qt interface or GTK tray" below). |
 | `/usr/lib/systemd/user/dofscroll.service`, `dofscroll-tray.service` | User units, rendered at install time so `ExecStart` points at the real program path (`/usr/bin/...` for a package). The directory is always `<prefix>/lib/systemd/user`, never `lib64`. |
 | `/usr/share/dofscroll/udev/70-dofscroll-uinput.rules` | uinput udev rule, shipped as an example only. It is not active until you copy it (step 5). |
-| `/usr/share/dofscroll/examples/` | Example configs, `default/` and `modes/`. |
+| `/usr/share/dofscroll/examples/` | Example configs, `default/`, `modes/` and `buttons/` (button modes, see [button-modes.md](button-modes.md)). |
 | `/usr/share/dofscroll-tray/icons/dofscroll-tray.svg` | Tray icon. |
 | `/usr/share/locale/de/LC_MESSAGES/dofscroll.mo` | German translation. |
 | `/usr/share/doc/dofscroll/` | `LICENSE` and a copy of the readme. |
@@ -203,12 +203,14 @@ Do these steps once per machine. Steps 1 and 5 need root.
 
 When the Qt interface or the GTK tray starts and no config exists, it creates
 `~/.config/dofscroll/dofscroll.conf` from `examples/default/dofscroll.conf` and copies the example
-modes into `~/.config/dofscroll/modes/`. It never overwrites an existing file. The daemon cannot
+modes into `~/.config/dofscroll/modes/` and the example button modes into `~/.config/dofscroll/buttons/` (each only when that folder is missing). It never overwrites an existing file. The daemon cannot
 write to that directory, so only the interface seeds. Without it, copy the files yourself:
 
     mkdir -p -m 0700 ~/.config/dofscroll/modes
     cp /usr/share/dofscroll/examples/default/dofscroll.conf ~/.config/dofscroll/
     cp /usr/share/dofscroll/examples/modes/*.conf ~/.config/dofscroll/modes/
+    mkdir -p -m 0700 ~/.config/dofscroll/buttons
+    cp /usr/share/dofscroll/examples/buttons/*.conf ~/.config/dofscroll/buttons/
 
 The interface looks for the examples in `$DOFSCROLL_EXAMPLES`, next to the executable, in
 `../share/dofscroll/examples`, then `/usr/local/share/dofscroll/examples` and

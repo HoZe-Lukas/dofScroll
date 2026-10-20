@@ -2015,3 +2015,327 @@ msgstr "Gerät"
 #: src/ui/model/navigation_model.hpp:41
 msgid "Settings"
 msgstr "Einstellungen"
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Appearance"
+msgstr "Darstellung"
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Theme"
+msgstr "Farbschema"
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Light"
+msgstr "Hell"
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Dark"
+msgstr "Dunkel"
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Applies at once and is remembered."
+msgstr "Wird sofort angewendet und gemerkt."
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Could not save the theme: "
+msgstr "Das Farbschema konnte nicht gespeichert werden: "
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Overview"
+msgstr "Übersicht"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Quick actions"
+msgstr "Schnellaktionen"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Add a profile..."
+msgstr "Profil hinzufügen..."
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Set up a program or a device on the Profiles page"
+msgstr "Ein Programm oder ein Gerät auf der Seite Profile einrichten"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "No program or device has its own profile yet. A profile changes the mode or single settings for one program or one device."
+msgstr "Noch hat kein Programm und kein Gerät ein eigenes Profil. Ein Profil ändert den Modus oder einzelne Einstellungen für ein Programm oder ein Gerät."
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "%1 device profile(s), %2 program profile(s). The default mode is %3."
+msgstr "%1 Geräteprofil(e), %2 Programmprofil(e). Der Standardmodus ist %3."
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Program"
+msgstr "Programm"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Open"
+msgstr "Öffnen"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Open profile"
+msgstr "Profil öffnen"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "+%1 more"
+msgstr "+%1 weitere"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Uses the default settings"
+msgstr "Verwendet die Standardeinstellungen"
+
+#: src/ui/model/effective_model.hpp
+msgid "Effective values"
+msgstr "Wirksame Werte"
+
+#: src/ui/model/effective_model.hpp
+msgid "The value that applies in this profile and where it comes from."
+msgstr "Der Wert, der in diesem Profil gilt, und woher er kommt."
+
+#: src/ui/model/effective_model.hpp
+msgid "Reset"
+msgstr "Zurücksetzen"
+
+#: src/ui/model/effective_model.hpp
+msgid "Remove the value of this profile and inherit it again"
+msgstr "Wert dieses Profils entfernen und wieder erben"
+
+#: src/ui/model/effective_model.hpp
+msgid "built-in default"
+msgstr "eingebauter Standardwert"
+
+#: src/ui/model/effective_model.hpp
+msgid "from the global settings"
+msgstr "aus den globalen Einstellungen"
+
+#: src/ui/model/effective_model.hpp
+msgid "from this device profile"
+msgstr "aus diesem Geräteprofil"
+
+#: src/ui/model/effective_model.hpp
+msgid "from this program profile"
+msgstr "aus diesem Programmprofil"
+
+#: src/ui/model/effective_model.hpp
+msgid "from mode \"%1\""
+msgstr "aus dem Modus „%1“"
+
+#: src/ui/qt/pages/channels_page.cpp
+msgid "Step trigger"
+msgstr "Schrittschwelle"
+
+#: src/ui/qt/pages/channels_page.cpp
+msgid "Push strength at which a step: channel action taps its key once (steps per second after sensitivity)"
+msgstr "Auslenkung, bei der eine step:-Kanalaktion ihre Taste einmal drückt (Schritte pro Sekunde nach der Empfindlichkeit)"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Joystick mode"
+msgstr "Joystick-Modus"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Joystick mode:"
+msgstr "Joystick-Modus:"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "The joystick mode (what the axes do) that applies while this profile is active"
+msgstr "Der Joystick-Modus (was die Achsen tun), der gilt, solange dieses Profil aktiv ist"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Each button can use a button mode, switch the mode or hold the navigation mode (arrow keys instead of scrolling)."
+msgstr "Jede Taste kann einen Tastenmodus verwenden, den Modus wechseln oder den Navigationsmodus halten (Pfeiltasten statt Scrollen)."
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Default (inherit)"
+msgstr "Standard (erben)"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "missing: %1"
+msgstr "fehlt: %1"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Button modes"
+msgstr "Tastenmodi"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Actions"
+msgstr "Aktionen"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "inherited:"
+msgstr "geerbt:"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Button mode"
+msgstr "Tastenmodus"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "A button mode is a named button behavior. Pick it for any button on the Profiles page; the same button mode can be used on several buttons."
+msgstr "Ein Tastenmodus ist ein benanntes Tastenverhalten. Wählen Sie ihn auf der Seite Profile für beliebige Tasten; derselbe Tastenmodus kann auf mehreren Tasten verwendet werden."
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "A button mode can press a key or click. Only use button modes from trusted sources. An action that is the same everywhere and always is better set in the vendor driver (see docs/modes.md)."
+msgstr "Ein Tastenmodus kann eine Taste drücken oder klicken. Verwenden Sie nur Tastenmodi aus vertrauenswürdigen Quellen. Eine Aktion, die überall und immer gleich ist, stellt man besser im Herstellertreiber ein (siehe docs/modes.md)."
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "The files in the button modes folder"
+msgstr "Die Dateien im Tastenmodus-Ordner"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Description"
+msgstr "Beschreibung"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Action"
+msgstr "Aktion"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Shown in the button drop-downs"
+msgstr "Wird in den Tasten-Auswahllisten angezeigt"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Name:"
+msgstr "Name:"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Description:"
+msgstr "Beschreibung:"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Action:"
+msgstr "Aktion:"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "File:"
+msgstr "Datei:"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Write the changes to the button mode file"
+msgstr "Änderungen in die Tastenmodus-Datei schreiben"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Revert"
+msgstr "Zurücksetzen"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Discard the changes and reload the file"
+msgstr "Änderungen verwerfen und die Datei neu laden"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Open in text editor"
+msgstr "Im Texteditor öffnen"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Open the file in your default editor"
+msgstr "Datei im Standardeditor öffnen"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Warnings of the selected button mode"
+msgstr "Warnungen des gewählten Tastenmodus"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "New button mode"
+msgstr "Neuer Tastenmodus"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Create a button mode file from a commented template"
+msgstr "Tastenmodus-Datei aus einer kommentierten Vorlage anlegen"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Copy the selected button mode under a new name"
+msgstr "Den gewählten Tastenmodus unter neuem Namen kopieren"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Add a button mode file from somewhere else (you see its warnings first)"
+msgstr "Eine Tastenmodus-Datei von woanders hinzufügen (Warnungen werden vorher angezeigt)"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Delete the button mode file"
+msgstr "Die Tastenmodus-Datei löschen"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Open button modes folder"
+msgstr "Tastenmodus-Ordner öffnen"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Show the folder with the button mode files"
+msgstr "Den Ordner mit den Tastenmodus-Dateien zeigen"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Key"
+msgstr "Taste"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Warnings for the button modes folder:"
+msgstr "Warnungen für den Tastenmodus-Ordner:"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "No button modes yet. \"New button mode\" creates one; the folder also accepts files you copy there."
+msgstr "Noch keine Tastenmodi. „Neuer Tastenmodus“ legt einen an; der Ordner nimmt auch Dateien an, die Sie dort hineinkopieren."
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Could not save the button mode."
+msgstr "Der Tastenmodus konnte nicht gespeichert werden."
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Could not create the button mode."
+msgstr "Der Tastenmodus konnte nicht angelegt werden."
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Name of the new button mode:"
+msgstr "Name des neuen Tastenmodus:"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Could not duplicate the button mode."
+msgstr "Der Tastenmodus konnte nicht dupliziert werden."
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Import button mode file"
+msgstr "Tastenmodus-Datei importieren"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Button mode files (*.conf);;All files (*)"
+msgstr "Tastenmodus-Dateien (*.conf);;Alle Dateien (*)"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "A button mode with this id already exists. Name for the imported button mode:"
+msgstr "Ein Tastenmodus mit dieser Kennung existiert schon. Name für den importierten Tastenmodus:"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Import the button mode \"%1\"?"
+msgstr "Den Tastenmodus „%1“ importieren?"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Could not import the button mode."
+msgstr "Der Tastenmodus konnte nicht importiert werden."
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Delete the button mode file \"%1\"?"
+msgstr "Die Tastenmodus-Datei „%1“ löschen?"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "It is still used by:"
+msgstr "Er wird noch verwendet von:"
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Those buttons will show \"missing: %1\" and do nothing."
+msgstr "Diese Tasten zeigen „fehlt: %1“ und tun nichts."
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Could not delete the button mode."
+msgstr "Der Tastenmodus konnte nicht gelöscht werden."
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Could not create the button modes folder."
+msgstr "Der Tastenmodus-Ordner konnte nicht angelegt werden."
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "A button mode can press a key or click whenever its button is pressed. Only keep files from sources you trust and read the file first."
+msgstr "Ein Tastenmodus kann eine Taste drücken oder klicken, sobald seine Taste gedrückt wird. Behalten Sie nur Dateien aus vertrauenswürdigen Quellen und lesen Sie die Datei zuerst."
+
+#: src/ui/model/binding_editor_model.hpp
+msgid "Previous mode"
+msgstr "Vorheriger Modus"
+
+#: src/ui/model/binding_editor_model.hpp
+msgid "Mode while held"
+msgstr "Modus, solange gedrückt"

@@ -25,25 +25,33 @@
 //   key names from keys.hpp.
 // Buttons are numbered from 1 (BUTTON_1 .. BUTTON_32), exactly like BUTTON_<n> in the main config;
 // BUTTON_0 is rejected. Internally button n is device bit n-1 (spnav_event_button.bnum).
-// Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next |
-//                 toggle:nav | toggle:mode:<id>
+// Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | mode:prev |
+//                 toggle:nav | toggle:mode:<id> | hold:mode:<id> | buttonmode:<id>
 //   click/rightclick/middleclick = hold the mouse button while the button is held;
 //   key = hold the key; nav = while held, the V/H channels send arrow keys instead of scroll.
 //   mode:<id> = switch to the mode <id> when the button is PRESSED (not on release);
 //   mode:next = cycle through all loaded modes in alphabetical order of id (built-ins
-//   included), wrapping around. The switch is a runtime override of the mode chosen by
+//   included), wrapping around; mode:prev is the mirror (the previous id, wrapping from the first
+//   to the last; stateless, no history). "next" and "prev" are reserved targets: a mode file
+//   called next.conf or prev.conf still loads, but mode:next / mode:prev always mean the cycle
+//   action. The switch is a runtime override of the mode chosen by
 //   profile resolution: it is sticky (also across profile/app changes) until the daemon
 //   restarts, the config or the modes directory is reloaded, or another switch happens.
 //   All held keys/buttons are released on every switch; the status file "mode=" line
 //   shows the effective mode. An id that matches no loaded mode is rejected with a
-//   warning when the modes are loaded (the binding is dropped); "next" is always valid.
+//   warning when the modes are loaded (the binding is dropped); "next" and "prev" are always valid.
 //   toggle:nav = on every PRESS the navigation mode (arrow keys instead of scroll) is switched on
 //   or off, like holding a nav button but latched. toggle:mode:<id> = the first press switches to
 //   the mode <id> (like mode:<id>), the next press while <id> is the effective mode drops that
 //   switch and returns to the mode that profile resolution gives. Both are state that is cleared
 //   by a reload (also "Release all keys" in the tray), and by entering suspend/disabled; the
-//   status file shows it in the "toggle=" line. "next" is not valid in
+//   status file shows it in the "toggle=" line. "next" and "prev" are not valid in
 //   toggle:mode:<id> (there is no single mode to return from).
+//   hold:mode:<id> = the mode <id> is effective while the button is held; on release the state
+//   from before the press comes back (a mode:<id> / toggle:mode:<id> override that was in
+//   effect, else the mode of the profile). Any other mode switch during the hold ends it without
+//   restoring; a reload, suspend/disabled and an unplugged device end it too. "next" and "prev" are
+//   not valid; an unknown id is dropped with a warning when the modes are loaded.
 // A mode whose three channel actions are all "default" runs on the normal path (incl.
 // dominance-based zoom, NAV_BUTTON/CLICK_BUTTON from the settings).
 //
@@ -52,6 +60,8 @@
 #pragma once
 #include <map>
 #include <string>
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -59,21 +69,41 @@
 
 namespace spn {
 
-enum class ChannelActionType { Default, Off, WheelV, WheelH, Zoom, Keys };
+// Modifiers of a key chord (keys:ctrl+pageup,...), in the order written; at most kMaxChordMods.
+constexpr size_t kMaxChordMods = 4;
+struct ChordMods {
+    Key k[kMaxChordMods] = {Key::Ctrl, Key::Ctrl, Key::Ctrl, Key::Ctrl};
+    uint8_t n = 0;
+    // Order does not matter for equality: one bit per modifier key.
+    unsigned mask() const {
+        unsigned m = 0;
+        for (uint8_t i = 0; i < n; ++i)
+            m |= k[i] == Key::Ctrl ? 1u : k[i] == Key::Shift ? 2u : k[i] == Key::Alt ? 4u : 8u;
+        return m;
+    }
+    bool operator==(const ChordMods &o) const { return mask() == o.mask(); }
+};
+
+// Keys: a rate of key taps (keys:<neg>,<pos>); Step: one tap per push (step:<neg>,<pos>), both use neg/pos.
+enum class ChannelActionType { Default, Off, WheelV, WheelH, Zoom, Keys, Step };
 struct ChannelAction {
     ChannelActionType type = ChannelActionType::Default;
-    Key neg = Key::Up, pos = Key::Down;  // only for Keys
+    Key neg = Key::Up, pos = Key::Down;  // only for Keys: the key of the chord
+    bool usesKeys() const { return type == ChannelActionType::Keys || type == ChannelActionType::Step; }
+    ChordMods negMods = ChordMods(), posMods = ChordMods();         // only for Keys: modifiers held while the key is tapped
     bool operator==(const ChannelAction &o) const {
-        return type == o.type && (type != ChannelActionType::Keys || (neg == o.neg && pos == o.pos));
+        return type == o.type &&
+               (!usesKeys() ||
+                (neg == o.neg && pos == o.pos && negMods == o.negMods && posMods == o.posMods));
     }
 };
 
-enum class ButtonActionType { Unbound, Click, RightClick, MiddleClick, Nav, Key, ModeSwitch, ToggleNav, ToggleMode };
+enum class ButtonActionType { Unbound, Click, RightClick, MiddleClick, Nav, Key, ModeSwitch, ToggleNav, ToggleMode, ButtonMode, HoldMode };
 struct ButtonBinding {
     int button = 1;                       // button number, 1-based (device bit index = button - 1), 1..32
     ButtonActionType type = ButtonActionType::Unbound;
     Key key = Key::Space;                 // only for Key
-    std::string mode;                     // ModeSwitch: target id or "next"; ToggleMode: target id
+    std::string mode;                     // ModeSwitch: target id or "next"; ToggleMode: target id; ButtonMode: button mode id; HoldMode: target id
 };
 
 struct ModeDef {
@@ -102,7 +132,7 @@ struct ModeSet {
 bool validModeId(const std::string &id);
 
 bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err);
-// modeId (optional) receives the target of mode:<id> / mode:next / toggle:mode:<id>. Only the syntax of the id is
+// modeId (optional) receives the target of mode:<id> / mode:next / toggle:mode:<id> and the button mode id of buttonmode:<id>. Only the syntax of the id is
 // checked here; existence is checked by loadModes (the parser does not know the mode set).
 bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key, std::string *err,
                        std::string *modeId = nullptr);

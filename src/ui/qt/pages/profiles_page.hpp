@@ -27,6 +27,9 @@ public:
     explicit ProfilesPage(const UiContext &ctx, QWidget *parent = nullptr);
     int profileCount() const;          // tree entries below the default mode
     bool modeSelectorVisible() const;  // false for the default mode
+    // Selects the profile of a settings section (a click on an Overview card). False if there is none.
+    bool selectSection(size_t section);
+    size_t selectedSection() const { return currentSection(); }
 
 private slots:
     void onSelectionChanged();
@@ -50,6 +53,7 @@ private:
     QWidget *buildButtonSettings(size_t section);
     QWidget *buildModeInfo(size_t section);
     QWidget *buildOverrides(size_t section);
+    QWidget *buildEffective(size_t section);
 
     const UiContext &ctx_;
     ProfilesEnv env_;
