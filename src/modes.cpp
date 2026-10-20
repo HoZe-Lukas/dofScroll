@@ -351,7 +351,7 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
             std::vector<std::string> list;
             std::string e;
             if (!parseModeCycleList(id.substr(5), &list, &e)) return fail(err, "mode:" + id.substr(0, 4) + ":<ids>: " + e);
-            id = id.substr(0, 5);
+            id.resize(5);
             for (size_t i = 0; i < list.size(); i++) id += (i ? "," : "") + list[i];
             if (modeId) *modeId = id;
             if (type) *type = ButtonActionType::ModeSwitch;
