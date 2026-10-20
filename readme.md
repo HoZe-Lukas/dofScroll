@@ -81,8 +81,8 @@ Release notes: [docs/release-notes-1.0.1.md](docs/release-notes-1.0.1.md) (and [
 3. Verify: `sha256sum -c --ignore-missing SHA256SUMS.txt`
 4. Install: `sudo dnf install ./dofscroll-*.rpm` (RHEL family, needs EPEL) or
    `sudo apt install ./dofscroll_*.deb` (Debian family). Linux packages contain the Qt interface
-   (`dofscroll-ui`) when Qt6 was available at build time; it needs Qt 6.6 or newer at run time
-   (the RHEL family gets it from EPEL).
+   (`dofscroll-ui`) when Qt6 was available at build time; it the RPM needs Qt 6.6 or newer at
+   run time (the RHEL family gets it from EPEL).
    Windows: unsigned `-setup.exe` or portable ZIP (SmartScreen: More info, Run anyway). macOS:
    unsigned DMG (right-click > Open). Details per system: [docs/installation.md](docs/installation.md).
 5. Follow the first-time setup in [docs/installation.md](docs/installation.md). The user units

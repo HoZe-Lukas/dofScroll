@@ -3,9 +3,10 @@
 #
 # Qt6 Widgets user interface (dofscroll-ui). Included from CMakeLists.txt. Standalone: needs
 # Qt and the core library (config, file layer; no daemon code), so the UI jobs can build just this target (see docs/ui-options.md).
-# Qt 6.6 is the oldest supported version (the RPM is built against it, see docs/release-process.md);
-# an older Qt is treated as "no Qt found", so the UI is skipped and the daemon builds alone.
-set(DOFSCROLL_QT_MIN 6.6)
+# Oldest Qt the sources build with: 6.4 (Debian 12 builds the DEB with Qt 6.4.2). An older Qt is
+# treated as "no Qt found", so the UI is skipped and the daemon builds alone. The RPM is built
+# against Qt 6.6 and requires 6.6 (DOFSCROLL_RPM_QT_MIN in packaging/cpack, docs/release-process.md).
+set(DOFSCROLL_QT_MIN 6.4)
 find_package(Qt6 ${DOFSCROLL_QT_MIN} COMPONENTS Widgets QUIET)
 if(Qt6_FOUND)
   option(DOFSCROLL_UI "Build the Qt6 user interface (experimental)" ON)

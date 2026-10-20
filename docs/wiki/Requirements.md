@@ -199,7 +199,7 @@ Community sources only; the official 3Dconnexion pages could not be fetched, and
 
 ## Building from source
 
-The build needs a C++17 compiler, CMake 3.16 or newer, `libspnav` and the X11 and XTest development headers on Linux, `gettext` for the German translation, and Qt 6.6 or newer (Widgets, with SVG) for the interface. Package names per distribution and the `check-deps` target are in [Installation](Installation).
+The build needs a C++17 compiler, CMake 3.16 or newer, `libspnav` and the X11 and XTest development headers on Linux, `gettext` for the German translation, and Qt 6.4 or newer (Widgets, with SVG) for the interface. Package names per distribution and the `check-deps` target are in [Installation](Installation).
 
 ## What only a human can verify
 

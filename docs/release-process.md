@@ -108,12 +108,13 @@ Checks that keep it so:
   newest Qt of EPEL and runs `dofscroll-ui --self-test`: forward compatibility. Backward
   compatibility with a real Qt 6.6 repository cannot be tested in CI (EPEL has only the newest Qt),
   so it is a manual check on a machine with Qt 6.6.
-- `cmake/Ui.cmake` (`DOFSCROLL_QT_MIN`) and the RPM dependencies (`qt6-qtbase-gui >= 6.6`,
-  `qt6-qtsvg >= 6.6`) state the minimum. The DEB is built on Debian 12 with its own Qt 6.4; the DEB
-  needs no pinning.
+- `packaging/cpack/DofscrollCPack.cmake` (`DOFSCROLL_RPM_QT_MIN`) states the RPM dependencies
+  (`qt6-qtbase-gui >= 6.6`, `qt6-qtsvg >= 6.6`). `cmake/Ui.cmake` (`DOFSCROLL_QT_MIN`, 6.4) is the
+  oldest Qt the sources build with: the DEB is built on Debian 12 with its own Qt 6.4 and needs no
+  pinning (a CMake minimum of 6.6 would drop the interface from the DEB).
 
 To change the supported minimum, change together: `ARG QT_VERSION` in `packaging/ci/rocky9.Dockerfile`,
-`QT_VERSION` in the `ui-linux-qt66` job, `DOFSCROLL_QT_MIN` in `cmake/Ui.cmake`, the limit in the
+`QT_VERSION` in the `ui-linux-qt66` job, `DOFSCROLL_RPM_QT_MIN` in `packaging/cpack/DofscrollCPack.cmake`, the limit in the
 RPM check of `linux-packages.yml`, the check in `ci-image.yml`, and the requirement text in
 `docs/installation.md` and the wiki. Merge the Dockerfile change first (the image is published from
 `main`), then the rest.

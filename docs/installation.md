@@ -342,8 +342,8 @@ hardening check), `check-config` (validates the example configs), `lint`, `insta
 ### Qt interface
 
 The Qt6 interface (`dofscroll-ui`, see [ui.md](ui.md)) is built when Qt6 Widgets 6.6 or newer is
-found (CMake option `DOFSCROLL_UI`; 6.6 is the oldest supported Qt, CI builds against 6.6.3 and
-newer). Linux: install the distribution's Qt6 development packages
+found (CMake option `DOFSCROLL_UI`; the sources build with Qt 6.4 and newer, the RPM is built
+against Qt 6.6 and needs 6.6 at run time; CI builds against 6.6.3 and newer). Linux: install the distribution's Qt6 development packages
 (Debian family: `qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev`). Windows and macOS builds
 bundle the Qt libraries. Decisions: `docs/ui-options.md`. `dofscroll-ui --self-test` checks that
 the window can be created.
