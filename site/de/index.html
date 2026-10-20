@@ -31,7 +31,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="stylesheet" href="../style.css">
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "dofscroll", "description": "Nutze deine 3Dconnexion SpaceMouse als Scrollrad und Zoom in jedem Programm: Browser, PDF-Reader, Karten. Frei und quelloffen für Linux, Windows und macOS.", "url": "https://hoze-lukas.github.io/dofScroll/de/", "inLanguage": "de", "operatingSystem": "Linux, Windows, macOS", "applicationCategory": "UtilitiesApplication", "license": "https://www.gnu.org/licenses/gpl-3.0.html", "softwareVersion": "0.1.1", "downloadUrl": "https://github.com/HoZe-Lukas/dofScroll/releases/latest", "screenshot": "https://hoze-lukas.github.io/dofScroll/img/ui-profiles-light.png", "image": "https://hoze-lukas.github.io/dofScroll/img/og-de.png", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "dofscroll", "description": "Nutze deine 3Dconnexion SpaceMouse als Scrollrad und Zoom in jedem Programm: Browser, PDF-Reader, Karten. Frei und quelloffen für Linux, Windows und macOS.", "url": "https://hoze-lukas.github.io/dofScroll/de/", "inLanguage": "de", "operatingSystem": "Linux, Windows, macOS", "applicationCategory": "UtilitiesApplication", "license": "https://www.gnu.org/licenses/gpl-3.0.html", "softwareVersion": "1.0.0", "downloadUrl": "https://github.com/HoZe-Lukas/dofScroll/releases/latest", "screenshot": "https://hoze-lukas.github.io/dofScroll/img/ui-profiles-light.png", "image": "https://hoze-lukas.github.io/dofScroll/img/og-de.png", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}}</script>
 </head>
 <body>
 <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -49,11 +49,11 @@
 <h1 id="top">Nutze deine SpaceMouse als Scrollrad und Zoom in jedem Programm</h1>
 <p class="lead">Eine 3Dconnexion SpaceMouse ist für 3D- und CAD-Programme gebaut. Im Webbrowser, im PDF-Reader, in einer Karte oder einem Office-Dokument tut sie meistens nichts. <strong>dofscroll</strong> ändert das: Kappe schieben zum Scrollen, drehen zum Zoomen, und alles lässt sich pro Programm einstellen. Freie Software für Linux, Windows und macOS.</p>
 <div class="cta">
-<a class="btn" href="https://github.com/HoZe-Lukas/dofScroll/releases/latest">Neueste Version herunterladen</a>
+<a class="btn" href="https://github.com/HoZe-Lukas/dofScroll/releases/latest">Version 1.0.0 herunterladen</a>
 <a class="btn secondary" href="#quickstart">Schnellstart</a>
 </div>
 <p class="note">dofscroll ist ein unabhängiges Projekt. Es steht in keiner Verbindung zu 3Dconnexion und wird von 3Dconnexion nicht unterstützt oder empfohlen. &bdquo;SpaceMouse&ldquo; und &bdquo;3Dconnexion&ldquo; sind Marken ihrer Inhaber und werden nur verwendet, um die unterstützte Hardware zu benennen.</p>
-<div class="status"><strong>Ehrlicher Stand:</strong> Nur ein Aufbau wurde vom Maintainer auf echter Hardware geprüft: Linux (RHEL 9, X11, KDE Plasma) mit einer SpaceMouse Pro und einer SpaceMouse Compact. Die Windows- und macOS-Versionen werden von der CI gebaut und wurden <strong>noch nie mit einem echten Gerät ausgeführt</strong>. Details: <a href="#download">Download und Stand</a>.</div>
+<div class="status"><strong>Version 1.0.0.</strong> Ausführlich getestet nur unter RHEL 9 (X11, KDE Plasma, SpaceMouse Pro und Compact). Weitere Linux-Distributionen wurden in CI-Containern auf Installierbarkeit geprüft; die Windows- und macOS-Versionen werden von der CI gebaut und per Unit-Tests geprüft, wurden aber noch nie mit einem echten Gerät ausgeführt. Details: <a href="#download">Download und Stand</a>.</div>
 </div>
 </section>
 
@@ -115,7 +115,7 @@
 <thead><tr><th scope="col">System</th><th scope="col">Installation</th><th scope="col">Stand</th></tr></thead>
 <tbody>
 <tr><th scope="row">Fedora, RHEL-Familie</th><td><code>sudo dnf install ./dofscroll-*.rpm</code> (braucht EPEL)</td><td>Vom Maintainer auf RHEL 9, X11, KDE Plasma geprüft. Andere Linux-Distributionen: nicht getestet.</td></tr>
-<tr><th scope="row">Debian, Ubuntu</th><td><code>sudo apt install ./dofscroll_*.deb</code></td><td>Paket wird von der CI gebaut, aber nicht auf Hardware installiert und ausgeführt.</td></tr>
+<tr><th scope="row">Debian, Ubuntu</th><td><code>sudo apt install ./dofscroll_*.deb</code></td><td>Paket wird von der CI gebaut und in einem Container auf Installierbarkeit geprüft; nicht mit einem echten Gerät ausgeführt.</td></tr>
 <tr><th scope="row">Windows 10 und 11</th><td><code>dofscroll-*-setup.exe</code> ausführen oder das portable ZIP entpacken. Der Installer ist nicht signiert, daher fragt SmartScreen nach (Weitere Informationen, Trotzdem ausführen).</td><td><strong>Von der CI gebaut, nie mit einem echten Gerät ausgeführt.</strong></td></tr>
 <tr><th scope="row">macOS (Apple Silicon)</th><td>DMG öffnen und die App in den Ordner Programme ziehen. Sie ist nicht notarisiert: beim ersten Start Rechtsklick, Öffnen.</td><td><strong>Von der CI gebaut, nie mit einem echten Gerät ausgeführt.</strong></td></tr>
 </tbody>
