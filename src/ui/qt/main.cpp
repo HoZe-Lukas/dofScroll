@@ -815,12 +815,12 @@ static bool themeSelfTest(MainWindow &w) {
 // ---- helpers of the autosave self-tests ----
 
 // A window with its own temporary configuration and a runner that records the reload requests.
-struct Rig {
+struct EditorRig {
     QTemporaryDir dir;
     spn::ui::RecordingActionRunner rec;
     UiContext ctx;
     std::unique_ptr<MainWindow> win;
-    explicit Rig(const QByteArray &conf) {
+    explicit EditorRig(const QByteArray &conf) {
         const QString p = dir.path();
         ctx.runner = &rec;
         ctx.configPath = (p + QStringLiteral("/dofscroll.conf")).toStdString();
@@ -847,7 +847,8 @@ struct Rig {
     spn::ui::SettingsModel disk() const {
         spn::ui::SettingsModel m;
         std::string err;
-        m.load(ctx.configPath, nullptr, &err);
+        if (!m.load(ctx.configPath, nullptr, &err))
+            std::fprintf(stderr, "profile editor self-test: cannot read %s: %s\n", ctx.configPath.c_str(), err.c_str());
         return m;
     }
     int reloads() const { return rec.count(spn::ui::RecordingActionRunner::Kind::RequestReload); }
@@ -858,6 +859,8 @@ struct Rig {
         t.start();
         while (saver()->pending() && t.elapsed() < ms) QApplication::processEvents(QEventLoop::AllEvents, 20);
         QApplication::processEvents();
+        if (saver()->failed())
+            std::fprintf(stderr, "profile editor self-test: autosave failed: %s\n", saver()->statusText().toUtf8().constData());
         return !saver()->pending();
     }
 };
@@ -902,7 +905,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         if (!cond) std::fprintf(stderr, "profile editor self-test failed: %s\n", what);
         ok = ok && cond;
     };
-    Rig rig("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\n\n[app:blender]\nENABLED = 0\n");
+    EditorRig rig("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\n\n[app:blender]\nENABLED = 0\n");
     MainWindow &w = *rig.win;
     w.showPage(QStringLiteral("profiles"));
     settle();
@@ -1533,7 +1536,7 @@ static bool legacyButtonsSelfTest() {
         if (!cond) std::fprintf(stderr, "legacy buttons self-test failed: %s\n", what);
         ok = ok && cond;
     };
-    Rig rig("[global]\nNAV_BUTTON = 2\nNAV_BUTTON_ENABLED = 1\nCLICK_BUTTON = 1\nCLICK_BUTTON_ENABLED = 0\nBUTTON_4 = key:space\n");
+    EditorRig rig("[global]\nNAV_BUTTON = 2\nNAV_BUTTON_ENABLED = 1\nCLICK_BUTTON = 1\nCLICK_BUTTON_ENABLED = 0\nBUTTON_4 = key:space\n");
     const QString text = rig.confText();
     check(!text.contains(QStringLiteral("NAV_BUTTON")) && !text.contains(QStringLiteral("CLICK_BUTTON")), "the old keys are gone from the file");
     check(text.contains(QStringLiteral("BUTTON_3 = nav")) && text.contains(QStringLiteral("BUTTON_4 = key:space")), "the navigation button became BUTTON_3 = nav");
@@ -1553,7 +1556,7 @@ static bool legacyButtonsSelfTest() {
         check(findNamed<QSpinBox>(page, QStringLiteral("Navigation button")) == nullptr, "there is no navigation button setting any more");
     }
     // a button above the count of the device: kept untouched and listed
-    Rig rig2("[global]\nNAV_BUTTON = 40\nNAV_BUTTON_ENABLED = 1\n");
+    EditorRig rig2("[global]\nNAV_BUTTON = 40\nNAV_BUTTON_ENABLED = 1\n");
     check(rig2.confText().contains(QStringLiteral("NAV_BUTTON = 40")), "an unmovable setting stays in the file");
     ProfilesPage *p2 = rig2.win->profilesPage();
     if (p2) {
@@ -1585,7 +1588,7 @@ static bool autosaveAuditSelfTest(const std::function<bool(MainWindow &)> &) {
             ok = false;
         }
     };
-    Rig rig("[global]\nSCROLL_V_SENS = 5\nZOOM_LATERAL = x y\n\n[device:Dev]\n\n[app:audit-app]\nSCROLL_V_SIGN = -1\nENABLED = 0\n");
+    EditorRig rig("[global]\nSCROLL_V_SENS = 5\nZOOM_LATERAL = x y\n\n[device:Dev]\n\n[app:audit-app]\nSCROLL_V_SIGN = -1\nENABLED = 0\n");
     MainWindow &w = *rig.win;
     w.showPage(QStringLiteral("profiles"));
     ProfilesPage *page = w.profilesPage();
