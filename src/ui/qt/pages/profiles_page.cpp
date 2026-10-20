@@ -474,7 +474,7 @@ void ProfilesPage::setTabContent(QScrollArea *area, const QList<QWidget *> &part
     auto *content = new QWidget;
     content->setMaximumWidth(tk::kMaxContentWidth);
     auto *l = new QVBoxLayout(content);
-    l->setContentsMargins(tk::kPageMargin, tk::kSpaceLg, tk::kPageMargin, tk::kPageMargin);
+    l->setContentsMargins(tk::kSpaceMd, tk::kSpaceLg, tk::kSpaceMd, tk::kPageMargin);
     l->setSpacing(tk::kSectionGap);
     for (QWidget *w : parts)
         if (w) l->addWidget(w);
@@ -680,9 +680,10 @@ QWidget *ProfilesPage::buildEnabled(size_t section) {
         reset->setAccessibleName(T("Reset to inherited") + QStringLiteral(" ENABLED"));
     };
     refresh();
-    l->addWidget(check, 0, 0);
-    l->addWidget(origin, 0, 1);
-    l->addWidget(reset, 0, 2);
+    l->addWidget(check, 0, 0, 1, 2);
+    origin->setWordWrap(true);
+    l->addWidget(origin, 1, 0);
+    l->addWidget(reset, 1, 1);
     connect(check, &QCheckBox::toggled, this, [this, section, refresh](bool on) {
         std::string err;
         if (!ctx_.settings->setValue(section, "ENABLED", on ? "1" : "0", &err)) {

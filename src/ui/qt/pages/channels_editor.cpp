@@ -128,7 +128,7 @@ ChannelsEditor::ChannelsEditor(const UiContext &ctx, QWidget *parent) : QWidget(
     auto *content = new QWidget;
     content->setMaximumWidth(tk::kMaxContentWidth);
     auto *col = new QVBoxLayout(content);
-    col->setContentsMargins(tk::kPageMargin, tk::kSpaceLg, tk::kPageMargin, tk::kPageMargin);
+    col->setContentsMargins(tk::kSpaceSm, tk::kSpaceLg, tk::kSpaceSm, tk::kPageMargin);
     col->setSpacing(tk::kSectionGap);
     auto *top = new QHBoxLayout;
     auto *intro = new QLabel(T("How the cap movement becomes scrolling and zooming. A change is saved at once and the "
@@ -349,10 +349,10 @@ void ChannelsEditor::spinRow(QGridLayout *grid, int *row, const std::string &key
     grid->addWidget(editor, *row, 1);
     hl->setWordWrap(true);
     hl->setForegroundRole(QPalette::PlaceholderText);
-    grid->addWidget(hl, *row + 1, 1, 1, 3);
+    grid->addWidget(hl, *row + 2, 1, 1, 2);
     registerRow(key, label, help, {l, editor, hl});
     addMeta(grid, *row, key, &rows_.back());
-    *row += 2;
+    *row += 3;
 }
 
 void ChannelsEditor::addMeta(QGridLayout *grid, int row, const std::string &key, FilterRow *fr) {
@@ -365,8 +365,8 @@ void ChannelsEditor::addMeta(QGridLayout *grid, int row, const std::string &key,
     reset->setText(T("Reset"));
     reset->setAccessibleName(T("Reset to inherited") + QLatin1Char(' ') + qs8(key));
     connect(reset, &QToolButton::clicked, this, [this, key] { onResetKey(key); });
-    grid->addWidget(origin, row, 2, Qt::AlignVCenter);
-    grid->addWidget(reset, row, 3, Qt::AlignVCenter);
+    grid->addWidget(origin, row + 1, 1, 1, 2, Qt::AlignVCenter);
+    grid->addWidget(reset, row, 2, Qt::AlignVCenter);
     fr->widgets.push_back(origin);
     fr->widgets.push_back(reset);
     metas_.push_back({key, origin, reset});
@@ -422,7 +422,7 @@ QGroupBox *ChannelsEditor::buildGroup(const SettingsModel::Group &g) {
     auto *grid = new QGridLayout(box);
     grid->setColumnStretch(1, 1);
     grid->setHorizontalSpacing(tk::kRowGap);
-    grid->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
+    grid->setContentsMargins(tk::kSpaceMd, tk::kCardPadding, tk::kSpaceMd, tk::kCardPadding);
     int row = 0;
     const bool isChannel = g.id != "steps";
     const std::string pre = g.id == "scroll_v" ? "SCROLL_V_" : g.id == "scroll_h" ? "SCROLL_H_" : "ZOOM_";
@@ -473,7 +473,7 @@ QGroupBox *ChannelsEditor::buildGroup(const SettingsModel::Group &g) {
     reset->setAccessibleName(T("Reset this group") + QStringLiteral(" - ") + T(g.title.c_str()));
     const std::vector<std::string> keys = g.keys;
     connect(reset, &QPushButton::clicked, this, [this, keys] { onResetGroup(keys); });
-    grid->addWidget(reset, row, 0, 1, 4, Qt::AlignRight);
+    grid->addWidget(reset, row, 0, 1, 3, Qt::AlignRight);
     return box;
 }
 
@@ -490,7 +490,7 @@ void ChannelsEditor::addSign(QGridLayout *grid, int *row, const std::string &key
     grid->addWidget(cb, *row, 0, 1, 2);
     registerRow(key, T("Invert direction"), help, {cb});
     addMeta(grid, *row, key, &rows_.back());
-    *row += 1;
+    *row += 2;
 }
 
 void ChannelsEditor::addCurve(QGridLayout *grid, int *row, const std::string &key, const std::string &groupId) {
@@ -538,11 +538,11 @@ void ChannelsEditor::addCurve(QGridLayout *grid, int *row, const std::string &ke
     grid->addWidget(pair, *row, 1);
     expLabel->setWordWrap(true);
     expLabel->setForegroundRole(QPalette::PlaceholderText);
-    grid->addWidget(expLabel, *row + 1, 1, 1, 3);
+    grid->addWidget(expLabel, *row + 2, 1, 1, 2);
     registerRow(key, T("Curve (exponent)"), expHelp, {l, pair, slider, spin, expLabel});
     addMeta(grid, *row, key, &rows_.back());
     editors_.emplace_back(key, spin);
-    *row += 2;
+    *row += 3;
 
     auto *pts = new QLineEdit;
     pts->setPlaceholderText(T("empty = exponent applies, e.g. 0:0 50:0.1 200:1 350:3"));
@@ -564,7 +564,7 @@ void ChannelsEditor::addCurve(QGridLayout *grid, int *row, const std::string &ke
     grid->addWidget(pts, *row, 1);
     ptsLabel->setWordWrap(true);
     ptsLabel->setForegroundRole(QPalette::PlaceholderText);
-    grid->addWidget(ptsLabel, *row + 1, 1, 1, 3);
+    grid->addWidget(ptsLabel, *row + 1, 1, 1, 2);
     registerRow(key, T("Curve (points)"), ptsHelp, {pl2, pts, ptsLabel});
     *row += 2;
 
@@ -583,7 +583,7 @@ void ChannelsEditor::addCurve(QGridLayout *grid, int *row, const std::string &ke
     });
 
     auto *preview = new CurveWidget(this);
-    grid->addWidget(preview, *row, 0, 1, 4);
+    grid->addWidget(preview, *row, 0, 1, 3);
     rows_.back().widgets.push_back(preview);  // the preview is shown with the points row
     *row += 1;
     previews_.emplace_back(groupId, preview);
@@ -593,7 +593,7 @@ void ChannelsEditor::addZoomDetection(QGridLayout *grid, int *row) {
     const QString latHelp = T("Zoom only starts if the twist is stronger than the strongest of these axes");
     auto *lat = new QLabel(latHelp);
     auto *box = new QWidget;
-    auto *bl = new QHBoxLayout(box);
+    auto *bl = new QGridLayout(box);  // three per line, so the row stays narrow in a small window
     bl->setContentsMargins(0, 0, 0, 0);
     auto boxes = std::make_shared<std::vector<QCheckBox *>>();
     for (int a = 0; a < spn::AX_COUNT; ++a) {
@@ -601,7 +601,7 @@ void ChannelsEditor::addZoomDetection(QGridLayout *grid, int *row) {
         cb->setProperty("look", QStringLiteral("box"));
         cb->setToolTip(latHelp);
         boxes->push_back(cb);
-        bl->addWidget(cb);
+        bl->addWidget(cb, a / 3, a % 3);
         connect(cb, &QCheckBox::toggled, this, [this, boxes, lat, latHelp, box](bool) {
             unsigned mask = 0;
             for (size_t i = 0; i < boxes->size(); ++i)
@@ -609,19 +609,19 @@ void ChannelsEditor::addZoomDetection(QGridLayout *grid, int *row) {
             apply("ZOOM_LATERAL", spn::ui::lateralText(mask), box, lat, latHelp, false);
         });
     }
-    bl->addStretch(1);
+    bl->setColumnStretch(3, 1);
     auto *l = new QLabel(T("Zoom must dominate against"));
     grid->addWidget(l, *row, 0, Qt::AlignTop);
     grid->addWidget(box, *row, 1);
     lat->setWordWrap(true);
     lat->setForegroundRole(QPalette::PlaceholderText);
-    grid->addWidget(lat, *row + 1, 1, 1, 3);
+    grid->addWidget(lat, *row + 2, 1, 1, 2);
     std::vector<QWidget *> latWidgets = {l, box, lat};
     for (QCheckBox *cb : *boxes) latWidgets.push_back(cb);
     registerRow("ZOOM_LATERAL", T("Zoom must dominate against"), latHelp, latWidgets);
     addMeta(grid, *row, "ZOOM_LATERAL", &rows_.back());
     editors_.emplace_back("ZOOM_LATERAL", box);
-    *row += 2;
+    *row += 3;
     refreshers_.push_back([this, boxes] {
         const unsigned mask = spn::ui::lateralMask(ctx_.settings->effectiveWithMode(section_));
         for (size_t i = 0; i < boxes->size(); ++i) {

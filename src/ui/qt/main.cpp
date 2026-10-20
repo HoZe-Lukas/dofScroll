@@ -1961,6 +1961,14 @@ int main(int argc, char **argv) {
                                              QStringLiteral("/light-wide-profile-%1-%2.png").arg(QString::fromLatin1(who), tab);
                         if (w.grab().save(file)) ++written;
                     }
+            w.resize(960, 560);  // the same tabs in a medium window
+            if (pp)
+                for (const QString &tab : pp->tabIds()) {
+                    pp->selectSection(2);
+                    pp->selectTab(tab);
+                    settle();
+                    if (w.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-medium-profile-%1-program.png").arg(tab))) ++written;
+                }
         }
         {   // the in-page mode editor
             ModesPage page(ctx);

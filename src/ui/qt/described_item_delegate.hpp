@@ -13,7 +13,7 @@
 
 #include "ui/model/design_tokens.hpp"
 
-enum { kRoleDescription = Qt::UserRole + 1 };
+enum { kRoleDescription = Qt::UserRole + 1, kRoleOrigin = Qt::UserRole + 2 };
 
 class DescribedItemDelegate : public QStyledItemDelegate {
 public:
@@ -44,8 +44,16 @@ public:
         painter->save();
         painter->setFont(opt.font);
         painter->setPen(opt.palette.color(opt.state & QStyle::State_Selected ? QPalette::HighlightedText : QPalette::Text));
-        painter->drawText(QRect(textRect.left(), textRect.top() + pad, textRect.width(), fm.height()), Qt::AlignLeft | Qt::AlignVCenter,
-                          fm.elidedText(title, Qt::ElideRight, textRect.width()));
+        // the origin ("Built in", "Your file") sits at the right end of the name line, muted
+        const QString origin = index.data(kRoleOrigin).toString();
+        const int originWidth = origin.isEmpty() ? 0 : fm.horizontalAdvance(origin) + spn::ui::tokens::kSpaceMd;
+        painter->drawText(QRect(textRect.left(), textRect.top() + pad, textRect.width() - originWidth, fm.height()),
+                          Qt::AlignLeft | Qt::AlignVCenter, fm.elidedText(title, Qt::ElideRight, textRect.width() - originWidth));
+        if (!origin.isEmpty()) {
+            painter->setPen(opt.palette.color(opt.state & QStyle::State_Selected ? QPalette::HighlightedText : QPalette::PlaceholderText));
+            painter->drawText(QRect(textRect.left(), textRect.top() + pad, textRect.width(), fm.height()), Qt::AlignRight | Qt::AlignVCenter, origin);
+            painter->setPen(opt.palette.color(opt.state & QStyle::State_Selected ? QPalette::HighlightedText : QPalette::Text));
+        }
         const QString desc = index.data(kRoleDescription).toString();
         if (!desc.isEmpty()) {
             painter->setPen(opt.palette.color(opt.state & QStyle::State_Selected ? QPalette::HighlightedText : QPalette::PlaceholderText));

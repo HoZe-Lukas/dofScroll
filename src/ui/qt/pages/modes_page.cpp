@@ -203,9 +203,9 @@ void ModesPage::populate(const QString &selectId) {
     int select = 0, n = 0;
     for (const ModeCatalog::ModeEntry &m : catalog_.modes()) {
         const QString id = QString::fromStdString(m.id), label = QString::fromStdString(m.label);
-        auto *it = new QListWidgetItem((label == id ? id : label + QStringLiteral(" (") + id + QStringLiteral(")")) +
-                                       QStringLiteral("  -  ") + originText(m.origin));
+        auto *it = new QListWidgetItem(label == id ? id : label + QStringLiteral(" (") + id + QStringLiteral(")"));
         it->setData(kRoleId, id);
+        it->setData(kRoleOrigin, originText(m.origin));
         it->setData(kRoleDescription, qs8(m.description.empty() ? spn::ui::noDescriptionText(QtStrings()) : m.description));
         if (!m.warnings.empty()) it->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
         it->setToolTip(qs8(m.description.empty() ? spn::ui::noDescriptionText(QtStrings()) : m.description) + QLatin1Char('\n') +

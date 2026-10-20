@@ -257,9 +257,9 @@ void ButtonModesPage::populate(const QString &selectId) {
         int select = 0, n = 0;
         for (const ButtonModeCatalog::Entry &b : catalog_.buttonModes()) {
             const QString id = qs(b.id), label = qs(b.label);
-            auto *it = new QListWidgetItem((label == id ? id : label + QStringLiteral(" (") + id + QStringLiteral(")")) +
-                                           QStringLiteral("  -  ") + qs8(spn::ui::buttonModeOriginText(b.builtin, b.overridesBuiltin, QtStrings())));
+            auto *it = new QListWidgetItem(label == id ? id : label + QStringLiteral(" (") + id + QStringLiteral(")"));
             it->setData(kRoleId, id);
+            it->setData(kRoleOrigin, qs8(spn::ui::buttonModeOriginText(b.builtin, b.overridesBuiltin, QtStrings())));
             it->setData(kRoleDescription, b.description.empty() ? qs8(spn::ui::noDescriptionText(QtStrings())) : qs(b.description));
             if (!b.warnings.empty()) it->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
             it->setToolTip(b.description.empty() ? qs8(spn::ui::noDescriptionText(QtStrings())) : qs(b.description));
