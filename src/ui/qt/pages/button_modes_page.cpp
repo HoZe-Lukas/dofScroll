@@ -407,7 +407,10 @@ bool ButtonModesPage::stageEdit(const QString &name, const QString &description,
     name_->setText(name);
     description_->setText(description);
     Binding b;
-    if (!spn::ui::parseBinding(action.toStdString(), &b)) return false;
+    if (!spn::ui::parseBinding(action.toStdString(), &b)) {
+        std::fprintf(stderr, "button modes: cannot parse the binding '%s'\n", qPrintable(action));
+        return false;
+    }
     binding_ = b;
     int idx = 0;
     for (int i = 0; i < kind_->count(); ++i)
