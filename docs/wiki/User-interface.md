@@ -25,6 +25,8 @@ Settings > Appearance: System default, Light or Dark. It applies at once and is 
 
 ## Profiles and the program picker
 
+The editor of a profile has the sub-tabs General, Channels, Buttons and Overrides; Save, Revert and the status line stay visible below them, and the last tab is remembered. Revert drops the unsaved edits of the selected profile; selecting another profile or page, or closing the window, with unsaved edits asks Save, Discard or Cancel. A search box above the list filters the profiles by name, one above the tabs filters the settings by label or key. The mode editor on the Modes page has the tabs Settings, Buttons and Overrides in the same way.
+
 "Add application..." lists the programs that are running now (search by name, match string or window title, refresh) and shows the exact match string that will be stored. "Capture next focused program" takes the program you switch to. Precedence: global < device < mode overrides < application, see [Profiles](Profiles).
 
 ## Tray

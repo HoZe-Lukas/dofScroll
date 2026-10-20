@@ -360,7 +360,64 @@ static void testDeviceSource() {
     assert(sm.buttonLimit() == 32);  // nothing known: the maximum
 }
 
+// Search box of the profile list and of the settings rows.
+static void testFilter() {
+    SettingsModel m;
+    m.setProfiles(ProfileSet(), "");
+    std::string err;
+    assert(ProfileTreeModel::add(m, Section::APP, "Firefox", &err) != ProfileSet::npos);
+    assert(ProfileTreeModel::add(m, Section::APP, "blender", &err) != ProfileSet::npos);
+    assert(ProfileTreeModel::add(m, Section::DEVICE, "SpaceMouse Pro", &err) != ProfileSet::npos);
+    const std::vector<ProfileEntry> all = ProfileTreeModel::entries(m);
+    assert(all.size() == 4);
+    assert(ProfileTreeModel::filter(all, "").size() == 4);
+    const std::vector<ProfileEntry> f = ProfileTreeModel::filter(all, "FIRE");
+    assert(f.size() == 2 && f[0].isDefault && f[1].pattern == "Firefox");  // default mode stays
+    assert(ProfileTreeModel::filter(all, "mouse").size() == 2);
+    assert(ProfileTreeModel::filter(all, "nothing").size() == 1);
+    assert(ProfileTreeModel::filterMatches("sens", "Vertical", "SCROLL_V_SENS"));
+    assert(ProfileTreeModel::filterMatches("vert", "Vertical", "SCROLL_V_SENS"));
+    assert(!ProfileTreeModel::filterMatches("zoom", "Vertical", "SCROLL_V_SENS"));
+    assert(ProfileTreeModel::filterMatches("", "x"));
+}
+
+// Revert of the unsaved edits of one profile.
+static void testRevertSection() {
+    SettingsModel m;
+    ProfileSet ps;
+    ps.findOrAdd(Section::APP, "firefox");
+    ps.findOrAdd(Section::APP, "gimp");
+    m.setProfiles(ps, "");
+    std::string err;
+    const size_t ff = ps.find(Section::APP, "firefox"), gimp = ps.find(Section::APP, "gimp");
+    assert(!m.sectionModified(ff) && !m.dirty());
+    assert(m.setValue(ff, "SCROLL_V_SENS", "7", &err));
+    assert(m.setValue(gimp, "SCROLL_V_SENS", "3", &err));
+    assert(m.sectionModified(ff) && m.sectionModified(gimp) && !m.sectionModified(0) && m.dirty());
+    bool removed = true;
+    assert(m.revertSection(ff, &removed) && !removed);
+    assert(!m.sectionModified(ff) && !m.isOverridden(ff, "SCROLL_V_SENS"));
+    assert(m.dirty() && m.sectionModified(gimp));  // the other profile keeps its edit
+    assert(m.revertSection(gimp) && !m.dirty());
+    // a profile added since the last save is removed again
+    const size_t added = m.addSection(Section::APP, "new", &err);
+    assert(added != ProfileSet::npos && m.sectionModified(added) && m.dirty());
+    assert(m.revertSection(added, &removed) && removed && !m.dirty());
+    assert(m.sectionCount() == 3);
+    // a renamed profile gets its name and keys back
+    assert(m.renameSection(ff, "firefox-esr", &err) && m.setValue(ff, "SCROLL_V_SENS", "5", &err));
+    assert(m.sectionModified(ff));
+    assert(m.revertSection(ff, &removed) && !removed && m.sections()[ff].pattern == "firefox" && !m.dirty());
+    // revert all
+    assert(m.setValue(0, "SCROLL_V_SENS", "2", &err) && m.setValue(gimp, "SCROLL_V_SENS", "4", &err));
+    m.revertAll();
+    assert(!m.dirty() && !m.sectionModified(0) && !m.sectionModified(gimp));
+    assert(m.setValue(0, "SCROLL_V_SENS", "2", &err) && m.sectionModified(0));
+}
+
 int main() {
+    testFilter();
+    testRevertSection();
     testUtf8();
     testKeyList();
     testBindingParse();

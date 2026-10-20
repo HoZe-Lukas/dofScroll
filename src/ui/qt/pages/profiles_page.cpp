@@ -16,7 +16,12 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QCloseEvent>
 #include <QScrollArea>
+#include <QScrollBar>
+#include <QTabBar>
+#include <QTabWidget>
+#include <QStackedWidget>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QSplitter>
@@ -26,6 +31,7 @@
 #include <QTreeWidget>
 #include <QTreeWidgetItemIterator>
 #include <QVBoxLayout>
+#include <QHideEvent>
 
 #include "add_app_dialog.hpp"
 #include "add_device_dialog.hpp"
@@ -81,6 +87,12 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     auto *left = new QWidget(split);
     auto *ll = new QVBoxLayout(left);
     ll->setContentsMargins(0, 0, 0, 0);
+    profileFilter_ = new QLineEdit(left);
+    profileFilter_->setClearButtonEnabled(true);
+    profileFilter_->setPlaceholderText(T("Search profiles..."));
+    profileFilter_->setAccessibleName(T("Search profiles"));
+    profileFilter_->setToolTip(T("Show only the programs and devices whose name contains this text"));
+    ll->addWidget(profileFilter_);
     tree_ = new QTreeWidget(left);
     tree_->setHeaderHidden(true);
     tree_->setAccessibleName(T("Profiles"));
@@ -95,11 +107,23 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     remove_->setToolTip(T("Delete this profile and its settings"));
     for (QPushButton *b : {add_app_, add_dev_, rename_, remove_}) ll->addWidget(b);
 
-    scroll_ = new QScrollArea(split);
-    scroll_->setWidgetResizable(true);
-    scroll_->setFrameShape(QFrame::NoFrame);
+    // Right side: the search box of the settings and the sub-tabs of the selected profile. Every
+    // tab scrolls on its own; the buttons below the split stay visible.
+    auto *right = new QWidget(split);
+    auto *rl = new QVBoxLayout(right);
+    rl->setContentsMargins(0, 0, 0, 0);
+    settingsFilter_ = new QLineEdit(right);
+    settingsFilter_->setClearButtonEnabled(true);
+    settingsFilter_->setPlaceholderText(T("Search settings of this profile..."));
+    settingsFilter_->setAccessibleName(T("Search settings"));
+    settingsFilter_->setToolTip(T("Show only the settings whose name or key contains this text"));
+    rl->addWidget(settingsFilter_);
+    tabs_ = new QTabWidget(right);
+    tabs_->setAccessibleName(T("Profile sections"));
+    tabs_->setDocumentMode(true);
+    rl->addWidget(tabs_, 1);
     split->addWidget(left);
-    split->addWidget(scroll_);
+    split->addWidget(right);
     split->setStretchFactor(0, 0);
     split->setStretchFactor(1, 1);
     split->setSizes({230, 640});
@@ -108,24 +132,37 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     auto *bar = new QHBoxLayout;
     status_ = new QLabel(this);
     status_->setWordWrap(true);
+    revert_ = new QPushButton(T("Revert"), this);
+    revert_->setToolTip(T("Discard the unsaved changes of this profile and load the saved values"));
     save_ = new QPushButton(T("Save"), this);
     save_->setToolTip(T("Write the configuration and tell the daemon to reload it"));
     bar->addWidget(status_, 1);
+    bar->addWidget(revert_);
     bar->addWidget(save_);
     outer->addLayout(bar);
 
+    setTabOrder(profileFilter_, tree_);
     setTabOrder(tree_, add_app_);
     setTabOrder(add_app_, add_dev_);
     setTabOrder(add_dev_, rename_);
     setTabOrder(rename_, remove_);
-    setTabOrder(remove_, scroll_);
-    setTabOrder(scroll_, save_);
+    setTabOrder(remove_, settingsFilter_);
+    setTabOrder(settingsFilter_, tabs_);
+    setTabOrder(tabs_, revert_);
+    setTabOrder(revert_, save_);
 
-    connect(tree_, &QTreeWidget::currentItemChanged, this, [this] { onSelectionChanged(); });
+    connect(tree_, &QTreeWidget::currentItemChanged, this,
+            [this](QTreeWidgetItem *cur, QTreeWidgetItem *prev) { onSelectionChanged(cur, prev); });
+    connect(profileFilter_, &QLineEdit::textChanged, this, [this] { applyProfileFilter(); });
+    connect(settingsFilter_, &QLineEdit::textChanged, this, [this] { queueRebuild(); });
+    connect(tabs_, &QTabWidget::currentChanged, this, [this](int i) {
+        if (i >= 0 && tabs_->widget(i)) lastTab_ = tabs_->widget(i)->property("tabId").toString();
+    });
     connect(add_app_, &QPushButton::clicked, this, &ProfilesPage::addApplication);
     connect(add_dev_, &QPushButton::clicked, this, &ProfilesPage::addDevice);
     connect(rename_, &QPushButton::clicked, this, &ProfilesPage::renameProfile);
     connect(remove_, &QPushButton::clicked, this, &ProfilesPage::removeProfile);
+    connect(revert_, &QPushButton::clicked, this, &ProfilesPage::revert);
     connect(save_, &QPushButton::clicked, this, &ProfilesPage::save);
 
     rebuildTree(0);
@@ -149,6 +186,15 @@ void ProfilesPage::updateButtons() {
     rename_->setEnabled(s != 0);
     remove_->setEnabled(s != 0);
     save_->setEnabled(ctx_.settings->dirty());
+    revert_->setEnabled(ctx_.settings->sectionModified(s));
+}
+
+bool ProfilesPage::selectedModified() const { return ctx_.settings->sectionModified(currentSection()); }
+bool ProfilesPage::revertEnabled() const { return revert_->isEnabled(); }
+bool ProfilesPage::saveEnabled() const { return save_->isEnabled(); }
+
+QString ProfilesPage::shownName() const {
+    return shown_ == 0 ? T("Default mode") : qs8(ctx_.settings->sections()[shown_].pattern);
 }
 
 void ProfilesPage::rebuildTree(size_t selectSection) {
@@ -175,6 +221,7 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
     if (!select) select = tree_->topLevelItem(0);
     tree_->setCurrentItem(select);
     block.unblock();
+    applyProfileFilter();
     rebuildContent();
 }
 
@@ -188,7 +235,231 @@ bool ProfilesPage::selectSection(size_t section) {
     return false;
 }
 
-void ProfilesPage::onSelectionChanged() { rebuildContent(); }
+// Selects the profile of a kind and name after a revert changed the indices (default mode if gone).
+void ProfilesPage::rebuildTreeByName(Section::Kind kind, const std::string &pattern) {
+    const size_t idx = kind == Section::GLOBAL ? 0 : ctx_.settings->profiles().find(kind, pattern);
+    rebuildTree(idx == ProfileSet::npos ? 0 : idx);
+}
+
+// Search box of the list: hides the profiles whose name does not contain the text, and a group
+// header without a visible profile. The default mode is always shown.
+void ProfilesPage::applyProfileFilter() {
+    const std::string text = profileFilter_->text().toUtf8().toStdString();
+    std::vector<size_t> keep;
+    for (const ProfileEntry &e : ProfileTreeModel::filter(ProfileTreeModel::entries(*ctx_.settings), text))
+        keep.push_back(e.section);
+    for (int g = 0; g < tree_->topLevelItemCount(); ++g) {
+        QTreeWidgetItem *top = tree_->topLevelItem(g);
+        if (top->data(0, kRoleSection).toInt() >= 0) continue;  // the default mode
+        int visible = 0;
+        for (int c = 0; c < top->childCount(); ++c) {
+            QTreeWidgetItem *it = top->child(c);
+            const bool show = std::find(keep.begin(), keep.end(), size_t(it->data(0, kRoleSection).toInt())) != keep.end();
+            it->setHidden(!show);
+            visible += show ? 1 : 0;
+        }
+        top->setHidden(visible == 0);
+    }
+}
+
+int ProfilesPage::visibleProfileCount() const {
+    int n = 0;
+    for (int g = 0; g < tree_->topLevelItemCount(); ++g) {
+        const QTreeWidgetItem *top = tree_->topLevelItem(g);
+        if (top->data(0, kRoleSection).toInt() >= 0) continue;
+        for (int c = 0; c < top->childCount(); ++c) n += top->child(c)->isHidden() ? 0 : 1;
+    }
+    return n;
+}
+
+void ProfilesPage::setProfileFilter(const QString &text) { profileFilter_->setText(text); }
+
+void ProfilesPage::setSettingsFilter(const QString &text) {
+    settingsFilter_->setText(text);
+    rebuildContent();  // at once, not queued: callers read the rows
+}
+
+// Kind and name of the profile of a section (the section numbers change when a profile is
+// removed or restored, the name does not).
+static void profileIdentity(const SettingsModel &m, size_t section, Section::Kind *kind, std::string *pattern) {
+    *kind = Section::GLOBAL;
+    pattern->clear();
+    if (section == 0 || section >= m.sectionCount()) return;
+    const SettingsModel::SectionInfo info = m.sections()[section];
+    *kind = info.kind;
+    *pattern = info.pattern;
+}
+
+// Another profile was picked. Unsaved edits of the profile that is left are asked about first;
+// Cancel keeps it selected.
+void ProfilesPage::onSelectionChanged(QTreeWidgetItem *current, QTreeWidgetItem *previous) {
+    const size_t target = current ? size_t(std::max(0, current->data(0, kRoleSection).toInt())) : 0;
+    if (!leaving_ && target != shown_ && shown_ < ctx_.settings->sectionCount() && ctx_.settings->sectionModified(shown_)) {
+        Section::Kind kind;
+        std::string pattern;
+        profileIdentity(*ctx_.settings, target, &kind, &pattern);
+        leaving_ = true;
+        const bool go = resolveUnsaved(false);
+        leaving_ = false;
+        if (!go) {
+            QSignalBlocker block(tree_);
+            tree_->setCurrentItem(previous);
+            return;
+        }
+        rebuildTreeByName(kind, pattern);  // a Discard can renumber the profiles
+        return;
+    }
+    rebuildContent();
+}
+
+QStringList ProfilesPage::tabIds() const {
+    QStringList out;
+    for (int i = 0; i < tabs_->count(); ++i) out << tabs_->widget(i)->property("tabId").toString();
+    return out;
+}
+
+QString ProfilesPage::currentTabId() const {
+    return tabs_->currentWidget() ? tabs_->currentWidget()->property("tabId").toString() : QString();
+}
+
+bool ProfilesPage::selectTab(const QString &id) {
+    for (int i = 0; i < tabs_->count(); ++i)
+        if (tabs_->widget(i)->property("tabId").toString() == id) {
+            tabs_->setCurrentIndex(i);
+            return true;
+        }
+    return false;
+}
+
+// Revert button: the unsaved edits of the selected profile are dropped.
+bool ProfilesPage::revertSelected() {
+    const size_t s = currentSection();
+    if (!ctx_.settings->sectionModified(s)) return false;
+    Section::Kind kind;
+    std::string pattern;
+    profileIdentity(*ctx_.settings, s, &kind, &pattern);
+    bool removed = false;
+    ctx_.settings->revertSection(s, &removed);
+    if (removed) {
+        kind = Section::GLOBAL;
+        pattern.clear();
+    } else if (s > 0) {
+        // a restored rename has its saved name again
+        pattern = ctx_.settings->sections()[s].pattern;
+    }
+    rebuildTreeByName(kind, pattern);
+    setStatus(ctx_.settings->dirty() ? T("Changes of this profile discarded.")
+                                     : T("Changes discarded. Nothing is unsaved."));
+    updateButtons();
+    return true;
+}
+
+void ProfilesPage::revert() { revertSelected(); }
+
+// The guard: true if the caller may continue (nothing unsaved, saved, or discarded). After a
+// Discard of a profile the caller rebuilds the tree (the profiles can be renumbered).
+bool ProfilesPage::resolveUnsaved(bool wholeFile) {
+    SettingsModel &m = *ctx_.settings;
+    const bool modified = wholeFile ? m.dirty() : (shown_ < m.sectionCount() && m.sectionModified(shown_));
+    if (!modified) return true;
+    const QString what = wholeFile ? QString() : shownName();
+    UnsavedChoice c = UnsavedChoice::Cancel;
+    if (prompt_) {
+        c = prompt_(what);
+    } else {
+        QMessageBox box(QMessageBox::Question, T("Unsaved changes"),
+                        what.isEmpty() ? T("There are unsaved changes. Save them?")
+                                       : T("The profile \"%1\" has unsaved changes. Save them?").arg(what),
+                        QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
+        box.setDefaultButton(QMessageBox::Save);
+        const int r = box.exec();
+        c = r == QMessageBox::Save ? UnsavedChoice::Save
+            : r == QMessageBox::Discard ? UnsavedChoice::Discard : UnsavedChoice::Cancel;
+    }
+    if (c == UnsavedChoice::Save) {
+        save();
+        return wholeFile ? !m.dirty() : !m.sectionModified(shown_);
+    }
+    if (c == UnsavedChoice::Discard) {
+        if (wholeFile) {
+            Section::Kind kind;
+            std::string pattern;
+            profileIdentity(m, shown_, &kind, &pattern);
+            m.revertAll();
+            rebuildTreeByName(kind, pattern);  // the window may be shown again later
+        } else {
+            m.revertSection(shown_);
+        }
+        updateButtons();
+        return true;
+    }
+    return false;
+}
+
+// The window closes: ask once for the whole configuration (the edits live in one model).
+void ProfilesPage::showEvent(QShowEvent *e) {
+    QWidget::showEvent(e);
+    QWidget *w = window();
+    if (w && w != filtered_) {
+        if (filtered_) filtered_->removeEventFilter(this);
+        w->installEventFilter(this);
+        filtered_ = w;
+    }
+}
+
+bool ProfilesPage::eventFilter(QObject *obj, QEvent *e) {
+    if (obj == filtered_ && e->type() == QEvent::Close && !leaving_) {
+        leaving_ = true;
+        const bool go = resolveUnsaved(true);
+        leaving_ = false;
+        if (!go) {
+            e->ignore();
+            return true;
+        }
+    }
+    return QWidget::eventFilter(obj, e);
+}
+
+// Another page was shown while this profile has unsaved edits: ask; Cancel comes back here.
+void ProfilesPage::hideEvent(QHideEvent *e) {
+    QWidget::hideEvent(e);
+    if (leaving_ || e->spontaneous()) return;
+    QWidget *w = window();
+    if (!w || !w->isVisible() || w->isMinimized()) return;
+    if (shown_ >= ctx_.settings->sectionCount() || !ctx_.settings->sectionModified(shown_)) return;
+    QTimer::singleShot(0, this, [this] { guardLeave(); });
+}
+
+void ProfilesPage::guardLeave() {
+    if (leaving_ || isVisible() || !window()->isVisible()) return;
+    if (shown_ >= ctx_.settings->sectionCount() || !ctx_.settings->sectionModified(shown_)) return;
+    leaving_ = true;
+    Section::Kind kind;
+    std::string pattern;
+    profileIdentity(*ctx_.settings, shown_, &kind, &pattern);
+    if (resolveUnsaved(false))
+        rebuildTreeByName(kind, pattern);
+    else
+        returnToPage();
+    leaving_ = false;
+}
+
+// Makes this page the current one again: its tab and its category.
+void ProfilesPage::returnToPage() {
+    QWidget *child = this;
+    for (QWidget *p = parentWidget(); p; child = p, p = p->parentWidget()) {
+        auto *st = qobject_cast<QStackedWidget *>(p);
+        if (!st) continue;
+        if (auto *tw = qobject_cast<QTabWidget *>(st->parentWidget())) {
+            tw->setCurrentWidget(child);
+            continue;
+        }
+        st->setCurrentWidget(child);
+        const QList<QTabBar *> bars = window()->findChildren<QTabBar *>();
+        for (QTabBar *b : bars)
+            if (b->accessibleName() == T("Categories")) b->setCurrentIndex(st->indexOf(child));
+    }
+}
 
 void ProfilesPage::queueRebuild() {
     if (rebuildQueued_) return;
@@ -220,39 +491,93 @@ void ProfilesPage::refreshDeviceLimit(size_t section) {
 
 void ProfilesPage::rebuildContent() {
     const size_t section = currentSection();
+    shown_ = section;
     updateButtons();
     refreshDeviceLimit(section);
     const ProfilePageLayout layout = profilePageLayout(*ctx_.settings, section);
     modeSelectorVisible_ = layout.modeSelector;
+    settingRows_ = 0;
+    const bool filtering = !settingsFilter_->text().isEmpty();
 
-    auto *content = new QWidget;
-    auto *l = new QVBoxLayout(content);
-    const QString title = section == 0 ? T("Default mode") : qs8(ctx_.settings->sections()[section].pattern);
-    auto *head = new QLabel(QStringLiteral("<b>") + title.toHtmlEscaped() + QStringLiteral("</b>"), content);
-    l->addWidget(head);
-    if (section == 0)
-        l->addWidget(wrapLabel(T("Settings of the default mode. Device and application profiles inherit "
-                                 "from it unless they choose another mode or override a value.")));
+    // Keep the scroll position of the tab when the same profile is rebuilt after an edit.
+    int scrollPos = 0;
+    if (auto *cur = qobject_cast<QScrollArea *>(tabs_->currentWidget()))
+        if (builtSection_ == section) scrollPos = cur->verticalScrollBar()->value();
+    builtSection_ = section;
 
-    if (layout.modeSelector) l->addWidget(buildModeSelector(section));
-    if (layout.unknownMode)
-        l->addWidget(wrapLabel(T("This profile names a mode that is not installed; it behaves like the "
-                                 "default mode until you choose another one.")));
-    if (layout.bindingEditor) {
-        l->addWidget(buildBindings(section));
-        l->addWidget(buildButtonSettings(section));
+    QSignalBlocker block(tabs_);
+    while (tabs_->count() > 0) {
+        QWidget *w = tabs_->widget(0);
+        tabs_->removeTab(0);
+        w->deleteLater();
     }
-    if (layout.modeInfo) l->addWidget(buildModeInfo(section));
-    if (layout.overridesSection) l->addWidget(buildOverrides(section));
-    if (layout.overridesSection) l->addWidget(buildEffective(section));
-    l->addStretch(1);
 
-    QWidget *old = scroll_->takeWidget();
-    scroll_->setWidget(content);
-    if (old) old->deleteLater();
+    // One scrolling page per sub-tab; the buttons below the tabs are not part of it.
+    auto addTab = [this](const char *id, const QString &title, const QList<QWidget *> &parts) {
+        auto *scroll = new QScrollArea;
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setProperty("tabId", QString::fromLatin1(id));
+        auto *content = new QWidget;
+        auto *l = new QVBoxLayout(content);
+        for (QWidget *w : parts)
+            if (w) l->addWidget(w);
+        l->addStretch(1);
+        scroll->setWidget(content);
+        tabs_->addTab(scroll, title);
+    };
+    // A tab whose rows are all filtered out says so.
+    auto noMatch = [filtering](const QList<QWidget *> &parts) {
+        QList<QWidget *> out = parts;
+        bool any = false;
+        for (QWidget *w : parts) any = any || w;
+        if (!any && filtering) out << wrapLabel(T("No setting of this tab matches the search."));
+        return out;
+    };
+
+    // General: what the profile is, its mode.
+    const QString title = section == 0 ? T("Default mode") : qs8(ctx_.settings->sections()[section].pattern);
+    QList<QWidget *> general;
+    general << new QLabel(QStringLiteral("<b>") + title.toHtmlEscaped() + QStringLiteral("</b>"));
+    if (section == 0)
+        general << wrapLabel(T("Settings of the default mode. Device and application profiles inherit "
+                               "from it unless they choose another mode or override a value."));
+    if (layout.modeSelector) general << buildModeSelector(section);
+    if (layout.unknownMode)
+        general << wrapLabel(T("This profile names a mode that is not installed; it behaves like the "
+                               "default mode until you choose another one."));
+    if (layout.modeInfo) general << buildModeInfo(section);
+    addTab("general", T("General"), general);
+
+    // Channels: the value of every axis setting of the profile and where it comes from.
+    if (layout.overridesSection) addTab("channels", T("Channels"), noMatch({buildEffective(section)}));
+
+    // Buttons: bindings and the navigation/click buttons (not for a mode with its own bindings).
+    if (layout.bindingEditor)
+        addTab("buttons", T("Buttons"), noMatch({buildBindings(section), buildButtonSettings(section)}));
+
+    // Overrides: channel values that only apply to this profile.
+    if (layout.overridesSection) addTab("overrides", T("Overrides"), noMatch({buildOverrides(section)}));
+
+    int idx = 0;
+    for (int i = 0; i < tabs_->count(); ++i)
+        if (tabs_->widget(i)->property("tabId").toString() == lastTab_) idx = i;
+    tabs_->setCurrentIndex(idx);
+    block.unblock();
+    if (scrollPos > 0)
+        if (auto *cur = qobject_cast<QScrollArea *>(tabs_->currentWidget()))
+            QTimer::singleShot(0, cur, [cur, scrollPos] { cur->verticalScrollBar()->setValue(scrollPos); });
+}
+
+// Search box of the settings: does a row (label and key) match the text?
+bool ProfilesPage::settingMatches(const QString &label, const std::string &key) const {
+    return ProfileTreeModel::filterMatches(settingsFilter_->text().toUtf8().toStdString(),
+                                           label.toUtf8().toStdString(), key);
 }
 
 QWidget *ProfilesPage::buildModeSelector(size_t section) {
+    if (!settingMatches(T("Joystick mode"), "MODE")) return nullptr;
+    ++settingRows_;
     auto *box = new QGroupBox(T("Joystick mode"));
     auto *l = new QFormLayout(box);
     auto *combo = new QComboBox(box);
@@ -283,8 +608,16 @@ QWidget *ProfilesPage::buildModeSelector(size_t section) {
 
 QWidget *ProfilesPage::buildBindings(size_t section) {
     const BindingContext ctxKind = bindingContextOf(section);
-    const std::vector<BindingRow> rows = bindingRows(*ctx_.settings, section);
-    if (hasAdvancedSection(ctxKind) && anyAdvancedBinding(rows, ctxKind)) advancedOpen_ = true;
+    const std::vector<BindingRow> allRows = bindingRows(*ctx_.settings, section);
+    if (hasAdvancedSection(ctxKind) && anyAdvancedBinding(allRows, ctxKind)) advancedOpen_ = true;
+    // Search box: a button row is found by "Button <n>", its key BUTTON_<n> or its action text.
+    std::vector<BindingRow> rows;
+    for (const BindingRow &r : allRows)
+        if (settingMatches(T("Button") + QStringLiteral(" %1 ").arg(r.number) + qs8(r.text),
+                           "BUTTON_" + std::to_string(r.number)))
+            rows.push_back(r);
+    if (rows.empty() && !settingsFilter_->text().isEmpty()) return nullptr;
+    settingRows_ += int(rows.size());
 
     auto *box = new QGroupBox(T("Button bindings"));
     auto *outer = new QVBoxLayout(box);
@@ -358,6 +691,7 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
 QWidget *ProfilesPage::buildButtonSettings(size_t section) {
     auto *box = new QGroupBox(T("Navigation and click buttons"));
     auto *form = new QFormLayout(box);
+    int shownRows = 0;
     const struct {
         const char *enabledKey, *numberKey, *label, *tip;
     } rows[] = {
@@ -368,6 +702,8 @@ QWidget *ProfilesPage::buildButtonSettings(size_t section) {
         SettingsModel::Value en, num;
         if (!ctx_.settings->value(section, r.enabledKey, &en) || !ctx_.settings->value(section, r.numberKey, &num))
             continue;
+        if (!settingMatches(T(r.label), r.numberKey)) continue;
+        ++shownRows;
         auto *row = new QWidget(box);
         auto *h = new QHBoxLayout(row);
         h->setContentsMargins(0, 0, 0, 0);
@@ -401,6 +737,11 @@ QWidget *ProfilesPage::buildButtonSettings(size_t section) {
         });
         form->addRow(T(r.label) + QLatin1Char(':'), row);
     }
+    if (shownRows == 0) {
+        delete box;
+        return nullptr;
+    }
+    settingRows_ += shownRows;
     return box;
 }
 
@@ -445,6 +786,8 @@ QWidget *ProfilesPage::buildEffective(size_t section) {
     grid->setColumnStretch(2, 1);
     int row = 0;
     for (const EffectiveRow &r : effectiveRows(*ctx_.settings, section, *ctx_.strings)) {
+        if (!settingMatches(qs8(r.key), r.key)) continue;
+        ++settingRows_;
         auto *key = new QLabel(qs8(r.key), box);
         auto *val = new QLabel(qs8(r.value), box);
         auto *src = new QLabel(qs8(r.sourceText), box);
@@ -471,24 +814,30 @@ QWidget *ProfilesPage::buildEffective(size_t section) {
         ++row;
     }
     outer->addLayout(grid);
+    if (row == 0 && !settingsFilter_->text().isEmpty()) {
+        delete box;
+        return nullptr;
+    }
     return box;
 }
 
 QWidget *ProfilesPage::buildOverrides(size_t section) {
     const SettingsModel::Visible v = ctx_.settings->visibleSettings(section);
+    const bool filtering = !settingsFilter_->text().isEmpty();
     auto *box = new QGroupBox(T("Overrides for this profile"));
-    box->setCheckable(true);
-    box->setChecked(!v.overrides.keys.empty());  // off by default; the Channels page is the normal place
     auto *outer = new QVBoxLayout(box);
     auto *inner = new QWidget(box);
     auto *il = new QVBoxLayout(inner);
     il->setContentsMargins(0, 0, 0, 0);
+    int shownRows = 0;
     il->addWidget(wrapLabel(T("Channel values that only apply to this profile. Everything else is "
                               "inherited; change shared values on the Channels page.")));
     auto *form = new QFormLayout;
     for (const std::string &key : v.overrides.keys) {
         SettingsModel::Value val;
         if (!ctx_.settings->value(section, key, &val)) continue;
+        if (!settingMatches(qs8(key), key)) continue;
+        ++shownRows;
         auto *row = new QWidget(inner);
         auto *h = new QHBoxLayout(row);
         h->setContentsMargins(0, 0, 0, 0);
@@ -521,7 +870,7 @@ QWidget *ProfilesPage::buildOverrides(size_t section) {
         form->addRow(qs8(key) + QLatin1Char(':'), row);
     }
     il->addLayout(form);
-    if (!v.addableOverrides.empty()) {
+    if (!v.addableOverrides.empty() && !filtering) {
         auto *h = new QHBoxLayout;
         auto *combo = new QComboBox(inner);
         combo->setAccessibleName(T("Setting to override"));
@@ -541,8 +890,11 @@ QWidget *ProfilesPage::buildOverrides(size_t section) {
         });
     }
     outer->addWidget(inner);
-    inner->setVisible(box->isChecked());
-    connect(box, &QGroupBox::toggled, inner, &QWidget::setVisible);
+    if (shownRows == 0 && filtering) {
+        delete box;
+        return nullptr;
+    }
+    settingRows_ += shownRows;
     return box;
 }
 

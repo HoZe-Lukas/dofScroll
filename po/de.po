@@ -2619,3 +2619,63 @@ msgid ""
 msgstr ""
 "Die ID des Modus ändert sich von „%1“ zu „%2“. Diese Profile verweisen noch "
 "auf die alte ID und fallen auf den Standardmodus zurück, bis Sie sie ändern:"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Search profiles..."
+msgstr "Profile suchen ..."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Search profiles"
+msgstr "Profile suchen"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Show only the programs and devices whose name contains this text"
+msgstr "Nur Programme und Geräte anzeigen, deren Name diesen Text enthält"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Search settings of this profile..."
+msgstr "Einstellungen dieses Profils suchen ..."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Search settings"
+msgstr "Einstellungen suchen"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Show only the settings whose name or key contains this text"
+msgstr "Nur Einstellungen anzeigen, deren Name oder Schlüssel diesen Text enthält"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Profile sections"
+msgstr "Bereiche des Profils"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Discard the unsaved changes of this profile and load the saved values"
+msgstr "Die ungespeicherten Änderungen dieses Profils verwerfen und die gespeicherten Werte laden"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Overrides"
+msgstr "Überschreibungen"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "No setting of this tab matches the search."
+msgstr "Keine Einstellung dieses Bereichs passt zur Suche."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Changes of this profile discarded."
+msgstr "Die Änderungen dieses Profils wurden verworfen."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Changes discarded. Nothing is unsaved."
+msgstr "Änderungen verworfen. Es gibt nichts Ungespeichertes."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "There are unsaved changes. Save them?"
+msgstr "Es gibt ungespeicherte Änderungen. Speichern?"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "The profile \"%1\" has unsaved changes. Save them?"
+msgstr "Das Profil \"%1\" hat ungespeicherte Änderungen. Speichern?"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Mode sections"
+msgstr "Bereiche des Modus"

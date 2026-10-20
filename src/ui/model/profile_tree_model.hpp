@@ -40,6 +40,21 @@ public:
         return out;
     }
 
+    // Search box of the profile list: the entries whose name contains the text (ASCII
+    // case-insensitive, see docs/encoding.md). The default mode is always kept. Empty text keeps all.
+    static std::vector<ProfileEntry> filter(const std::vector<ProfileEntry> &in, const std::string &text) {
+        std::vector<ProfileEntry> out;
+        for (const ProfileEntry &e : in)
+            if (e.isDefault || filterMatches(text, e.pattern)) out.push_back(e);
+        return out;
+    }
+    // Does a search text match any of the given strings (labels, keys)? An empty text matches.
+    static bool filterMatches(const std::string &text, const std::string &a, const std::string &b = std::string()) {
+        const std::string n = lowerAscii(text);
+        if (n.empty()) return true;
+        return lowerAscii(a).find(n) != std::string::npos || lowerAscii(b).find(n) != std::string::npos;
+    }
+
     // Patterns of the existing profiles of a kind (input of the pickers' "already has a profile").
     static std::vector<std::string> patterns(const SettingsModel &m, Section::Kind kind) {
         std::vector<std::string> out;
