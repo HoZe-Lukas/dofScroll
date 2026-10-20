@@ -55,7 +55,7 @@ Force a backend with `BACKEND = x11` or `uinput` in `[global]` and restart the d
 
 ## Other problems
 
-- **Tray icon missing:** KDE Plasma is supported; GNOME needs an AppIndicator extension. A package built without Qt6 has no tray. Without a tray the Qt interface opens its window minimized; it also starts minimized to the tray, so no window appears at start.
+- **Tray icon missing:** KDE Plasma is supported; GNOME needs an AppIndicator extension. A build from source without Qt6 has no tray (the release packages bundle Qt). Without a tray the Qt interface opens its window minimized; it also starts minimized to the tray, so no window appears at start.
 - **UI in German:** the UI follows the locale; force English with `LANGUAGE=C`.
 - **Wrong direction or axis:** set `<CH>_SIGN = -1`, change `<CH>_MIX`, or run "Learn axes" in the tray. Changes in `/etc/spnavrc` change axis meaning too.
 - **Keys stay pressed after a crash:** run `dofscroll --release-keys` or restart the service. After SIGKILL under X11 keys held through XTest are not released (known limitation, see [Security](Security)).

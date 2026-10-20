@@ -103,7 +103,15 @@ The tray icon of `dofscroll-ui` uses the StatusNotifierItem (AppIndicator) proto
 - Check `journalctl --user -u dofscroll-ui.service` for errors.
 - Without a tray (for example GNOME without the AppIndicator extension) dofscroll-ui opens its
   window minimized; restore it from the taskbar or the window list.
-- A package built without Qt6 has no tray and no settings window. Edit the config by hand.
+- A package built without Qt6 (a build from source without the Qt development packages) has no tray and no
+  settings window. Edit the config by hand. The release packages always contain the interface and their own Qt.
+- The tray icon and the look cannot be checked headless (`--self-test` reports `tray-available=0`).
+  The bundled Qt shows the tray through the StatusNotifierItem protocol (KDE Plasma natively, GNOME with the
+  AppIndicator extension) and uses its own Fusion style with the light/dark scheme of the desktop portal. If the
+  window looks wrong, `dofscroll-ui --version` shows the Qt in use and `QT_QPA_PLATFORM=xcb` or `wayland`
+  switches the platform plugin.
+- `ldd /usr/bin/dofscroll-ui | grep -E 'Qt|not found'` must show only paths below `/usr/lib/dofscroll/lib/`.
+  A "not found" means that a library that the package should bring is missing (report it with the output).
 
 The daemon works without the tray. The tray is only needed for the settings window and the first
 start seeding.

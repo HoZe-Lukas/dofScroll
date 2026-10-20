@@ -27,16 +27,29 @@ set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_PACKAGE_DEPENDS "spacenavd")
 
 # The Qt interface is part of the same package when the build found Qt6 (single package, no
-# subpackage). RPM names the Qt GUI runtime explicitly
-# (it carries the xcb platform plugin, which rpm's library scan cannot see); DEB gets the
-# libqt6* packages from SHLIBDEPS and the plugin lives in libqt6gui6. The RPM job builds against
-# Qt 6.6 (the oldest supported on the RHEL family), so the RPM requires Qt 6.6 or newer and rpm's
-# own scan requires libQt6Core.so.6(Qt_6.6) at most (checked in linux-packages.yml).
-set(DOFSCROLL_RPM_QT_MIN 6.6)
+# subpackage). With DOFSCROLL_BUNDLE_QT (the release packages) Qt and the libraries it needs are in
+# /usr/lib/dofscroll (cmake/Ui.cmake, scripts/bundle-qt-linux.sh), so nothing is required from the
+# system's Qt: the RPM and DEB name only the system libraries that stay outside the bundle. rpm must
+# neither offer the private libraries to other packages nor require what the bundle brings itself.
 if(TARGET dofscroll-ui AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  set(CPACK_RPM_PACKAGE_REQUIRES "spacenavd, qt6-qtbase-gui >= ${DOFSCROLL_RPM_QT_MIN}")
-  if(TARGET Qt6::Svg)  # the icon is an SVG: needs the Qt SVG image plugin at run time
-    string(APPEND CPACK_RPM_PACKAGE_REQUIRES ", qt6-qtsvg >= ${DOFSCROLL_RPM_QT_MIN}")
+  if(DOFSCROLL_BUNDLE_QT)
+    # spacenavd is the device service (the daemon needs it); the libraries of the daemon (libspnav,
+    # libX11, libXtst, libstdc++) are found by rpm itself; the interface needs nothing else.
+    set(CPACK_RPM_PACKAGE_REQUIRES "spacenavd")
+    set(CPACK_RPM_SPEC_MORE_DEFINE "%global __provides_exclude_from ^/usr/lib/dofscroll/.*$
+%global __requires_exclude_from ^/usr/lib/dofscroll/.*$
+%global __requires_exclude ^lib(Qt6|GLX|OpenGL).*$
+%global _build_id_links none")   # the bundled copies would link the same build ids as the system libraries
+    # dpkg-shlibdeps resolves the bundled libraries in their private directory (no dependency)
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "/usr/lib/dofscroll/lib")
+  else()
+    # Qt of the system (distribution builds from source): RPM names the Qt GUI runtime explicitly
+    # (it carries the xcb platform plugin, which rpm's library scan cannot see); DEB gets the libqt6*
+    # packages from SHLIBDEPS and the plugin lives in libqt6gui6.
+    set(CPACK_RPM_PACKAGE_REQUIRES "spacenavd, qt6-qtbase-gui")
+    if(TARGET Qt6::Svg)  # the icon is an SVG: needs the Qt SVG image plugin at run time
+      string(APPEND CPACK_RPM_PACKAGE_REQUIRES ", qt6-qtsvg")
+    endif()
   endif()
 endif()
 

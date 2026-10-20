@@ -13,11 +13,11 @@ Before you install, check [Requirements](Requirements) (supported systems, drive
 
 | Format | Command | Notes |
 |---|---|---|
-| RPM (built on Rocky Linux 9) | `sudo dnf install -y epel-release`, then `sudo dnf install ./dofscroll-*.rpm` | `spacenavd` and Qt 6 (6.6 or newer) come from EPEL on RHEL 9 and its clones |
+| RPM (built on Rocky Linux 9) | `sudo dnf install -y epel-release`, then `sudo dnf install ./dofscroll-*.rpm` | `spacenavd` comes from EPEL on RHEL 9 and its clones; Qt is inside the package, nothing else to install |
 | DEB (built on Debian 12) | `sudo apt install ./dofscroll_*.deb` | Whether `spacenavd` is in your release's repositories is unverified |
-| TGZ | `tar xzf dofscroll-*-Linux.tar.gz`, then `sudo cp -a dofscroll-*-Linux/usr/. /usr/` | You install the run-time dependencies yourself |
+| TGZ | `tar xzf dofscroll-*-Linux.tar.gz`, then `sudo cp -a dofscroll-*-Linux/usr/. /usr/` | Self-contained interface (own Qt): `dofscroll-ui` runs from the unpacked folder; the daemon needs `libspnav` and the X11 libraries from your distribution |
 
-The RPM and DEB files have not been installed on a real machine yet. A package installs `/usr/bin/dofscroll` and `/usr/bin/dofscroll-ui` (only when Qt6 was available at build time; otherwise the package has the daemon only), a menu entry, the user units in `/usr/lib/systemd/user`, examples in `/usr/share/dofscroll/examples/`, and the uinput udev rule as an inactive example under `/usr/share/dofscroll/udev/`.
+The RPM and DEB files have not been installed on a real machine yet. A package installs `/usr/bin/dofscroll` and `/usr/bin/dofscroll-ui` (with its own Qt 6.9.3 in `/usr/lib/dofscroll`, which is why the packages are 27 to 35 MB), a menu entry, the user units in `/usr/lib/systemd/user`, examples in `/usr/share/dofscroll/examples/`, and the uinput udev rule as an inactive example under `/usr/share/dofscroll/udev/`.
 
 ## First-time setup (Linux)
 

@@ -114,12 +114,13 @@ Checked on the TGZ built on a RHEL 9 machine:
 | Path | Content |
 |---|---|
 | `/usr/bin/dofscroll` | The daemon. |
-| `/usr/bin/dofscroll-ui`, `/usr/bin/dofscroll_de.qm`, `/usr/share/applications/dofscroll.desktop`, `/usr/share/icons/hicolor/scalable/apps/dofscroll.svg`, `dofscroll-ui.service` | The Qt interface with its German catalog, menu entry, icon and user unit. Only in packages built where Qt6 was available (see "Qt interface" below). |
+| `/usr/bin/dofscroll-ui`, `/usr/bin/dofscroll_de.qm`, `/usr/share/applications/dofscroll.desktop`, `/usr/share/icons/hicolor/scalable/apps/dofscroll.svg`, `dofscroll-ui.service` | The Qt interface with its German catalog, menu entry, icon and user unit (see "Qt interface" below). |
+| `/usr/lib/dofscroll/lib/`, `/usr/lib/dofscroll/plugins/` | **Qt 6.9.3 and the libraries it needs, private to dofscroll** (about 60 libraries and the Qt plugins, 80 MB unpacked). `dofscroll-ui` finds them through a relative RPATH; nothing here is visible to other programs. |
 | `/usr/lib/systemd/user/dofscroll.service` | User units, rendered at install time so `ExecStart` points at the real program path (`/usr/bin/...` for a package). The directory is always `<prefix>/lib/systemd/user`, never `lib64`. |
 | `/usr/share/dofscroll/udev/70-dofscroll-uinput.rules` | uinput udev rule, shipped as an example only. It is not active until you copy it (step 5). |
 | `/usr/share/dofscroll/examples/` | Example configs, `default/`, `modes/` and `buttons/` (button modes, see [button-modes.md](button-modes.md)). |
 | `/usr/share/locale/de/LC_MESSAGES/dofscroll.mo` | German translation. |
-| `/usr/share/doc/dofscroll/` | `LICENSE` and a copy of the readme. |
+| `/usr/share/doc/dofscroll/` | `LICENSE`, a copy of the readme, `THIRD-PARTY-NOTICES.md` and `third-party/`: the license texts of Qt and of every bundled library and `bundled-libraries.txt`, the inventory (library, source package, version, license, upstream). |
 
 The unit and rule locations are covered by the `install_layout` test (an install into a temporary
 directory). The RPM and DEB files themselves are built by the release workflow and have not
@@ -168,14 +169,39 @@ Do these steps once per machine. Steps 1 and 5 need root.
    where Qt6 was not available) there is no tray and no settings window: edit the configuration
    file by hand.
 
-   Runtime needs of the Qt interface (single package, no subpackage): the RPM requires
-   `qt6-qtbase-gui >= 6.6` and `qt6-qtsvg >= 6.6` (RHEL family: from EPEL, which has Qt 6 on RHEL 9
-   and its clones), the DEB depends on the `libqt6*`
-   packages that `dpkg-shlibdeps` finds (Debian 12: `libqt6widgets6`, `libqt6gui6`,
-   `libqt6svg6`). **Qt 6.6 or newer** is required on the RHEL family: the RPM is built against Qt 6.6
-   and works with every later Qt 6, so it installs without upgrading an existing Qt 6.6 or newer
-   (since 1.0.1; the 1.0.0 RPM was built against Qt 6.10 and required it). The release packages are built in `rockylinux:9` and `debian:12` containers; if
-   Qt6 cannot be installed there, that package contains only the daemon and the build log says so. The package
+   **The Linux packages bring their own Qt** (since 1.0.1; the 1.0.0 RPM required Qt 6.10 from the
+   system and could not be installed next to an older Qt 6, #116). The RPM, the DEB and the TGZ contain Qt
+   6.9.3 (the same version as the Windows and macOS packages, one setting for all: `packaging/qt.env`)
+   and every library it needs in `/usr/lib/dofscroll` (Qt Core, Gui, Widgets, Svg and DBus, ICU, the
+   platform plugins for X11 and Wayland, libX11 and the xcb libraries, xkbcommon, fontconfig, freetype,
+   harfbuzz, OpenGL dispatch, glib, dbus and their dependencies). So the interface does not depend on a Qt of
+   the system: it works on RHEL 9 with any Qt 6 or none, and the same on Debian 12 and Ubuntu 24.04. What
+   stays on the system: glibc, `libstdc++` and `libgcc_s`. The package dependencies are only
+   `spacenavd` (the device service, unavoidable on Linux, from EPEL on the RHEL family) and the libraries of the
+   daemon (`libspnav`, `libX11`, `libXtst`, found by the package manager). Qt is not installed from EPEL
+   and a Qt of your distribution is not used, not even when present (the packaged interface loads
+   only its own libraries; `ldd /usr/bin/dofscroll-ui` shows `/usr/lib/dofscroll/lib/...`).
+   `dofscroll-ui --version` prints the program version and, on a second line, the Qt it runs on.
+
+   The TGZ is self-contained as well: unpack it anywhere, run `usr/bin/dofscroll-ui` (it finds
+   `usr/lib/dofscroll` relative to itself), and it needs nothing but the C library (tested in bare
+   Rocky Linux 9, Debian 12, Ubuntu 24.04 and Fedora 42 containers; the daemon needs `libspnav` and
+   the X11 libraries from your distribution). Packages are about 27 MB (RPM), 34 MB (DEB) and
+   35 MB (TGZ); size was not a goal, a working interface everywhere was.
+
+   Platforms and look: the X11 plugin (also for XWayland) and the native Wayland plugin are
+   included (`QT_QPA_PLATFORM=wayland` selects it, Qt picks automatically); the interface uses Qt's own
+   Fusion style (no KDE or GNOME style plugin is bundled) with the light or dark colour scheme
+   that the desktop reports through the XDG desktop portal. The tray icon uses the
+   StatusNotifierItem protocol (QtDBus is bundled), so KDE Plasma shows it and GNOME needs the
+   AppIndicator extension. Those desktop effects need a real desktop to check (see
+   [troubleshooting.md](troubleshooting.md)); the offscreen self-test cannot show a tray.
+
+   Qt is licensed under the LGPL-3.0 and dynamically linked: the license texts, the list of
+   bundled libraries and the way to replace them are in `/usr/share/doc/dofscroll/third-party/` and
+   [THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md). A security update of Qt is delivered by a new dofscroll
+   release (docs/release-process.md). The release packages are built in `rockylinux:9` (RPM, TGZ) and `debian:12` (DEB)
+   containers, the oldest supported distributions, so the bundled libraries run on newer ones. The package
    build is not verified on a real desktop.
 
 5. Optional, only for Wayland or if you set `BACKEND = uinput`: activate the udev rule for
@@ -341,11 +367,13 @@ hardening check), `check-config` (validates the example configs), `lint`, `insta
 
 ### Qt interface
 
-The Qt6 interface (`dofscroll-ui`, see [ui.md](ui.md)) is built when Qt6 Widgets 6.6 or newer is
-found (CMake option `DOFSCROLL_UI`; the sources build with Qt 6.4 and newer, the RPM is built
-against Qt 6.6 and needs 6.6 at run time; CI builds against 6.6.3 and newer). Linux: install the distribution's Qt6 development packages
-(Debian family: `qt6-base-dev qt6-tools-dev-tools libqt6svg6-dev`). Windows and macOS builds
-bundle the Qt libraries. Decisions: `docs/ui-options.md`. `dofscroll-ui --self-test` checks that
+The Qt6 interface (`dofscroll-ui`, see [ui.md](ui.md)) is built when Qt6 Widgets 6.4 or newer is
+found (CMake option `DOFSCROLL_UI`). Building from source on Linux uses the Qt of your distribution:
+install its Qt6 development packages (Debian family: `qt6-base-dev qt6-tools-dev-tools
+libqt6svg6-dev`; CI builds that with Qt 6.4 of Ubuntu). The release packages are built
+differently: against the Qt 6.9.3 of `packaging/qt.env` (aqtinstall) with `-DDOFSCROLL_BUNDLE_QT=ON`, which
+installs Qt and its libraries into `lib/dofscroll` (`scripts/bundle-qt-linux.sh`, see
+[release-process.md](release-process.md)). Windows and macOS builds bundle the Qt libraries. Decisions: `docs/ui-options.md`. `dofscroll-ui --self-test` checks that
 the window can be created.
 
 ## 5. Windows and macOS

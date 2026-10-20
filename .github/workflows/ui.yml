@@ -2,9 +2,10 @@
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #
 # Qt6 user interface (dofscroll-ui): builds only that target on Linux, Windows and macOS and runs
-# its offscreen self-test. ui-linux-qt66 builds against Qt 6.6.3, the oldest supported Qt (the RPM
-# is built against it, see docs/release-process.md), so that APIs newer than Qt 6.6 are caught in
-# every pull request. Not a required check (experimental). Qt sources, see docs/ui-options.md.
+# its offscreen self-test. Not a required check (experimental). Qt sources, see docs/ui-options.md.
+# The Qt version of the release packages (Linux, Windows, macOS) is in packaging/qt.env, one file for
+# every job (docs/release-process.md). ui-linux builds with the distribution's Qt (Ubuntu apt, Qt 6.4),
+# the oldest Qt the sources support: building from source with a system Qt keeps working.
 name: ui
 
 on:
@@ -25,7 +26,7 @@ concurrency:
 #   actions/upload-artifact = v4.6.2
 #   jurplel/install-qt-action = v4.3.0
 #   actions/cache           = v6.1.0
-#   Qt for ui-linux-qt66: aqtinstall 3.1.19 via pip (same version as installers.yml)
+#   Qt for ui-linux-pinned: version and aqtinstall version from packaging/qt.env
 
 jobs:
   ui-linux:
@@ -55,17 +56,18 @@ jobs:
           path: ui-screenshots/*.png
           if-no-files-found: error
 
-  # Oldest supported Qt (6.6.3, aqtinstall): code that needs a newer Qt fails to compile here.
-  ui-linux-qt66:
+  # The Qt of the release packages (packaging/qt.env, aqtinstall): the version that is shipped.
+  ui-linux-pinned:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       QT_QPA_PLATFORM: offscreen
-      QT_VERSION: "6.6.3"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: Read the Qt version (packaging/qt.env)
+        run: cat packaging/qt.env | grep -E '^[A-Z_]+=' >> "$GITHUB_ENV"
       - name: Install build tools and the libraries Qt links against
         run: |
           sudo apt-get update
@@ -76,30 +78,24 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ${{ runner.temp }}/Qt
-          key: qt-${{ env.QT_VERSION }}-gcc_64-aqt-3.1.19
+          key: qt-${{ env.QT_VERSION }}-linux_gcc_64-aqt-${{ env.AQT_VERSION }}
       - name: Install Qt ${{ env.QT_VERSION }} (aqtinstall, pinned)
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           retry() { for i in 1 2 3; do "$@" && return 0; echo "::warning::attempt $i/3 failed: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
           python3 -m venv "$RUNNER_TEMP/aqt-venv"
-          retry "$RUNNER_TEMP/aqt-venv/bin/pip" install "aqtinstall==3.1.19"
-          retry "$RUNNER_TEMP/aqt-venv/bin/aqt" install-qt linux desktop "$QT_VERSION" gcc_64 -O "$RUNNER_TEMP/Qt"
+          retry "$RUNNER_TEMP/aqt-venv/bin/pip" install "aqtinstall==${AQT_VERSION}"
+          retry "$RUNNER_TEMP/aqt-venv/bin/aqt" install-qt linux desktop "$QT_VERSION" linux_gcc_64 -O "$RUNNER_TEMP/Qt"
       - name: Configure and build the UI target
         run: |
           cmake -S . -B build -G Ninja -DDOFSCROLL_UI=ON -DDOFSCROLL_CORE_ONLY=ON \
             -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/Qt/$QT_VERSION/gcc_64"
           cmake --build build --target dofscroll-ui
-      - name: Self-test and symbol versions
+      - name: Self-test
         run: |
           export LD_LIBRARY_PATH="$RUNNER_TEMP/Qt/$QT_VERSION/gcc_64/lib"
           build/dofscroll-ui --version
           build/dofscroll-ui --self-test
-          qt=$(objdump -T build/dofscroll-ui | grep -o 'Qt_6\.[0-9]*' | sort -uV)
-          echo "Qt symbol versions required: $qt"
-          echo "Qt symbol versions required by dofscroll-ui: $(echo "$qt" | tr '\n' ' ')" >> "$GITHUB_STEP_SUMMARY"
-          if echo "$qt" | grep -v -x -E 'Qt_6\.[0-6]'; then
-            echo "::error::dofscroll-ui needs a Qt symbol version above 6.6" >&2; exit 1
-          fi
 
   ui-windows:
     runs-on: windows-latest
@@ -107,10 +103,15 @@ jobs:
       QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - name: Install Qt6 (aqtinstall, pinned version)
+      - name: Read the Qt version (packaging/qt.env)
+        shell: bash
+        run: |
+          . packaging/qt.env
+          echo "QT_PIN=$QT_VERSION" >> "$GITHUB_ENV"
+      - name: Install Qt6 (aqtinstall, version of packaging/qt.env)
         uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125  # v4.4.1
         with:
-          version: "6.8.3"
+          version: ${{ env.QT_PIN }}
           arch: win64_msvc2022_64
           modules: ""
           cache: true
@@ -131,10 +132,14 @@ jobs:
       QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - name: Install Qt6 (aqtinstall, pinned version)
+      - name: Read the Qt version (packaging/qt.env)
+        run: |
+          . packaging/qt.env
+          echo "QT_PIN=$QT_VERSION" >> "$GITHUB_ENV"
+      - name: Install Qt6 (aqtinstall, version of packaging/qt.env)
         uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125  # v4.4.1
         with:
-          version: "6.9.3"  # 6.8.x links the AGL framework, which the macOS 15 SDK dropped
+          version: ${{ env.QT_PIN }}  # not below 6.9: 6.8.x links the AGL framework, which the macOS 15 SDK dropped
           cache: true
       - name: Configure and build the UI target
         run: |

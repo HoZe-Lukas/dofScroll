@@ -80,7 +80,7 @@ The shipped units (`dofscroll.service`, `dofscroll-ui.service`) are systemd user
 
 ### Qt runtime
 
-`dofscroll-ui` is a Qt 6 program. The RPM requires `qt6-qtbase-gui >= 6.6` and `qt6-qtsvg >= 6.6` (on RHEL 9 and its clones from EPEL). **Qt 6.6 or newer** is enough: the RPM is built against Qt 6.6 and also runs with newer versions, so it installs without upgrading an existing Qt 6.6 (since 1.0.1; the 1.0.0 RPM required Qt 6.10). The DEB depends on the `libqt6*` packages found at build time (Debian 12: `libqt6widgets6`, `libqt6gui6`, `libqt6svg6`). Your package manager installs them. If Qt 6 was not available when a package was built, the package has the daemon only: no tray, no settings window. The package build is not verified on a real desktop.
+`dofscroll-ui` is a Qt 6 program, and **the Linux packages (RPM, DEB, TGZ) contain their own Qt 6.9.3** and the libraries it needs, in `/usr/lib/dofscroll` (since 1.0.1; the 1.0.0 RPM required Qt 6.10 from the system). Nothing to install for Qt, no EPEL for Qt, and the Qt of your distribution is not used. It works on RHEL 9 with any Qt 6 or none, and the same on Debian 12 and Ubuntu 24.04. Required from the system: glibc and `libstdc++` (always there), `spacenavd` (the device service, EPEL on the RHEL family) and the daemon's `libspnav`, `libX11`, `libXtst` (the package manager installs them). The TGZ runs the interface from any folder with nothing but the C library. Qt is LGPL-3.0, dynamically linked and replaceable; license texts and the list of bundled libraries are in `/usr/share/doc/dofscroll/third-party/`. Qt 6.4 or newer is needed only to build from source. The package build is not verified on a real desktop (tray, KDE look and Wayland need a real desktop).
 
 ### Optional: kdotool
 
