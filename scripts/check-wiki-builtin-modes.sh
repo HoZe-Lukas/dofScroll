@@ -34,5 +34,11 @@ for f in "$root"/examples/buttons/*.conf; do
   check "$(basename "$f" .conf)" "button mode"
 done
 
+# The tutorial page must exist and be reachable from the sidebar and the home page.
+[ -f "$root/docs/wiki/Writing-modes.md" ] || { echo "check-wiki-builtin-modes: docs/wiki/Writing-modes.md is missing" >&2; fail=1; }
+for f in Home _Sidebar; do
+  grep -q "(Writing-modes)" "$root/docs/wiki/$f.md" || { echo "check-wiki-builtin-modes: docs/wiki/$f.md does not link Writing-modes" >&2; fail=1; }
+done
+
 [ "$fail" -eq 0 ] || exit 1
 echo "check-wiki-builtin-modes: all built-in modes are on the wiki page"

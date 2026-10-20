@@ -14,6 +14,8 @@ A file in the modes folder with the id of a built-in mode replaces it.
 
 ## Writing a mode file
 
+A step-by-step tutorial with copy-paste recipes (horizontal scroll, page keys, tabs, zoom, button modes, testing) is on [How to write a mode](Writing-modes). This section is the short reference.
+
 For your own modes put `<id>.conf` into `~/.config/dofscroll/modes/`. The id is the file name without `.conf` (`[a-z0-9_-]{1,32}`). Format: `KEY = value`, no sections, `#` and `;` comments.
 
 ```

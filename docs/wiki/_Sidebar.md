@@ -9,6 +9,7 @@
 - [Configuration reference](Configuration-reference)
 - [Modes](Modes)
 - [Built-in modes](Built-in-modes)
+- [How to write a mode](Writing-modes)
 - [Mode requests and contributions](Contributing-modes)
 - [Profiles](Profiles)
 - [Buttons](Buttons)
