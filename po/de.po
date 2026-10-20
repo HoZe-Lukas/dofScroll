@@ -3425,3 +3425,7 @@ msgstr "Scrollen H schieben"
 #: src/ui/model/split_parts_model.hpp
 msgid "Scroll H tilt"
 msgstr "Scrollen H kippen"
+
+#: src/ui/qt/info_popup.hpp
+msgid "Information"
+msgstr "Information"

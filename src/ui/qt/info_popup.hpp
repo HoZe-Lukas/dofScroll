@@ -20,6 +20,7 @@ class InfoPopup : public QFrame {
 public:
     explicit InfoPopup(QWidget *parent) : QFrame(parent, Qt::Popup) {
         setObjectName(QStringLiteral("infoPopup"));
+        setAccessibleName(T("Information"));
         setFrameShape(QFrame::StyledPanel);
         setAutoFillBackground(true);
         auto *l = new QVBoxLayout(this);
