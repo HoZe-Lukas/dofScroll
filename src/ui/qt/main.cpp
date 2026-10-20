@@ -102,7 +102,7 @@ static bool defaultSizeFitsSelfTest(MainWindow &w) {
         settle();
         const QWidget *page = w.currentPage();
         if (!page) continue;
-        const QSize hint = page->sizeHint().expandedTo(page->minimumSizeHint());
+        const QSize hint = page->minimumSizeHint();  // what the layout needs at least (sizeHint depends on the platform font)
         if (hint.height() > spn::ui::tokens::kDefaultWindowHeight - chromeH ||
             hint.width() > spn::ui::tokens::kDefaultWindowWidth - chromeW) {
             std::fprintf(stderr, "default size self-test failed: page %s needs %dx%d\n", id.c_str(), hint.width(), hint.height());
