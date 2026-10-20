@@ -360,7 +360,7 @@ bool ModesPage::importPath(const QString &file, bool interactive) {
         if (box.clickedButton() != yes) return false;
     }
 
-    if (!confirmLeaveEditor()) return;
+    if (!confirmLeaveEditor()) return false;
     const ModeCatalog::Result r = catalog_.importFile(path, name);
     if (!r.ok) {
         lastError_ = QString::fromStdString(r.error);
