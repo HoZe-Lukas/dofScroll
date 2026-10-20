@@ -3058,10 +3058,10 @@ msgstr "Erweitert: jeder Wert, den dieses Profil selbst setzt"
 #: src/ui
 msgid ""
 "Built-in joystick modes have no file; duplicate the joystick mode on the "
-"Modes page to edit it"
+"Joystick modes page to edit it"
 msgstr ""
 "Eingebaute Joystick-Modi haben keine Datei; dupliziere den Joystick-Modus "
-"auf der Seite Modi, um ihn zu bearbeiten"
+"auf der Seite Joystick-Modi, um ihn zu bearbeiten"
 
 #: src/ui
 msgid "Button bindings of this joystick mode:"
@@ -3308,3 +3308,18 @@ msgstr "Tasten-Modus-Datei exportieren"
 #: src/ui
 msgid "Could not export the button mode."
 msgstr "Der Tasten-Modus konnte nicht exportiert werden."
+
+# --- dofscroll-ui: profile-centric editor, autosave, inheritance, joystick modes (new entries) ---
+
+#: src/ui
+msgid ""
+"Built-in joystick modes have no file; duplicate the joystick mode on the "
+"Modes page to edit it"
+msgstr ""
+"Eingebaute Joystick-Modi haben keine Datei; dupliziere den Joystick-Modus "
+"auf der Seite Modi, um ihn zu bearbeiten"
+
+#: src/ui
+msgid "Your file, replaces the built-in button mode"
+msgstr "Deine Datei, ersetzt den eingebauten Tasten-Modus"
+

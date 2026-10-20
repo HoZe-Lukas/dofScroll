@@ -836,7 +836,7 @@ QWidget *ProfilesPage::buildModeInfo(size_t section) {
     auto *edit = new QPushButton(T("Edit joystick mode file"), box);
     edit->setEnabled(v.mode.hasFile);
     edit->setToolTip(v.mode.hasFile ? T("Open the joystick mode file in your default editor")
-                                    : T("Built-in joystick modes have no file; duplicate the joystick mode on the Modes "
+                                    : T("Built-in joystick modes have no file; duplicate the joystick mode on the Joystick modes "
                                         "page to edit it"));
     connect(edit, &QPushButton::clicked, this, [this, section] {
         std::string err;
