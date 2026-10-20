@@ -51,11 +51,25 @@ inline std::string channelActionWords(const ChannelAction &a, const StringProvid
     return std::string();
 }
 
-// The three channel lines of a joystick mode ("Vertical push: scrolls vertically", ...).
+// The channel lines of a joystick mode ("Vertical push: scrolls vertically", ...). A split channel
+// gets one line per part ("Vertical, push part: ...", "Vertical, tilt part: ..."); a part without its
+// own action follows the channel's action.
 inline std::vector<std::string> joystickModeChannelLines(const ModeDef &m, const StringProvider &s) {
-    return {format(s.tr("Vertical push: %1"), {channelActionWords(m.v, s)}),
-            format(s.tr("Horizontal push: %1"), {channelActionWords(m.h, s)}),
-            format(s.tr("Twist: %1"), {channelActionWords(m.twist, s)})};
+    std::vector<std::string> out;
+    if (m.vSplit.active()) {
+        out.push_back(format(s.tr("Vertical, push part: %1"), {channelActionWords(m.vSplit.pushAction(m.v), s)}));
+        out.push_back(format(s.tr("Vertical, tilt part: %1"), {channelActionWords(m.vSplit.tiltAction(m.v), s)}));
+    } else {
+        out.push_back(format(s.tr("Vertical push: %1"), {channelActionWords(m.v, s)}));
+    }
+    if (m.hSplit.active()) {
+        out.push_back(format(s.tr("Horizontal, push part: %1"), {channelActionWords(m.hSplit.pushAction(m.h), s)}));
+        out.push_back(format(s.tr("Horizontal, tilt part: %1"), {channelActionWords(m.hSplit.tiltAction(m.h), s)}));
+    } else {
+        out.push_back(format(s.tr("Horizontal push: %1"), {channelActionWords(m.h, s)}));
+    }
+    out.push_back(format(s.tr("Twist: %1"), {channelActionWords(m.twist, s)}));
+    return out;
 }
 
 // The text of the "i" popover: name (and id), where it comes from, the description, what the channels

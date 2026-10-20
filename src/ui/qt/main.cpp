@@ -1557,6 +1557,66 @@ static bool modeFilesAutosaveSelfTest(const UiContext &ctx, const QString &tmpPa
         ed->editor().form().name = "Mine";
         ed->edited(false);
         ed->flush();
+        // split push and tilt (issue #100): the switch, the two action rows, the tuning fields, autosave
+        {
+            check(page.selectMode(QStringLiteral("mine")) && page.openEditor(), "reopen for the split test");
+            auto splitSwitch = [&](const QString &channel) -> QCheckBox * {
+                for (QCheckBox *cb : ed->findChildren<QCheckBox *>())
+                    if (cb->accessibleName() == channel + QStringLiteral(": Split push and tilt")) return cb;
+                return nullptr;
+            };
+            QCheckBox *vs = splitSwitch(QStringLiteral("Vertical push"));
+            QCheckBox *hs = splitSwitch(QStringLiteral("Horizontal push"));
+            check(vs && hs && !vs->isChecked() && !hs->isChecked(), "both channels have a 'Split push and tilt' switch, off by default");
+            if (vs) vs->click();
+            check(waitFor([&] { return !ed->pending(); }, 2000) && fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("V_PUSH_ACTION = default")) &&
+                      fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("V_TILT_ACTION = default")) &&
+                      !fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("H_PUSH_ACTION")),
+                  "the switch writes both V keys and leaves H alone");
+            // the push and tilt action rows exist with their own pickers
+            QComboBox *pushKind = nullptr, *tiltKind = nullptr;
+            for (QComboBox *cb : ed->findChildren<QComboBox *>()) {
+                if (cb->accessibleName() == QStringLiteral("Vertical push")) pushKind = cb;
+                if (cb->accessibleName() == QStringLiteral("Vertical tilt")) tiltKind = cb;
+            }
+            check(pushKind && tiltKind, "split: a push and a tilt action row");
+            if (tiltKind) {
+                const int idx = tiltKind->findData(int(spn::ChannelActionType::Off));
+                check(idx >= 0, "the tilt row offers 'Off'");
+                tiltKind->setCurrentIndex(idx);
+                emit tiltKind->activated(idx);
+            }
+            check(waitFor([&] { return !ed->pending(); }, 2000) && fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("V_TILT_ACTION = none")),
+                  "a part action is written");
+            // per-part tuning is a field of the part
+            QLineEdit *sens = lineEditNamed(ed, QStringLiteral("Vertical tilt: Sensitivity"));
+            check(sens != nullptr, "split: tuning field of the tilt part");
+            if (sens) {
+                sens->setText(QStringLiteral("8"));
+                emit sens->textEdited(QStringLiteral("8"));
+            }
+            check(waitFor([&] { return !ed->pending(); }, 3000) && fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("SCROLL_V_TILT_SENS = 8")),
+                  "the tuning field writes the per-part key");
+            if (sens) {
+                sens->setText(QStringLiteral("abc"));
+                emit sens->textEdited(QStringLiteral("abc"));
+            }
+            check(!ed->pending() && !ed->problemText().isEmpty(), "an invalid tuning value is shown and not written");
+            if (sens) {
+                sens->clear();
+                emit sens->textEdited(QString());
+            }
+            check(waitFor([&] { return !ed->pending(); }, 3000) && ed->problemText().isEmpty() &&
+                      !fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("SCROLL_V_TILT_SENS")),
+                  "an empty tuning field removes the key (follows the channel)");
+            // switching it off removes the keys again
+            vs = splitSwitch(QStringLiteral("Vertical push"));
+            if (vs) vs->click();
+            check(waitFor([&] { return !ed->pending(); }, 2000) && !fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("V_PUSH_ACTION")) &&
+                      !fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("V_TILT_ACTION")),
+                  "switching the split off removes the keys");
+            ed->flush();
+        }
     }
     {   // the button mode page
         ButtonModesPage page(ctx);

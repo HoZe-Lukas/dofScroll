@@ -48,6 +48,22 @@ int main() {
     assert(joystickModeChannelLines(*normal, id)[0].find("works as set in the profile") != std::string::npos);
     const ModeDef *off = builtins.find("off");
     assert(joystickModeChannelLines(*off, id)[1] == "Horizontal push: does nothing");
+    // a split channel gets a line per part; a part without its own action follows the channel (issue #100)
+    {
+        ModeDef sp = *timeline;
+        sp.vSplit.pushSet = true;
+        sp.vSplit.push.type = ChannelActionType::WheelV;
+        sp.vSplit.tiltSet = true;
+        sp.vSplit.tilt.type = ChannelActionType::Off;
+        sp.hSplit.tiltSet = true;
+        sp.hSplit.tilt.type = ChannelActionType::Zoom;
+        const std::vector<std::string> sl = joystickModeChannelLines(sp, id);
+        assert(sl.size() == 5);
+        assert(sl[0] == "Vertical, push part: scrolls vertically" && sl[1] == "Vertical, tilt part: does nothing");
+        assert(sl[2].rfind("Horizontal, push part: taps ", 0) == 0 && sl[3] == "Horizontal, tilt part: zooms (Ctrl + wheel)");
+        assert(sl[4].rfind("Twist: ", 0) == 0);
+        assert(joystickModeInfo(sp, "", id).find("Vertical, tilt part: does nothing") != std::string::npos);
+    }
     ChannelAction a;
     a.type = ChannelActionType::WheelV;
     assert(channelActionWords(a, id) == "scrolls vertically");

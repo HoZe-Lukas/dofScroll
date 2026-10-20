@@ -53,7 +53,31 @@ static bool openDemo(ModeEditor &ed, const std::string &dir) {
     return m && ed.open(dir + "/demo.conf", *m, &err);
 }
 
+// The override helpers of the form (per-part tuning fields of the split section, issue #100).
+static void testOverrideHelpers() {
+    ModeForm f;
+    assert(f.overrideValue("SCROLL_V_TILT_SENS") == nullptr);
+    f.setOverride("scroll_v_tilt_sens", "8");
+    assert(f.overrides.size() == 1 && f.overrides[0].first == "SCROLL_V_TILT_SENS");
+    assert(f.overrideValue("SCROLL_V_TILT_SENS") && *f.overrideValue("scroll_v_tilt_sens") == "8");
+    f.setOverride("SCROLL_V_TILT_SENS", "9");
+    assert(f.overrides.size() == 1 && *f.overrideValue("SCROLL_V_TILT_SENS") == "9");
+    f.setOverride("SCROLL_V_TILT_SENS", "");
+    assert(f.overrides.empty());
+    f.setOverride("SCROLL_V_TILT_SENS", "");  // removing what is not there is a no-op
+    assert(f.overrides.empty());
+    // the switch: on copies the channel's action to both parts, off clears them
+    ChannelForm parent;
+    parent.type = ChannelActionType::WheelV;
+    SplitForm sp;
+    sp.setSplit(true, parent);
+    assert(sp.active() && sp.push.type == ChannelActionType::WheelV && sp.tilt.type == ChannelActionType::WheelV);
+    sp.setSplit(false, parent);
+    assert(!sp.active() && sp.push.type == ChannelActionType::Default);
+}
+
 int main() {
+    testOverrideHelpers();
     const std::string root = tu::makeTempDir("dofscroll-mode-editor");
     const std::string dir = root + "/modes";
     assert(fs::mkdirsPrivate(dir, nullptr));

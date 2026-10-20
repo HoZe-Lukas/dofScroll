@@ -156,6 +156,71 @@ int ModeEditorWidget::addChannelRow(QGridLayout *g, int row, const QString &labe
     return used;
 }
 
+namespace {
+const char *const kPartTuning[][2] = {{"SENS", "Sensitivity"},
+                                      {"DEADZONE", "Dead zone"},
+                                      {"SIGN", "Direction (sign)"},
+                                      {"CURVE", "Curve"},
+                                      {"SMOOTH_MS", "Smoothing (ms)"}};
+
+// True for SCROLL_<V|H>_<PUSH|TILT>_* of a channel that this mode splits: the split section shows
+// these, the Overrides tab leaves them out.
+bool shownInSplit(const ModeForm &f, const std::string &key) {
+    const std::string k = utf8::upperAscii(key);
+    return (k.rfind("SCROLL_V_PUSH_", 0) == 0 || k.rfind("SCROLL_V_TILT_", 0) == 0) ? f.vSplit.active()
+           : (k.rfind("SCROLL_H_PUSH_", 0) == 0 || k.rfind("SCROLL_H_TILT_", 0) == 0) ? f.hSplit.active()
+                                                                                       : false;
+}
+}  // namespace
+
+int ModeEditorWidget::addSplitChannel(QGridLayout *g, int row, const QString &label, const QString &pushLabel,
+                                      const QString &tiltLabel, ChannelForm *channel, SplitForm *split, const char *prefix) {
+    int used = 0;
+    if (!split->active()) {
+        used += addChannelRow(g, row, label, channel);
+    } else {
+        used += addChannelRow(g, row + used, pushLabel, &split->push);
+        used += addChannelRow(g, row + used, tiltLabel, &split->tilt);
+    }
+    auto *sw = new QCheckBox(T("Split push and tilt"), this);
+    sw->setAccessibleName(label + QStringLiteral(": ") + T("Split push and tilt"));
+    sw->setToolTip(T("Give the push movement (forward/back, sideways) and the tilt movement their own functions"));
+    sw->setChecked(split->active());
+    g->addWidget(sw, row + used, 1);
+    ++used;
+    connect(sw, &QCheckBox::clicked, this, [this, split, channel](bool on) {
+        split->setSplit(on, *channel);
+        rebuild();
+        edited(false);
+    });
+    if (split->active()) {
+        const char *partIds[2] = {"PUSH", "TILT"};
+        const QString partNames[2] = {pushLabel, tiltLabel};
+        for (int p = 0; p < 2; ++p) {
+            auto *box = new QGroupBox(T("Tuning: %1").arg(partNames[p]), this);
+            auto *fl = new QFormLayout(box);
+            for (const auto &t : kPartTuning) {
+                const std::string key = std::string("SCROLL_") + prefix + "_" + partIds[p] + "_" + t[0];
+                auto *e = new QLineEdit(this);
+                const std::string *cur = editor_.form().overrideValue(key);
+                e->setText(cur ? qs8(*cur) : QString());
+                e->setPlaceholderText(T("As the channel"));
+                e->setAccessibleName(partNames[p] + QStringLiteral(": ") + T(t[1]));
+                e->setToolTip(qs8(key));
+                fl->addRow(T(t[1]) + QLatin1Char(':'), e);
+                connect(e, &QLineEdit::textEdited, this, [this, key](const QString &text) {
+                    editor_.form().setOverride(key, text.trimmed().toUtf8().toStdString());
+                    edited(true);
+                });
+                connect(e, &QLineEdit::editingFinished, this, [this] { flush(); });
+            }
+            g->addWidget(box, row + used, 0, 1, 2);
+            ++used;
+        }
+    }
+    return used;
+}
+
 void ModeEditorWidget::rebuild() {
     ModeForm &f = editor_.form();
     title_->setText(QStringLiteral("<b>") + T("Edit joystick mode: %1").arg(qs8(f.id)).toHtmlEscaped() + QStringLiteral("</b>"));
@@ -208,8 +273,8 @@ void ModeEditorWidget::rebuild() {
     auto *cg = new QGridLayout(chBox);
     cg->setColumnStretch(1, 1);
     int crow = 0;
-    crow += addChannelRow(cg, crow, T("Vertical push"), &f.v);
-    crow += addChannelRow(cg, crow, T("Horizontal push"), &f.h);
+    crow += addSplitChannel(cg, crow, T("Vertical push"), T("Vertical push"), T("Vertical tilt"), &f.v, &f.vSplit, "V");
+    crow += addSplitChannel(cg, crow, T("Horizontal push"), T("Horizontal push"), T("Horizontal tilt"), &f.h, &f.hSplit, "H");
     crow += addChannelRow(cg, crow, T("Twist"), &f.twist);
     col->addWidget(chBox);
 
@@ -279,6 +344,7 @@ void ModeEditorWidget::rebuild() {
     ol->addWidget(new QLabel(T("Values that apply while this joystick mode is active (for example the sensitivity)."), overridesPage));
     auto *og = new QFormLayout;
     for (size_t i = 0; i < f.overrides.size(); ++i) {
+        if (shownInSplit(f, f.overrides[i].first)) continue;
         auto *rowW = new QWidget(overridesPage);
         auto *h = new QHBoxLayout(rowW);
         h->setContentsMargins(0, 0, 0, 0);
@@ -307,7 +373,8 @@ void ModeEditorWidget::rebuild() {
         auto *ar = new QHBoxLayout;
         auto *combo = new QComboBox(overridesPage);
         combo->setAccessibleName(T("Setting to override"));
-        for (const std::string &k : addable) combo->addItem(qs8(k), qs8(k));
+        for (const std::string &k : addable)
+            if (!shownInSplit(f, k)) combo->addItem(qs8(k), qs8(k));
         auto *add = new QPushButton(T("Add override"), overridesPage);
         ar->addWidget(combo, 1);
         ar->addWidget(add);
@@ -345,6 +412,10 @@ QString ModeEditorWidget::problemText() const {
         QString where = qs8(x.field);
         if (x.field == "v") where = T("Vertical push");
         else if (x.field == "h") where = T("Horizontal push");
+        else if (x.field == "v_push") where = T("Vertical push");
+        else if (x.field == "v_tilt") where = T("Vertical tilt");
+        else if (x.field == "h_push") where = T("Horizontal push");
+        else if (x.field == "h_tilt") where = T("Horizontal tilt");
         else if (x.field == "twist") where = T("Twist");
         else if (x.field.rfind("button:", 0) == 0) where = T("Button") + QLatin1Char(' ') + qs8(x.field.substr(7));
         else if (x.field.rfind("override:", 0) == 0) where = qs8(x.field.substr(9));

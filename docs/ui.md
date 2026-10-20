@@ -129,6 +129,15 @@ picker per direction), the buttons (the same drop-down per button as on the Prof
 the button modes and "Default (inherit from Global)", which removes the binding) and the settings
 overrides (key, value, Add, Remove; `MODE`, `ENABLED`, `BACKEND` and `TICK_HZ` are not offered).
 
+Each scroll channel (vertical, horizontal) has a **Split push and tilt** switch. Off, the channel is
+one action row. On, it becomes two rows, push (forward/back or sideways) and tilt, each with the
+same action picker as the channel, and each part gets a "Tuning" box with its own sensitivity,
+dead zone, direction, curve and smoothing; an empty field means "as the channel" and writes no key.
+The switch writes `V_PUSH_ACTION` / `V_TILT_ACTION` (`H_...`) and the per-part keys
+`SCROLL_<V|H>_<PUSH|TILT>_*`; switching it off removes the action keys again (tuning keys stay in the
+Overrides tab, where they have no effect while the channel is not split). The information popover of
+a joystick mode lists one line per part for a split channel.
+
 The editor has three tabs: Settings (name, description, the three channels), Buttons and
 Overrides. Each tab scrolls on its own; the problem list and the buttons "Open in text editor" and
 "Close editor" stay visible below the tabs. The selected tab is kept while you edit and when you
