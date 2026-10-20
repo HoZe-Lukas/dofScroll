@@ -2599,6 +2599,14 @@ msgid "%1: %2 = %3 is above the %4 buttons of this device"
 msgstr "%1: %2 = %3 liegt über den %4 Tasten dieses Geräts"
 
 #: src/ui
+msgid ""
+"%1: %2 is on, but the inherited button %3 does not exist on this device (%4 "
+"buttons); assign a button in the Buttons tab"
+msgstr ""
+"%1: %2 ist an, aber die geerbte Taste %3 gibt es an diesem Gerät nicht (%4 "
+"Tasten); weise im Reiter Tasten eine Taste zu"
+
+#: src/ui
 msgid "%1: %2 is already set; %3 was left as it is"
 msgstr "%1: %2 ist schon belegt; %3 blieb unverändert"
 

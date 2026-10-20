@@ -327,6 +327,18 @@ raise the dead zone of the part that fires by accident.
 
 Validate a mode file with `build/tests/check_config --modes <directory>` (source build only).
 
+## Lift/press is unused
+
+Lift and press of the cap (axis `y`) are deliberately not used by any default or built-in joystick
+mode: grabbing or releasing the cap moves it up or down a little, and a function on `y` would fire
+by accident every time. The default mixes use push forward/back and tilt forward/back (`z`, `rx`)
+for vertical scroll, both sideways movements (`x`, `rz`) for horizontal scroll and twist (`ry`)
+for zoom; `ZOOM_LATERAL` lists `x z rx rz`. A joystick mode file must not put `y` into a
+`*_MIX` or `ZOOM_LATERAL` override unless its `DESCRIPTION` says so (mention "lift/press").
+You can still choose `y` for a channel in your own configuration; it stays prone to false
+triggers. `tests/test_no_lift_press.cpp` scans the built-in joystick modes, the seeded default
+configuration and the documented defaults and fails when `y` appears there.
+
 ## Safety and sharing joystick modes
 
 A joystick mode file is code-like. While a device button is held or an axis is deflected, it can press

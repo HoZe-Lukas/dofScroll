@@ -372,6 +372,150 @@ int main() {
         }
     }
 
+    // ---- the legacy migration respects the button count of a [device:NAME] section ----
+    {
+        // The shape of a real configuration: the navigation button 14 (raw) is meant for a 15-button
+        // model, but NAV is switched on for a 2-button model whose section inherits that index.
+        const std::string fixture =
+            "[global]\nSCROLL_V_MIX = z + rx\nSCROLL_V_SENS = 5\nSCROLL_H_MIX = x - rz\nSCROLL_H_SENS = 3\n"
+            "ZOOM_MIX = ry\nBACKEND = auto\nTICK_HZ = 250\nENABLED = 1\nMODE = normal\n"
+            "NAV_BUTTON = 14\nNAV_BUTTON_ENABLED = 0\nCLICK_BUTTON = 1\nCLICK_BUTTON_ENABLED = 0\n\n"
+            "[device:SpaceMouse Pro]\nNAV_BUTTON_ENABLED = 0\nCLICK_BUTTON_ENABLED = 0\n\n"
+            "[device:SpaceMouse Compact]\nSCROLL_H_SENS = 0\nNAV_BUTTON_ENABLED = 1\n";
+        const std::string p4 = dir + "/legacy-compact.conf";
+        auto bodyLines = [&](const std::string &file) {
+            std::ifstream in(file);
+            std::vector<std::string> out;
+            std::string l;
+            while (std::getline(in, l))
+                if (!l.empty() && l[0] != '#') out.push_back(l);
+            return out;
+        };
+        assert(fs::writeFileReplace(p4, fixture, &err));
+        SettingsModel lm;
+        assert(lm.load(p4, nullptr, &err));
+        const size_t pro = lm.profiles().find(Section::DEVICE, "SpaceMouse Pro");
+        const size_t cmp = lm.profiles().find(Section::DEVICE, "SpaceMouse Compact");
+        assert(lm.sectionButtonLimit(pro) == 15 && lm.sectionButtonLimit(cmp) == 2);
+        const auto mig = lm.migrateLegacyButtons(id);
+        assert(mig.migrated.empty() && mig.notices.size() == 1);
+        assert(mig.notices[0].find("[device:SpaceMouse Compact]") != std::string::npos &&
+               mig.notices[0].find("NAV_BUTTON_ENABLED") != std::string::npos &&
+               mig.notices[0].find("2 buttons") != std::string::npos &&
+               mig.notices[0].find("Buttons tab") != std::string::npos);
+        assert(lm.effective(cmp).buttons.empty() && lm.effective(pro).buttons.empty());  // no BUTTON_15
+        assert(lm.isOverridden(cmp, "NAV_BUTTON_ENABLED") && lm.isOverridden(0, "NAV_BUTTON") &&
+               lm.isOverridden(pro, "NAV_BUTTON_ENABLED"));  // the NAV keys stay where they were
+        assert(mig.changed && lm.save(id).saved);            // only the unused CLICK keys were dropped
+        std::vector<std::string> want;
+        {
+            std::string l;
+            for (size_t a = 0; a < fixture.size();) {
+                size_t b = fixture.find('\n', a);
+                l = fixture.substr(a, b - a);
+                a = b + 1;
+                if (!l.empty() && l.rfind("CLICK_BUTTON", 0) != 0) want.push_back(l);
+            }
+        }
+        assert(bodyLines(p4) == want);  // nothing else changed, nothing added (no BUTTON_15, no STEP_TRIGGER)
+        // the next start finds the same keys and reports the same notice
+        SettingsModel again;
+        assert(again.load(p4, nullptr, &err) && again.hasLegacyButtonKeys());
+        assert(again.migrateLegacyButtons(id).notices.size() == 1);
+
+        // an index that exists on the 2-button model: moved
+        assert(fs::writeFileReplace(p4, "[global]\nNAV_BUTTON = 14\nNAV_BUTTON_ENABLED = 0\n\n"
+                                        "[device:SpaceMouse Compact]\nNAV_BUTTON = 1\nNAV_BUTTON_ENABLED = 1\n", &err));
+        SettingsModel m2;
+        assert(m2.load(p4, nullptr, &err));
+        const auto mig2 = m2.migrateLegacyButtons(id);
+        assert(mig2.notices.empty() && mig2.migrated.size() == 1 && !m2.hasLegacyButtonKeys());
+        assert(m2.effective(m2.profiles().find(Section::DEVICE, "SpaceMouse Compact")).buttons.at(2) == "nav");
+        // an own index above the count of the device section: a notice that names the key
+        assert(fs::writeFileReplace(p4, "[device:SpaceMouse Compact]\nNAV_BUTTON = 5\nNAV_BUTTON_ENABLED = 1\n", &err));
+        SettingsModel m3;
+        assert(m3.load(p4, nullptr, &err));
+        const auto mig3 = m3.migrateLegacyButtons(id);
+        assert(!mig3.changed && mig3.notices.size() == 1 && mig3.notices[0].find("NAV_BUTTON = 5") != std::string::npos);
+        // a device missing from the table: the hard limit of 32 applies
+        assert(fs::writeFileReplace(p4, "[device:Some Pad]\nNAV_BUTTON = 20\nNAV_BUTTON_ENABLED = 1\n", &err));
+        SettingsModel m4;
+        assert(m4.load(p4, nullptr, &err));
+        assert(m4.sectionButtonLimit(1) == 32 && m4.migrateLegacyButtons(id).notices.empty());
+    }
+
+    // ---- a save writes what the file had plus what was changed, never the built-in defaults ----
+    {
+        const std::string p5 = dir + "/minimal.conf";
+        const std::string minimal = "[global]\nSCROLL_V_SENS = 4\n\n[device:SpaceMouse Pro]\nSCROLL_H_SENS = 2\n";
+        auto bodyLines = [&]() {
+            std::ifstream in(p5);
+            std::vector<std::string> out;
+            std::string l;
+            while (std::getline(in, l))
+                if (!l.empty() && l[0] != '#') out.push_back(l);
+            return out;
+        };
+        // one changed value per editable key (each differs from the built-in default)
+        const std::vector<std::pair<std::string, std::string>> table = {
+            {"SCROLL_V_MIX", "x"},   {"SCROLL_V_SENS", "9"},   {"SCROLL_V_DEADZONE", "77"},   {"SCROLL_V_SIGN", "-1"},
+            {"SCROLL_V_CURVE", "2.5"}, {"SCROLL_V_SMOOTH_MS", "33"}, {"SCROLL_H_MIX", "z"},    {"SCROLL_H_SENS", "9"},
+            {"SCROLL_H_DEADZONE", "77"}, {"SCROLL_H_SIGN", "-1"}, {"SCROLL_H_CURVE", "2.5"}, {"SCROLL_H_SMOOTH_MS", "33"},
+            {"ZOOM_MIX", "rx"},      {"ZOOM_SENS", "9"},       {"ZOOM_DEADZONE", "77"},      {"ZOOM_SIGN", "-1"},
+            {"ZOOM_CURVE", "2.5"},   {"ZOOM_SMOOTH_MS", "33"}, {"ZOOM_LATERAL", "x"},        {"ZOOM_ENTER_MS", "99"},
+            {"ZOOM_EXIT_RATIO", "2.5"}, {"STEP_TRIGGER", "55"}, {"BACKEND", "x11"},          {"TICK_HZ", "120"},
+            {"ENABLED", "0"},        {"LIVE_FEED", "0"},       {"MODE", "off"}};
+        // the table covers every key the model can edit
+        for (const KV &p : allKeys(Settings())) {
+            bool found = p.first == "NAV_BUTTON" || p.first == "NAV_BUTTON_ENABLED" || p.first == "CLICK_BUTTON" ||
+                         p.first == "CLICK_BUTTON_ENABLED";
+            for (const auto &t : table) found = found || t.first == p.first;
+            if (!found) printf("test_ui_settings: key %s is missing in the save table\n", p.first.c_str());
+            assert(found);
+        }
+        for (const auto &t : table)
+            for (int sec = 0; sec < 2; ++sec) {
+                assert(fs::writeFileReplace(p5, minimal, &err));
+                SettingsModel lm;
+                lm.setModes(makeModes(), "");
+                assert(lm.load(p5, nullptr, &err));
+                const size_t i = sec == 0 ? 0 : lm.profiles().find(Section::DEVICE, "SpaceMouse Pro");
+                assert(lm.setValue(i, t.first, t.second, &err));
+                Settings s;
+                assert(applyKey(s, t.first, t.second, nullptr));
+                std::string canon;
+                for (const KV &p : allKeys(s))
+                    if (p.first == t.first) canon = p.second;
+                assert(lm.save(id).saved);
+                std::vector<std::string> g = {"SCROLL_V_SENS = 4"}, d = {"SCROLL_H_SENS = 2"};
+                std::vector<std::string> &target = sec == 0 ? g : d;
+                bool replaced = false;
+                for (std::string &l : target)
+                    if (l.rfind(t.first + " = ", 0) == 0) {
+                        l = t.first + " = " + canon;
+                        replaced = true;
+                    }
+                if (!replaced) target.push_back(t.first + " = " + canon);
+                std::vector<std::string> want = {"[global]"};
+                want.insert(want.end(), g.begin(), g.end());
+                want.push_back("[device:SpaceMouse Pro]");
+                want.insert(want.end(), d.begin(), d.end());
+                const std::vector<std::string> got = bodyLines();
+                if (got != want) {
+                    printf("test_ui_settings: changing %s in section %d wrote:\n", t.first.c_str(), sec);
+                    for (const auto &l : got) printf("  %s\n", l.c_str());
+                }
+                assert(got == want);
+            }
+        // the reported case: no STEP_TRIGGER in the file, another key changes, STEP_TRIGGER stays absent
+        assert(fs::writeFileReplace(p5, minimal, &err));
+        SettingsModel lm;
+        assert(lm.load(p5, nullptr, &err) && lm.setValue(0, "SCROLL_H_SENS", "8", &err) && lm.save(id).saved);
+        std::ifstream in(p5);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        assert(text.find("STEP_TRIGGER") == std::string::npos && text.find("SCROLL_H_SENS = 8") != std::string::npos);
+    }
+
     tu::removeAll(dir);
     puts("test_ui_settings: ok");
     return 0;
