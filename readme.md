@@ -2,6 +2,22 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # dofscroll
 
+[![CI](https://github.com/HoZe-Lukas/dofScroll/actions/workflows/ci.yml/badge.svg)](https://github.com/HoZe-Lukas/dofScroll/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/HoZe-Lukas/dofScroll?include_prereleases)](https://github.com/HoZe-Lukas/dofScroll/releases/latest)
+[![License: GPL-3.0-or-later](https://img.shields.io/github/license/HoZe-Lukas/dofScroll)](LICENSE)
+
+**Use your 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program.** A SpaceMouse is made for 3D and CAD software; in a web browser, a PDF reader, a map or an office document it usually does nothing. dofscroll turns the six axes into smooth scrolling, zooming and keys for ordinary desktop programs, with per-program and per-device profiles, built-in joystick modes and button modes. Free software for Linux (tested), Windows and macOS (built by CI, never run with a real device, see [Status and testing](#status-and-testing)). Website: <https://hoze-lukas.github.io/dofScroll/> (English, [Deutsch](https://hoze-lukas.github.io/dofScroll/de/)). Wiki: [Quick start](https://github.com/HoZe-Lukas/dofScroll/wiki/Quick-start), [Built-in modes](https://github.com/HoZe-Lukas/dofScroll/wiki/Built-in-modes), [Requirements](https://github.com/HoZe-Lukas/dofScroll/wiki/Requirements).
+
+![The dofscroll settings window: profile editor with a program profile for firefox](site/img/ui-profiles-light.png)
+
+Install in three lines (download the package from the [latest release](https://github.com/HoZe-Lukas/dofScroll/releases/latest) first; first-time setup in [docs/installation.md](docs/installation.md)):
+
+- **Linux (Fedora, RHEL family; needs EPEL):** `sudo dnf install ./dofscroll-*.rpm`, then `sudo systemctl enable --now spacenavd` and `systemctl --user enable --now dofscroll.service dofscroll-ui.service`. Debian and Ubuntu: `sudo apt install ./dofscroll_*.deb`.
+- **Windows:** run the unsigned `dofscroll-*-setup.exe` (SmartScreen: More info, Run anyway) or unpack the portable ZIP.
+- **macOS (Apple silicon):** open the unsigned, not notarized DMG and drag the app to Applications (right-click, Open on first start).
+
+dofscroll is not affiliated with or endorsed by 3Dconnexion.
+
 dofscroll turns a 3Dconnexion SpaceMouse into smooth scrolling, zooming, arrow keys and mouse
 buttons for ordinary desktop programs. It reads the device through `spacenavd`/`libspnav` and
 sends the events through X11 (XTest) or, for Wayland, through uinput.

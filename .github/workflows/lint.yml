@@ -66,7 +66,7 @@ jobs:
       - name: shellcheck (scripts)
         run: shellcheck --severity=warning --external-sources scripts/*.sh scripts/pre-commit packaging/cpack/postinst
 
-      - name: English-only check (translations in po/ are the only exception)
+      - name: English-only check (po/ and the German website in site/de/ are the only exceptions)
         run: sh scripts/check-english.sh
 
       - name: SPDX headers
@@ -77,3 +77,6 @@ jobs:
 
       - name: Wiki page of the built-in modes is complete
         run: sh scripts/check-wiki-builtin-modes.sh
+
+      - name: Website checks (links, metadata, parity, contrast, size)
+        run: sh scripts/check-site.sh

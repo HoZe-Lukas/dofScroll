@@ -210,6 +210,12 @@ if(BUILD_TESTING)
              ${CMAKE_SOURCE_DIR}/scripts/check-wiki-builtin-modes.sh)
   endif()
 
+  # the website in site/: links, metadata, CSP hash, English/German parity, contrast, size budget
+  find_program(PYTHON3_EXECUTABLE NAMES python3 python)
+  if(SH_EXECUTABLE AND PYTHON3_EXECUTABLE)
+    add_test(NAME check_site COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/check-site.sh)
+  endif()
+
   # config validation: examples/*.conf and examples/default/dofscroll.conf
   add_executable(check_config tests/check_config.cpp)
   target_link_libraries(check_config PRIVATE dofscroll_core)

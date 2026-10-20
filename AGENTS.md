@@ -20,7 +20,8 @@ not run on hardware (`docs/work-plan.md`).
 | `tests/` | Unit and scenario tests (`tests/test_*.cpp`, plain `assert`) |
 | `examples/` | Example configs (CI-validated), `default/` (seeded on first start), `modes/` |
 | `devices/` | Device descriptions, format in `docs/devices.md` |
-| `po/` | gettext catalogs. The only place for non-English text |
+| `po/` | gettext catalogs. The only place for non-English text, apart from the German website `site/de/` |
+| `site/` | Static website (GitHub Pages, `.github/workflows/pages.yml`): English at the root, German in `site/de/`; checked by `scripts/check-site.sh`, see `docs/discoverability.md` |
 | `systemd/`, `packaging/`, `icons/` | Unit templates (`*.service.in`, rendered by CMake), udev rule and CPack config, tray icon |
 | `cmake/`, `CMakeLists.txt` | Build, quality gates, install and helper targets |
 | `scripts/` | Pre-commit hook, secret scan, hardening check |
@@ -44,7 +45,7 @@ open (`Text file busy`); stop it before rebuilding.
 
 - UI: no Save, Revert or "unsaved changes" question anywhere. Every edit goes into the model and is written by the autosave (`UiContext::saveSoon()` / `saveTyped()`, `src/ui/model/autosave.hpp`); an invalid value is never written and is shown next to its field. The two kinds of modes are called "Joystick mode" and "Button mode" in the UI (never plain "mode"; `src/ui/model/ui_terms.hpp`). Inheritance (Global < device < joystick mode overrides < program) is always shown in words.
 
-- English everywhere (code, comments, docs, logs, commits). Only `po/*.po` has other languages.
+- English everywhere (code, comments, docs, logs, commits). Only `po/*.po` has other languages. One documented exception: the website under `site/de/` is German (the maintainer's decision, so German users find the project); `site/` (English) and `docs/discoverability.md` stay English, and `scripts/check-english.sh` stays strict everywhere else. `scripts/check-site.sh` keeps both languages in parity.
   UI strings are English in the source and translated through gettext.
 - New files carry the SPDX header (`GPL-3.0-or-later`, copyright line as in existing files).
 - The number of configurable buttons comes from `factoryButtonCount(deviceName, reported)`, never

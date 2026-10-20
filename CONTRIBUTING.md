@@ -54,8 +54,10 @@ All files are UTF-8 without BOM (`scripts/check-utf8.sh`; PowerShell scripts sta
 Everything in the repository is English: code comments, identifiers, documentation, log, error
 and test messages, commit messages. The only exception is translations in `po/*.po`.
 
+The one documented exception besides `po/*.po` is the German version of the website in `site/de/`, kept in step with the English pages in `site/` (`scripts/check-site.sh` checks that both languages have the same pages, sections and links).
+
 This is enforced by `scripts/check-english.sh` (part of the `lint` job): it fails on German
-characters and unmistakably German words outside `po/`. Run it before you push.
+characters and unmistakably German words outside `po/` and `site/de/`. Run it before you push.
 
 ## Branches and pull requests
 

@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'sha256-zYLRmQPZD0mY6TyAXivPWdLLnINqJn956HApdot/2P8='; base-uri 'none'; form-action 'none'">
+<script>(function(d){var r=d.documentElement,k="dofscroll-theme",s=null,m=matchMedia("(prefers-color-scheme: dark)");function g(){if(s)return s;try{var t=localStorage.getItem(k);if(t==="light"||t==="dark")return t}catch(e){}return null}function f(){return g()||(m.matches?"dark":"light")}function a(){var t=f(),b=d.getElementById("theme");r.setAttribute("data-theme",t);if(b)b.setAttribute("aria-pressed",String(t==="dark"))}r.className="js";a();d.addEventListener("DOMContentLoaded",a);d.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("#theme");if(!b)return;s=f()==="dark"?"light":"dark";try{localStorage.setItem(k,s)}catch(x){}a()});if(m.addEventListener)m.addEventListener("change",a)})(document);</script>
+<title>dofscroll: SpaceMouse als Scrollrad und Zoom nutzen</title>
+<meta name="description" content="Nutze deine 3Dconnexion SpaceMouse als Scrollrad und Zoom in jedem Programm: Browser, PDF-Reader, Karten. Frei und quelloffen für Linux, Windows und macOS.">
+<link rel="canonical" href="https://hoze-lukas.github.io/dofScroll/de/">
+<link rel="alternate" hreflang="en" href="https://hoze-lukas.github.io/dofScroll/">
+<link rel="alternate" hreflang="de" href="https://hoze-lukas.github.io/dofScroll/de/">
+<link rel="alternate" hreflang="x-default" href="https://hoze-lukas.github.io/dofScroll/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="dofscroll">
+<meta property="og:title" content="dofscroll: SpaceMouse als Scrollrad und Zoom nutzen">
+<meta property="og:description" content="Nutze deine 3Dconnexion SpaceMouse als Scrollrad und Zoom in jedem Programm: Browser, PDF-Reader, Karten. Frei und quelloffen für Linux, Windows und macOS.">
+<meta property="og:url" content="https://hoze-lukas.github.io/dofScroll/de/">
+<meta property="og:locale" content="de_DE">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:image" content="https://hoze-lukas.github.io/dofScroll/img/og-de.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="dofscroll: SpaceMouse als Scrollrad und Zoom nutzen">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="dofscroll: SpaceMouse als Scrollrad und Zoom nutzen">
+<meta name="twitter:description" content="Nutze deine 3Dconnexion SpaceMouse als Scrollrad und Zoom in jedem Programm: Browser, PDF-Reader, Karten. Frei und quelloffen für Linux, Windows und macOS.">
+<meta name="twitter:image" content="https://hoze-lukas.github.io/dofScroll/img/og-de.png">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="stylesheet" href="../style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "dofscroll", "description": "Nutze deine 3Dconnexion SpaceMouse als Scrollrad und Zoom in jedem Programm: Browser, PDF-Reader, Karten. Frei und quelloffen für Linux, Windows und macOS.", "url": "https://hoze-lukas.github.io/dofScroll/de/", "inLanguage": "de", "operatingSystem": "Linux, Windows, macOS", "applicationCategory": "UtilitiesApplication", "license": "https://www.gnu.org/licenses/gpl-3.0.html", "softwareVersion": "0.1.1", "downloadUrl": "https://github.com/HoZe-Lukas/dofScroll/releases/latest", "screenshot": "https://hoze-lukas.github.io/dofScroll/img/ui-profiles-light.png", "image": "https://hoze-lukas.github.io/dofScroll/img/og-de.png", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}}</script>
+</head>
+<body>
+<a class="skip" href="#main">Zum Inhalt springen</a>
+<header class="site"><div class="wrap">
+<a class="brand" href="./"><img src="../img/dofscroll-app.svg" width="28" height="28" alt="">dofscroll</a>
+<nav class="main" aria-label="Hauptmenü"><a href="#features">Funktionen</a><a href="#screenshots">Bilder</a><a href="#download">Download</a><a href="#quickstart">Schnellstart</a><a href="#faq">FAQ</a></nav>
+<div class="tools">
+<a class="lang" href="../" hreflang="en" lang="en">English</a>
+<button type="button" id="theme" class="theme-toggle" aria-pressed="false" aria-label="Dunkles Design"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</div></div></header>
+<main id="main">
+<section class="hero" aria-labelledby="top">
+<div class="wrap">
+<img class="logo" src="../img/dofscroll-app.svg" width="96" height="96" alt="">
+<h1 id="top">Nutze deine SpaceMouse als Scrollrad und Zoom in jedem Programm</h1>
+<p class="lead">Eine 3Dconnexion SpaceMouse ist für 3D- und CAD-Programme gebaut. Im Webbrowser, im PDF-Reader, in einer Karte oder einem Office-Dokument tut sie meistens nichts. <strong>dofscroll</strong> ändert das: Kappe schieben zum Scrollen, drehen zum Zoomen, und alles lässt sich pro Programm einstellen. Freie Software für Linux, Windows und macOS.</p>
+<div class="cta">
+<a class="btn" href="https://github.com/HoZe-Lukas/dofScroll/releases/latest">Neueste Version herunterladen</a>
+<a class="btn secondary" href="#quickstart">Schnellstart</a>
+</div>
+<p class="note">dofscroll ist ein unabhängiges Projekt. Es steht in keiner Verbindung zu 3Dconnexion und wird von 3Dconnexion nicht unterstützt oder empfohlen. &bdquo;SpaceMouse&ldquo; und &bdquo;3Dconnexion&ldquo; sind Marken ihrer Inhaber und werden nur verwendet, um die unterstützte Hardware zu benennen.</p>
+<div class="status"><strong>Ehrlicher Stand:</strong> Nur ein Aufbau wurde vom Maintainer auf echter Hardware geprüft: Linux (RHEL 9, X11, KDE Plasma) mit einer SpaceMouse Pro und einer SpaceMouse Compact. Die Windows- und macOS-Versionen werden von der CI gebaut und wurden <strong>noch nie mit einem echten Gerät ausgeführt</strong>. Details: <a href="#download">Download und Stand</a>.</div>
+</div>
+</section>
+
+<section id="problem" aria-labelledby="h-problem">
+<div class="wrap">
+<h2 id="h-problem">Warum eine 3D-Maus als Scrollrad?</h2>
+<p>Eine SpaceMouse hat sechs Achsen, eine weiche Kappe und eine fein abgestufte Eingabe. Das macht sie zu einem sehr guten Scrollrad: leicht schieben, langsam scrollen; kräftig schieben, schnell scrollen. Immer wieder fragen Leute, wie man die SpaceMouse für normale Programme nutzen kann, und die übliche Antwort lautet, das Gerät sei nur für 3D-Anwendungen gedacht. dofscroll ist das fehlende Stück für alles andere: Es macht aus den sechs Achsen das Scrollen, Zoomen und die Tasten, die gewöhnliche Programme verstehen.</p>
+<p>Unter Linux liest dofscroll das Gerät über <code>spacenavd</code>, den quelloffenen SpaceMouse-Dienst, und sendet die Ereignisse über X11 oder uinput. Unter Windows und macOS liest es das Gerät direkt. Die 3D-Software des Herstellers brauchst du dafür nicht.</p>
+</div>
+</section>
+
+<section id="features" aria-labelledby="h-features">
+<div class="wrap">
+<h2 id="h-features">Was dofscroll kann</h2>
+<ul class="grid">
+<li><strong>Gleichmäßiges Scrollen</strong>Kappe nach vorn oder hinten schieben, und das Fenster unter dem Mauszeiger scrollt, senkrecht oder seitwärts, mit fester Taktrate für ein ruhiges Bild.</li>
+<li><strong>Zoom</strong>Kappe drehen zum Zoomen (Strg + Scrollen) in Browsern, Bildbetrachtern, Karten und Editoren.</li>
+<li><strong>Tasten aus den Achsen</strong>Eine Richtung kann auch Tasten drücken: Pfeiltasten für eine Karte, Bild auf und Bild ab für Folien, Lautstärke- oder Suchtasten für Medien.</li>
+<li><strong>Profile pro Programm und pro Gerät</strong>Eigene Geschwindigkeit und eigenes Verhalten für Firefox, einen PDF-Reader oder ein Kartenprogramm und für jedes SpaceMouse-Modell. Globale, Geräte- und Programmeinstellungen erben voneinander.</li>
+<li><strong>Eingebaute Joystick-Modi</strong>Neun fertige Modi, die ändern, was die Kappe tut: normal, aus, browse, slides, tabs, media, map, timeline und precision. Umschaltbar über das Tray-Symbol oder pro Programm.</li>
+<li><strong>Tasten-Modi</strong>Wiederverwendbares Tastenverhalten: nächster oder vorheriger Modus, durch Favoriten wechseln, Zoom zurücksetzen, Navigation ein- und ausschalten.</li>
+<li><strong>Einstellungsfenster und Tray-Symbol</strong>Eine Qt-Oberfläche mit Live-Anzeige der Achsen, hellem und dunklem Design, automatischem Speichern und Auswahl laufender Programme. Deutsche Übersetzung inklusive.</li>
+<li><strong>Eigene Modi schreiben</strong>Ein Modus ist eine kleine Textdatei, ohne Kompilieren. Siehe <a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Writing-modes">How to write a mode</a> (englisch).</li>
+</ul>
+<p>dofscroll ergänzt den Treiber des Herstellers und ersetzt ihn nicht. Eine Taste, die immer dieselbe Taste sendet, gehört in den Treiber; dofscroll kümmert sich um alles, was von seinem eigenen Zustand abhängt: Modi, Profile und die Achsen.</p>
+</div>
+</section>
+
+<section id="screenshots" aria-labelledby="h-shots">
+<div class="wrap">
+<h2 id="h-shots">Bilder</h2>
+<p>Das Einstellungsfenster von dofscroll, im Design deiner Wahl. Die Fenster zeigen Beispieldaten, kein angeschlossenes Gerät. Die Oberfläche gibt es auch auf Deutsch; die Bilder zeigen die englische Fassung.</p>
+<div class="shots">
+<figure>
+<img class="shot-light" src="../img/ui-profiles-light.png" width="960" height="560" loading="lazy" alt="Profil-Editor von dofscroll mit geöffnetem Programmprofil für firefox, links die globalen, Geräte- und Programmprofile">
+<img class="shot-dark" src="../img/ui-profiles-dark.png" width="960" height="560" loading="lazy" alt="Profil-Editor von dofscroll mit geöffnetem Programmprofil für firefox, links die globalen, Geräte- und Programmprofile">
+<figcaption>Profile: je ein Profil pro Programm oder Gerät, geerbt von den globalen Einstellungen.</figcaption>
+</figure>
+<figure>
+<img class="shot-light" src="../img/ui-modes-light.png" width="960" height="560" loading="lazy" alt="Seite Joystick-Modi mit den eingebauten Modi normal, off, timeline, browse, map, media, precision, slides und tabs">
+<img class="shot-dark" src="../img/ui-modes-dark.png" width="960" height="560" loading="lazy" alt="Seite Joystick-Modi mit den eingebauten Modi normal, off, timeline, browse, map, media, precision, slides und tabs">
+<figcaption>Joystick-Modi: fertige Verhaltensweisen für die Kappe.</figcaption>
+</figure>
+<figure>
+<img class="shot-light" src="../img/ui-overview-light.png" width="960" height="560" loading="lazy" alt="Übersichtsseite von dofscroll mit Status und Schnellaktionen">
+<img class="shot-dark" src="../img/ui-overview-dark.png" width="960" height="560" loading="lazy" alt="Übersichtsseite von dofscroll mit Status und Schnellaktionen">
+<figcaption>Übersicht: Status und Schnellaktionen.</figcaption>
+</figure>
+</div>
+</div>
+</section>
+
+<section id="download" aria-labelledby="h-download">
+<div class="wrap">
+<h2 id="h-download">Download</h2>
+<p>Alle Pakete liegen auf der <a href="https://github.com/HoZe-Lukas/dofScroll/releases/latest">GitHub-Seite für Releases</a>. Lade das Paket für dein System zusammen mit <code>SHA256SUMS.txt</code> herunter und prüfe es mit <code>sha256sum -c --ignore-missing SHA256SUMS.txt</code>.</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th scope="col">System</th><th scope="col">Installation</th><th scope="col">Stand</th></tr></thead>
+<tbody>
+<tr><th scope="row">Fedora, RHEL-Familie</th><td><code>sudo dnf install ./dofscroll-*.rpm</code> (braucht EPEL)</td><td>Vom Maintainer auf RHEL 9, X11, KDE Plasma geprüft. Andere Linux-Distributionen: nicht getestet.</td></tr>
+<tr><th scope="row">Debian, Ubuntu</th><td><code>sudo apt install ./dofscroll_*.deb</code></td><td>Paket wird von der CI gebaut, aber nicht auf Hardware installiert und ausgeführt.</td></tr>
+<tr><th scope="row">Windows 10 und 11</th><td><code>dofscroll-*-setup.exe</code> ausführen oder das portable ZIP entpacken. Der Installer ist nicht signiert, daher fragt SmartScreen nach (Weitere Informationen, Trotzdem ausführen).</td><td><strong>Von der CI gebaut, nie mit einem echten Gerät ausgeführt.</strong></td></tr>
+<tr><th scope="row">macOS (Apple Silicon)</th><td>DMG öffnen und die App in den Ordner Programme ziehen. Sie ist nicht notarisiert: beim ersten Start Rechtsklick, Öffnen.</td><td><strong>Von der CI gebaut, nie mit einem echten Gerät ausgeführt.</strong></td></tr>
+</tbody>
+</table>
+</div>
+<p>Wayland unter Linux nutzt das uinput-Backend. Es existiert, ist aber ungetestet und braucht eine udev-Regel, die du selbst aktivierst. Schreib im <a href="https://github.com/HoZe-Lukas/dofScroll/issues">Issue-Tracker</a>, was funktioniert und was nicht.</p>
+<p>Unterstützte Systeme, Hardware und Voraussetzungen: <a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Requirements">Requirements</a> im Wiki (englisch). Alle Schritte: <a href="https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md">Installationsanleitung</a> (englisch).</p>
+</div>
+</section>
+
+<section id="quickstart" aria-labelledby="h-quick">
+<div class="wrap">
+<h2 id="h-quick">Schnellstart (Linux)</h2>
+<ol class="steps">
+<li>Installiere das Paket aus der Tabelle oben und führe die einmalige Einrichtung aus der <a href="https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md">Installationsanleitung</a> durch.</li>
+<li>Starte den SpaceMouse-Dienst: <code>sudo systemctl enable --now spacenavd</code>, dann das Gerät anstecken.</li>
+<li>Starte dofscroll: <code>systemctl --user enable --now dofscroll.service dofscroll-ui.service</code></li>
+<li>Kappe schieben: Das Fenster unter dem Mauszeiger scrollt. Kappe drehen: Es zoomt.</li>
+<li>Rechtsklick auf das Tray-Symbol und Einstellungen öffnen, um Empfindlichkeit, Totzone und Richtung anzupassen. Änderungen gelten sofort.</li>
+</ol>
+<p>Es passiert nichts? Siehe <a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Troubleshooting">Troubleshooting</a>. Mehr: <a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Quick-start">Quick start im Wiki</a> (englisch).</p>
+</div>
+</section>
+
+<section id="faq" aria-labelledby="h-faq">
+<div class="wrap">
+<h2 id="h-faq">Häufige Fragen</h2>
+<h3>Kann ich die SpaceMouse zum Scrollen in Firefox oder Chrome nutzen?</h3>
+<p>Genau dafür ist dofscroll gemacht. Es sendet normale Scroll- und Zoom-Ereignisse an das Fenster unter dem Mauszeiger und funktioniert deshalb mit Browsern, PDF-Readern, Bildbetrachtern, Karten und Office-Programmen. Der Maintainer hat das unter Linux mit X11 bestätigt. Auf anderen Systemen ist es ungetestet.</p>
+<h3>Kann ich eine 3D-Maus unter Linux als Scrollrad nutzen?</h3>
+<p>Ja. Installiere <code>spacenavd</code> und dofscroll, schiebe die Kappe zum Scrollen und drehe sie zum Zoomen. Getestet ist RHEL 9 mit X11 und KDE Plasma.</p>
+<h3>Geht das ohne 3Dconnexion-Treiber?</h3>
+<p>Unter Linux nutzt dofscroll <code>spacenavd</code>, einen quelloffenen Dienst, statt der Software des Herstellers. Unter Windows und macOS liest es das Gerät selbst und braucht kein Hersteller-SDK; das ist auf echter Hardware noch nicht geprüft.</p>
+<h3>Funktioniert es unter Wayland?</h3>
+<p>Für Wayland gibt es ein uinput-Backend. Es ist ungetestet, braucht eine udev-Regel für <code>/dev/uinput</code>, die du selbst aktivierst, und Programmprofile funktionieren nur mit <code>kdotool</code> unter KDE.</p>
+<h3>Läuft es unter Windows und macOS?</h3>
+<p>Der Dienst, die Oberfläche und die Installer werden von der CI gebaut. Bisher hat niemand sie mit einer echten SpaceMouse ausgeführt. Probier sie gern aus und berichte in den Issues.</p>
+<h3>Welche SpaceMouse-Modelle werden unterstützt?</h3>
+<p>Getestet: SpaceMouse Pro und SpaceMouse Compact. Bekannt, aber ungetestet: Wireless, Pro Wireless, Enterprise und SpaceNavigator. Unter Linux liefert jedes Modell Bewegung, das <code>spacenavd</code> unterstützt.</p>
+<h3>Stört es Blender oder mein CAD-Programm?</h3>
+<p>Programme, die die SpaceMouse selbst auslesen, würden die Eingabe doppelt bekommen. Schalte dofscroll für diese Programme mit einem Programmprofil ab (<code>ENABLED = 0</code>).</p>
+<h3>Ist es kostenlos?</h3>
+<p>Ja. dofscroll ist freie Software unter der Lizenz GPL-3.0-or-later, ohne Werbung und ohne Tracking. Diese Website setzt keine Cookies und lädt nichts von anderen Servern.</p>
+<h3>Stammt dofscroll von 3Dconnexion?</h3>
+<p>Nein. Es ist ein unabhängiges Open-Source-Projekt und steht in keiner Verbindung zu 3Dconnexion und wird von 3Dconnexion nicht unterstützt oder empfohlen.</p>
+</div>
+</section>
+
+<section id="links" aria-labelledby="h-links">
+<div class="wrap">
+<h2 id="h-links">Weitere Informationen</h2>
+<ul>
+<li><a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Built-in-modes">Built-in modes</a>: was jeder Joystick-Modus und Tasten-Modus tut (englisch)</li>
+<li><a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Writing-modes">How to write a mode</a> (englisch)</li>
+<li><a href="https://github.com/HoZe-Lukas/dofScroll/wiki">Wiki</a> und <a href="https://github.com/HoZe-Lukas/dofScroll/wiki/FAQ">FAQ im Wiki</a> (englisch)</li>
+<li><a href="https://github.com/HoZe-Lukas/dofScroll">Quellcode</a> und <a href="https://github.com/HoZe-Lukas/dofScroll/issues">Issues</a> auf GitHub</li>
+<li><a href="https://github.com/HoZe-Lukas/dofScroll/blob/main/LICENSE">Lizenz: GPL-3.0-or-later</a></li>
+</ul>
+</div>
+</section>
+
+</main>
+<footer class="site"><div class="wrap"><p>dofscroll ist freie Software unter der <a href="https://github.com/HoZe-Lukas/dofScroll/blob/main/LICENSE">GPL-3.0-or-later</a>. Es ist ein unabhängiges Projekt und steht in keiner Verbindung zu 3Dconnexion. &bdquo;3Dconnexion&ldquo; und &bdquo;SpaceMouse&ldquo; sind Marken ihrer jeweiligen Inhaber. Diese Website nutzt keine Cookies, kein Tracking und keine externen Anfragen.</p></div></footer>
+</body>
+</html>
