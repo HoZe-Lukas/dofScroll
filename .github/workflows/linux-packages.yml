@@ -43,6 +43,7 @@ jobs:
         run: cd build && cpack -G "RPM;TGZ"
       - name: Scan packages
         run: |
+          # shellcheck disable=SC2016  # $ORIGIN is literal
           mkdir -p /tmp/scan/rpm /tmp/scan/tgz
           for f in build/dofscroll-*.rpm; do (cd /tmp/scan/rpm && rpm2cpio "$GITHUB_WORKSPACE/$f" | cpio -idm --quiet); done
           for f in build/dofscroll-*.tar.gz; do tar xzf "$f" -C /tmp/scan/tgz; done
@@ -82,8 +83,8 @@ jobs:
             grep -F '$ORIGIN/../lib/dofscroll/lib' /tmp/rpath.txt
             QT_QPA_PLATFORM=offscreen /tmp/scan/rpm/usr/bin/dofscroll-ui --version | tee /tmp/uiver.txt
             grep -q "^Qt $QT_VERSION " /tmp/uiver.txt
-            LD_LIBRARY_PATH= ldd /tmp/scan/rpm/usr/bin/dofscroll-ui | grep -E 'libQt6Core|not found'
-            if LD_LIBRARY_PATH= ldd /tmp/scan/rpm/usr/bin/dofscroll-ui | grep -E 'libQt6|libicu' | grep -v '/usr/lib/dofscroll/lib/'; then
+            env -u LD_LIBRARY_PATH ldd /tmp/scan/rpm/usr/bin/dofscroll-ui | grep -E 'libQt6Core|not found'
+            if env -u LD_LIBRARY_PATH ldd /tmp/scan/rpm/usr/bin/dofscroll-ui | grep -E 'libQt6|libicu' | grep -v '/usr/lib/dofscroll/lib/'; then
               echo "::error::dofscroll-ui loads Qt from outside lib/dofscroll" >&2; exit 1
             fi
             {
@@ -130,6 +131,7 @@ jobs:
         run: cd build && cpack -G DEB
       - name: Scan package
         run: |
+          # shellcheck disable=SC2016  # $ORIGIN is literal
           mkdir -p /tmp/scan
           for f in build/dofscroll*.deb; do dpkg-deb -x "$f" /tmp/scan; done
           if grep -rIn -e _CPack_Packages -e /__w/ -e "$GITHUB_WORKSPACE" /tmp/scan; then

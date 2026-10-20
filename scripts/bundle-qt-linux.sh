@@ -56,7 +56,7 @@ plugins=(
 
 [ -x "$exe" ] || { echo "bundle-qt: $exe is not an executable" >&2; exit 1; }
 command -v patchelf >/dev/null || { echo "bundle-qt: patchelf is required" >&2; exit 1; }
-rm -rf "$dest/lib" "$dest/plugins"
+rm -rf "${dest:?}/lib" "${dest:?}/plugins"
 mkdir -p "$dest/lib"
 
 queue=("$exe")
