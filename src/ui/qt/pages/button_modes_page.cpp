@@ -372,7 +372,7 @@ void ButtonModesPage::markDirty(bool typed) {
 }
 
 void ButtonModesPage::showProblem(const QString &text) {
-    problem_->setText(text);
+    problem_->setText(mark(spn::ui::StatusKind::Error, text));
     problem_->setVisible(!text.isEmpty());
 }
 

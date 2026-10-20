@@ -427,7 +427,8 @@ QString ModeEditorWidget::problemText() const {
 void ModeEditorWidget::showProblems() {
     const QString t = problemText();
     // An invalid form is never written; the text says so, next to the fields that need fixing.
-    problems_->setText(t.isEmpty() ? QString() : T("Not saved until this is fixed:") + QLatin1Char('\n') + t);
+    problems_->setText(t.isEmpty() ? QString()
+                                   : mark(spn::ui::StatusKind::Error, T("Not saved until this is fixed:")) + QLatin1Char('\n') + t);
     problems_->setProperty("error", !t.isEmpty());
     problems_->style()->unpolish(problems_);
     problems_->style()->polish(problems_);

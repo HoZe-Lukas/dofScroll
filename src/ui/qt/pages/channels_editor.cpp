@@ -172,7 +172,7 @@ double ChannelsEditor::number(const std::string &key) const { return qs8(display
 void ChannelsEditor::showProblem(QWidget *editor, QLabel *help, const QString &helpText, const QString &error) {
     const bool bad = !error.isEmpty();
     if (help) {
-        help->setText(bad ? T("Invalid value: ") + error : helpText);
+        help->setText(bad ? mark(spn::ui::StatusKind::Error, T("Invalid value: ") + error) : helpText);
         setFlag(help, "error", bad);
     }
     setFlag(editor, "invalid", bad);
@@ -182,7 +182,8 @@ void ChannelsEditor::showProblem(QWidget *editor, QLabel *help, const QString &h
 void ChannelsEditor::showLiftPressWarning(QLabel *help, const QString &helpText, const std::string &text) {
     const bool warn = spn::ui::mixUsesLiftPress(text);
     if (!help) return;
-    help->setText(warn ? T("Warning: lift/press (y) is prone to false triggers when you grab or release the cap")
+    help->setText(warn ? mark(spn::ui::StatusKind::Warning,
+                              T("Warning: lift/press (y) is prone to false triggers when you grab or release the cap"))
                        : helpText);
     setFlag(help, "warning", warn);
 }

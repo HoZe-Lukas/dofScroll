@@ -1163,8 +1163,8 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
               "an invalid text is not written");
         bool problemShown = false;
         for (QLabel *l : ch->findChildren<QLabel *>())
-            problemShown = problemShown || l->text().startsWith(QStringLiteral("Invalid value: "));
-        check(problemShown, "the problem is shown next to the field");
+            problemShown = problemShown || (l->text().contains(QStringLiteral("Invalid value: ")) && spn::ui::hasMark(l->text().toUtf8().toStdString()));
+        check(problemShown, "the problem is shown next to the field, with its symbol");
         check(mix->property("invalid").toBool(), "the field is marked invalid");
         QElapsedTimer t;
         t.start();
@@ -1754,7 +1754,7 @@ static bool legacyButtonsSelfTest() {
     check(!text.contains(QStringLiteral("NAV_BUTTON")) && !text.contains(QStringLiteral("CLICK_BUTTON")), "the old keys are gone from the file");
     check(text.contains(QStringLiteral("BUTTON_3 = nav")) && text.contains(QStringLiteral("BUTTON_4 = key:space")), "the navigation button became BUTTON_3 = nav");
     check(rig.reloads() >= 1, "the daemon was told");
-    check(rig.win->saveStatus().startsWith(QStringLiteral("Moved the old navigation/click button settings to the Buttons tab")),
+    check(rig.win->saveStatus().contains(QStringLiteral("Moved the old navigation/click button settings to the Buttons tab")),
           "the user is told once in the status line");
     ProfilesPage *page = rig.win->profilesPage();
     check(page != nullptr, "Profiles page");
