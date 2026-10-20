@@ -43,7 +43,7 @@ everywhere a mode can be chosen (profile drop-downs, tray menu, Overview, `MODE 
 
 | Mode | Behavior |
 |---|---|
-| `normal` | All channels `default`, no bindings. Scroll, Ctrl+scroll zoom and `NAV_BUTTON` (the older `CLICK_BUTTON` also still works). |
+| `normal` | All channels `default`, no bindings. Scroll, Ctrl+scroll zoom and the buttons you bind in the profile (the deprecated `NAV_BUTTON` and `CLICK_BUTTON` also still work). |
 | `off` | All channels `none`. Switches control off without `ENABLED = 0`. |
 | `timeline` | Vertical `none`, horizontal and twist `keys:left,right`. Scrubbing and single frames for video editing. |
 | `slides` | Up/down = `pageup`/`pagedown` (gentle rate, `SCROLL_V_SENS = 2`), sideways and twist off. |
@@ -148,7 +148,7 @@ another switch happens. Held keys and buttons are released on every switch. An u
 a mode file is dropped with a warning.
 
 A mode whose three channel actions are all `default` runs the normal path, so dominance-based zoom
-and `NAV_BUTTON`/`CLICK_BUTTON` still work, and its button bindings apply in addition.
+and the deprecated `NAV_BUTTON`/`CLICK_BUTTON` still work, and its button bindings apply in addition.
 
 ## Buttons and the vendor driver
 
@@ -168,7 +168,7 @@ modes.
 
 Why the driver is better for a mapping that is always the same: it works in every program and
 keeps working when dofscroll is stopped. dofscroll's own `key:`, `click`, `rightclick` and
-`middleclick` actions and the older `CLICK_BUTTON` stay fully supported, also as an option for
+`middleclick` actions and the deprecated `CLICK_BUTTON` stay fully supported, also as an option for
 people without a driver. The shipped examples use them only for mode-specific bindings.
 
 ### Linux: spacenavd

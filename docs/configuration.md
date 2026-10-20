@@ -66,15 +66,30 @@ in the tray.
 | `BACKEND` | `auto` | `auto`, `x11` or `uinput`. `auto` picks uinput under Wayland, else X11. If the chosen backend fails, the other is tried. Needs a daemon restart. |
 | `TICK_HZ` | `250` | Tick rate 30 to 1000. Can differ per profile. |
 | `ENABLED` | `1` | `0` switches all output off (scroll, zoom, keys, clicks) and releases held keys. |
-| `MODE` | `normal` | Active mode, see [modes.md](modes.md). |
+| `MODE` | `normal` | Active joystick mode, see [modes.md](modes.md). Can be set in `[global]` (the mode of everything that does not choose its own), `[device:*]` and `[app:*]`. |
 | `LIVE_FEED` | `1` | `0` disables the live data feed to the UI (axes view, axis assistant); with `1` it only runs while a UI is connected. See `security.md`. |
-| `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | Button that turns X/Y into arrow keys while held. |
-| `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | Older key: button that is passed through as the left mouse button. A click that is the same everywhere is better set in the vendor driver, see [modes.md](modes.md#buttons-and-the-vendor-driver). |
+| `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | **Deprecated**, use `BUTTON_<n> = nav`. Button (0-based index) that turns X/Y into arrow keys while held. |
+| `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | **Deprecated**, use `BUTTON_<n> = click`. Button (0-based index) that is passed through as the left mouse button. A click that is the same everywhere is better set in the vendor driver, see [modes.md](modes.md#buttons-and-the-vendor-driver). |
 | `BUTTON_<n>` | none | Action of button `n`, same values as in mode files, see [modes.md](modes.md). `buttonmode:<id>` uses a named button behavior from `buttons/<id>.conf`, see [button-modes.md](button-modes.md). |
 
-`NAV_BUTTON` and `CLICK_BUTTON` are older keys. They take the raw button index as `spacenavd`
-reports it, and the log shows the index of every pressed button in `--debug` mode. New setups
-should use `BUTTON_<n>` with `nav`, `toggle:nav`, `mode:<id>`, `mode:next`, `mode:prev`, `hold:mode:<id>`, `toggle:mode:<id>` and `buttonmode:<id>`.
+### Deprecated: NAV_BUTTON and CLICK_BUTTON
+
+`NAV_BUTTON` and `CLICK_BUTTON` (with `..._ENABLED`) are deprecated. They take the raw 0-based button
+index as `spacenavd` reports it, and the log shows the index of every pressed button in `--debug`
+mode. The daemon still understands them, so old files behave as before, but the interface does not
+offer them any more: **all buttons are assigned with `BUTTON_<n>`** (1-based) using `nav`,
+`toggle:nav`, `click`, `mode:<id>`, `mode:next`, `mode:prev`, `hold:mode:<id>`, `toggle:mode:<id>`
+and `buttonmode:<id>`. `NAV_BUTTON = 2` with `NAV_BUTTON_ENABLED = 1` is `BUTTON_3 = nav`.
+
+When `dofscroll-ui` loads a file that uses them it migrates them once, visibly: in the profile that
+set them, `NAV_BUTTON` becomes `BUTTON_<n> = nav` and `CLICK_BUTTON` becomes `BUTTON_<n> = click`
+(n = index + 1; a profile that only switches the inherited button off gets `BUTTON_<n> = none`), the
+old keys are removed, the file is written atomically, the daemon reloads it and the footer says
+"Moved the old navigation/click button settings to the Buttons tab". A key pair is moved all or
+nothing: if the index is above the factory button count of the device or the profile already binds
+that button to something else, the old keys stay in the file untouched and the Buttons tab lists
+them as "Not moved". Disabled keys (`..._ENABLED = 0`, which older saves wrote everywhere) are
+dropped silently. The daemon and the config loader keep reading the old keys.
 
 dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
 
@@ -103,6 +118,32 @@ Lowest to highest: `[global]` < matching `[device:*]` < overrides of the active 
 `[app:*]`. All device sections are applied before all app sections, each in file order, so a later
 matching section wins. The mode is chosen by `MODE` from the resolved profile (global, device or
 app), so an app section can select a mode and still has the last word over the mode's overrides.
+
+### Inheritance
+
+Everything can be set in `[global]` exactly like in any other section: the joystick mode (`MODE`),
+every channel value and every button (`BUTTON_<n>`, with button modes). `[global]` is the base. A
+`[device:*]` or `[app:*]` section holds only what it changes and inherits the rest, so the effective
+value of a key is the first one found from the top of the precedence list above downwards: the
+program section, the joystick mode's overrides, the device section, `[global]`, the built-in default.
+Buttons are inherited per button: `BUTTON_2` of a profile replaces the `BUTTON_2` of `[global]`,
+the other buttons stay; `BUTTON_<n> = none` in a profile switches an inherited button off for that
+profile.
+
+    [global]
+    SCROLL_V_SENS = 5            # base for everything
+    BUTTON_2 = nav               # every device and program: button 2 holds navigation
+
+    [device:SpaceMouse Pro]
+    SCROLL_V_SENS = 8            # this device: 8; every other key is inherited from [global]
+
+    [app:firefox]
+    BUTTON_2 = none              # in Firefox button 2 does nothing (nav is inherited, none overrides it)
+
+The profile editor shows this per setting and per button ("Inherited from Global: 5", "Set in this
+profile (inherited: 5)", "2 profiles override this"), see [ui.md](ui.md#inheritance). A program
+profile cannot know which device is active at run time; the interface shows the value of
+`[global]` and names the device profiles that set the same key.
 
 ### Examples
 

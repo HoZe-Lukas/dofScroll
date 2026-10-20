@@ -42,7 +42,11 @@ MODE = timeline
 
 ## Editing a profile in the interface
 
-The editor of the selected profile on the Profiles page has the sub-tabs General, Channels (the effective values and where they come from), Buttons and Overrides (the default mode has General and Buttons). Save, Revert and the status line stay visible below the tabs. Revert discards the unsaved edits of the selected profile. Selecting another profile, another page or closing the window while a profile has unsaved edits asks Save, Discard or Cancel. Two search boxes filter the profile list (by name) and the settings of the selected profile (by label or key). Details: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md).
+The editor of the selected profile on the Profiles page has the tabs General (joystick mode, output switch), Channels (scroll, zoom, curve, zoom detection; per row the value, where it comes from and Reset), Buttons and Overrides. Global has the same tabs: everything can be set in Global like in any other profile. The header says which profile is edited and that everything not changed in a device or program profile is inherited from Global; a value of Global that profiles override says "N profiles override this". There is no Save button: every change is saved by itself and an invalid value is not written. Two search boxes filter the profile list (by name) and the settings of the selected profile (by label or key). "Export..." writes the selected profile as a `.conf` file.
+
+### Inheritance
+
+`[global]` is the base; a `[device:*]` or `[app:*]` section holds only what it changes. Precedence: Global < device < joystick mode overrides < program. `MODE`, every channel key and every `BUTTON_<n>` can be set in `[global]` too. Buttons are inherited per button (`BUTTON_<n> = none` in a profile switches an inherited button off there). See [Configuration reference](Configuration-reference). Details: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md).
 
 ## Finding the program name
 

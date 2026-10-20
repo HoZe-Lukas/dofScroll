@@ -10,16 +10,17 @@ Vertical tabs on the left pick a category, horizontal tabs on top pick the page 
 
 | Category | Page (tab) | Content |
 |---|---|---|
-| Overview | Overview | Daemon state, task buttons (tune scroll and zoom, check the axes, switch modes), quick actions (active mode, open log, documentation, new profile for the running program, release keys, restarts) and one card per profile (mode and what it overrides, button bindings included) with a filter box; "Open" jumps to the profile |
-| Profiles | Profiles | Device and application profiles, per-profile mode dropdown, overrides, button bindings |
-| Profiles | Channels | Scroll, zoom and other output channels: sensitivity, dead zone, direction, curve preview; filter box, and every row names its config key in the tooltip |
-| Modes | Modes | Built-in and file modes: new, duplicate, import, edit, delete |
-| Modes | Extensions | Modes and button modes with their origin; add a shipped example, remove your own file |
-| Modes | Button modes | Button mode files (`buttons/`): new, edit in the page, duplicate, import, delete; chosen per button on the Profiles page |
+| Overview | Overview | Only summarizes and links: daemon state, task buttons (tune scroll and zoom = the Channels tab of Global, check the axes, switch joystick modes), quick actions (active joystick mode, open log, documentation, new profile for the running program, release keys, restarts) and one card per profile (joystick mode, what it overrides and how many settings, button bindings included) with a filter box; "Open" jumps to the profile |
+| Profiles | Profiles | The profile list (Global first, then devices, then programs) and the editor of the selected profile: General (joystick mode, output switch), Channels (scroll, zoom, curve preview, zoom detection), Buttons and Overrides. The same for Global |
+| Modes | Joystick modes | Built-in and file joystick modes with origin and description: new, new from example, duplicate, import, export, edit, delete |
+| Modes | Button modes | Button mode files (`buttons/`): new, new from example, edit in the page, duplicate, import, delete; chosen per button on the Profiles page |
+| Device | Device | The connected devices, their button count and the daemon state |
 | Device | Axes | Live bars of the six axes, axis assistant (output pauses while it is open) |
-| Settings | General | Output on/off, global mode, "Start at login", daemon status, "Show log...", "Documentation" |
+| Settings | Settings | Output on/off, start at login, language, theme, tick rate and output backend, daemon status, "Show log...", "Documentation" |
 
-"Show log..." (Overview "Open log", General page, tray) opens a small window with the end of the daemon log (Refresh, Copy). "Documentation" opens the project documentation in your browser. "Active mode" on the Overview switches the running daemon to another mode until the next reload or restart (the same request as the tray's Mode menu). The axes step of "Getting started" is done once the axis assistant has been applied.
+Nothing in the window has a Save button: every change is saved by itself (switches and drop-downs at once, typed text after about 600 ms or when you leave the field) and the daemon reloads; the footer says "Saved" or "Could not save: ...". An invalid value is not written, the problem is shown next to the field. Closing the window and Quit write what is pending first.
+
+"Show log..." (Overview "Open log", Settings page, tray) opens a small window with the end of the daemon log (Refresh, Copy). "Documentation" opens the project documentation in your browser. "Active joystick mode" on the Overview switches the running daemon to another joystick mode until the next reload or restart (the same request as the tray's Joystick mode menu). Every joystick mode and button mode shows its description as tooltip, as a second line in the lists and in the **i** popover next to the joystick mode drop-down of a profile. The axes step of "Getting started" is done once the axis assistant has been applied.
 
 ## Appearance
 
@@ -27,17 +28,17 @@ Settings > Appearance: System default, Light or Dark. It applies at once and is 
 
 ## Profiles and the program picker
 
-The editor of a profile has the sub-tabs General, Channels, Buttons and Overrides; Save, Revert and the status line stay visible below them, and the last tab is remembered. Revert drops the unsaved edits of the selected profile; selecting another profile or page, or closing the window, with unsaved edits asks Save, Discard or Cancel. A search box above the list filters the profiles by name, one above the tabs filters the settings by label or key. The mode editor on the Modes page has the tabs Settings, Buttons and Overrides in the same way.
+The editor of a profile (also Global) has the tabs General, Channels, Buttons and Overrides; the header shows which profile is edited (icon, name, kind) with one line about inheritance, the tab stays when you select another profile, and the list stays visible. Every setting row and button row says where its value comes from ("Inherited from Global: 5", "Set in this profile (inherited: 5)") and has a Reset; in Global a value that profiles override says "N profiles override this". "Export..." writes the selected profile as a `.conf` file. A search box above the list filters the profiles by name, one above the tabs filters the settings by label or key. The joystick mode editor has the tabs Settings, Buttons and Overrides in the same way and saves by itself. See [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md).
 
 "Add application..." lists the programs that are running now (search by name, match string or window title, refresh) and shows the exact match string that will be stored. "Capture next focused program" takes the program you switch to. Precedence: global < device < mode overrides < application, see [Profiles](Profiles).
 
 ## Tray
 
-Status, "Mode" submenu, "Enabled", "Settings...", "Open config file", "Show log...", "Open modes folder", "Release all keys" (runs `dofscroll --release-keys`), "Restart daemon" (releases held keys, then restarts the daemon: systemd on Linux, launchd on macOS, stop and start on Windows), "Restart interface" (restarts the interface itself), "Quit".
+Status, "Joystick mode" submenu, "Enabled", "Settings...", "Open config file", "Show log...", "Open joystick modes folder", "Release all keys" (runs `dofscroll --release-keys`), "Restart daemon" (releases held keys, then restarts the daemon: systemd on Linux, launchd on macOS, stop and start on Windows), "Restart interface" (restarts the interface itself), "Quit".
 
 ## Saving and the daemon
 
-Saving notifies the running daemon: SIGHUP on Linux, a named event on Windows, a local socket on macOS (the last two are CI-verified only). The device list on the Profiles page and the factory button count (Profiles and Axes pages) come from the daemon's live feed.
+Every change notifies the running daemon: SIGHUP on Linux, a named event on Windows, a local socket on macOS (the last two are CI-verified only). The device list on the Profiles page and the factory button count (Profiles and Axes pages) come from the daemon's live feed.
 
 ## Start at login
 

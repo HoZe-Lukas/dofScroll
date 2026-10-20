@@ -47,8 +47,8 @@ The seeded config uses different values than these built-in defaults; it is a st
 | `TICK_HZ` | `250` | Tick rate 30 to 1000 |
 | `ENABLED` | `1` | `0` switches all output off and releases held keys |
 | `MODE` | `normal` | Active mode, see [Modes](Modes) |
-| `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | Older keys: raw button index that turns X/Y into arrow keys while held |
-| `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | Older keys: raw button index passed through as the left mouse button |
+| `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | Deprecated (use `BUTTON_<n> = nav`; the interface migrates them): raw 0-based button index that turns X/Y into arrow keys while held |
+| `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | Deprecated (use `BUTTON_<n> = click`; the interface migrates them): raw 0-based button index passed through as the left mouse button |
 | `BUTTON_<n>` | none | Action of button `n` (`nav`, `toggle:nav`, `mode:<id>`, `hold:mode:<id>`, `toggle:mode:<id>`, `buttonmode:<id>`, ...), see [Buttons](Buttons) |
 
 ## Sections and precedence

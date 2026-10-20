@@ -96,11 +96,12 @@ Deleting a button mode in the interface lists where it is still used first.
 
 ## In the interface
 
-- **Profiles page:** a *Joystick mode* drop-down (what the axes do) and a drop-down per button. Its
-  entries: *Default (inherit)* (device and program profiles; in the default profile *Nothing*), the
-  button modes by name, then the plain actions (navigation, mode switch, toggles, and behind
-  "Advanced" key and click). *Default (inherit)* removes the profile's own `BUTTON_<n>` line.
+- **Profiles page:** a *Joystick mode* drop-down (what the axes do, on the General tab) and a
+  drop-down per button (Buttons tab). Its entries: *Default (inherit from Global)* (device and
+  program profiles; in Global *Nothing*), the button modes by name (tooltip: the description), then
+  the plain actions (navigation, joystick mode switch, toggles, and behind "Advanced" key and
+  click). *Default (inherit from Global)* removes the profile's own `BUTTON_<n>` line.
 - **Button modes page:** list, an editor for name, description and action (the same action
-  choices as on the Profiles page, without "button mode"), Save, Revert, New, Duplicate, Import,
-  Delete and "Open button modes folder". The id never changes when you edit. A button mode can press
+  choices as on the Profiles page, without "button mode"), New, New from example, Duplicate, Import, Delete and "Open button modes folder". There is no
+  Save button: a change is written by itself (a drop-down at once, typed text after a pause). The id never changes when you edit. A button mode can press
   a key or click: import only files you trust, the import dialog shows the loader warnings first.
