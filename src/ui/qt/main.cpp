@@ -90,6 +90,27 @@ static void settle() {
 }
 
 // The wheel never changes a combo box, spin box or slider; it scrolls the surrounding scroll area.
+// At the default window size no page needs to scroll: the content each page asks for fits the
+// area next to the sidebar (the window is bigger than the largest page, minus the chrome).
+static bool defaultSizeFitsSelfTest(MainWindow &w) {
+    bool ok = true;
+    w.show();
+    const int chromeW = 260, chromeH = 190;  // sidebar, title, page tabs, status bar
+    for (const std::string &id : w.pageIds()) {
+        w.showPage(QString::fromStdString(id));
+        settle();
+        const QWidget *page = w.currentPage();
+        if (!page) continue;
+        const QSize hint = page->sizeHint().expandedTo(page->minimumSizeHint());
+        if (hint.height() > spn::ui::tokens::kDefaultWindowHeight - chromeH ||
+            hint.width() > spn::ui::tokens::kDefaultWindowWidth - chromeW) {
+            std::fprintf(stderr, "default size self-test failed: page %s needs %dx%d\n", id.c_str(), hint.width(), hint.height());
+            ok = false;
+        }
+    }
+    return ok;
+}
+
 static bool wheelSelfTest() {
     bool ok = true;
     auto check = [&ok](bool cond, const char *what) {
@@ -1271,6 +1292,7 @@ int main(int argc, char **argv) {
         if (!profilesPageSelfTest(w, tmp.path(), [&w] { return accessibilitySelfTest(w); })) return 1;
         if (!themeSelfTest(w)) return 1;
         if (!wheelSelfTest()) return 1;
+        if (!defaultSizeFitsSelfTest(w)) return 1;
         if (!windowStateSelfTest(ctx, tmp.path())) return 1;
         return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen
     }
