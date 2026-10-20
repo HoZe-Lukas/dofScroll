@@ -6,12 +6,12 @@ Design principle: dofscroll complements the vendor driver instead of duplicating
 
 Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
 
-## 0.1.0 (pre-release, as every 0.x version)
+## 0.1.1 (pre-release, as every 0.x version)
 
 The Qt interface is the only tray and settings window (GTK tray removed), profile-centric interface with
 autosave and visible inheritance, built-in joystick and button modes, choose what a button cycles through
 (`CYCLE`), split push and tilt per mode, key chords on buttons, new wiki pages for modes and requirements;
-full notes: [docs/release-notes-0.1.0.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-0.1.0.md).
+full notes: [docs/release-notes-0.1.1.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-0.1.1.md).
 
 ## 0.1.0-beta.2 (pre-release)
 

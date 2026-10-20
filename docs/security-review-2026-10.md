@@ -42,7 +42,7 @@ packaging and in the trust model around mode files, not in parsing.
   is not what `CMAKE_INSTALL_PREFIX` holds while CPack stages the files).
 - Test: `cpack -G TGZ` in a scratch build. The packaged
   `usr/lib/systemd/user/dofscroll.service` contains
-  `ExecStart=<build dir>/_CPack_Packages/Linux/TGZ/dofscroll-0.1.0-Linux/usr/bin/dofscroll` and the
+  `ExecStart=<build dir>/_CPack_Packages/Linux/TGZ/dofscroll-0.1.1-Linux/usr/bin/dofscroll` and the
   same for `ExecStopPost`. `rpmbuild`/`dpkg-deb` are not installed here, so RPM and DEB could not be
   checked; they stage the same way, so they are very likely affected.
 - Impact: (a) the released service cannot start on a user's machine (path does not exist); (b) the

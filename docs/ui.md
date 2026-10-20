@@ -17,7 +17,7 @@ below the minimum window size. Closing the window with the close button hides it
 interface keeps running in the tray; the first time in a run, the tray shows a short notice
 ("dofscroll is still running in the tray"). Without a system tray there is nothing to keep the
 interface reachable, so closing the window quits it, and the status bar says so ("No system tray
-found: closing the window quits dofscroll-ui"). Use "Quit" in the tray menu to quit otherwise. The old GTK tray (`dofscroll-tray`) was removed in 0.1.0: `dofscroll-ui` is
+found: closing the window quits dofscroll-ui"). Use "Quit" in the tray menu to quit otherwise. The old GTK tray (`dofscroll-tray`) was removed in 0.1.1: `dofscroll-ui` is
 the only tray and settings window on Linux, Windows and macOS (see
 [installation.md](installation.md#upgrade) for the autostart migration).
 
@@ -204,7 +204,7 @@ toolkit-free (colour tokens in `src/ui/model/theme_colors.hpp`); the Qt checks a
 | Focus | Every button, input, box, switch, slider, list, tree and tab shows a 2 px ring in the focus colour; the style sheet never removes it | style sheet in `src/ui/qt/theme.cpp`; the ring colour is tested (3:1) |
 | Colour alone | Status colours always come with a word or symbol (written "Error", "Done:"/"To do:", origin names); on/off is a switch with a knob position, not only a colour | `accessibility` self-test, review rule |
 | Colour-vision deficiencies | Status, accent, focus and border colours keep 3:1 luminance contrast after a protanopia, deuteranopia and tritanopia simulation (Machado matrices); selected text keeps 7:1 | `test_ui_theme` (`simulateCvd`) |
-| Operating system | System follows the platform palette (light or dark). A high-contrast request (Qt 6.10 `contrastPreference`, Windows high-contrast mode) switches the style sheet off so that the platform palette is shown unchanged. On other systems or older Qt nothing is detected | code review; needs a human on the platform |
+| Operating system | System follows the platform palette (light or dark). A high-contrast request (the Qt contrast preference where Qt provides it, Windows high-contrast mode) switches the style sheet off so that the platform palette is shown unchanged. On other systems or older Qt nothing is detected | code review; needs a human on the platform |
 | Font size | The base font is the system font (plus 8%); the interface has no fixed pixel font sizes; at 150% and 200% font size no label or button is cut off | self-test "font scale" |
 | Motion | The interface has no animations, so there is nothing to reduce | none needed |
 | Screen readers, keyboard | Every input has an accessible name; the tab order follows the layout; Escape closes dialogs | `accessibility` self-test |

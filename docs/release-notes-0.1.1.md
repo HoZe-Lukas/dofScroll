@@ -1,8 +1,10 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
-# dofscroll 0.1.0
+# dofscroll 0.1.1
 
-First numbered release after the release candidates and the betas. It builds on
+First numbered release after the release candidates and the betas. (The tag `v0.1.0` exists but was
+never published: its package build failed with Qt 6.10, so nothing was released under that number;
+0.1.1 has the same content plus the fix.) It builds on
 [0.1.0-beta.2](release-notes-0.1.0-beta.2.md) (and [beta.1](release-notes-0.1.0-beta.1.md)); everything
 that is not mentioned here is unchanged. GitHub marks every `0.x` version as a pre-release: this is a
 version for everyone to try, not a promise of stability. Read "Tested on and known limitations" first.
