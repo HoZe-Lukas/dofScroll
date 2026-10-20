@@ -193,6 +193,7 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
     QFile f(tmpPath + QStringLiteral("/buttons/latch.conf"));
     check(f.open(QIODevice::ReadOnly), "the file exists");
     const QByteArray text = f.readAll();
+    f.close();  // an open handle blocks replacing the file on Windows ("Access is denied")
     check(text.contains("NAME = Edited") && text.contains("DESCRIPTION = Changed") && text.contains("ACTION = key:space"),
           "the file holds the edited values");
     check(!page.pending(), "saved: nothing pending");
@@ -200,7 +201,9 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
     check(page.editCurrent(QStringLiteral("Edited"), QStringLiteral("Changed"), QStringLiteral("key:ctrl+0")), "save a chord");
     {
         QFile cf(tmpPath + QStringLiteral("/buttons/latch.conf"));
-        check(cf.open(QIODevice::ReadOnly) && cf.readAll().contains("ACTION = key:ctrl+0"), "the file holds the chord");
+        const bool opened = cf.open(QIODevice::ReadOnly);
+        check(opened && cf.readAll().contains("ACTION = key:ctrl+0"), "the file holds the chord");
+        cf.close();  // see above: the next save replaces the file
         settle();
         int ticked = 0;
         for (QCheckBox *cb : page.findChildren<QCheckBox *>())
