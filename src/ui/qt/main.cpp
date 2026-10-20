@@ -344,7 +344,8 @@ static bool targetSizeSelfTest(MainWindow &w) {
             if (!interactive || !c->isVisibleTo(page)) continue;
             if (qobject_cast<QLineEdit *>(c) && (qobject_cast<QAbstractSpinBox *>(c->parentWidget()) || qobject_cast<QComboBox *>(c->parentWidget())))
                 continue;  // the inner line edit belongs to its parent control
-            if (c->parentWidget() && c->parentWidget()->metaObject()->className() == QByteArray("QAbstractSpinBox")) continue;
+            if (qobject_cast<QToolButton *>(c) && qobject_cast<QTabBar *>(c->parentWidget()))
+                continue;  // the scroll arrows of a tab bar that is too narrow for its tabs: part of the platform's tab bar
             if (c->width() < kMin || c->height() < kMin) {
                 std::fprintf(stderr, "target size self-test failed: page %s: %s \"%s\" is %d x %d px\n", id.c_str(), c->metaObject()->className(),
                              c->accessibleName().toUtf8().constData(), c->width(), c->height());
@@ -448,13 +449,12 @@ static bool sidebarFocusSelfTest(MainWindow &w) {
         if (!cond) std::fprintf(stderr, "sidebar focus self-test failed: %s\n", what);
         ok = ok && cond;
     };
-    for (const QPalette &pal : {QApplication::palette(), [] {
-             QPalette p;
-             p.setColor(QPalette::Window, QColor(0x20, 0x20, 0x24));
-             p.setColor(QPalette::WindowText, QColor(0xF2, 0xF2, 0xF2));
-             p.setColor(QPalette::Highlight, QColor(0x30, 0x30, 0x40));  // an accent without 3:1: the text colour is used
-             return p;
-         }()}) {
+    QPalette lowAccent;  // an accent without 3:1 against the window: the text colour is used for the ring
+    lowAccent.setColor(QPalette::Window, QColor(0x20, 0x20, 0x24));
+    lowAccent.setColor(QPalette::WindowText, QColor(0xF2, 0xF2, 0xF2));
+    lowAccent.setColor(QPalette::Highlight, QColor(0x30, 0x30, 0x40));
+    const QList<QPalette> palettes = {QApplication::palette(), lowAccent};
+    for (const QPalette &pal : palettes) {
         WestTabStyle style;
         const QColor ring = WestTabStyle::focusRingColor(pal);
         auto distance = [](const QColor &a, const QColor &b) {
