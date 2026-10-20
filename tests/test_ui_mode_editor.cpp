@@ -191,6 +191,90 @@ int main() {
         assert(addable.size() == keys.size() - ed5.form().overrides.size());
     }
 
+    // split push and tilt: form fields, validation, round trip, compose ordering
+    {
+        const std::string sdir = root + "/split";
+        assert(fs::mkdirsPrivate(sdir, nullptr));
+        put(sdir + "/demo.conf",
+            "NAME = Split\n"
+            "V_ACTION = wheel_v\n"
+            "V_TILT_ACTION = step:pageup,pagedown   # flip pages\n"
+            "# keep this\n"
+            "H_PUSH_ACTION = none\n"
+            "SCROLL_V_TILT_SENS = 9\n"
+            "SOMETHING_UNKNOWN = keep me\n");
+        ModeEditor es;
+        assert(openDemo(es, sdir));
+        ModeForm &sf = es.form();
+        assert(sf.vSplit.active() && !sf.vSplit.pushSet && sf.vSplit.tiltSet &&
+               sf.vSplit.tilt.type == ChannelActionType::Step && sf.vSplit.tilt.neg == "pageup");
+        assert(sf.hSplit.pushSet && !sf.hSplit.tiltSet && sf.hSplit.push.type == ChannelActionType::Off);
+        assert(sf.overrides.size() == 1 && sf.overrides[0].first == "SCROLL_V_TILT_SENS");
+        assert(!es.dirty() && es.validate().empty());
+        assert(es.compose() == get(sdir + "/demo.conf"));  // unchanged form: the file text is reproduced exactly
+        {  // the per-part keys are offered as overrides and addable
+            const std::vector<std::string> keys = ModeEditor::overrideKeys();
+            assert(std::find(keys.begin(), keys.end(), "SCROLL_H_PUSH_DEADZONE") != keys.end());
+            assert(std::find(keys.begin(), keys.end(), "SCROLL_V_TILT_SENS") != keys.end());
+            const std::vector<std::string> addable = es.addableOverrideKeys();
+            assert(std::find(addable.begin(), addable.end(), "SCROLL_V_TILT_SENS") == addable.end());
+            assert(std::find(addable.begin(), addable.end(), "SCROLL_V_PUSH_SENS") != addable.end());
+        }
+        // edit: change a part, set the other, switch the H split off, add a tuning override
+        sf.vSplit.tilt.neg = "ctrl+pageup";
+        sf.vSplit.pushSet = true;
+        sf.vSplit.push = {ChannelActionType::Zoom, "up", "down"};
+        sf.hSplit.setSplit(false, sf.h);
+        sf.overrides.emplace_back("SCROLL_H_TILT_SIGN", "-1");
+        assert(es.dirty() && es.validate().empty());
+        const std::string out = es.compose();
+        assert(has(out, "V_TILT_ACTION = step:ctrl+pageup,pagedown   # flip pages\n"));  // updated in place, comment kept
+        assert(has(out, "V_PUSH_ACTION = zoom\n") && !has(out, "H_PUSH_ACTION"));
+        assert(has(out, "# keep this\n") && has(out, "SOMETHING_UNKNOWN = keep me\n") && has(out, "SCROLL_H_TILT_SIGN = -1\n"));
+        assert(out.find("V_TILT_ACTION") < out.find("# keep this"));        // kept lines stay in place
+        assert(out.find("V_PUSH_ACTION") > out.find("SOMETHING_UNKNOWN"));  // new keys are appended
+        ModeEditor::SaveResult sr = es.save();
+        if (!sr.ok) std::fprintf(stderr, "save: %s\n", sr.error.c_str());
+        assert(sr.ok && get(sdir + "/demo.conf") == out);
+        {  // round trip: the saved file loads with the same split and overrides
+            const ModeSet ms = loadModes(sdir, nullptr);
+            const ModeDef *m = ms.find("demo");
+            assert(m && m->vSplit.pushSet && m->vSplit.push.type == ChannelActionType::Zoom && m->vSplit.tiltSet &&
+                   m->vSplit.tilt.negMods.n == 1 && !m->hSplit.active() && m->overrides.size() == 2);
+            assert(formFromMode(*m) == es.form());
+        }
+        // validation: a part with an invalid action (the view could offer free text for keys)
+        sf.vSplit.push = {ChannelActionType::Keys, "nokey", "down"};
+        sf.hSplit.pushSet = true;
+        sf.hSplit.push = {ChannelActionType::Keys, "left", "right"};
+        sf.hSplit.tiltSet = true;
+        sf.hSplit.tilt = {ChannelActionType::Step, "left", "bogus"};
+        std::vector<EditProblem> spr = es.validate();
+        assert(hasProblem(spr, "v_push") && hasProblem(spr, "h_tilt") && !hasProblem(spr, "h_push") && !hasProblem(spr, "v_tilt"));
+        assert(!es.save().ok);
+        // an invalid tuning value and a part key typed in lower case
+        sf.vSplit.push = {ChannelActionType::Keys, "up", "down"};
+        sf.hSplit.tilt = {ChannelActionType::Step, "left", "right"};
+        sf.overrides.emplace_back("scroll_v_push_sens", "abc");
+        spr = es.validate();
+        assert(hasProblem(spr, "override:SCROLL_V_PUSH_SENS") && spr.size() == 1);
+        sf.overrides.back().second = "7";
+        assert(es.validate().empty() && es.save().ok);
+        assert(has(get(sdir + "/demo.conf"), "SCROLL_V_PUSH_SENS = 7\n") && has(get(sdir + "/demo.conf"), "H_TILT_ACTION = step:left,right\n"));
+        // an explicit default on a part is written (the part then no longer follows V_ACTION)
+        sf.vSplit.push = {ChannelActionType::Default, "up", "down"};
+        assert(has(es.compose(), "V_PUSH_ACTION = default\n"));
+        // the switch: on copies the channel's action to both parts, off removes both keys
+        SplitForm sw;
+        ChannelForm parent = {ChannelActionType::Keys, "left", "right"};
+        sw.setSplit(true, parent);
+        assert(sw.pushSet && sw.tiltSet && sw.push == parent && sw.tilt == parent);
+        sw.setSplit(true, ChannelForm());  // already on: unchanged
+        assert(sw.push == parent);
+        sw.setSplit(false, parent);
+        assert(!sw.active() && sw == SplitForm());
+    }
+
     // built-in mode: an editable copy has the same id, then it opens like any file
     {
         ModeCatalog cat(dir);

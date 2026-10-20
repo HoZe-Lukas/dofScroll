@@ -52,6 +52,11 @@ void ModeRunner::resetState() {
     acc_h_.reset();
     acc_zoom_.reset();
     step_v_ = step_h_ = step_zoom_ = 0;
+    for (int i = 0; i < PART_COUNT; ++i) {
+        ch_part_[i].reset();
+        acc_part_[i].reset();
+        step_part_[i] = 0;
+    }
     zoom_.reset();
 }
 
@@ -272,8 +277,38 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
     const ChannelActionType th = eff(ah, ChannelActionType::WheelH);
     const ChannelActionType tt = eff(at, ChannelActionType::Zoom);
 
-    double rate_v = ch_v_.process(s.scroll_v, raw, dt);
-    double rate_h = ch_h_.process(s.scroll_h, raw, dt);
+    // A split channel runs its push and tilt parts as sub-channels (parent's settings + per-part
+    // tuning, the part's share of the mix); the mixed channel then stays idle.
+    const bool split[2] = {mode_.vSplit.active(), mode_.hSplit.active()};
+    ChannelActionType part_t[PART_COUNT] = {tv, tv, th, th};
+    const ChannelAction *part_a[PART_COUNT] = {&av, &av, &ah, &ah};
+    double part_rate[PART_COUNT] = {0, 0, 0, 0};
+    double rate_v = 0.0, rate_h = 0.0;
+    if (split[0]) {
+        part_a[PART_V_PUSH] = &mode_.vSplit.pushAction(av);
+        part_a[PART_V_TILT] = &mode_.vSplit.tiltAction(av);
+    }
+    if (split[1]) {
+        part_a[PART_H_PUSH] = &mode_.hSplit.pushAction(ah);
+        part_a[PART_H_TILT] = &mode_.hSplit.tiltAction(ah);
+    }
+    for (int c = 0; c < 2; ++c) {
+        const ChannelCfg &parent = c == 0 ? s.scroll_v : s.scroll_h;
+        double &rate = c == 0 ? rate_v : rate_h;
+        if (!split[c]) {
+            rate = (c == 0 ? ch_v_ : ch_h_).process(parent, raw, dt);
+            continue;
+        }
+        Mix push, tilt;
+        splitMix(parent.mix, &push, &tilt);
+        for (int k = 0; k < 2; ++k) {
+            const int i = c * 2 + k;
+            part_t[i] = eff(*part_a[i], c == 0 ? ChannelActionType::WheelV : ChannelActionType::WheelH);
+            part_rate[i] = ch_part_[i].process(partConfig(parent, s.parts[i], k == 0 ? push : tilt), raw, dt);
+        }
+        const double a = part_rate[c * 2], b = part_rate[c * 2 + 1];
+        rate = std::fabs(a) >= std::fabs(b) ? a : b;
+    }
 
     // Twist with zoom keeps the dominance detection; all other actions are plain.
     double zoom_mixed = evalMix(s.zoom.mix, raw);
@@ -286,10 +321,15 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
     double rate_zoom = ch_zoom_.processValue(s.zoom, zoom_mixed, dt);
 
     int nv = 0, nh = 0, nt = 0;
+    int np[PART_COUNT] = {0, 0, 0, 0};
     if (zooming) {
         acc_v_.reset();
         acc_h_.reset();
         step_v_ = step_h_ = 0;
+        for (int i = 0; i < PART_COUNT; ++i) {
+            acc_part_[i].reset();
+            step_part_[i] = 0;
+        }
         nt = acc_zoom_.add(rate_zoom, dt);
     } else {
         // Channels with a step: action use the armed/fired state instead of the accumulator.
@@ -307,13 +347,24 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
         };
         // The twist channel does not accumulate for zoom itself (the zoom detection does).
         nt = channel(tt == ChannelActionType::Zoom ? ChannelActionType::Off : tt, acc_zoom_, step_zoom_, rate_zoom);
-        nv = channel(tv, acc_v_, step_v_, rate_v);
-        nh = channel(th, acc_h_, step_h_, rate_h);
+        if (split[0]) {
+            for (int i = PART_V_PUSH; i <= PART_V_TILT; ++i) np[i] = channel(part_t[i], acc_part_[i], step_part_[i], part_rate[i]);
+        } else {
+            nv = channel(tv, acc_v_, step_v_, rate_v);
+        }
+        if (split[1]) {
+            for (int i = PART_H_PUSH; i <= PART_H_TILT; ++i) np[i] = channel(part_t[i], acc_part_[i], step_part_[i], part_rate[i]);
+        } else {
+            nh = channel(th, acc_h_, step_h_, rate_h);
+        }
     }
 
     std::bitset<kKeyCount> keys = w.keys;
-    if (zooming || (tv == ChannelActionType::Zoom && rate_v != 0.0) ||
-        (th == ChannelActionType::Zoom && rate_h != 0.0))
+    bool part_zoom = false;
+    for (int i = 0; i < PART_COUNT; ++i)
+        if (split[i / 2] && part_t[i] == ChannelActionType::Zoom && part_rate[i] != 0.0) part_zoom = true;
+    if (zooming || (!split[0] && tv == ChannelActionType::Zoom && rate_v != 0.0) ||
+        (!split[1] && th == ChannelActionType::Zoom && rate_h != 0.0) || part_zoom)
         keys[idx(Key::Ctrl)] = true;
     syncKeys(keys);
 
@@ -339,9 +390,12 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
         }
     };
     emit(av, tv, nv, 1);
+    for (int i = PART_V_PUSH; i <= PART_V_TILT; ++i) emit(*part_a[i], part_t[i], np[i], 1);
     emit(ah, th, nh, 1);
+    for (int i = PART_H_PUSH; i <= PART_H_TILT; ++i) emit(*part_a[i], part_t[i], np[i], 1);
     emit(at, tt, nt, -1);
     info_ = Info{rate_h, rate_v, twist, lateral, zooming, nav_active, rate_zoom};
+    for (int i = 0; i < PART_COUNT; ++i) info_.rate_part[i] = split[i / 2] ? part_rate[i] : 0.0;
 }
 
 }  // namespace spn

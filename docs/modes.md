@@ -261,6 +261,72 @@ releases only the modifiers it pressed, in reverse order. A modifier that is alr
 example Ctrl for zoom on another channel or a button with `key:ctrl`, stays held. Rate, dead zone,
 curve, smoothing and sensitivity are unchanged. Buttons (`key:`) stay single keys.
 
+## Split push and tilt
+
+The vertical channel mixes push forward/back (`z`) and tilt forward/back (`rx`), the horizontal
+channel push sideways (`x`) and tilt sideways (`rz`). With `V_ACTION` and `H_ACTION` both movements
+do the same thing. A mode can give them different functions by splitting a channel into a **push**
+part and a **tilt** part:
+
+| Key | Part | Default mix term |
+|---|---|---|
+| `V_PUSH_ACTION` | vertical, push forward/back | `z` |
+| `V_TILT_ACTION` | vertical, tilt forward/back | `rx` |
+| `H_PUSH_ACTION` | horizontal, push sideways | `x` |
+| `H_TILT_ACTION` | horizontal, tilt sideways | `-rz` |
+
+The values are the same as for `V_ACTION` (`default`, `none`, `wheel_v`, `wheel_h`, `zoom`,
+`keys:<neg>,<pos>`, `step:<neg>,<pos>`, chords allowed).
+
+Example: scroll with push, flip pages with tilt, zoom with the twist as usual:
+
+    NAME = Pages
+    DESCRIPTION = Push scrolls, tilt flips pages
+    V_PUSH_ACTION = wheel_v
+    V_TILT_ACTION = step:pageup,pagedown
+    H_PUSH_ACTION = wheel_h
+    H_TILT_ACTION = step:left,right
+    SCROLL_V_TILT_SENS = 8          # per-part tuning, see below
+
+**How the parts are derived.** They come from the channel's own mix expression (`SCROLL_V_MIX`,
+`SCROLL_H_MIX`, from the profile or the mode's overrides): the translation terms (`x`, `y`, `z`)
+form the push part, the rotation terms (`rx`, `rz`) the tilt part, with the weights and signs you
+configured. `0.5*rx + z` gives push `z` and tilt `0.5*rx`; `x - rz` gives push `x` and tilt `-rz`.
+A mix without rotation terms has an empty tilt part (it never fires), one without translation terms
+an empty push part. A twist term (`ry`) in a scroll mix belongs to neither part and is ignored in
+a split channel. Lift/press (`y`) counts as push if you put it in the mix; it is in no default mix,
+because grabbing and releasing the cap triggers it by accident.
+
+**Compatibility.** A mode that sets none of the four keys behaves exactly as before. If a mode sets
+at least one split key of a channel, that channel runs as two independent sub-channels, each with
+its own smoothing, rate accumulator and `step:` state, and the mixed channel is not evaluated.
+A part without its own key uses the channel's `V_ACTION` / `H_ACTION` (default `default`), so a mode
+can override only one part. An explicit `default` on a part means the channel's normal behavior
+(the wheel), not `V_ACTION`. The other channel is unaffected: splitting V leaves H as it was.
+A mode with a split key is a custom-path mode (like any mode with a non-default action):
+`NAV_BUTTON` / `CLICK_BUTTON` from the settings do not apply, the mode's own buttons do (a button
+with `nav` turns wheel parts into arrow keys, as for the channel).
+
+**Per-part tuning.** Each part uses the sensitivity, dead zone, curve, smoothing and sign of its
+parent channel (`SCROLL_V_SENS`, ...). To tune a part separately, set one or more of
+`SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>`, for example `SCROLL_V_TILT_SENS`
+or `SCROLL_H_PUSH_DEADZONE`. These are **absolute values**, not multipliers: same syntax and ranges
+as the parent keys, and a key that is not set keeps the parent's value (so changing the channel's
+`SCROLL_V_SENS` still moves every part that has no value of its own). They are ordinary settings
+keys: valid in a mode file (where they belong) and in a profile section, and they act only while
+the active mode splits that channel. `STEP_TRIGGER` applies to every `step:` part and
+is measured after the part's sensitivity, as for a channel.
+
+Several parts can hold Ctrl at once for `zoom` (Ctrl is released when the last of them is back at
+rest). Everything a part holds is released on a mode switch, a reload, an unplugged device,
+suspend and the safety net, like the rest.
+
+What the tilt and push feel like (and whether `step:` triggers cleanly on one without the other
+when you push diagonally) depends on the device and your hand and is not verified without hardware;
+raise the dead zone of the part that fires by accident.
+
+Validate a mode file with `build/tests/check_config --modes <directory>` (source build only).
+
 ## Safety and sharing modes
 
 A mode file is code-like. While a device button is held or an axis is deflected, it can press

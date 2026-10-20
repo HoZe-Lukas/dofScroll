@@ -739,7 +739,14 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
         const ModeRunner::Info &i = runner_->info();
         std::cerr << "h=" << i.rate_h << " v=" << i.rate_v << " twist=" << i.twist
                   << " lateral=" << i.lateral << " zoom=" << i.zooming
-                  << (i.nav ? " nav" : "") << " mode=" << sanitizeForLog(runner_->mode().id)
+                  << (i.nav ? " nav" : "")
+                  << (runner_->mode().vSplit.active() ? " v_push=" + std::to_string(i.rate_part[PART_V_PUSH]) +
+                                                            " v_tilt=" + std::to_string(i.rate_part[PART_V_TILT])
+                                                      : std::string())
+                  << (runner_->mode().hSplit.active() ? " h_push=" + std::to_string(i.rate_part[PART_H_PUSH]) +
+                                                            " h_tilt=" + std::to_string(i.rate_part[PART_H_TILT])
+                                                      : std::string())
+                  << " mode=" << sanitizeForLog(runner_->mode().id)
                   << " profile=[" << sanitizeForLog(match_desc_) << "]" << std::endl;
     }
     output_->flush();

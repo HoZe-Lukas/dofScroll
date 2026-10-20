@@ -372,6 +372,72 @@ static void testSafetyNetKeepsLegitimateHold() {
     CHECK(!r.rec.held(), "released with the button");
 }
 
+// --- split push and tilt (a part of a split channel holds Ctrl for zoom) --------------------------
+static const char *const SPLIT_ZOOM_MODE =
+    "V_PUSH_ACTION = wheel_v\nV_TILT_ACTION = zoom\nBUTTON_2 = mode:next\n";
+static const char *const SPLIT_CONF = "[global]\nTICK_HZ = 250\nMODE = splitz\n";
+static void tiltForward(StuckRig &r) { r.src.pushMotion(0, 0, 0, 0, 300, 0, 0); }  // tilt forward: rx
+
+static void testSplitPartZoomHoldsCtrl() {
+    StuckRig r(SPLIT_CONF, {{"splitz.conf", SPLIT_ZOOM_MODE}});
+    r.run(0.1);
+    tiltForward(r);
+    r.run(0.15);
+    CHECK(r.rec.keys.count(static_cast<int>(Key::Ctrl)) && r.rec.wheels > 0,
+          "the tilt part zooms: Ctrl held (mode %s)", r.core->runner().mode().id.c_str());
+    r.stop();
+    r.expectQuiet("split zoom part released");
+}
+
+static void testSplitPartSilentSource() {
+    StuckRig r(SPLIT_CONF, {{"splitz.conf", SPLIT_ZOOM_MODE}});
+    r.run(0.1);
+    tiltForward(r);
+    r.run(0.15);
+    CHECK(r.rec.keys.count(static_cast<int>(Key::Ctrl)), "Ctrl held");
+    r.run(0.6);  // source silent: the stale watchdog zeroes the axes
+    CHECK(!r.rec.held(), "Ctrl must be released when the source goes silent");
+}
+
+static void testSplitPartDeviceUnplugged() {
+    StuckRig r(SPLIT_CONF, {{"splitz.conf", SPLIT_ZOOM_MODE}});
+    r.run(0.1);
+    tiltForward(r);
+    r.run(0.15);
+    CHECK(r.rec.keys.count(static_cast<int>(Key::Ctrl)), "Ctrl held");
+    r.devicesChanged();
+    r.src.list.clear();
+    r.run(0.05);
+    r.expectQuiet("device unplugged while a split part zooms");
+}
+
+static void testSplitPartModeSwitchMidMotion() {
+    StuckRig r(SPLIT_CONF, {{"splitz.conf", SPLIT_ZOOM_MODE}, {"zzz.conf", "BUTTON_2 = mode:next\n"}});
+    r.run(0.1);
+    tiltForward(r);
+    r.run(0.15);
+    CHECK(r.rec.keys.count(static_cast<int>(Key::Ctrl)), "Ctrl held");
+    r.src.pushButton(0, 1, true);  // mode:next while the tilt is deflected
+    r.run(0.1);
+    CHECK(!r.rec.keys.count(static_cast<int>(Key::Ctrl)), "mode switch releases Ctrl (mode %s)",
+          r.core->runner().mode().id.c_str());
+    r.src.pushButton(0, 1, false);
+    r.stop();
+    r.expectQuiet("mode switch while a split part zooms");
+}
+
+static void testSplitPartReloadMidMotion() {
+    StuckRig r(SPLIT_CONF, {{"splitz.conf", SPLIT_ZOOM_MODE}});
+    r.run(0.1);
+    tiltForward(r);
+    r.run(0.15);
+    CHECK(r.rec.keys.count(static_cast<int>(Key::Ctrl)), "Ctrl held");
+    r.reload.pending = true;
+    r.stop();
+    r.run(0.1);
+    r.expectQuiet("reload while a split part zooms");
+}
+
 int main() {
     testDevicesChangedMidMotion();
     testDevicesChangedMidButtonHold();
@@ -389,6 +455,11 @@ int main() {
     testZoomCtrlSilentSource();
     testSafetyNetReleasesOutput();
     testSafetyNetKeepsLegitimateHold();
+    testSplitPartZoomHoldsCtrl();
+    testSplitPartSilentSource();
+    testSplitPartDeviceUnplugged();
+    testSplitPartModeSwitchMidMotion();
+    testSplitPartReloadMidMotion();
     if (failures) {
         std::fprintf(stderr, "%d check(s) failed\n", failures);
         return 1;
