@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "pages/button_modes_page.hpp"
 
+#include <memory>
 #include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
@@ -332,14 +333,12 @@ void ButtonModesPage::rebuildActionArg() {
     argWidget_ = nullptr;
     auto *lay = argHost_->layout();
     if (binding_.kind == BindingKind::Key) {
-        auto *kc = makeKeyCombo(qs(binding_.arg), argHost_);
-        kc->setAccessibleName(T("Key"));
-        connect(kc, &QComboBox::activated, this, [this, kc](int) {
-            if (!kc->currentData().isValid()) return;
-            binding_.arg = kc->currentData().toString().toStdString();
+        // modifier boxes plus the key: a chord such as ctrl+0 is tapped once per press
+        auto chord = std::make_shared<std::string>(binding_.arg);
+        argWidget_ = chordPicker(argHost_, this, chord.get(), T("Key"), [this, chord] {
+            binding_.arg = *chord;
             markDirty(false);
         });
-        argWidget_ = kc;
     } else if (binding_.kind == BindingKind::Mode || binding_.kind == BindingKind::ToggleMode ||
                binding_.kind == BindingKind::HoldMode) {
         auto *mc = new QComboBox(argHost_);

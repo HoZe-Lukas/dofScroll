@@ -47,60 +47,6 @@ const KindEntry kKinds[] = {
     {ChannelActionType::Step, "Step (one key press per push)"},
 };
 
-// "ctrl+shift+pageup" -> {ctrl, shift} + "pageup"; a lone modifier is the key itself.
-void splitChord(const std::string &chord, std::vector<std::string> *mods, std::string *key) {
-    mods->clear();
-    std::vector<std::string> parts;
-    size_t start = 0;
-    for (size_t p; (p = chord.find('+', start)) != std::string::npos; start = p + 1) parts.push_back(chord.substr(start, p - start));
-    parts.push_back(chord.substr(start));
-    *key = parts.back();
-    parts.pop_back();
-    *mods = parts;
-}
-
-const char *const kModNames[4] = {"ctrl", "shift", "alt", "super"};
-
-std::string joinChord(const std::vector<std::string> &mods, const std::string &key) {
-    std::string out;
-    for (const char *m : kModNames)
-        if (std::find(mods.begin(), mods.end(), m) != mods.end()) out += std::string(m) + "+";
-    return out + key;
-}
-
-// Modifier check boxes and the key picker of one side of a keys:/step: action.
-QWidget *chordPicker(QWidget *parent, QObject *owner, std::string *chord, const QString &accessible,
-                     const std::function<void()> &changed) {
-    auto *w = new QWidget(parent);
-    auto *h = new QHBoxLayout(w);
-    h->setContentsMargins(0, 0, 0, 0);
-    std::vector<std::string> mods;
-    std::string key;
-    splitChord(*chord, &mods, &key);
-    for (const char *m : kModNames) {
-        auto *cb = new QCheckBox(QString::fromLatin1(m), w);
-        cb->setProperty("look", QStringLiteral("box"));
-        cb->setChecked(std::find(mods.begin(), mods.end(), m) != mods.end());
-        cb->setAccessibleName(accessible + QStringLiteral(" ") + QString::fromLatin1(m));
-        h->addWidget(cb);
-    }
-    auto *kc = makeKeyCombo(QString::fromStdString(key), w);
-    kc->setAccessibleName(accessible);
-    h->addWidget(kc, 1);
-    auto update = [w, chord, kc, changed] {
-        std::vector<std::string> sel;
-        const auto boxes = w->findChildren<QCheckBox *>();
-        for (QCheckBox *cb : boxes)
-            if (cb->isChecked()) sel.push_back(cb->text().toStdString());
-        if (!kc->currentData().isValid()) return;
-        *chord = joinChord(sel, kc->currentData().toString().toStdString());
-        changed();
-    };
-    for (QCheckBox *cb : w->findChildren<QCheckBox *>()) QObject::connect(cb, &QCheckBox::toggled, owner, update);
-    QObject::connect(kc, &QComboBox::activated, owner, [update](int) { update(); });
-    return w;
-}
-
 }  // namespace
 
 ModeEditorWidget::ModeEditorWidget(const UiContext &ctx, QWidget *parent) : QWidget(parent), ctx_(ctx), dir_(ctx.modesDir) {

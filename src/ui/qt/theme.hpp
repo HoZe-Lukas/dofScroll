@@ -27,6 +27,10 @@ void installLook();
 // style and the palette the application started with. Safe to call repeatedly.
 void applyTheme(spn::ui::Theme theme);
 
+// Text colour of the selected row of a list or tree in the current theme (also System): the name
+// (muted = false) or the muted second line (muted = true). Both have AA contrast on the selection.
+QColor selectedTextColor(bool muted);
+
 // An icon from an SVG resource, tinted with `color`, drawn at `size` device-independent pixels
 // (with a 2x image for high-DPI screens). A null icon if the SVG module is not available or the
 // resource is not valid.

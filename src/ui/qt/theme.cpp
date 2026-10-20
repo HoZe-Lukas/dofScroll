@@ -3,7 +3,12 @@
 #include "theme.hpp"
 
 #include <QAbstractSpinBox>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 #include <QApplication>
+#include <QGuiApplication>
+#include <QStyleHints>
 #include <QComboBox>
 #include <QDir>
 #include <QEvent>
@@ -163,7 +168,7 @@ QString styleSheetFor(const spn::ui::ThemeColors &c) {
     const QString up = glyphUrl(QStringLiteral("up"), c.windowText, Glyph::Up);
     const QString dot = glyphUrl(QStringLiteral("dot"), c.highlightedText, Glyph::Dot);
     const QString check = glyphUrl(QStringLiteral("check"), c.highlightedText, Glyph::Check);
-    const QString swOff = glyphUrl(QStringLiteral("swoff"), mixColors(c.window, c.windowText, 0.50), Glyph::SwitchOff);
+    const QString swOff = glyphUrl(QStringLiteral("swoff"), c.controlBorder, Glyph::SwitchOff);
     const QString swOn = glyphUrl(QStringLiteral("swon"), c.highlight, Glyph::SwitchOn);
     const QString swOffDis = glyphUrl(QStringLiteral("swoffd"), c.border, Glyph::SwitchOff);
     const QString swOnDis = glyphUrl(QStringLiteral("swond"), mixColors(c.window, c.highlight, 0.4), Glyph::SwitchOn);
@@ -171,7 +176,7 @@ QString styleSheetFor(const spn::ui::ThemeColors &c) {
     const QString r = QString::number(tk::kRadius);
     const QString rc = QString::number(tk::kRadiusCard);
     const QString inner = QString::number(tk::kControlHeight - 12);  // content height; padding 5+5, border 1+1
-    const QString scroll = hex(mixColors(c.window, c.windowText, 0.30));
+    const QString scroll = hex(c.controlBorder);
     QString q;
     auto add = [&q](const QString &s) {
         q += s;
@@ -191,11 +196,13 @@ QString styleSheetFor(const spn::ui::ThemeColors &c) {
     // buttons
     add(QStringLiteral("QPushButton, QToolButton { background: %1; color: %2; border: 1px solid %3; border-radius: %4px; "
                        "padding: 5px 18px; min-height: %5px; }")
-            .arg(hex(c.button), hex(c.buttonText), hex(c.border), r, inner));
+            .arg(hex(c.button), hex(c.buttonText), hex(c.controlBorder), r, inner));
     add(QStringLiteral("QToolButton { padding: 5px 10px; }"));
     add(QStringLiteral("QPushButton:hover, QToolButton:hover { background: %1; }").arg(hex(c.hover)));
     add(QStringLiteral("QPushButton:pressed, QToolButton:pressed { background: %1; }").arg(hex(c.pressed)));
-    add(QStringLiteral("QPushButton:focus, QToolButton:focus { border: 1px solid %1; }").arg(hex(c.highlight)));
+    // focus: a 2 px ring in the accent (padding one pixel less, so nothing moves); never removed
+    add(QStringLiteral("QPushButton:focus, QToolButton:focus { border: 2px solid %1; padding: 4px 17px; }").arg(hex(c.focusRing)));
+    add(QStringLiteral("QToolButton:focus { padding: 4px 9px; }"));
     add(QStringLiteral("QPushButton:disabled, QToolButton:disabled { color: %1; background: %2; border-color: %3; }")
             .arg(hex(c.disabledText), hex(c.window), hex(c.border)));
     add(QStringLiteral("QPushButton[primary=\"true\"], QPushButton:default { background: %1; color: %2; border: 1px solid %1; }")
@@ -210,13 +217,13 @@ QString styleSheetFor(const spn::ui::ThemeColors &c) {
     add(QStringLiteral("QLineEdit, QTextEdit, QPlainTextEdit, QAbstractSpinBox, QComboBox { background: %1; color: %2; "
                        "border: 1px solid %3; border-radius: %4px; padding: 5px 10px; min-height: %5px; "
                        "selection-background-color: %6; selection-color: %7; }")
-            .arg(hex(c.base), hex(c.text), hex(c.border), r, inner, hex(c.highlight), hex(c.highlightedText)));
+            .arg(hex(c.base), hex(c.text), hex(c.controlBorder), r, inner, hex(c.highlight), hex(c.highlightedText)));
     add(QStringLiteral("QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QAbstractSpinBox:focus, QComboBox:focus, "
-                       "QComboBox:on { border: 1px solid %1; }")
-            .arg(hex(c.highlight)));
+                       "QComboBox:on { border: 2px solid %1; padding: 4px 9px; }")
+            .arg(hex(c.focusRing)));
     add(QStringLiteral("QLineEdit:disabled, QAbstractSpinBox:disabled, QComboBox:disabled { background: %1; color: %2; }")
             .arg(hex(c.window), hex(c.disabledText)));
-    add(QStringLiteral("QComboBox { padding-right: 32px; }"));
+    add(QStringLiteral("QComboBox { padding-right: 32px; } QComboBox:focus, QComboBox:on { padding-right: 31px; }"));
     add(QStringLiteral("QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: center right; width: 30px; "
                        "border: none; }"));
     add(QStringLiteral("QComboBox::down-arrow { image: %1; width: 12px; height: 12px; }").arg(down));
@@ -225,7 +232,8 @@ QString styleSheetFor(const spn::ui::ThemeColors &c) {
             .arg(hex(c.base), hex(c.text), hex(c.border), r, soft));
     add(QStringLiteral("QComboBox QAbstractItemView::item { min-height: %1px; padding: 2px 8px; border-radius: 6px; }")
             .arg(tk::kRowHeight - 4));
-    add(QStringLiteral("QAbstractSpinBox { padding-right: 28px; min-width: 96px; max-width: 180px; }"));
+    add(QStringLiteral("QAbstractSpinBox { padding-right: 28px; min-width: 96px; max-width: 180px; } "
+                       "QAbstractSpinBox:focus { padding-right: 27px; }"));
     add(QStringLiteral("QAbstractSpinBox::up-button { subcontrol-origin: border; subcontrol-position: top right; width: 24px; "
                        "border: none; background: transparent; }"));
     add(QStringLiteral("QAbstractSpinBox::down-button { subcontrol-origin: border; subcontrol-position: bottom right; width: 24px; "
@@ -241,21 +249,25 @@ QString styleSheetFor(const spn::ui::ThemeColors &c) {
     add(QStringLiteral("QCheckBox::indicator:checked:disabled { image: %1; }").arg(swOnDis));
     // a check box that is one of several choices (modifier keys, axes) stays a box: setProperty("look", "box")
     add(QStringLiteral("QCheckBox[look=\"box\"]::indicator { width: 18px; height: 18px; border-radius: 5px; border: 1px solid %1; background: %2; image: none; }")
-            .arg(hex(mixColors(c.window, c.windowText, 0.45)), hex(c.base)));
+            .arg(hex(c.controlBorder), hex(c.base)));
     add(QStringLiteral("QCheckBox[look=\"box\"]::indicator:disabled { image: none; background: %1; }").arg(hex(c.window)));
     add(QStringLiteral("QCheckBox[look=\"box\"]::indicator:checked { background: %1; border-color: %1; image: %2; }").arg(hex(c.highlight), check));
     add(QStringLiteral("QCheckBox[look=\"box\"]::indicator:hover { border-color: %1; }").arg(hex(c.highlight)));
     add(QStringLiteral("QRadioButton::indicator { width: 18px; height: 18px; border-radius: 10px; border: 1px solid %1; background: %2; }")
-            .arg(hex(mixColors(c.window, c.windowText, 0.45)), hex(c.base)));
+            .arg(hex(c.controlBorder), hex(c.base)));
     add(QStringLiteral("QRadioButton::indicator:hover { border-color: %1; }").arg(hex(c.highlight)));
     add(QStringLiteral("QRadioButton::indicator:checked { background: %1; border-color: %1; image: %2; }")
             .arg(hex(c.highlight), dot));
     add(QStringLiteral("QRadioButton::indicator:disabled { background: %1; border-color: %2; }").arg(hex(c.window), hex(c.border)));
-    add(QStringLiteral("QSlider::groove:horizontal { height: 6px; border-radius: 3px; background: %1; }").arg(hex(c.border)));
+    add(QStringLiteral("QSlider::groove:horizontal { height: 6px; border-radius: 3px; background: %1; }").arg(hex(c.controlBorder)));
     add(QStringLiteral("QSlider::sub-page:horizontal { border-radius: 3px; background: %1; }").arg(hex(c.highlight)));
     add(QStringLiteral("QSlider::handle:horizontal { width: 18px; height: 18px; margin: -7px 0; border-radius: 10px; "
                        "background: %1; border: 2px solid %2; }")
             .arg(hex(c.base), hex(c.highlight)));
+    add(QStringLiteral("QSlider::handle:horizontal:focus { border: 3px solid %1; }").arg(hex(c.focusRing)));
+    // check boxes, radio buttons and switches: the focus ring is a 2 px frame around box and text
+    add(QStringLiteral("QCheckBox, QRadioButton { border: 2px solid transparent; border-radius: 6px; padding: 0 2px; }"));
+    add(QStringLiteral("QCheckBox:focus, QRadioButton:focus { border: 2px solid %1; }").arg(hex(c.focusRing)));
     // scroll bars
     add(QStringLiteral("QScrollBar:vertical { width: 14px; background: transparent; margin: 2px; }"));
     add(QStringLiteral("QScrollBar:horizontal { height: 14px; background: transparent; margin: 2px; }"));
@@ -271,17 +283,29 @@ QString styleSheetFor(const spn::ui::ThemeColors &c) {
                        "border-bottom: 3px solid transparent; padding: 10px 18px 8px 18px; margin-right: 4px; }")
             .arg(hex(c.placeholderText)));
     add(QStringLiteral("QTabWidget QTabBar::tab:hover { color: %1; }").arg(hex(c.windowText)));
+    add(QStringLiteral("QTabWidget QTabBar::tab:focus { background: %1; color: %2; border-radius: 6px; }")
+            .arg(soft, hex(c.selectedText)));
     add(QStringLiteral("QTabWidget QTabBar::tab:selected { color: %1; border-bottom: 3px solid %2; font-weight: 600; }")
             .arg(hex(c.windowText), hex(c.highlight)));
     // lists and trees
     add(QStringLiteral("QTreeView, QListView, QTableView, QListWidget { background: %1; color: %2; border: 1px solid %3; "
                        "border-radius: %4px; padding: 4px; outline: 0; }")
-            .arg(hex(c.base), hex(c.text), hex(c.border), r));
+            .arg(hex(c.base), hex(c.text), hex(c.controlBorder), r));
+    // keyboard focus on a list or tree: the 2 px ring (padding one pixel less)
+    add(QStringLiteral("QTreeView:focus, QListView:focus, QTableView:focus, QListWidget:focus "
+                       "{ border: 2px solid %1; padding: 3px; }")
+            .arg(hex(c.focusRing)));
     add(QStringLiteral("QTreeView::item, QListView::item { min-height: %1px; padding: 2px 6px; border-radius: 6px; }")
             .arg(tk::kRowHeight - 4));
     add(QStringLiteral("QTreeView::item:hover, QListView::item:hover { background: %1; }").arg(hex(c.hover)));
-    add(QStringLiteral("QTreeView::item:selected, QListView::item:selected { background: %1; color: %2; }")
-            .arg(soft, hex(c.text)));
+    // selected rows (focused or not: no :active/:focus condition), also under the mouse: the soft accent with
+    // the selected text colour (AAA); never HighlightedText, which is meant for the strong accent
+    add(QStringLiteral("QTreeView::item:selected, QListView::item:selected, QTableView::item:selected "
+                       "{ background: %1; color: %2; }")
+            .arg(soft, hex(c.selectedText)));
+    add(QStringLiteral("QTreeView::item:selected:hover, QListView::item:selected:hover, QTableView::item:selected:hover "
+                       "{ background: %1; color: %2; }")
+            .arg(soft, hex(c.selectedText)));
     add(QStringLiteral("QTreeView::branch { background: transparent; } QTreeView::branch:selected { background: %1; }").arg(soft));
     add(QStringLiteral("QHeaderView::section { background: %1; color: %2; border: none; border-bottom: 1px solid %3; "
                        "padding: 6px 8px; }")
@@ -290,7 +314,7 @@ QString styleSheetFor(const spn::ui::ThemeColors &c) {
     add(QStringLiteral("QMenu { background: %1; color: %2; border: 1px solid %3; border-radius: %4px; padding: 6px; }")
             .arg(hex(c.surface), hex(c.text), hex(c.border), r));
     add(QStringLiteral("QMenu::item { padding: 7px 26px 7px 12px; border-radius: 6px; }"));
-    add(QStringLiteral("QMenu::item:selected { background: %1; color: %2; }").arg(soft, hex(c.text)));
+    add(QStringLiteral("QMenu::item:selected { background: %1; color: %2; }").arg(soft, hex(c.selectedText)));
     add(QStringLiteral("QMenu::item:disabled { color: %1; }").arg(hex(c.disabledText)));
     add(QStringLiteral("QMenu::separator { height: 1px; background: %1; margin: 5px 8px; }").arg(hex(c.border)));
     add(QStringLiteral("QStatusBar { border-top: 1px solid %1; } QStatusBar::item { border: none; } "
@@ -332,6 +356,25 @@ spn::ui::ThemeColors systemColors(const QPalette &p) {
     c.disabledText = rgb(p.color(QPalette::Disabled, QPalette::WindowText));
     c.placeholderText = rgb(p.color(QPalette::PlaceholderText));
     return spn::ui::finishColors(c);
+}
+
+spn::ui::ThemeColors &current() {
+    static spn::ui::ThemeColors c = spn::ui::lightColors();
+    return c;
+}
+
+// The system asks for high contrast: Qt 6.10+ reports it on every platform; on Windows the high-contrast
+// flag is read directly (older Qt). Elsewhere nothing reliable exists, so nothing is guessed from the palette
+// (a plain black-on-white theme must keep the normal look).
+bool systemHighContrast(const QPalette &) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+    if (QGuiApplication::styleHints()->contrastPreference() == Qt::ContrastPreference::HighContrast) return true;
+#endif
+#ifdef Q_OS_WIN
+    HIGHCONTRASTW hc{sizeof(HIGHCONTRASTW), 0, nullptr};
+    if (SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0) && (hc.dwFlags & HCF_HIGHCONTRASTON)) return true;
+#endif
+    return false;
 }
 
 void setBaseStyle(QApplication *app, const QString &key) {
@@ -400,8 +443,21 @@ void applyTheme(spn::ui::Theme theme) {
         setBaseStyle(app, o.style);
         app->setPalette(o.palette);
         colors = systemColors(o.palette);
+        // A high-contrast request of the operating system wins: the platform palette without our accents
+        // and shapes (no style sheet), as the user asked for it.
+        if (systemHighContrast(o.palette)) {
+            current() = colors;
+            app->setStyleSheet(QString());
+            return;
+        }
     }
+    current() = colors;
     app->setStyleSheet(styleSheetFor(colors));
+}
+
+QColor selectedTextColor(bool muted) {
+    const spn::ui::Rgb c = muted ? current().selectedMutedText : current().selectedText;
+    return QColor(c.r, c.g, c.b);
 }
 
 QIcon themedIcon(const QString &resource, const QColor &color, int size) {

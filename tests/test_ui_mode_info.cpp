@@ -66,8 +66,8 @@ int main() {
     assert(info.find(timeline->description) != std::string::npos && info.find("Vertical push:") != std::string::npos);
     assert(info.find("Twist:") != std::string::npos);
     ModeDef two = plain;
-    two.buttons.push_back({1, ButtonActionType::Key, Key::Space, ""});
-    two.buttons.push_back({2, ButtonActionType::Nav, Key::Space, ""});
+    two.buttons.push_back({1, ButtonActionType::Key, Key::Space, "", {}});
+    two.buttons.push_back({2, ButtonActionType::Nav, Key::Space, "", {}});
     const std::string info2 = joystickModeInfo(two, "", id);
     assert(info2.find("Mine (mine)") == 0 && info2.find("No description") != std::string::npos && info2.find("Binds 2 buttons") != std::string::npos);
     assert(info2.find("Built in") == std::string::npos);

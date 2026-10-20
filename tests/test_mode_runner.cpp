@@ -585,7 +585,76 @@ static void testSettingsButtons() {
     CHECK(o.count("+m1") == 1 && o.count("+m3") == 0, "mode binding overrides settings");
 }
 
+static void testChordButtons() {
+    // a key chord on a button (key:ctrl+0) is tapped once on the press edge and does nothing on release
+    {
+        RunnerRec o;
+        ModeRunner r(&o);
+        Settings s;
+        std::string err;
+        CHECK(applyKey(s, "BUTTON_1", "key:ctrl+0", &err), "chord accepted by the config");
+        CHECK(s.buttons[1] == "key:ctrl+0", "canonical text kept");
+        run(r, s, RawAxes{}, 1u, 0.5);  // held for half a second: still one reset
+        CHECK(o.ev.size() == 3 && o.ev[0] == "+ctrl" && o.ev[1] == "tap:0" && o.ev[2] == "-ctrl", "ctrl down, tap 0, ctrl up (%zu events)", o.ev.size());
+        o.clear();
+        run(r, s, RawAxes{}, 0, 0.1);
+        CHECK(o.ev.empty(), "nothing on release");
+        run(r, s, RawAxes{}, 1u, 0.05);
+        CHECK(o.count("tap:0") == 1, "the next press taps again");
+        run(r, s, RawAxes{}, 0, 0.05);
+        r.releaseAll();
+        int down = 0;
+        for (const auto &e : o.ev) down += e == "+ctrl" ? 1 : e == "-ctrl" ? -1 : 0;
+        CHECK(down == 0, "no modifier stays pressed");
+    }
+    {  // order as written, only modifiers not already held, a plain key keeps its hold behavior
+        RunnerRec o;
+        ModeRunner r(&o);
+        ModeDef m = mode("t");
+        ButtonBinding b = bind(0, ButtonActionType::Key, Key::N);
+        b.mods.k[0] = Key::Shift;
+        b.mods.k[1] = Key::Ctrl;
+        b.mods.n = 2;
+        m.buttons = {b, bind(1, ButtonActionType::Key, Key::Space), bind(2, ButtonActionType::Key, Key::Ctrl)};
+        r.setMode(m);
+        Settings s;
+        run(r, s, RawAxes{}, 1u, 0.05);
+        CHECK(o.ev.size() == 5 && o.ev[0] == "+shift" && o.ev[1] == "+ctrl" && o.ev[2] == "tap:n" && o.ev[3] == "-ctrl" &&
+                  o.ev[4] == "-shift",
+              "modifiers in order, released in reverse");
+        o.clear();
+        run(r, s, RawAxes{}, 2u, 0.05);
+        CHECK(o.count("+space") == 1 && o.count("tap:space") == 0, "a plain key is still held while the button is held");
+        run(r, s, RawAxes{}, 0, 0.05);
+        CHECK(o.count("-space") == 1, "and released with the button");
+        o.clear();
+        run(r, s, RawAxes{}, 4u, 0.05);       // ctrl held by a button ...
+        run(r, s, RawAxes{}, 4u | 1u, 0.05);  // ... then the chord: it neither presses nor releases ctrl again
+        CHECK(o.count("+ctrl") == 1 && o.count("-ctrl") == 0 && o.count("tap:n") == 1 && o.count("+shift") == 1 && o.count("-shift") == 1,
+              "a held modifier stays held");
+    }
+    {  // a chord in a joystick mode wins like a key, and a mode switch while pressed leaves nothing down
+        RunnerRec o;
+        ModeRunner r(&o);
+        ModeDef m = mode("t");
+        m.h = act(ChannelActionType::Off);
+        ButtonBinding b = bind(0, ButtonActionType::Key, Key::N0);
+        b.mods.k[0] = Key::Ctrl;
+        b.mods.n = 1;
+        m.buttons = {b};
+        r.setMode(m);
+        Settings s;
+        run(r, s, RawAxes{}, 1u, 0.05);
+        r.setMode(mode("other"));
+        run(r, s, RawAxes{}, 0, 0.05);
+        int down = 0;
+        for (const auto &e : o.ev) down += e == "+ctrl" ? 1 : e == "-ctrl" ? -1 : 0;
+        CHECK(down == 0 && o.count("tap:0") == 1, "tapped once, nothing left pressed after a mode change");
+    }
+}
+
 int main() {
+    testChordButtons();
     testSettingsButtons();
     testModeSwitchRequest();
     testToggleNav();

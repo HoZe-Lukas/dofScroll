@@ -2,7 +2,13 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Key chooser shared by the pages: grouped list, group names are disabled header rows.
 #pragma once
+#include <QCheckBox>
 #include <QComboBox>
+#include <QHBoxLayout>
+#include <algorithm>
+#include <functional>
+#include <string>
+#include <vector>
 #include <QStandardItemModel>
 
 #include "ui/model/key_list.hpp"
@@ -21,3 +27,60 @@ inline QComboBox *makeKeyCombo(const QString &current, QWidget *parent) {
     if (i >= 0) c->setCurrentIndex(i);
     return c;
 }
+
+// Chord editor (modifier check boxes plus the key picker) shared by the keys:/step: channel editor and the
+// key: button action. The chord text is "ctrl+shift+pageup" (modifiers in the fixed order ctrl, shift, alt, super).
+// "ctrl+shift+pageup" -> {ctrl, shift} + "pageup"; a lone modifier is the key itself.
+inline void splitChord(const std::string &chord, std::vector<std::string> *mods, std::string *key) {
+    mods->clear();
+    std::vector<std::string> parts;
+    size_t start = 0;
+    for (size_t p; (p = chord.find('+', start)) != std::string::npos; start = p + 1) parts.push_back(chord.substr(start, p - start));
+    parts.push_back(chord.substr(start));
+    *key = parts.back();
+    parts.pop_back();
+    *mods = parts;
+}
+
+inline constexpr const char *kModNames[4] = {"ctrl", "shift", "alt", "super"};
+
+inline std::string joinChord(const std::vector<std::string> &mods, const std::string &key) {
+    std::string out;
+    for (const char *m : kModNames)
+        if (std::find(mods.begin(), mods.end(), m) != mods.end()) out += std::string(m) + "+";
+    return out + key;
+}
+
+// Modifier check boxes and the key picker of one side of a keys:/step: action.
+inline QWidget *chordPicker(QWidget *parent, QObject *owner, std::string *chord, const QString &accessible,
+                     const std::function<void()> &changed) {
+    auto *w = new QWidget(parent);
+    auto *h = new QHBoxLayout(w);
+    h->setContentsMargins(0, 0, 0, 0);
+    std::vector<std::string> mods;
+    std::string key;
+    splitChord(*chord, &mods, &key);
+    for (const char *m : kModNames) {
+        auto *cb = new QCheckBox(QString::fromLatin1(m), w);
+        cb->setProperty("look", QStringLiteral("box"));
+        cb->setChecked(std::find(mods.begin(), mods.end(), m) != mods.end());
+        cb->setAccessibleName(accessible + QStringLiteral(" ") + QString::fromLatin1(m));
+        h->addWidget(cb);
+    }
+    auto *kc = makeKeyCombo(QString::fromStdString(key), w);
+    kc->setAccessibleName(accessible);
+    h->addWidget(kc, 1);
+    auto update = [w, chord, kc, changed] {
+        std::vector<std::string> sel;
+        const auto boxes = w->findChildren<QCheckBox *>();
+        for (QCheckBox *cb : boxes)
+            if (cb->isChecked()) sel.push_back(cb->text().toStdString());
+        if (!kc->currentData().isValid()) return;
+        *chord = joinChord(sel, kc->currentData().toString().toStdString());
+        changed();
+    };
+    for (QCheckBox *cb : w->findChildren<QCheckBox *>()) QObject::connect(cb, &QCheckBox::toggled, owner, update);
+    QObject::connect(kc, &QComboBox::activated, owner, [update](int) { update(); });
+    return w;
+}
+

@@ -37,6 +37,7 @@
 #include <QListWidget>
 #include <QPlainTextEdit>
 #include <QTreeView>
+#include <QItemSelectionModel>
 #include <QTreeWidget>
 #include <QTimer>
 #include <QTranslator>
@@ -195,6 +196,18 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
     check(text.contains("NAME = Edited") && text.contains("DESCRIPTION = Changed") && text.contains("ACTION = key:space"),
           "the file holds the edited values");
     check(!page.pending(), "saved: nothing pending");
+    // a key chord is edited and saved like a key: the editor shows the modifier boxes ticked
+    check(page.editCurrent(QStringLiteral("Edited"), QStringLiteral("Changed"), QStringLiteral("key:ctrl+0")), "save a chord");
+    {
+        QFile cf(tmpPath + QStringLiteral("/buttons/latch.conf"));
+        check(cf.open(QIODevice::ReadOnly) && cf.readAll().contains("ACTION = key:ctrl+0"), "the file holds the chord");
+        settle();
+        int ticked = 0;
+        for (QCheckBox *cb : page.findChildren<QCheckBox *>())
+            if (cb->text() == QLatin1String("ctrl") && cb->isChecked()) ++ticked;
+        check(ticked == 1, "the ctrl box is ticked for key:ctrl+0");
+    }
+    check(page.editCurrent(QStringLiteral("Edited"), QStringLiteral("Changed"), QStringLiteral("key:space")), "back to a plain key");
     // a file that appears in the folder shows up (the page polls the folder stamp)
     QFile second(tmpPath + QStringLiteral("/buttons/second.conf"));
     check(second.open(QIODevice::WriteOnly) && second.write("ACTION = click\n") > 0, "write a second file");
@@ -767,6 +780,134 @@ static bool windowStateSelfTest(const UiContext &ctx, const QString &tmpPath) {
               "the default size is between the minimum and 1280x820");
     }
     std::printf("window state self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
+// Selected rows must stay readable: render the lists and trees with a selected row in every theme
+// (focused and unfocused) and compare the text pixels with the selection background.
+static bool selectionContrastSelfTest(const UiContext &ctx) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const QString &what) {
+        if (!cond) std::fprintf(stderr, "selection contrast self-test failed: %s\n", qPrintable(what));
+        ok = ok && cond;
+    };
+    auto ratio = [](const QColor &a, const QColor &b) {
+        return spn::ui::contrastRatio({uint8_t(a.red()), uint8_t(a.green()), uint8_t(a.blue())},
+                                      {uint8_t(b.red()), uint8_t(b.green()), uint8_t(b.blue())});
+    };
+    // the pixel of the band [y0, y1) of the image that is farthest from the background = the text colour
+    auto textRatio = [&](const QImage &img, const QRect &band, const QColor &bg) {
+        double best = 1.0;
+        for (int y = band.top(); y < band.bottom() && y < img.height(); ++y)
+            for (int x = band.left(); x < band.right() && x < img.width(); ++x) best = std::max(best, ratio(img.pixelColor(x, y), bg));
+        return best;
+    };
+    auto checkList = [&](QAbstractItemView *view, const QModelIndex &idx, const QString &ctxName) {
+        view->setCurrentIndex(idx);
+        view->selectionModel()->select(idx, QItemSelectionModel::ClearAndSelect);
+        for (bool focused : {true, false}) {
+            if (focused) view->setFocus(); else view->clearFocus();
+            settle();
+            const QRect r = view->visualRect(idx);
+            const QImage img = view->viewport()->grab().toImage();
+            const QRect inner = r.adjusted(6, 2, -6, -2);
+            const QColor bg = img.pixelColor(inner.left(), inner.center().y());
+            const QString what = ctxName + (focused ? QStringLiteral(" (focused)") : QStringLiteral(" (not focused)"));
+            // the text must be far from the selection colour; the muted line (below the name) too
+            const QRect top(inner.left(), inner.top(), inner.width(), inner.height() / 2);
+            check(textRatio(img, top, bg) >= 4.5, what + QStringLiteral(": name"));
+            if (!view->model()->data(idx, kRoleDescription).toString().isEmpty()) {
+                const QRect bottom(inner.left(), inner.center().y() + 2, inner.width(), inner.height() / 2 - 2);
+                check(textRatio(img, bottom, bg) >= 4.0, what + QStringLiteral(": description"));
+            }
+        }
+    };
+    for (const char *themeId : {"light", "dark", "system"}) {
+        applyTheme(spn::ui::themeFromId(themeId));
+        settle();
+        const QString t = QString::fromLatin1(themeId);
+        {
+            ModesPage page(ctx);
+            page.resize(900, 600);
+            page.show();
+            settle();
+            auto *list = page.findChild<QListWidget *>();
+            check(list && list->count() > 1, t + QStringLiteral(": modes list"));
+            if (list && list->count() > 1) {
+                checkList(list, list->model()->index(1, 0), t + QStringLiteral(" joystick modes"));
+                list->selectionModel()->clear();
+            }
+        }
+        {
+            ButtonModesPage page(ctx);
+            page.resize(900, 600);
+            page.show();
+            settle();
+            auto *list = page.findChild<QListWidget *>();
+            check(list && list->count() > 0, t + QStringLiteral(": button modes list"));
+            if (list && list->count() > 0) checkList(list, list->model()->index(0, 0), t + QStringLiteral(" button modes"));
+        }
+        {
+            QTreeWidget tree;
+            tree.setHeaderHidden(true);
+            auto *top = new QTreeWidgetItem(&tree, QStringList(QStringLiteral("Programs")));
+            new QTreeWidgetItem(top, QStringList(QStringLiteral("Firefox, blender")));
+            tree.expandAll();
+            tree.resize(300, 200);
+            tree.show();
+            settle();
+            checkList(&tree, tree.model()->index(0, 0, tree.model()->index(0, 0)), t + QStringLiteral(" tree"));
+        }
+    }
+    // the token pairs behind the style sheet
+    for (spn::ui::Theme th : {spn::ui::Theme::Light, spn::ui::Theme::Dark}) {
+        spn::ui::ThemeColors c;
+        spn::ui::themeColors(th, &c);
+        check(spn::ui::contrastRatio(c.selectedText, c.accentSoft) >= 7.0, QStringLiteral("selected text token"));
+    }
+    applyTheme(spn::ui::Theme::System);
+    settle();
+    std::printf("selection contrast self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
+// Large fonts (the operating system's font scale at 150% and 200%): no label or button may be cut off.
+// Pages live in scroll areas, so a page that needs more room than the window gives scrolls instead of
+// squashing its content: every visible label and button is at least as big as it asks for at its minimum.
+static bool fontScaleSelfTest(MainWindow &w) {
+    bool ok = true;
+    const QFont base = QApplication::font();
+    w.show();
+    for (double scale : {1.5, 2.0}) {
+        QFont f = base;
+        f.setPointSizeF(base.pointSizeF() * scale);
+        QApplication::setFont(f);
+        settle();
+        for (const std::string &id : w.pageIds()) {
+            w.showPage(QString::fromStdString(id));
+            settle();
+            QWidget *page = w.currentPage();
+            if (!page) continue;
+            for (QWidget *c : page->findChildren<QWidget *>()) {
+                if (!c->isVisibleTo(page)) continue;
+                const auto *lab = qobject_cast<QLabel *>(c);
+                const bool text = qobject_cast<QPushButton *>(c) || qobject_cast<QCheckBox *>(c) || (lab && !lab->text().isEmpty());
+                if (!text) continue;
+                const QSize hint = c->minimumSizeHint();
+                const bool wraps = lab && lab->wordWrap();
+                // inside a scroll area the widget is laid out at its hint: a smaller size means it is cut off
+                if (c->height() < hint.height() - 2 || (!wraps && c->width() < hint.width() - 2)) {
+                    std::fprintf(stderr, "font scale self-test failed: x%.1f page %s: %s \"%s\" is %dx%d, needs %dx%d\n", scale,
+                                 id.c_str(), c->metaObject()->className(), qPrintable(lab ? lab->text().left(30) : c->objectName()),
+                                 c->width(), c->height(), hint.width(), hint.height());
+                    ok = false;
+                }
+            }
+        }
+    }
+    QApplication::setFont(base);
+    settle();
+    std::printf("font scale self-test: %s\n", ok ? "ok" : "failed");
     return ok;
 }
 
@@ -1992,6 +2133,22 @@ int main(int argc, char **argv) {
                 if (page.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-mode-editor.png"))) ++written;
             }
         }
+        for (const char *th : {"light", "dark"}) {  // lists with a selected row, in both themes
+            applyTheme(spn::ui::themeFromId(th));
+            ModesPage page(ctx);
+            page.resize(1000, 640);
+            page.show();
+            page.selectMode(QStringLiteral("slides"));
+            settle();
+            if (page.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-wide-modes-selected.png").arg(QString::fromLatin1(th)))) ++written;
+            ButtonModesPage bpage(ctx);
+            bpage.resize(1000, 640);
+            bpage.show();
+            bpage.selectButtonMode(QStringLiteral("latch-nav"));
+            settle();
+            if (bpage.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-wide-button-modes-selected.png").arg(QString::fromLatin1(th)))) ++written;
+        }
+        applyTheme(spn::ui::themeFromId("light"));
         {   // the dialogs (minimum-ish size and the default one)
             ProfilesEnv env;
             AddDeviceDialog device(env, {});
@@ -2068,6 +2225,8 @@ int main(int argc, char **argv) {
         if (!autosaveAuditSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
         if (!legacyButtonsSelfTest()) return 1;
         if (!themeSelfTest(w)) return 1;
+        if (!selectionContrastSelfTest(ctx)) return 1;
+        if (!fontScaleSelfTest(w)) return 1;
         if (!wheelSelfTest()) return 1;
         if (!defaultSizeFitsSelfTest(w)) return 1;
         if (!windowStateSelfTest(ctx, tmp.path())) return 1;

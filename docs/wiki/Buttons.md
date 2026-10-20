@@ -28,7 +28,7 @@ BUTTON_2 = key:space
 
 To choose which joystick modes `mode:next` / `mode:prev` reach, and in which order, put `CYCLE = id, id, ...` in a button mode file with `ACTION = mode:next` (or `mode:prev`): the button then cycles through exactly that list, wrapping around (without `CYCLE` it cycles through all joystick modes alphabetically). Details: [docs/button-modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/button-modes.md).
 
-Actions: `none`, `click`, `rightclick`, `middleclick`, `nav`, `key:<name>`, `mode:<id>`, `mode:next`, `mode:prev`, `hold:mode:<id>`, `toggle:nav`, `toggle:mode:<id>`, `buttonmode:<id>` (a named button behavior from `~/.config/dofscroll/buttons/<id>.conf`, shared by several buttons; see [docs/button-modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/button-modes.md)). Details are on the [Joystick modes](Modes) page. `BUTTON_<n>` works in the main config (in any section) and in joystick mode files; a binding in the active joystick mode wins over the main config for the same button.
+Actions: `none`, `click`, `rightclick`, `middleclick`, `nav`, `key:<name>`, `key:<mod>+<key>` (a chord such as `key:ctrl+0`, tapped once per press), `mode:<id>`, `mode:next`, `mode:prev`, `hold:mode:<id>`, `toggle:nav`, `toggle:mode:<id>`, `buttonmode:<id>` (a named button behavior from `~/.config/dofscroll/buttons/<id>.conf`, shared by several buttons; see [docs/button-modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/button-modes.md)). Details are on the [Joystick modes](Modes) page. `BUTTON_<n>` works in the main config (in any section) and in joystick mode files; a binding in the active joystick mode wins over the main config for the same button.
 
 ## Factory button counts
 

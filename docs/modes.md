@@ -106,6 +106,7 @@ table in `src/device_db.cpp`). The count is not the one `spacenavd` reports.
 | `click`, `rightclick`, `middleclick` | Mouse button, held while the device button is held (drag works). |
 | `nav` | While held, X/Y send arrow keys instead of scrolling. |
 | `key:<name>` | Holds the key while the button is held. |
+| `key:<mod>+...+<key>` | A key chord such as `key:ctrl+0` or `key:ctrl+shift+n`: zero to four of `ctrl`, `shift`, `alt`, `super`, then one key that is not a modifier (the same grammar and limits as the chords in `keys:`). Tapped once when the button goes down (modifiers pressed in the order written, then the key, then released in reverse); nothing happens on release, so holding the button does not repeat it and nothing can stay pressed. |
 | `mode:<id>` | Switches to joystick mode `<id>` when the button is pressed. |
 | `mode:next` | Switches to the next loaded joystick mode in alphabetical order of id, built-ins included, wrapping around. |
 | `hold:mode:<id>` | The joystick mode `<id>` is effective while the button is held; on release the state from before the press comes back: a `mode:<id>` / `toggle:mode:<id>` override that was in effect, else the joystick mode the profile gives. Example: `BUTTON_3 = hold:mode:precision` (slow and fine while the button is held). The release is noticed even if the held joystick mode does not bind the button. Any other joystick mode switch during the hold ends it without restoring; a reload, suspend / `ENABLED = 0` / session switch and an unplugged device end it too (the previous state comes back). `next` and `prev` are not valid; an unknown id is dropped with a warning at load. The status file shows `hold:<id>` in the `toggle=` line. |
@@ -338,8 +339,10 @@ and every effect needs the physical device to be moved or pressed.
 
 Chords in `keys:` (for example `keys:ctrl+w,ctrl+q`) are sent as written. The daemon warns about
 a chord that contains `alt` or `super`, or that combines `ctrl` / `shift` with a key that is not a
-navigation key (arrows, Page Up/Down, Home, End, Space, Enter, Esc, plus/minus). A chord of `ctrl`
-and/or `shift` with a navigation key, like `ctrl+pageup`, produces no warning.
+navigation key (arrows, Page Up/Down, Home, End, Space, Enter, Esc, and the zoom keys plus, minus and `0`). A chord of `ctrl`
+and/or `shift` with a navigation key, like `ctrl+pageup` or the zoom reset `ctrl+0`, produces no warning. The same
+rule applies to `key:<chord>` button actions in mode files and button mode files. The button modes that ship with the
+program (examples/buttons) are not checked: only files in your folders.
 
 Only use joystick mode files from sources you trust, and read a file before you copy it into
 `~/.config/dofscroll/modes/`. When you review one, look for:

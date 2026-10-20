@@ -98,6 +98,11 @@ int main() {
     assert(c.save("my-latch", "", "", "key:Space").ok);
     assert(get(dir + "/my-latch.conf").find("DESCRIPTION") == std::string::npos);
     assert(c.find("my-latch")->label == "my-latch" && c.find("my-latch")->action == "key:space");
+    // a key chord is saved and listed as written (lower case); too many modifiers are refused
+    assert(c.save("my-latch", "", "", "key:Ctrl+0").ok && get(dir + "/my-latch.conf").find("ACTION = key:ctrl+0") != std::string::npos);
+    assert(c.find("my-latch")->action == "key:ctrl+0");
+    assert(!c.save("my-latch", "", "", "key:ctrl+shift+alt+super+ctrl+a").ok);
+    assert(c.save("my-latch", "", "", "key:Space").ok);
 
     // duplicate: new id, same action and description
     assert(c.save("my-latch", "Latch nav", "Press to latch", "toggle:nav").ok);

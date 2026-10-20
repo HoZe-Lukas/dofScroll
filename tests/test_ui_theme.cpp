@@ -102,15 +102,66 @@ static void testThemesAreReadable() {
         assert(contrastRatio(c.placeholderText, c.surface) >= 4.5);    // muted help text on a card
         assert(contrastRatio(c.danger, c.window) >= 4.5 && contrastRatio(c.danger, c.surface) >= 4.5);  // error text next to a field
         assert(contrastRatio(c.windowText, c.accentSoft) >= 7.0);      // label of the selected tab or row
+        // selected rows (lists, trees, the second line of the mode lists): readable on the selection and on hover
+        assert(contrastRatio(c.selectedText, c.accentSoft) >= 7.0 && contrastRatio(c.selectedText, c.hover) >= 7.0);
+        assert(contrastRatio(c.selectedMutedText, c.accentSoft) >= 4.5 && contrastRatio(c.selectedMutedText, c.hover) >= 4.5);
+        // the old clash: the primary button text on the soft selection is NOT readable, so it must not be used there
+        assert(contrastRatio(c.highlightedText, c.accentSoft) < 4.5);
         assert(contrastRatio(c.border, c.window) >= 1.15 && !(c.border == c.window));
         // the style sheet colours derive from any base palette (the System theme)
         assert(minTextContrast(finishColors(c)) >= 4.5);
+    }
+    // System: any platform palette (light, dark, odd ones) still gives readable selected rows
+    const Rgb samples[][2] = {{{0xFF, 0xFF, 0xFF}, {0, 0, 0}}, {{0x30, 0x30, 0x30}, {0xEE, 0xEE, 0xEE}},
+                              {{0xEF, 0xEB, 0xE7}, {0x4A, 0x40, 0x30}}, {{0x20, 0x30, 0x60}, {0xA0, 0xA0, 0xFF}}};
+    for (const auto &s : samples) {
+        ThemeColors c = lightColors();
+        c.window = c.base = c.button = s[0];
+        c.windowText = c.text = c.buttonText = s[1];
+        c = finishColors(c);
+        assert(contrastRatio(c.selectedText, c.accentSoft) >= 7.0 && contrastRatio(c.selectedText, c.hover) >= 7.0);
+        assert(contrastRatio(c.selectedMutedText, c.accentSoft) >= 4.5 && contrastRatio(c.selectedMutedText, c.hover) >= 4.5);
     }
     ThemeColors none;
     assert(!themeColors(Theme::System, &none));
     // the themes are really different: light is light, dark is dark
     assert(relativeLuminance(lightColors().window) > 0.8 && relativeLuminance(darkColors().window) < 0.05);
     assert(!(lightColors().window == darkColors().window));
+}
+
+// Accessibility of the palette: status colours, control borders, focus ring, and colour-vision deficiencies.
+static void testAccessibility() {
+    for (Theme t : {Theme::Light, Theme::Dark}) {
+        ThemeColors c;
+        assert(themeColors(t, &c));
+        // (a) text of every status colour on window, card and input: AA
+        for (Rgb status : {c.danger, c.warning, c.success, c.info})
+            for (Rgb bg : {c.window, c.surface, c.base}) assert(contrastRatio(status, bg) >= 4.5);
+        // (b) non-text parts that carry meaning: 3:1 against every neighbour (window, input, card, hover, selection)
+        for (Rgb bg : {c.window, c.base, c.surface, c.hover, c.accentSoft}) assert(contrastRatio(c.controlBorder, bg) >= 3.0);
+        for (Rgb bg : {c.window, c.base, c.surface}) assert(contrastRatio(c.focusRing, bg) >= 3.0);
+        // the knob of a switch (highlightedText) on its on-track (highlight)
+        assert(contrastRatio(c.highlightedText, c.highlight) >= 3.0);
+        // (e) the cues that must stay apart with colour-vision deficiencies keep their luminance contrast
+        // against the background (the shape or the text carries the rest): status text, accent, control border
+        for (Cvd kind : {Cvd::Protanopia, Cvd::Deuteranopia, Cvd::Tritanopia}) {
+            const Rgb win = simulateCvd(c.window, kind), surf = simulateCvd(c.surface, kind);
+            for (Rgb status : {c.danger, c.warning, c.success, c.info, c.highlight, c.focusRing, c.controlBorder}) {
+                assert(contrastRatio(simulateCvd(status, kind), win) >= 3.0);
+                assert(contrastRatio(simulateCvd(status, kind), surf) >= 3.0);
+            }
+            // red and green (error versus success) differ in lightness, not only in hue
+            assert(std::fabs(relativeLuminance(simulateCvd(c.danger, kind)) - relativeLuminance(simulateCvd(c.success, kind))) > 0.02 ||
+                   kind == Cvd::Tritanopia);
+            // the selection stays visible against the window: text on it is still readable
+            assert(contrastRatio(simulateCvd(c.selectedText, kind), simulateCvd(c.accentSoft, kind)) >= 7.0);
+        }
+    }
+    // the simulation itself: grey stays grey, white and black stay put
+    for (Cvd kind : {Cvd::Protanopia, Cvd::Deuteranopia, Cvd::Tritanopia}) {
+        const Rgb w = simulateCvd({255, 255, 255}, kind), k = simulateCvd({0, 0, 0}, kind);
+        assert(w.r >= 253 && w.g >= 253 && w.b >= 253 && k.r == 0 && k.g == 0 && k.b == 0);
+    }
 }
 
 static void testTokens() {
@@ -126,6 +177,7 @@ int main() {
     testUpdateKeepsTheOtherSetting();
     testContrastMath();
     testThemesAreReadable();
+    testAccessibility();
     testTokens();
     return 0;
 }

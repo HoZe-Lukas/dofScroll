@@ -38,6 +38,16 @@ static void testBindingKind() {
     assert(parseBinding("buttonmode:latch-nav", &b) && b.kind == BindingKind::ButtonMode && b.arg == "latch-nav");
     assert(composeBinding(b) == "buttonmode:latch-nav");
     assert(!parseBinding("buttonmode:", &b) && !parseBinding("buttonmode:Bad Id", &b));
+    // a key chord round-trips through the editor model (the view shows the modifier boxes and the key)
+    assert(parseBinding("key:ctrl+0", &b) && b.kind == BindingKind::Key && b.arg == "ctrl+0" && composeBinding(b) == "key:ctrl+0");
+    assert(parseBinding(" KEY: Ctrl+Shift+N", &b) && b.arg == "ctrl+shift+n" && composeBinding(b) == "key:ctrl+shift+n");
+    assert(parseBinding("key:space", &b) && b.arg == "space" && composeBinding(b) == "key:space");  // plain key unchanged
+    assert(!parseBinding("key:ctrl+", &b) && !parseBinding("key:ctrl+shift+alt+super+ctrl+a", &b) && !parseBinding("key:a+b", &b));
+    {
+        Binding chord{BindingKind::Key, "ctrl+0"};
+        assert(withKind(chord, BindingKind::Key, {}).arg == "ctrl+0");  // choosing "Press key" again keeps the chord
+        assert(withKind(chord, BindingKind::Click, {}).arg.empty());
+    }
     Binding incomplete{BindingKind::ButtonMode, ""};
     assert(composeBinding(incomplete).empty());  // incomplete
     // a button mode is chosen from the button modes, it is not one of the plain actions

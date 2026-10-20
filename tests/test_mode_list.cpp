@@ -159,8 +159,8 @@ int main() {
         assert(channelActionText(m.v) == "keys:shift+ctrl+pageup,ctrl+pagedown");
         m.v.type = ChannelActionType::Step;
         assert(channelActionText(m.v) == "step:shift+ctrl+pageup,ctrl+pagedown");
-        m.buttons.push_back({1, ButtonActionType::Key, Key::Space, ""});
-        m.buttons.push_back({2, ButtonActionType::ModeSwitch, Key::Space, "next"});
+        m.buttons.push_back({1, ButtonActionType::Key, Key::Space, "", {}});
+        m.buttons.push_back({2, ButtonActionType::ModeSwitch, Key::Space, "next", {}});
         m.overrides.emplace_back("SCROLL_H_SENS", "4");
         assert(createModeFile(dir, "custom", modeTemplate(m), nullptr, &err));
         const ModeSet ms3 = loadModes(dir, nullptr);

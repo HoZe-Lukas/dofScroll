@@ -119,6 +119,7 @@ struct ButtonBinding {
     ButtonActionType type = ButtonActionType::Unbound;
     Key key = Key::Space;                 // only for Key
     std::string mode;                     // ModeSwitch: target id or "next"; ToggleMode: target id; ButtonMode: button mode id; HoldMode: target id
+    ChordMods mods;                       // only for Key: modifiers of a chord (key:ctrl+0); a chord is tapped once per press
 };
 
 // The two parts of a split scroll channel (V_PUSH_ACTION / V_TILT_ACTION, H_PUSH_ACTION / H_TILT_ACTION).
@@ -176,8 +177,16 @@ bool splitCycleTarget(const std::string &target, bool *forward, std::vector<std:
 
 // modeId (optional) receives the target of mode:<id> / mode:next / toggle:mode:<id> and the button mode id of buttonmode:<id>. Only the syntax of the id is
 // checked here; existence is checked by loadModes (the parser does not know the mode set).
+// key:<name> is a plain key (held while the button is held); key:<mod>+...+<key> (zero to four of ctrl, shift,
+// alt, super, then a key that is not a modifier, as in keys:) is a chord: *mods (optional) receives the
+// modifiers (n = 0 for a plain key) and the chord is tapped once when the button goes down.
 bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key, std::string *err,
-                       std::string *modeId = nullptr);
+                       std::string *modeId = nullptr, ChordMods *mods = nullptr);
+// Canonical config text of a key action: "key:space", "key:ctrl+0" (modifiers in the order written).
+std::string keyActionText(Key key, const ChordMods &mods);
+// True for a chord that the loader warns about in files of the user: it has alt or super, or ctrl/shift with a key that
+// is not a navigation or zoom key (docs/modes.md, Safety). False for a plain key (mods.n == 0).
+bool chordNeedsWarning(Key key, const ChordMods &mods);
 
 // <config dir>/dofscroll/modes (config dir as in legacyConfigPath()).
 std::string modesDir();

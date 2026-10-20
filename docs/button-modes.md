@@ -22,7 +22,7 @@ most 32 characters. The format is that of the main configuration: `KEY = value`,
 |---|---|
 | `NAME` | Shown in the drop-downs. Fallback: the id. |
 | `DESCRIPTION` | Optional, shown as a tooltip and on the Button modes page. |
-| `ACTION` | Required. One button action as in `BUTTON_<n>`: `none`, `click`, `rightclick`, `middleclick`, `nav`, `key:<name>`, `mode:<id>`, `mode:next`, `mode:prev`, `toggle:nav`, `toggle:mode:<id>`. It must not be a `buttonmode:` reference (no nesting). |
+| `ACTION` | Required. One button action as in `BUTTON_<n>`: `none`, `click`, `rightclick`, `middleclick`, `nav`, `key:<name>`, `key:<mod>+...+<key>` (a chord such as `key:ctrl+0`, tapped once per press), `mode:<id>`, `mode:next`, `mode:prev`, `toggle:nav`, `toggle:mode:<id>`, `hold:mode:<id>`. It must not be a `buttonmode:` reference (no nesting). |
 | `CYCLE` | Optional, only with `ACTION = mode:next` or `mode:prev`: the joystick modes this button cycles through, see [Choosing the joystick modes to cycle through](#choosing-the-modes-to-cycle-through). |
 
 Every other key (`NAME`, `DESCRIPTION`, `ACTION` and `CYCLE` are the only ones) is skipped with a warning; a file without a valid `ACTION` is skipped. Example
@@ -37,13 +37,15 @@ by the current user, opened without following links; invalid lines and files are
 warning in the log (`Button modes: ...`). The folder is checked about once a second and reloaded
 when its contents change.
 
-Four button modes are built into the program on every system (they need no file; nothing is
+Five button modes are built into the program on every system (they need no file; nothing is
 copied into `~/.config/dofscroll/buttons/`): `latch-nav` (`toggle:nav`), `next-mode` (`mode:next`),
-`prev-mode` (`mode:prev`) and `cycle-favorites` (`mode:next` through a list you choose with `CYCLE`). Their text is `examples/buttons/<id>.conf`, embedded at build time. The
+`prev-mode` (`mode:prev`), `cycle-favorites` (`mode:next` through a list you choose with `CYCLE`) and `reset-zoom` (`key:ctrl+0`). Their text is `examples/buttons/<id>.conf`, embedded at build time. The
 button mode catalog lists them with the origin "Built in". "Create editable copy" writes a file with
 the same id that replaces the built-in one until you delete it; a file byte-identical to the built-in
 is not listed as your own. `next-mode` and `prev-mode` cycle through all loaded joystick modes in
 alphabetical order, built-ins included (see [modes.md](modes.md)).
+
+`reset-zoom` (`key:ctrl+0`) is built in too: each press taps Ctrl+0 once, which resets the zoom in most programs (browsers, editors, image viewers). It is a reusable named behavior that a profile or a joystick mode chooses per button; if you want Ctrl+0 on a button everywhere and always, the vendor driver can do that as well.
 
 ## Choosing the joystick modes to cycle through
 

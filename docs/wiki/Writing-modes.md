@@ -334,7 +334,9 @@ Keys of a button mode file: `NAME` (shown in the drop-downs, fallback is the id)
 |---|---|
 | `none` | Nothing |
 | `click`, `rightclick`, `middleclick` | Mouse button, held while the device button is held |
-| `key:<name>` | Holds that key while the button is held (single key, no chord) |
+| `key:<name>` | Holds that key while the button is held |
+| `key:<mod>+<key>` | A chord such as `key:ctrl+0`: zero to four of `ctrl`, `shift`, `alt`, `super`, then a key; tapped once per press, nothing on release |
+| `hold:mode:<id>` | Joystick mode `<id>` is effective while the button is held |
 | `nav` | While held, X/Y send arrow keys instead of scrolling |
 | `toggle:nav` | Every press switches navigation on or off |
 | `mode:<id>` | Switch to joystick mode `<id>` on press |

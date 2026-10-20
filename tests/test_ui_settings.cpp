@@ -33,7 +33,7 @@ static ModeSet makeModes() {
     t.v = {ChannelActionType::Off};
     t.h = {ChannelActionType::Keys, Key::Left, Key::Right};
     t.twist = {ChannelActionType::Keys, Key::Left, Key::Right};
-    t.buttons.push_back({1, ButtonActionType::Key, Key::Space, ""});
+    t.buttons.push_back({1, ButtonActionType::Key, Key::Space, "", {}});
     ms.modes.push_back(t);
     return ms;
 }
