@@ -42,6 +42,7 @@
 #include <QTranslator>
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <cstdio>
 #include <functional>
 #include <cstring>
@@ -894,6 +895,14 @@ static const std::string *keyIn(const spn::Section *s, const std::string &key) {
         if (kv.first == key) return &kv.second;
     return nullptr;
 }
+// The value of a key as the file on disk holds it. A copy: the pointers of sectionOf()/keyIn() point into the
+// model they were taken from, and a temporary model is gone at the end of the statement.
+static std::optional<std::string> diskKey(const EditorRig &rig, spn::Section::Kind kind, const std::string &pattern,
+                                          const std::string &key) {
+    const spn::ui::SettingsModel m = rig.disk();
+    if (const std::string *v = keyIn(sectionOf(m, kind, pattern), key)) return *v;
+    return std::nullopt;
+}
 
 // ---- autosave: the profile editor ----
 // Every change is written by itself (a switch at once, typed text after a pause), invalid values are not
@@ -978,8 +987,8 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
     auto *gsens = qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_H_SENS"));
     if (gsens) gsens->setValue(7);
     check(rig.waitSaved(), "Global written");
-    check(keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "SCROLL_H_SENS") &&
-              *keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "SCROLL_H_SENS") == "7",
+    check(diskKey(rig, Section::GLOBAL, "", "SCROLL_H_SENS") &&
+              *diskKey(rig, Section::GLOBAL, "", "SCROLL_H_SENS") == "7",
           "the file holds the value of Global");
     check(page->selectSection(3) && qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_H_SENS"))->value() == 7 &&
               ch->originFor("SCROLL_H_SENS").startsWith(QStringLiteral("Inherited from Global")),
@@ -987,14 +996,14 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
     // Reset removes the key
     check(page->selectSection(1), "device profile again");
     ch->resetFor("SCROLL_V_SENS")->click();
-    check(rig.waitSaved() && !keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "SCROLL_V_SENS"),
+    check(rig.waitSaved() && !diskKey(rig, Section::DEVICE, "SpaceMouse Pro", "SCROLL_V_SENS"),
           "Reset to inherited removes the key from the file");
     // setting a value back to 0 is written, not dropped
     sens = qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_V_SENS"));
     if (sens) sens->setValue(0);
     check(rig.waitSaved(), "0 written");
     {
-        const std::string *v = keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "SCROLL_V_SENS");
+        std::optional<std::string> v = diskKey(rig, Section::DEVICE, "SpaceMouse Pro", "SCROLL_V_SENS");
         check(v && *v == "0", "a value of 0 is written");
     }
 
@@ -1019,7 +1028,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         check(rig.saver()->pending() && rig.confText() == before, "a valid text waits for the pause");
         check(rig.waitSaved(), "written after the pause");
         check(t.elapsed() >= 500, "the pause is about 600 ms");
-        const std::string *v = keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "SCROLL_V_MIX");
+        std::optional<std::string> v = diskKey(rig, Section::GLOBAL, "", "SCROLL_V_MIX");
         check(v && v->find("0.5") != std::string::npos, "the file holds the typed mix");
         check(!mix->property("invalid").toBool(), "the mark goes away");
         check(rig.reloads() == reloadsBeforeText + 1, "one reload for the whole typing");
@@ -1030,7 +1039,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         check(rig.saver()->pending(), "typed text is pending");
         page->selectSection(1);  // the profile switch writes it at once
         check(!rig.saver()->pending(), "the profile switch flushed it");
-        const std::string *v = keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "SCROLL_V_MIX");
+        std::optional<std::string> v = diskKey(rig, Section::GLOBAL, "", "SCROLL_V_MIX");
         check(v && v->find("- rx") != std::string::npos, "the text typed before the switch is on disk");
     }
     // invert: on and off are both written
@@ -1039,11 +1048,11 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
     if (sign) {
         sign->setChecked(true);
         check(rig.waitSaved(), "sign written");
-        const std::string *v = keyIn(sectionOf(rig.disk(), Section::APP, "firefox"), "SCROLL_V_SIGN");
+        std::optional<std::string> v = diskKey(rig, Section::APP, "firefox", "SCROLL_V_SIGN");
         check(v && *v == "-1", "the inverted direction is written");
         sign->setChecked(false);
         check(rig.waitSaved(), "sign written again");
-        v = keyIn(sectionOf(rig.disk(), Section::APP, "firefox"), "SCROLL_V_SIGN");
+        v = diskKey(rig, Section::APP, "firefox", "SCROLL_V_SIGN");
         check(v && *v == "1", "unchecking is written (the profile overrides the inherited direction)");
     }
     // the joystick mode: choosing "Same as Global" removes the key
@@ -1053,11 +1062,11 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         check(mode && mode->currentText().contains(QStringLiteral("imeline")), "the program profile shows its joystick mode");
         check(mode && mode->itemText(0) == QStringLiteral("Same as Global"), "the first choice is 'Same as Global'");
         if (mode) QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 0));
-        check(rig.waitSaved() && !keyIn(sectionOf(rig.disk(), Section::APP, "firefox"), "MODE"), "'Same as Global' removes MODE from the file");
+        check(rig.waitSaved() && !diskKey(rig, Section::APP, "firefox", "MODE"), "'Same as Global' removes MODE from the file");
         settle();
         mode = findNamed<QComboBox>(page, QStringLiteral("Joystick mode"));
         if (mode) QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 2));  // another joystick mode
-        check(rig.waitSaved() && keyIn(sectionOf(rig.disk(), Section::APP, "firefox"), "MODE"), "a joystick mode is written");
+        check(rig.waitSaved() && diskKey(rig, Section::APP, "firefox", "MODE"), "a joystick mode is written");
     }
     // Global takes a joystick mode too
     check(page->selectSection(0), "Global General tab");
@@ -1068,7 +1077,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         check(mode && mode->count() >= 3, "Global offers the joystick modes");
         if (mode) QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 2));
         check(rig.waitSaved(), "Global mode written");
-        const std::string *v = keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "MODE");
+        std::optional<std::string> v = diskKey(rig, Section::GLOBAL, "", "MODE");
         check(v && *v != "normal", "the joystick mode of Global is in the file");
         QLabel *badge = nullptr;
         for (QLabel *l : page->findChildren<QLabel *>())
@@ -1140,18 +1149,18 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         check(en && !en->isChecked(), "blender is switched off");
         if (en) en->setChecked(true);
         check(rig.waitSaved(), "enabled written");
-        const std::string *v = keyIn(sectionOf(rig.disk(), Section::APP, "blender"), "ENABLED");
+        std::optional<std::string> v = diskKey(rig, Section::APP, "blender", "ENABLED");
         check(v && *v == "1", "switching on is written");
         if (en) en->setChecked(false);
         check(rig.waitSaved(), "disabled written");
-        v = keyIn(sectionOf(rig.disk(), Section::APP, "blender"), "ENABLED");
+        v = diskKey(rig, Section::APP, "blender", "ENABLED");
         check(v && *v == "0", "switching off is written");
         QToolButton *reset = nullptr;
         for (QToolButton *b : page->findChildren<QToolButton *>())
             if (b->accessibleName() == QStringLiteral("Reset to inherited ENABLED")) reset = b;
         check(reset && reset->isEnabled(), "Reset to inherited exists for the output switch");
         if (reset) reset->click();
-        check(rig.waitSaved() && !keyIn(sectionOf(rig.disk(), Section::APP, "blender"), "ENABLED"), "Reset removes ENABLED");
+        check(rig.waitSaved() && !diskKey(rig, Section::APP, "blender", "ENABLED"), "Reset removes ENABLED");
     }
     // Global has no output switch on the profile page: it is on the Settings page
     check(page->selectSection(0), "Global");
@@ -1173,14 +1182,14 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         check(click >= 0, "the click action is offered");
         if (act && click >= 0) QMetaObject::invokeMethod(act, "activated", Q_ARG(int, click));
         check(rig.waitSaved(), "button written");
-        const std::string *v = keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "BUTTON_1");
+        std::optional<std::string> v = diskKey(rig, Section::DEVICE, "SpaceMouse Pro", "BUTTON_1");
         check(v && *v == "click", "the button action is written");
         settle();
         origin = findNamed<QLabel>(page, QStringLiteral("Origin of button 1"));
         check(origin && origin->text().startsWith(QStringLiteral("Set in this profile")), "the row now says it is set in this profile");
         act = findNamed<QComboBox>(page, QStringLiteral("Action of button 1"));
         if (act) QMetaObject::invokeMethod(act, "activated", Q_ARG(int, 0));  // Default (inherit)
-        check(rig.waitSaved() && !keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "BUTTON_1"),
+        check(rig.waitSaved() && !diskKey(rig, Section::DEVICE, "SpaceMouse Pro", "BUTTON_1"),
               "Default (inherit) removes the binding from the file");
     }
 
@@ -1196,14 +1205,14 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
             check(!rig.saver()->pending() && rig.confText() == before, "an invalid override text is not written");
             typeInto(edit, QStringLiteral("13"));
             check(rig.waitSaved(), "valid text written");
-            const std::string *v = keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "SCROLL_V_SENS");
+            std::optional<std::string> v = diskKey(rig, Section::DEVICE, "SpaceMouse Pro", "SCROLL_V_SENS");
             check(v && *v == "13", "the file holds the override");
         }
         QToolButton *rm = nullptr;
         for (QToolButton *b : page->findChildren<QToolButton *>())
             if (b->accessibleName() == QStringLiteral("Remove SCROLL_V_SENS")) rm = b;
         if (rm) rm->click();
-        check(rig.waitSaved() && !keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "SCROLL_V_SENS"),
+        check(rig.waitSaved() && !diskKey(rig, Section::DEVICE, "SpaceMouse Pro", "SCROLL_V_SENS"),
               "Remove removes the override from the file");
     }
 
@@ -1211,8 +1220,8 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
     check(page->selectSection(1) && page->selectTab(QStringLiteral("channels")), "Channels tab");
     ch->editorFor("SCROLL_H_DEADZONE");
     if (auto *dz = qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_H_DEADZONE"))) dz->setValue(33);
-    check(rig.waitSaved() && keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "SCROLL_H_DEADZONE"), "deadzone written");
-    check(ch->restoreDefaults() && rig.waitSaved() && !keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "SCROLL_H_DEADZONE"),
+    check(rig.waitSaved() && diskKey(rig, Section::DEVICE, "SpaceMouse Pro", "SCROLL_H_DEADZONE"), "deadzone written");
+    check(ch->restoreDefaults() && rig.waitSaved() && !diskKey(rig, Section::DEVICE, "SpaceMouse Pro", "SCROLL_H_DEADZONE"),
           "Restore defaults removes the values of the profile");
 
     // the search box applies to the Channels tab too
@@ -1260,7 +1269,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         check(rig.saver()->pending(), "typed text pending before the page switch");
         w.showPage(QStringLiteral("overview"));
         check(!rig.saver()->pending(), "the page switch flushed it");
-        const std::string *v = keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "SCROLL_H_MIX");
+        std::optional<std::string> v = diskKey(rig, Section::GLOBAL, "", "SCROLL_H_MIX");
         check(v && v->find("0.25") != std::string::npos, "the text is on disk after the page switch");
     }
     // closing the window writes what is typed
@@ -1271,7 +1280,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         QCloseEvent ev;
         QApplication::sendEvent(&w, &ev);
         check(!rig.saver()->pending(), "closing the window flushed it");
-        const std::string *v = keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "ZOOM_MIX");
+        std::optional<std::string> v = diskKey(rig, Section::GLOBAL, "", "ZOOM_MIX");
         check(v && *v == "rz", "the text is on disk after the close");
         w.show();
         settle();
@@ -1281,7 +1290,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
     if (auto *e3 = qobject_cast<QLineEdit *>(ch->editorFor("ZOOM_MIX"))) {
         typeInto(e3, QStringLiteral("rx"));
         check(w.flushPending() && !rig.saver()->pending(), "the quit path flushes");
-        const std::string *v = keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "ZOOM_MIX");
+        std::optional<std::string> v = diskKey(rig, Section::GLOBAL, "", "ZOOM_MIX");
         check(v && *v == "rx", "the text is on disk after the flush of the quit path");
     }
     std::printf("profile editor self-test: %s\n", ok ? "ok" : "failed");
