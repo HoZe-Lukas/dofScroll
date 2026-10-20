@@ -7,10 +7,14 @@
 > Fedora 42). The **Windows and macOS builds are built and unit-tested by CI but have never been run with a
 > real device.**
 
-Fix release for [1.0.0](release-notes-1.0.0.md). The daemon, the configuration and the command line do not
-change; the way the Qt interface gets its Qt does.
+Fix release for [1.0.0](release-notes-1.0.0.md), mainly for the Linux packages (they bring their own Qt),
+plus changes for Windows and macOS (the daemon can now read the device through the official 3Dconnexion driver),
+and improvements to the Qt interface. The Linux daemon, the command line and all existing configuration keys
+behave as before; one new key, `INPUT`, is read on Windows and macOS only.
 
 ## What changed
+
+### Linux packages
 
 - **The Linux packages bring their own Qt (#116).** The 1.0.0 RPM was built against Qt 6.10.3 from EPEL, so it
   required `libQt6Core.so.6(Qt_6.10)`: a RHEL 9 system with an older Qt 6 (for example Qt 6.6.2 from an EPEL
@@ -35,6 +39,47 @@ change; the way the Qt interface gets its Qt does.
   package.
 - The DEB depends no longer on `libqt6*` packages of the distribution.
 
+### Windows and macOS: working next to the official driver (#122)
+
+- **New key `INPUT = auto | driver | hid`** (`[global]`, default `auto`, ignored on Linux). `driver` reads the
+  device through the interface of the installed official 3Dconnexion driver, `hid` reads it directly as raw HID,
+  `auto` picks by a built-in table (macOS: driver first when installed; Windows: HID first, the driver as the
+  fallback) and falls back without flapping. The official driver stays installed and running; dofscroll never asks
+  you to stop it. Nothing of the vendor is shipped: the driver library is loaded at run time from where the
+  driver is installed ([legal-notes.md](legal-notes.md)).
+- The active path is shown as `Input: 3Dconnexion driver` or `Input: direct (HID)` on the Overview, in the new
+  **Input path** setting (Windows and macOS only), in the tray tooltip, in the log and as `input=` in the status
+  file. The Settings page also has an About box (version, licenses, Qt under the LGPL, 3Dconnexion note).
+- **`dofscroll-hidprobe` now exists on Windows and macOS** and ships in the installer, the ZIP and the DMG. A
+  guided five-minute test (`test-driver-coexistence.ps1` / `.sh`, shipped as well) checks whether dofscroll and the
+  driver work side by side and writes a report you can attach to an issue.
+- When the device cannot be read (held by another program) or is open but silent, the daemon logs it, sets
+  `input_issue=blocked|silent` in the status file, and the Overview shows a warning. The remedy is `ENABLED = 0`
+  for the program in question, not quitting the driver ([troubleshooting.md](troubleshooting.md)).
+- Windows moved from Qt 6.8.3 to 6.9.3 (see above).
+
+### Qt interface
+
+- **Split push and tilt per channel (#100, #115, #117):** the joystick mode editor has a "Split push and tilt"
+  switch for the vertical and the horizontal scroll channel, with an action and a tuning box for each part. The
+  Axes page shows live bars for the push and the tilt part of a split channel.
+- A warning next to an axis mix that uses lift/press (`y`), which is prone to false triggers (#94, #113).
+- **Accessibility (#104):** status messages carry a symbol as well as colour and words (#119); the sidebar has a
+  focus ring and moves with Up, Down, Home and End (#121); self-tests check target sizes of at least 24 x 24 px,
+  tab order and the information popovers (#121); lengths in the style sheet are relative (em), so the layout
+  follows the system font size, and a 200 % font self-test found and fixed a too wide joystick mode drop-down on
+  the Profiles page (#126). Not yet covered: high-contrast screenshots and a review with screen readers,
+  magnifiers and a colour-blind reviewer (they need people and real devices; #104 stays open).
+- `dofscroll-ui --version` prints the Qt it runs on a second line (the first line is unchanged).
+- The docs and the wiki say "joystick mode" and "button mode" everywhere, checked in CI (#125).
+
+### Website and CI
+
+- New, lighter website design, English and German (#111, #112, #114, #118).
+- CI: the package job fails if the RPM requires Qt or a bundled library or provides one; the install smoke test
+  runs the interface self-test on five distributions and the TGZ on four and checks that Qt is loaded from the
+  package; a MinGW test warning (GCC dangling pointer, test code only) was fixed (#131).
+
 ## Upgrading
 
 `sudo dnf install ./dofscroll-1.0.1-1.x86_64.rpm` (EPEL enabled for `spacenavd`, see
@@ -43,7 +88,11 @@ change; the way the Qt interface gets its Qt does.
 
 ## Tested on and known limitations
 
-As for 1.0.0. The new packages were built and install-tested in CI containers (build, install, `dofscroll-ui
+As for 1.0.0. **The driver path (`INPUT`) has never run against the real 3Dconnexion driver on Windows or
+macOS; the defaults of `auto` are unverified guesses**, and so is everything about the new hidprobe backends and
+the coexistence test (checklists in [port-windows-checklist.md](port-windows-checklist.md) and
+[port-macos-checklist.md](port-macos-checklist.md)). The new Qt interface features were tested offscreen and in
+CI only, not on a real desktop. The new packages were built and install-tested in CI containers (build, install, `dofscroll-ui
 --self-test` offscreen, X11 and Wayland plugins load, TGZ in bare images) and the interface was run against a
 virtual X server. Not verified: the tray icon, the look under KDE Plasma and GNOME with the bundled Qt (Qt's own
 Fusion style with the desktop's light or dark scheme, no KDE or GNOME style plugin), native Wayland sessions, and
