@@ -6,6 +6,11 @@ Design principle: dofscroll complements the vendor driver instead of duplicating
 
 Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
 
+## 0.1.0-beta.3 (pre-release)
+
+Qt interface as the Linux default, redesigned and minimized to the tray at start, button modes
+with an editor; full notes: [docs/release-notes-0.1.0-beta.3.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-0.1.0-beta.3.md).
+
 ## 0.1.0-beta.2 (pre-release)
 
 Fix release for beta.1; full notes: [docs/release-notes-0.1.0-beta.2.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-0.1.0-beta.2.md).
