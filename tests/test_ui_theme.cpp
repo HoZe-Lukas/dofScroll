@@ -4,7 +4,6 @@
 #undef NDEBUG
 #include <cassert>
 #include <cmath>
-#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -64,21 +63,18 @@ static void testUpdateKeepsTheOtherSetting() {
     }
     err.clear();
     const bool bigSaved = updateUiSettings(big, [](UiSettings &s) { s.theme = Theme::Dark; }, &err);
-    if (bigSaved || err.empty()) std::fprintf(stderr, "oversized: saved=%d err='%s'\n", int(bigSaved), err.c_str());
     assert(!bigSaved && !err.empty());
     std::string kept;
     {
         std::ifstream in(big, std::ios::binary);
         kept.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     }
-    if (kept.find("language = de") != 0 || kept.size() <= 5000) std::fprintf(stderr, "oversized: file changed, size %zu\n", kept.size());
     assert(kept.find("language = de") == 0 && kept.size() > 5000);
     // a directory in place of the file is refused as well
     std::error_code ec;
     std::filesystem::create_directory(dir + "/asdir.conf", ec);
     err.clear();
     const bool dirSaved = updateUiSettings(dir + "/asdir.conf", [](UiSettings &s) { s.theme = Theme::Dark; }, &err);
-    if (dirSaved || err.empty()) std::fprintf(stderr, "directory: saved=%d err='%s' ec='%s'\n", int(dirSaved), err.c_str(), ec.message().c_str());
     assert(!dirSaved && !err.empty());
     std::filesystem::remove_all(dir);
 }
