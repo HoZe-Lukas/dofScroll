@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+name: Mode proposal
+description: Propose a new joystick mode or button mode (a plain file, see #62)
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A **joystick mode** puts functions on the three channels (vertical, horizontal, twist); the response should be analog. A **button mode** is a reusable behavior for one button (a key, a mode switch, a cycle list, ...). Always the same key or click everywhere belongs in the vendor driver, see `docs/modes.md`. You can send the finished file yourself with the "new mode" pull request template (`?template=new-mode.md`).
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Joystick mode
+        - Button mode
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Name
+      description: Short name and the program or workflow it is for
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What should it do?
+      description: |
+        Joystick mode: what V, H and twist do (default, none, wheel_v, wheel_h, zoom, keys:<neg>,<pos>, step:...) and any sensitivity overrides.
+        Button mode: the action, and for mode switching the list of joystick modes to cycle through.
+    validations:
+      required: true
+  - type: textarea
+    id: tested
+    attributes:
+      label: Tested?
+      description: Program and version, device, operating system, session type. "Not tested" is fine.
