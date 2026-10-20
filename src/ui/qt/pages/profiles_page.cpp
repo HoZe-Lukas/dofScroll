@@ -132,8 +132,10 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     profileFilter_->setAccessibleName(T("Search profiles"));
     profileFilter_->setToolTip(T("Show only the programs and devices whose name contains this text"));
     ll->addWidget(profileFilter_);
-    left->setMinimumWidth(170);
+    // No explicit minimum width on the pane: an explicit minimum replaces the layout's own minimum, and the
+    // buttons below ("Add application...") would be squeezed at a larger font. The list sets the floor.
     tree_ = new QTreeWidget(left);
+    tree_->setMinimumWidth(170);
     tree_->setMinimumHeight(160);
     tree_->setHeaderHidden(true);
     tree_->setAccessibleName(T("Profiles"));
