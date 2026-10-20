@@ -106,8 +106,11 @@ What is known and what is not:
 
 - **Known (documentation, not hardware):** the official driver has per-application profiles and can translate SpaceMouse motion into scroll, zoom or keys for some programs. For programs without 3D support (browsers, PDF viewers) its generic scrolling is not documented and forum reports are mixed (old, 2007-2016, and partly for other driver versions).
 - **Known from the code:** dofscroll never opens the device exclusively. A failed open is logged with the Windows error and retried at each rescan.
-- **UNRESOLVED (nobody has tested it):** whether the driver may stay installed at all while dofscroll runs, whether the driver opens the device exclusively (then dofscroll cannot open it and logs a sharing violation), or whether both receive every report. The Windows checklist tests both cases (driver running, driver stopped).
+- **Community reports (not official, not run by us):** other HID-based tools report that on Windows the device can be read directly while the 3DxWare driver stays installed and running, see [Sources](#sources) 1 to 3. So the expectation is that the driver may stay installed; the part that causes trouble elsewhere is the vendor SDK, which dofscroll does not use.
+- **UNRESOLVED for dofscroll (nobody has tested it):** whether, with a current driver version, the driver may stay installed while dofscroll runs, and whether both programs receive every report (or the driver opens the device exclusively and dofscroll logs a sharing violation). The Windows checklist tests both cases (driver running, driver stopped).
 - **Not a requirement:** dofscroll does not need the driver. Installing it is optional. Whether installing it is a good idea is exactly the unresolved question above.
+- **Double input:** a community note warns that with the driver installed it may also emit its own keyboard and mouse emulation, so check for double input (source 2).
+- **Axes:** raw HID axes can differ from what the driver delivers (one report: tilt and twist swapped without a driver profile, source 7). If an axis moves the wrong way, adjust it with `<CH>_SIGN` or the mix settings, see [Troubleshooting](Troubleshooting).
 - **If scrolling happens twice:** in the driver's control panel turn off the driver's own navigation (pan, zoom) and button assignments for the programs you use with dofscroll, or exit the driver's background process while testing.
 - **If the device cannot be opened:** look in `%LOCALAPPDATA%\dofscroll\dofscroll.log` for the Windows error. Exit the 3Dconnexion driver's background process and check whether dofscroll then receives input. If it does, the driver is holding the device.
 
@@ -141,7 +144,8 @@ dofscroll reads the SpaceMouse through `IOHIDManager`, matched on the vendor and
 ### The official 3Dconnexion driver (3Dconnexion Software)
 
 - **Known (forum, old):** with the driver installed, SpaceMouse behavior in some applications differs; a moderator said scrolling in Safari and Acrobat Reader was unsupported with 3DxWare 10.8.4. Outdated, current behavior unknown.
-- **UNRESOLVED (nobody has tested it):** whether `IOHIDManager` can read the device while the driver is running. The driver may seize the device exclusively, and opening it from another process can then fail. Whether both programs receive reports is also unknown.
+- **Community reports (not official, not run by us):** on macOS the picture is worse than on Windows. Programs that open the device through hidapi report that the 3Dconnexion helper holds the device exclusively and they get no reports until the helper is quit (CloudCompare, source 5). hidapi seizes the device by default; one project switched to shared mode (hidapi 0.12 or newer) to open it while the driver runs, but its author had not tested that on a Mac (source 4). One tool for macOS stops the driver's helper while it runs (source 1).
+- **Our code:** dofscroll opens the device without seizing it (`kIOHIDOptionsTypeNone`, never the seize option). Whether that mode delivers reports while the driver is running is **UNRESOLVED**: the code comment says so, and nobody has tried it. The macOS checklist tests both cases.
 - **Not a requirement:** dofscroll does not need the driver.
 - **If scrolling happens twice:** in the driver's settings (System Settings, 3Dconnexion section) turn off per-application navigation and button assignment for the programs you use with dofscroll, or quit the driver while testing.
 - **If the device cannot be read** (no input although the permissions are granted): quit the driver and restart the dofscroll daemon.
@@ -171,6 +175,27 @@ The app is only ad-hoc signed and **not notarized**: Gatekeeper blocks the first
 - [ ] You will grant Input Monitoring and Accessibility to the daemon binary inside the app
 - [ ] The 3Dconnexion driver is optional; if installed, be ready to quit it or turn off its per-application navigation
 - [ ] You know the result is untested on hardware: please report what you see
+
+## Driver versus SDK, and what the research found
+
+- The **SDK** (the vendor API that applications link against) is not used and not bundled by dofscroll. This is a license decision, see `docs/windows-mac.md`.
+- The **driver** (3DxWare / 3Dconnexion Software) is an installed program. dofscroll does not need it. Whether it can stay installed is the open question, and the answer differs by OS in community reports: Windows, probably yes; macOS, possibly not (the helper may hold the device exclusively).
+- On Linux there is no vendor driver. `spacenavd` is the open-source replacement for the 3Dconnexion driver and SDK and supports USB 3Dconnexion devices on GNU/Linux (source 8). dofscroll uses it instead of the vendor driver.
+- Nothing here replaces a hardware test. dofscroll's own checklists are `docs/port-windows-checklist.md` and `docs/port-macos-checklist.md`.
+
+## Sources
+
+Community sources only; the official 3Dconnexion pages could not be fetched, and no official statement on coexistence with other HID readers was found. Pages 1, 4, 5 and 8 were opened while writing; 2, 3 and 7 are second-hand and could not be re-opened.
+
+1. bogumat/3dmouse (Python library; says it reads the HID device alongside 3DxWare on Windows without taking over, and stops the driver helper on macOS): https://github.com/bogumat/3dmouse
+2. RawMouse plugin for Cura (README notes on stopping 3DxWare, reports that Windows does not need it, and driver emulation causing double input); not re-opened, link not verified.
+3. Godot SpaceMouse plugin (says the driver is not needed on any OS); not re-opened, link not verified.
+4. QElectroTech pull request 1028, 3D mouse not detected on macOS while 3DxWare is running: https://github.com/qelectrotech/qelectrotech-source-mirror/pull/1028
+5. CloudCompare pull request 2339 (hidapi path; helper holds the device exclusively on macOS): https://github.com/CloudCompare/CloudCompare/pull/2339
+6. OpenFollow issue 175 (hidapi readers see reports only after quitting the helper): the page could not be opened (HTTP 404), so it is not relied on.
+7. Axis difference without a driver profile (solidcraft issue 1172): the page could not be opened (HTTP 404), so treat as an unconfirmed report.
+8. spacenav project FAQ: https://spacenav.sourceforge.net/faq.html
+9. Repository notes: `docs/port-windows.md`, `docs/port-macos.md`, `docs/windows-mac.md`.
 
 ## Building from source
 
