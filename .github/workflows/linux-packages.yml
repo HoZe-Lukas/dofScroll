@@ -43,8 +43,6 @@ jobs:
         run: cd build && cpack -G "RPM;TGZ"
       - name: Scan packages
         run: |
-          # $ORIGIN is literal in the checks below
-          # shellcheck disable=SC2016
           mkdir -p /tmp/scan/rpm /tmp/scan/tgz
           for f in build/dofscroll-*.rpm; do (cd /tmp/scan/rpm && rpm2cpio "$GITHUB_WORKSPACE/$f" | cpio -idm --quiet); done
           for f in build/dofscroll-*.tar.gz; do tar xzf "$f" -C /tmp/scan/tgz; done
@@ -81,7 +79,7 @@ jobs:
             if rpm -qpl build/dofscroll-*.rpm | grep -q '\.build-id'; then echo "::error::the RPM has build-id links of bundled libraries" >&2; exit 1; fi
             # the executable: relative RPATH/RUNPATH into the bundle, and the bundle has the Qt of qt.env
             readelf -d /tmp/scan/rpm/usr/bin/dofscroll-ui | grep -E 'RPATH|RUNPATH' | tee /tmp/rpath.txt
-            grep -F '$ORIGIN/../lib/dofscroll/lib' /tmp/rpath.txt
+            grep -F "\$ORIGIN/../lib/dofscroll/lib" /tmp/rpath.txt
             QT_QPA_PLATFORM=offscreen /tmp/scan/rpm/usr/bin/dofscroll-ui --version | tee /tmp/uiver.txt
             grep -q "^Qt $QT_VERSION " /tmp/uiver.txt
             env -u LD_LIBRARY_PATH ldd /tmp/scan/rpm/usr/bin/dofscroll-ui | grep -E 'libQt6Core|not found'
@@ -132,8 +130,6 @@ jobs:
         run: cd build && cpack -G DEB
       - name: Scan package
         run: |
-          # $ORIGIN is literal in the checks below
-          # shellcheck disable=SC2016
           mkdir -p /tmp/scan
           for f in build/dofscroll*.deb; do dpkg-deb -x "$f" /tmp/scan; done
           if grep -rIn -e _CPack_Packages -e /__w/ -e "$GITHUB_WORKSPACE" /tmp/scan; then
@@ -158,7 +154,7 @@ jobs:
           test -f /tmp/scan/usr/share/doc/dofscroll/THIRD-PARTY-NOTICES.md
           test -f /tmp/scan/usr/share/doc/dofscroll/third-party/bundled-libraries.txt
           readelf -d /tmp/scan/usr/bin/dofscroll-ui | grep -E 'RPATH|RUNPATH' | tee /tmp/rpath.txt
-          grep -F '$ORIGIN/../lib/dofscroll/lib' /tmp/rpath.txt
+          grep -F "\$ORIGIN/../lib/dofscroll/lib" /tmp/rpath.txt
           QT_QPA_PLATFORM=offscreen /tmp/scan/usr/bin/dofscroll-ui --version | tee /tmp/uiver.txt
           grep -q "^Qt $QT_VERSION " /tmp/uiver.txt
           echo "::notice::DEB contains the Qt interface with Qt $QT_VERSION bundled"
