@@ -10,6 +10,8 @@
 #include <QSystemTrayIcon>
 #include <QTemporaryDir>
 #include <QAccessible>
+#include <QCloseEvent>
+#include <QPushButton>
 #include <QScrollBar>
 #include <QThread>
 #include <QAbstractScrollArea>
@@ -23,7 +25,9 @@
 #include <QTreeWidget>
 #include <QTimer>
 #include <QTranslator>
+#include <algorithm>
 #include <cstdio>
+#include <functional>
 #include <cstring>
 
 #include "main_window.hpp"
@@ -34,6 +38,7 @@
 #include "pages/modes_page.hpp"
 #include "platform_hooks.hpp"
 #include "unsaved_prompt.hpp"
+#include "pages/profiles_page.hpp"
 #include "qt_action_runner.hpp"
 #include "theme.hpp"
 #include "tray.hpp"
@@ -293,6 +298,239 @@ static bool modeLibrarySelfTest(UiContext ctx, const QString &tmpPath) {
     // clean up what this test added
     for (const char *f : {"/modes/dropped-two.conf", "/modes/exported-mine.conf"})
         QFile::remove(tmpPath + QString::fromLatin1(f));
+    return ok;
+}
+
+// Profiles page: sub-tabs, footer outside the scrolling area, search boxes, Revert, and the
+// unsaved-changes guard (profile switch, page switch, window close) through its test seam.
+static QLineEdit *lineEditNamed(QWidget *root, const QString &name) {
+    for (QLineEdit *e : root->findChildren<QLineEdit *>())
+        if (e->accessibleName() == name && e->isVisibleTo(root)) return e;
+    return nullptr;
+}
+
+static bool underScrollArea(const QWidget *w) {
+    for (const QWidget *p = w->parentWidget(); p; p = p->parentWidget())
+        if (qobject_cast<const QAbstractScrollArea *>(p) && !qobject_cast<const QTreeWidget *>(p)) return true;
+    return false;
+}
+
+static bool profilesPageSelfTest(MainWindow &w, const QString &tmpPath, const std::function<bool()> &accessibility) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "profiles self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    w.show();
+    w.showPage(QStringLiteral("profiles"));
+    settle();
+    auto *page = w.findChild<ProfilesPage *>();
+    if (!page) return false;
+    int asked = 0;
+    UnsavedChoice answer = UnsavedChoice::Cancel;
+    page->setUnsavedPrompt([&](const QString &) {
+        ++asked;
+        return answer;
+    });
+    auto tabs = [&] { return page->tabIds().join(QLatin1Char(',')); };
+
+    // sub-tabs: the default mode, a device profile (default mode), a profile with an installed mode
+    check(page->selectSection(0) && tabs() == QStringLiteral("general,buttons"), "default mode: General and Buttons");
+    check(page->selectSection(1) && tabs() == QStringLiteral("general,channels,buttons,overrides"),
+          "a profile has General, Channels, Buttons and Overrides");
+    {   // a profile with an installed mode shows the mode's buttons read-only in General (own models: modes loaded)
+        spn::ui::SettingsModel sm;
+        std::vector<std::string> warnings;
+        std::string err;
+        sm.load((tmpPath + QStringLiteral("/dofscroll.conf")).toStdString(), &warnings, &err);
+        sm.setModes(spn::loadModes((tmpPath + QStringLiteral("/modes")).toStdString(), nullptr),
+                    (tmpPath + QStringLiteral("/modes")).toStdString());
+        QtStrings qstr;
+        UiContext c2;
+        c2.settings = &sm;
+        c2.strings = &qstr;
+        c2.runner = nullptr;
+        c2.modesDir = (tmpPath + QStringLiteral("/modes")).toStdString();
+        c2.buttonModesDir = (tmpPath + QStringLiteral("/buttons")).toStdString();
+        c2.runtimeDir = (tmpPath + QStringLiteral("/run2")).toStdString();
+        ProfilesPage p2(c2);
+        p2.show();
+        settle();
+        check(p2.selectSection(2) && p2.tabIds().join(QLatin1Char(',')) == QStringLiteral("general,channels,overrides"),
+              "a profile with an installed mode has no Buttons tab");
+        QComboBox *mode = nullptr;
+        for (QComboBox *c : p2.findChildren<QComboBox *>())
+            if (c->accessibleName() == QStringLiteral("Joystick mode")) mode = c;
+        check(mode && mode->count() >= 3, "the installed modes are offered");
+        if (mode) QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 0));  // Default mode
+        settle();
+        check(p2.tabIds().join(QLatin1Char(',')) == QStringLiteral("general,channels,buttons,overrides") && p2.selectedModified(),
+              "choosing the default mode brings the Buttons tab back");
+        check(p2.revertSelected() && p2.tabIds().join(QLatin1Char(',')) == QStringLiteral("general,channels,overrides"),
+              "Revert restores the mode and hides the Buttons tab again");
+    }
+    // the last tab is remembered, also over a profile without it
+    check(page->selectSection(1) && page->selectTab(QStringLiteral("overrides")), "select the Overrides tab");
+    check(page->selectSection(3) && page->currentTabId() == QStringLiteral("overrides"), "the tab is kept for another profile");
+    check(page->selectSection(0) && page->currentTabId() == QStringLiteral("general"), "a missing tab falls back to General");
+    check(page->selectSection(1) && page->currentTabId() == QStringLiteral("overrides"), "the remembered tab comes back");
+
+    // Save and Revert are not inside a scrolling area
+    for (const QString &name : {QStringLiteral("Save"), QStringLiteral("Revert")}) {
+        QPushButton *b = nullptr;
+        for (QPushButton *c : page->findChildren<QPushButton *>())
+            if (c->text() == name) b = c;
+        check(b && !underScrollArea(b), "the footer button stays outside the scrolling area");
+    }
+    check(!page->revertEnabled() && !page->saveEnabled(), "nothing to save or revert at the start");
+
+    // an edit makes the profile modified; Revert restores the saved value
+    QLineEdit *edit = lineEditNamed(page, QStringLiteral("SCROLL_V_SENS"));
+    check(edit && edit->text() == QStringLiteral("9"), "the override of the device profile is shown");
+    auto editValue = [&](const QString &v) {
+        QLineEdit *e = lineEditNamed(page, QStringLiteral("SCROLL_V_SENS"));
+        if (!e) return false;
+        e->setText(v);
+        QMetaObject::invokeMethod(e, "editingFinished");
+        return true;
+    };
+    check(editValue(QStringLiteral("5")) && page->selectedModified() && page->revertEnabled() && page->saveEnabled(),
+          "an edit enables Save and Revert");
+    check(page->revertSelected() && !page->selectedModified() && !page->revertEnabled() && !page->saveEnabled(), "Revert");
+    edit = lineEditNamed(page, QStringLiteral("SCROLL_V_SENS"));
+    check(edit && edit->text() == QStringLiteral("9") && page->currentTabId() == QStringLiteral("overrides"),
+          "Revert reloads the saved value and keeps the tab");
+
+    // guard: another profile
+    check(editValue(QStringLiteral("5")), "edit again");
+    asked = 0;
+    answer = UnsavedChoice::Cancel;
+    page->selectSection(3);
+    check(!w.selectedProfileIs(3), "Cancel keeps the profile");
+    check(asked == 1 && w.selectedProfileIs(1) && page->selectedModified(), "Cancel: asked once, edit still there");
+    answer = UnsavedChoice::Discard;
+    check(page->selectSection(3) && w.selectedProfileIs(3) && asked == 2, "Discard: the other profile opens");
+    check(page->selectSection(1) && lineEditNamed(page, QStringLiteral("SCROLL_V_SENS")) &&
+              lineEditNamed(page, QStringLiteral("SCROLL_V_SENS"))->text() == QStringLiteral("9") && !page->selectedModified(),
+          "Discard dropped the edit");
+    check(editValue(QStringLiteral("5")), "edit once more");
+    answer = UnsavedChoice::Save;
+    check(page->selectSection(3) && asked == 3 && !page->saveEnabled(), "Save writes and moves on");
+    {
+        QFile f(tmpPath + QStringLiteral("/dofscroll.conf"));
+        check(f.open(QIODevice::ReadOnly) && f.readAll().contains("SCROLL_V_SENS = 5"), "the file holds the saved value");
+    }
+
+    // guard: another page; Cancel returns to the Profiles page
+    check(page->selectSection(1) && editValue(QStringLiteral("6")), "edit before leaving the page");
+    answer = UnsavedChoice::Cancel;
+    asked = 0;
+    w.showPage(QStringLiteral("overview"));
+    settle();
+    check(asked == 1 && w.currentPageId() == QStringLiteral("profiles") && page->selectedModified(), "Cancel stays on the Profiles page");
+    answer = UnsavedChoice::Discard;
+    w.showPage(QStringLiteral("overview"));
+    settle();
+    check(asked == 2 && w.currentPageId() == QStringLiteral("overview") && !page->selectedModified(), "Discard leaves the page");
+    w.showPage(QStringLiteral("profiles"));
+    settle();
+
+    // guard: closing the window (the event is only sent, so the window stays open)
+    check(page->selectSection(1) && editValue(QStringLiteral("7")), "edit before closing");
+    answer = UnsavedChoice::Cancel;
+    asked = 0;
+    QCloseEvent ev;
+    QApplication::sendEvent(&w, &ev);
+    check(asked == 1 && !ev.isAccepted(), "Cancel stops the close");
+    answer = UnsavedChoice::Discard;
+    QCloseEvent ev2;
+    QApplication::sendEvent(&w, &ev2);
+    check(asked == 2 && ev2.isAccepted() && !page->saveEnabled(), "Discard lets the window close");
+    page->setUnsavedPrompt(nullptr);
+
+    // search: the profile list and the settings rows
+    page->setProfileFilter(QStringLiteral("FIRE"));
+    check(page->visibleProfileCount() == 1, "the profile search finds one program");
+    page->setProfileFilter(QStringLiteral("pro"));
+    check(page->visibleProfileCount() == 1, "the profile search finds the device");
+    page->setProfileFilter(QStringLiteral("zzz"));
+    check(page->visibleProfileCount() == 0, "the profile search can find nothing");
+    page->setProfileFilter(QString());
+    check(page->visibleProfileCount() == 3, "an empty search shows every profile");
+    check(page->selectSection(1), "select the device profile");
+    page->setSettingsFilter(QString());
+    const int all = page->settingRowCount();
+    page->setSettingsFilter(QStringLiteral("scroll_v_sens"));
+    const int some = page->settingRowCount();
+    check(some >= 1 && some < all, "the settings search keeps the matching rows");
+    page->setSettingsFilter(QStringLiteral("no such setting"));
+    check(page->settingRowCount() == 0, "the settings search can find nothing");
+    page->setSettingsFilter(QString());
+    check(page->settingRowCount() == all, "an empty search shows every row again");
+
+    // accessibility and tab order of the new widgets, on every tab
+    for (const QString &id : page->tabIds()) {
+        page->selectTab(id);
+        check(accessibility(), "every input of the tab has an accessible name");
+    }
+    w.showPage(QStringLiteral("profiles"));
+    settle();
+    const QStringList order = {QStringLiteral("Search profiles"), QStringLiteral("Profiles"), QStringLiteral("Search settings"),
+                               QStringLiteral("Profile sections")};
+    int pos = -1;
+    QWidget *start = lineEditNamed(page, QStringLiteral("Search profiles"));
+    QList<QWidget *> chain;
+    QWidget *c = start;
+    do {
+        chain << c;
+        c = c ? c->nextInFocusChain() : nullptr;
+    } while (c && c != start && chain.size() < 4000);
+    for (const QString &name : order) {
+        int found = -1;
+        for (int i = 0; i < chain.size(); ++i)
+            if (chain[i]->accessibleName() == name) found = i;
+        check(found > pos, "the search boxes, the list and the tabs follow in tab order");
+        pos = std::max(pos, found);
+    }
+    return ok;
+}
+
+// Mode editor sub-tabs: Settings, Buttons, Overrides; Save and Revert stay outside the scrolling
+// area, the last tab is kept over a rebuild (Revert).
+static bool modeEditorTabsSelfTest(const UiContext &ctx) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "mode editor tabs self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    ModesPage page(ctx);
+    page.show();
+    settle();
+    check(page.selectMode(QStringLiteral("mine")) && page.openEditor() && page.editorWidget(), "the editor opens");
+    ModeEditorWidget *ed = page.editorWidget();
+    check(ed->tabIds() == QStringList({QStringLiteral("settings"), QStringLiteral("buttons"), QStringLiteral("overrides")}),
+          "Settings, Buttons and Overrides");
+    check(ed->currentTabId() == QStringLiteral("settings"), "the first tab is Settings");
+    for (const QString &name : {QStringLiteral("Save"), QStringLiteral("Revert")}) {
+        QPushButton *b = nullptr;
+        for (QPushButton *c : ed->findChildren<QPushButton *>())
+            if (c->text() == name) b = c;
+        check(b && !underScrollArea(b), "the footer button stays outside the scrolling area");
+    }
+    check(!ed->revertEnabled() && !ed->saveEnabled(), "an unchanged mode has nothing to save");
+    ed->editor().form().overrides.emplace_back("SCROLL_V_SENS", "abc");
+    ed->save();  // refused: the invalid value; shows the problem list and enables Revert
+    check(ed->revertEnabled() && !ed->saveEnabled(), "an invalid edit enables Revert only");
+    check(ed->selectTab(QStringLiteral("buttons")), "select the Buttons tab");
+    QPushButton *revert = nullptr;
+    for (QPushButton *c : ed->findChildren<QPushButton *>())
+        if (c->text() == QStringLiteral("Revert")) revert = c;
+    if (revert) revert->click();
+    settle();
+    check(ed->currentTabId() == QStringLiteral("buttons") && !ed->revertEnabled(), "Revert keeps the tab and reloads the file");
+    ed->selectTab(QStringLiteral("overrides"));
+    QLineEdit *ov = lineEditNamed(ed, QStringLiteral("SCROLL_V_SENS"));
+    check(ov && ov->text() == QStringLiteral("2"), "the Overrides tab shows the saved override");
     return ok;
 }
 
@@ -576,7 +814,8 @@ int main(int argc, char **argv) {
     // The language comes from the per-user UI settings (General page): "en" = no catalog.
     const std::string lang = spn::ui::languageLocaleName(spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).language);
     QTranslator translator;
-    if (lang != "en" &&
+    // The self-test checks English texts: it never loads the catalog of the user's language setting.
+    if (lang != "en" && !selfTest &&
         translator.load(lang.empty() ? QLocale() : QLocale(QString::fromStdString(lang)),
                         QStringLiteral("dofscroll"), QStringLiteral("_"), QApplication::applicationDirPath()))
         QApplication::installTranslator(&translator);
@@ -684,6 +923,7 @@ int main(int argc, char **argv) {
         if (!unsavedGuardSelfTest(ctx, tmp.path(), w)) return 1;
         if (!extensionsSelfTest(ctx, tmp.path())) return 1;
         if (!modeLibrarySelfTest(ctx, tmp.path())) return 1;
+        if (!modeEditorTabsSelfTest(ctx)) return 1;
         ModesPage modes(ctx);  // standalone (own catalog): built-in normal, off, timeline + the file mode
         modes.show();
         Tray tray(&w, icon, ctx);
@@ -697,6 +937,7 @@ int main(int argc, char **argv) {
         if (!ok) return 1;
         if (!overviewSelfTest(w)) return 1;
         if (!accessibilitySelfTest(w)) return 1;
+        if (!profilesPageSelfTest(w, tmp.path(), [&w] { return accessibilitySelfTest(w); })) return 1;
         if (!themeSelfTest(w)) return 1;
         if (!windowStateSelfTest(ctx, tmp.path())) return 1;
         return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen

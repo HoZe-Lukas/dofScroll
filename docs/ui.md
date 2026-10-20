@@ -55,6 +55,11 @@ button modes and "Default (inherit)", which removes the binding) and the setting
 value, Add, Remove; `MODE`, `ENABLED`, `BACKEND` and `TICK_HZ` are not offered). Problems are listed
 inline and Save stays disabled until they are gone.
 
+The editor has three tabs: Settings (name, description, the three channels), Buttons and
+Overrides. Each tab scrolls on its own; the problem list and the buttons Save, Revert, "Open in text
+editor" and "Close editor" stay visible below the tabs. The selected tab is kept while you edit
+and when you open another mode. (There is no preview tab: the editor has nothing to preview.)
+
 Save rewrites the file line by line: the lines of the keys the editor owns are updated in place, new
 ones are appended, cleared ones are removed; comments, the SAFETY header and unknown lines stay as
 they are, and the id (file name) never changes. The result is checked with the daemon's loader
@@ -141,8 +146,21 @@ New, Duplicate or Import replaces a form with unsaved edits.
   string or window title, refresh, and see the exact match string that will be stored. You never
   have to type an internal name. "Capture next focused program" waits a few seconds and takes the
   program you switch to. A manual entry with validation is the fallback.
-- Per profile you can override values (collapsed by default); "Remove" on an override makes the
-  profile inherit the value again.
+- The editor of the selected profile has sub-tabs: **General** (what the profile is, the joystick
+  mode, and for another mode its read-only channels and buttons), **Channels** (the effective
+  values, see below), **Buttons** (bindings, navigation and click button; not shown for a profile
+  whose mode has its own bindings) and **Overrides** (values only this profile sets; "Remove" on an
+  override makes the profile inherit the value again). The default mode has General and Buttons
+  only. Each tab scrolls on its own; the status line, Revert and Save stay visible below the tabs.
+  The last tab you used is kept for the session (a profile without that tab shows General).
+- Revert drops the unsaved edits of the selected profile and loads the saved values (a profile you
+  added since the last save disappears, a rename is undone); other profiles keep their edits and
+  "Save" still writes everything. When you select another profile, another page or close the
+  window while the shown profile has unsaved edits, a question offers Save, Discard or Cancel
+  (closing asks about any unsaved edit).
+- Search: the box above the profile list shows only the programs and devices whose name contains
+  the text; the box above the tabs shows only the settings of the selected profile whose label or
+  key matches (button rows by "Button n", `BUTTON_n` or the action). Matching ignores ASCII case.
 - "Effective values" (device and program profiles) lists every channel setting with the value that
   applies and where it comes from, written out: built-in default, global settings, this device
   profile, the mode, or this program profile (precedence as above). "Reset" removes the value the

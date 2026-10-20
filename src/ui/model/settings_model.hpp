@@ -134,6 +134,7 @@ public:
             return false;
         }
         ps_ = ps;
+        saved_ = ps;
         path_ = path;
         dirty_ = false;
         if (warnings && legacyGlobalMode())
@@ -143,12 +144,59 @@ public:
     // Takes an already loaded set (tests, other sources).
     void setProfiles(const ProfileSet &ps, const std::string &path) {
         ps_ = ps;
+        saved_ = ps;
         path_ = path;
         dirty_ = false;
     }
     const ProfileSet &profiles() const { return ps_; }
     const std::string &path() const { return path_; }
     bool dirty() const { return dirty_; }
+
+    // ---- unsaved edits per profile ----
+    // The state of the last load or save is kept. A profile is "modified" when its pattern and
+    // keys differ from the profile of the same kind and name there (a profile that did not exist
+    // yet counts as modified).
+    bool sectionModified(size_t i) const {
+        if (i >= ps_.sections.size()) return false;
+        const Section *s = savedCounterpart(i);
+        return !s || !sameSection(*s, ps_.sections[i]);
+    }
+    // Discards the unsaved edits of profile i: its keys return to the saved state; a profile
+    // added since then is removed (*removed = true). A profile renamed since then gets its saved
+    // name back when exactly one saved profile of its kind is missing. dirty() is recomputed.
+    bool revertSection(size_t i, bool *removed = nullptr) {
+        if (removed) *removed = false;
+        if (i >= ps_.sections.size()) return false;
+        if (!sectionModified(i)) return true;
+        const Section *s = savedCounterpart(i);
+        if (!s && i > 0) {
+            std::vector<const Section *> missing;
+            for (size_t k = 1; k < saved_.sections.size(); ++k) {
+                const Section &c = saved_.sections[k];
+                bool present = false;
+                for (size_t j = 1; j < ps_.sections.size(); ++j)
+                    present = present || (ps_.sections[j].kind == c.kind && ps_.sections[j].pattern == c.pattern);
+                if (!present && c.kind == ps_.sections[i].kind) missing.push_back(&c);
+            }
+            if (missing.size() == 1) s = missing[0];
+        }
+        if (s) {
+            ps_.sections[i] = *s;
+            ProfileSet fresh;  // drops the stale search index
+            fresh.sections = ps_.sections;
+            ps_ = fresh;
+        } else {
+            ps_.remove(i);
+            if (removed) *removed = true;
+        }
+        dirty_ = !sameSet(saved_, ps_);
+        return true;
+    }
+    // Discards every unsaved edit (back to the state of the last load or save).
+    void revertAll() {
+        ps_ = saved_;
+        dirty_ = false;
+    }
 
     // ---- device / button limit ----
     // Number of editable buttons: factoryButtonCount(name, reported) if plausible (1..kMaxButtons),
@@ -537,6 +585,7 @@ public:
             return r;
         }
         r.saved = true;
+        saved_ = ps_;
         dirty_ = false;
         r.reloaded = true;
         if (reload_ && !reload_(&e)) {
@@ -547,6 +596,23 @@ public:
     }
 
 private:
+    static bool sameSection(const Section &a, const Section &b) {
+        return a.kind == b.kind && a.pattern == b.pattern && a.kv == b.kv;
+    }
+    static bool sameSet(const ProfileSet &a, const ProfileSet &b) {
+        if (a.sections.size() != b.sections.size()) return false;
+        for (size_t i = 0; i < a.sections.size(); ++i)
+            if (!sameSection(a.sections[i], b.sections[i])) return false;
+        return true;
+    }
+    // The saved profile of the same kind and name (index 0: [global]).
+    const Section *savedCounterpart(size_t i) const {
+        if (i == 0) return saved_.sections.empty() ? nullptr : &saved_.sections[0];
+        for (size_t k = 1; k < saved_.sections.size(); ++k)
+            if (saved_.sections[k].kind == ps_.sections[i].kind && saved_.sections[k].pattern == ps_.sections[i].pattern)
+                return &saved_.sections[k];
+        return nullptr;
+    }
     // A MODE other than "normal" in [global] (saving always writes MODE = normal there).
     bool legacyGlobalMode() const {
         return !ps_.sections.empty() && hasKey(ps_.sections[0], "MODE") && ps_.sectionSettings(0).mode != "normal";
@@ -623,6 +689,7 @@ private:
     }
 
     ProfileSet ps_;
+    ProfileSet saved_;  // state of the last load or save (revert)
     std::string path_;
     bool dirty_ = false;
     int limit_ = int(kMaxButtons);

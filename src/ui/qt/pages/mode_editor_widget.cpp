@@ -14,6 +14,10 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QScrollBar>
+#include <QSignalBlocker>
+#include <QTabWidget>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -101,10 +105,14 @@ ModeEditorWidget::ModeEditorWidget(const UiContext &ctx, QWidget *parent) : QWid
     auto *root = new QVBoxLayout(this);
     title_ = new QLabel(this);
     root->addWidget(title_);
-    scroll_ = new QScrollArea(this);
-    scroll_->setWidgetResizable(true);
-    scroll_->setFrameShape(QFrame::NoFrame);
-    root->addWidget(scroll_, 1);
+    // Sub-tabs, each scrolling on its own; the problem list and the buttons below stay visible.
+    tabs_ = new QTabWidget(this);
+    tabs_->setDocumentMode(true);
+    tabs_->setAccessibleName(T("Mode sections"));
+    root->addWidget(tabs_, 1);
+    connect(tabs_, &QTabWidget::currentChanged, this, [this](int i) {
+        if (i >= 0 && tabs_->widget(i)) lastTab_ = tabs_->widget(i)->property("tabId").toString();
+    });
     problems_ = new QLabel(this);
     problems_->setWordWrap(true);
     problems_->setTextFormat(Qt::PlainText);
@@ -190,8 +198,27 @@ int ModeEditorWidget::addChannelRow(QGridLayout *g, int row, const QString &labe
 void ModeEditorWidget::rebuild() {
     ModeForm &f = editor_.form();
     title_->setText(QStringLiteral("<b>") + T("Edit mode: %1").arg(qs8(f.id)).toHtmlEscaped() + QStringLiteral("</b>"));
-    auto *content = new QWidget;
-    auto *col = new QVBoxLayout(content);
+    // One scrolling page per tab: settings (name, description, channels), buttons, overrides.
+    int scrollPos = 0;
+    if (auto *cur = qobject_cast<QScrollArea *>(tabs_->currentWidget())) scrollPos = cur->verticalScrollBar()->value();
+    QSignalBlocker block(tabs_);
+    while (tabs_->count() > 0) {
+        QWidget *w = tabs_->widget(0);
+        tabs_->removeTab(0);
+        w->deleteLater();
+    }
+    auto newTab = [this](const char *id, const QString &label, QWidget **content) {
+        auto *scroll = new QScrollArea;
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setProperty("tabId", QString::fromLatin1(id));
+        *content = new QWidget;
+        scroll->setWidget(*content);
+        tabs_->addTab(scroll, label);
+        return new QVBoxLayout(*content);
+    };
+    QWidget *content = nullptr, *buttonsPage = nullptr, *overridesPage = nullptr;
+    auto *col = newTab("settings", T("Settings"), &content);
 
     // Name and description
     auto *form = new QFormLayout;
@@ -223,7 +250,8 @@ void ModeEditorWidget::rebuild() {
     col->addWidget(chBox);
 
     // Buttons: the shared row
-    auto *btBox = new QGroupBox(T("Buttons"), content);
+    auto *bcol = newTab("buttons", T("Buttons"), &buttonsPage);
+    auto *btBox = new QGroupBox(T("Buttons"), buttonsPage);
     auto *bl = new QVBoxLayout(btBox);
     auto *bg = new QGridLayout;
     bg->setColumnStretch(2, 1);
@@ -274,15 +302,17 @@ void ModeEditorWidget::rebuild() {
         };
         addButtonRow(this, btBox, bg, n - 1, row, env, h);
     }
-    col->addWidget(btBox);
+    bcol->addWidget(btBox);
+    bcol->addStretch(1);
 
     // Overrides
-    auto *ovBox = new QGroupBox(T("Settings overrides"), content);
+    auto *ocol = newTab("overrides", T("Overrides"), &overridesPage);
+    auto *ovBox = new QGroupBox(T("Settings overrides"), overridesPage);
     auto *ol = new QVBoxLayout(ovBox);
-    ol->addWidget(new QLabel(T("Values that apply while this mode is active (for example the sensitivity)."), content));
+    ol->addWidget(new QLabel(T("Values that apply while this mode is active (for example the sensitivity)."), overridesPage));
     auto *og = new QFormLayout;
     for (size_t i = 0; i < f.overrides.size(); ++i) {
-        auto *rowW = new QWidget(content);
+        auto *rowW = new QWidget(overridesPage);
         auto *h = new QHBoxLayout(rowW);
         h->setContentsMargins(0, 0, 0, 0);
         auto *edit = new QLineEdit(qs8(f.overrides[i].second), rowW);
@@ -306,10 +336,10 @@ void ModeEditorWidget::rebuild() {
     const std::vector<std::string> addable = editor_.addableOverrideKeys();
     if (!addable.empty()) {
         auto *ar = new QHBoxLayout;
-        auto *combo = new QComboBox(content);
+        auto *combo = new QComboBox(overridesPage);
         combo->setAccessibleName(T("Setting to override"));
         for (const std::string &k : addable) combo->addItem(qs8(k), qs8(k));
-        auto *add = new QPushButton(T("Add override"), content);
+        auto *add = new QPushButton(T("Add override"), overridesPage);
         ar->addWidget(combo, 1);
         ar->addWidget(add);
         ol->addLayout(ar);
@@ -323,12 +353,18 @@ void ModeEditorWidget::rebuild() {
             rebuild();
         });
     }
-    col->addWidget(ovBox);
+    ocol->addWidget(ovBox);
+    ocol->addStretch(1);
     col->addStretch(1);
 
-    QWidget *old = scroll_->takeWidget();
-    scroll_->setWidget(content);
-    if (old) old->deleteLater();
+    int idx = 0;
+    for (int i = 0; i < tabs_->count(); ++i)
+        if (tabs_->widget(i)->property("tabId").toString() == lastTab_) idx = i;
+    tabs_->setCurrentIndex(idx);
+    block.unblock();
+    if (scrollPos > 0)
+        if (auto *cur = qobject_cast<QScrollArea *>(tabs_->currentWidget()))
+            QTimer::singleShot(0, cur, [cur, scrollPos] { cur->verticalScrollBar()->setValue(scrollPos); });
     showProblems();
 }
 
@@ -388,3 +424,25 @@ void ModeEditorWidget::onRevert() {
     warnings_->hide();
     rebuild();
 }
+
+QStringList ModeEditorWidget::tabIds() const {
+    QStringList out;
+    for (int i = 0; i < tabs_->count(); ++i) out << tabs_->widget(i)->property("tabId").toString();
+    return out;
+}
+
+QString ModeEditorWidget::currentTabId() const {
+    return tabs_->currentWidget() ? tabs_->currentWidget()->property("tabId").toString() : QString();
+}
+
+bool ModeEditorWidget::selectTab(const QString &id) {
+    for (int i = 0; i < tabs_->count(); ++i)
+        if (tabs_->widget(i)->property("tabId").toString() == id) {
+            tabs_->setCurrentIndex(i);
+            return true;
+        }
+    return false;
+}
+
+bool ModeEditorWidget::revertEnabled() const { return revertBtn_->isEnabled(); }
+bool ModeEditorWidget::saveEnabled() const { return saveBtn_->isEnabled(); }

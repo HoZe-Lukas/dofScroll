@@ -40,6 +40,10 @@ ENABLED = 0                # 3D programs read the device themselves
 MODE = timeline
 ```
 
+## Editing a profile in the interface
+
+The editor of the selected profile on the Profiles page has the sub-tabs General, Channels (the effective values and where they come from), Buttons and Overrides (the default mode has General and Buttons). Save, Revert and the status line stay visible below the tabs. Revert discards the unsaved edits of the selected profile. Selecting another profile, another page or closing the window while a profile has unsaved edits asks Save, Discard or Cancel. Two search boxes filter the profile list (by name) and the settings of the selected profile (by label or key). Details: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md).
+
 ## Finding the program name
 
 On X11, run `xprop WM_CLASS` and click the window. The daemon logs every profile switch (`journalctl --user -u dofscroll.service`). On Windows the key is the lower-cased executable name (for example `firefox.exe`); on macOS the bundle identifier or app name. Both are unverified on hardware.

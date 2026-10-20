@@ -5,6 +5,7 @@
 // A thin view on spn::ui::ModeEditor, which owns the logic (comment-preserving save, validation,
 // loader check, change detection).
 #pragma once
+#include <QStringList>
 #include <QWidget>
 #include <string>
 
@@ -16,7 +17,7 @@ class QGridLayout;
 class QLabel;
 class QPlainTextEdit;
 class QPushButton;
-class QScrollArea;
+class QTabWidget;
 
 class ModeEditorWidget : public QWidget {
     Q_OBJECT
@@ -28,6 +29,13 @@ public:
     const spn::ui::ModeEditor &editor() const { return editor_; }
     // Saves like the Save button (without asking about a changed file). false: refused.
     bool save(bool overwriteChanged = false);
+    // Sub-tabs: settings (name, description, channels), buttons, overrides. The last one stays
+    // selected while the form is rebuilt and when another mode is opened.
+    QStringList tabIds() const;
+    QString currentTabId() const;
+    bool selectTab(const QString &id);
+    bool revertEnabled() const;
+    bool saveEnabled() const;
 
 signals:
     void closeRequested();
@@ -44,7 +52,8 @@ private:
     QtStrings ownStrings_;  // used when the context has no shared provider (standalone page, tests)
     spn::ui::ModeEditor editor_;
     std::string dir_;
-    QScrollArea *scroll_ = nullptr;
+    QTabWidget *tabs_ = nullptr;
+    QString lastTab_ = QStringLiteral("settings");
     QLabel *title_ = nullptr, *problems_ = nullptr;
     QPlainTextEdit *warnings_ = nullptr;
     QPushButton *saveBtn_ = nullptr, *revertBtn_ = nullptr, *closeBtn_ = nullptr, *textBtn_ = nullptr;
