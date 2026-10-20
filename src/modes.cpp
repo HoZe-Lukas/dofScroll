@@ -212,6 +212,53 @@ bool validModeId(const std::string &id) {
            !isReservedDeviceStem(id);
 }
 
+bool parseModeCycleList(const std::string &text, std::vector<std::string> *out, std::string *err,
+                        std::vector<std::string> *dups) {
+    std::vector<std::string> ids;
+    std::string cur;
+    auto flush = [&]() -> bool {
+        if (cur.empty()) return true;
+        const std::string id = lower(cur);
+        cur.clear();
+        if (!validModeId(id)) return fail(err, "mode id expected ([a-z0-9_-], max. 32 characters), got '" + id + "'");
+        if (std::find(ids.begin(), ids.end(), id) != ids.end()) {
+            if (dups) dups->push_back(id);
+            return true;
+        }
+        if (ids.size() >= kMaxModeCycle) return fail(err, "too many modes (max. " + std::to_string(kMaxModeCycle) + ")");
+        ids.push_back(id);
+        return true;
+    };
+    for (char c : text) {
+        if (c == ',' || c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+            if (!flush()) return false;
+        } else {
+            cur += c;
+            if (cur.size() > 64) return fail(err, "mode id too long");
+        }
+    }
+    if (!flush()) return false;
+    if (ids.empty()) return fail(err, "at least one mode id expected");
+    if (out) *out = ids;
+    return true;
+}
+
+bool splitCycleTarget(const std::string &target, bool *forward, std::vector<std::string> *ids) {
+    if (ids) ids->clear();
+    const std::string dir = target.substr(0, 4);
+    if (dir != "next" && dir != "prev") return false;
+    if (target.size() == 4) {
+        if (forward) *forward = dir == "next";
+        return true;
+    }
+    if (target[4] != ':') return false;
+    std::vector<std::string> list;
+    if (!parseModeCycleList(target.substr(5), &list, nullptr)) return false;
+    if (forward) *forward = dir == "next";
+    if (ids) *ids = list;
+    return true;
+}
+
 // <chord> = [<modifier>+]... <key>: modifiers (ctrl, shift, alt, super) at most once each, then
 // exactly one non-modifier key. A single name (also a lone modifier) is a plain key.
 static bool parseChord(const std::string &text, Key *key, ChordMods *mods, std::string *err) {
@@ -299,7 +346,18 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
         if (!parseKeyName(name, &k)) return fail(err, "unknown key '" + name + "'");
         ty = ButtonActionType::Key;
     } else if (t.compare(0, 5, "mode:") == 0) {
-        const std::string id = trim(t.substr(5));
+        std::string id = trim(t.substr(5));
+        if (id.compare(0, 5, "next:") == 0 || id.compare(0, 5, "prev:") == 0) {
+            std::vector<std::string> list;
+            std::string e;
+            if (!parseModeCycleList(id.substr(5), &list, &e)) return fail(err, "mode:" + id.substr(0, 4) + ":<ids>: " + e);
+            id.resize(5);
+            for (size_t i = 0; i < list.size(); i++) id += (i ? "," : "") + list[i];
+            if (modeId) *modeId = id;
+            if (type) *type = ButtonActionType::ModeSwitch;
+            if (key) *key = k;
+            return true;
+        }
         if (!validModeId(id)) return fail(err, "mode:<id> needs a mode id ([a-z0-9_-], max. 32 characters) or 'next'");
         ty = ButtonActionType::ModeSwitch;
         if (modeId) *modeId = id;
@@ -346,7 +404,7 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
         for (size_t i = 0; i < bs.size();) {
             const bool targets = bs[i].type == ButtonActionType::ModeSwitch || bs[i].type == ButtonActionType::ToggleMode ||
                                  bs[i].type == ButtonActionType::HoldMode;
-            if (targets && bs[i].mode != "next" && bs[i].mode != "prev" && !set.find(bs[i].mode)) {
+            if (targets && !splitCycleTarget(bs[i].mode, nullptr, nullptr) && !set.find(bs[i].mode)) {
                 warnAll("mode " + m.id + ": BUTTON_" + std::to_string(bs[i].button) + ": unknown mode '" +
                         bs[i].mode + "' - binding ignored");
                 bs.erase(bs.begin() + static_cast<long>(i));

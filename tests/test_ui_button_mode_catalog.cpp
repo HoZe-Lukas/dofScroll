@@ -151,6 +151,34 @@ int main() {
     assert(hasWarning(c.find("odd")->warnings, "SCROLL_V_SENS"));
     assert(!c.find("noact") && hasWarning(c.generalWarnings(), "noact.conf"));
 
+    // CYCLE list: save, reload, duplicate, model helpers
+    put(dir + "/cyc.conf", "# head\nNAME = Favorites\nACTION = mode:next\n");
+    c.refresh();
+    assert(c.find("cyc")->cycle.empty());
+    ModeCycleList l;
+    assert(l.add("slides") && l.add("media") && l.add("map") && !l.add("slides") && !l.add("Bad Id"));
+    assert(l.moveUp(2) && l.entries()[1] == "map" && !l.moveUp(0) && l.moveDown(0) && l.entries()[0] == "map");
+    assert(!l.moveDown(2) && l.remove(1) && l.size() == 2 && !l.remove(5));
+    assert(l.toText() == "map, media");
+    r = c.save("cyc", "Favorites", "", "mode:next", l.entries());
+    assert(r.ok);
+    assert(get(dir + "/cyc.conf").find("CYCLE = map, media\n") != std::string::npos);
+    assert(c.find("cyc")->cycle == l.entries() && c.find("cyc")->action == "mode:next");
+    r = c.duplicate("cyc", "Favorites 2");
+    assert(r.ok && c.find(r.id)->cycle == l.entries());
+    assert(!c.save("cyc", "Favorites", "", "click", l.entries()).ok);  // a list needs mode:next / mode:prev
+    assert(c.save("cyc", "Favorites", "", "mode:prev").ok && c.find("cyc")->cycle.empty());  // empty list: no CYCLE
+    assert(get(dir + "/cyc.conf").find("CYCLE") == std::string::npos);
+    {
+        ModeSet ms;
+        ModeDef a, b;
+        a.id = "normal"; b.id = "slides";
+        ms.modes = {a, b};
+        ModeCycleList m(std::vector<std::string>{"slides", "ghost"});
+        assert((m.candidates(ms) == std::vector<std::string>{"normal"}));
+        assert((m.unknown(ms) == std::vector<std::string>{"ghost"}));
+    }
+
     // remove
     assert(c.remove("external").ok && !c.find("external") && !fs::pathExists(dir + "/external.conf"));
     assert(!c.remove("external").ok);

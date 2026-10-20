@@ -15,6 +15,12 @@ constexpr size_t kMaxDescription = 256;
 
 std::string trim(const std::string &s) { return utf8::trim(s); }
 
+std::string joinIds(const std::vector<std::string> &ids) {
+    std::string r;
+    for (size_t i = 0; i < ids.size(); i++) r += (i ? "," : "") + ids[i];
+    return r;
+}
+
 }  // namespace
 
 const ButtonMode *ButtonModeSet::find(const std::string &id) const {
@@ -35,6 +41,8 @@ bool parseButtonModeText(const std::string &text, ButtonMode *out, std::vector<s
             warnings->push_back(out->path + ":" + std::to_string(line) + ": " + msg);
     };
     bool haveAction = false;
+    size_t cycleLine = 0;
+    std::vector<std::string> cycle;
     size_t pos = 0, lineno = 0;
     while (pos < text.size()) {
         size_t nl = text.find('\n', pos);
@@ -81,13 +89,31 @@ bool parseButtonModeText(const std::string &text, ButtonMode *out, std::vector<s
             out->target = target;
             out->action = utf8::lowerAscii(value);
             haveAction = true;
+        } else if (key == "CYCLE") {
+            std::string err;
+            std::vector<std::string> list, dups;
+            if (!parseModeCycleList(value, &list, &err, &dups)) { warn(lineno, "CYCLE: " + err + " - line ignored"); continue; }
+            for (const std::string &d : dups) warn(lineno, "CYCLE: duplicate '" + d + "' dropped");
+            cycle = list;
+            cycleLine = lineno;
         } else {
-            warn(lineno, key + ": not allowed in a button mode file (NAME, DESCRIPTION, ACTION) - line ignored");
+            warn(lineno, key + ": not allowed in a button mode file (NAME, DESCRIPTION, ACTION, CYCLE) - line ignored");
         }
     }
     if (!haveAction) {
         if (warnings && warnings->size() < 200) warnings->push_back(out->path + ": no valid ACTION - file ignored");
         return false;
+    }
+    if (!cycle.empty()) {
+        bool fwd = true;
+        if (out->type == ButtonActionType::ModeSwitch && splitCycleTarget(out->target, &fwd, nullptr) &&
+            out->target.size() == 4) {
+            out->cycle = cycle;
+            out->target = (fwd ? "next:" : "prev:") + joinIds(cycle);
+            out->action = "mode:" + out->target;
+        } else {
+            warn(cycleLine, "CYCLE needs ACTION = mode:next or mode:prev - ignored");
+        }
     }
     if (out->label.empty()) out->label = out->id;
     return true;

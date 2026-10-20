@@ -185,6 +185,54 @@ int main() {
         assert(m.buttons[0].type == ButtonActionType::ButtonMode);  // the original is unchanged
     }
 
+    // CYCLE: list parsing, canonical action text, ignored with other actions
+    {
+        std::vector<std::string> ids, dups;
+        std::string err;
+        assert(parseModeCycleList(" Slides, media  map,slides ", &ids, &err, &dups));
+        assert((ids == std::vector<std::string>{"slides", "media", "map"}) && dups.size() == 1 && dups[0] == "slides");
+        assert(!parseModeCycleList("", &ids, &err) && !parseModeCycleList(" , ", &ids, &err));
+        assert(!parseModeCycleList("a, Bad.Id", &ids, &err) && !parseModeCycleList("a,b/c", &ids, &err));
+        std::string many;
+        for (size_t i = 0; i < kMaxModeCycle; i++) many += "m" + std::to_string(i) + ",";
+        assert(parseModeCycleList(many, &ids, &err) && ids.size() == kMaxModeCycle);
+        assert(!parseModeCycleList(many + "extra", &ids, &err) && err.find("too many") != std::string::npos);
+
+        ButtonActionType t;
+        Key k;
+        std::string id;
+        assert(parseButtonAction("mode:next:A, b ,c", &t, &k, &err, &id) && t == ButtonActionType::ModeSwitch &&
+               id == "next:a,b,c");
+        assert(parseButtonAction("mode:prev:x", &t, &k, &err, &id) && id == "prev:x");
+        assert(!parseButtonAction("mode:next:", &t, &k, &err) && !parseButtonAction("mode:next:Bad.Id", &t, &k, &err));
+        bool fwd = false;
+        std::vector<std::string> l;
+        assert(splitCycleTarget("next", &fwd, &l) && fwd && l.empty());
+        assert(splitCycleTarget("prev:a,b", &fwd, &l) && !fwd && l.size() == 2);
+        assert(!splitCycleTarget("nextx", &fwd, &l) && !splitCycleTarget("timeline", &fwd, &l) && !splitCycleTarget("next:", &fwd, &l));
+
+        clearDir();
+        writeFile("cyc.conf", "CYCLE = b, a, b, ghost\nACTION = mode:next\n");
+        writeFile("back.conf", "ACTION = mode:prev\nCYCLE = a b\n");
+        writeFile("wrong.conf", "ACTION = click\nCYCLE = a\n");
+        writeFile("bad.conf", "ACTION = mode:next\nCYCLE = Bad.Id\n");
+        w.clear();
+        set = loadButtonModes(g_dir, &w);
+        assert(set.modes.size() == 4);
+        const ButtonMode *c = set.find("cyc");
+        assert(c && c->target == "next:b,a,ghost" && c->action == "mode:next:b,a,ghost" && c->cycle.size() == 3);
+        assert(hasWarning(w, "duplicate 'b'"));
+        assert(set.find("back")->target == "prev:a,b");
+        assert(set.find("wrong")->cycle.empty() && set.find("wrong")->type == ButtonActionType::Click);
+        assert(hasWarning(w, "wrong.conf:2: CYCLE needs ACTION"));
+        assert(set.find("bad")->target == "next" && hasWarning(w, "CYCLE: mode id expected"));
+        Settings s;
+        s.buttons[1] = "buttonmode:cyc";
+        std::set<std::string> missing;
+        expandSettings(s, set, &missing);
+        assert(s.buttons[1] == "mode:next:b,a,ghost");
+    }
+
     tu::removeAll(g_dir);
     std::puts("test_button_modes OK");
     return 0;

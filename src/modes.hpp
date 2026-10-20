@@ -30,6 +30,10 @@
 //   click/rightclick/middleclick = hold the mouse button while the button is held;
 //   key = hold the key; nav = while held, the V/H channels send arrow keys instead of scroll.
 //   mode:<id> = switch to the mode <id> when the button is PRESSED (not on release);
+//   mode:next:<id>,<id>,... / mode:prev:<id>,... = the same cycle through exactly this list of mode ids
+//   in this order (wrapping; if the effective mode is not in the list next goes to the first entry and
+//   prev to the last; unknown ids are skipped at runtime with one warning per load). This form is
+//   what a button mode with a CYCLE setting expands to (button_modes.hpp); at most 32 distinct ids.
 //   mode:next = cycle through all loaded modes in alphabetical order of id (built-ins
 //   included), wrapping around; mode:prev is the mirror (the previous id, wrapping from the first
 //   to the last; stateless, no history). "next" and "prev" are reserved targets: a mode file
@@ -132,6 +136,18 @@ struct ModeSet {
 bool validModeId(const std::string &id);
 
 bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err);
+
+// Cycle lists (mode:next:<ids> / button mode CYCLE).
+constexpr size_t kMaxModeCycle = 32;
+// Parses "id1, id2 id3" (comma and/or whitespace separated, ids lower-cased and checked with
+// validModeId). Duplicates are dropped (their ids are appended to *dups if given). Empty list, more
+// than kMaxModeCycle distinct ids or an invalid id -> false + *err.
+bool parseModeCycleList(const std::string &text, std::vector<std::string> *out, std::string *err,
+                        std::vector<std::string> *dups = nullptr);
+// Splits a ModeSwitch target: "next" / "prev" (ids empty, true) or "next:a,b" / "prev:a,b".
+// *forward = true for next. false if target is anything else (a plain mode id).
+bool splitCycleTarget(const std::string &target, bool *forward, std::vector<std::string> *ids);
+
 // modeId (optional) receives the target of mode:<id> / mode:next / toggle:mode:<id> and the button mode id of buttonmode:<id>. Only the syntax of the id is
 // checked here; existence is checked by loadModes (the parser does not know the mode set).
 bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key, std::string *err,
