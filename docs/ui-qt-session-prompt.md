@@ -2,6 +2,10 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Prompt for the Qt6 user interface and installer sessions (Claude Code on the web)
 
+> Historical brief. The GTK tray it mentions (`src/dofscroll_tray.cpp`, `dofscroll-tray.service`) was
+> removed in 0.1.0-beta.3 (#43); `dofscroll-ui` is the only tray and settings window. Read
+> "GTK tray" below as "the tray that existed when this brief was written".
+
 Decision (2026-10-19): **one user interface for Linux, Windows and macOS, built with Qt6 Widgets**
 (tray icon + settings window). The existing GTK3 tray stays on Linux until the Qt interface has
 the same features; it is removed in a later change. Version 0.1 is released without waiting for

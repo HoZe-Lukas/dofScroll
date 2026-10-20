@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Evaluation logic of the "learn axes" wizard (tray, "Axes" tab).
+// Evaluation logic of the "learn axes" wizard (dofscroll-ui, "Axes" page).
 //
-// Header-only and deliberately free of GTK/libspnav so that it can be tested in
+// Header-only and deliberately free of any GUI toolkit and libspnav so that it can be tested in
 // tests/test_axis_wizard.cpp without a GUI and without hardware.
 //
 // Principle: in each step the user moves the cap for ~3 s in an announced
@@ -42,7 +42,7 @@ constexpr double TIE_RATIO = 0.95;      // above this: practically a tie -> ambi
 #define N_(s) s
 #endif
 
-// Translation hook, so that this header stays free of GTK/gettext. The UI sets it to its
+// Translation hook, so that this header stays free of Qt/gettext. The UI sets it to its
 // translator (spn::i18n::tr); the default returns the English msgid unchanged (tests).
 inline const char *(*&trHook())(const char *) {
     static const char *(*h)(const char *) = [](const char *s) { return s; };

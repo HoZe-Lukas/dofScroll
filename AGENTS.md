@@ -7,9 +7,9 @@ User documentation is in `readme.md` and `docs/`; this file only gives the short
 
 dofscroll: a C++17 bridge for a 3Dconnexion SpaceMouse, two processes. The daemon
 (`src/dofscroll.cpp`) reads the device through `spacenavd`/`libspnav` and produces scroll, zoom,
-key and mouse-button events through X11/XTest or uinput. The tray (`src/dofscroll_tray.cpp`, GTK3
-+ AppIndicator) writes the same config file and triggers a live reload with SIGHUP. The Qt6 interface
-(`src/ui/`, `dofscroll-ui`) does the same on all three systems. Windows and macOS daemons are built by CI,
+key and mouse-button events through X11/XTest or uinput. The Qt6 interface
+(`src/ui/`, `dofscroll-ui`, tray icon and settings window) writes the same config file and triggers a
+live reload with SIGHUP, the same on all three systems. Windows and macOS daemons are built by CI,
 not run on hardware (`docs/work-plan.md`).
 
 ## Layout

@@ -5,6 +5,13 @@ documentary; the fixes listed under "Status" came afterwards. Line numbers were 
 (references name file and function); findings are marked "fixed" where the code or rule has
 since been adjusted (state of the fixes: 2026-10-15).
 
+Note (0.1.0-beta.3, #43): the GTK tray (`dofscroll-tray`, `src/dofscroll_tray.cpp`,
+`systemd/dofscroll-tray.service`) was removed; the Qt interface `dofscroll-ui` (unit
+`dofscroll-ui.service`, same sandbox) is the only tray and settings window. Where this document
+says "tray" it describes the review of that program or, for the sandbox, the unit that `dofscroll-ui`
+now uses; the findings about saving the configuration, helper processes and the unit sandbox apply
+to `dofscroll-ui` in the same way. File references to the removed sources stay for the audit trail.
+
 Contents:
 
 1. Threat model
@@ -29,7 +36,7 @@ desktop (no "stuck Ctrl", no event floods) and the configuration file.
 | Component | Runs as | Talks to | Inputs coming from outside |
 |---|---|---|---|
 | `dofscroll` (daemon) | user, systemd user unit | `spacenavd` via Unix socket `/run/spnav.sock` (root, `0777`), X server (XTest) or `/dev/uinput`, optionally `kdotool` (spawned) | axis values/buttons from `spacenavd`, `~/.config/dofscroll/dofscroll.conf` (fallback: legacy paths `~/.config/spnav-scroll/spnav-scroll.conf`, `~/.config/spnav-scroll.conf`), mode files in `~/.config/dofscroll/modes/`, `WM_CLASS` of foreign X clients, environment (`XDG_*`, `HOME`, `PATH`, `DISPLAY`), SIGHUP |
-| `dofscroll-tray` | user, systemd user unit | GTK/X11, DBus (AppIndicator), starts `systemctl --user` and `xdg-open` | GUI input, config file, environment |
+| `dofscroll-ui` (formerly the GTK tray `dofscroll-tray`) | user, systemd user unit | Qt (X11 or Wayland), DBus (StatusNotifier), starts `systemctl --user` and `xdg-open` | GUI input, config file, environment |
 | `spacenavd` | root (system service) | USB HID device | device (including the device name from the USB descriptor) |
 | udev rule `packaging/70-dofscroll-uinput.rules` (opt-in, not installed by default: shipped under `share/dofscroll/udev`) | - | - | sets the permissions of `/dev/uinput` once the user installs it |
 
@@ -389,7 +396,7 @@ description below is the state before the fix.
 
 ## 3. systemd hardening of the user units
 
-Files: `systemd/dofscroll.service`, `systemd/dofscroll-tray.service`.
+Files: `systemd/dofscroll.service`, `systemd/dofscroll-ui.service` (reviewed as `dofscroll-tray.service` before it was removed).
 Target platform RHEL 9 = **systemd 252**; only directives available there were used.
 
 > **Note, effective from the next login/`daemon-reload`:** on a setup that links
@@ -486,9 +493,9 @@ without improving the sandbox). Not tested: settings window/editor start of the 
 
 ```sh
 systemd-analyze --user verify    "$PWD/systemd/dofscroll.service"       # no output = ok
-systemd-analyze --user verify    "$PWD/systemd/dofscroll-tray.service"
+systemd-analyze --user verify    "$PWD/systemd/dofscroll-ui.service"
 systemd-analyze --user security --offline=yes "$PWD/systemd/dofscroll.service"
-systemd-analyze --user security --offline=yes "$PWD/systemd/dofscroll-tray.service"
+systemd-analyze --user security --offline=yes "$PWD/systemd/dofscroll-ui.service"
 ```
 
 Result (systemd 252): `verify` without messages; exposure score **9.8 UNSAFE -> 2.2 OK** for
@@ -523,8 +530,8 @@ editor. Procedure:
 
 ```sh
 systemctl --user daemon-reload
-systemctl --user restart dofscroll.service dofscroll-tray.service
-journalctl --user -u dofscroll.service -u dofscroll-tray.service -f
+systemctl --user restart dofscroll.service dofscroll-ui.service
+journalctl --user -u dofscroll.service -u dofscroll-ui.service -f
 ```
 
 ---

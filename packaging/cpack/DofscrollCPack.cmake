@@ -6,7 +6,7 @@ set(CPACK_PACKAGE_VENDOR "Lukas Hois-Zelinka")
 set(CPACK_PACKAGE_CONTACT "Lukas Hois-Zelinka")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SpaceMouse to scroll/zoom/key bridge for X11")
 set(CPACK_PACKAGE_DESCRIPTION
-    "dofscroll turns a 3Dconnexion SpaceMouse (via spacenavd/libspnav) into X11 scroll, zoom, key and mouse-button events. Includes an optional GTK tray with a settings window.")
+    "dofscroll turns a 3Dconnexion SpaceMouse (via spacenavd/libspnav) into X11 scroll, zoom, key and mouse-button events. Includes a Qt tray icon with a settings window (dofscroll-ui) when built with Qt6.")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
 set(CPACK_GENERATOR "TGZ;RPM;DEB")
@@ -27,7 +27,7 @@ set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_PACKAGE_DEPENDS "spacenavd")
 
 # The Qt interface is part of the same package when the build found Qt6 (single package, no
-# subpackage: the GTK tray ships in that package too). RPM names the Qt GUI runtime explicitly
+# subpackage). RPM names the Qt GUI runtime explicitly
 # (it carries the xcb platform plugin, which rpm's library scan cannot see); DEB gets the
 # libqt6* packages from SHLIBDEPS and the plugin lives in libqt6gui6.
 if(TARGET dofscroll-ui AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -38,7 +38,7 @@ if(TARGET dofscroll-ui AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 # Upgrade step: after an UPGRADE (not a fresh install) restart the running user units of every
-# logged-in user, best effort, never failing the transaction (packaging/cpack/postinst; the file
+# logged-in user and move users of the removed GTK tray unit to dofscroll-ui.service, best effort, never failing the transaction (packaging/cpack/postinst; the file
 # must be called postinst for DEB, RPM runs the same file as %post).
 set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/packaging/cpack/postinst)
 set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA ${CMAKE_SOURCE_DIR}/packaging/cpack/postinst)

@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // First start of the interface, without any toolkit: move a legacy configuration over and seed
 // the example configuration and modes into the configuration directory (the daemon cannot write
-// there). Never overwrites an existing file. The GTK tray did this at its start; the Qt interface
-// does it the same way, so an account that starts with the Qt interface does not begin empty.
+// there). Never overwrites an existing file. The Qt interface does this at its start,
+// so an account that starts with the Qt interface does not begin empty.
 #pragma once
 #include <string>
 

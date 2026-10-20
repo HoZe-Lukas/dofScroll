@@ -36,5 +36,5 @@ In scope: the `dofscroll` daemon, the tray application, the packaging files (sys
 the optional udev rule, install scripts) and the CI workflows in this repository. The project's threat model
 and hardening measures are described in `docs/security.md`.
 
-Out of scope: vulnerabilities in third-party components (`spacenavd`, `libspnav`, the GTK stack,
+Out of scope: vulnerabilities in third-party components (`spacenavd`, `libspnav`, the Qt libraries,
 the X server, the kernel), which should be reported to their own projects.

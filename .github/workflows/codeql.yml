@@ -29,8 +29,8 @@ jobs:
     # that it does not fail and send notifications.
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
-    # Same container and dependency set as the ci "build + ctest" job; the daemon and the tray
-    # (and the core library they link) are compiled and analysed.
+    # Same container and dependency set as the ci "build + ctest" job; the daemon (and the core
+    # library it links) is compiled and analysed. The Qt interface is not in this image.
     container: ghcr.io/hoze-lukas/dofscroll-ci-rocky9:latest
     timeout-minutes: 45
     permissions:
@@ -50,7 +50,7 @@ jobs:
         run: |
           cmake -S . -B build
           # the shipped programs only; the test executables are not analysed (they only add build time)
-          cmake --build build -j4 --target dofscroll dofscroll-tray
+          cmake --build build -j4 --target dofscroll
       - uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee  # v4.39.0
         with:
           category: "/language:c-cpp"

@@ -16,9 +16,9 @@ below the minimum window size. Closing the window with the close button hides it
 interface keeps running in the tray; the first time in a run, the tray shows a short notice
 ("dofscroll is still running in the tray"). Without a system tray there is nothing to keep the
 interface reachable, so closing the window quits it, and the status bar says so ("No system tray
-found: closing the window quits dofscroll-ui"). Use "Quit" in the tray menu to quit otherwise. On Linux the older GTK tray
-(`dofscroll-tray`) is still shipped; use one of the two, not both (see
-[installation.md](installation.md)).
+found: closing the window quits dofscroll-ui"). Use "Quit" in the tray menu to quit otherwise. The old GTK tray (`dofscroll-tray`) was removed in 0.1.0-beta.3: `dofscroll-ui` is
+the only tray and settings window on Linux, Windows and macOS (see
+[installation.md](installation.md#upgrade) for the autostart migration).
 
 State: the pages below are merged on `main`. Behavior on a real desktop has been checked by the
 maintainer only on Linux (RHEL 9, X11, KDE Plasma) with the SpaceMouse Pro and Compact; the
@@ -247,7 +247,7 @@ Status line, "Mode" submenu (the global mode), "Enabled", "Settings...", "Open c
 "Show log...", "Open modes folder", "Release all keys", "Restart daemon", "Restart interface",
 "Quit". "Release all keys" starts
 `dofscroll --release-keys` as a separate process (the daemon binary next to the interface, else
-`dofscroll` from `PATH`), like the GTK tray; the same command works in a terminal (see
+`dofscroll` from `PATH`); the same command works in a terminal (see
 [troubleshooting.md](troubleshooting.md#a-key-or-scrolling-gets-stuck)).
 
 "Restart daemon" releases held keys first (as "Release all keys"), then restarts the daemon:

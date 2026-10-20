@@ -4,19 +4,14 @@ After=graphical-session.target dofscroll.service
 # The interface never runs without the daemon: starting only the UI pulls the daemon in.
 Wants=dofscroll.service
 PartOf=graphical-session.target
-# Only one tray at a time: starting the Qt UI stops the GTK tray (and the other way round).
-# If both units are enabled, systemd starts only one of them; disable the one you do not want
-# (docs/installation.md, "Qt UI or GTK tray").
-Conflicts=dofscroll-tray.service
 
 [Service]
 ExecStart=@DOFSCROLL_EXEC_Q@@DOFSCROLL_EXEC_BINDIR@/dofscroll-ui@DOFSCROLL_EXEC_Q@
 Restart=on-failure
 
 # --- Hardening (user unit, only directives from systemd <= 252 / RHEL 9) --------
-# Same sandbox as dofscroll-tray.service (the Qt UI needs neither more nor less: same X11/DBus
-# sockets, same writable paths, no MemoryDenyWriteExecute). Not yet tested with the Qt build under
-# systemd 252.
+# Sandbox of the Qt UI: X11/DBus sockets, a few writable paths, no MemoryDenyWriteExecute. Not yet
+# tested with the Qt build under systemd 252.
 # Rationale, test log and deliberately NOT set directives:
 # docs/security.md, section 3.
 # The Qt UI needs: X11 or Wayland socket (Qt xcb/wayland plugin), DBus session bus

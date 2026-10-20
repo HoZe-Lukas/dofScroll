@@ -25,7 +25,6 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 |---|---|
 | `dofscroll` | Background daemon: reads the device, produces the input events |
 | `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS, see [User interface](User-interface) (optional) |
-| `dofscroll-tray` | Linux GTK tray icon with a settings window, the fallback when the Qt interface is not installed (optional; use one of the two) |
 
 ## Where to start
 

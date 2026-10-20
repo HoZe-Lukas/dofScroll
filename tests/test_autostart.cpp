@@ -4,13 +4,10 @@
 #include <cassert>
 #include <cstdio>
 #include <string>
+#include <vector>
 #include "autostart.hpp"
 
 using namespace spn::autostart;
-
-static State st(const std::string &out, const std::string &err = "") {
-    return stateFromOutput(out, err);
-}
 
 int main() {
     assert(parseUnitLine("enabled\n") == Unit::Enabled);
@@ -25,43 +22,21 @@ int main() {
     assert(parseUnitLine("") == Unit::Error);
     assert(parseUnitLine("enabled; rm -rf") == Unit::Error);
 
-    assert(st("enabled\nenabled\n") == State::Enabled);
-    assert(st("enabled\nenabled-runtime\n") == State::EnabledRuntime);
-    assert(st("disabled\ndisabled\n") == State::Disabled);
-    assert(st("enabled\ndisabled\n") == State::Disabled);  // mix: ticking enables both
-    assert(st("disabled\nenabled\n") == State::Disabled);
-    assert(st("static\nstatic\n") == State::Static);
-    assert(st("indirect\nenabled\n") == State::Static);
-    assert(st("masked\nenabled\n") == State::Masked);
-    assert(st("masked\nstatic\n") == State::Masked);
-    assert(st("not-found\nenabled\n") == State::NotFound);
-    assert(st("bad\nenabled\n") == State::Error);
+    using V = std::vector<Unit>;
+    // One unit, one line (blank lines are ignored).
+    assert(parseIsEnabled("enabled\n", "", 1) == V{Unit::Enabled});
+    assert(parseIsEnabled("\n\nenabled\n\n", "", 1) == V{Unit::Enabled});
+    // Two units, in order.
+    assert((parseIsEnabled("enabled\ndisabled\n", "", 2) == V{Unit::Enabled, Unit::Disabled}));
     // Missing unit file: systemctl prints only stderr.
-    assert(st("", "Failed to get unit file state for dofscroll.service: No such file or directory\n") ==
-           State::NotFound);
-    assert(st("enabled\n", "Failed to get unit file state for x: No such file or directory") ==
-           State::NotFound);
-    assert(st("") == State::Error);
-    assert(st("enabled\n") == State::Error);  // one line, no explanation
-    assert(st("enabled\nenabled\nenabled\n") == State::Error);
-    assert(st("\n\nenabled\n\nenabled\n\n") == State::Enabled);  // blank lines ignored
-    assert(combine({}) == State::Error);
-
-    assert(ui(State::Enabled).checked && ui(State::Enabled).can_toggle);
-    assert(!ui(State::Disabled).checked && ui(State::Disabled).can_toggle);
-    assert(ui(State::EnabledRuntime).checked && !ui(State::EnabledRuntime).can_toggle);
-    for (State s : {State::Static, State::Masked, State::NotFound, State::Error}) {
-        assert(!ui(s).checked && !ui(s).can_toggle);
-    }
-
-    using V = std::vector<std::string>;
-    assert(queryArgv() == (V{"systemctl", "--user", "is-enabled", "dofscroll.service",
-                             "dofscroll-tray.service"}));
-    assert(setEnabledArgv(true) == (V{"systemctl", "--user", "enable", "dofscroll.service",
-                                      "dofscroll-tray.service"}));
-    assert(setEnabledArgv(false) == (V{"systemctl", "--user", "disable", "dofscroll.service",
-                                       "dofscroll-tray.service"}));
-    for (const auto &a : setEnabledArgv(true)) assert(a != "--now");
+    assert(parseIsEnabled("", "Failed to get unit file state for x: No such file or directory\n", 1) ==
+           V{Unit::NotFound});
+    assert((parseIsEnabled("enabled\n", "Failed to get unit file state for x: No such file or directory", 2) ==
+            V{Unit::NotFound, Unit::NotFound}));
+    // A line count that does not match, without an explanation: Error.
+    assert(parseIsEnabled("", "", 1) == V{Unit::Error});
+    assert((parseIsEnabled("enabled\n", "", 2) == V{Unit::Error, Unit::Error}));
+    assert((parseIsEnabled("enabled\nenabled\nenabled\n", "", 2) == V{Unit::Error, Unit::Error}));
 
     puts("test_autostart: ok");
     return 0;

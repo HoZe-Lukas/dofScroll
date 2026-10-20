@@ -26,8 +26,8 @@ No. The daemon and tray run as your user in systemd user units. Only enabling `s
 **A key or scrolling seems stuck. What now?**
 The daemon has a stale-input watchdog and a safety net that releases held keys and buttons when the device is quiet. If something still hangs: tray menu "Release all keys" (both trays), or `dofscroll --release-keys` in a terminal, or restart the service. See [Troubleshooting](Troubleshooting).
 
-**Should I use the Qt interface or the GTK tray?**
-On Linux the packages ship both when Qt6 was available at build time. The GTK tray is the documented default; the Qt interface is the one for Windows and macOS. Run only one of them. See [User interface](User-interface).
+**What happened to the GTK tray?**
+It was removed in 0.1.0-beta.3: the Qt interface (`dofscroll-ui`) is the only tray and settings window on Linux, Windows and macOS. A package upgrade moves an enabled `dofscroll-tray.service` to `dofscroll-ui.service`. See [User interface](User-interface).
 
 **Which devices are supported?**
 On Linux, models `spacenavd` supports. Factory button counts are known for the six models on [Buttons](Buttons); only Pro and Compact are tested.
@@ -39,7 +39,7 @@ If it is the same everywhere and always, set it in the driver: it works in every
 Up to the factory count of your model (2 for Compact, 15 for Pro), numbered from 1. See [Buttons](Buttons).
 
 **Where are the logs?**
-`journalctl --user -u dofscroll.service` (and `dofscroll-tray.service`). On Windows `%LOCALAPPDATA%\dofscroll\dofscroll.log`. Run `dofscroll --debug` for button indices and live axes. See [Troubleshooting](Troubleshooting).
+`journalctl --user -u dofscroll.service` (and `dofscroll-ui.service`). On Windows `%LOCALAPPDATA%\dofscroll\dofscroll.log`. Run `dofscroll --debug` for button indices and live axes. See [Troubleshooting](Troubleshooting).
 
 **How do I uninstall?**
 Disable the user units, remove the package, and delete the udev rule if you added it; your config stays until you delete `~/.config/dofscroll`. See [Installation](Installation).

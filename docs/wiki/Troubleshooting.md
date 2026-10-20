@@ -10,7 +10,7 @@ Full guide: [docs/troubleshooting.md](https://github.com/HoZe-Lukas/dofScroll/bl
 
 ```sh
 systemctl status spacenavd
-systemctl --user status dofscroll.service dofscroll-tray.service
+systemctl --user status dofscroll.service dofscroll-ui.service
 journalctl --user -u dofscroll.service -n 50
 ```
 
@@ -19,7 +19,7 @@ journalctl --user -u dofscroll.service -n 50
 | What | Where |
 |---|---|
 | Daemon log | `journalctl --user -u dofscroll.service` (`-f` to follow) |
-| Tray log | `journalctl --user -u dofscroll-tray.service` |
+| Interface log | `journalctl --user -u dofscroll-ui.service` |
 | Log copy for the tray | `$XDG_RUNTIME_DIR/dofscroll.log` (at most 300 lines) |
 | Status file | `$XDG_RUNTIME_DIR/dofscroll-status` (`profile`, `device`, `app`, `enabled`, `paused`, `devices_seen`, `updated`); removed on clean exit |
 | Config | `~/.config/dofscroll/dofscroll.conf` and `~/.config/dofscroll/modes/` |
@@ -55,7 +55,7 @@ Force a backend with `BACKEND = x11` or `uinput` in `[global]` and restart the d
 
 ## Other problems
 
-- **Tray icon missing:** KDE Plasma is supported; GNOME needs an AppIndicator extension. Builds with `-DDOFSCROLL_TRAY=OFF` have no tray. Without a tray the Qt interface opens its window minimized; it also starts minimized to the tray, so no window appears at start.
+- **Tray icon missing:** KDE Plasma is supported; GNOME needs an AppIndicator extension. A package built without Qt6 has no tray. Without a tray the Qt interface opens its window minimized; it also starts minimized to the tray, so no window appears at start.
 - **UI in German:** the UI follows the locale; force English with `LANGUAGE=C`.
 - **Wrong direction or axis:** set `<CH>_SIGN = -1`, change `<CH>_MIX`, or run "Learn axes" in the tray. Changes in `/etc/spnavrc` change axis meaning too.
 - **Keys stay pressed after a crash:** run `dofscroll --release-keys` or restart the service. After SIGKILL under X11 keys held through XTest are not released (known limitation, see [Security](Security)).

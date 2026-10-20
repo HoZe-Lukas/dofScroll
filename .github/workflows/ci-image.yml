@@ -61,7 +61,7 @@ jobs:
           docker run --rm "ghcr.io/${owner}/dofscroll-ci-rocky9:latest" sh -c '
             set -e
             for p in g++ make cmake git cppcheck rpmbuild cpio msgfmt desktop-file-validate; do command -v "$p"; done
-            pkg-config --exists gtk+-3.0 appindicator3-0.1 x11 xtst
+            pkg-config --exists x11 xtst
             find /usr/include -name "spnav*.h" | grep -q .
             ls /usr/lib64/libasan.so* /usr/lib64/libubsan.so*
             if pkg-config --exists Qt6Widgets; then echo "the base image must not contain Qt"; exit 1; fi'

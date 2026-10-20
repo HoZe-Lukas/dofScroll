@@ -103,7 +103,7 @@ capture-next-focus, dedupe) lives in `src/ui/model/app_picker_model.hpp` and
 ## Live feed
 
 The UI needs the six axis values, the button state and the daemon's interpretation at about 30 Hz
-(axes view, axis assistant). On Linux the GTK tray can read libspnav itself; on Windows and macOS the
+(axes view, axis assistant). On Linux the interface can read libspnav itself; on Windows and macOS the
 daemon owns the device, so it publishes a feed (`LIVE_FEED = 1`, default). Code in `src/live_feed/`,
 security notes in `security.md` section 10.
 

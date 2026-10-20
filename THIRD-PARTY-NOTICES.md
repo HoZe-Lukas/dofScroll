@@ -13,14 +13,11 @@ redistributing binaries.
 
 | Component | Use in dofscroll | Linking / relationship | License |
 |---|---|---|---|
-| `libspnav` | Client library to read events from `spacenavd` (daemon, tray axis display) | Linked at build time (`libspnav-devel`) | Free software license (upstream: BSD-style); check the license of the version you ship |
+| `libspnav` | Client library to read events from `spacenavd` (daemon) | Linked at build time (`libspnav-devel`) | Free software license (upstream: BSD-style); check the license of the version you ship |
 | `spacenavd` | Hardware driver service that talks to the SpaceMouse | **Separate process**, not linked; dofscroll only connects to its socket | GPL (upstream); check the license of the version you ship |
-| GTK 3 | Settings window (tray) | Dynamically linked | LGPL-2.1-or-later (upstream) |
-| libappindicator / Ayatana AppIndicator | Tray icon | Dynamically linked | LGPL (upstream; version 2.1/3 depends on the library variant) - check the version you ship |
 | Xlib (`libX11`), `libXtst` | X11 connection, XTest event injection, active-window query | Dynamically linked | MIT/X11-style licenses (upstream); check the license of the version you ship |
-| GLib / GIO / GObject | Transitive dependency of GTK | Dynamically linked | LGPL-2.1-or-later (upstream) |
 | gettext (runtime in glibc, tools `msgfmt`/`msginit`) | UI translation catalogs | Runtime in the C library; tools only at build time | Tools: GPL; the libc runtime part is covered by the C library license - check your distribution |
-| Qt 6 (Widgets, Core, Gui; optional Svg) | Cross-platform user interface `dofscroll-ui` (experimental) | Dynamically linked, never statically | LGPL-3.0 (Qt Widgets/Core/Gui/Svg modules; some other Qt modules are GPL/commercial and are not used) |
+| Qt 6 (Widgets, Core, Gui; optional Svg) | Cross-platform user interface `dofscroll-ui` | Dynamically linked, never statically | LGPL-3.0 (Qt Widgets/Core/Gui/Svg modules; some other Qt modules are GPL/commercial and are not used) |
 
 Notes:
 

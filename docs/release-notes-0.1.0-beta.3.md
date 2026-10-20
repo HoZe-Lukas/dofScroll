@@ -8,8 +8,13 @@ beta.1 still apply.
 
 ## Changed
 
-- **The Qt interface (`dofscroll-ui`) is the default on Linux.** The GTK tray (`dofscroll-tray`)
-  is still shipped for one more release; use one of the two, not both.
+- **The Qt interface (`dofscroll-ui`) is the only tray and settings window** on Linux, Windows and
+  macOS. **The old GTK tray (`dofscroll-tray`) is removed** (#43): the program, its unit
+  `dofscroll-tray.service`, its icon directory, the `DOFSCROLL_TRAY` build option and the GTK 3 and
+  AppIndicator build and run dependencies are gone. Packages no longer need GTK. **Autostart
+  migrates:** when the package is upgraded, a user who had `dofscroll-tray.service` enabled gets
+  `dofscroll-ui.service` enabled instead (and started if the tray was running); only unit links
+  change, never the configuration. Details: "Upgrade" in [installation.md](installation.md).
 - **The interface starts minimized to the tray**; no window opens. Click the tray icon or use
   "Open settings" to show it. Without a system tray the window opens minimized.
 - Redesigned interface: light, dark and system theme, vertical category tabs with horizontal page

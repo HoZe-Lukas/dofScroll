@@ -1,19 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// "Start at login" option of the tray: pure logic, no GUI and no process spawning, so it
-// compiles and is unit-tested on every OS (tests/test_autostart.cpp).
-//
-// Contract every platform tray implements (two operations):
-//   1. queryState()      -> spn::autostart::State  (is dofscroll started with the session?)
-//   2. setEnabled(bool)  -> success or a short error message
-// Linux (this file): the user units dofscroll.service and dofscroll-tray.service,
-//   queried with `systemctl --user is-enabled`, changed with `enable`/`disable`
-//   (never --now: the option only affects the next login).
-// Windows: per-user Run key values, see src/platform/autostart_platform.hpp (W18).
-// macOS: LaunchAgent plists in ~/Library/LaunchAgents, same place (W18).
-// The Windows and macOS trays map their native state onto the same State values and reuse
-// ui(): Enabled/Disabled for entry present/absent, NotFound if the program is not installed
-// (no executable path to register), Error for failures.
+// Parsing of `systemctl --user is-enabled` output for the "Start at login" option of dofscroll-ui:
+// pure logic, no GUI and no process spawning, so it compiles and is unit-tested on every OS
+// (tests/test_autostart.cpp). The platform-specific autostart (units on Linux, Run key on
+// Windows, LaunchAgent on macOS) lives in src/platform/autostart_os.hpp.
 #pragma once
 
 #include <string>
@@ -32,14 +22,6 @@ enum class Unit {
     NotFound,        // "not-found" or no such unit file
     Error            // anything else ("bad", empty, unknown text)
 };
-
-// Combined state of all units, what the checkbox is based on.
-enum class State { Enabled, EnabledRuntime, Disabled, Static, Masked, NotFound, Error };
-
-inline const std::vector<std::string> &units() {
-    static const std::vector<std::string> u = {"dofscroll.service", "dofscroll-tray.service"};
-    return u;
-}
 
 inline Unit parseUnitLine(const std::string &raw) {
     std::string s;
@@ -78,62 +60,6 @@ inline std::vector<Unit> parseIsEnabled(const std::string &out, const std::strin
     std::vector<Unit> r;
     for (const auto &l : lines) r.push_back(parseUnitLine(l));
     return r;
-}
-
-// Combination, in order of precedence: a missing unit, a masked unit, an error, a unit
-// that cannot be toggled; otherwise Enabled only if ALL units are enabled (persistently,
-// else EnabledRuntime), everything else (including a mix) is Disabled so that ticking the
-// box enables both.
-inline State combine(const std::vector<Unit> &us) {
-    if (us.empty()) return State::Error;
-    bool any_missing = false, any_masked = false, any_err = false, any_static = false;
-    bool all_enabled = true, any_runtime = false;
-    for (Unit u : us) {
-        any_missing |= u == Unit::NotFound;
-        any_masked |= u == Unit::Masked;
-        any_err |= u == Unit::Error;
-        any_static |= u == Unit::Static;
-        if (u == Unit::EnabledRuntime) any_runtime = true;
-        if (u != Unit::Enabled && u != Unit::EnabledRuntime) all_enabled = false;
-    }
-    if (any_missing) return State::NotFound;
-    if (any_masked) return State::Masked;
-    if (any_err) return State::Error;
-    if (any_static) return State::Static;
-    if (all_enabled) return any_runtime ? State::EnabledRuntime : State::Enabled;
-    return State::Disabled;
-}
-
-inline State stateFromOutput(const std::string &out, const std::string &err) {
-    return combine(parseIsEnabled(out, err, units().size()));
-}
-
-// What the UI shows. `can_toggle` false = insensitive checkbox (the reason is the State).
-struct Ui {
-    bool checked;
-    bool can_toggle;
-};
-
-inline Ui ui(State s) {
-    switch (s) {
-        case State::Enabled: return {true, true};
-        case State::Disabled: return {false, true};
-        case State::EnabledRuntime: return {true, false};
-        default: return {false, false};  // Static, Masked, NotFound, Error
-    }
-}
-
-inline std::vector<std::string> queryArgv() {
-    std::vector<std::string> a = {"systemctl", "--user", "is-enabled"};
-    for (const auto &u : units()) a.push_back(u);
-    return a;
-}
-
-// Never --now: only the next login is affected, the running services stay as they are.
-inline std::vector<std::string> setEnabledArgv(bool enable) {
-    std::vector<std::string> a = {"systemctl", "--user", enable ? "enable" : "disable"};
-    for (const auto &u : units()) a.push_back(u);
-    return a;
 }
 
 }  // namespace autostart

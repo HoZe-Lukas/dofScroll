@@ -22,7 +22,7 @@ msgstr ""
 msgid "Push forward/back"
 msgstr ""
 
-#: src/axis_wizard.hpp:80 src/dofscroll_tray.cpp:1311
+#: src/axis_wizard.hpp:80
 msgid "Tilt forward/back"
 msgstr ""
 
@@ -30,7 +30,7 @@ msgstr ""
 msgid "Push sideways"
 msgstr ""
 
-#: src/axis_wizard.hpp:81 src/dofscroll_tray.cpp:1313
+#: src/axis_wizard.hpp:81
 msgid "Tilt sideways"
 msgstr ""
 
@@ -115,719 +115,255 @@ msgid ""
 "For \"%s\" lift/press (y) was strongest - probably pressed down too hard."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:178
-msgid ""
-"Start the SpaceMouse daemon and this tray icon automatically when you log in "
-"(takes effect at the next login)"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:181
-msgid ""
-"Enabled only until the next reboot (by a temporary link); it cannot be "
-"changed here"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:184
-msgid ""
-"The units have no [Install] section or are enabled indirectly; they cannot "
-"be changed here"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:187
-msgid ""
-"The units are masked (systemctl --user unmask dofscroll.service dofscroll-"
-"tray.service)"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:190
-msgid ""
-"systemd does not know the dofscroll units, for example when running from a "
-"build folder. Install the package, see docs/installation.md"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:195
-msgid "Could not read the autostart state from systemd"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:231
-msgid "Could not run systemctl: "
-msgstr ""
-
-#: src/dofscroll_tray.cpp:233
-msgid "systemctl failed: "
-msgstr ""
-
-#: src/dofscroll_tray.cpp:263
-msgid "Scroll vertical"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:264
-msgid "Scroll horizontal"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:265 src/ui/qt/pages/axes_page.cpp:66
+#: src/ui/qt/pages/axes_page.cpp:66
 #: src/ui/qt/pages/axes_page.cpp:405
 msgid "Zoom"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:460 src/dofscroll_tray.cpp:2526
-#, c-format
-msgid "Device: %s"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:461 src/dofscroll_tray.cpp:2523
-#, c-format
-msgid "Program: %s"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:462
 msgid "Global"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:472
-msgid ""
-"Global base settings. Device and program profiles override only individual "
-"values of them."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:476
-#, c-format
-msgid ""
-"The effective values are shown (Global + this profile). Only deviations from "
-"Global are saved - currently %d value."
-msgid_plural ""
-"The effective values are shown (Global + this profile). Only deviations from "
-"Global are saved - currently %d values."
-msgstr[0] ""
-msgstr[1] ""
-
-#: src/dofscroll_tray.cpp:684
-msgid "Output (clipped)"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:684
 msgid "Output"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:686
-msgid "Input 0..350"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:753
 msgid "Axis mix"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:754
-msgid ""
-"Sum of [+-][weight*]axis, axes: x y z rx ry rz.\n"
-"Examples: \"z + rx\", \"x - rz\", \"0.5*rx + z\", \"-ry\". Empty = channel "
-"off."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:757
 msgid "Sensitivity"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:759
 msgid "0..255, 0 = channel off"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:760
 msgid "Deadzone"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:762
 msgid "Raw sensor units; nothing happens below this"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:763
 msgid "Smoothing (ms)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:765
 msgid "Low-pass time constant, 0 = off"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:767 src/ui/qt/pages/channels_page.cpp:370
+#: src/ui/qt/pages/channels_page.cpp:370
 msgid "Invert direction"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:788
-msgid "Adjust by one step (0.05)"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:800 src/ui/qt/pages/channels_page.cpp:414
+#: src/ui/qt/pages/channels_page.cpp:414
 msgid "Curve (exponent)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:801 src/ui/qt/pages/channels_page.cpp:383
+#: src/ui/qt/pages/channels_page.cpp:383
 msgid "1.0 = linear, >1 = finer at small deflections"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:804 src/ui/qt/pages/channels_page.cpp:424
+#: src/ui/qt/pages/channels_page.cpp:424
 msgid "empty = exponent applies, e.g. 0:0 50:0.1 200:1 350:3"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:826
-msgid ""
-"Point list expected: \"input:factor ...\" (use the slider for an exponent)"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:829
-msgid "invalid point list"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:832 src/ui/qt/pages/channels_page.cpp:438
+#: src/ui/qt/pages/channels_page.cpp:438
 msgid "Curve (points)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:833
-msgid ""
-"Optional: ascending \"input:factor\" pairs, e.g. \"0:0 50:0.1 200:1 "
-"350:3\".\n"
-"Input = deflection after deadzone (raw sensor units), factor applies to the "
-"linear\n"
-"speed, linearly interpolated in between. Overrides the exponent."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:867 src/ui/qt/pages/channels_page.cpp:493
+#: src/ui/qt/pages/channels_page.cpp:493
 msgid "Zoom must dominate against"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:868 src/ui/qt/pages/channels_page.cpp:474
+#: src/ui/qt/pages/channels_page.cpp:474
 msgid ""
 "Zoom only starts if the twist is stronger than the strongest of these axes"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:869 src/ui/qt/pages/channels_page.cpp:509
+#: src/ui/qt/pages/channels_page.cpp:509
 msgid "Entry time (ms)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:871 src/ui/qt/pages/channels_page.cpp:508
+#: src/ui/qt/pages/channels_page.cpp:508
 msgid "How long the twist must dominate before zoom engages"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:872 src/ui/qt/pages/channels_page.cpp:512
+#: src/ui/qt/pages/channels_page.cpp:512
 msgid "Exit ratio"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:874 src/ui/qt/pages/channels_page.cpp:511
+#: src/ui/qt/pages/channels_page.cpp:511
 msgid ""
 "Hysteresis: zoom only ends once a lateral axis is stronger by this factor"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:877
-msgid "Reset to Global"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:880
-msgid "Reset the channel including zoom detection to the global values"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:881
-msgid "Reset the channel to the global values"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:922 src/ui/qt/pages/channels_page.cpp:344
+#: src/ui/qt/pages/channels_page.cpp:344
 msgid "Output backend"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:923
 msgid "auto: Wayland -> uinput, otherwise X11 (with fallback)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:924
-msgid "Changing the backend only takes effect after the daemon is restarted."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:927 src/ui/qt/pages/channels_page.cpp:340
+#: src/ui/qt/pages/channels_page.cpp:340
 msgid "Tick rate (Hz)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:929 src/ui/qt/pages/channels_page.cpp:339
+#: src/ui/qt/pages/channels_page.cpp:339
 msgid "How many times per second the daemon generates events (30..1000)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:943
-msgid "Use nav button"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:944
-msgid "Nav button (arrow keys instead of scroll)"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:945
-msgid "Use click button"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:946
-msgid "Click button (left mouse button)"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:948 src/dofscroll_tray.cpp:2749
 msgid "Restart daemon"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:956
 msgid "General"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:995
-msgid ""
-"spacenavd is not reachable - the live display starts automatically as soon "
-"as the service is running (check with: systemctl status spacenavd)."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:999
-#, c-format
-msgid "Connected to spacenavd. Device: %s - %s buttons, %s axes"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1000
-msgid "(no name reported)"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1016
-#, c-format
-msgid "This device has %d buttons (0..%d)"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1309
-msgid "+ up: lift / press"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1310
 msgid "Twist the cap"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1312
-msgid "+ right: push sideways"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1314
-msgid "+ toward user: push forward/back"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1319
-msgid "View: obliquely from front above (user in front)"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1395
 msgid "(off)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1408 src/ui/model/axes_model.hpp:266
+#: src/ui/model/axes_model.hpp:266
 msgid ""
 "Pull the cap toward you, then push it forward - level, without tilting. "
 "Toward you first!"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1410 src/ui/model/axes_model.hpp:268
+#: src/ui/model/axes_model.hpp:268
 msgid "Toward you = positive (scroll down)."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1411 src/ui/model/axes_model.hpp:269
+#: src/ui/model/axes_model.hpp:269
 msgid ""
 "Tilt the cap toward you, then forward (tilt the top, without pushing). "
 "Toward you first!"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1413 src/ui/model/axes_model.hpp:271
+#: src/ui/model/axes_model.hpp:271
 msgid "Tilting toward you = positive (scroll down). Optional - can be skipped."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1414 src/ui/model/axes_model.hpp:272
+#: src/ui/model/axes_model.hpp:272
 msgid ""
 "Push the cap to the right and back - level, without tilting. Right first!"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1415 src/ui/model/axes_model.hpp:273
+#: src/ui/model/axes_model.hpp:273
 msgid "Right = positive (scroll right)."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1416 src/ui/model/axes_model.hpp:274
+#: src/ui/model/axes_model.hpp:274
 msgid "Tilt the cap sideways: tilt to the right and back. Right first!"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1417 src/ui/model/axes_model.hpp:275
+#: src/ui/model/axes_model.hpp:275
 msgid "Tilting right = positive (scroll right). Optional - can be skipped."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1418 src/ui/model/axes_model.hpp:276
+#: src/ui/model/axes_model.hpp:276
 msgid "Twist the cap clockwise (seen from above) and back. Clockwise first!"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1419 src/ui/model/axes_model.hpp:277
+#: src/ui/model/axes_model.hpp:277
 msgid "Clockwise = positive (zoom in)."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1451 src/ui/qt/pages/axes_page.cpp:403
+#: src/ui/qt/pages/axes_page.cpp:403
 msgid "Detected mapping:"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1455
-#, c-format
-msgid ""
-"\"Apply\" sets these axis mixes in the profile \"%s\" and resets the "
-"direction switches (\"Invert direction\") to normal."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1459 src/ui/qt/pages/axes_page.cpp:410
+#: src/ui/qt/pages/axes_page.cpp:410
 msgid "The mapping is incomplete and cannot be applied."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1461
-#, c-format
-msgid "Error: %s"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1462
-#, c-format
-msgid "Warning: %s"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1474
-#, c-format
-msgid "Step %d of %d: %s%s"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1476 src/ui/qt/pages/axes_page.cpp:391
+#: src/ui/qt/pages/axes_page.cpp:391
 msgid " (optional)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1477 src/ui/qt/pages/axes_page.cpp:385
+#: src/ui/qt/pages/axes_page.cpp:385
 msgid "Result"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1500
-#, c-format
-msgid "Measuring - move now! %.1f s left"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1504 src/ui/qt/pages/axes_page.cpp:421
+#: src/ui/qt/pages/axes_page.cpp:421
 msgid "Measurement complete"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1508 src/ui/qt/pages/axes_page.cpp:422
+#: src/ui/qt/pages/axes_page.cpp:422
 msgid "Ready - click \"Start\", then move (3 s)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1509
-msgid "No connection to spacenavd"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1514 src/ui/qt/pages/axes_page.cpp:427
+#: src/ui/qt/pages/axes_page.cpp:427
 msgid "Skipped."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1522
-msgid "_Measure again"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1522 src/dofscroll_tray.cpp:1681
-msgid "_Start"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1581 src/ui/model/axes_model.hpp:396
+#: src/ui/model/axes_model.hpp:396
 #, c-format
 msgid ""
 "The twist axis %s is listed under \"Zoom must dominate against\" for zoom - "
 "please deselect it there, otherwise zoom never engages."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1596
-#, c-format
-msgid "Internal error while applying: %s"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1631
-msgid "Connection to spacenavd lost - measurement aborted."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1673 src/dofscroll_tray.cpp:1809
-msgid "Learn axes"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1678 src/dofscroll_tray.cpp:1818
-msgid "_Cancel"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1679
 msgid "_Back"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1680
-msgid "_Skip"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1682
-msgid "_Next"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1683
-msgid "_Apply"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1742
-msgid "Highlight channel"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1743
-msgid ""
-"The axes of this channel (from its axis mix in the selected profile) are "
-"highlighted in the sketch and the live display"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1758
-#, c-format
-msgid "Scroll V: %s     Scroll H: %s     Zoom: %s"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1761
-#, c-format
-msgid ""
-"<b>%s</b> uses: <b>%s</b>\n"
-"<small>%s  (Profile: %s)</small>"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1769
-msgid ""
-"Which direction of an axis counts as positive depends on the device - the "
-"wizard below determines axes and signs automatically."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1772
-msgid "SpaceMouse axes"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1782
-msgid ""
-"Raw values from spacenavd, range -350..350 (center = at rest). Own, read-"
-"only connection - only active while this window is open."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1785
-msgid "Live display"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1791
-msgid ""
-"The wizard guides you through five short movements (3 s each) and derives "
-"the axis mixes for vertical scroll, horizontal scroll and zoom, including "
-"direction."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1800
-#, c-format
-msgid "The result applies to the profile selected above: %s"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1804
-msgid "Learn axes…"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1817
-msgid "New device profile"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1817
-msgid "New program profile"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1819
-msgid "_Create"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1826
-msgid ""
-"The profile applies when the device name of the SpaceMouse (as spacenavd "
-"reports it, e.g. \"SpaceMouse Pro\" or \"SpaceMouse Compact\"; it is in the "
-"journal when the daemon starts: journalctl --user -u dofscroll.service) "
-"contains this text. Case-insensitive, a substring is enough."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1831
-msgid ""
-"The profile applies when the WM_CLASS of the active window contains this "
-"text (\"instance class\" is compared in lowercase, e.g. \"navigator firefox"
-"\"). Determine it with: xprop WM_CLASS and then click into the window. Case-"
-"insensitive, a substring is enough. Program profiles apply after device "
-"profiles (so they win). Programs can also be switched off here (e.g. Blender "
-"with its own 3D navigation): create a profile and uncheck \"Control active "
-"in this profile\" in it."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1842
-msgid "e.g. SpaceMouse Pro"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1842 src/ui/qt/pages/add_app_dialog.cpp:81
+#: src/ui/qt/pages/add_app_dialog.cpp:81
 msgid "e.g. firefox"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:1859
-msgid "Pattern must not be empty or contain ']'"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1878
-msgid "Invalid pattern: it must not be empty or contain ']' or a line break."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1898
-#, c-format
-msgid "Delete profile \"%s\"?"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1962
-msgid ""
-"There are no program or device profiles yet. Create one with \"New program "
-"profile...\" above; it then appears here."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:1974
-#, c-format
-msgid "%s (missing)"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2000
-msgid ""
-"A mode defines what the three channels and the buttons do. Modes are loaded "
-"from the modes folder; the choice is saved as MODE in the profile."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2011
 msgid "Application modes"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2019 src/dofscroll_tray.cpp:2041
 msgid "Profile"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2028
-msgid "New device profile..."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2029
-msgid "New program profile..."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2030
-msgid "Delete profile"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2080
-msgid "dofscroll - Settings"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2113 src/ui/qt/pages/general_page.cpp:41
+#: src/ui/qt/pages/general_page.cpp:41
 msgid "Start at login"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2161
-msgid "Control active in this profile"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2166
-msgid ""
-"Off = the SpaceMouse generates no scroll/zoom/key events in this profile, e."
-"g. for programs with their own 3D navigation such as Blender: create a "
-"program profile and switch this off"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2177
 msgid "Channels"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2178
 msgid "Axes"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2495
-msgid "Edit mode file:"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2496
-msgid "Create editable copy of"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2503 src/ui/qt/pages/modes_page.cpp:82
+#: src/ui/qt/pages/modes_page.cpp:82
 msgid "Open modes folder"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2515 src/ui/model/status_model.hpp:93
+#: src/ui/model/status_model.hpp:93
 msgid "Daemon not running / no status data"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2517
-#, c-format
-msgid "Profile: %s"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2519 src/ui/model/status_model.hpp:95
+#: src/ui/model/status_model.hpp:95
 msgid " (paused)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2520 src/ui/model/status_model.hpp:96
+#: src/ui/model/status_model.hpp:96
 msgid " (disabled)"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2522
-#, c-format
-msgid "Mode: %s"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2528
-#, c-format
-msgid "%d SpaceMice connected, only '%s' is reported"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2567
-msgid "No log yet (daemon older than this version or not running)"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2607
-msgid "dofscroll - Log"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2626 src/ui/qt/pages/add_app_dialog.cpp:40
+#: src/ui/qt/pages/add_app_dialog.cpp:40
 #: src/ui/qt/pages/add_device_dialog.cpp:36
 msgid "Refresh"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2627
 msgid "Copy"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2628
 msgid "Close"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2737
-msgid "Determining status..."
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2742 src/ui/model/tray_menu_model.hpp:87
+#: src/ui/model/tray_menu_model.hpp:87
 #: src/ui/qt/pages/profiles_page.cpp:254 src/ui/qt/pages/profiles_page.cpp:257
 msgid "Mode"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2747
-msgid "Settings…"
-msgstr ""
-
-#: src/dofscroll_tray.cpp:2748
 msgid "Open config file"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2750
 msgid "Release all keys"
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2751
 msgid "Show log..."
 msgstr ""
 
-#: src/dofscroll_tray.cpp:2753
 msgid "Quit"
 msgstr ""
 
@@ -1624,10 +1160,6 @@ msgid ""
 "mode until you choose another one."
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:258
-msgid "The mode that applies while this profile is active"
-msgstr ""
-
 #: src/ui/qt/pages/profiles_page.cpp:264
 msgid "not installed"
 msgstr ""
@@ -1644,12 +1176,6 @@ msgstr ""
 
 #: src/ui/qt/pages/profiles_page.cpp:287
 msgid "Button bindings"
-msgstr ""
-
-#: src/ui/qt/pages/profiles_page.cpp:289
-msgid ""
-"Each button can switch the mode or hold the navigation mode (arrow keys "
-"instead of scrolling)."
 msgstr ""
 
 #: src/ui/qt/pages/profiles_page.cpp:301 src/ui/qt/pages/profiles_page.cpp:473
@@ -2001,10 +1527,6 @@ msgstr ""
 
 #: src/ui/qt/pages/button_modes_page.cpp
 msgid "A button mode is a named button behavior. Pick it for any button on the Profiles page; the same button mode can be used on several buttons."
-msgstr ""
-
-#: src/ui/qt/pages/button_modes_page.cpp
-msgid "A button mode can press a key or click. Only use button modes from trusted sources. An action that is the same everywhere and always is better set in the vendor driver (see docs/modes.md)."
 msgstr ""
 
 #: src/ui/qt/pages/button_modes_page.cpp

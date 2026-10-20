@@ -17,13 +17,13 @@ Full guide: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/
 | DEB (built on Debian 12) | `sudo apt install ./dofscroll_*.deb` | Whether `spacenavd` is in your release's repositories is unverified |
 | TGZ | `tar xzf dofscroll-*-Linux.tar.gz`, then `sudo cp -a dofscroll-*-Linux/usr/. /usr/` | You install the run-time dependencies yourself |
 
-The RPM and DEB files have not been installed on a real machine yet. A package installs `/usr/bin/dofscroll`, `/usr/bin/dofscroll-tray`, `/usr/bin/dofscroll-ui` (only when Qt6 was available at build time; otherwise the package is GTK-only), a menu entry, the user units in `/usr/lib/systemd/user`, examples in `/usr/share/dofscroll/examples/`, and the uinput udev rule as an inactive example under `/usr/share/dofscroll/udev/`.
+The RPM and DEB files have not been installed on a real machine yet. A package installs `/usr/bin/dofscroll` and `/usr/bin/dofscroll-ui` (only when Qt6 was available at build time; otherwise the package has the daemon only), a menu entry, the user units in `/usr/lib/systemd/user`, examples in `/usr/share/dofscroll/examples/`, and the uinput udev rule as an inactive example under `/usr/share/dofscroll/udev/`.
 
 ## First-time setup (Linux)
 
 1. `sudo systemctl enable --now spacenavd`
 2. `systemctl --user daemon-reload`, then check `systemctl --user list-unit-files 'dofscroll*'`
-3. `systemctl --user enable --now dofscroll.service dofscroll-tray.service`. For the Qt interface use `dofscroll-ui.service` instead of the tray unit (the units conflict, so starting one stops the other); the interface's "Start at login" switch does the same through one interface on all systems.
+3. `systemctl --user enable --now dofscroll.service dofscroll-ui.service`. The interface's "Start at login" switch does the same through one interface on all systems.
 4. Wayland only (or `BACKEND = uinput`): activate the udev rule yourself, it is not active by default.
    `sudo cp /usr/share/dofscroll/udev/70-dofscroll-uinput.rules /etc/udev/rules.d/`, then `sudo udevadm control --reload && sudo udevadm trigger`, then log out and in. Do not join the `input` group, see [Security](Security).
 
@@ -34,7 +34,7 @@ On first start the tray creates `~/.config/dofscroll/dofscroll.conf` if it does 
 ```sh
 # RHEL 9 family: sudo dnf install -y epel-release
 # then: sudo dnf install -y gcc-c++ cmake pkgconf-pkg-config spacenavd libspnav-devel \
-#   libX11-devel libXtst-devel gtk3-devel libappindicator-gtk3-devel gettext
+#   libX11-devel libXtst-devel gettext
 cmake -S . -B build
 cmake --build build --target check-deps
 cmake --build build -j4
@@ -42,7 +42,7 @@ ctest --test-dir build --output-on-failure
 sudo cmake --install build --prefix /usr
 ```
 
-CMake 3.16 or newer. Debian-family package names are in the full guide (marked unverified there). Options: `-DDOFSCROLL_TRAY=OFF` (daemon only, no GTK), `-DDOFSCROLL_HARDEN=OFF`, `-DDOFSCROLL_SANITIZE=ON`, `-DDOFSCROLL_WERROR=ON`. With the default prefix `/usr/local` systemd does not read the installed units; use `--prefix /usr` or `cmake --build build --target install-user-links`.
+CMake 3.16 or newer. Debian-family package names are in the full guide (marked unverified there). Options: `-DDOFSCROLL_HARDEN=OFF`, `-DDOFSCROLL_SANITIZE=ON`, `-DDOFSCROLL_WERROR=ON`. With the default prefix `/usr/local` systemd does not read the installed units; use `--prefix /usr` or `cmake --build build --target install-user-links`.
 
 ## Windows (unsigned, unverified on hardware)
 
@@ -75,4 +75,4 @@ Upgrade per OS (A package or installer never touches your config):
 - Windows: run the new installer; it stops the daemon and a running `dofscroll-ui.exe` first, then starts the daemon again if it was running (also for silent `/S` installs) and the interface (interactive installs only).
 - macOS: quit the interface (tray, Quit), stop the daemon, replace `dofscroll.app`, start both again (a loaded LaunchAgent: `launchctl kickstart -k gui/$(id -u)/io.github.dofscroll.daemon`).
 
-Uninstall: `systemctl --user disable --now dofscroll.service dofscroll-tray.service`, then `sudo dnf remove dofscroll` (or `sudo apt remove dofscroll`), and remove `/etc/udev/rules.d/70-dofscroll-uinput.rules` if you added it. Delete `~/.config/dofscroll` to drop your settings.
+Uninstall: `systemctl --user disable --now dofscroll.service dofscroll-ui.service`, then `sudo dnf remove dofscroll` (or `sudo apt remove dofscroll`), and remove `/etc/udev/rules.d/70-dofscroll-uinput.rules` if you added it. Delete `~/.config/dofscroll` to drop your settings.
