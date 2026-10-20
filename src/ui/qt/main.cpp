@@ -169,7 +169,7 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
     ButtonModesPage page(ctx);  // standalone: its own catalog
     page.show();
     settle();
-    constexpr int kBuiltin = 3;  // latch-nav, next-mode, prev-mode are built in and listed without a file
+    constexpr int kBuiltin = 4;  // latch-nav, next-mode, prev-mode, cycle-favorites are built in and listed without a file
     check(page.buttonModeCount() == kBuiltin + 1, "one file plus the built-in button modes");
     check(page.selectButtonMode(QStringLiteral("latch-nav")) && page.catalog().find("latch-nav") &&
               page.catalog().find("latch-nav")->builtin,

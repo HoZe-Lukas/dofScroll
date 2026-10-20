@@ -39,7 +39,7 @@ int main() {
     g_dir = tu::tmpRoot() + "/test_button_modes." + std::to_string(tu::pid());
     clearDir();
     std::vector<std::string> w;
-    const size_t kBuiltin = 3;  // latch-nav, next-mode, prev-mode (examples/buttons, embedded)
+    const size_t kBuiltin = 4;  // latch-nav, next-mode, prev-mode, cycle-favorites (examples/buttons, embedded)
 
     // the built-in button modes: present with no directory, no warnings, no file, same as the examples
     {
@@ -272,7 +272,7 @@ int main() {
         writeFile("bad.conf", "ACTION = mode:next\nCYCLE = Bad.Id\n");
         w.clear();
         set = loadButtonModes(g_dir, &w);
-        assert(set.modes.size() == 4);
+        assert(set.modes.size() == kBuiltin + 4);
         const ButtonMode *c = set.find("cyc");
         assert(c && c->target == "next:b,a,ghost" && c->action == "mode:next:b,a,ghost" && c->cycle.size() == 3);
         assert(hasWarning(w, "duplicate 'b'"));
