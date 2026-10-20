@@ -545,9 +545,9 @@ static Binding *addBinding(GtkWidget *w, const char *signal, std::function<void(
 // Mouse wheel over a spin box/slider/combo must not change the value but scroll the
 // surrounding window: stop the event there and pass it on to the parent widget.
 static GtkWidget *noWheelChange(GtkWidget *w) {
-    g_signal_connect(w, "scroll-event", G_CALLBACK(+[](GtkWidget *w, GdkEvent *ev, gpointer) -> gboolean {
-        g_signal_stop_emission_by_name(w, "scroll-event");
-        if (GtkWidget *parent = gtk_widget_get_parent(w)) gtk_propagate_event(parent, ev);
+    g_signal_connect(w, "scroll-event", G_CALLBACK(+[](GtkWidget *self, GdkEvent *ev, gpointer) -> gboolean {
+        g_signal_stop_emission_by_name(self, "scroll-event");
+        if (GtkWidget *parent = gtk_widget_get_parent(self)) gtk_propagate_event(parent, ev);
         return TRUE;
     }), nullptr);
     return w;
