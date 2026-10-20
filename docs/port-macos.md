@@ -37,7 +37,10 @@ The shared, OS-independent parts are unit-tested on every platform: path rules
 callback per input report. Each matched device becomes one `DeviceInfo` with its own id, so
 per-device profiles and button counts work (unlike the merged stream of spacenavd on Linux).
 Hot-plug comes from the matching/removal callbacks. The `3DconnexionClient` framework (part of the
-proprietary SDK, incompatible with GPL-3.0-or-later) is not used.
+proprietary SDK, incompatible with GPL-3.0-or-later) is not linked or shipped. The installed driver's
+client interface can be used as a second input path, loaded at run time with `dlopen` (setting `INPUT`;
+see `port-architecture.md`, "Driver interface backend", and `legal-notes.md`). A signed build with the
+hardened runtime needs the entitlement `com.apple.security.cs.disable-library-validation` for it.
 
 ### Output: CGEvent
 

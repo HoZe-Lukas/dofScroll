@@ -123,3 +123,36 @@ Run sections 2, 3 and 5 twice:
 
 Attach: Windows version, device model(s) and firmware, driver state, `dofscroll.log`, and the lines of
 this list that failed with what you saw.
+
+## 11. Driver interface path (`INPUT`, see `port-architecture.md`, "Driver interface backend")
+
+Nothing of this path has run against the real driver; CI only runs it against a fake COM server. Record
+the driver version (3DxWare) and the Windows version for every item. Look at "Input: ..." on the
+Settings page, `input=` in the status file and the log lines "Input: ...".
+
+- [ ] **Driver running, a CAD program open and being used:** `INPUT = driver`: does dofscroll receive
+      motion and buttons? Does the CAD program keep working normally (device not taken from it, no
+      change of navigation or buttons)? Does a browser in front scroll (background client)?
+- [ ] `INPUT = hid` with the driver running (public reports: both can read): reports arrive? Output
+      doubled? Is opening the device refused (sharing violation in the log)?
+- [ ] `INPUT = auto` with the driver installed and running: which path is chosen (default: direct HID
+      first), does it work, does it stay (no switching back and forth in the log)? Then make HID
+      impossible (driver holding the device exclusively, if it does that) and check that the driver
+      path takes over.
+- [ ] Driver installed but its service not running: `auto` and `hid` still work; `INPUT = driver` logs
+      "cannot create the 3Dconnexion COM object" or "refused Connect"; start the driver: the next
+      retry succeeds.
+- [ ] Driver not installed at all: `auto` uses HID, `INPUT = driver` logs "not installed".
+- [ ] Production registration checks accept the real installation: "3Dconnexion driver interface not
+      usable: ..." must NOT appear. Record how the class is registered (native DLL under Program Files
+      or a managed server with `mscoree.dll` and a code base), and where the files are.
+- [ ] Units and numbering: full deflection of translation and rotation (note the numbers the live data
+      shows; placeholders are factor 1.0), rotation direction and the meaning of Angle (radians or
+      degrees), whether key codes start at 0 or 1, which `BUTTON_<n>` each physical button gives.
+- [ ] Device model and button count: the name in the status line ("SpaceMouse (driver)" unless known)
+      and the button count (`Keys`) against the real number of buttons.
+- [ ] Unplug and replug with the driver path, sleep/wake: the device returns, no stuck keys or scrolling.
+- [ ] A second program that uses the same COM object (the CAD program) is not disturbed by
+      dofscroll's `Connect` / `Disconnect`; after quitting dofscroll its settings are unchanged.
+- [ ] The Settings page: the **Input path** drop-down, the "Active input" line and the About box (Qt
+      and the 3Dconnexion note) look right; German text.

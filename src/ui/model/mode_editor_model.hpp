@@ -172,7 +172,7 @@ public:
         std::vector<std::string> out;
         for (const KV &kv : allKeys(Settings())) {
             const std::string &k = kv.first;
-            if (k == "MODE" || k == "ENABLED" || k == "BACKEND" || k == "TICK_HZ" || k == "LIVE_FEED" ||
+            if (k == "MODE" || k == "ENABLED" || k == "BACKEND" || k == "INPUT" || k == "TICK_HZ" || k == "LIVE_FEED" ||
                 k.rfind("BUTTON_", 0) == 0 || k.rfind("NAV_", 0) == 0 || k.rfind("CLICK_", 0) == 0)
                 continue;
             out.push_back(k);

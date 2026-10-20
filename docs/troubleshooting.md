@@ -15,7 +15,7 @@
 | Daemon log | `journalctl --user -u dofscroll.service` (add `-f` to follow, `-n 50` for the last lines, `-b` for this boot) |
 | Interface log | `journalctl --user -u dofscroll-ui.service` |
 | Log copy for the interface | `$XDG_RUNTIME_DIR/dofscroll.log` (usually `/run/user/<uid>/`, at most 300 lines) |
-| Status file | `$XDG_RUNTIME_DIR/dofscroll-status`, lines `key=value`: `profile`, `device`, `app`, `enabled`, `paused`, `devices_seen`, `updated`. Removed on clean exit. |
+| Status file | `$XDG_RUNTIME_DIR/dofscroll-status`, lines `key=value`: `profile`, `device`, `app`, `enabled`, `paused`, `devices_seen`, `input` (Windows and macOS: `driver` or `hid`), `updated`. Removed on clean exit. |
 | Config | `~/.config/dofscroll/dofscroll.conf` and `~/.config/dofscroll/modes/` |
 
 ### Reading the journal
@@ -215,6 +215,31 @@ active. A locked screen is not detected on Windows and macOS. See
 The daemon reloads when the file changes. Force it: `systemctl --user kill -s HUP dofscroll.service`.
 Check the journal for a rejected line. `BACKEND` needs a restart. Validate a file with
 `build/tests/check_config FILE` (source build only).
+
+### Windows and macOS: nothing moves, or the wrong input path is active
+
+The official 3Dconnexion driver may stay installed and running; dofscroll reads the device through the
+driver's interface or directly (setting `INPUT`, see [configuration.md](configuration.md)). Look at the
+line "Input: ..." in the interface (Overview and Settings page) or `input=` in the status file, and at
+the log line "Input: 3Dconnexion driver (automatic)" or "Input not available: ...":
+
+- "Input not available: ... not installed": `INPUT = driver` was chosen and no driver is installed.
+  Install the driver or set `INPUT = auto` or `hid`.
+- "3Dconnexion driver interface not usable: ...": the driver's library or COM class was found but
+  refused (location not below Program Files or `/Library/Frameworks`, writable by others on macOS, a
+  per-user override of the COM class, or the framework is missing). dofscroll never loads a library from
+  anywhere else and no setting can change that.
+- "refused the registration" (macOS) or "refused Connect" (Windows): the driver is installed but its
+  service is not running or does not accept another client. Start the driver, or set `INPUT = hid`.
+- The path opens but the device does nothing: with the driver path, try `INPUT = hid`; with the
+  direct path (macOS: the driver may hold the device exclusively), try `INPUT = driver`. `auto` cannot
+  tell "idle" from "blocked" and therefore stays on a path that opened; it only moves when its path
+  has no device for about 20 seconds and the other path has one.
+- Scrolling twice: the driver also scrolls for the program you test. Disable the driver's own
+  navigation for that program in the driver's settings (do not stop the driver).
+
+Which path works next to the driver is not verified on hardware yet; please report what you see
+(model, OS version, driver version, `INPUT` value and the log lines above).
 
 ### Duplicate input in a 3D program
 

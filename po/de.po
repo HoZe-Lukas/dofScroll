@@ -3090,3 +3090,55 @@ msgstr "Scrollen H kippen"
 #: src/ui/qt/info_popup.hpp
 msgid "Information"
 msgstr "Information"
+
+#: src/ui/model/input_path_model.hpp
+msgid "Automatic"
+msgstr "Automatisch"
+
+#: src/ui/model/input_path_model.hpp
+msgid "3Dconnexion driver"
+msgstr "3Dconnexion-Treiber"
+
+#: src/ui/model/input_path_model.hpp
+msgid "Direct (HID)"
+msgstr "Direkt (HID)"
+
+#: src/ui/model/input_path_model.hpp
+msgid "direct (HID)"
+msgstr "direkt (HID)"
+
+#: src/ui/model/status_model.hpp
+msgid "Input: %1"
+msgstr "Eingabe: %1"
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Input path"
+msgstr "Eingabeweg"
+
+#: src/ui/model/input_path_model.hpp
+msgid "How dofscroll reads the SpaceMouse. Automatic: through the interface of the official 3Dconnexion driver when the driver is installed, otherwise directly. 3Dconnexion driver: always through the installed driver. Direct (HID): always directly, without the driver. The driver itself keeps running for your CAD programs in every case. A change takes effect within a few seconds."
+msgstr "So liest dofscroll die SpaceMouse. Automatisch: über die Schnittstelle des offiziellen 3Dconnexion-Treibers, wenn der Treiber installiert ist, sonst direkt. 3Dconnexion-Treiber: immer über den installierten Treiber. Direkt (HID): immer direkt, ohne den Treiber. Der Treiber selbst läuft in jedem Fall für Ihre CAD-Programme weiter. Eine Änderung wirkt innerhalb weniger Sekunden."
+
+#: src/ui/model/input_path_model.hpp
+msgid "Active input: not known yet"
+msgstr "Aktive Eingabe: noch nicht bekannt"
+
+#: src/ui/model/input_path_model.hpp
+msgid "Active input: %1"
+msgstr "Aktive Eingabe: %1"
+
+#: src/ui/model/input_path_model.hpp
+msgid "dofscroll is free software under the GPL-3.0-or-later."
+msgstr "dofscroll ist freie Software unter der GPL-3.0-or-later."
+
+#: src/ui/model/input_path_model.hpp
+msgid "This program uses Qt %1 under the LGPL (https://www.qt.io)."
+msgstr "Dieses Programm verwendet Qt %1 unter der LGPL (https://www.qt.io)."
+
+#: src/ui/model/input_path_model.hpp
+msgid "The official 3Dconnexion driver, its interface and the names 3Dconnexion and SpaceMouse belong to 3Dconnexion (a Logitech company). dofscroll uses the driver's interface when the driver is installed and does not contain any of it. Not affiliated with or endorsed by 3Dconnexion."
+msgstr "Der offizielle 3Dconnexion-Treiber, seine Schnittstelle und die Namen 3Dconnexion und SpaceMouse gehören 3Dconnexion (einem Unternehmen von Logitech). dofscroll nutzt die Schnittstelle des Treibers, wenn der Treiber installiert ist, und enthält nichts davon. Nicht mit 3Dconnexion verbunden und von 3Dconnexion nicht unterstützt oder empfohlen."
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "About"
+msgstr "Über"

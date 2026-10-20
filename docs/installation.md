@@ -458,5 +458,30 @@ this; [port-windows-checklist.md](port-windows-checklist.md) lists what a tester
    (run it from Terminal, which needs the Input Monitoring permission: `... dofscroll-hidprobe --list`).
    See [troubleshooting.md](troubleshooting.md#the-official-3dconnexion-driver-and-dofscroll).
 
+### The official 3Dconnexion driver next to dofscroll (Windows and macOS)
+
+You do not have to stop or uninstall the official 3Dconnexion driver: it keeps running for your CAD
+programs. dofscroll reads the SpaceMouse in one of two ways, chosen by the setting `INPUT`
+(drop-down **Input path** on the Settings page; default `auto`, see
+[configuration.md](configuration.md)):
+
+- **Through the driver's interface**, when the driver is installed. dofscroll loads that interface
+  from the installed driver at run time and contains nothing of it (macOS: the `3DconnexionClient`
+  framework in `/Library/Frameworks`; Windows: the COM object `TDxInput.Device` registered
+  machine-wide below Program Files). The Input Monitoring permission on macOS is not needed for this
+  path.
+- **Directly as raw HID**, without the driver (the only way when no driver is installed).
+
+`auto` chooses by a table (macOS: the driver first, because the driver is likely to hold the device;
+Windows: direct first, the driver as the fallback when the device cannot be opened). Both defaults are
+**unverified guesses** until a tester has tried them with hardware; if one does not work for you, set
+`INPUT = driver` or `INPUT = hid`. The active path is shown in the daemon log, in the status line
+("Input: 3Dconnexion driver" or "Input: direct (HID)") and on the Settings page.
+
+The driver, its interface and the names 3Dconnexion and SpaceMouse belong to 3Dconnexion (a Logitech
+company); dofscroll is not affiliated with or endorsed by them ([legal-notes.md](legal-notes.md)).
+Nothing of the driver path has been run against the real driver: [troubleshooting.md](troubleshooting.md)
+lists what to try if it does not work.
+
 See [port-macos.md](port-macos.md) and [packaging/macos/README.md](../packaging/macos/README.md).
 Building from source on either system: `cmake -S . -B build && cmake --build build`.

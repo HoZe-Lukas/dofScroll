@@ -24,6 +24,7 @@ namespace spn::ui {
 
 struct DaemonStatus {
     std::string profile, device, app, mode;
+    std::string input;   // "driver", "hid" or empty (Linux, older daemon)
     std::string toggle;  // what button toggles hold: "nav", "mode:<id>", both separated by a space, or empty
     bool enabled = true, paused = false;
     int devices_seen = 0;
@@ -49,6 +50,7 @@ inline DaemonStatus parseStatus(const std::string &text) {
         else if (k == "device") d.device = v;
         else if (k == "app") d.app = v;
         else if (k == "mode") d.mode = v;
+        else if (k == "input") d.input = v;
         else if (k == "toggle") d.toggle = v;
         else if (k == "enabled") d.enabled = v != "0";
         else if (k == "paused") d.paused = v == "1";
@@ -111,7 +113,16 @@ public:
         if (!status_.app.empty()) t = format(s.tr("Program: %1"), {clean(status_.app, 60)});
         if (!status_.device.empty())
             t += std::string(t.empty() ? "" : "  |  ") + format(s.tr("Device: %1"), {clean(status_.device, 60)});
+        const std::string in = inputLine(s);
+        if (!in.empty()) t += std::string(t.empty() ? "" : "  |  ") + in;
         return t;
+    }
+    // "Input: 3Dconnexion driver" / "Input: direct (HID)" (Windows and macOS); empty when the daemon reports none.
+    std::string inputLine(const StringProvider &s) const {
+        if (!daemonRunning()) return "";
+        if (status_.input == "driver") return format(s.tr("Input: %1"), {s.tr("3Dconnexion driver")});
+        if (status_.input == "hid") return format(s.tr("Input: %1"), {s.tr("direct (HID)")});
+        return "";
     }
     std::string warningLine(const StringProvider &s) const {
         if (!daemonRunning()) return "";

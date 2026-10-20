@@ -8,7 +8,7 @@ first. Several people or AI agents may work in parallel; this file keeps them fr
 ## Rules in short
 - Everything in the repository is **English**; the only exception is the German catalog `po/de.po`.
 - License: GPL-3.0-or-later; new files carry an SPDX header (see any file in `src/`).
-- Do **not** bundle the proprietary 3Dconnexion SDK. Input on Windows/macOS is raw HID / IOHID.
+- Do **not** bundle or link the proprietary 3Dconnexion SDK. Input on Windows/macOS is raw HID / IOHID, plus (issue 122) the installed official driver's interface, loaded at run time (`docs/legal-notes.md`).
 - The number of configurable buttons is the **factory** count of the device model
   (`factoryButtonCount()` in `src/device_db.hpp`), not the count the hardware or spacenavd reports.
 - No personal data, hostnames or e-mail addresses in files; names only in SPDX lines.

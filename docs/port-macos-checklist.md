@@ -97,3 +97,36 @@ permission for `dofscroll-hidprobe`).
 - [ ] 3Dconnexion driver installed and running: does dofscroll receive reports? Do events double? (Section 0 answers this.)
 - [ ] A program where events double: `ENABLED = 0` for it in dofscroll's `[app:...]` profile removes the double input.
 - [ ] Diagnosis only (the tester quits the driver; never advice for normal users): driver quit, dofscroll alone works.
+
+## 10. Driver interface path (`INPUT`, see `port-architecture.md`, "Driver interface backend")
+
+Nothing of this path has run against the real driver; CI only runs it against a fake. Record the driver
+version (3DxWare) and the macOS version for every item. Look at "Input: ..." on the Settings page,
+`input=` in the status file and the log lines "Input: ...".
+
+- [ ] **Background client (the key question):** driver installed and running, `INPUT = driver`, a browser
+      or Preview in front (dofscroll's window is NOT in front): does the SpaceMouse scroll? Does it
+      still scroll after switching to another program? If nothing arrives while another program is in
+      front, record it: the driver path is then not usable for dofscroll on macOS.
+- [ ] CAD program open (the driver serving it) at the same time: does the CAD program still work
+      normally while dofscroll runs with `INPUT = driver`? Does registering as a client change its
+      behavior (device taken from it, navigation stops, a different button behavior)? Quit dofscroll:
+      is everything back to normal?
+- [ ] `INPUT = hid` with the driver running: do reports arrive (public reports say the driver holds the
+      device)? With the driver quit?
+- [ ] `INPUT = auto` with the driver running and installed: which path is chosen ("Input: 3Dconnexion
+      driver (automatic)"), does it work, does it stay (no switching back and forth in the log)?
+- [ ] Axes: unit (full deflection should read about 350 in the live data of the Axes page; note the real
+      value), directions and order against the Linux behavior, buttons: which `BUTTON_<n>` each
+      physical button gives with the driver path (raw bits or nothing with a current driver).
+- [ ] Device model and button count: the name in the status line (for a known model the name from
+      `devices/`, otherwise "SpaceMouse (driver)").
+- [ ] Driver installed but not running (quit its helper): `INPUT = auto` falls back to HID, `INPUT =
+      driver` logs "refused the registration" and keeps retrying; start the driver: the next retry
+      succeeds.
+- [ ] Driver not installed at all: `auto` uses HID, `INPUT = driver` logs "not installed".
+- [ ] Hot-plug of the device and sleep/wake with the driver path: the device returns, no stuck keys.
+- [ ] Signed build: loading the vendor framework works (library validation); with the hardened
+      runtime the entitlement `com.apple.security.cs.disable-library-validation` may be needed.
+- [ ] The Settings page: the **Input path** drop-down, the "Active input" line and the About box (Qt
+      and the 3Dconnexion note) look right; German text.

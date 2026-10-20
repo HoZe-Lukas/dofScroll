@@ -38,8 +38,10 @@ Not part of W1: tray / settings UI (package W3), installer and code signing (W4)
   device.
 - Hot-plug: unverified. The implementation re-enumerates periodically and/or on device
   notifications; removal stops the reader and releases buttons and motion of that device.
-- Not used: the 3Dconnexion SDK (proprietary license, incompatible with GPL-3.0-or-later; see
-  `windows-mac.md`).
+- Not shipped, linked or used at build time: the 3Dconnexion SDK (proprietary license, incompatible with
+  GPL-3.0-or-later; see `windows-mac.md`). The installed driver's COM interface can be used as a
+  second input path, loaded at run time with late binding (setting `INPUT`; see `port-architecture.md`,
+  "Driver interface backend", and `legal-notes.md`).
 - The report layout of each model comes from the shipped description files and is the commonly
   used 3Dconnexion layout; it has **not** been verified on hardware (see `devices.md`). Axis
   signs and order relative to what spacenavd delivers on Linux are unverified; a wrong sign is

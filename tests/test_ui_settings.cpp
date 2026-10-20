@@ -463,7 +463,7 @@ int main() {
             {"SCROLL_H_DEADZONE", "77"}, {"SCROLL_H_SIGN", "-1"}, {"SCROLL_H_CURVE", "2.5"}, {"SCROLL_H_SMOOTH_MS", "33"},
             {"ZOOM_MIX", "rx"},      {"ZOOM_SENS", "9"},       {"ZOOM_DEADZONE", "77"},      {"ZOOM_SIGN", "-1"},
             {"ZOOM_CURVE", "2.5"},   {"ZOOM_SMOOTH_MS", "33"}, {"ZOOM_LATERAL", "x"},        {"ZOOM_ENTER_MS", "99"},
-            {"ZOOM_EXIT_RATIO", "2.5"}, {"STEP_TRIGGER", "55"}, {"BACKEND", "x11"},          {"TICK_HZ", "120"},
+            {"ZOOM_EXIT_RATIO", "2.5"}, {"STEP_TRIGGER", "55"}, {"BACKEND", "x11"},          {"INPUT", "hid"},         {"TICK_HZ", "120"},
             {"ENABLED", "0"},        {"LIVE_FEED", "0"},       {"MODE", "off"}};
         // the table covers every key the model can edit
         for (const KV &p : allKeys(Settings())) {

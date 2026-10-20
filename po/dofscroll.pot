@@ -1909,3 +1909,55 @@ msgstr ""
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Add a profile for a program you use."
 msgstr ""
+
+#: src/ui/model/input_path_model.hpp
+msgid "Automatic"
+msgstr ""
+
+#: src/ui/model/input_path_model.hpp
+msgid "3Dconnexion driver"
+msgstr ""
+
+#: src/ui/model/input_path_model.hpp
+msgid "Direct (HID)"
+msgstr ""
+
+#: src/ui/model/input_path_model.hpp
+msgid "direct (HID)"
+msgstr ""
+
+#: src/ui/model/status_model.hpp
+msgid "Input: %1"
+msgstr ""
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Input path"
+msgstr ""
+
+#: src/ui/model/input_path_model.hpp
+msgid "How dofscroll reads the SpaceMouse. Automatic: through the interface of the official 3Dconnexion driver when the driver is installed, otherwise directly. 3Dconnexion driver: always through the installed driver. Direct (HID): always directly, without the driver. The driver itself keeps running for your CAD programs in every case. A change takes effect within a few seconds."
+msgstr ""
+
+#: src/ui/model/input_path_model.hpp
+msgid "Active input: not known yet"
+msgstr ""
+
+#: src/ui/model/input_path_model.hpp
+msgid "Active input: %1"
+msgstr ""
+
+#: src/ui/model/input_path_model.hpp
+msgid "dofscroll is free software under the GPL-3.0-or-later."
+msgstr ""
+
+#: src/ui/model/input_path_model.hpp
+msgid "This program uses Qt %1 under the LGPL (https://www.qt.io)."
+msgstr ""
+
+#: src/ui/model/input_path_model.hpp
+msgid "The official 3Dconnexion driver, its interface and the names 3Dconnexion and SpaceMouse belong to 3Dconnexion (a Logitech company). dofscroll uses the driver's interface when the driver is installed and does not contain any of it. Not affiliated with or endorsed by 3Dconnexion."
+msgstr ""
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "About"
+msgstr ""

@@ -19,6 +19,7 @@
 //   ZOOM_EXIT_RATIO = 1.5
 //   STEP_TRIGGER = 20              # level at which a step: channel action fires (steps/s)
 //   BACKEND = auto                 # auto | x11 | uinput
+//   INPUT = auto                   # auto | driver | hid; Windows and macOS only (ignored on Linux)
 //   TICK_HZ = 250
 //   MODE = normal                  # mode id (see modes.hpp), e.g. timeline in [app:resolve]
 //   ENABLED = 1                    # 0 = daemon sends nothing (e.g. [app:blender])
@@ -126,6 +127,7 @@ struct Settings {
     double zoom_exit_ratio = 1.5;
     double step_trigger = 20.0;       // step: channel actions fire at this rate (steps/s after the channel processing)
     std::string backend = "auto";     // auto | x11 | uinput
+    std::string input = "auto";       // auto | driver | hid (Windows/macOS input path; ignored on Linux)
     int tick_hz = 250;                // 30..1000
     int nav_button = 0;
     bool nav_button_enabled = false;

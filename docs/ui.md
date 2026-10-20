@@ -86,7 +86,7 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Modes | Button modes | The button mode files (`buttons/`): create, new from example, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
 | Device | Device | The connected devices and their button count (the number of button rows a profile offers), the daemon state |
 | Device | Axes | Live bars of the six axes (and, while the active joystick mode splits a scroll channel, the push and tilt parts of that channel) and the axis assistant (wizard) that detects which axis does what |
-| Settings | Settings | Output on/off (`ENABLED` of Global), start at login, language, theme (Appearance), the daemon settings (tick rate, output backend), the read-only status of the daemon, "Open config", "Show log..." and "Documentation" |
+| Settings | Settings | Output on/off (`ENABLED` of Global), start at login, language, theme (Appearance), the daemon settings (tick rate, output backend; on Windows and macOS also **Input path**: Automatic, 3Dconnexion driver or Direct (HID), key `INPUT`, with the active path shown), the read-only status of the daemon (including "Input: ..." on Windows and macOS), "Open config", "Show log...", "Documentation" and an **About** box (version, licences, Qt under the LGPL and, on Windows and macOS, the 3Dconnexion note) |
 
 The Channels settings (sensitivity, dead zone, direction, curve, zoom detection, smoothing) are not a
 page of their own: they belong to a profile and are the Channels tab of the profile editor, for

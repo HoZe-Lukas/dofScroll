@@ -22,6 +22,15 @@ dofscroll turns a 3Dconnexion SpaceMouse into smooth scrolling, zooming, arrow k
 buttons for ordinary desktop programs. It reads the device through `spacenavd`/`libspnav` and
 sends the events through X11 (XTest) or, for Wayland, through uinput.
 
+On **Windows and macOS** the official 3Dconnexion driver can stay installed and running for your CAD
+programs. dofscroll then reads the SpaceMouse **through the driver's programming interface when the
+driver is installed**, and directly as raw HID otherwise (setting `INPUT`, default `auto`; the
+interface shows which one is active). dofscroll contains nothing of the driver: it only loads the
+installed driver's interface at run time. The driver, its interface and the names 3Dconnexion and
+SpaceMouse belong to 3Dconnexion (a Logitech company); dofscroll is not affiliated with or endorsed
+by them. Details: [docs/legal-notes.md](docs/legal-notes.md). The driver path has never been run
+against the real driver (see [Status and testing](#status-and-testing)).
+
 It consists of two programs. The Qt interface is the only tray and settings window on Linux, Windows and macOS (the old GTK tray `dofscroll-tray` was removed in 0.1.1, #43):
 
 | Program | Task |
@@ -57,7 +66,11 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
 
 ### Known limitations
 
-- Windows and macOS: never run with a real device. The Windows installer is not code-signed
+- Windows and macOS: never run with a real device, and the path through the official driver's
+  interface has never been run against the real driver (only against a fake driver in CI; hardware
+  checklist items in `docs/port-windows-checklist.md` and `docs/port-macos-checklist.md`).
+  Whether dofscroll and the driver can read the device at the same time is exactly what is
+  unverified. The Windows installer is not code-signed
   (SmartScreen warns) and the macOS DMG is only ad-hoc signed and not notarized (Gatekeeper
   blocks the first start). Notes in [docs/installation.md](docs/installation.md).
 - The Qt interface has not been checked on Windows or macOS desktops.
@@ -112,7 +125,8 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 | [docs/modes.md](docs/modes.md) | Joystick modes, button actions, key names, buttons versus the vendor driver (always-the-same button mappings belong in the driver) |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common problems, logs, status files |
 | [docs/devices.md](docs/devices.md) | Device descriptions |
-| [docs/security.md](docs/security.md) | Threat model, systemd hardening, uinput permissions |
+| [docs/security.md](docs/security.md) | Threat model, systemd hardening, uinput permissions, loading the driver interface |
+| [docs/legal-notes.md](docs/legal-notes.md) | What dofscroll uses of the 3Dconnexion driver, what it does not ship, where the rights lie |
 | [docs/releasing.md](docs/releasing.md) | How a release is made |
 | [docs/release-notes-1.0.1.md](docs/release-notes-1.0.1.md) | Release notes of 1.0.1; 1.0.0 in [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md), 0.1.1 in [docs/release-notes-0.1.1.md](docs/release-notes-0.1.1.md), beta.2 in [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-beta.2.md), beta.1 notes in [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) |
 | [docs/work-plan.md](docs/work-plan.md) | Roadmap and the Windows/macOS ports |
@@ -158,3 +172,8 @@ builds on are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 "3Dconnexion" and "SpaceMouse" are trademarks of 3Dconnexion GmbH or their respective owners.
 dofscroll is an independent project and is neither endorsed by nor affiliated with 3Dconnexion.
 The names are used descriptively only, to name the supported hardware.
+
+The official 3Dconnexion driver, its interface and the names belong to 3Dconnexion (a Logitech
+company). On Windows and macOS dofscroll uses the driver's interface at run time when the driver
+is installed and does not contain, copy or redistribute any of it; no permission was requested
+from 3Dconnexion. See [docs/legal-notes.md](docs/legal-notes.md).
