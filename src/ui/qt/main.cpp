@@ -18,6 +18,7 @@
 #include "main_window.hpp"
 #include "pages/axes_page.hpp"
 #include "pages/button_modes_page.hpp"
+#include "pages/mode_editor_widget.hpp"
 #include "pages/modes_page.hpp"
 #include "qt_action_runner.hpp"
 #include "theme.hpp"
@@ -74,6 +75,41 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
     QFile::remove(tmpPath + QStringLiteral("/buttons/second.conf"));
     page.refreshIfChanged();
     check(page.buttonModeCount() == 1, "a removed file disappears from the list");
+    return ok;
+}
+
+// Mode editor: opens the file mode "mine" in the page, edits channel, button and override, saves, and checks the
+// file (comments and the name survive, the daemon loader accepts the result).
+static bool modeEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "mode editor self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    ModesPage page(ctx);
+    page.show();
+    settle();
+    check(page.selectMode(QStringLiteral("mine")), "the file mode is listed");
+    check(page.openEditor() && page.editorWidget(), "the editor opens for a file mode");
+    spn::ui::ModeForm &f = page.editorWidget()->editor().form();
+    check(f.id == "mine" && f.name == "Mine" && f.button(1) && *f.button(1) == "key:space", "the form shows the file");
+    f.h = {spn::ChannelActionType::Step, "ctrl+pageup", "ctrl+pagedown"};
+    f.setButton(2, "toggle:nav");
+    f.overrides.emplace_back("SCROLL_V_SENS", "2");
+    check(page.editorWidget()->editor().validate().empty(), "the edited form is valid");
+    check(page.editorWidget()->save(), "save");
+    QFile file(tmpPath + QStringLiteral("/modes/mine.conf"));
+    check(file.open(QIODevice::ReadOnly), "the file exists");
+    const QByteArray text = file.readAll();
+    check(text.contains("NAME = Mine") && text.contains("H_ACTION = step:ctrl+pageup,ctrl+pagedown") &&
+              text.contains("BUTTON_2 = toggle:nav") && text.contains("SCROLL_V_SENS = 2") && text.contains("BUTTON_1 = key:space"),
+          "the file holds the edits and keeps the rest");
+    const spn::ModeSet ms = spn::loadModes((tmpPath + QStringLiteral("/modes")).toStdString(), nullptr);
+    const spn::ModeDef *m = ms.find("mine");
+    check(m && m->h.type == spn::ChannelActionType::Step && m->buttons.size() == 2, "the daemon loader reads the saved file");
+    // an invalid value is refused and nothing is written
+    f.overrides.back().second = "abc";
+    check(!page.editorWidget()->editor().validate().empty() && !page.editorWidget()->save(), "invalid values are refused");
     return ok;
 }
 
@@ -221,6 +257,12 @@ int main(int argc, char **argv) {
         QDir().mkpath(tmp.path() + QStringLiteral("/modes"));
         QDir().mkpath(tmp.path() + QStringLiteral("/buttons"));
         QDir().mkpath(QString::fromUtf8(screenshotDir));
+        {
+            QFile mf(tmp.path() + QStringLiteral("/modes/slides.conf"));
+            if (!mf.open(QIODevice::WriteOnly)) return 1;
+            mf.write("# SAFETY: a mode file can press any key.\nNAME = Slides\nDESCRIPTION = Pages through slides\n"
+                     "V_ACTION = step:pageup,pagedown\nH_ACTION = none\nBUTTON_1 = mode:next\nSCROLL_V_SENS = 2\n");
+        }
         for (const auto &bmf : {std::make_pair("latch-nav", "NAME = Navigation latch\nDESCRIPTION = Press once to switch navigation on, again to switch it off\nACTION = toggle:nav\n"),
                                 std::make_pair("next-mode", "NAME = Next mode\nACTION = mode:next\n")}) {
             QFile f(tmp.path() + QStringLiteral("/buttons/") + QString::fromLatin1(bmf.first) + QStringLiteral(".conf"));
@@ -251,6 +293,16 @@ int main(int argc, char **argv) {
                                               QString::fromStdString(id));
                 if (!w.grab().save(file)) return 1;
                 ++written;
+            }
+        }
+        {   // the in-page mode editor
+            ModesPage page(ctx);
+            page.resize(1100, 700);
+            page.show();
+            settle();
+            if (page.selectMode(QStringLiteral("slides")) && page.openEditor()) {
+                settle();
+                if (page.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-mode-editor.png"))) ++written;
             }
         }
         std::printf("screenshots: %d files in %s\n", written, screenshotDir);
@@ -287,6 +339,7 @@ int main(int argc, char **argv) {
         MainWindow w(ctx);
         w.show();
         if (!buttonModesSelfTest(ctx, tmp.path())) return 1;
+        if (!modeEditorSelfTest(ctx, tmp.path())) return 1;
         ModesPage modes(ctx);  // standalone (own catalog): built-in normal, off, timeline + the file mode
         modes.show();
         Tray tray(&w, icon, ctx);

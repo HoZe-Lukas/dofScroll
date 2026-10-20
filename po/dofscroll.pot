@@ -2170,3 +2170,111 @@ msgstr ""
 #: src/ui/model/binding_editor_model.hpp
 msgid "Mode while held"
 msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Default (as in the profile)"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Off"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Vertical wheel"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Horizontal wheel"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Zoom (Ctrl + wheel)"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Keys (a rate of key presses)"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Step (one key press per push)"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Problems"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Warnings of the saved file"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Write the changes to the mode file"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Close editor"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Discard the unsaved changes?"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Negative:"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Positive:"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "negative"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "positive"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Edit mode: %1"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Vertical push"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Horizontal push"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Buttons"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Remove this binding; the profile's binding for the button applies again"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Settings overrides"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Values that apply while this mode is active (for example the sensitivity)."
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "The saved file has no loader warnings."
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "The file changed on disk while you were editing. Overwrite it with your changes?"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Could not save the mode."
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Edit the mode here: name, channels, buttons and overrides"
+msgstr ""

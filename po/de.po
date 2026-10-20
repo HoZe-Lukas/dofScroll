@@ -2339,3 +2339,111 @@ msgstr "Vorheriger Modus"
 #: src/ui/model/binding_editor_model.hpp
 msgid "Mode while held"
 msgstr "Modus, solange gedrückt"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Default (as in the profile)"
+msgstr "Standard (wie im Profil)"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Off"
+msgstr "Aus"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Vertical wheel"
+msgstr "Vertikales Mausrad"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Horizontal wheel"
+msgstr "Horizontales Mausrad"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Zoom (Ctrl + wheel)"
+msgstr "Zoom (Strg + Mausrad)"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Keys (a rate of key presses)"
+msgstr "Tasten (eine Rate von Tastendrücken)"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Step (one key press per push)"
+msgstr "Schritt (ein Tastendruck pro Auslenkung)"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Problems"
+msgstr "Probleme"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Warnings of the saved file"
+msgstr "Warnungen der gespeicherten Datei"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Write the changes to the mode file"
+msgstr "Änderungen in die Moduldatei schreiben"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Close editor"
+msgstr "Editor schließen"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Discard the unsaved changes?"
+msgstr "Die ungespeicherten Änderungen verwerfen?"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Negative:"
+msgstr "Negativ:"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Positive:"
+msgstr "Positiv:"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "negative"
+msgstr "negativ"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "positive"
+msgstr "positiv"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Edit mode: %1"
+msgstr "Modus bearbeiten: %1"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Vertical push"
+msgstr "Vertikale Auslenkung"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Horizontal push"
+msgstr "Horizontale Auslenkung"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Buttons"
+msgstr "Tasten"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Remove this binding; the profile's binding for the button applies again"
+msgstr "Diese Belegung entfernen; es gilt wieder die Belegung des Profils"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Settings overrides"
+msgstr "Einstellungs-Überschreibungen"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Values that apply while this mode is active (for example the sensitivity)."
+msgstr "Werte, die gelten, solange dieser Modus aktiv ist (zum Beispiel die Empfindlichkeit)."
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "The saved file has no loader warnings."
+msgstr "Die gespeicherte Datei hat keine Lade-Warnungen."
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "The file changed on disk while you were editing. Overwrite it with your changes?"
+msgstr "Die Datei wurde auf der Platte geändert, während Sie sie bearbeitet haben. Mit Ihren Änderungen überschreiben?"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Could not save the mode."
+msgstr "Der Modus konnte nicht gespeichert werden."
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Edit the mode here: name, channels, buttons and overrides"
+msgstr "Den Modus hier bearbeiten: Name, Kanäle, Tasten und Überschreibungen"

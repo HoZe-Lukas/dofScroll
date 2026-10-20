@@ -15,6 +15,8 @@
 class QListWidget;
 class QPlainTextEdit;
 class QPushButton;
+class QStackedWidget;
+class ModeEditorWidget;
 class QTimer;
 
 class ModesPage : public QWidget {
@@ -22,6 +24,9 @@ class ModesPage : public QWidget {
 public:
     explicit ModesPage(const UiContext &ctx, QWidget *parent = nullptr);
     int modeCount() const;                     // entries in the list
+    bool selectMode(const QString &id);        // selects a mode in the list (self-test, other pages)
+    bool openEditor();                         // the in-page editor for the selected mode (a file mode)
+    ModeEditorWidget *editorWidget() const { return editor_; }
     const spn::ui::ModeCatalog &catalog() const { return catalog_; }
 
 public slots:
@@ -50,6 +55,8 @@ private:
     spn::ui::ModeCatalog &catalog_;
     QListWidget *list_ = nullptr;
     QPlainTextEdit *detail_ = nullptr;
+    QStackedWidget *right_ = nullptr;  // details | editor
+    ModeEditorWidget *editor_ = nullptr;
     QPushButton *newBtn_ = nullptr, *dupBtn_ = nullptr, *importBtn_ = nullptr, *editBtn_ = nullptr,
                 *delBtn_ = nullptr, *folderBtn_ = nullptr;
     QTimer *timer_ = nullptr;

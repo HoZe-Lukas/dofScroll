@@ -1,0 +1,390 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#include "pages/mode_editor_widget.hpp"
+
+#include <QCheckBox>
+#include <QComboBox>
+#include <QFormLayout>
+#include <QGridLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QMessageBox>
+#include <QPlainTextEdit>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QToolButton>
+#include <QVBoxLayout>
+
+#include <algorithm>
+
+#include "button_row.hpp"
+#include "key_combo.hpp"
+#include "ui_i18n.hpp"
+
+using namespace spn;
+using namespace spn::ui;
+
+namespace {
+
+struct KindEntry {
+    ChannelActionType type;
+    const char *label;
+};
+const KindEntry kKinds[] = {
+    {ChannelActionType::Default, "Default (as in the profile)"},
+    {ChannelActionType::Off, "Off"},
+    {ChannelActionType::WheelV, "Vertical wheel"},
+    {ChannelActionType::WheelH, "Horizontal wheel"},
+    {ChannelActionType::Zoom, "Zoom (Ctrl + wheel)"},
+    {ChannelActionType::Keys, "Keys (a rate of key presses)"},
+    {ChannelActionType::Step, "Step (one key press per push)"},
+};
+
+// "ctrl+shift+pageup" -> {ctrl, shift} + "pageup"; a lone modifier is the key itself.
+void splitChord(const std::string &chord, std::vector<std::string> *mods, std::string *key) {
+    mods->clear();
+    std::vector<std::string> parts;
+    size_t start = 0;
+    for (size_t p; (p = chord.find('+', start)) != std::string::npos; start = p + 1) parts.push_back(chord.substr(start, p - start));
+    parts.push_back(chord.substr(start));
+    *key = parts.back();
+    parts.pop_back();
+    *mods = parts;
+}
+
+const char *const kModNames[4] = {"ctrl", "shift", "alt", "super"};
+
+std::string joinChord(const std::vector<std::string> &mods, const std::string &key) {
+    std::string out;
+    for (const char *m : kModNames)
+        if (std::find(mods.begin(), mods.end(), m) != mods.end()) out += std::string(m) + "+";
+    return out + key;
+}
+
+// Modifier check boxes and the key picker of one side of a keys:/step: action.
+QWidget *chordPicker(QWidget *parent, QObject *owner, std::string *chord, const QString &accessible,
+                     const std::function<void()> &changed) {
+    auto *w = new QWidget(parent);
+    auto *h = new QHBoxLayout(w);
+    h->setContentsMargins(0, 0, 0, 0);
+    std::vector<std::string> mods;
+    std::string key;
+    splitChord(*chord, &mods, &key);
+    for (const char *m : kModNames) {
+        auto *cb = new QCheckBox(QString::fromLatin1(m), w);
+        cb->setChecked(std::find(mods.begin(), mods.end(), m) != mods.end());
+        cb->setAccessibleName(accessible + QStringLiteral(" ") + QString::fromLatin1(m));
+        h->addWidget(cb);
+    }
+    auto *kc = makeKeyCombo(QString::fromStdString(key), w);
+    kc->setAccessibleName(accessible);
+    h->addWidget(kc, 1);
+    auto update = [w, chord, kc, changed] {
+        std::vector<std::string> sel;
+        const auto boxes = w->findChildren<QCheckBox *>();
+        for (QCheckBox *cb : boxes)
+            if (cb->isChecked()) sel.push_back(cb->text().toStdString());
+        if (!kc->currentData().isValid()) return;
+        *chord = joinChord(sel, kc->currentData().toString().toStdString());
+        changed();
+    };
+    for (QCheckBox *cb : w->findChildren<QCheckBox *>()) QObject::connect(cb, &QCheckBox::toggled, owner, update);
+    QObject::connect(kc, &QComboBox::activated, owner, [update](int) { update(); });
+    return w;
+}
+
+}  // namespace
+
+ModeEditorWidget::ModeEditorWidget(const UiContext &ctx, QWidget *parent) : QWidget(parent), ctx_(ctx), dir_(ctx.modesDir) {
+    auto *root = new QVBoxLayout(this);
+    title_ = new QLabel(this);
+    root->addWidget(title_);
+    scroll_ = new QScrollArea(this);
+    scroll_->setWidgetResizable(true);
+    scroll_->setFrameShape(QFrame::NoFrame);
+    root->addWidget(scroll_, 1);
+    problems_ = new QLabel(this);
+    problems_->setWordWrap(true);
+    problems_->setTextFormat(Qt::PlainText);
+    problems_->setAccessibleName(T("Problems"));
+    root->addWidget(problems_);
+    warnings_ = new QPlainTextEdit(this);
+    warnings_->setReadOnly(true);
+    warnings_->setMaximumHeight(110);
+    warnings_->setAccessibleName(T("Warnings of the saved file"));
+    warnings_->hide();
+    root->addWidget(warnings_);
+    auto *row = new QHBoxLayout;
+    saveBtn_ = new QPushButton(T("Save"), this);
+    saveBtn_->setToolTip(T("Write the changes to the mode file"));
+    revertBtn_ = new QPushButton(T("Revert"), this);
+    revertBtn_->setToolTip(T("Discard the changes and reload the file"));
+    textBtn_ = new QPushButton(T("Open in text editor"), this);
+    closeBtn_ = new QPushButton(T("Close editor"), this);
+    for (QPushButton *b : {saveBtn_, revertBtn_, textBtn_}) row->addWidget(b);
+    row->addStretch(1);
+    row->addWidget(closeBtn_);
+    root->addLayout(row);
+    connect(saveBtn_, &QPushButton::clicked, this, [this] { onSave(); });
+    connect(revertBtn_, &QPushButton::clicked, this, [this] { onRevert(); });
+    connect(textBtn_, &QPushButton::clicked, this, [this] {
+        std::string err;
+        if (ctx_.runner && !ctx_.runner->openPath(editor_.path(), &err))
+            QMessageBox::warning(this, T("Modes"), T("Could not open the file.") + QStringLiteral("\n\n") + qs8(err));
+    });
+    connect(closeBtn_, &QPushButton::clicked, this, [this] {
+        if (editor_.dirty() &&
+            QMessageBox::question(this, T("Close editor"), T("Discard the unsaved changes?"), QMessageBox::Yes | QMessageBox::No,
+                                  QMessageBox::No) != QMessageBox::Yes)
+            return;
+        emit closeRequested();
+    });
+}
+
+bool ModeEditorWidget::open(const std::string &path, const ModeDef &def) {
+    std::string err;
+    if (!editor_.open(path, def, &err)) {
+        QMessageBox::warning(this, T("Modes"), T("Could not open the file.") + QStringLiteral("\n\n") + qs8(err));
+        return false;
+    }
+    warnings_->hide();
+    rebuild();
+    return true;
+}
+
+int ModeEditorWidget::addChannelRow(QGridLayout *g, int row, const QString &label, ChannelForm *form) {
+    auto *name = new QLabel(label, this);
+    auto *kind = new QComboBox(this);
+    kind->setAccessibleName(label);
+    int cur = 0;
+    for (size_t i = 0; i < sizeof(kKinds) / sizeof(kKinds[0]); ++i) {
+        kind->addItem(T(kKinds[i].label), int(kKinds[i].type));
+        if (kKinds[i].type == form->type) cur = int(i);
+    }
+    kind->setCurrentIndex(cur);
+    g->addWidget(name, row, 0);
+    g->addWidget(kind, row, 1);
+    int used = 1;
+    if (form->usesKeys()) {
+        // One line per direction below the drop-down, so the form never needs a horizontal scroll bar.
+        auto changed = [this] { showProblems(); };
+        g->addWidget(new QLabel(T("Negative:"), this), row + 1, 0, Qt::AlignRight);
+        g->addWidget(chordPicker(this, this, &form->neg, label + QStringLiteral(" ") + T("negative"), changed), row + 1, 1);
+        g->addWidget(new QLabel(T("Positive:"), this), row + 2, 0, Qt::AlignRight);
+        g->addWidget(chordPicker(this, this, &form->pos, label + QStringLiteral(" ") + T("positive"), changed), row + 2, 1);
+        used = 3;
+    }
+    connect(kind, &QComboBox::activated, this, [this, kind, form](int idx) {
+        form->type = ChannelActionType(kind->itemData(idx).toInt());
+        if (form->usesKeys() && (form->neg.empty() || form->pos.empty())) {
+            form->neg = "up";
+            form->pos = "down";
+        }
+        rebuild();
+    });
+    return used;
+}
+
+void ModeEditorWidget::rebuild() {
+    ModeForm &f = editor_.form();
+    title_->setText(QStringLiteral("<b>") + T("Edit mode: %1").arg(qs8(f.id)).toHtmlEscaped() + QStringLiteral("</b>"));
+    auto *content = new QWidget;
+    auto *col = new QVBoxLayout(content);
+
+    // Name and description
+    auto *form = new QFormLayout;
+    auto *name = new QLineEdit(qs8(f.name), content);
+    name->setAccessibleName(T("Name"));
+    name->setPlaceholderText(qs8(f.id));
+    auto *desc = new QLineEdit(qs8(f.description), content);
+    desc->setAccessibleName(T("Description"));
+    form->addRow(T("Name:"), name);
+    form->addRow(T("Description:"), desc);
+    col->addLayout(form);
+    connect(name, &QLineEdit::textEdited, this, [this](const QString &t) {
+        editor_.form().name = t.toUtf8().toStdString();
+        showProblems();
+    });
+    connect(desc, &QLineEdit::textEdited, this, [this](const QString &t) {
+        editor_.form().description = t.toUtf8().toStdString();
+        showProblems();
+    });
+
+    // Channels
+    auto *chBox = new QGroupBox(T("Channels"), content);
+    auto *cg = new QGridLayout(chBox);
+    cg->setColumnStretch(1, 1);
+    int crow = 0;
+    crow += addChannelRow(cg, crow, T("Vertical push"), &f.v);
+    crow += addChannelRow(cg, crow, T("Horizontal push"), &f.h);
+    crow += addChannelRow(cg, crow, T("Twist"), &f.twist);
+    col->addWidget(chBox);
+
+    // Buttons: the shared row
+    auto *btBox = new QGroupBox(T("Buttons"), content);
+    auto *bl = new QVBoxLayout(btBox);
+    auto *bg = new QGridLayout;
+    bg->setColumnStretch(2, 1);
+    bl->addLayout(bg);
+    const ButtonModeSet buttonModes = loadButtonModes(ctx_.buttonModesDir, nullptr);
+    ButtonRowEnv env;
+    env.context = BindingContext::Specific;  // mode bindings are mode-specific: every action is first-class
+    env.advancedOpen = true;
+    env.buttonModes = &buttonModes;
+    env.modeIds = bindingModeIds(loadModes(dir_, nullptr));
+    env.strings = ctx_.strings ? ctx_.strings : &ownStrings_;
+    env.showInherited = false;
+    env.resetText = T("Unbind");
+    env.resetTip = T("Remove this binding; the profile's binding for the button applies again");
+    int limit = ctx_.settings ? ctx_.settings->buttonLimit() : 8;
+    for (const auto &b : f.buttons) limit = std::max(limit, b.first);
+    limit = std::min(limit, 32);
+    const std::vector<std::string> modeIds = env.modeIds;
+    for (int n = 1; n <= limit; ++n) {
+        BindingRow row;
+        row.number = n;
+        const std::string *act = f.button(n);
+        row.text = act ? *act : std::string("none");
+        row.valid = parseBinding(row.text, &row.binding);
+        row.overridden = act != nullptr;
+        ButtonRowHandlers h;
+        h.choose = [this, n, row, modeIds](const ButtonChoice &c) {
+            ModeForm &mf = editor_.form();
+            if (c.type == ButtonChoice::Type::Inherit) {
+                mf.setButton(n, "none");
+            } else {
+                Binding b;
+                if (c.type == ButtonChoice::Type::ButtonMode) b = Binding{BindingKind::ButtonMode, c.id};
+                else b = withKind(row.binding, c.kind, modeIds);
+                const std::string text = composeBinding(b);
+                if (!text.empty()) mf.setButton(n, text);
+            }
+            rebuild();
+        };
+        h.setArgument = [this, n](const Binding &b) {
+            const std::string text = composeBinding(b);
+            if (!text.empty()) editor_.form().setButton(n, text);
+            rebuild();
+        };
+        h.reset = [this, n] {
+            editor_.form().setButton(n, "none");
+            rebuild();
+        };
+        addButtonRow(this, btBox, bg, n - 1, row, env, h);
+    }
+    col->addWidget(btBox);
+
+    // Overrides
+    auto *ovBox = new QGroupBox(T("Settings overrides"), content);
+    auto *ol = new QVBoxLayout(ovBox);
+    ol->addWidget(new QLabel(T("Values that apply while this mode is active (for example the sensitivity)."), content));
+    auto *og = new QFormLayout;
+    for (size_t i = 0; i < f.overrides.size(); ++i) {
+        auto *rowW = new QWidget(content);
+        auto *h = new QHBoxLayout(rowW);
+        h->setContentsMargins(0, 0, 0, 0);
+        auto *edit = new QLineEdit(qs8(f.overrides[i].second), rowW);
+        edit->setAccessibleName(qs8(f.overrides[i].first));
+        auto *rm = new QToolButton(rowW);
+        rm->setText(T("Remove"));
+        h->addWidget(edit, 1);
+        h->addWidget(rm);
+        connect(edit, &QLineEdit::textEdited, this, [this, i](const QString &t) {
+            editor_.form().overrides[i].second = t.toUtf8().toStdString();
+            showProblems();
+        });
+        connect(rm, &QToolButton::clicked, this, [this, i] {
+            auto &ov = editor_.form().overrides;
+            ov.erase(ov.begin() + long(i));
+            rebuild();
+        });
+        og->addRow(qs8(f.overrides[i].first) + QLatin1Char(':'), rowW);
+    }
+    ol->addLayout(og);
+    const std::vector<std::string> addable = editor_.addableOverrideKeys();
+    if (!addable.empty()) {
+        auto *ar = new QHBoxLayout;
+        auto *combo = new QComboBox(content);
+        combo->setAccessibleName(T("Setting to override"));
+        for (const std::string &k : addable) combo->addItem(qs8(k), qs8(k));
+        auto *add = new QPushButton(T("Add override"), content);
+        ar->addWidget(combo, 1);
+        ar->addWidget(add);
+        ol->addLayout(ar);
+        connect(add, &QPushButton::clicked, this, [this, combo] {
+            const std::string key = combo->currentData().toString().toStdString();
+            Settings def;
+            std::string value;
+            for (const KV &kv : allKeys(def))
+                if (kv.first == key) value = kv.second;
+            editor_.form().overrides.emplace_back(key, value);
+            rebuild();
+        });
+    }
+    col->addWidget(ovBox);
+    col->addStretch(1);
+
+    QWidget *old = scroll_->takeWidget();
+    scroll_->setWidget(content);
+    if (old) old->deleteLater();
+    showProblems();
+}
+
+void ModeEditorWidget::showProblems() {
+    const std::vector<EditProblem> p = editor_.validate();
+    QString t;
+    for (const EditProblem &x : p) {
+        QString where = qs8(x.field);
+        if (x.field == "v") where = T("Vertical push");
+        else if (x.field == "h") where = T("Horizontal push");
+        else if (x.field == "twist") where = T("Twist");
+        else if (x.field.rfind("button:", 0) == 0) where = T("Button") + QLatin1Char(' ') + qs8(x.field.substr(7));
+        else if (x.field.rfind("override:", 0) == 0) where = qs8(x.field.substr(9));
+        t += where + QStringLiteral(": ") + qs8(x.message) + QLatin1Char('\n');
+    }
+    problems_->setText(t.trimmed());
+    problems_->setVisible(!p.empty());
+    saveBtn_->setEnabled(p.empty() && editor_.dirty());
+    revertBtn_->setEnabled(editor_.dirty());
+}
+
+bool ModeEditorWidget::save(bool overwriteChanged) {
+    const ModeEditor::SaveResult r = editor_.save(overwriteChanged);
+    if (!r.ok) {
+        if (r.changedOnDisk) return false;
+        showProblems();
+        if (r.problems.empty()) QMessageBox::warning(this, T("Modes"), T("Could not save the mode.") + QStringLiteral("\n\n") + qs8(r.error));
+        return false;
+    }
+    QString w;
+    for (const std::string &s : r.warnings) w += QStringLiteral(" - ") + qs8(s) + QLatin1Char('\n');
+    warnings_->setPlainText(w.isEmpty() ? T("The saved file has no loader warnings.") : T("Warnings:") + QLatin1Char('\n') + w);
+    warnings_->show();
+    showProblems();
+    emit saved(qs8(editor_.form().id));
+    return true;
+}
+
+void ModeEditorWidget::onSave() {
+    if (editor_.changedOnDisk()) {
+        const auto a = QMessageBox::question(this, T("Save"),
+                                             T("The file changed on disk while you were editing. Overwrite it with your changes?"),
+                                             QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+        if (a != QMessageBox::Yes) return;
+        save(true);
+        return;
+    }
+    save(false);
+}
+
+void ModeEditorWidget::onRevert() {
+    std::string err;
+    if (!editor_.revert(dir_, &err)) {
+        QMessageBox::warning(this, T("Modes"), qs8(err));
+        return;
+    }
+    warnings_->hide();
+    rebuild();
+}

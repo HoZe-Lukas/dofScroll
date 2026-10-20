@@ -26,12 +26,30 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Overview | Overview | The state of the daemon, quick actions (add a profile, release all keys, restart the daemon or the interface) and one card per device or program profile with its mode and a one-line summary of what it overrides; "Open" shows the profile on the Profiles page. Every profile of the configuration has a card |
 | Profiles | Profiles | Per-device and per-program profiles, see below |
 | Profiles | Channels | Scroll, zoom and the other output channels: sensitivity, dead zone, direction, curve preview |
-| Modes | Modes | The available modes (built-in and files in the modes folder): new, duplicate, import, edit, delete; a reminder that mode files can press any key |
+| Modes | Modes | The available modes (built-in and files in the modes folder): new, duplicate, import, edit in the page, delete; a reminder that mode files can press any key |
 | Modes | Button modes | The button mode files (`buttons/`): create, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
 | Device | Axes | Live bars of the six axes and the axis assistant (wizard) that detects which axis does what |
 | Settings | General | Output on/off, global mode, "Start at login", read-only status of the daemon |
 
 This is the first step of the redesign (#52): the pages are unchanged, only their place moved.
+
+## Editing a joystick mode
+
+"Edit" on the Modes page opens an editor next to the list (a built-in mode first gets an editable
+file with the same id, as before). It edits name and description, the three channels (default, off,
+vertical or horizontal wheel, zoom, **keys** or **step** with modifier check boxes and a key picker
+per direction), the buttons (the same drop-down per button as on the Profiles page, including the
+button modes and "Default (inherit)", which removes the binding) and the settings overrides (key,
+value, Add, Remove; `MODE`, `ENABLED`, `BACKEND` and `TICK_HZ` are not offered). Problems are listed
+inline and Save stays disabled until they are gone.
+
+Save rewrites the file line by line: the lines of the keys the editor owns are updated in place, new
+ones are appended, cleared ones are removed; comments, the SAFETY header and unknown lines stay as
+they are, and the id (file name) never changes. The result is checked with the daemon's loader
+first (a save that would drop one of its lines is refused) and replaces the file atomically; the
+loader's warnings, including "can press shortcut chords", are shown below the form. If the file
+changed on disk while you were editing, Save asks before overwriting. Revert reloads the file;
+"Open in text editor" is still there for people who prefer the file.
 
 ## Appearance
 
