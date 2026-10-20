@@ -144,6 +144,11 @@ public:
     }
     void setInputMode(InputMode m) override { mode_.store(static_cast<int>(m)); }
     std::string pathLabel() const override { return inputPathId(path()); }
+    // the HID path reports a refused open; the driver path never does
+    bool accessBlocked() const override {
+        const std::shared_ptr<InputSource> c = current();
+        return c && c->accessBlocked();
+    }
     InputPath path() const {
         std::lock_guard<std::mutex> lk(mu_);
         return path_;
