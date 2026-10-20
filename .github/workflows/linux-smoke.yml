@@ -3,8 +3,10 @@
 #
 # Reusable workflow: install smoke test for the Linux packages built by linux-packages.yml. Each
 # distribution is a fresh container: it installs the RPM or DEB with the distribution package
-# manager and runs `dofscroll --version`, `dofscroll --help` and, if present, `dofscroll-ui
-# --version` headless (QT_QPA_PLATFORM=offscreen). Only Rocky 9 (RPM) and Debian 12 (DEB), the
+# manager (or unpacks the TGZ, with nothing installed but the base image) and runs `dofscroll
+# --version`, `dofscroll --help` and `dofscroll-ui --version` and `--self-test` headless
+# (QT_QPA_PLATFORM=offscreen); the interface must run on the Qt that the package bundles
+# (packaging/qt.env), without any Qt from the distribution. Only Rocky 9 (RPM) and Debian 12 (DEB), the
 # build distributions, can fail the workflow; every other distribution is continue-on-error: it
 # reports but never blocks. ci.yml does NOT list this workflow in the `needs` of the release job,
 # so a smoke failure never blocks publishing.
@@ -22,7 +24,7 @@ permissions:
 
 jobs:
   smoke:
-    name: smoke ${{ matrix.image }}
+    name: smoke ${{ matrix.kind }} ${{ matrix.image }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     continue-on-error: ${{ matrix.experimental }}
@@ -36,6 +38,11 @@ jobs:
           - { kind: deb, image: "debian:12",     artifact: packages-deb,     experimental: false }
           - { kind: deb, image: "debian:13",     artifact: packages-deb,     experimental: true }
           - { kind: deb, image: "ubuntu:24.04",  artifact: packages-deb,     experimental: true }
+          # The TGZ, unpacked into a folder in a bare image: the interface needs only the C library.
+          - { kind: tgz, image: "rockylinux:9",  artifact: packages-rpm-tgz, experimental: false }
+          - { kind: tgz, image: "debian:12",     artifact: packages-rpm-tgz, experimental: false }
+          - { kind: tgz, image: "ubuntu:24.04",  artifact: packages-rpm-tgz, experimental: true }
+          - { kind: tgz, image: "fedora:42",     artifact: packages-rpm-tgz, experimental: true }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -49,9 +56,10 @@ jobs:
           IMAGE: ${{ matrix.image }}
           KIND: ${{ matrix.kind }}
         run: |
+          . packaging/qt.env
           mkdir -p out
           set +e
-          docker run --rm -v "$PWD/pkgs:/pkgs:ro" -v "$PWD/scripts:/scripts:ro" -v "$PWD/out:/out" \
+          docker run --rm -e EXPECT_QT_VERSION="$QT_VERSION" -v "$PWD/pkgs:/pkgs:ro" -v "$PWD/scripts:/scripts:ro" -v "$PWD/out:/out" \
             "$IMAGE" sh /scripts/smoke-install.sh "$KIND" /pkgs /out "$IMAGE"
           rc=$?
           {

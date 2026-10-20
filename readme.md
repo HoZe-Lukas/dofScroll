@@ -35,7 +35,7 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 
 ## Status and testing
 
-Current stable version: **1.0.0**. Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact).
+Current stable version: **1.0.1**. Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact).
 Other Linux distributions were install-tested in CI containers; the Windows and macOS builds are built and
 unit-tested by CI but have never been run with a real device.
 
@@ -71,7 +71,7 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
   (Windows, macOS); the factory button count is known for SpaceMouse Pro, Pro Wireless, Compact,
   Wireless, Enterprise and SpaceNavigator.
 
-Release notes: [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md) (and [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
+Release notes: [docs/release-notes-1.0.1.md](docs/release-notes-1.0.1.md) (and [1.0.0](docs/release-notes-1.0.0.md), [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
 
 ## Download and install
 
@@ -80,8 +80,9 @@ Release notes: [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md) (and [
 2. Download the package for your system plus `SHA256SUMS.txt`.
 3. Verify: `sha256sum -c --ignore-missing SHA256SUMS.txt`
 4. Install: `sudo dnf install ./dofscroll-*.rpm` (RHEL family, needs EPEL) or
-   `sudo apt install ./dofscroll_*.deb` (Debian family). Linux packages contain the Qt interface
-   (`dofscroll-ui`) when Qt6 was available at build time.
+   `sudo apt install ./dofscroll_*.deb` (Debian family). The Linux packages contain the Qt interface
+   (`dofscroll-ui`) with its own Qt 6.9.3 (no Qt from the system, none from EPEL); only
+   `spacenavd` is needed for the device (EPEL on the RHEL family).
    Windows: unsigned `-setup.exe` or portable ZIP (SmartScreen: More info, Run anyway). macOS:
    unsigned DMG (right-click > Open). Details per system: [docs/installation.md](docs/installation.md).
 5. Follow the first-time setup in [docs/installation.md](docs/installation.md). The user units
@@ -113,7 +114,7 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 | [docs/devices.md](docs/devices.md) | Device descriptions |
 | [docs/security.md](docs/security.md) | Threat model, systemd hardening, uinput permissions |
 | [docs/releasing.md](docs/releasing.md) | How a release is made |
-| [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md) | Release notes of 1.0.0; 0.1.1 in [docs/release-notes-0.1.1.md](docs/release-notes-0.1.1.md), beta.2 in [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-beta.2.md), beta.1 notes in [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) |
+| [docs/release-notes-1.0.1.md](docs/release-notes-1.0.1.md) | Release notes of 1.0.1; 1.0.0 in [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md), 0.1.1 in [docs/release-notes-0.1.1.md](docs/release-notes-0.1.1.md), beta.2 in [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-beta.2.md), beta.1 notes in [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) |
 | [docs/work-plan.md](docs/work-plan.md) | Roadmap and the Windows/macOS ports |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, pull requests, adding a joystick mode or language |
 

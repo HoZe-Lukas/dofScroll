@@ -51,6 +51,9 @@ open (`Text file busy`); stop it before rebuilding.
 - The number of configurable buttons comes from `factoryButtonCount(deviceName, reported)`, never
   from the reported count alone. `BUTTON_<n>` is 1-based and at most 32.
 - Fixed interfaces: `src/modes.hpp`, `src/keys.hpp`, `src/seed.hpp`, `src/device_db.hpp`.
+- The Qt version of every package that ships Qt (Linux, Windows, macOS) is set only in `packaging/qt.env`; never
+  hard-code it in a workflow or a script. The Linux packages bundle Qt (`scripts/bundle-qt-linux.sh`,
+  `docs/release-process.md`): new bundled libraries need their license text in the package.
 - Precedence of profiles: global < device < mode overrides < app.
 - On a behavior change update the matching doc (`docs/configuration.md`, `docs/modes.md`,
   `docs/installation.md`, `docs/troubleshooting.md`) in the same change.

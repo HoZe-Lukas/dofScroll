@@ -36,7 +36,10 @@ modifier keys), large click targets, and help text in a muted colour. The look i
 place, `src/ui/qt/theme.cpp`: an application style sheet built from the theme colours
 (`src/ui/model/theme_colors.hpp`; "System" keeps the platform palette and light/dark choice and
 only adds the shapes and our accent) and a layout style that gives every layout that does not set
-its own numbers the same margins and gaps. The numbers are tokens in
+its own numbers the same margins and gaps. In the Linux packages (which bundle their own Qt, see
+[installation.md](installation.md)) no KDE or GNOME platform theme exists, so "System" means Qt's
+Fusion style (the base of the style sheet) with the light or dark scheme that the desktop reports through the XDG
+desktop portal; `--self-test` checks on Linux that the base style is Fusion. The numbers are tokens in
 `src/ui/model/design_tokens.hpp`:
 
 | Token | Value (px) | Use |
