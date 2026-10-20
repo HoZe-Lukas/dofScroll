@@ -60,6 +60,8 @@ class Page(HTMLParser):
         self.ext_resources = []
         self.h1 = 0
         self.buttons = []
+        self.langsel = []     # (summary aria-label) of every details.langsel
+        self._in_langsel = False
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
@@ -69,6 +71,12 @@ class Page(HTMLParser):
             self.style_attrs += 1
         if tag == "html":
             self.html_lang = a.get("lang")
+        if tag == "details" and a.get("class") == "langsel":
+            self._in_langsel = True
+            self.langsel.append(None)
+        if tag == "summary" and self._in_langsel:
+            self.langsel[-1] = a.get("aria-label", "")
+            self._in_langsel = False
         if tag == "title":
             self._in_title = True
         elif tag == "meta":
@@ -375,6 +383,12 @@ def main():
                 err("%s: theme toggle button (id=theme, aria-pressed, aria-label) missing" % tag)
             if not any(a.get("class") == "lang" and a.get("hreflang") and a.get("href") for a in p.anchors):
                 err("%s: language switch link missing" % tag)
+            if len(p.langsel) != 1 or not p.langsel[0]:
+                err("%s: expected one details.langsel with a summary aria-label" % tag)
+            flags = [os.path.basename(i.get("src", "")) for i in p.imgs if "/flags/" in i.get("src", "")]
+            flag_of = {"en": "gb.svg", "de": "de.svg"}
+            if flags != [flag_of[lang], flag_of["de" if lang == "en" else "en"]]:
+                err("%s: language selector must show the flag of the current language first, then the other one; found %s" % (tag, flags))
             # CSP and the single inline script
             csp = p.http_equiv.get("content-security-policy", "")
             want = ("default-src 'none'", "img-src 'self'", "style-src 'self'", "base-uri 'none'", "form-action 'none'")
@@ -525,6 +539,13 @@ def main():
         # a German page must not be a verbatim copy
         if en.title == de.title:
             err("titles of en and de are identical")
+
+    for f in ("gb.svg", "de.svg"):
+        fp = os.path.join(root, "img", "flags", f)
+        if not os.path.isfile(fp):
+            err("img/flags/%s is missing" % f)
+        elif os.path.getsize(fp) > 2048:
+            err("img/flags/%s is larger than 2 KB" % f)
 
     # sitemap
     sm = os.path.join(root, "sitemap.xml")
