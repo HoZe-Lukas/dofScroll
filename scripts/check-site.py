@@ -192,7 +192,7 @@ def contrast_check(css_path):
     text_pairs = [("text", "bg"), ("text", "surface"), ("muted", "bg"), ("muted", "surface"),
                   ("link", "bg"), ("link", "surface"), ("text", "code-bg"), ("on-accent", "accent"),
                   ("link", "code-bg")]
-    ui_pairs = [("border", "bg"), ("focus", "bg"), ("focus", "surface"), ("accent", "bg")]
+    ui_pairs = [("border", "bg"), ("focus", "bg"), ("focus", "surface"), ("accent", "bg"), ("accent", "surface")]
     for name, theme in (("light", light), ("dark", dark_attr)):
         for pairs, need in ((text_pairs, 4.5), (ui_pairs, 3.0)):
             for fg, bg in pairs:
