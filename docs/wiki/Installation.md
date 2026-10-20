@@ -27,7 +27,7 @@ The RPM and DEB files have not been installed on a real machine yet. A package i
 4. Wayland only (or `BACKEND = uinput`): activate the udev rule yourself, it is not active by default.
    `sudo cp /usr/share/dofscroll/udev/70-dofscroll-uinput.rules /etc/udev/rules.d/`, then `sudo udevadm control --reload && sudo udevadm trigger`, then log out and in. Do not join the `input` group, see [Security](Security).
 
-On first start the tray creates `~/.config/dofscroll/dofscroll.conf` and the example modes if they do not exist (it never overwrites anything). Without the tray, copy them by hand, see [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md).
+On first start the tray creates `~/.config/dofscroll/dofscroll.conf` if it does not exist (it never overwrites anything); the example modes are built into the program and need no copying. Without the tray, copy the config by hand, see [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md).
 
 ## Build from source
 

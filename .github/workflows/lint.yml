@@ -74,3 +74,6 @@ jobs:
 
       - name: UTF-8 text files
         run: sh scripts/check-utf8.sh
+
+      - name: Wiki page of the built-in modes is complete
+        run: sh scripts/check-wiki-builtin-modes.sh
