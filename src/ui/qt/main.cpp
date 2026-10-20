@@ -403,7 +403,9 @@ static QLineEdit *lineEditNamed(QWidget *root, const QString &name) {
 
 static bool underScrollArea(const QWidget *w) {
     for (const QWidget *p = w->parentWidget(); p; p = p->parentWidget())
-        if (qobject_cast<const QAbstractScrollArea *>(p) && !qobject_cast<const QTreeWidget *>(p)) return true;
+        if (qobject_cast<const QAbstractScrollArea *>(p) && !qobject_cast<const QTreeWidget *>(p) &&
+            p->objectName() != QLatin1String("pageScroll"))  // the scroll area around the whole page does not count
+            return true;
     return false;
 }
 
@@ -1252,10 +1254,10 @@ int main(int argc, char **argv) {
             device.show();
             settle();
             if (device.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-dialog-add-device.png"))) ++written;
-            AddAppDialog app(env, {});
-            app.show();
+            AddAppDialog appDialog(env, {});
+            appDialog.show();
             settle();
-            if (app.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-dialog-add-app.png"))) ++written;
+            if (appDialog.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-dialog-add-app.png"))) ++written;
         }
         std::printf("screenshots: %d files in %s\n", written, screenshotDir);
         return written > 0 ? 0 : 1;
