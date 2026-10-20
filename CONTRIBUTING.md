@@ -74,11 +74,16 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 ## Adding a mode
 
 Modes are declarative files, no recompiling needed (format and limits: `docs/modes.md`;
-parser: `src/modes.hpp`).
+parser: `src/modes.hpp`). There are two kinds: **joystick modes** (what the axes do,
+`examples/modes/`) and **button modes** (reusable button behavior, `examples/buttons/`,
+`docs/button-modes.md`). Ideas are collected in issue #62; propose one with the "Mode proposal"
+issue form, or send the file directly with the "new mode" pull request template: open
+`https://github.com/HoZe-Lukas/dofScroll/compare/main...<your-branch>?template=new-mode.md`.
 
 1. Create `<name>.conf` (the name is the id, `[a-z0-9_-]{1,32}`). For a mode that ships with the
-   project put it in `examples/modes/`; for personal use put it in
-   `~/.config/dofscroll/modes/`.
+   project put it in `examples/modes/` (joystick) or `examples/buttons/` (button): the files of
+   these folders are embedded and built into the program at build time, so nothing else has to be
+   copied; for personal use put it in `~/.config/dofscroll/modes/` (or `buttons/`).
 2. Use `NAME`, `DESCRIPTION`, `V_ACTION`/`H_ACTION`/`TWIST_ACTION`, `BUTTON_<n>` and any settings
    key as an override. Buttons are numbered from 1 and must not exceed the factory button count
    of the device.
