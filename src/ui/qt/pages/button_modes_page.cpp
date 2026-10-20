@@ -94,10 +94,11 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     auto *ah = new QHBoxLayout(argHost_);
     ah->setContentsMargins(0, 0, 0, 0);
     auto *actionRow = new QWidget(right);
-    auto *arl = new QHBoxLayout(actionRow);
-    arl->setContentsMargins(0, 0, 0, 0);
-    arl->addWidget(kind_, 1);
-    arl->addWidget(argHost_, 1);
+    auto *arl = new QVBoxLayout(actionRow);  // the argument (key combination, mode, ...) below the action:
+    arl->setContentsMargins(0, 0, 0, 0);     // side by side it makes the page wider than a window
+    arl->setSpacing(spn::ui::tokens::kRowGap);
+    arl->addWidget(kind_);
+    arl->addWidget(argHost_);
     form->addRow(T("Name:"), name_);
     form->addRow(T("Description:"), description_);
     form->addRow(T("Action:"), actionRow);
