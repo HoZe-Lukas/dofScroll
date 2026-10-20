@@ -37,6 +37,12 @@ namespace {
 
 std::wstring widenAscii(const std::string &s) { return std::wstring(s.begin(), s.end()); }
 
+// GetProcAddress returns FARPROC; going through void* avoids -Wcast-function-type (an error under MinGW).
+template <class F>
+F procAddress(HMODULE h, const char *name) {
+    return reinterpret_cast<F>(reinterpret_cast<void *>(::GetProcAddress(h, name)));
+}
+
 struct Fake {
     HMODULE h = nullptr;
     void (*reset)() = nullptr;
@@ -47,11 +53,11 @@ struct Fake {
     Fake() {
         h = ::LoadLibraryW(widenAscii(FAKE_TDX_PATH).c_str());
         assert(h);
-        reset = reinterpret_cast<void (*)()>(::GetProcAddress(h, "FakeTdx_Reset"));
-        set = reinterpret_cast<decltype(set)>(::GetProcAddress(h, "FakeTdx_Set"));
-        setBehavior = reinterpret_cast<decltype(setBehavior)>(::GetProcAddress(h, "FakeTdx_SetBehavior"));
-        count = reinterpret_cast<decltype(count)>(::GetProcAddress(h, "FakeTdx_Count"));
-        clsid = reinterpret_cast<decltype(clsid)>(::GetProcAddress(h, "FakeTdx_Clsid"));
+        reset = procAddress<decltype(reset)>(h, "FakeTdx_Reset");
+        set = procAddress<decltype(set)>(h, "FakeTdx_Set");
+        setBehavior = procAddress<decltype(setBehavior)>(h, "FakeTdx_SetBehavior");
+        count = procAddress<decltype(count)>(h, "FakeTdx_Count");
+        clsid = procAddress<decltype(clsid)>(h, "FakeTdx_Clsid");
         assert(reset && set && setBehavior && count && clsid);
         reset();
     }
