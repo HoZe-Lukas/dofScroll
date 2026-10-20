@@ -87,7 +87,7 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Modes | Extensions | Your joystick mode files and button mode files in one list, each with a switch (on / off), where it is used and Remove; "Open folder" for both folders, see "Extensions" below |
 | Device | Device | The connected devices and their button count (the number of button rows a profile offers), the daemon state |
 | Device | Axes | Live bars of the six axes (and, while the active joystick mode splits a scroll channel, the push and tilt parts of that channel) and the axis assistant (wizard) that detects which axis does what |
-| Settings | Settings | Output on/off (`ENABLED` of Global), start at login, language, theme (Appearance), the daemon settings (tick rate, output backend; on Windows and macOS also **Input path**: Automatic, 3Dconnexion driver or Direct (HID), key `INPUT`, with the active path shown), the read-only status of the daemon (including "Input: ..." on Windows and macOS), "Open config", "Show log...", "Documentation" and an **About** box (version, licences, Qt under the LGPL and, on Windows and macOS, the 3Dconnexion note) |
+| Settings | Settings | Output on/off (`ENABLED` of Global), start at login, language and theme (the box "Language and appearance"), the daemon settings (tick rate, output backend; on Windows and macOS also **Input path**: Automatic, 3Dconnexion driver or Direct (HID), key `INPUT`, with the active path shown), the read-only status of the daemon (including "Input: ..." on Windows and macOS), "Open config", "Show log...", "Documentation" and an **About** box (version, licences, Qt under the LGPL and, on Windows and macOS, the 3Dconnexion note) |
 
 The Channels settings (sensitivity, dead zone, direction, curve, zoom detection, smoothing) are not a
 page of their own: they belong to a profile and are the Channels tab of the profile editor, for
@@ -232,7 +232,7 @@ magnifiers and a colour-blind reviewer were not tried (they need people and real
 
 ## Appearance
 
-Settings > Appearance sets the theme: **System default** (the look of the platform), **Light** or
+Settings > Language and appearance sets the theme: **System default** (the look of the platform), **Light** or
 **Dark**. A change applies at once and is remembered in `ui.conf` (`theme = system|light|dark`,
 next to the language). Light and Dark use the Fusion style with the dofscroll palette
 (`src/ui/model/theme_colors.hpp`); System restores the style and palette the program started with.

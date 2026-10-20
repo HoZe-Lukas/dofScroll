@@ -3218,3 +3218,7 @@ msgstr "Die Datei konnte nicht entfernt werden: %1"
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Removed: %1"
 msgstr "Entfernt: %1"
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Language and appearance"
+msgstr "Sprache und Darstellung"

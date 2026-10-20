@@ -187,10 +187,10 @@ QString styleSheetFor(const spn::ui::ThemeColors &c) {
     add(QStringLiteral("QToolTip { background: %1; color: %2; border: 1px solid %3; border-radius: %4px; padding: 6px 10px; }")
             .arg(hex(c.surface), hex(c.text), hex(c.border), r));
     // cards
-    add(QStringLiteral("QGroupBox { background: %1; border: 1px solid %2; border-radius: %3px; margin-top: 0; padding-top: 40px; "
+    add(QStringLiteral("QGroupBox { background: %1; border: 1px solid %2; border-radius: %3px; margin-top: 0; padding-top: 32px; "
                        "font-weight: 600; }")
             .arg(hex(c.surface), hex(c.border), rc));
-    add(QStringLiteral("QGroupBox::title { subcontrol-origin: padding; subcontrol-position: top left; left: %1px; top: 12px; }")
+    add(QStringLiteral("QGroupBox::title { subcontrol-origin: padding; subcontrol-position: top left; left: %1px; top: 9px; }")
             .arg(tk::kCardPadding));
     add(QStringLiteral("QGroupBox QLabel, QGroupBox QCheckBox, QGroupBox QRadioButton, QGroupBox QPushButton, QGroupBox QComboBox, "
                        "QGroupBox QLineEdit, QGroupBox QAbstractSpinBox, QGroupBox QAbstractItemView, QGroupBox QToolButton "
