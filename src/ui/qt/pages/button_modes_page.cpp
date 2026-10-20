@@ -99,6 +99,10 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     kind_->setAccessibleName(T("Action"));
     for (const spn::ui::BindingKindInfo &k : spn::ui::bindingKindsFor(spn::ui::BindingContext::Specific, false))
         kind_->addItem(T(k.label), int(k.kind));
+    // The width of the page must not follow the longest action text (platform fonts differ a lot):
+    // a fixed number of characters, the list opens wide enough for every entry.
+    kind_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    kind_->setMinimumContentsLength(22);
     argHost_ = new QWidget(right);
     auto *ah = new QHBoxLayout(argHost_);
     ah->setContentsMargins(0, 0, 0, 0);
