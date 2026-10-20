@@ -2007,6 +2007,11 @@ static bool autosaveAuditSelfTest(const std::function<bool(MainWindow &)> &) {
     return ok;
 }
 
+// Index of the firefox program profile in the Overview list of the demo configuration used by --screenshots
+// (global, two devices, then the programs).
+static constexpr int kFirefoxProfile = 3;
+static constexpr int kOkularProfile = 6;  // the program profile shown on the website
+
 int main(int argc, char **argv) {
     bool selfTest = false;
     const char *screenshotDir = nullptr;
@@ -2081,10 +2086,28 @@ int main(int argc, char **argv) {
         // Example profiles, so that the Overview shows cards.
         QFile conf(tmp.path() + QStringLiteral("/dofscroll.conf"));
         if (!conf.open(QIODevice::WriteOnly)) return 1;
-        conf.write("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\nBUTTON_1 = key:space\nBUTTON_2 = buttonmode:latch-nav\nBUTTON_3 = buttonmode:gone\n\n"
-                   "[app:blender]\nENABLED = 0\n\n[app:gimp]\n");
+        // Demo data without any real names or paths (also used for the website screenshots).
+        conf.write("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[device:SpaceMouse Compact]\nSCROLL_V_SENS = 7\n\n"
+                   "[app:firefox]\nMODE = timeline\nBUTTON_1 = key:space\nBUTTON_2 = buttonmode:latch-nav\nBUTTON_3 = buttonmode:gone\n\n"
+                   "[app:blender]\nENABLED = 0\n\n[app:gimp]\n\n[app:okular]\nMODE = slides\nSCROLL_V_SENS = 6\n");
         conf.close();
+        // The daemon's status file with a connected device, as the running daemon writes it, so that
+        // the Overview and the status bar show real-looking data. Rewritten before every grab because
+        // the window counts a status older than a few seconds as "daemon not running".
+        const std::string statusPath = spn::statusFilePathIn(ctx.runtimeDir);
+        QDir().mkpath(QString::fromStdString(ctx.runtimeDir));
         MainWindow w(ctx);
+        auto refreshDemoStatus = [&](const char *program) {
+            QFile sf(QString::fromStdString(statusPath));
+            if (sf.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+                sf.write(QString::fromLatin1("profile=%1\ndevice=SpaceMouse Pro\napp=%1\nmode=normal\ntoggle=\nenabled=1\npaused=0\n"
+                                             "devices_seen=1\nsession=active\nupdated=%2\n")
+                             .arg(QString::fromLatin1(program), QString::number(static_cast<qlonglong>(std::time(nullptr))))
+                             .toUtf8());
+                sf.close();
+            }
+            w.refreshStatusNow();
+        };
         w.show();
         // Light at three sizes, dark at the medium size (the layout does not depend on the colours).
         static const struct { const char *theme; const char *name; int w, h; } shots[] = {
@@ -2095,7 +2118,8 @@ int main(int argc, char **argv) {
             w.resize(sz.w, sz.h);
             for (const std::string &id : w.pageIds()) {
                 w.showPage(QString::fromStdString(id));
-                if (id == "profiles") w.openOverviewProfile(2);  // the firefox profile: mode and button modes
+                refreshDemoStatus("firefox");
+                if (id == "profiles") w.openOverviewProfile(kFirefoxProfile);  // the firefox profile: mode and button modes
                 settle();
                 const QString file = QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-%2-%3.png")
                                          .arg(QString::fromLatin1(sz.theme), QString::fromLatin1(sz.name),
@@ -2112,7 +2136,7 @@ int main(int argc, char **argv) {
             if (pp)
                 for (const char *who : {"global", "program"})
                     for (const QString &tab : pp->tabIds()) {
-                        pp->selectSection(std::string(who) == "global" ? 0 : 2);
+                        pp->selectSection(std::string(who) == "global" ? 0 : size_t(kFirefoxProfile));
                         pp->selectTab(tab);
                         settle();
                         const QString file = QString::fromUtf8(screenshotDir) +
@@ -2122,7 +2146,7 @@ int main(int argc, char **argv) {
             w.resize(960, 560);  // the same tabs in a medium window
             if (pp)
                 for (const QString &tab : pp->tabIds()) {
-                    pp->selectSection(2);
+                    pp->selectSection(size_t(kFirefoxProfile));
                     pp->selectTab(tab);
                     settle();
                     if (w.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-medium-profile-%1-program.png").arg(tab))) ++written;
@@ -2164,6 +2188,21 @@ int main(int argc, char **argv) {
             appDialog.show();
             settle();
             if (appDialog.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-dialog-add-app.png"))) ++written;
+        }
+        for (const char *th : {"light", "dark"}) {  // the website: the settings window and the Overview, with a running daemon
+            applyTheme(spn::ui::themeFromId(th));
+            w.resize(1040, 680);
+            w.showPage(QStringLiteral("profiles"));
+            refreshDemoStatus("okular");
+            w.openOverviewProfile(kOkularProfile);
+            if (ProfilesPage *pp = w.profilesPage()) pp->selectTab(QStringLiteral("general"));
+            settle();
+            if (w.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/site-profiles-%1.png").arg(QString::fromLatin1(th)))) ++written;
+            w.resize(720, 470);
+            w.showPage(QStringLiteral("overview"));
+            refreshDemoStatus("okular");
+            settle();
+            if (w.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/site-overview-%1.png").arg(QString::fromLatin1(th)))) ++written;
         }
         std::printf("screenshots: %d files in %s\n", written, screenshotDir);
         return written > 0 ? 0 : 1;

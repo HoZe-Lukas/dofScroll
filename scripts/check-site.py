@@ -27,8 +27,8 @@ from urllib.parse import urldefrag, urlparse
 BASE = "https://hoze-lukas.github.io/dofScroll/"
 VOID = {"meta", "link", "img", "br", "hr", "input", "source", "area", "base", "col", "wbr"}
 LANGS = {"en": "", "de": "de"}
-BUDGET_LANG = 300 * 1024      # shared files + that language's files
-BUDGET_TOTAL = 400 * 1024     # whole site folder
+BUDGET_LANG = 340 * 1024      # shared files + that language's files
+BUDGET_TOTAL = 440 * 1024     # whole site folder
 
 errors = []
 
@@ -170,7 +170,7 @@ def contrast_check(css_path):
         if not m:
             err("style.css: block %s not found" % pattern)
             return {}
-        return dict(re.findall(r"--([a-z-]+):\s*(#[0-9a-fA-F]{6})", m.group(1)))
+        return dict(re.findall(r"--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})", m.group(1)))
 
     light = block(r"(?m)^:root")
     dark_media = block(r':root:not\(\[data-theme="light"\]\)')
@@ -191,7 +191,7 @@ def contrast_check(css_path):
 
     text_pairs = [("text", "bg"), ("text", "surface"), ("muted", "bg"), ("muted", "surface"),
                   ("link", "bg"), ("link", "surface"), ("text", "code-bg"), ("on-accent", "accent"),
-                  ("link", "code-bg")]
+                  ("link", "code-bg"), ("on-accent", "accent-2")]
     ui_pairs = [("border", "bg"), ("focus", "bg"), ("focus", "surface"), ("accent", "bg"), ("accent", "surface")]
     for name, theme in (("light", light), ("dark", dark_attr)):
         for pairs, need in ((text_pairs, 4.5), (ui_pairs, 3.0)):
@@ -204,6 +204,46 @@ def contrast_check(css_path):
                     err("style.css: %s theme contrast %s on %s is %.2f, needs %.1f" % (name, fg, bg, r, need))
                 else:
                     print("  contrast %-5s %-9s on %-8s %.2f (>= %.1f)" % (name, fg, bg, r, need))
+        glow_check(css, name, theme)
+    motion_check(css)
+
+
+
+def glow_check(css, name, theme):
+    """Text on the translucent --glow tint (hero, closing section): composite it at full strength over
+    --bg and --surface and require 4.5:1 for every text colour."""
+    blocks = {"light": r"(?m)^:root\s*\{([^}]*)\}", "dark": r':root\[data-theme="dark"\]\s*\{([^}]*)\}'}
+    m = re.search(blocks[name], css)
+    g = re.search(r"--glow:\s*rgba\((\d+),\s*(\d+),\s*(\d+),\s*([0-9.]+)\)", m.group(1)) if m else None
+    if not g:
+        err("style.css: %s theme lacks --glow: rgba(r, g, b, a)" % name)
+        return
+    r, gg, b, al = int(g.group(1)), int(g.group(2)), int(g.group(3)), float(g.group(4))
+    if al > 0.35:
+        err("style.css: %s --glow alpha %.2f is above 0.35" % (name, al))
+
+    def lum(h):
+        c = [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    for base in ("bg", "surface"):
+        bh = theme[base]
+        mix = "#%02x%02x%02x" % tuple(round(al * f + (1 - al) * int(bh[i:i + 2], 16)) for f, i in ((r, 1), (gg, 3), (b, 5)))
+        for fg in ("text", "muted", "link"):
+            la, lb = sorted((lum(theme[fg]), lum(mix)), reverse=True)
+            ratio = (la + 0.05) / (lb + 0.05)
+            if ratio < 4.5:
+                err("style.css: %s theme: %s on glow over %s (%s) is %.2f, needs 4.5" % (name, fg, base, mix, ratio))
+            else:
+                print("  contrast %-5s %-6s on glow/%-7s %.2f (>= 4.5)" % (name, fg, base, ratio))
+
+
+def motion_check(css):
+    """Animations live in style.css only and are switched off for reduced motion."""
+    if "@keyframes" in css:
+        m = re.search(r"@media \(prefers-reduced-motion: reduce\)\s*\{(.*)\}\s*$", css, re.S)
+        if not m or "animation: none" not in m.group(1) or "transition: none" not in m.group(1):
+            err("style.css: animations or transitions are not disabled under prefers-reduced-motion: reduce")
 
 
 def png_size(path):
@@ -260,6 +300,8 @@ def main():
                 err("%s: expected exactly one <h1>, found %d" % (tag, p.h1))
             if p.meta.get("color-scheme") != "light dark":
                 err("%s: missing <meta name=color-scheme content='light dark'>" % tag)
+            if re.search(r"<style|<animate|<set ", open(path, encoding="utf-8").read()):
+                err("%s: inline <style> or SMIL animation (animations belong in style.css)" % tag)
             if p.style_attrs:
                 err("%s: %d style attribute(s); the CSP forbids inline styles" % (tag, p.style_attrs))
             if not any(b.get("id") == "theme" and b.get("aria-pressed") in ("true", "false") and b.get("aria-label")

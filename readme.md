@@ -8,7 +8,7 @@
 
 **Use your 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program.** A SpaceMouse is made for 3D and CAD software; in a web browser, a PDF reader, a map or an office document it usually does nothing. dofscroll turns the six axes into smooth scrolling, zooming and keys for ordinary desktop programs, with per-program and per-device profiles, built-in joystick modes and button modes. Version 1.0.0. Free software for Linux (tested), Windows and macOS (built by CI, never run with a real device, see [Status and testing](#status-and-testing)). Website: <https://hoze-lukas.github.io/dofScroll/> (English, [Deutsch](https://hoze-lukas.github.io/dofScroll/de/)). Wiki: [Quick start](https://github.com/HoZe-Lukas/dofScroll/wiki/Quick-start), [Built-in modes](https://github.com/HoZe-Lukas/dofScroll/wiki/Built-in-modes), [Requirements](https://github.com/HoZe-Lukas/dofScroll/wiki/Requirements).
 
-![The dofscroll settings window: profile editor with a program profile for firefox](site/img/ui-profiles-light.png)
+![The dofscroll settings window: profile editor with a program profile for okular](site/img/ui-window-light.png)
 
 Install in three lines (download the package from the [latest release](https://github.com/HoZe-Lukas/dofScroll/releases/latest) first; first-time setup in [docs/installation.md](docs/installation.md)):
 
