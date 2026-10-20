@@ -3,6 +3,11 @@
 #include "pages/modes_page.hpp"
 
 #include <QDir>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
+#include <QUrl>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
@@ -93,6 +98,8 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     importBtn_ = mk(T("Import file..."), T("Add a mode file from somewhere else (you see its warnings first)"));
     editBtn_ = mk(T("Edit"), T("Edit the mode here: name, channels, buttons and overrides"));
     delBtn_ = mk(T("Delete"), T("Delete the mode file (file modes only)"));
+    renameBtn_ = mk(T("Rename..."), T("Give the mode file a new name and id (profiles that use it are listed first)"));
+    exportBtn_ = mk(T("Export..."), T("Save a copy of the mode file somewhere else"));
     folderBtn_ = mk(T("Open modes folder"), T("Show the folder with the mode files"));
     buttons->addStretch(1);
     row->addLayout(buttons);
@@ -105,7 +112,10 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     setTabOrder(dupBtn_, importBtn_);
     setTabOrder(importBtn_, editBtn_);
     setTabOrder(editBtn_, delBtn_);
-    setTabOrder(delBtn_, folderBtn_);
+    setTabOrder(delBtn_, renameBtn_);
+    setTabOrder(renameBtn_, exportBtn_);
+    setTabOrder(exportBtn_, folderBtn_);
+    setAcceptDrops(true);  // drop .conf files to import them
 
     connect(list_, &QListWidget::currentItemChanged, this, [this] { onCurrentChanged(); });
     connect(list_, &QListWidget::itemDoubleClicked, this, [this] { onEdit(); });
@@ -114,6 +124,8 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     connect(importBtn_, &QPushButton::clicked, this, [this] { onImport(); });
     connect(editBtn_, &QPushButton::clicked, this, [this] { onEdit(); });
     connect(delBtn_, &QPushButton::clicked, this, [this] { onDelete(); });
+    connect(renameBtn_, &QPushButton::clicked, this, [this] { onRename(); });
+    connect(exportBtn_, &QPushButton::clicked, this, [this] { onExport(); });
     connect(folderBtn_, &QPushButton::clicked, this, [this] { onOpenFolder(); });
 
     timer_ = new QTimer(this);
@@ -218,6 +230,14 @@ void ModesPage::updateDetail() {
         t += T("Origin: %1").arg(originText(m->origin)) + QLatin1Char('\n');
         if (!m->path.empty()) t += T("File: %1").arg(QString::fromStdString(m->path)) + QLatin1Char('\n');
         if (!m->description.empty()) t += QLatin1Char('\n') + QString::fromStdString(m->description) + QLatin1Char('\n');
+        const QStringList uses = usedByLines(QString::fromStdString(m->id));
+        t += QLatin1Char('\n');
+        if (uses.isEmpty()) {
+            t += T("Used by: no profile") + QLatin1Char('\n');
+        } else {
+            t += T("Used by:") + QLatin1Char('\n');
+            for (const QString &u : uses) t += QStringLiteral(" - ") + u + QLatin1Char('\n');
+        }
         if (!m->warnings.empty()) {
             t += QLatin1Char('\n') + T("Warnings:") + QLatin1Char('\n');
             for (const std::string &w : m->warnings) t += QStringLiteral(" - ") + QString::fromStdString(w) + QLatin1Char('\n');
@@ -232,6 +252,25 @@ void ModesPage::updateDetail() {
     dupBtn_->setEnabled(m != nullptr);
     editBtn_->setEnabled(m != nullptr);
     delBtn_->setEnabled(m && m->origin != Origin::BuiltIn);
+    renameBtn_->setEnabled(m && m->origin == Origin::File);
+    exportBtn_->setEnabled(m != nullptr);
+}
+
+QStringList ModesPage::usedByLines(const QString &id) const {
+    QStringList out;
+    if (!ctx_.settings) return out;
+    for (const ModeCatalog::ModeUse &u : ModeCatalog::usedBy(ctx_.settings->profiles(), id.toStdString())) {
+        QString how;
+        if (u.selects) how = T("selected as the mode");
+        if (!u.buttons.empty()) {
+            QStringList nums;
+            for (int b : u.buttons) nums << QString::number(b);
+            if (!how.isEmpty()) how += QStringLiteral(", ");
+            how += T("switched to by button %1").arg(nums.join(QStringLiteral(", ")));
+        }
+        out << QString::fromStdString(ModeCatalog::useTitle(u)) + QStringLiteral(": ") + how;
+    }
+    return out;
 }
 
 void ModesPage::showError(const QString &what, const std::string &detail) {
@@ -279,41 +318,69 @@ void ModesPage::onImport() {
     const QString file = QFileDialog::getOpenFileName(this, T("Import mode file"), QDir::homePath(),
                                                       T("Mode files (*.conf);;All files (*)"));
     if (file.isEmpty()) return;
+    importPath(file);
+}
+
+bool ModesPage::importPath(const QString &file, bool interactive) {
+    lastError_.clear();
     const std::string path = file.toStdString();
     std::string name;  // empty: the id comes from the file name
     ModeCatalog::Result chk = catalog_.inspectImport(path, name);
-    if (!chk.ok && chk.error.find("already exists") != std::string::npos) {
+    if (!chk.ok && interactive && chk.error.find("already exists") != std::string::npos) {
         // The id is taken: let the user pick another name.
         bool ok = false;
         const QString n = askName(T("Import mode file"), T("A mode with this id already exists. Name for the imported mode:"),
                                   QFileInfo(file).completeBaseName(), &ok);
-        if (!ok) return;
+        if (!ok) return false;
         name = n.toStdString();
         chk = catalog_.inspectImport(path, name);
     }
-    if (!chk.ok) return showError(T("This file cannot be imported."), chk.error);
+    if (!chk.ok) {
+        lastError_ = QString::fromStdString(chk.error);
+        if (interactive) showError(T("This file cannot be imported."), chk.error);
+        return false;
+    }
 
     // Show the warnings and the permanent safety note before anything is kept.
-    QString text = T("Import the mode \"%1\"?").arg(QString::fromStdString(chk.id));
-    if (!chk.warnings.empty()) {
-        text += QStringLiteral("\n\n") + T("Warnings:");
-        for (const std::string &w : chk.warnings) text += QStringLiteral("\n - ") + QString::fromStdString(w);
-    } else {
-        text += QStringLiteral("\n\n") + T("The file has no loader warnings.");
+    if (interactive) {
+        QString text = T("Import the mode \"%1\"?").arg(QString::fromStdString(chk.id));
+        if (!chk.warnings.empty()) {
+            text += QStringLiteral("\n\n") + T("Warnings:");
+            for (const std::string &w : chk.warnings) text += QStringLiteral("\n - ") + QString::fromStdString(w);
+        } else {
+            text += QStringLiteral("\n\n") + T("The file has no loader warnings.");
+        }
+        QMessageBox box(QMessageBox::Warning, T("Import mode file"), text, QMessageBox::NoButton, this);
+        box.setInformativeText(QString::fromStdString(ModeCatalog::importSafetyNote(QtStrings())));
+        QPushButton *yes = box.addButton(T("Import"), QMessageBox::AcceptRole);
+        QPushButton *no = box.addButton(QMessageBox::Cancel);
+        box.setDefaultButton(no);
+        box.setEscapeButton(no);
+        box.exec();
+        if (box.clickedButton() != yes) return false;
     }
-    QMessageBox box(QMessageBox::Warning, T("Import mode file"), text, QMessageBox::NoButton, this);
-    box.setInformativeText(QString::fromStdString(ModeCatalog::importSafetyNote(QtStrings())));
-    QPushButton *yes = box.addButton(T("Import"), QMessageBox::AcceptRole);
-    QPushButton *no = box.addButton(QMessageBox::Cancel);
-    box.setDefaultButton(no);
-    box.setEscapeButton(no);
-    box.exec();
-    if (box.clickedButton() != yes) return;
 
-    if (!confirmLeaveEditor()) return;
+    if (!confirmLeaveEditor()) return false;
     const ModeCatalog::Result r = catalog_.importFile(path, name);
-    if (!r.ok) return showError(T("Could not import the mode."), r.error);
+    if (!r.ok) {
+        lastError_ = QString::fromStdString(r.error);
+        if (interactive) showError(T("Could not import the mode."), r.error);
+        return false;
+    }
     populate(QString::fromStdString(r.id));
+    return true;
+}
+
+void ModesPage::dragEnterEvent(QDragEnterEvent *e) {
+    if (e->mimeData()->hasUrls()) e->acceptProposedAction();
+}
+
+// Dropped files are only read as mode files (same checks and confirmation as Import); nothing is run.
+void ModesPage::dropEvent(QDropEvent *e) {
+    for (const QUrl &u : e->mimeData()->urls())
+        if (u.isLocalFile() && u.toLocalFile().endsWith(QStringLiteral(".conf"), Qt::CaseInsensitive))
+            importPath(u.toLocalFile());
+    e->acceptProposedAction();
 }
 
 bool ModesPage::selectMode(const QString &id) {
@@ -391,6 +458,57 @@ void ModesPage::onDelete() {
     if (!r.ok) return showError(T("Could not delete the mode."), r.error);
     right_->setCurrentWidget(detail_);
     populate(id);  // an overridden built-in is selected again, else the first entry
+}
+
+bool ModesPage::exportModeTo(const QString &id, const QString &dest) {
+    const ModeCatalog::Result r = catalog_.exportTo(id.toStdString(), dest.toStdString());
+    lastError_ = QString::fromStdString(r.error);
+    return r.ok;
+}
+
+void ModesPage::onExport() {
+    const ModeCatalog::ModeEntry *m = current();
+    if (!m) return;
+    const QString id = QString::fromStdString(m->id);
+    // The dialog asks before replacing; the model never overwrites, so an existing file is removed first.
+    const QString file = QFileDialog::getSaveFileName(this, T("Export mode file"), QDir::homePath() + QLatin1Char('/') + id + QStringLiteral(".conf"),
+                                                      T("Mode files (*.conf);;All files (*)"));
+    if (file.isEmpty()) return;
+    if (QFileInfo::exists(file) && !QFile::remove(file)) return showError(T("Could not export the mode."), file.toStdString());
+    if (!exportModeTo(id, file)) showError(T("Could not export the mode."), lastError_.toStdString());
+}
+
+bool ModesPage::renameMode(const QString &id, const QString &newName) {
+    const ModeCatalog::Result r = catalog_.rename(id.toStdString(), newName.toStdString());
+    lastError_ = QString::fromStdString(r.error);
+    if (!r.ok) return false;
+    populate(QString::fromStdString(r.id));
+    return true;
+}
+
+void ModesPage::onRename() {
+    const ModeCatalog::ModeEntry *m = current();
+    if (!m || m->origin != Origin::File) return;
+    const QString id = QString::fromStdString(m->id);
+    bool ok = false;
+    const QString name = askName(T("Rename"), T("New name of the mode:"), QString::fromStdString(m->label), &ok);
+    if (!ok) return;
+    const std::string nid = ModeCatalog::deriveId(ModeCatalog::cleanLabel(name.toStdString()));
+    const QStringList uses = nid == m->id ? QStringList() : usedByLines(id);
+    if (!uses.isEmpty()) {
+        const QString text = T("The id of the mode changes from \"%1\" to \"%2\". These profiles still refer to the old id and "
+                               "will fall back to the default mode until you change them:")
+                                 .arg(id, QString::fromStdString(nid)) +
+                             QStringLiteral("\n\n - ") + uses.join(QStringLiteral("\n - "));
+        QMessageBox box(QMessageBox::Warning, T("Rename"), text, QMessageBox::NoButton, this);
+        QPushButton *yes = box.addButton(T("Rename"), QMessageBox::AcceptRole);
+        QPushButton *no = box.addButton(QMessageBox::Cancel);
+        box.setDefaultButton(no);
+        box.setEscapeButton(no);
+        box.exec();
+        if (box.clickedButton() != yes) return;
+    }
+    if (!renameMode(id, name)) showError(T("Could not rename the mode."), lastError_.toStdString());
 }
 
 void ModesPage::onOpenFolder() {

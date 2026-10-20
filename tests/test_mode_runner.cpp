@@ -140,7 +140,8 @@ static void testHoldMode() {
     r.tick(s, RawAxes{}, 1u << 2, true, DT);
     CHECK(r.takeSwitchRequest().empty(), "still held after the switch");
     r.tick(s, RawAxes{}, 0u, true, DT);
-    CHECK(r.takeSwitchRequest() == "release", "release is reported although the active mode does not bind the button");
+    CHECK(!validModeId(ModeRunner::kHoldReleaseRequest), "the hold-release request cannot be a mode id");
+    CHECK(r.takeSwitchRequest() == std::string(ModeRunner::kHoldReleaseRequest), "release is reported although the active mode does not bind the button");
     r.tick(s, RawAxes{}, 0u, true, DT);
     CHECK(r.takeSwitchRequest().empty(), "reported once");
     // another button's release does not end the hold
@@ -167,8 +168,8 @@ static void testHoldMode() {
     const std::string first = r.takeSwitchRequest();
     r.tick(s, RawAxes{}, 1u << 0, true, DT);
     const std::string second = r.takeSwitchRequest();
-    CHECK((first == "release" && second.empty()) || (first == "x" && second == "release") ||
-              (first == "release" && second == "x") || first == "x",
+    CHECK((first == std::string(ModeRunner::kHoldReleaseRequest) && second.empty()) || (first == "x" && second == std::string(ModeRunner::kHoldReleaseRequest)) ||
+              (first == std::string(ModeRunner::kHoldReleaseRequest) && second == "x") || first == "x",
           "release is not lost when another request is pending (%s, %s)", first.c_str(), second.c_str());
 }
 

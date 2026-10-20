@@ -101,6 +101,13 @@ Shipped in [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/e
 
 Use `timeline` for video editing in a program of your choice, for example `[app:resolve]` with `MODE = timeline` (DaVinci Resolve's behavior is not verified here).
 
+## Mode library
+
+In the interface (page Modes) you can export a mode file, rename it (new name and id; profiles that
+use the old id are listed first and keep pointing at it), see which profiles use a mode, and import
+`.conf` files by dropping them onto the page. Imports get the same checks and the safety
+confirmation as the Import button. The id `release` is a normal mode id.
+
 ## Editing from the tray
 
 The tray "Mode" submenu has `Edit mode file`, `Create editable copy` (for built-ins without a file, writes a template with mode 0600 and never overwrites) and `Open modes folder`.

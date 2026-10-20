@@ -43,10 +43,13 @@ public:
     const ModeDef &mode() const { return mode_; }
     // Target of a mode:<id> / mode:next binding whose button was pressed in the last tick
     // (press edge only); empty if none. Reading clears it. The caller performs the switch.
-    // A hold:mode:<id> press is reported as "hold:<id>", the release of that button as "release"
+    // A hold:mode:<id> press is reported as "hold:<id>", the release of that button as
+    // kHoldReleaseRequest (contains a colon, so it can never be a mode id: a mode file "release.conf"
+    // is switched to by mode:release like any other)
     // (also when the mode that is active while holding has no binding for the button).
     // A toggle:mode:<id> press is reported as "toggle:<id>": the caller switches to <id>, or, if
     // <id> is already the effective mode because of such a switch, drops the switch.
+    static constexpr const char *kHoldReleaseRequest = "release:hold";
     std::string takeSwitchRequest() {
         std::string r;
         r.swap(switch_request_);

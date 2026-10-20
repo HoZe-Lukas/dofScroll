@@ -107,6 +107,10 @@ following links, requires the current user as owner and no group/other permissio
 most 64 bytes, accepts only a valid mode id (`[a-z0-9_-]{1,32}`) that is a loaded mode, ignores a
 request older than 30 seconds (a reload that never arrived) and removes the file in every case.
 
+The id `release` is an ordinary mode id: a file `release.conf` is valid and `BUTTON_n = mode:release`
+switches to it. (The daemon's internal notice that a `hold:mode:` button was released is a request
+string with a colon, which can never be a mode id.)
+
 A binding in the active mode for a button wins over a `BUTTON_<n>` binding in the main config for
 the same button.
 

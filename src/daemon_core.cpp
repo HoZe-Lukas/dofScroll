@@ -397,7 +397,7 @@ void DaemonCore::checkButtons() {
 
 // Button-triggered mode switch: "next" / "prev" cycle through all modes in alphabetical id order.
 void DaemonCore::switchMode(const std::string &target) {
-    if (target == "release") {  // the button of a hold:mode: was released
+    if (target == ModeRunner::kHoldReleaseRequest) {  // the button of a hold:mode: was released
         endHold(true);
         return;
     }

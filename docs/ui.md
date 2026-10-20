@@ -38,7 +38,7 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Overview | Overview | The state of the daemon, quick actions (add a profile, release all keys, restart the daemon or the interface) and one card per device or program profile with its mode and a one-line summary of what it overrides; "Open" shows the profile on the Profiles page. Every profile of the configuration has a card |
 | Profiles | Profiles | Per-device and per-program profiles, see below |
 | Profiles | Channels | Scroll, zoom and the other output channels: sensitivity, dead zone, direction, curve preview |
-| Modes | Modes | The available modes (built-in and files in the modes folder): new, duplicate, import, edit in the page, delete; a reminder that mode files can press any key |
+| Modes | Modes | The available modes (built-in and files in the modes folder): new, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every mode the profiles that use it (selected as its mode or switched to by a button); a reminder that mode files can press any key |
 | Modes | Button modes | The button mode files (`buttons/`): create, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
 | Modes | Extensions | All modes and button modes in one list with their origin (built in, your file, example not installed); add a shipped example, remove your own file. Extensions are plain files, nothing executable |
 | Device | Axes | Live bars of the six axes and the axis assistant (wizard) that detects which axis does what |
@@ -116,6 +116,15 @@ installed shows as "missing: <id>" and is not rewritten. See [button-modes.md](b
 The tray shows "Navigation mode on" while the navigation mode is latched. Precedence is
 unchanged: global < device < mode overrides < application. A profile that names a mode which does
 not exist is shown with a warning instead of being changed silently.
+
+Mode library: "Export..." saves a copy of the selected mode file (a built-in mode as its template
+text) to a place you choose and never overwrites without asking. "Rename..." gives a file mode a new
+name; the id (and file name) follows the name. Profiles that still use the old id are listed and
+confirmed first; they are not rewritten and fall back to the default mode until you change them. A
+built-in mode, or a file that replaces one, cannot be renamed. The details of every mode show "Used
+by": the profile sections whose `MODE` selects it or whose `BUTTON_<n>` is `mode:<id>`,
+`toggle:mode:<id>` or `hold:mode:<id>`. Dropping `.conf` files onto the Modes page imports them with
+the same checks, warnings and confirmation as Import; files are only read, never run.
 
 The **Button modes** page (category Modes, next to Modes) manages the button mode files: list,
 editor for name, description and action with Save and Revert, New, Duplicate, Import, Delete (it

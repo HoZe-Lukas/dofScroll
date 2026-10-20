@@ -456,6 +456,26 @@ static void testHoldMode() {
     CHECK(id() == "normal", "unplugging the device ends the hold (%s)", id().c_str());
 }
 
+// A user mode with the id "release" is an ordinary mode: mode:release switches to it, and the internal
+// release of a hold:mode: button is not confused with it.
+static void testModeNamedRelease() {
+    Rig r(std::string(BASE_CONF) + "BUTTON_3 = hold:mode:fine\nBUTTON_4 = mode:release\n",
+          {{"fine.conf", "SCROLL_V_SENS = 1\n"}, {"release.conf", "NAME = Release\n"}});
+    r.run(0.1);
+    auto id = [&] { return r.core->runner().mode().id; };
+    auto down = [&](int b) { r.src.pushButton(0, b, true); r.run(0.1); };
+    auto up = [&](int b) { r.src.pushButton(0, b, false); r.run(0.1); };
+    down(3);
+    CHECK(id() == "release", "mode:release switches to the mode file release.conf (%s)", id().c_str());
+    up(3);
+    CHECK(id() == "release", "releasing a non-hold button changes nothing (%s)", id().c_str());
+    // the hold still ends with its own release request
+    down(2);
+    CHECK(id() == "fine", "hold:mode:fine while in the release mode (%s)", id().c_str());
+    up(2);
+    CHECK(id() == "release", "the hold ends and the previous mode comes back (%s)", id().c_str());
+}
+
 static std::string statusKey(const Rig &r, const std::string &key) {
     if (r.status.empty()) return "";
     const std::string &b = r.status.back();
@@ -671,6 +691,7 @@ int main() {
     testModeSwitchButton();
     testModePrev();
     testHoldMode();
+    testModeNamedRelease();
     testToggleButtons();
     testMotion();
     testStaleWatchdog();
