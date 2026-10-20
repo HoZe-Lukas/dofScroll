@@ -2,7 +2,7 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Installation
 
-Full guide: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md). This page is the short version.
+Before you install, check [Requirements](Requirements) (supported systems, drivers, permissions per OS). Full guide: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md). This page is the short version.
 
 ## Linux from a GitHub release
 

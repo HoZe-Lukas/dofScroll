@@ -4,7 +4,7 @@
 
 Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons](Buttons).
 
-The first five minutes on Linux (X11, the tested setup). This assumes you finished the [Installation](Installation) steps.
+The first five minutes on Linux (X11, the tested setup). This assumes you finished the [Installation](Installation) steps and met the [Requirements](Requirements) (on Windows and macOS see the per-OS checklist there).
 
 1. **Driver.** `systemctl status spacenavd` must be active. If not: `sudo systemctl enable --now spacenavd`. Plug in the SpaceMouse; `lsusb` should list a 3Dconnexion device.
 2. **Units.** `systemctl --user enable --now dofscroll.service dofscroll-ui.service`.
