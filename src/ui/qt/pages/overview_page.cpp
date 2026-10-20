@@ -19,6 +19,7 @@
 
 #include "ui/model/design_tokens.hpp"
 #include "log_dialog.hpp"
+#include "ui/model/mode_info_model.hpp"
 #include "ui/model/overview_model.hpp"
 #include "ui/model/ui_links.hpp"
 #include "ui/model/ui_progress.hpp"
@@ -238,6 +239,12 @@ void OverviewPage::rebuildModes(const spn::ui::OverviewData &d) {
     int current = -1;
     for (const spn::modelist::MenuEntry &e : d.modeChoices) {
         mode_->addItem(qs8(e.text), qs8(e.id));
+        if (ctx_.modes && ctx_.strings) {  // the description of the joystick mode is the tooltip of its entry
+            const spn::ModeDef *def = ctx_.modes->modeSet().find(e.id);
+            mode_->setItemData(mode_->count() - 1,
+                               def ? qs8(spn::ui::joystickModeTooltip(*def, *ctx_.strings)) : T("This joystick mode is not installed"),
+                               Qt::ToolTipRole);
+        }
         if (e.active) current = mode_->count() - 1;
     }
     mode_->setCurrentIndex(current);

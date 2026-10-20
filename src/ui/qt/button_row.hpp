@@ -7,6 +7,7 @@
 #pragma once
 #include <QString>
 #include <functional>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -23,6 +24,7 @@ struct ButtonRowEnv {
     bool advancedOpen = false;
     const spn::ButtonModeSet *buttonModes = nullptr;
     std::vector<std::string> modeIds;  // offered by "Switch to mode" and the like
+    std::map<std::string, std::string> modeTips;  // id -> description of the joystick mode (tooltip of its entry)
     const spn::ui::StringProvider *strings = nullptr;
     int deviceButtons = 0;      // > 0: the "Button n" label says in its tooltip how many buttons the device has
     bool showInherited = true;  // inherited rows show what they inherit (profiles); a mode has nothing to show

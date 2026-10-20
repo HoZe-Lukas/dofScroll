@@ -242,6 +242,7 @@ void ModeEditorWidget::rebuild() {
     name->setPlaceholderText(qs8(f.id));
     auto *desc = new QLineEdit(qs8(f.description), content);
     desc->setAccessibleName(T("Description"));
+    desc->setPlaceholderText(T("No description"));
     form->addRow(T("Name:"), name);
     form->addRow(T("Description:"), desc);
     col->addLayout(form);

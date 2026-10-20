@@ -121,6 +121,7 @@ public:
         std::string label;      // display name; entry 0: English source "Default mode" (translate in the view)
         std::string secondary;  // the id, "" for entry 0
         bool known = true;      // false: id set in the file but no such mode loaded
+        std::string description;  // DESCRIPTION of the mode ("" for entry 0 and unknown ids)
     };
     using ReloadFn = std::function<bool(std::string *err)>;
 
@@ -175,18 +176,20 @@ public:
         const std::string id = ps_.sectionSettings(i).mode;
         return validModeId(id) ? id : std::string("normal");
     }
+    // The loaded joystick mode with this id (nullptr if none): its description and channel actions.
+    const ModeDef *modeDef(const std::string &id) const { return modes_.find(id); }
     // Dropdown options for the mode of section i (empty for invalid indices). [device:*] and
     // [app:*] start with the entry "Default mode" (MODE not set); [global] has no such entry.
     std::vector<ModeOption> modeOptions(size_t i) const {
         std::vector<ModeOption> out;
         if (i >= ps_.sections.size()) return out;
-        if (i > 0) out.push_back({"", "Same as Global", "", true});
-        for (const ModeDef &m : modes_.modes) out.push_back({m.id, m.label.empty() ? m.id : m.label, m.id, true});
+        if (i > 0) out.push_back({"", "Same as Global", "", true, ""});
+        for (const ModeDef &m : modes_.modes) out.push_back({m.id, m.label.empty() ? m.id : m.label, m.id, true, m.description});
         if (hasKey(ps_.sections[i], "MODE")) {
             const std::string cur = ps_.sectionSettings(i).mode;
             bool found = false;
             for (const ModeOption &o : out) found = found || (!o.id.empty() && o.id == cur);
-            if (!found) out.push_back({cur, cur, cur, false});
+            if (!found) out.push_back({cur, cur, cur, false, ""});
         }
         return out;
     }

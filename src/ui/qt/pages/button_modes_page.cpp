@@ -22,7 +22,9 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include "described_item_delegate.hpp"
 #include "key_combo.hpp"
+#include "ui/model/mode_info_model.hpp"
 #include "platform/fs.hpp"
 #include "qt_action_runner.hpp"
 #include "ui/model/design_tokens.hpp"
@@ -78,6 +80,9 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     list_ = new QListWidget(split);
     list_->setAccessibleName(T(spn::ui::terms::kButtonModes));
     list_->setToolTip(T("The files in the button modes folder"));
+    list_->setItemDelegate(new DescribedItemDelegate(list_));  // the name and, below it, the description
+    list_->setWordWrap(true);
+    list_->setResizeMode(QListView::Adjust);
 
     auto *right = new QWidget(split);
     auto *rl = new QVBoxLayout(right);
@@ -88,6 +93,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     name_->setToolTip(T("Shown in the button drop-downs"));
     description_ = new QLineEdit(right);
     description_->setAccessibleName(T("Description"));
+    description_->setPlaceholderText(T("No description"));
     kind_ = new QComboBox(right);
     kind_->setAccessibleName(T("Action"));
     for (const spn::ui::BindingKindInfo &k : spn::ui::bindingKindsFor(spn::ui::BindingContext::Specific, false))
@@ -250,8 +256,9 @@ void ButtonModesPage::populate(const QString &selectId) {
             auto *it = new QListWidgetItem((label == id ? id : label + QStringLiteral(" (") + id + QStringLiteral(")")) +
                                            QStringLiteral("  -  ") + qs8(spn::ui::buttonModeOriginText(QtStrings())));
             it->setData(kRoleId, id);
+            it->setData(kRoleDescription, b.description.empty() ? qs8(spn::ui::noDescriptionText(QtStrings())) : qs(b.description));
             if (!b.warnings.empty()) it->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
-            it->setToolTip(qs(b.description));
+            it->setToolTip(b.description.empty() ? qs8(spn::ui::noDescriptionText(QtStrings())) : qs(b.description));
             list_->addItem(it);
             if (id == selectId) select = n;
             ++n;
@@ -415,8 +422,11 @@ spn::ui::Autosave::Outcome ButtonModesPage::writeForm() {
     if (id.empty() || !catalog_.find(id)) return {false, true, "no button mode is selected"};
     const std::string action = composedAction();
     if (action.empty()) return {false, true, "choose a key or a joystick mode first"};
+    // a CYCLE list of the file (see button-modes.md) stays while the action still is mode:next / mode:prev
+    const ButtonModeCatalog::Entry *entry = catalog_.find(id);
+    const std::vector<std::string> cycle = entry && (action == "mode:next" || action == "mode:prev") ? entry->cycle : std::vector<std::string>();
     const ButtonModeCatalog::Result r =
-        catalog_.save(id, name_->text().toUtf8().toStdString(), description_->text().toUtf8().toStdString(), action);
+        catalog_.save(id, name_->text().toUtf8().toStdString(), description_->text().toUtf8().toStdString(), action, cycle);
     if (!r.ok) return {false, true, r.error};
     dirty_ = false;
     keepForm_ = true;  // the list shows the new name; the form stays as it is (the caret does not jump)

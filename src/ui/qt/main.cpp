@@ -56,6 +56,8 @@
 #include "pages/profiles_env.hpp"
 #include "pages/button_modes_page.hpp"
 #include "autosaver.hpp"
+#include "described_item_delegate.hpp"
+#include "info_popup.hpp"
 #include "pages/channels_editor.hpp"
 #include "pages/device_page.hpp"
 #include "pages/log_dialog.hpp"
@@ -432,6 +434,11 @@ static bool quickActionsSelfTest(const UiContext &base, const QString &tmpPath) 
     // mode switch: disabled without a daemon, then enabled and marked with the running mode
     page.refresh();
     check(page.modeCombo()->count() >= 3 && !page.modeCombo()->isEnabled(), "mode switch lists the modes but is disabled without a daemon");
+    {
+        bool allTips = page.modeCombo()->count() > 0;
+        for (int i = 0; i < page.modeCombo()->count(); ++i) allTips = allTips && !page.modeCombo()->itemData(i, Qt::ToolTipRole).toString().isEmpty();
+        check(allTips, "every entry of the Active joystick mode drop-down carries the description as tooltip");
+    }
     {
         const QString now = QString::number(static_cast<long long>(std::time(nullptr)));
         const std::string text = "profile=global\ndevice=SpaceMouse Pro\nmode=timeline\nenabled=1\npaused=0\ndevices_seen=1\nupdated=" +
@@ -1068,6 +1075,60 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         if (mode) QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 0));  // back to normal
         check(rig.waitSaved(), "Global mode written back");
     }
+    // descriptions: every joystick mode in the drop-down carries its description as tooltip; the "i" button explains
+    check(page->selectSection(2) && page->selectTab(QStringLiteral("general")), "General tab for the descriptions");
+    {
+        settle();
+        auto *mode = findNamed<QComboBox>(page, QStringLiteral("Joystick mode"));
+        check(mode != nullptr, "the joystick mode drop-down exists");
+        if (mode) {
+            bool allTips = true, sawOff = false;
+            for (int i = 0; i < mode->count(); ++i) {
+                const QString tip = mode->itemData(i, Qt::ToolTipRole).toString();
+                allTips = allTips && !tip.isEmpty();
+                sawOff = sawOff || (mode->itemText(i).startsWith(QStringLiteral("Off")) && tip.contains(QStringLiteral("Sends nothing")));
+            }
+            check(allTips, "every entry of the joystick mode drop-down has a tooltip");
+            check(sawOff, "the tooltip of a built-in entry is its description");
+            check(mode->itemData(0, Qt::ToolTipRole).toString().startsWith(QStringLiteral("Uses the joystick mode of Global")),
+                  "'Same as Global' says which joystick mode it is");
+        }
+        QToolButton *info = findNamed<QToolButton>(page, QStringLiteral("About this joystick mode"));
+        check(info != nullptr, "the 'i' button exists next to the drop-down");
+        if (info) {
+            info->click();
+            settle();
+            const QString text = InfoPopup::openText();
+            check(text.contains(QStringLiteral("Vertical push:")) && text.contains(QStringLiteral("Twist:")) &&
+                      text.contains(QStringLiteral("Built in")) && text.contains(QStringLiteral("Sends nothing")) && text.startsWith(QStringLiteral("Off")),
+                  "the info popover names the joystick mode, where it comes from and what its channels do");
+            for (QWidget *top : QApplication::topLevelWidgets())
+                if (top->objectName() == QLatin1String("infoPopup")) top->close();
+        }
+    }
+    // a button that switches the joystick mode: the entries of its argument drop-down have tooltips
+    check(page->selectSection(1) && page->selectTab(QStringLiteral("buttons")), "Buttons tab for the descriptions");
+    {
+        settle();
+        auto *act = findNamed<QComboBox>(page, QStringLiteral("Action of button 1"));
+        int sw = -1;
+        for (int i = 0; act && i < act->count(); ++i)
+            if (act->itemText(i) == QStringLiteral("Switch to joystick mode")) sw = i;
+        check(sw >= 0, "Switch to joystick mode is offered");
+        if (act && sw >= 0) QMetaObject::invokeMethod(act, "activated", Q_ARG(int, sw));
+        rig.waitSaved();
+        settle();
+        auto *arg = findNamed<QComboBox>(page, QStringLiteral("Joystick mode of button 1"));
+        check(arg != nullptr, "the joystick mode of the button can be chosen");
+        if (arg) {
+            bool allTips = arg->count() >= 3;
+            for (int i = 0; i < arg->count(); ++i) allTips = allTips && !arg->itemData(i, Qt::ToolTipRole).toString().isEmpty();
+            check(allTips, "every joystick mode of the button's drop-down has a tooltip");
+        }
+        act = findNamed<QComboBox>(page, QStringLiteral("Action of button 1"));
+        if (act) QMetaObject::invokeMethod(act, "activated", Q_ARG(int, 0));  // back to inherit
+        rig.waitSaved();
+    }
     // enabled: a switch per profile, written both ways, Reset removes the key
     check(page->selectSection(3) && page->selectTab(QStringLiteral("general")), "General tab of blender");
     {
@@ -1247,8 +1308,27 @@ static bool modeFilesAutosaveSelfTest(const UiContext &ctx, const QString &tmpPa
         ModesPage page(ctx);
         page.show();
         settle();
+        // the list shows the description of every joystick mode in a second line; none says "No description"
+        {
+            auto *list = page.findChild<QListWidget *>();
+            check(list && list->count() >= 4, "the joystick mode list exists");
+            bool normalOk = false, mineOk = false, allSet = true;
+            for (int i = 0; list && i < list->count(); ++i) {
+                const QString desc = list->item(i)->data(kRoleDescription).toString();
+                allSet = allSet && !desc.isEmpty();
+                if (list->item(i)->text().startsWith(QStringLiteral("normal")) || list->item(i)->text().startsWith(QStringLiteral("Normal")))
+                    normalOk = !desc.isEmpty() && desc != QStringLiteral("No description");
+                if (list->item(i)->text().startsWith(QStringLiteral("Mine"))) mineOk = desc == QStringLiteral("No description");
+            }
+            check(allSet && normalOk && mineOk, "every list row has a description line ('No description' where there is none)");
+            check(list && dynamic_cast<DescribedItemDelegate *>(list->itemDelegate()) != nullptr, "the list draws the description under the name");
+        }
         check(page.selectMode(QStringLiteral("mine")) && page.openEditor() && page.editorWidget(), "the editor opens");
         ModeEditorWidget *ed = page.editorWidget();
+        {
+            QLineEdit *desc = lineEditNamed(ed, QStringLiteral("Description"));
+            check(desc && desc->placeholderText() == QStringLiteral("No description"), "the description field is always there");
+        }
         for (const QString &name : {QStringLiteral("Save"), QStringLiteral("Revert"), QStringLiteral("Discard")})
             check(buttonTexted(&page, name) == nullptr, "no Save or Revert button in the joystick mode editor");
         // typed text: written after a pause
@@ -1329,7 +1409,29 @@ static bool modeFilesAutosaveSelfTest(const UiContext &ctx, const QString &tmpPa
         for (const QString &name : {QStringLiteral("Save"), QStringLiteral("Revert"), QStringLiteral("Discard")})
             check(buttonTexted(&page, name) == nullptr, "no Save or Revert button on the button modes page");
         check(page.selectButtonMode(QStringLiteral("latch")), "select the button mode");
+        {
+            QFile nodesc(tmpPath + QStringLiteral("/buttons/nodesc.conf"));
+            check(nodesc.open(QIODevice::WriteOnly) && nodesc.write("ACTION = click\n") > 0, "a button mode without a description");
+            nodesc.close();
+            page.refreshIfChanged();
+            auto *list = page.findChild<QListWidget *>();
+            bool said = false;
+            for (int i = 0; list && i < list->count(); ++i)
+                if (list->item(i)->text().startsWith(QStringLiteral("nodesc")))
+                    said = list->item(i)->data(kRoleDescription).toString() == QStringLiteral("No description");
+            check(said, "a button mode without a description says 'No description' in the list");
+            QFile::remove(tmpPath + QStringLiteral("/buttons/nodesc.conf"));
+            page.refreshIfChanged();
+            page.selectButtonMode(QStringLiteral("latch"));
+            QLineEdit *desc = lineEditNamed(&page, QStringLiteral("Description"));
+            check(desc && desc->placeholderText() == QStringLiteral("No description"), "the description field is always there");
+        }
         check(page.stageEdit(QStringLiteral("Typed"), QStringLiteral("d"), QStringLiteral("toggle:nav")), "type into the form");
+        {
+            auto *list = page.findChild<QListWidget *>();
+            check(list && (list->item(0)->data(kRoleDescription).toString() == QStringLiteral("d") || page.pending()),
+                  "the description shows in the list once written");
+        }
         check(page.pending(), "the change is pending");
         check(waitFor([&] { return !page.pending(); }, 3000) && fileText(QStringLiteral("/buttons/latch.conf")).contains(QStringLiteral("NAME = Typed")),
               "written after the pause");
@@ -1908,7 +2010,10 @@ int main(int argc, char **argv) {
                     tray.menuEntryCount(), avail ? 1 : 0);
         // every built-in (however many the embedded library holds) plus the one mode file of this test
         const int expectedModes = static_cast<int>(spn::loadModes("", nullptr).modes.size()) + 1;
-        const bool ok = w.pageCount() == 7 && w.categoryCount() == 5 && w.profileCount() >= 0 &&
+        bool tipsOk = static_cast<int>(tray.modeMenuToolTips().size()) == expectedModes;
+        for (const QString &tip : tray.modeMenuToolTips()) tipsOk = tipsOk && !tip.isEmpty();
+        if (!tipsOk) std::fprintf(stderr, "self-test failed: every entry of the tray's joystick mode menu carries the description as tooltip\n");
+        const bool ok = tipsOk && w.pageCount() == 7 && w.categoryCount() == 5 && w.profileCount() >= 0 &&
                         modes.modeCount() == expectedModes && tray.modeMenuCount() == expectedModes && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
         if (!overviewSelfTest(w)) return 1;

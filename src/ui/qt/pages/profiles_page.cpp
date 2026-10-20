@@ -37,6 +37,7 @@
 #include "add_device_dialog.hpp"
 #include "button_row.hpp"
 #include "channels_editor.hpp"
+#include "info_popup.hpp"
 #include "key_combo.hpp"
 #include "platform/fs.hpp"
 #include "ui/model/binding_editor_model.hpp"
@@ -44,6 +45,8 @@
 #include "ui/model/design_tokens.hpp"
 #include "ui/model/effective_model.hpp"
 #include "ui/model/inheritance_model.hpp"
+#include "ui/model/examples_model.hpp"
+#include "ui/model/mode_info_model.hpp"
 #include "ui/model/key_list.hpp"
 #include "ui/model/profile_export.hpp"
 #include "ui/model/profile_tree_model.hpp"
@@ -561,16 +564,49 @@ QWidget *ProfilesPage::buildModeSelector(size_t section) {
     combo->setAccessibleName(T("Joystick mode"));
     combo->setToolTip(T("What the axes do while this profile is active") + QStringLiteral("\n") +
                       T("Config key: %1").arg(QStringLiteral("MODE")));
+    const spn::ui::IdentityStrings fallbackStrings;
+    const spn::ui::StringProvider &strs = ctx_.strings ? *ctx_.strings : fallbackStrings;
     const std::vector<SettingsModel::ModeOption> opts = ctx_.settings->modeOptions(section);
+    const std::string globalMode = ctx_.settings->effectiveMode(0);
     for (size_t i = 0; i < opts.size(); ++i) {
         const SettingsModel::ModeOption &o = opts[i];
         QString text = o.id.empty() ? T("Same as Global") : qs8(o.label);
         if (!o.id.empty() && o.label != o.id) text += QStringLiteral(" (") + qs8(o.id) + QLatin1Char(')');
         if (!o.known) text += QStringLiteral(" - ") + T("not installed");
         combo->addItem(text);
+        // every entry carries the description of its joystick mode as tooltip
+        QString tip;
+        if (o.id.empty()) {
+            const ModeDef *g = ctx_.settings->modeDef(globalMode);
+            tip = T("Uses the joystick mode of Global: %1").arg(g && !g->label.empty() ? qs8(g->label) : qs8(globalMode)) +
+                  QStringLiteral("\n") + (g ? qs8(spn::ui::joystickModeTooltip(*g, strs)) : QString());
+        } else if (!o.known) {
+            tip = T("This joystick mode is not installed");
+        } else {
+            tip = o.description.empty() ? qs8(spn::ui::noDescriptionText(strs)) : qs8(o.description);
+        }
+        combo->setItemData(combo->count() - 1, tip, Qt::ToolTipRole);
     }
     combo->setCurrentIndex(std::max(0, ctx_.settings->selectedModeOption(section)));
-    l->addWidget(combo);
+    // the "i" button: name, origin, description and what the joystick mode does, for the chosen entry
+    auto infoFor = [this, combo, opts, globalMode, &strs]() {
+        const int idx = std::max(0, combo->currentIndex());
+        const std::string id = size_t(idx) < opts.size() && !opts[size_t(idx)].id.empty() ? opts[size_t(idx)].id : globalMode;
+        const ModeDef *def = ctx_.settings->modeDef(id);
+        if (!def) return T("This joystick mode is not installed");
+        std::string origin;
+        if (ctx_.modes)
+            if (const spn::ui::ModeCatalog::ModeEntry *e = ctx_.modes->find(id)) origin = spn::ui::modeOriginText(e->origin, strs);
+        return qs8(spn::ui::joystickModeInfo(*def, origin, strs));
+    };
+    auto *infoButton = makeInfoButton(box, T("About this joystick mode"), T("About this joystick mode: its description and what it does"));
+    connect(infoButton, &QToolButton::clicked, this, [infoButton, infoFor] { InfoPopup::open(infoButton, infoFor()); });
+    connect(combo, &QComboBox::currentIndexChanged, this, [combo, infoButton, infoFor](int) { combo->setToolTip(infoFor()); });
+    combo->setToolTip(infoFor());
+    auto *comboRow = new QHBoxLayout;
+    comboRow->addWidget(combo, 1);
+    comboRow->addWidget(infoButton);
+    l->addLayout(comboRow);
     l->addWidget(noteLabel(section == 0 ? T("The joystick mode that applies unless a device or program profile chooses "
                                             "another one.")
                                         : T("Choose another joystick mode for this profile, or keep \"Same as Global\".")));
@@ -708,7 +744,8 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
     outer->addLayout(grid);
 
     // Joystick modes offered by "Switch to mode": every installed one (built-in and files).
-    const std::vector<std::string> offered = bindingModeIds(loadModes(ctx_.modesDir, nullptr));
+    const ModeSet installedModes = loadModes(ctx_.modesDir, nullptr);
+    const std::vector<std::string> offered = bindingModeIds(installedModes);
     const ButtonModeSet buttonModes = loadButtonModes(ctx_.buttonModesDir, nullptr);
 
     ButtonRowEnv env;
@@ -717,6 +754,11 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
     env.buttonModes = &buttonModes;
     env.modeIds = offered;
     env.strings = ctx_.strings;
+    {   // the description of every joystick mode is the tooltip of its entry
+        const spn::ui::IdentityStrings fallback;
+        const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
+        for (const ModeDef &m : installedModes.modes) env.modeTips[m.id] = spn::ui::joystickModeTooltip(m, strings);
+    }
     // kMaxButtons: the device is not known, so there is no real count to name
     env.deviceButtons = ctx_.settings->buttonLimit() < int(spn::kMaxButtons) ? ctx_.settings->buttonLimit() : 0;
     env.resetText = section == 0 ? T("Unbind") : T("Inherit");

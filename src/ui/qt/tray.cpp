@@ -88,6 +88,13 @@ int Tray::modeMenuCount() const {
     return 0;
 }
 
+QStringList Tray::modeMenuToolTips() const {
+    QStringList out;
+    for (QMenu *sub : menu_.findChildren<QMenu *>(QString(), Qt::FindDirectChildrenOnly))
+        for (QAction *a : sub->actions()) out << a->toolTip();
+    return out;
+}
+
 int Tray::menuEntryCount() const { return int(menu_.actions().size()); }
 
 void Tray::refresh() {
@@ -123,10 +130,13 @@ void Tray::addEntry(QMenu *into, const spn::ui::TrayEntry &e) {
     }
     if (e.kind == Kind::Submenu) {
         QMenu *sub = into->addMenu(QString::fromStdString(e.text));
+        sub->setToolTipsVisible(true);
         auto *group = new QActionGroup(sub);
         group->setExclusive(true);
         for (const spn::ui::TrayEntry &c : e.children) {
             QAction *a = sub->addAction(QString::fromStdString(c.text));
+            a->setToolTip(QString::fromStdString(c.tooltip));  // the description of the joystick mode
+            a->setStatusTip(QString::fromStdString(c.tooltip));
             a->setCheckable(true);
             a->setChecked(c.checked);
             group->addAction(a);

@@ -25,7 +25,9 @@
 
 #include <QStackedWidget>
 
+#include "described_item_delegate.hpp"
 #include "pages/mode_editor_widget.hpp"
+#include "ui/model/mode_info_model.hpp"
 #include "platform/fs.hpp"
 #include "qt_action_runner.hpp"
 #include "ui_i18n.hpp"
@@ -72,6 +74,9 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     list_ = new QListWidget(split);
     list_->setAccessibleName(T(spn::ui::terms::kJoystickModes));
     list_->setToolTip(T("All joystick modes: the built-in ones and the files in the joystick modes folder"));
+    list_->setItemDelegate(new DescribedItemDelegate(list_));  // the name and, below it, the description
+    list_->setWordWrap(true);
+    list_->setResizeMode(QListView::Adjust);
     right_ = new QStackedWidget(split);
     detail_ = new QPlainTextEdit(right_);
     detail_->setReadOnly(true);  // plain text only: mode files are foreign content
@@ -201,8 +206,10 @@ void ModesPage::populate(const QString &selectId) {
         auto *it = new QListWidgetItem((label == id ? id : label + QStringLiteral(" (") + id + QStringLiteral(")")) +
                                        QStringLiteral("  -  ") + originText(m.origin));
         it->setData(kRoleId, id);
+        it->setData(kRoleDescription, qs8(m.description.empty() ? spn::ui::noDescriptionText(QtStrings()) : m.description));
         if (!m.warnings.empty()) it->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
-        it->setToolTip(originText(m.origin));
+        it->setToolTip(qs8(m.description.empty() ? spn::ui::noDescriptionText(QtStrings()) : m.description) + QLatin1Char('\n') +
+                       originText(m.origin));
         list_->addItem(it);
         if (id == selectId) select = n;
         ++n;
@@ -222,7 +229,11 @@ void ModesPage::updateDetail() {
         t += T("Id: %1").arg(QString::fromStdString(m->id)) + QLatin1Char('\n');
         t += T("Origin: %1").arg(originText(m->origin)) + QLatin1Char('\n');
         if (!m->path.empty()) t += T("File: %1").arg(QString::fromStdString(m->path)) + QLatin1Char('\n');
-        if (!m->description.empty()) t += QLatin1Char('\n') + QString::fromStdString(m->description) + QLatin1Char('\n');
+        t += QLatin1Char('\n') + qs8(m->description.empty() ? spn::ui::noDescriptionText(QtStrings()) : m->description) + QLatin1Char('\n');
+        if (const spn::ModeDef *def = catalog_.modeSet().find(m->id)) {
+            t += QLatin1Char('\n') + T("What it does:") + QLatin1Char('\n');
+            for (const std::string &line : spn::ui::joystickModeChannelLines(*def, QtStrings())) t += QStringLiteral(" - ") + qs8(line) + QLatin1Char('\n');
+        }
         const QStringList uses = usedByLines(QString::fromStdString(m->id));
         t += QLatin1Char('\n');
         if (uses.isEmpty()) {

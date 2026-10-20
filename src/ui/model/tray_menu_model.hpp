@@ -38,6 +38,7 @@ struct TrayEntry {
     bool checked = false;  // Radio / Check
     TrayAction action = TrayAction::None;
     std::string arg;                  // SetMode: the mode id
+    std::string tooltip;              // SetMode: the description of the joystick mode ("No description" if it has none)
     std::vector<TrayEntry> children;  // Submenu
 };
 
@@ -95,6 +96,8 @@ inline TrayMenu buildTrayMenu(const TrayMenuInput &in, const StringProvider &s) 
             r.checked = e.active;
             r.action = TrayAction::SetMode;
             r.arg = e.id;
+            if (const ModeDef *def = in.modes->find(e.id)) r.tooltip = def->description.empty() ? s.tr("No description") : def->description;
+            else r.tooltip = s.tr("This joystick mode is not installed");
             mode.children.push_back(r);
         }
     m.entries.push_back(mode);

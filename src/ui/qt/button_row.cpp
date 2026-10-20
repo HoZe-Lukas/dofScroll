@@ -71,7 +71,11 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
         mc->setAccessibleName(T("Joystick mode of button") + QStringLiteral(" %1").arg(row.number));
         std::vector<std::string> ids = env.modeIds;
         if (std::find(ids.begin(), ids.end(), row.binding.arg) == ids.end()) ids.push_back(row.binding.arg);
-        for (const std::string &id : ids) mc->addItem(qs8(id), qs8(id));
+        for (const std::string &id : ids) {
+            mc->addItem(qs8(id), qs8(id));
+            auto tip = env.modeTips.find(id);
+            if (tip != env.modeTips.end()) mc->setItemData(mc->count() - 1, qs8(tip->second), Qt::ToolTipRole);
+        }
         mc->setCurrentIndex(std::max(0, mc->findData(qs8(row.binding.arg))));
         QObject::connect(mc, &QComboBox::activated, owner, [handlers, mc, bk](int) {
             if (handlers.setArgument) handlers.setArgument(Binding{bk, mc->currentData().toString().toUtf8().toStdString()});

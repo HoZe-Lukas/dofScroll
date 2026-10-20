@@ -49,7 +49,7 @@ inline std::vector<ButtonChoice> buttonChoices(BindingContext ctx, bool advanced
         c.group = ButtonChoice::Group::ButtonModes;
         c.id = m.id;
         c.label = m.label;
-        c.tooltip = m.description;
+        c.tooltip = m.description.empty() ? str.tr("No description") : m.description;
         out.push_back(c);
     }
     if (!currentId.empty() && !bm.find(currentId)) {
