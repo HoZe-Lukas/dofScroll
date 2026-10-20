@@ -144,7 +144,7 @@ static void testTree() {
 
     std::vector<ProfileEntry> e = ProfileTreeModel::entries(sm);
     assert(e.size() == 4);
-    assert(e[0].isDefault && ProfileTreeModel::label(e[0]) == "Default mode");
+    assert(e[0].isDefault && ProfileTreeModel::label(e[0]) == "Global");
     assert(e[1].kind == Section::DEVICE && e[1].pattern == "Some Mouse");
     assert(e[2].pattern == "Alpha" && e[3].pattern == "zeta app");
     assert(ProfileTreeModel::patterns(sm, Section::APP).size() == 2);

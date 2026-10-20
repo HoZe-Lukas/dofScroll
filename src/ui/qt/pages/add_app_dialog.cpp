@@ -25,12 +25,14 @@ enum { kRoleMatch = Qt::UserRole, kRoleHasProfile };
 AddAppDialog::AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent)
     : QDialog(parent), ctx_(ctx) {
     setWindowTitle(T("Add application"));
-    resize(640, 520);
+    resize(720, 560);
     model_.setConfigured(configured);
 
     auto *l = new QVBoxLayout(this);
-    l->addWidget(new QLabel(T("Pick a running program, capture the next one you focus, or type its match "
-                              "string. The profile applies while that program has the focus.")));
+    auto *intro = new QLabel(T("Pick a running program, capture the next one you focus, or type its match "
+                              "string. The profile applies while that program has the focus."));
+    intro->setWordWrap(true);
+    l->addWidget(intro);
 
     auto *top = new QHBoxLayout;
     search_ = new QLineEdit(this);

@@ -25,9 +25,50 @@ maintainer only on Linux (RHEL 9, X11, KDE Plasma) with the SpaceMouse Pro and C
 Windows and macOS builds come from CI and have not been run on hardware. See "Known limitations"
 in the [readme](../readme.md).
 
+## Look and layout principles
+
+The interface is meant to be open and calm, in the manner of the settings apps of current Windows
+and macOS versions: rounded cards on a slightly tinted window, thin borders instead of bevels,
+one accent colour (primary buttons, selection, focus ring, the underline of the selected page tab),
+toggle switches for on/off settings (a plain box only where several boxes are choices, such as
+modifier keys), large click targets, and help text in a muted colour. The look is applied in one
+place, `src/ui/qt/theme.cpp`: an application style sheet built from the theme colours
+(`src/ui/model/theme_colors.hpp`; "System" keeps the platform palette and light/dark choice and
+only adds the shapes and our accent) and a layout style that gives every layout that does not set
+its own numbers the same margins and gaps. The numbers are tokens in
+`src/ui/model/design_tokens.hpp`:
+
+| Token | Value (px) | Use |
+|---|---|---|
+| `kPageMargin` | 24 | margin of a page and of a dialog |
+| `kSectionGap` | 20 | between cards (group boxes) |
+| `kRowGap` | 12 | between rows of a form and between buttons |
+| `kCardPadding` | 18 | inside a card |
+| `kControlHeight` | 34 | buttons, inputs and combo boxes |
+| `kRowHeight` | 32 | rows of lists and trees |
+| `kRadius`, `kRadiusCard` | 8, 10 | corners |
+
+New pages should use plain layouts and group boxes and set no margins of their own; mark a primary
+button with `setProperty("primary", true)`, a check box that is one of several choices with
+`setProperty("look", "box")`, a heading label with `setProperty("heading", "page")` or `"section"`.
+
+Every page sits in a scroll area: in a small window text stays readable and controls keep their
+size, and the page scrolls (horizontally only as a last resort) instead of squashing. Info,
+status and help labels wrap. The default window is 1280x820 (clamped to the screen); the saved
+geometry wins, the smallest size is 720x480.
+
+The mouse wheel never changes a combo box, spin box or slider, anywhere (also in dialogs): one
+application-wide event filter hands the wheel to the surrounding page, so scrolling a page with the
+pointer over a control scrolls the page. Change a value by clicking or with the keyboard.
+
+Colour contrast (WCAG AA, 4.5:1 for text, 3:1 for the accent marks) is checked for both themes by
+`tests/test_ui_theme.cpp`; `dofscroll-ui --screenshots <dir>` renders every page at three sizes in
+both themes for a visual check.
+
 ## Window layout
 
-The window has no sidebar or tree. Vertical tabs on the left pick a category; where a category has
+A sidebar on the left (icon and name, the selected entry is a rounded pill) picks a category, and
+the category name is shown as a large page title; where a category has
 several pages, horizontal tabs on top of the content pick the page (a category with one page shows
 no tab bar). A status bar at the bottom shows the daemon state (the same line as the tray's first
 entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registry

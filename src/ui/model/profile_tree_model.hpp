@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Entries of the "Profiles" tree: "Default mode" ([global]) first, then the device profiles and
+// Entries of the "Profiles" tree: "Global" ([global]) first, then the device profiles and
 // then the application profiles, each group sorted by name. Add/remove/rename go through the
 // SettingsModel; the section index is the identity of an entry until the next rebuild.
 #pragma once
@@ -84,8 +84,8 @@ public:
         return m.renameSection(section, norm, err);
     }
 
-    // English source text of the tree label (the view translates "Default mode").
-    static std::string label(const ProfileEntry &e) { return e.isDefault ? "Default mode" : e.pattern; }
+    // English source text of the tree label (the view translates "Global").
+    static std::string label(const ProfileEntry &e) { return e.isDefault ? "Global" : e.pattern; }
     static const char *groupTitle(Section::Kind k) {
         return k == Section::DEVICE ? "Device profiles" : k == Section::APP ? "Application profiles" : "";
     }

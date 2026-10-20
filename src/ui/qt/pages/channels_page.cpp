@@ -542,6 +542,7 @@ private:
         auto boxes = std::make_shared<std::vector<QCheckBox *>>();
         for (int a = 0; a < spn::AX_COUNT; ++a) {
             auto *cb = new QCheckBox(QString::fromLatin1(spn::axisName(spn::Axis(a))));
+            cb->setProperty("look", QStringLiteral("box"));
             cb->setToolTip(latHelp);
             boxes->push_back(cb);
             bl->addWidget(cb);

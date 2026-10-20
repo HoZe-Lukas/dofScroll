@@ -44,6 +44,7 @@
 #include "ui/model/key_list.hpp"
 #include "ui/model/profile_tree_model.hpp"
 #include "platform_hooks.hpp"
+#include "ui/model/design_tokens.hpp"
 #include "ui_i18n.hpp"
 
 using namespace spn;
@@ -93,7 +94,10 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     profileFilter_->setAccessibleName(T("Search profiles"));
     profileFilter_->setToolTip(T("Show only the programs and devices whose name contains this text"));
     ll->addWidget(profileFilter_);
+    ll->setSpacing(spn::ui::tokens::kSpaceSm);
+    left->setMinimumWidth(180);
     tree_ = new QTreeWidget(left);
+    tree_->setMinimumHeight(160);
     tree_->setHeaderHidden(true);
     tree_->setAccessibleName(T("Profiles"));
     ll->addWidget(tree_, 1);
@@ -122,6 +126,8 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     tabs_->setAccessibleName(T("Profile sections"));
     tabs_->setDocumentMode(true);
     rl->addWidget(tabs_, 1);
+    tabs_->setMinimumWidth(380);  // the editor never gets squashed
+    split->setChildrenCollapsible(false);
     split->addWidget(left);
     split->addWidget(right);
     split->setStretchFactor(0, 0);
@@ -135,6 +141,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     revert_ = new QPushButton(T("Revert"), this);
     revert_->setToolTip(T("Discard the unsaved changes of this profile and load the saved values"));
     save_ = new QPushButton(T("Save"), this);
+    save_->setProperty("primary", true);  // the accent button of the page
     save_->setToolTip(T("Write the configuration and tell the daemon to reload it"));
     bar->addWidget(status_, 1);
     bar->addWidget(revert_);
@@ -204,7 +211,7 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
     for (const ProfileEntry &e : ProfileTreeModel::entries(*ctx_.settings)) {
         QTreeWidgetItem *it;
         if (e.isDefault) {
-            it = new QTreeWidgetItem(tree_, QStringList(T("Default mode")));
+            it = new QTreeWidgetItem(tree_, QStringList(T("Global")));
         } else {
             QTreeWidgetItem *&group = e.kind == Section::DEVICE ? dev : app;
             if (!group) {

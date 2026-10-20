@@ -4,6 +4,9 @@
 
 #include <QCloseEvent>
 #include <QEvent>
+#include <QFrame>
+#include <QScrollArea>
+#include <QVBoxLayout>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -33,10 +36,20 @@
 #include "ui_i18n.hpp"
 #include "vertical_tabs.hpp"
 
+// First start: a roomy window, clamped to 90% of the screen, never below the minimum.
+QSize MainWindow::defaultWindowSize() {
+    QSize size(spn::ui::tokens::kDefaultWindowWidth, spn::ui::tokens::kDefaultWindowHeight);
+    if (const QScreen *screen = QGuiApplication::primaryScreen()) {
+        const QRect avail = screen->availableGeometry();
+        size = size.boundedTo(QSize(avail.width() * 9 / 10, avail.height() * 9 / 10));
+    }
+    return size.expandedTo(QSize(spn::ui::tokens::kMinWindowWidth, spn::ui::tokens::kMinWindowHeight));
+}
+
 MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     : QMainWindow(parent), modes_(base.modesDir), buttonModes_(base.buttonModesDir), ctx_(base) {
     setWindowTitle(QStringLiteral("dofscroll"));
-    resize(960, 560);
+    resize(defaultWindowSize());  // the saved geometry (restoreWindowState) wins
     setMinimumSize(spn::ui::tokens::kMinWindowWidth, spn::ui::tokens::kMinWindowHeight);
 
     // Configuration, status and the page context (everything the pages share).
@@ -63,8 +76,30 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     categoryBar_->setDrawBase(false);
     categoryBar_->setAccessibleName(T("Categories"));
     categories_ = new QStackedWidget(central);
-    row->addWidget(categoryBar_, 0, Qt::AlignTop);
-    row->addWidget(categories_, 1);
+    // The sidebar: a slightly different surface with room around the navigation entries.
+    auto *sidebar = new QFrame(central);
+    sidebar->setObjectName(QStringLiteral("sidebar"));
+    auto *sideLayout = new QVBoxLayout(sidebar);
+    sideLayout->setContentsMargins(spn::ui::tokens::kSpaceMd, spn::ui::tokens::kPageMargin, spn::ui::tokens::kSpaceMd,
+                                   spn::ui::tokens::kSpaceMd);
+    sideLayout->setSpacing(0);
+    categoryBar_->setParent(sidebar);
+    sideLayout->addWidget(categoryBar_, 0, Qt::AlignTop);
+    sideLayout->addStretch(1);
+    row->addWidget(sidebar);
+    // Right: a large page title (the category), then the category.
+    auto *content = new QWidget(central);
+    auto *contentLayout = new QVBoxLayout(content);
+    contentLayout->setContentsMargins(0, 0, 0, 0);
+    contentLayout->setSpacing(0);
+    categoryTitle_ = new QLabel(content);
+    categoryTitle_->setProperty("heading", QStringLiteral("page"));
+    categoryTitle_->setContentsMargins(spn::ui::tokens::kPageMargin, spn::ui::tokens::kSpaceLg, spn::ui::tokens::kPageMargin,
+                                       spn::ui::tokens::kSpaceSm);
+    categoryTitle_->setAccessibleName(T("Page title"));
+    contentLayout->addWidget(categoryTitle_);
+    contentLayout->addWidget(categories_, 1);
+    row->addWidget(content, 1);
 
     std::vector<spn::ui::NavInput> in;
     for (const PageFactory &f : pageFactories()) in.push_back({f.id, f.title, f.category});
@@ -82,14 +117,18 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
                 QWidget *w = f.create(ctx_);
                 if (page.id == "profiles") profilesPage_ = w;
                 if (page.id == "overview") overviewPage_ = w;
-                if (tabs) tabs->addTab(w, T(f.title));
-                else host = w;
+                QWidget *shown = scrollable(w);
+                if (tabs) tabs->addTab(shown, T(f.title));
+                else host = shown;
             }
         }
         if (tabs) connect(tabs, &QTabWidget::currentChanged, this, [this] { savePage(); });
         categories_->addWidget(tabs ? static_cast<QWidget *>(tabs) : host);
     }
     connect(categoryBar_, &QTabBar::currentChanged, categories_, &QStackedWidget::setCurrentIndex);
+    connect(categoryBar_, &QTabBar::currentChanged, this, [this](int i) {
+        categoryTitle_->setText(categoryBar_->tabText(i));
+    });
     connect(categoryBar_, &QTabBar::currentChanged, this, [this] { savePage(); });
     // The Overview opens other pages: a card selects its profile, the buttons show a page.
     if (auto *overview = qobject_cast<OverviewPage *>(overviewPage_)) {
@@ -106,6 +145,7 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     // Bottom: the daemon state, the same line as the tray's first entry.
     statusLabel_ = new QLabel(this);
     statusLabel_->setAccessibleName(T("Daemon status"));
+    statusLabel_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);  // a long state is cut, never squeezes the window
     statusBar()->addWidget(statusLabel_, 1);
 
     updateStatus();
@@ -114,6 +154,7 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     timer->start(1000);
     refreshAppearance();  // the tab style and the icons
     categoryBar_->setCurrentIndex(0);
+    categoryTitle_->setText(categoryBar_->tabText(0));
 }
 
 // The left tabs keep horizontal text through a proxy style on top of the current application style
@@ -153,7 +194,11 @@ void MainWindow::updateStatus() {
     std::string text;
     const bool ok = spn::ui::readStatusFile(ctx_.runtimeDir, &text);  // the daemon's directory on every OS
     status_.update(text, ok, static_cast<int64_t>(std::time(nullptr)));
-    if (statusLabel_) statusLabel_->setText(QString::fromStdString(status_.mainLine(strings_)));
+    if (statusLabel_) {
+        const QString line = QString::fromStdString(status_.mainLine(strings_));
+        statusLabel_->setText(line);
+        statusLabel_->setToolTip(line);  // the full text when the window is too narrow for it
+    }
     if (auto *overview = qobject_cast<OverviewPage *>(overviewPage_)) overview->refresh();
 }
 
@@ -245,8 +290,21 @@ int MainWindow::overviewCardCount() const {
 QWidget *MainWindow::currentPage() const {
     const int c = categoryBar_->currentIndex();
     QWidget *w = c >= 0 ? categories_->widget(c) : nullptr;
-    if (auto *tabs = qobject_cast<QTabWidget *>(w)) return tabs->currentWidget();
+    if (auto *tabs = qobject_cast<QTabWidget *>(w)) w = tabs->currentWidget();
+    if (w && w->objectName() == QLatin1String("pageScroll")) return static_cast<QScrollArea *>(w)->widget();
     return w;
+}
+
+// Every page sits in a scroll area: in a small window the page keeps the size its content needs
+// (text stays readable, controls are not squashed) and scrolls instead; scrolling horizontally
+// only happens when even the minimum width does not fit.
+QWidget *MainWindow::scrollable(QWidget *page) {
+    auto *area = new QScrollArea;
+    area->setObjectName(QStringLiteral("pageScroll"));
+    area->setFrameShape(QFrame::NoFrame);
+    area->setWidgetResizable(true);
+    area->setWidget(page);
+    return area;
 }
 
 QString MainWindow::currentPageId() const {

@@ -2827,3 +2827,7 @@ msgstr "Die Dokumentation konnte nicht geöffnet werden: "
 #: src/ui/qt (Overview, log viewer, Channels filter)
 msgid "This device has %1 buttons"
 msgstr "Dieses Gerät hat %1 Tasten"
+
+#: src/ui/qt/main_window.cpp
+msgid "Page title"
+msgstr "Seitentitel"

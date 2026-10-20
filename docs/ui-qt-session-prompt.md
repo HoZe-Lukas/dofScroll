@@ -63,7 +63,7 @@ SCOPE (feature parity with the GTK tray, one codebase for all three systems):
   what Qt needs and justify each change).
 
 UI DESIGN REQUIREMENTS (maintainer, 2026-10-19; they apply to the pages stage):
-- Left: profile tree with "Default mode" ([global]) on top, then device and application profiles;
+- Left: profile tree with "Global" ([global]) on top, then device and application profiles;
   right: the settings of the selected profile. The right side is built from a model-driven layout
   and is rebuilt when the mode of the selected profile changes (not fixed tabs).
 - Principle: dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. The UI therefore puts mode switching (`mode:`) and
@@ -81,7 +81,7 @@ UI DESIGN REQUIREMENTS (maintainer, 2026-10-19; they apply to the pages stage):
 - Things that are the same in every mode are always available as their own top-level entries and
   are NOT part of a profile's page: "Channels" (mix, sensitivity, deadzone, curve, smoothing, sign,
   zoom options, edited in [global]), "General" (start at login, language) and "Axes / assistant".
-  The profile tree (Default mode, devices, applications) shows only what depends on the profile's
+  The profile tree (Global, devices, applications) shows only what depends on the profile's
   mode. Per-profile overrides of channel values stay possible (the config format supports them):
   they live in a collapsed "Overrides for this profile" section, off by default.
 - A "Modes" entry (also always available) manages the mode files in the modes directory: list of

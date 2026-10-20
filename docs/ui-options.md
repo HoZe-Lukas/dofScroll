@@ -64,10 +64,10 @@ A `QSplitter`: navigation tree on the far left, a stacked settings area on the r
   (opens the file in the default editor), Delete (file modes only, with confirmation) and Open
   modes folder, plus a permanent hint that mode files can press any key and should only come
   from trusted sources. A thin placeholder for now; the logic comes from the `ModeCatalog` model.
-- A **Profiles** group below them: "Default mode" (the `[global]` section) at the top, then the
+- A **Profiles** group below them: "Global" (the `[global]` section) at the top, then the
   device and application profiles. Only what depends on the profile's mode lives here.
 - The profile page is model-driven and rebuilt whenever the selected profile or its mode
-  changes (not fixed tabs). Default mode: button bindings and channel actions, no mode selector.
+  changes (not fixed tabs). Global: button bindings and channel actions, no mode selector.
   Device/application profile: a `QComboBox` at the top (exactly one mode, first entry
   "Default mode", then the other modes), button bindings and channel actions of that mode, and an
   "Edit mode file" button (not shown for the default mode).

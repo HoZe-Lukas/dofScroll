@@ -78,6 +78,7 @@ QWidget *chordPicker(QWidget *parent, QObject *owner, std::string *chord, const 
     splitChord(*chord, &mods, &key);
     for (const char *m : kModNames) {
         auto *cb = new QCheckBox(QString::fromLatin1(m), w);
+        cb->setProperty("look", QStringLiteral("box"));
         cb->setChecked(std::find(mods.begin(), mods.end(), m) != mods.end());
         cb->setAccessibleName(accessible + QStringLiteral(" ") + QString::fromLatin1(m));
         h->addWidget(cb);
@@ -126,6 +127,7 @@ ModeEditorWidget::ModeEditorWidget(const UiContext &ctx, QWidget *parent) : QWid
     root->addWidget(warnings_);
     auto *row = new QHBoxLayout;
     saveBtn_ = new QPushButton(T("Save"), this);
+    saveBtn_->setProperty("primary", true);  // the accent button of the page
     saveBtn_->setToolTip(T("Write the changes to the mode file"));
     revertBtn_ = new QPushButton(T("Revert"), this);
     revertBtn_->setToolTip(T("Discard the changes and reload the file"));
