@@ -1657,7 +1657,8 @@ static bool autosaveAuditSelfTest(const std::function<bool(MainWindow &)> &) {
                [&] { qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_V_SENS"))->setValue(5); });
         expect(who + QStringLiteral(": Deadzone 0"), sec, "SCROLL_H_DEADZONE", "0", [&] { qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_H_DEADZONE"))->setValue(0); });
         expect(who + QStringLiteral(": Deadzone 40"), sec, "SCROLL_H_DEADZONE", "40", [&] { qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_H_DEADZONE"))->setValue(40); });
-        expect(who + QStringLiteral(": Smoothing 0"), sec, "ZOOM_SMOOTH_MS", "0", [&] { qobject_cast<QDoubleSpinBox *>(ch->editorFor("ZOOM_SMOOTH_MS"))->setValue(0); });
+        // [global] only holds keys that were set: a control that already shows the default writes nothing
+        expect(who + QStringLiteral(": Smoothing 0"), sec, "ZOOM_SMOOTH_MS", sec == kGlobal ? "<absent>" : "0", [&] { qobject_cast<QDoubleSpinBox *>(ch->editorFor("ZOOM_SMOOTH_MS"))->setValue(0); });
         expect(who + QStringLiteral(": Smoothing 30"), sec, "ZOOM_SMOOTH_MS", "30", [&] { qobject_cast<QDoubleSpinBox *>(ch->editorFor("ZOOM_SMOOTH_MS"))->setValue(30); });
         expect(who + QStringLiteral(": Entry time 120"), sec, "ZOOM_ENTER_MS", "120", [&] { qobject_cast<QSpinBox *>(ch->editorFor("ZOOM_ENTER_MS"))->setValue(120); });
         expect(who + QStringLiteral(": Entry time 0"), sec, "ZOOM_ENTER_MS", "0", [&] { qobject_cast<QSpinBox *>(ch->editorFor("ZOOM_ENTER_MS"))->setValue(0); });
@@ -1714,7 +1715,8 @@ static bool autosaveAuditSelfTest(const std::function<bool(MainWindow &)> &) {
             }, false, true);
             expect(who + QStringLiteral(": Restore defaults removes every channel key"), sec, "SCROLL_V_SIGN", "<absent>", [&] { ch->restoreDefaults(); }, false, true);
         } else {
-            expect(who + QStringLiteral(": Reset sets the built-in default (Deadzone)"), sec, "SCROLL_H_DEADZONE", "20",
+            expect(who + QStringLiteral(": Reset removes the key, the built-in default applies (Deadzone)"), sec,
+                   "SCROLL_H_DEADZONE", "<absent>",
                    [&] { ch->resetFor("SCROLL_H_DEADZONE")->click(); });
         }
     }

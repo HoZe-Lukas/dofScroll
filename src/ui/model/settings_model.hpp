@@ -157,6 +157,17 @@ public:
         limit_ = n >= 1 && n <= kMaxButtons ? n : int(kMaxButtons);
     }
     int buttonLimit() const { return limit_; }
+    // Highest BUTTON_<n> a section can hold. [device:NAME]: the factory count of that model if it is in the
+    // device table, otherwise the hard limit (32). [global] and [app:*] apply to every device, so they use
+    // the connected device's count (buttonLimit(), 32 while unknown): a binding there is meant for the
+    // devices that have the button, and each device section is checked against its own count.
+    int sectionButtonLimit(size_t i) const {
+        if (i < ps_.sections.size() && ps_.sections[i].kind == Section::DEVICE) {
+            const int n = factoryButtonCount(ps_.sections[i].pattern, 0);
+            return n >= 1 && n <= kMaxButtons ? n : int(kMaxButtons);
+        }
+        return limit_;
+    }
 
     // ---- modes ----
     struct ChanPrefix { const char *id, *title, *pre; };
@@ -538,10 +549,16 @@ public:
                 eff(i, &on, &n);
                 if (!on) continue;
                 const std::string title = info(i).title;
-                if (n < 1 || n > limit_) {
-                    if (i > 0 && !hasKey(ps_.sections[i], keyNum) && !hasKey(ps_.sections[i], keyOn)) continue;  // reported at the source
-                    problems.push_back(format(str.tr("%1: %2 = %3 is above the %4 buttons of this device"),
-                                              {title, keyNum, std::to_string(n - 1), std::to_string(limit_)}));
+                const int lim = sectionButtonLimit(i);
+                if (n < 1 || n > lim) {
+                    const bool own = hasKey(ps_.sections[i], keyNum);
+                    if (i > 0 && !own && !hasKey(ps_.sections[i], keyOn)) continue;  // inherited, reported at the source
+                    problems.push_back(own || i == 0
+                                           ? format(str.tr("%1: %2 = %3 is above the %4 buttons of this device"),
+                                                    {title, keyNum, std::to_string(n - 1), std::to_string(lim)})
+                                           : format(str.tr("%1: %2 is on, but the inherited button %3 does not exist on this "
+                                                           "device (%4 buttons); assign a button in the Buttons tab"),
+                                                    {title, keyOn, std::to_string(n - 1), std::to_string(lim)}));
                     continue;
                 }
                 const std::string bk = "BUTTON_" + std::to_string(n);
@@ -567,6 +584,7 @@ public:
             }
             auto bind = [&](size_t i, int n, const std::string &action) {
                 const std::string bk = "BUTTON_" + std::to_string(n);
+                if (n > sectionButtonLimit(i)) return;    // the device has no such button: nothing to bind or turn off
                 if (hasKey(ps_.sections[i], bk)) return;  // the profile's own binding is kept
                 if (store(i, bk, action, nullptr))
                     r.migrated.push_back(format(str.tr("%1: %2 -> %3 = %4"),

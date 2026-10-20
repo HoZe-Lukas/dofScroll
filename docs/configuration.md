@@ -88,7 +88,17 @@ old keys are removed, the file is written atomically, the daemon reloads it and 
 "Moved the old navigation/click button settings to the Buttons tab". A key pair is moved all or
 nothing: if the index is above the factory button count of the device or the profile already binds
 that button to something else, the old keys stay in the file untouched and the Buttons tab lists
-them as "Not moved". Disabled keys (`..._ENABLED = 0`, which older saves wrote everywhere) are
+them as "Not moved". The count is that of the model named in a `[device:NAME]` section
+(`factoryButtonCount()`, 32 for a model that is not in the table), so `NAV_BUTTON = 14`
+(`BUTTON_15`) switched on in `[device:SpaceMouse Compact]` (2 buttons) is not moved, also when
+the index is only inherited from `[global]`: the notice names the section, the key and the
+button count, and you assign a button in the Buttons tab. `[global]` and `[app:*]` apply to
+every device and use the count of the connected device (32 while it is unknown) instead of the
+lowest count of the profiles in the file: a binding there is meant for the models that have
+that button, and every device section is checked against its own count. A device section
+that merely inherits an enabled button that it does not have is not an error. Saving never
+adds keys the file did not have: `[global]` is written with exactly the keys it holds, so old
+keys that stay in the file are kept as they are. Disabled keys (`..._ENABLED = 0`, which older saves wrote everywhere) are
 dropped silently. The daemon and the config loader keep reading the old keys.
 
 dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch or toggle joystick modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
