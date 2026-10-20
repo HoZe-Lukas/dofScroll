@@ -2555,3 +2555,11 @@ msgstr "Hinweis zum Systemtray"
 #: src/ui/qt/tray.cpp
 msgid "dofscroll is still running in the tray"
 msgstr "dofscroll läuft weiter im Tray"
+
+#: src/ui/qt/unsaved_prompt.hpp
+msgid "\"%1\" has unsaved changes. Save them first?"
+msgstr "„%1“ hat ungespeicherte Änderungen. Zuerst speichern?"
+
+#: src/ui/qt/unsaved_prompt.hpp
+msgid "Discard"
+msgstr "Verwerfen"

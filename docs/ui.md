@@ -63,6 +63,14 @@ loader's warnings, including "can press shortcut chords", are shown below the fo
 changed on disk while you were editing, Save asks before overwriting. Revert reloads the file;
 "Open in text editor" is still there for people who prefer the file.
 
+Edits are never dropped silently. While the editor holds unsaved changes, selecting another mode,
+Edit or a double click on the same mode (which reloads the file), New, Duplicate and Import ask
+**Save / Discard / Cancel** first; Cancel keeps the list on the mode being edited. Quit in the tray
+menu asks the same once for the Modes and Button modes pages. The General page (language, theme,
+start at login) and the Axes page (the assistant ends with Apply or Cancel) have no form with a
+Save button: their changes are applied or written at once, so they have no Revert and no unsaved
+state.
+
 ## Getting started and accessibility
 
 While the daemon has not seen a device or no profile exists yet, the Overview shows "Getting
@@ -112,6 +120,8 @@ not exist is shown with a warning instead of being changed silently.
 The **Button modes** page (category Modes, next to Modes) manages the button mode files: list,
 editor for name, description and action with Save and Revert, New, Duplicate, Import, Delete (it
 names the profiles and mode files that still use the button mode) and "Open button modes folder".
+The same Save / Discard / Cancel question appears before another button mode is selected, or before
+New, Duplicate or Import replaces a form with unsaved edits.
 
 ## Profiles and the running-program picker
 

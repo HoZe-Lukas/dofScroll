@@ -28,7 +28,12 @@ public:
     int buttonModeCount() const;
     const spn::ui::ButtonModeCatalog &catalog() const { return catalog_; }
     bool dirty() const { return dirty_; }
-    // For the self-test: set the editor fields as the user would and press Save.
+    // Asks Save / Discard / Cancel if the form has unsaved edits; false means "stay" (also used before Quit).
+    bool confirmLeaveForm();
+    QString currentId() const;  // id of the selected list row
+    bool selectButtonMode(const QString &id);  // self-test: select a row as a click would
+    // For the self-test: set the editor fields as the user would (stageEdit), and press Save too (editCurrent).
+    bool stageEdit(const QString &name, const QString &description, const QString &action);
     bool editCurrent(const QString &name, const QString &description, const QString &action);
 
 public slots:
@@ -43,6 +48,9 @@ private:
     void loadForm();           // fills the editor from the selected entry
     void rebuildActionArg();   // argument widget that fits the chosen action kind
     void markDirty();
+    void onCurrentChanged();
+    bool save(const std::string &id);  // the form saved under this id; false: nothing written (an error was shown)
+    void selectRow(const QString &id);  // without signals
     std::string composedAction() const;
     const spn::ui::ButtonModeCatalog::Entry *current() const;
     void onNew();
@@ -70,6 +78,7 @@ private:
                 *folderBtn_ = nullptr, *saveBtn_ = nullptr, *revertBtn_ = nullptr, *textEditorBtn_ = nullptr;
     QTimer *timer_ = nullptr;
     spn::ui::Binding binding_;  // the action as the editor shows it
+    QString shownId_;  // the button mode the form shows (the list may be moved back to it)
     bool dirty_ = false;
     bool loading_ = false;
 };

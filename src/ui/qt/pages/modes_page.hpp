@@ -28,6 +28,11 @@ public:
     bool openEditor();                         // the in-page editor for the selected mode (a file mode)
     ModeEditorWidget *editorWidget() const { return editor_; }
     const spn::ui::ModeCatalog &catalog() const { return catalog_; }
+    QString currentId() const;                 // id of the selected list row
+    // True while the in-page editor is shown and holds edits that are not saved.
+    bool hasUnsavedChanges() const;
+    // Asks Save / Discard / Cancel if there are unsaved edits; false means "stay" (also used before Quit).
+    bool confirmLeaveEditor();
 
 public slots:
     void refreshIfChanged();  // timer; also callable directly
@@ -39,6 +44,8 @@ protected:
 private:
     void populate(const QString &selectId);
     void updateDetail();
+    void onCurrentChanged();
+    void selectRow(const QString &id);  // without signals
     const spn::ui::ModeCatalog::ModeEntry *current() const;
     void onNew();
     void onDuplicate();
@@ -60,6 +67,7 @@ private:
     QPushButton *newBtn_ = nullptr, *dupBtn_ = nullptr, *importBtn_ = nullptr, *editBtn_ = nullptr,
                 *delBtn_ = nullptr, *folderBtn_ = nullptr;
     QTimer *timer_ = nullptr;
+    QString shownId_;  // the mode whose details or editor are shown (the list may be moved back to it)
 };
 
 QWidget *makeModesPage(const UiContext &ctx);

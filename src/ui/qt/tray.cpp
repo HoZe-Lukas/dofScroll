@@ -57,7 +57,9 @@ Tray::Tray(MainWindow *window, const QIcon &baseIcon, const UiContext &ctx, QObj
       notRunningIcon_(withOpacity(enabledIcon_, 0.3)),
       timer_(new QTimer(this)) {
     controller_.hooks().openSettings = [this] { window_->bringToFront(); };
-    controller_.hooks().quit = [] { QApplication::quit(); };
+    controller_.hooks().quit = [this] {
+        if (window_->confirmQuit()) QApplication::quit();
+    };
     icon_.setContextMenu(&menu_);
     // Closing the window does not quit: say so once per run.
     connect(window_, &MainWindow::hiddenToTray, this, [this] {
