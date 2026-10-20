@@ -23,6 +23,9 @@ else()
 endif()
 
 add_executable(dofscroll-hidprobe main.cpp ${HIDPROBE_PLATFORM_SRC})
+# next to dofscroll (build/ or build/Release/): the installer scripts, the packaging scripts and the CI
+# checks expect it there, not under build/tools/hidprobe/
+set_target_properties(dofscroll-hidprobe PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_include_directories(dofscroll-hidprobe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(dofscroll-hidprobe PRIVATE dofscroll_core)
 if(WIN32)
