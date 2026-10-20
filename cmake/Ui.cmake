@@ -51,6 +51,8 @@ if(DOFSCROLL_UI)
     src/ui/qt/key_combo.hpp
     src/ui/qt/pages/button_modes_page.cpp
     src/ui/qt/pages/button_modes_page.hpp
+    src/ui/qt/pages/extensions_page.cpp
+    src/ui/qt/pages/extensions_page.hpp
     src/ui/qt/pages/mode_editor_widget.cpp
     src/ui/qt/pages/mode_editor_widget.hpp
     src/ui/qt/pages/modes_page.cpp

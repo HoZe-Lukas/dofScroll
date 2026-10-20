@@ -90,7 +90,35 @@ static void testStatusAndActions() {
     for (const OverviewAction &x : a) assert(!x.label.empty());
 }
 
+static void testGettingStarted() {
+    IdentityStrings id;
+    SettingsModel empty = loadModel("[global]\n");
+    StatusModel st;
+    OverviewData d = buildOverview(empty, st, id);
+    std::vector<GettingStartedStep> steps = gettingStartedSteps(d, st, id);
+    assert(steps.size() == 3 && steps[0].id == "device" && steps[1].id == "axes" && steps[2].id == "profile");
+    assert(!steps[0].done && !steps[2].done && showGettingStarted(steps));
+    assert(steps[1].page == "axes" && steps[2].page == "profiles" && steps[0].page.empty());
+    for (const GettingStartedStep &x : steps) assert(!x.text.empty());
+    // the daemon runs and sees a device
+    st.update("profile=global\ndevice=Test Mouse\nmode=normal\nenabled=1\npaused=0\ndevices_seen=1\nupdated=100\n", true, 100);
+    d = buildOverview(empty, st, id);
+    steps = gettingStartedSteps(d, st, id);
+    assert(steps[0].done && !steps[2].done && showGettingStarted(steps));
+    // a profile exists: the guidance goes away (the axes step is advice, not a condition)
+    SettingsModel one = loadModel("[global]\n\n[app:firefox]\n");
+    d = buildOverview(one, st, id);
+    steps = gettingStartedSteps(d, st, id);
+    assert(steps[0].done && steps[2].done && !steps[1].done && !showGettingStarted(steps));
+    // a profile without a seen device still shows it
+    StatusModel none;
+    d = buildOverview(one, none, id);
+    steps = gettingStartedSteps(d, none, id);
+    assert(!steps[0].done && steps[2].done && showGettingStarted(steps));
+}
+
 int main() {
+    testGettingStarted();
     testSummary();
     testProfilesAndCounts();
     testStatusAndActions();

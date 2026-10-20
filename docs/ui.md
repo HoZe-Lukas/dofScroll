@@ -28,6 +28,7 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Profiles | Channels | Scroll, zoom and the other output channels: sensitivity, dead zone, direction, curve preview |
 | Modes | Modes | The available modes (built-in and files in the modes folder): new, duplicate, import, edit in the page, delete; a reminder that mode files can press any key |
 | Modes | Button modes | The button mode files (`buttons/`): create, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
+| Modes | Extensions | All modes and button modes in one list with their origin (built in, your file, example not installed); add a shipped example, remove your own file. Extensions are plain files, nothing executable |
 | Device | Axes | Live bars of the six axes and the axis assistant (wizard) that detects which axis does what |
 | Settings | General | Output on/off, global mode, "Start at login", read-only status of the daemon |
 
@@ -50,6 +51,19 @@ first (a save that would drop one of its lines is refused) and replaces the file
 loader's warnings, including "can press shortcut chords", are shown below the form. If the file
 changed on disk while you were editing, Save asks before overwriting. Revert reloads the file;
 "Open in text editor" is still there for people who prefer the file.
+
+## Getting started and accessibility
+
+While the daemon has not seen a device or no profile exists yet, the Overview shows "Getting
+started": connect the SpaceMouse, check the axes on the Axes page (the assistant helps), add a
+profile for a program you use. Each step says "Done:" or "To do:" in words and opens the page that
+does it; the box disappears once the device is seen and a profile exists.
+
+Every input control has an accessible name (screen readers): the `--self-test` checks all pages for
+controls without one. The whole interface works with the keyboard (tab order follows the layout;
+drop-downs, spin boxes and buttons are real controls), state is never shown by colour alone (origin
+and "Done:"/"To do:" are written out), and the themes meet the contrast limits of
+`tests/test_ui_theme.cpp`.
 
 ## Appearance
 

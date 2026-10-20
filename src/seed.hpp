@@ -13,4 +13,7 @@ namespace spn {
 // Never overwrites an existing file. See seed.cpp for the search paths.
 bool seedDefaults(std::string *log);
 
+// The examples directory the seeding uses ($DOFSCROLL_EXAMPLES, next to the executable, ...); "" if none.
+std::string examplesDir();
+
 }  // namespace spn
