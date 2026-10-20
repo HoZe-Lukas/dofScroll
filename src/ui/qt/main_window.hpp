@@ -20,6 +20,8 @@
 #include "ui_context.hpp"
 
 class QCloseEvent;
+class QMoveEvent;
+class QResizeEvent;
 class QEvent;
 class QLabel;
 class QProxyStyle;
@@ -80,6 +82,8 @@ signals:
 
 protected:
     void closeEvent(QCloseEvent *e) override;
+    void resizeEvent(QResizeEvent *e) override;  // size and position are saved shortly after the last change
+    void moveEvent(QMoveEvent *e) override;
     bool event(QEvent *e) override;  // a palette change redraws the icons and the tab style
 
 private:
@@ -105,6 +109,7 @@ private:
     QLabel *trayNote_ = nullptr;       // status bar note when there is no tray
     std::string statePath_;            // ui.conf the window state is kept in ("" = not kept)
     bool restoring_ = false;
+    QTimer *stateTimer_ = nullptr;       // single shot: saves the geometry after a resize or move
     bool trayAvailable_ = true;
     bool trayNoticeShown_ = false;
 };

@@ -3,6 +3,7 @@
 // dofscroll-ui: Qt6 Widgets tray icon and settings window (see docs/ui-options.md).
 #include <QApplication>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QLocale>
 #include <QLockFile>
@@ -991,6 +992,26 @@ static bool overviewSelfTest(MainWindow &w) {
 // Window state: size, position and page survive a close and a new window; a geometry that is off all
 // screens is ignored and the minimum size holds; a hidden window comes back on the saved page; closing
 // hides the window with a tray and quits without one.
+// A resize or move is saved shortly afterwards, without closing the window.
+static bool windowAutosaveSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    const std::string path = (tmpPath + QStringLiteral("/window-autosave/ui.conf")).toStdString();
+    MainWindow w(ctx);
+    w.enableStatePersistence(path);
+    w.show();
+    settle();
+    w.resize(1111, 777);
+    QElapsedTimer t;
+    t.start();
+    while (t.elapsed() < 1600) QApplication::processEvents(QEventLoop::AllEvents, 50);
+    const spn::ui::UiSettings saved = spn::ui::loadUiSettings(path);
+    if (!saved.window.valid || saved.window.w != 1111 || saved.window.h != 777) {
+        std::fprintf(stderr, "window autosave self-test failed: the geometry was not saved after the resize\n");
+        ok = false;
+    }
+    return ok;
+}
+
 static bool windowStateSelfTest(const UiContext &ctx, const QString &tmpPath) {
     bool ok = true;
     auto check = [&ok](bool cond, const char *what) {
@@ -1294,6 +1315,7 @@ int main(int argc, char **argv) {
         if (!wheelSelfTest()) return 1;
         if (!defaultSizeFitsSelfTest(w)) return 1;
         if (!windowStateSelfTest(ctx, tmp.path())) return 1;
+        if (!windowAutosaveSelfTest(ctx, tmp.path())) return 1;
         return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen
     }
 

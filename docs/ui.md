@@ -55,7 +55,7 @@ button with `setProperty("primary", true)`, a check box that is one of several c
 Every page sits in a scroll area: in a small window text stays readable and controls keep their
 size, and the page scrolls (horizontally only as a last resort) instead of squashing. Info,
 status and help labels wrap. The default window is 1560x1040 (clamped to the screen); the saved
-geometry wins, the smallest size is 720x480.
+geometry (saved a moment after every resize or move, and when the window closes) wins, the smallest size is 720x480.
 
 The mouse wheel never changes a combo box, spin box or slider, anywhere (also in dialogs): one
 application-wide event filter hands the wheel to the surrounding page, so scrolling a page with the

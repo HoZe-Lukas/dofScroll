@@ -333,7 +333,25 @@ bool MainWindow::profilePageHasModeSelector() const {
 
 void MainWindow::enableStatePersistence(const std::string &settingsPath) {
     statePath_ = settingsPath;
+    if (!stateTimer_) {
+        stateTimer_ = new QTimer(this);
+        stateTimer_->setSingleShot(true);
+        stateTimer_->setInterval(800);
+        connect(stateTimer_, &QTimer::timeout, this, [this] { saveWindowState(); });
+    }
     restoreWindowState();
+}
+
+// The window can stay open for days (or only be hidden to the tray): the geometry is not kept until
+// the close, it is saved a moment after the last resize or move.
+void MainWindow::resizeEvent(QResizeEvent *e) {
+    QMainWindow::resizeEvent(e);
+    if (stateTimer_ && isVisible() && !restoring_) stateTimer_->start();
+}
+
+void MainWindow::moveEvent(QMoveEvent *e) {
+    QMainWindow::moveEvent(e);
+    if (stateTimer_ && isVisible() && !restoring_) stateTimer_->start();
 }
 
 bool MainWindow::restoreWindowState() {
