@@ -1,23 +1,23 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
-# Built-in modes
+# Built-in joystick modes
 
-A **joystick mode** decides what the three channels (vertical, horizontal, twist) do and can override settings; a **button mode** is one reusable behavior for a device button (a mode switch, a latch, a cycle list). Both kinds ship inside the program on every system: nothing has to be copied anywhere, the text of most of them is in [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/modes) and [examples/buttons/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/buttons) and is embedded at build time (`normal`, `off` and `timeline` are defined in [src/modes.cpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/modes.cpp)). For writing your own, see the tutorial [How to write a mode](Writing-modes) and the reference [Modes](Modes); to propose or contribute one, see [Mode requests and contributions](Contributing-modes).
+A **joystick mode** decides what the three channels (vertical, horizontal, twist) do and can override settings; a **button mode** is one reusable behavior for a device button (a joystick mode switch, a latch, a cycle list). Both kinds ship inside the program on every system: nothing has to be copied anywhere, the text of most of them is in [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/modes) and [examples/buttons/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/buttons) and is embedded at build time (`normal`, `off` and `timeline` are defined in [src/modes.cpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/modes.cpp)). For writing your own, see [Joystick modes](Modes); to propose or contribute one, see [Joystick mode requests and contributions](Contributing-modes).
 
 ## How to use one
 
-- **Joystick mode:** pick it in the profile's mode drop-down in the interface (Profiles page), from the tray "Mode" menu (sets the global mode), or write `MODE = <id>` into `[global]`, `[device:*]` or `[app:*]` of the config, for example `[app:impress]` with `MODE = slides`. A button can switch to it with `BUTTON_<n> = mode:<id>` (or `hold:mode:<id>`, `toggle:mode:<id>`).
+- **Joystick mode:** pick it in the profile's joystick mode drop-down in the interface (Profiles page), from the tray "Joystick mode" menu (sets the global joystick mode), or write `MODE = <id>` into `[global]`, `[device:*]` or `[app:*]` of the config, for example `[app:impress]` with `MODE = slides`. A button can switch to it with `BUTTON_<n> = mode:<id>` (or `hold:mode:<id>`, `toggle:mode:<id>`).
 - **Button mode:** pick it in the button's drop-down in the interface, or write `BUTTON_<n> = buttonmode:<id>`.
 - **Override:** a file with the same id in `~/.config/dofscroll/modes/` or `~/.config/dofscroll/buttons/` replaces the built-in ("Create editable copy" in the interface writes one for you).
-- **Cycling:** `mode:next` and `mode:prev` (and the button modes `next-mode` and `prev-mode`) walk through all loaded joystick modes in alphabetical order of id, built-ins included, wrapping around. A button mode with a `CYCLE` list (`cycle-favorites`, or your own) cycles through exactly the listed modes in your order instead.
+- **Cycling:** `mode:next` and `mode:prev` (and the button modes `next-mode` and `prev-mode`) walk through all loaded joystick modes in alphabetical order of id, built-ins included, wrapping around. A button mode with a `CYCLE` list (`cycle-favorites`, or your own) cycles through exactly the listed joystick modes in your order instead.
 
-Several modes below press keys. Key meaning depends on the program and none of them has been verified in every program; see the safety note on the [Modes](Modes) page.
+Several joystick modes below press keys. Key meaning depends on the program and none of them has been verified in every program; see the safety note on the [Joystick modes](Modes) page.
 
 ## Joystick modes
 
 Overview:
 
-| Mode | V (up/down) | H (sideways) | Twist | Good for |
+| Joystick mode | V (up/down) | H (sideways) | Twist | Good for |
 |---|---|---|---|---|
 | `normal` | default | default | default | everyday scroll and zoom |
 | `off` | none | none | none | switching the device off |
@@ -33,13 +33,13 @@ Key actions (`keys:`) press the negative and the positive key as the axis is pus
 
 ### `normal`
 
-All channels `default`, no overrides. DESCRIPTION: "Scroll, zoom and navigation as configured". It is the mode that is active when nothing else is selected; `NAV_BUTTON` still works.
+All channels `default`, no overrides. DESCRIPTION: "Scroll, zoom and navigation as configured". It is the joystick mode that is active when nothing else is selected; `NAV_BUTTON` still works.
 
 Good for: general use. No button bindings.
 
 ### `off`
 
-All three channels `none`. DESCRIPTION: "Sends nothing". Switches the device off without `ENABLED = 0`; leave it through the tray "Mode" menu, a `mode:next` or `mode:<id>` binding in the main config, or by editing `MODE`.
+All three channels `none`. DESCRIPTION: "Sends nothing". Switches the device off without `ENABLED = 0`; leave it through the tray "Joystick mode" menu, a `mode:next` or `mode:<id>` binding in the main config, or by editing `MODE`.
 
 Good for: a program or device profile where the device must stay quiet. No button bindings.
 
@@ -51,7 +51,7 @@ Good for: a program or device profile where the device must stay quiet. No butto
 | H | `keys:left,right` |
 | Twist | `keys:left,right` |
 
-No overrides. DESCRIPTION: "Sideways = scrub, twist = single frames". Defined in code. It has no button bindings of its own (a key that is always the same belongs in the vendor driver; a mode-dependent one can go into a mode file of your own).
+No overrides. DESCRIPTION: "Sideways = scrub, twist = single frames". Defined in code. It has no button bindings of its own (a key that is always the same belongs in the vendor driver; a mode-dependent one can go into a joystick mode file of your own).
 
 Good for: stepping and scrubbing in video editors and similar timelines, for example `[app:resolve]` with `MODE = timeline` (DaVinci Resolve's behavior is not verified here).
 
@@ -89,7 +89,7 @@ Good for: video players and web video; up/down is volume in most players, sidewa
 
 No overrides. DESCRIPTION: "Up/down and sideways = arrow keys, twist = minus/plus". No button bindings.
 
-Good for: maps and anything that understands arrow keys and plus/minus. `plus` and `minus` are the main-keyboard keys and depend on the keyboard layout (see the key names on the [Modes](Modes) page).
+Good for: maps and anything that understands arrow keys and plus/minus. `plus` and `minus` are the main-keyboard keys and depend on the keyboard layout (see the key names on the [Joystick modes](Modes) page).
 
 ### `precision`
 
@@ -103,7 +103,7 @@ Overrides: `SCROLL_V_SENS = 2`, `SCROLL_H_SENS = 1`, `ZOOM_SENS = 2` (defaults a
 
 Good for: fine control, per program or device with `MODE = precision`, or only while a button is held with `BUTTON_<n> = hold:mode:precision`.
 
-About a "fast" counterpart: `precision` is built in. A matching `fast` mode (the same behavior with high sensitivity) is only an idea so far, see [issue #90](https://github.com/HoZe-Lukas/dofScroll/issues/90). Until then raise the sensitivities in a mode file of your own.
+About a "fast" counterpart: `precision` is built in. A matching `fast` joystick mode (the same behavior with high sensitivity) is only an idea so far, see [issue #90](https://github.com/HoZe-Lukas/dofScroll/issues/90). Until then raise the sensitivities in a joystick mode file of your own.
 
 ### `tabs`
 
@@ -136,8 +136,8 @@ A button mode has one `ACTION` (one button action as in `BUTTON_<n>`, see [Butto
 | Button mode | Action | CYCLE |
 |---|---|---|
 | `latch-nav` | `toggle:nav` | none |
-| `next-mode` | `mode:next` | none (all modes, alphabetical) |
-| `prev-mode` | `mode:prev` | none (all modes, alphabetical) |
+| `next-mode` | `mode:next` | none (all joystick modes, alphabetical) |
+| `prev-mode` | `mode:prev` | none (all joystick modes, alphabetical) |
 | `cycle-favorites` | `mode:next` | `timeline, normal` |
 
 ### `latch-nav`
@@ -148,18 +148,18 @@ Good for: a latched navigation mode instead of holding the `nav` button.
 
 ### `next-mode`
 
-ACTION `mode:next`, no `CYCLE`. DESCRIPTION: "Switches to the next joystick mode". Each press switches to the next mode in alphabetical order of id, wrapping around.
+ACTION `mode:next`, no `CYCLE`. DESCRIPTION: "Switches to the next joystick mode". Each press switches to the next joystick mode in alphabetical order of id, wrapping around.
 
-Good for: trying all modes, or a quick switch when you have only a few modes. Add a `CYCLE` list in a copy to restrict it.
+Good for: trying all joystick modes, or a quick switch when you have only a few modes. Add a `CYCLE` list in a copy to restrict it.
 
 ### `prev-mode`
 
-ACTION `mode:prev`, no `CYCLE`. DESCRIPTION: "Switches to the previous joystick mode". The mirror of `next-mode`: the previous mode in alphabetical order, wrapping around.
+ACTION `mode:prev`, no `CYCLE`. DESCRIPTION: "Switches to the previous joystick mode". The mirror of `next-mode`: the previous joystick mode in alphabetical order, wrapping around.
 
 Good for: the second button of a pair with `next-mode`.
 
 ### `cycle-favorites`
 
-ACTION `mode:next`, `CYCLE = timeline, normal`. DESCRIPTION: "Cycles through a chosen list of joystick modes". Each press goes to the next entry of the list, in that order, wrapping around; if the current mode is not in the list the first entry is used. Unknown ids are skipped. For the opposite direction use a copy with `ACTION = mode:prev` and the same list.
+ACTION `mode:next`, `CYCLE = timeline, normal`. DESCRIPTION: "Cycles through a chosen list of joystick modes". Each press goes to the next entry of the list, in that order, wrapping around; if the current joystick mode is not in the list the first entry is used. Unknown ids are skipped. For the opposite direction use a copy with `ACTION = mode:prev` and the same list.
 
 Good for: a short list of your own favorite modes. Edit the list in an editable copy (the built-in list is only a starting point).

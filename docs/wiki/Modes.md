@@ -8,7 +8,7 @@ Exactly one joystick mode is active: the one named by `MODE` in the resolved pro
 
 ## Built-in joystick modes
 
-Nine joystick modes (`normal`, `off`, `timeline`, `slides`, `media`, `map`, `precision`, `tabs`, `browse`) and four button modes (`latch-nav`, `next-mode`, `prev-mode`, `cycle-favorites`) are built into the program on every system. Nothing has to be copied into your folder to use them. Each one, with its channel actions, overrides and use, is described on [Built-in modes](Built-in-modes). To propose or send a new one, see [Mode requests and contributions](Contributing-modes).
+Nine joystick modes (`normal`, `off`, `timeline`, `slides`, `media`, `map`, `precision`, `tabs`, `browse`) and four button modes (`latch-nav`, `next-mode`, `prev-mode`, `cycle-favorites`) are built into the program on every system. Nothing has to be copied into your folder to use them. Each one, with its channel actions, overrides and use, is described on [Built-in joystick modes](Built-in-modes). To propose or send a new one, see [Joystick mode requests and contributions](Contributing-modes).
 
 A file in the joystick modes folder with the id of a built-in joystick mode replaces it.
 
@@ -16,7 +16,7 @@ A file in the joystick modes folder with the id of a built-in joystick mode repl
 
 A step-by-step tutorial with copy-paste recipes (horizontal scroll, page keys, tabs, zoom, button modes, testing) is on [How to write a mode](Writing-modes). This section is the short reference.
 
-For your own modes put `<id>.conf` into `~/.config/dofscroll/modes/`. The id is the file name without `.conf` (`[a-z0-9_-]{1,32}`). Format: `KEY = value`, no sections, `#` and `;` comments.
+For your own joystick modes put `<id>.conf` into `~/.config/dofscroll/modes/`. The id is the file name without `.conf` (`[a-z0-9_-]{1,32}`). Format: `KEY = value`, no sections, `#` and `;` comments.
 
 ```
 NAME = Timeline (scrub / single frames)
@@ -93,11 +93,11 @@ The loader skips what it cannot use and logs a warning: invalid lines or files, 
 
 A joystick mode file is code-like. While a button is held or an axis is deflected it can press any key from the key list, including Ctrl, Alt, Super, function keys, Delete and Enter. Chords are reachable: Ctrl is held while a channel zooms, so a `keys:` action on another channel can send Ctrl+W or Ctrl+Q, and `keys:` accepts chords itself (`ctrl+pageup`); the daemon warns about chords with `alt`, `super` or non-navigation keys. It cannot type arbitrary text or send codes outside the key list, and every effect needs the physical device to be moved or pressed.
 
-Read every file you get from somebody else before you put it into `~/.config/dofscroll/modes/` (the built-in modes need no copying). Look for `key:`, `keys:`, `zoom` and `mode:`. The daemon warns at load time about modifier-capable bindings, but that does not replace reading. If you share a mode, say which keys it presses. See also [Security](Security) and [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#safety-and-sharing-modes).
+Read every file you get from somebody else before you put it into `~/.config/dofscroll/modes/` (the built-in joystick modes need no copying). Look for `key:`, `keys:`, `zoom` and `mode:`. The daemon warns at load time about modifier-capable bindings, but that does not replace reading. If you share a joystick mode, say which keys it presses. See also [Security](Security) and [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#safety-and-sharing-modes).
 
 A joystick mode that turns output off (like `off`) leaves the device inactive. Get out with the tray "Joystick mode" menu, a `mode:next` or `mode:<id>` binding in the main config, or by editing `MODE` and reloading.
 
-## Mode library
+## Joystick mode library
 
 In the interface (page Joystick modes) you can export a joystick mode file, rename it (new name and id; profiles that
 use the old id are listed first and keep pointing at it), see which profiles use a joystick mode, and import

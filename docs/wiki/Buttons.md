@@ -47,6 +47,6 @@ These counts come from vendor information. Only the Pro and the Compact have bee
 
 ## Older keys (deprecated)
 
-`NAV_BUTTON` and `CLICK_BUTTON` (with `..._ENABLED`) take the raw 0-based button index as `spacenavd` reports it; the daemon in `--debug` joystick mode prints the index of every pressed button. They still work in the daemon, but all buttons are assigned with `BUTTON_<n>` (`nav`, `click`, `mode:`, button modes): the interface moves old keys to `BUTTON_<n>` once when it loads the file (and tells you), see [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
+`NAV_BUTTON` and `CLICK_BUTTON` (with `..._ENABLED`) take the raw 0-based button index as `spacenavd` reports it; the daemon in `--debug` mode prints the index of every pressed button. They still work in the daemon, but all buttons are assigned with `BUTTON_<n>` (`nav`, `click`, `mode:`, button modes): the interface moves old keys to `BUTTON_<n>` once when it loads the file (and tells you), see [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
 
 See [Devices](Devices) and [Configuration reference](Configuration-reference).

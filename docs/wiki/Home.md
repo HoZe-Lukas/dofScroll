@@ -30,9 +30,9 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 
 1. [Installation](Installation), then [Quick start](Quick-start)
 2. Tune it: [Configuration reference](Configuration-reference), [Profiles](Profiles), [Buttons](Buttons)
-3. Change what the device does: [Modes](Modes), the list of [Built-in modes](Built-in-modes), the tutorial [How to write a mode](Writing-modes)
+3. Change what the device does: [Joystick modes](Modes), the list of [Built-in joystick modes](Built-in-modes), the tutorial [How to write a mode](Writing-modes)
 4. Something wrong: [Troubleshooting](Troubleshooting), [FAQ](FAQ)
-5. Contribute: [Development](Development), [Architecture](Architecture), [Mode requests and contributions](Contributing-modes)
+5. Contribute: [Development](Development), [Architecture](Architecture), [Joystick mode requests and contributions](Contributing-modes)
 
 Known limitations are listed in the [Release notes](Release-notes).
 
