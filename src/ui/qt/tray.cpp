@@ -30,7 +30,21 @@ QIcon withOpacity(const QIcon &base, qreal opacity) {
         p.end();
         out.addPixmap(dst);
     }
+    out.setIsMask(base.isMask());
     return out;
+}
+
+// macOS menu bar: a monochrome template icon that the system colors for light and dark menu bars.
+// Elsewhere the colored icon is used as given.
+QIcon trayBaseIcon(const QIcon &colored) {
+#ifdef Q_OS_MACOS
+    (void)colored;
+    QIcon t(QStringLiteral(":/dofscroll-tray-template.svg"));
+    t.setIsMask(true);
+    return t;
+#else
+    return colored;
+#endif
 }
 }  // namespace
 
@@ -38,9 +52,9 @@ Tray::Tray(MainWindow *window, const QIcon &baseIcon, const UiContext &ctx, QObj
     : QObject(parent),
       controller_(spn::ui::TrayController::Paths{ctx.configPath, ctx.modesDir, ctx.runtimeDir}, *ctx.runner, strings_),
       window_(window),
-      enabledIcon_(baseIcon),
-      disabledIcon_(withOpacity(baseIcon, 0.55)),
-      notRunningIcon_(withOpacity(baseIcon, 0.3)),
+      enabledIcon_(trayBaseIcon(baseIcon)),
+      disabledIcon_(withOpacity(enabledIcon_, 0.55)),
+      notRunningIcon_(withOpacity(enabledIcon_, 0.3)),
       timer_(new QTimer(this)) {
     controller_.hooks().openSettings = [this] { window_->bringToFront(); };
     controller_.hooks().quit = [] { QApplication::quit(); };

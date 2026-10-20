@@ -143,7 +143,33 @@ interface" restarts this program: under `dofscroll-ui.service` through
 `systemctl --user restart dofscroll-ui.service`, otherwise it starts a copy of itself with
 `--restart` (which waits up to 8 seconds for the old instance to release the single-instance
 lock) and quits. No shell is involved; the command lines are built in
-`src/ui/model/restart_plan.hpp`. Untested on real desktops for Windows and macOS.
+`src/ui/model/restart_plan.hpp`. On Windows the helper programs start with `-NoProfile
+-NonInteractive -WindowStyle Hidden` and `CREATE_NO_WINDOW`, so no console window flashes up, and a
+failed stop of the daemon is reported instead of starting a second one. Untested on real desktops
+for Windows and macOS.
+
+## Platform notes (Windows and macOS)
+
+Compiled and unit-tested in CI only; what has to be checked by hand on real machines:
+
+- **Windows console output.** `dofscroll-ui.exe` is a GUI program without a console. For `--help`,
+  `--version`, `--self-test`, `--screenshots` and the "already running" message it attaches to the
+  console of the parent (cmd, PowerShell) and writes there, unless the output is redirected to a
+  file or pipe. Started by double click there is no console and no output. To check: run
+  `dofscroll-ui.exe --version` in PowerShell and in cmd, also with `| more` and `> out.txt`.
+- **macOS menu bar icon.** The tray uses a monochrome template icon
+  (`icons/dofscroll-tray-template.svg`, `QIcon::setIsMask`) that macOS colors for light and dark
+  menu bars; the "disabled" and "not running" states are the same icon with less opacity. macOS does
+  not deliver a click on the icon when the icon has a menu, so there is no "click to open the
+  window": use the **Settings...** entry of the menu.
+- **macOS Dock.** The `.app` has `LSUIElement` (no Dock icon). The same Info.plist is embedded in
+  the plain executable of a CMake build (linker option `-sectcreate`), so a run from the build
+  directory does not show a Dock icon without a window either. Unchecked on hardware.
+- **Output backend.** The "Output backend" choice (X11, uinput) on the Channels page exists on
+  Linux only; Windows uses SendInput and macOS CGEvent.
+- **German catalog.** `dofscroll_de.qm` is next to the executable on every system (Linux
+  `/usr/bin`, Windows install folder, macOS `dofscroll.app/Contents/MacOS`). To check: set the
+  language to German on the General page and restart the interface.
 
 ## Reload and runtime files
 

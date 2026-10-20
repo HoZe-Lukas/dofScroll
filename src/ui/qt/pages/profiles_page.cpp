@@ -29,7 +29,6 @@
 
 #include "add_app_dialog.hpp"
 #include "add_device_dialog.hpp"
-#include "feed_dir.hpp"
 #include "button_row.hpp"
 #include "key_combo.hpp"
 #include "ui/model/binding_editor_model.hpp"
@@ -63,7 +62,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     env_.runningApps = [] { return spn::makeRunningAppsProvider(); };
     env_.activeWindow = dofscroll_ui::makeActiveWindowPoll();
     {
-        const std::string dir = ctx_.runtimeDir.empty() ? dofscroll_ui::feedRuntimeDir() : ctx_.runtimeDir;
+        const std::string dir = ctx_.runtimeDir;  // empty on Windows (named pipe)
         feedClient_ = std::make_unique<spn::LiveFeedClient>(
             [dir](std::string *err) { return spn::connectFeed(dir, err); });
         feedClock_.start();

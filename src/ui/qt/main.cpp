@@ -32,6 +32,7 @@
 #include "pages/extensions_page.hpp"
 #include "pages/mode_editor_widget.hpp"
 #include "pages/modes_page.hpp"
+#include "platform_hooks.hpp"
 #include "qt_action_runner.hpp"
 #include "theme.hpp"
 #include "tray.hpp"
@@ -295,6 +296,13 @@ int main(int argc, char **argv) {
     bool selfTest = false;
     const char *screenshotDir = nullptr;
     bool restarted = false;  // started by "Restart interface": wait for the old instance's lock
+    // Before any output and before QApplication: X11 thread support, and on Windows the parent
+    // console for the command line flags (the executable has no console of its own).
+    dofscroll_ui::earlyPlatformInit();
+    for (int i = 1; i < argc; ++i)
+        if (!std::strcmp(argv[i], "--version") || !std::strcmp(argv[i], "--help") || !std::strcmp(argv[i], "-h") ||
+            !std::strcmp(argv[i], "--self-test") || !std::strcmp(argv[i], "--screenshots"))
+            dofscroll_ui::attachParentConsole();
     // Handled before QApplication exists: no window, no lock, no display needed.
     for (int i = 1; i < argc; ++i) {
         if (!std::strcmp(argv[i], "--version")) {
@@ -457,6 +465,7 @@ int main(int argc, char **argv) {
             spn::ui::LockOutcome::AlreadyRunning) {
             QFile m(raiseMarker);
             if (m.open(QIODevice::WriteOnly)) m.close();
+            dofscroll_ui::attachParentConsole();
             std::fprintf(stderr, "dofscroll-ui is already running\n");
             return spn::ui::kExitAlreadyRunning;
         }

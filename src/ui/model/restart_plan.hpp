@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include "platform/autostart_os.hpp"
 #include "ui/model/release_keys.hpp"
 
 namespace spn::ui {
@@ -35,7 +36,6 @@ inline Os hostOs() {
 using Argv = std::vector<std::string>;
 
 inline const char *restartFlag() { return "--restart"; }
-inline const char *macDaemonAgentLabel() { return "io.github.dofscroll.daemon"; }  // as in autostart_os.hpp
 
 struct DaemonRestartPlan {
     Argv probe;    // empty: not probed, go on with `stop` / `spawn`
@@ -61,14 +61,17 @@ inline DaemonRestartPlan daemonRestartPlan(Os os, const std::string &exeDir,
             p.managed = {"systemctl", "--user", "restart", "dofscroll.service"};
             break;
         case Os::MacOS: {
-            const std::string target = "gui/" + std::to_string(uid) + "/" + macDaemonAgentLabel();
+            const std::string target = "gui/" + std::to_string(uid) + "/" + spn::autostart::kMacDaemonLabel;
             p.probe = {"launchctl", "print", target};
             p.managed = {"launchctl", "kickstart", "-k", target};
             break;
         }
         case Os::Windows:
             // Same stop logic as the installer: quit event, then end the process, then release keys.
-            p.stop = {"powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+            // The UI is a GUI process: no profile, no prompt, hidden window (the runner also sets
+            // CREATE_NO_WINDOW, so no console flashes up).
+            p.stop = {"powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
+                      "-ExecutionPolicy", "Bypass", "-File",
                       joinPath(joinPath(exeDir, "scripts"), "stop-daemon.ps1"), "-ExePath", p.spawn[0]};
             break;
     }
