@@ -74,17 +74,20 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
 
     // ---- tasks: what the user usually wants, each opens the page that does it ----
     auto *taskBox = new QGroupBox(T("What do you want to do?"));
-    auto *tl = new QHBoxLayout(taskBox);
-    tl->setSpacing(kSpaceSm);
+    auto *tl = new QVBoxLayout(taskBox);
+    taskGrid_ = new QGridLayout;  // the buttons wrap to more rows in a narrow window (layoutQuickActions)
+    taskGrid_->setContentsMargins(0, 0, 0, 0);
+    taskGrid_->setHorizontalSpacing(kSpaceSm);
+    taskGrid_->setVerticalSpacing(kSpaceSm);
     for (const spn::ui::OverviewTask &task : spn::ui::overviewTasks()) {
         auto *b = new QPushButton(T(task.label.c_str()));
         b->setToolTip(T(task.tip.c_str()));
         b->setObjectName(qs8("task-" + task.id));
         const QString page = qs8(task.page);
         connect(b, &QPushButton::clicked, this, [this, page] { emit openPage(page); });
-        tl->addWidget(b);
+        taskButtons_.push_back(b);
     }
-    tl->addStretch(1);
+    tl->addLayout(taskGrid_);
     col->addWidget(taskBox);
 
     // ---- quick actions ----
@@ -350,24 +353,29 @@ void OverviewPage::rebuildGettingStarted(const std::vector<spn::ui::GettingStart
     }
 }
 
-// The quick action buttons in as many columns as fit (at least one), so the row never forces the
-// page wider than the window.
-void OverviewPage::layoutQuickActions() {
+// Buttons in as many columns as fit (at least one), so a row never forces the page wider than the window.
+bool OverviewPage::planButtonGrid(QGridLayout *grid, const std::vector<QPushButton *> &buttons, int *columns) {
     int widest = 0;
-    for (const QPushButton *b : quickButtons_) widest = std::max(widest, b->sizeHint().width());
+    for (const QPushButton *b : buttons) widest = std::max(widest, b->sizeHint().width());
     // the content is not wider than kMaxContentWidth, however wide the window is (as for the cards)
     const int available = std::min(width(), spn::ui::tokens::kMaxContentWidth) - 2 * spn::ui::tokens::kPageMargin -
                           2 * spn::ui::tokens::kCardPadding;
     const int cell = widest + spn::ui::tokens::kRowGap;
-    int columns = width() > 0 ? std::max(1, (available + spn::ui::tokens::kRowGap) / cell) : 1;
-    columns = std::min(columns, static_cast<int>(quickButtons_.size()));
-    if (columns == quickColumns_) return;
-    quickColumns_ = columns;
-    while (quickGrid_->count() > 0) delete quickGrid_->takeAt(0);
-    for (size_t i = 0; i < quickButtons_.size(); ++i)
-        quickGrid_->addWidget(quickButtons_[i], static_cast<int>(i) / columns, static_cast<int>(i) % columns);
-    for (int c = 0; c <= columns; ++c) quickGrid_->setColumnStretch(c, c == columns ? 1 : 0);
-    quickGrid_->invalidate();
+    int n = width() > 0 ? std::max(1, (available + spn::ui::tokens::kRowGap) / cell) : 1;
+    n = std::min(n, static_cast<int>(buttons.size()));
+    if (n == *columns) return false;
+    *columns = n;
+    while (grid->count() > 0) delete grid->takeAt(0);
+    for (size_t i = 0; i < buttons.size(); ++i) grid->addWidget(buttons[i], static_cast<int>(i) / n, static_cast<int>(i) % n);
+    for (int c = 0; c <= n; ++c) grid->setColumnStretch(c, c == n ? 1 : 0);
+    grid->invalidate();
+    return true;
+}
+
+// The task buttons and the quick action buttons.
+void OverviewPage::layoutQuickActions() {
+    planButtonGrid(taskGrid_, taskButtons_, &taskColumns_);
+    planButtonGrid(quickGrid_, quickButtons_, &quickColumns_);
 }
 
 void OverviewPage::layoutCards() {
@@ -440,6 +448,7 @@ void OverviewPage::changeEvent(QEvent *e) {
             [this] {
                 replanQueued_ = false;
                 quickColumns_ = 0;
+                taskColumns_ = 0;
                 columns_ = 0;
                 layoutQuickActions();
                 layoutCards();

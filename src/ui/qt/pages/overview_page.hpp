@@ -82,6 +82,11 @@ private:
     QGridLayout *quickGrid_ = nullptr;
     std::vector<QPushButton *> quickButtons_;
     int quickColumns_ = 0;
+    QGridLayout *taskGrid_ = nullptr;  // the "What do you want to do?" buttons wrap like the quick actions
+    std::vector<QPushButton *> taskButtons_;
+    int taskColumns_ = 0;
+    // Puts the buttons into as many columns as fit (at least one); true if the number of columns changed.
+    bool planButtonGrid(QGridLayout *grid, const std::vector<QPushButton *> &buttons, int *columns);
     bool replanQueued_ = false;  // a re-plan after a font or style change is waiting for the event loop
     void layoutQuickActions();
     std::vector<QFrame *> cards_;
