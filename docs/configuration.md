@@ -42,6 +42,14 @@ Three channels, each with its own axis mix, sensitivity, dead zone, direction, c
 `<CH>` is `SCROLL_V`, `SCROLL_H` or `ZOOM`. Values in the seeded config
 (`examples/default/dofscroll.conf`) differ from this table; the seeded file is a starting point.
 
+Per-part keys for split channels: `SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>`
+(for example `SCROLL_V_TILT_SENS = 8`). A joystick mode can split the vertical or horizontal channel
+into a push part (translation terms of the mix) and a tilt part (rotation terms) with different
+actions, see [modes.md](modes.md#split-push-and-tilt); each part starts with the parent channel's
+values and these keys replace single values with **absolute** values (not multipliers, same ranges as
+the channel keys). They have no default, are not written to the config unless set, and act only while
+the active mode splits that channel.
+
 Axes (libspnav convention, measured on a SpaceMouse Pro): push forward or back is `z`, sideways is
 `x`, lift or press is `y`, tilt forward or back is `rx`, tilt sideways is `rz`, twist is `ry`. If you
 changed `spacenavd` settings (axis swap, inversion), adjust the mixes or run the "Learn axes" wizard

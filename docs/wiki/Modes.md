@@ -44,6 +44,20 @@ The daemon reloads the directory when it changes (about a second), or run `syste
 | `keys:<neg>,<pos>` | Key presses for negative and positive deflection; the rate follows the deflection. Each key can be a chord such as `ctrl+pageup` (up to four modifiers, then one key) |
 | `step:<neg>,<pos>` | One key tap per push (no repeat while held); fires at `STEP_TRIGGER` (steps per second after sensitivity, default 20) and re-arms at half of it. Same keys and chords as `keys:` |
 
+## Split push and tilt
+
+The vertical channel mixes push forward/back (`z`) and tilt forward/back (`rx`), the horizontal one push sideways (`x`) and tilt sideways (`rz`). `V_PUSH_ACTION`, `V_TILT_ACTION`, `H_PUSH_ACTION` and `H_TILT_ACTION` (same values as `V_ACTION`) give the two movements of a channel different functions:
+
+    V_PUSH_ACTION = wheel_v
+    V_TILT_ACTION = step:pageup,pagedown
+    SCROLL_V_TILT_SENS = 8
+
+- The push part is the translation terms of the channel's mix (`x`, `y`, `z`), the tilt part the rotation terms (`rx`, `rz`), with the weights and signs you configured (defaults: V push `z`, V tilt `rx`, H push `x`, H tilt `-rz`). The twist term `ry` belongs to neither.
+- A mode without these keys behaves exactly as before. If a mode sets at least one split key of a channel, that channel runs as two independent sub-channels; a part without its own key uses `V_ACTION` / `H_ACTION`.
+- Each part uses the sensitivity, dead zone, curve, smoothing and sign of its channel. `SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>` replace single values with absolute values (not multipliers).
+
+Details: [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#split-push-and-tilt).
+
 ## Button actions
 
 dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. A mode may bind keys or clicks that only make sense in that mode; they are active only while the mode is active, which the driver cannot do. Examples: a button that always sends Esc belongs in the driver. A button that sends Space (play/pause) only while the `timeline` mode is active, a button with `mode:next` and a button with `nav` belong in dofscroll. See [Buttons](Buttons).

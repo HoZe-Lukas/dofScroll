@@ -215,6 +215,10 @@ inline std::string modeTemplate(const ModeDef &m) {
     t += "V_ACTION = " + channelActionText(m.v) + "\n";
     t += "H_ACTION = " + channelActionText(m.h) + "\n";
     t += "TWIST_ACTION = " + channelActionText(m.twist) + "\n";
+    if (m.vSplit.pushSet) t += "V_PUSH_ACTION = " + channelActionText(m.vSplit.push) + "\n";
+    if (m.vSplit.tiltSet) t += "V_TILT_ACTION = " + channelActionText(m.vSplit.tilt) + "\n";
+    if (m.hSplit.pushSet) t += "H_PUSH_ACTION = " + channelActionText(m.hSplit.push) + "\n";
+    if (m.hSplit.tiltSet) t += "H_TILT_ACTION = " + channelActionText(m.hSplit.tilt) + "\n";
     for (const ButtonBinding &b : m.buttons) {
         if (b.type == ButtonActionType::Unbound) continue;
         t += "BUTTON_" + std::to_string(b.button) + " = " + buttonActionText(b) + "\n";

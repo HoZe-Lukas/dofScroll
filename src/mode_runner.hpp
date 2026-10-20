@@ -11,6 +11,9 @@
 //  - custom: at least one channel action differs from "default". The channels follow the
 //    mode's actions; NAV_BUTTON / CLICK_BUTTON are ignored (the mode's button bindings
 //    replace them).
+//    A mode that splits the V and/or H channel into push and tilt (modes.hpp, SplitChannel) runs the
+//    parts as independent sub-channels with their own filter state, step accumulator and step: state;
+//    everything they hold is released like the rest on mode change and releaseAll().
 // Button bindings of the mode apply in both paths.
 //
 // Everything held (Ctrl for zoom, key/mouse bindings) is released on mode change and on
@@ -82,6 +85,10 @@ public:
         double rate_h = 0, rate_v = 0, twist = 0, lateral = 0;
         bool zooming = false, nav = false;
         double rate_zoom = 0;
+        // Rates of the four sub-channels (SplitPart order), 0 for a part that does not run. For a split
+        // channel rate_v / rate_h hold the part rate with the larger magnitude (signed), so that the live
+        // feed and the debug output still show the channel's output.
+        double rate_part[PART_COUNT] = {0, 0, 0, 0};
     };
     const Info &info() const { return info_; }
 
@@ -90,6 +97,8 @@ public:
     // An axis channel is outside its dead zone (its rate after smoothing, dead zone and
     // curve is not zero), or the zoom detector is latched. Used by the daemon's safety net.
     bool axesActive() const {
+        for (double r : info_.rate_part)
+            if (std::fabs(r) > kRateEpsilon) return true;
         return std::fabs(info_.rate_h) > kRateEpsilon || std::fabs(info_.rate_v) > kRateEpsilon ||
                std::fabs(info_.rate_zoom) > kRateEpsilon || info_.zooming;
     }
@@ -107,6 +116,9 @@ private:
     Channel ch_v_, ch_h_, ch_zoom_;
     StepAccumulator acc_v_, acc_h_, acc_zoom_;
     int8_t step_v_ = 0, step_h_ = 0, step_zoom_ = 0;  // step: channels: 0 armed, +1/-1 fired on that side
+    Channel ch_part_[PART_COUNT];                     // sub-channels of split V / H channels
+    StepAccumulator acc_part_[PART_COUNT];
+    int8_t step_part_[PART_COUNT] = {0, 0, 0, 0};
     ZoomDetector zoom_;
     std::bitset<kKeyCount> keys_held_;
     uint8_t mouse_held_ = 0;  // bit n = mouse button n (1 left, 2 middle, 3 right)

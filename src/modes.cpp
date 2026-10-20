@@ -132,6 +132,12 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
             ChannelAction a;
             if (!parseChannelAction(value, &a, &err)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
             (key == "V_ACTION" ? out->v : key == "H_ACTION" ? out->h : out->twist) = a;
+        } else if (key == "V_PUSH_ACTION" || key == "V_TILT_ACTION" || key == "H_PUSH_ACTION" || key == "H_TILT_ACTION") {
+            ChannelAction a;
+            if (!parseChannelAction(value, &a, &err)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
+            SplitChannel &sc = key[0] == 'V' ? out->vSplit : out->hSplit;
+            if (key[2] == 'P') { sc.push = a; sc.pushSet = true; }
+            else { sc.tilt = a; sc.tiltSet = true; }
         } else if (key == "MODE") {
             warn(lineno, "MODE is not allowed in a mode file - line ignored");
         } else if (key.compare(0, 7, "BUTTON_") == 0) {
@@ -189,7 +195,7 @@ std::string chordRisk(const ModeDef &m) {
         if (b.type == ButtonActionType::Key && isModifierKey(b.key))
             why.push_back("BUTTON_" + std::to_string(b.button) + " presses " + keyName(b.key));
     bool hasRiskyKeys = false, hasZoom = false;
-    for (const ChannelAction *a : {&m.v, &m.h, &m.twist}) {
+    for (const ChannelAction *a : {&m.v, &m.h, &m.twist, &m.vSplit.push, &m.vSplit.tilt, &m.hSplit.push, &m.hSplit.tilt}) {
         if (a->type == ChannelActionType::Zoom) hasZoom = true;
         if (!a->usesKeys()) continue;
         const std::string what = a->type == ChannelActionType::Step ? "a step: channel presses " : "a keys: channel presses ";

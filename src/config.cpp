@@ -325,6 +325,29 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
         return true;
     }
 
+    // --- per-part keys of split channels: SCROLL_<V|H>_<PUSH|TILT>_<SUFFIX>
+    if (key.compare(0, 7, "SCROLL_") == 0 && key.size() > 9 && (key[7] == 'V' || key[7] == 'H') && key[8] == '_') {
+        const std::string rest = key.substr(9);
+        const bool push = rest.compare(0, 5, "PUSH_") == 0, tilt = rest.compare(0, 5, "TILT_") == 0;
+        if (push || tilt) {
+            const std::string suffix = rest.substr(5);
+            static const struct { const char *name; unsigned bit; } fields[] = {
+                {"SENS", PartTuning::F_SENS}, {"DEADZONE", PartTuning::F_DEADZONE}, {"SIGN", PartTuning::F_SIGN},
+                {"CURVE", PartTuning::F_CURVE}, {"SMOOTH_MS", PartTuning::F_SMOOTH}};
+            for (const auto &f : fields) {
+                if (suffix != f.name) continue;
+                PartTuning &t = s.parts[(key[7] == 'V' ? 0 : 2) + (push ? 0 : 1)];
+                bool known = false;
+                if (!applyChannel(t.cfg, suffix, value, err, &known)) {
+                    if (err && err->empty()) *err = "invalid value";
+                    return false;
+                }
+                t.set |= f.bit;
+                return true;
+            }
+        }
+    }
+
     // --- channel keys (PREFIX_SUFFIX)
     struct Pref { const char *name; ChannelCfg Settings::*cfg; };
     static const Pref prefs[] = {{"SCROLL_V_", &Settings::scroll_v},
@@ -397,6 +420,39 @@ bool parseMix(const std::string &text, Mix *out, std::string *err) {
     }
     if (out) *out = m;
     return true;
+}
+
+void splitMix(const Mix &m, Mix *push, Mix *tilt) {
+    Mix p, t;
+    for (const Term &term : m.terms) {
+        if (term.axis == AX_X || term.axis == AX_Y || term.axis == AX_Z) p.terms.push_back(term);
+        else if (term.axis == AX_RX || term.axis == AX_RZ) t.terms.push_back(term);
+    }
+    if (push) *push = p;
+    if (tilt) *tilt = t;
+}
+
+std::vector<std::string> partTuningKeys() {
+    std::vector<std::string> out;
+    for (const char *ch : {"V", "H"})
+        for (const char *part : {"PUSH", "TILT"})
+            for (const char *f : {"SENS", "DEADZONE", "SIGN", "CURVE", "SMOOTH_MS"})
+                out.push_back(std::string("SCROLL_") + ch + "_" + part + "_" + f);
+    return out;
+}
+
+ChannelCfg partConfig(const ChannelCfg &parent, const PartTuning &t, const Mix &partMix) {
+    ChannelCfg c = parent;
+    c.mix = partMix;
+    if (t.set & PartTuning::F_SENS) c.sensitivity = t.cfg.sensitivity;
+    if (t.set & PartTuning::F_DEADZONE) c.deadzone = t.cfg.deadzone;
+    if (t.set & PartTuning::F_SIGN) c.sign = t.cfg.sign;
+    if (t.set & PartTuning::F_CURVE) {
+        c.curve_exp = t.cfg.curve_exp;
+        c.curve_points = t.cfg.curve_points;
+    }
+    if (t.set & PartTuning::F_SMOOTH) c.smooth_ms = t.cfg.smooth_ms;
+    return c;
 }
 
 std::string mixToString(const Mix &m) {
@@ -477,6 +533,17 @@ std::vector<KV> allKeys(const Settings &s) {
     kv.emplace_back("CLICK_BUTTON", std::to_string(s.click_button));
     kv.emplace_back("CLICK_BUTTON_ENABLED", s.click_button_enabled ? "1" : "0");
     for (const auto &b : s.buttons) kv.emplace_back("BUTTON_" + std::to_string(b.first), b.second);
+    // Per-part tuning of split channels: only the values that were set (nothing for a config without them).
+    static const char *partNames[PART_COUNT] = {"SCROLL_V_PUSH_", "SCROLL_V_TILT_", "SCROLL_H_PUSH_", "SCROLL_H_TILT_"};
+    for (int i = 0; i < PART_COUNT; ++i) {
+        const PartTuning &t = s.parts[i];
+        const std::string pre = partNames[i];
+        if (t.set & PartTuning::F_SENS) kv.emplace_back(pre + "SENS", std::to_string(t.cfg.sensitivity));
+        if (t.set & PartTuning::F_DEADZONE) kv.emplace_back(pre + "DEADZONE", std::to_string(t.cfg.deadzone));
+        if (t.set & PartTuning::F_SIGN) kv.emplace_back(pre + "SIGN", std::to_string(t.cfg.sign));
+        if (t.set & PartTuning::F_CURVE) kv.emplace_back(pre + "CURVE", curveToString(t.cfg));
+        if (t.set & PartTuning::F_SMOOTH) kv.emplace_back(pre + "SMOOTH_MS", fmtNum(t.cfg.smooth_ms));
+    }
     return kv;
 }
 

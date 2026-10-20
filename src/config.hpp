@@ -83,6 +83,11 @@ struct Mix {
 bool parseMix(const std::string &text, Mix *out, std::string *err);
 std::string mixToString(const Mix &m);  // round-trip safe: parseMix(mixToString(m)) == m
 
+// Splitting a scroll channel's mix into a push part (translation terms x, y, z) and a tilt part
+// (rotation terms rx, rz); weights and signs are kept ("x - rz" -> push "x", tilt "-rz"). Twist
+// terms (ry) belong to neither part and are dropped. Either output may be null.
+void splitMix(const Mix &m, Mix *push, Mix *tilt);
+
 struct ChannelCfg {
     Mix mix;
     int sensitivity = 5;          // 0..255, 0 = channel off
@@ -95,6 +100,22 @@ struct ChannelCfg {
     std::vector<std::pair<double, double>> curve_points;
     double smooth_ms = 0.0;       // low-pass time constant, 0 = off, <= 500
 };
+
+// Per-part tuning of a split scroll channel (modes.hpp: V_PUSH_ACTION and friends). A part starts
+// as a copy of its parent channel (sens, dead zone, sign, curve, smoothing); the keys
+// SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS> replace single values with ABSOLUTE
+// values (same ranges and syntax as the parent keys, not multipliers). Only used while the active
+// mode splits the channel.
+enum SplitPart { PART_V_PUSH = 0, PART_V_TILT, PART_H_PUSH, PART_H_TILT, PART_COUNT };
+struct PartTuning {
+    enum Field : unsigned { F_SENS = 1, F_DEADZONE = 2, F_SIGN = 4, F_CURVE = 8, F_SMOOTH = 16 };
+    unsigned set = 0;   // bit mask of the fields below that were set
+    ChannelCfg cfg;     // only the fields named in `set` are meaningful (mix is unused)
+};
+// The 20 per-part tuning key names (SCROLL_V_PUSH_SENS ... SCROLL_H_TILT_SMOOTH_MS), in a stable order.
+std::vector<std::string> partTuningKeys();
+// The sub-channel config of a part: `parent` with the part's mix and the tuned fields.
+ChannelCfg partConfig(const ChannelCfg &parent, const PartTuning &t, const Mix &partMix);
 
 struct Settings {
     ChannelCfg scroll_v;
@@ -115,6 +136,7 @@ struct Settings {
     bool enabled = true;
     // Publish the live feed (axes, buttons, channel outputs) to the UI while a client is connected.
     bool live_feed = true;
+    PartTuning parts[PART_COUNT];  // split scroll channels, see PartTuning
     std::string mode = "normal";  // mode id (see modes.hpp)
     // Button bindings from BUTTON_<n> keys (n = 1..kMaxButtons): canonical action text as
     // accepted by parseButtonAction (none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | toggle:nav |

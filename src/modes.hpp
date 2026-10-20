@@ -23,6 +23,16 @@
 //   dominance detection). zoom = hold Ctrl + mouse wheel. keys:<neg>,<pos> = key presses
 //   (neg for negative, pos for positive deflection; rate proportional to the deflection),
 //   key names from keys.hpp.
+// Split push and tilt (optional, per scroll channel): V_PUSH_ACTION, V_TILT_ACTION, H_PUSH_ACTION and
+//   H_TILT_ACTION (same grammar). The vertical channel mixes push forward/back (z) and tilt forward/back (rx),
+//   the horizontal channel push sideways (x) and tilt sideways (rz). A mode that sets at least one split key of a
+//   channel runs that channel as two independent sub-channels: the push part is the translation terms (x, y, z)
+//   of the channel's mix, the tilt part the rotation terms (rx, rz), weights and signs kept (defaults: V push =
+//   z, V tilt = rx, H push = x, H tilt = -rz; ry belongs to neither). A part without its own key uses the
+//   channel's V_ACTION / H_ACTION; an explicit "default" on a part is the channel's normal behavior (wheel).
+//   Each part uses the channel's sens, dead zone, curve, smoothing and sign; SCROLL_<V|H>_<PUSH|TILT>_<SENS|
+//   DEADZONE|SIGN|CURVE|SMOOTH_MS> override single values with absolute values (config.hpp, PartTuning).
+//   A mode without split keys behaves exactly as before.
 // Buttons are numbered from 1 (BUTTON_1 .. BUTTON_32), exactly like BUTTON_<n> in the main config;
 // BUTTON_0 is rejected. Internally button n is device bit n-1 (spnav_event_button.bnum).
 // Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | mode:prev |
@@ -56,7 +66,7 @@
 //   effect, else the mode of the profile). Any other mode switch during the hold ends it without
 //   restoring; a reload, suspend/disabled and an unplugged device end it too. "next" and "prev" are
 //   not valid; an unknown id is dropped with a warning when the modes are loaded.
-// A mode whose three channel actions are all "default" runs on the normal path (incl.
+// A mode whose three channel actions are all "default" (and that sets no split key) runs on the normal path (incl.
 // dominance-based zoom, NAV_BUTTON/CLICK_BUTTON from the settings).
 //
 // Built in (overridable by a file of the same name): "normal" (all default, no buttons),
@@ -111,18 +121,33 @@ struct ButtonBinding {
     std::string mode;                     // ModeSwitch: target id or "next"; ToggleMode: target id; ButtonMode: button mode id; HoldMode: target id
 };
 
+// The two parts of a split scroll channel (V_PUSH_ACTION / V_TILT_ACTION, H_PUSH_ACTION / H_TILT_ACTION).
+// A part whose key is absent (pushSet / tiltSet false) falls back to the channel's own action.
+struct SplitChannel {
+    ChannelAction push, tilt;
+    bool pushSet = false, tiltSet = false;
+    bool active() const { return pushSet || tiltSet; }
+    bool operator==(const SplitChannel &o) const {
+        return pushSet == o.pushSet && tiltSet == o.tiltSet && (!pushSet || push == o.push) && (!tiltSet || tilt == o.tilt);
+    }
+    // The action a part runs: its own if set, otherwise the channel's `parent`.
+    const ChannelAction &pushAction(const ChannelAction &parent) const { return pushSet ? push : parent; }
+    const ChannelAction &tiltAction(const ChannelAction &parent) const { return tiltSet ? tilt : parent; }
+};
+
 struct ModeDef {
     std::string id;           // id (file name without .conf, or built-in)
     std::string label;        // display name; fallback: id
     std::string description;  // optional
     std::vector<std::pair<std::string, std::string>> overrides;  // settings keys (validated)
     ChannelAction v, h, twist;
+    SplitChannel vSplit, hSplit;  // optional split of the V / H channel into push and tilt
     std::vector<ButtonBinding> buttons;
     bool builtin = false;
 
     bool allDefaultChannels() const {
         return v.type == ChannelActionType::Default && h.type == ChannelActionType::Default &&
-               twist.type == ChannelActionType::Default;
+               twist.type == ChannelActionType::Default && !vSplit.active() && !hSplit.active();
     }
 };
 
