@@ -590,6 +590,9 @@ QWidget *ProfilesPage::buildModeSelector(size_t section) {
         combo->setItemData(combo->count() - 1, tip, Qt::ToolTipRole);
     }
     combo->setCurrentIndex(std::max(0, ctx_.settings->selectedModeOption(section)));
+    // do not ask for the width of the longest entry: with large fonts the page must not need a horizontal scroll bar
+    combo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    combo->setMinimumContentsLength(6);
     // the "i" button: name, origin, description and what the joystick mode does, for the chosen entry
     auto infoFor = [this, combo, opts, globalMode, &strs]() {
         const int idx = std::max(0, combo->currentIndex());

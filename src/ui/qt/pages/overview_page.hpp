@@ -54,6 +54,8 @@ signals:
 protected:
     bool eventFilter(QObject *watched, QEvent *e) override;  // the card area got another width: wrap the cards again
     void resizeEvent(QResizeEvent *e) override;
+    void changeEvent(QEvent *e) override;
+    bool event(QEvent *e) override;  // the size hints of the children changed: plan the columns again  // another font or style: the widths of the buttons and cards changed
     void showEvent(QShowEvent *e) override;
 
 private:
@@ -80,6 +82,12 @@ private:
     QGridLayout *quickGrid_ = nullptr;
     std::vector<QPushButton *> quickButtons_;
     int quickColumns_ = 0;
+    QGridLayout *taskGrid_ = nullptr;  // the "What do you want to do?" buttons wrap like the quick actions
+    std::vector<QPushButton *> taskButtons_;
+    int taskColumns_ = 0;
+    // Puts the buttons into as many columns as fit (at least one); true if the number of columns changed.
+    bool planButtonGrid(QGridLayout *grid, const std::vector<QPushButton *> &buttons, int *columns);
+    bool replanQueued_ = false;  // a re-plan after a font or style change is waiting for the event loop
     void layoutQuickActions();
     std::vector<QFrame *> cards_;
     QString cardsKey_;  // what the cards were built from, to rebuild only when it changed

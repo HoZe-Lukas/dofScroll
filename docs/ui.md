@@ -217,7 +217,7 @@ toolkit-free (colour tokens in `src/ui/model/theme_colors.hpp`); the Qt checks a
 | Colour alone | Every error, warning and success message starts with a symbol (error, warning sign, check mark; `src/ui/model/status_text.hpp`) and keeps its words ("Could not save: ...", "Invalid value: ...", "Warning: ...", "Saved"): the hint under a field, the problem lists of the joystick mode and button mode editors, the Settings messages and the footer, which also uses the status colours (red, orange, green). "Inherited from ..." and "Set in this profile" are words; on/off is a switch with a knob position, not only a colour | `test_ui_status_text`, `--self-test` (problem next to the field has its symbol), review rule |
 | Colour-vision deficiencies | Status, accent, focus and border colours keep 3:1 luminance contrast after a protanopia, deuteranopia and tritanopia simulation (Machado matrices); selected text keeps 7:1 | `test_ui_theme` (`simulateCvd`) |
 | Operating system | System follows the platform palette (light or dark). A high-contrast request (the Qt contrast preference where Qt provides it, Windows high-contrast mode) switches the style sheet off so that the platform palette is shown unchanged. On other systems or older Qt nothing is detected | code review; needs a human on the platform |
-| Font size | The base font is the system font (plus 8%); the interface has no fixed pixel font sizes; at 150% and 200% font size no label or button is cut off | self-test "font scale" |
+| Font size | The base font is the system font (plus 8%); the interface has no fixed pixel font sizes. The lengths of the style sheet (padding, heights, radii, indicator sizes) are in em, converted from the design pixels at a reference font of 14 px (`src/ui/model/qss_scale.hpp`), so the geometry follows the font size of the system; border widths stay in pixels. At 150% and 200% font size and in a window of 560 px, in the System theme and in the Light theme, no label or button is cut off: a page that is too narrow scrolls (the scroll bar appears only then); at the normal font size in the normal window no page shows a horizontal scroll bar | `test_ui_qss_scale`, self-test "font scale" |
 | Motion | The interface has no animations, so there is nothing to reduce | none needed |
 | Screen readers, keyboard | Every input has an accessible name; the tab order follows the layout (no jump back up inside a column); the arrow keys, Home and End move between the left categories (the current one shows the focus ring); every "i" info button takes Tab focus and opens its popover with Space or Enter, the popover has an accessible name and Esc closes it; Escape closes dialogs | `accessibility`, `keyboard` and `sidebar focus` self-tests |
 
@@ -226,8 +226,8 @@ button, switch, input and slider of every page, in the Light and the Dark theme 
 the style sheet gives that, the self-test pins the minimum). In the System theme the platform's own
 controls are used, which this test does not measure.
 
-Not yet covered: the 200% font scale is checked for clipping, not for beauty; screen readers
-were not tried on hardware.
+Not yet covered: high-contrast rendering was not checked with screenshots, and screen readers,
+magnifiers and a colour-blind reviewer were not tried (they need people and real devices, see issue #104).
 
 ## Appearance
 
