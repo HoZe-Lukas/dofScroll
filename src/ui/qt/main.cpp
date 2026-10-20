@@ -477,6 +477,9 @@ int main(int argc, char **argv) {
     window.setWindowIcon(icon);
     Tray tray(&window, icon, ctx);
     tray.show();
+    // Starts minimized to the tray: no window is shown. Without a system tray the icon would be
+    // unreachable, so the window is then shown minimized (the taskbar or the second start reach it).
+    if (!QSystemTrayIcon::isSystemTrayAvailable()) window.showMinimized();
     QTimer raiseTimer;
     QObject::connect(&raiseTimer, &QTimer::timeout, [&] {
         if (QFile::exists(raiseMarker) && QFile::remove(raiseMarker)) window.bringToFront();
