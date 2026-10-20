@@ -5,7 +5,7 @@ documentary; the fixes listed under "Status" came afterwards. Line numbers were 
 (references name file and function); findings are marked "fixed" where the code or rule has
 since been adjusted (state of the fixes: 2026-10-15).
 
-Note (0.1.0-beta.3, #43): the GTK tray (`dofscroll-tray`, `src/dofscroll_tray.cpp`,
+Note (0.1.0, #43): the GTK tray (`dofscroll-tray`, `src/dofscroll_tray.cpp`,
 `systemd/dofscroll-tray.service`) was removed; the Qt interface `dofscroll-ui` (unit
 `dofscroll-ui.service`, same sandbox) is the only tray and settings window. Where this document
 says "tray" it describes the review of that program or, for the sandbox, the unit that `dofscroll-ui`

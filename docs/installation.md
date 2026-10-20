@@ -163,7 +163,7 @@ Do these steps once per machine. Steps 1 and 5 need root.
 
    **Qt interface.** `dofscroll-ui` is the only tray icon and settings window on Linux, Windows and
    macOS; it is also started from the application menu ("dofScroll"). The old GTK tray
-   (`dofscroll-tray`, `dofscroll-tray.service`) was removed in 0.1.0-beta.3 (#43); see "Upgrade"
+   (`dofscroll-tray`, `dofscroll-tray.service`) was removed in 0.1.0 (#43); see "Upgrade"
    below for what happens to an existing installation. Without the Qt interface (a package built
    where Qt6 was not available) there is no tray and no settings window: edit the configuration
    file by hand.
@@ -232,7 +232,7 @@ You can also use the tray menu: **Restart daemon** (releases held keys first) an
 interface**. `dofscroll-ui.service` has `Wants=dofscroll.service`, so starting only the interface
 also starts the daemon.
 
-**Upgrading from a version with the GTK tray (before 0.1.0-beta.3).** The GTK tray
+**Upgrading from a version with the GTK tray (before 0.1.0).** The GTK tray
 (`dofscroll-tray`, `dofscroll-tray.service`) no longer exists; `dofscroll-ui` replaces it. If you
 had `dofscroll-tray.service` enabled, the package upgrade step migrates the autostart once, for
 every logged-in user, best effort: it stops and disables `dofscroll-tray.service`, enables

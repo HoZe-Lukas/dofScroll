@@ -17,7 +17,7 @@ below the minimum window size. Closing the window with the close button hides it
 interface keeps running in the tray; the first time in a run, the tray shows a short notice
 ("dofscroll is still running in the tray"). Without a system tray there is nothing to keep the
 interface reachable, so closing the window quits it, and the status bar says so ("No system tray
-found: closing the window quits dofscroll-ui"). Use "Quit" in the tray menu to quit otherwise. The old GTK tray (`dofscroll-tray`) was removed in 0.1.0-beta.3: `dofscroll-ui` is
+found: closing the window quits dofscroll-ui"). Use "Quit" in the tray menu to quit otherwise. The old GTK tray (`dofscroll-tray`) was removed in 0.1.0: `dofscroll-ui` is
 the only tray and settings window on Linux, Windows and macOS (see
 [installation.md](installation.md#upgrade) for the autostart migration).
 
