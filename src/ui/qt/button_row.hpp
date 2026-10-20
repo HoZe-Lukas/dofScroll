@@ -24,6 +24,7 @@ struct ButtonRowEnv {
     const spn::ButtonModeSet *buttonModes = nullptr;
     std::vector<std::string> modeIds;  // offered by "Switch to mode" and the like
     const spn::ui::StringProvider *strings = nullptr;
+    int deviceButtons = 0;      // > 0: the "Button n" label says in its tooltip how many buttons the device has
     bool showInherited = true;  // inherited rows show what they inherit (profiles); a mode has nothing to show
     QString resetText, resetTip;
 };

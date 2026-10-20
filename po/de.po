@@ -2169,8 +2169,8 @@ msgid "A button mode is a named button behavior. Pick it for any button on the P
 msgstr "Ein Tastenmodus ist ein benanntes Tastenverhalten. Wählen Sie ihn auf der Seite Profile für beliebige Tasten; derselbe Tastenmodus kann auf mehreren Tasten verwendet werden."
 
 #: src/ui/qt/pages/button_modes_page.cpp
-msgid "A button mode can press a key or click. Only use button modes from trusted sources. An action that is the same everywhere and always is better set in the vendor driver (see docs/modes.md)."
-msgstr "Ein Tastenmodus kann eine Taste drücken oder klicken. Verwenden Sie nur Tastenmodi aus vertrauenswürdigen Quellen. Eine Aktion, die überall und immer gleich ist, stellt man besser im Herstellertreiber ein (siehe docs/modes.md)."
+msgid "A button mode can press a key or click. Only use button modes from trusted sources. An action that is the same everywhere and always is better set in the vendor driver (see the documentation)."
+msgstr "Ein Tastenmodus kann eine Taste drücken oder klicken. Verwenden Sie nur Tastenmodi aus vertrauenswürdigen Quellen. Eine Aktion, die überall und immer gleich ist, stellt man besser im Herstellertreiber ein (siehe Dokumentation)."
 
 #: src/ui/qt/pages/button_modes_page.cpp
 msgid "The files in the button modes folder"
@@ -2679,3 +2679,151 @@ msgstr "Das Profil \"%1\" hat ungespeicherte Änderungen. Speichern?"
 #: src/ui/qt/pages/mode_editor_widget.cpp
 msgid "Mode sections"
 msgstr "Bereiche des Modus"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "What do you want to do?"
+msgstr "Was möchten Sie tun?"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Tune scroll and zoom"
+msgstr "Scrollen und Zoom einstellen"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Sensitivity, deadzone, smoothing and curve of the channels"
+msgstr "Empfindlichkeit, Totzone, Glättung und Kurve der Kanäle"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Check the axes"
+msgstr "Achsen prüfen"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Move the cap and see which axis reacts; the assistant sets the axis mixes"
+msgstr "Kappe bewegen und sehen, welche Achse reagiert; der Assistent setzt die Achsmischungen"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Switch modes"
+msgstr "Modi wechseln"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Modes change what the axes and buttons do"
+msgstr "Modi ändern, was die Achsen und Tasten tun"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "New profile for the running program..."
+msgstr "Neues Profil für das laufende Programm..."
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Pick one of the running programs and give it its own profile"
+msgstr "Eines der laufenden Programme wählen und ihm ein eigenes Profil geben"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Open log"
+msgstr "Protokoll öffnen"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Show the end of the daemon log"
+msgstr "Das Ende des Daemon-Protokolls anzeigen"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Documentation"
+msgstr "Dokumentation"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Open the documentation of the interface in your browser"
+msgstr "Die Dokumentation der Oberfläche im Browser öffnen"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Active mode:"
+msgstr "Aktiver Modus:"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Active mode"
+msgstr "Aktiver Modus"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Switches the mode of the running daemon until the next reload or restart. The default mode in the configuration stays as it is."
+msgstr "Wechselt den Modus des laufenden Daemons bis zum nächsten Neuladen oder Neustart. Der Standardmodus in der Konfiguration bleibt unverändert."
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "The daemon is not running, so there is no mode to switch."
+msgstr "Der Daemon läuft nicht, daher gibt es keinen Modus zum Wechseln."
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Filter profiles by name, mode or setting"
+msgstr "Profile nach Name, Modus oder Einstellung filtern"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Filter profiles"
+msgstr "Profile filtern"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "No profile matches the filter."
+msgstr "Kein Profil passt zum Filter."
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "The daemon is not running. Start dofscroll (or use Restart daemon) and see Troubleshooting."
+msgstr "Der Daemon läuft nicht. Starten Sie dofscroll (oder nutzen Sie Daemon neu starten) und lesen Sie die Fehlerbehebung."
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Config key: %1"
+msgstr "Konfigurationsschlüssel: %1"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Filter settings by name, help text or config key"
+msgstr "Einstellungen nach Name, Hilfetext oder Konfigurationsschlüssel filtern"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Filter settings"
+msgstr "Einstellungen filtern"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "No setting matches the filter."
+msgstr "Keine Einstellung passt zum Filter."
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "dofscroll log"
+msgstr "dofscroll-Protokoll"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Log text"
+msgstr "Protokolltext"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Read the log file again"
+msgstr "Die Protokolldatei erneut lesen"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Copy the shown text to the clipboard"
+msgstr "Den angezeigten Text in die Zwischenablage kopieren"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "The end of %1 (at most %2 KB)."
+msgstr "Das Ende von %1 (höchstens %2 KB)."
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Older lines are left out."
+msgstr "Ältere Zeilen sind ausgelassen."
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "The log file is empty."
+msgstr "Die Protokolldatei ist leer."
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "There is no log file yet. The daemon writes it while it runs."
+msgstr "Es gibt noch keine Protokolldatei. Der Daemon schreibt sie, solange er läuft."
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Cannot read the log file: %1"
+msgstr "Die Protokolldatei kann nicht gelesen werden: %1"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Only https addresses are opened"
+msgstr "Es werden nur https-Adressen geöffnet"
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "Could not open the documentation: "
+msgstr "Die Dokumentation konnte nicht geöffnet werden: "
+
+#: src/ui/qt (Overview, log viewer, Channels filter)
+msgid "This device has %1 buttons"
+msgstr "Dieses Gerät hat %1 Tasten"

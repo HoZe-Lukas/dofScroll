@@ -17,6 +17,12 @@
 #include <QAbstractScrollArea>
 #include <QAbstractSlider>
 #include <QAbstractSpinBox>
+#include <QClipboard>
+#include <QDialog>
+#include <QGridLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QScrollArea>
 #include <QComboBox>
 #include <QLineEdit>
 #include <QListWidget>
@@ -29,16 +35,22 @@
 #include <cstdio>
 #include <functional>
 #include <cstring>
+#include <ctime>
 
 #include "main_window.hpp"
 #include "pages/axes_page.hpp"
+#include "button_row.hpp"
+#include "common.hpp"
 #include "pages/button_modes_page.hpp"
+#include "pages/channels_page.hpp"
 #include "pages/extensions_page.hpp"
+#include "pages/log_dialog.hpp"
 #include "pages/mode_editor_widget.hpp"
 #include "pages/modes_page.hpp"
 #include "platform_hooks.hpp"
 #include "unsaved_prompt.hpp"
 #include "pages/profiles_page.hpp"
+#include "pages/overview_page.hpp"
 #include "qt_action_runner.hpp"
 #include "theme.hpp"
 #include "tray.hpp"
@@ -46,7 +58,10 @@
 #include "ui/model/first_start.hpp"
 #include "ui/model/instance_paths.hpp"
 #include "ui/model/restart_plan.hpp"
+#include "ui/model/design_tokens.hpp"
 #include "ui/model/theme_colors.hpp"
+#include "ui/model/ui_links.hpp"
+#include "ui/model/ui_progress.hpp"
 #include "ui/model/ui_settings.hpp"
 #include "ui_context.hpp"
 
@@ -604,6 +619,248 @@ static bool modeEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
     return ok;
 }
 
+
+// Overview quick actions: documentation, log viewer, mode switch, tasks, filter, getting started, and
+// the matching parts of the Channels page and the button rows. The runner records instead of opening
+// anything; the status is fed by hand.
+static bool quickActionsSelfTest(const UiContext &base, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "quick actions self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    using Kind = spn::ui::RecordingActionRunner::Kind;
+    spn::ui::RecordingActionRunner rec;
+    QtStrings strings;
+    spn::ui::SettingsModel settings;
+    std::vector<std::string> warnings;
+    std::string err;
+    UiContext ctx = base;
+    ctx.runner = &rec;
+    ctx.reload = spn::ui::reloadVia(rec);
+    check(settings.load(ctx.configPath, &warnings, &err), "the configuration loads");
+    settings.setReloadCallback(ctx.reload);
+    spn::ui::StatusModel status;
+    spn::ui::ModeCatalog modes(ctx.modesDir);
+    ctx.settings = &settings;
+    ctx.status = &status;
+    ctx.modes = &modes;
+    ctx.strings = &strings;
+    QDir().mkpath(QString::fromStdString(ctx.runtimeDir));
+    const QString progress = QString::fromStdString(spn::ui::uiProgressPath(ctx.configPath));
+    QFile::remove(progress);
+
+    OverviewPage page(ctx);
+    page.resize(2400, 900);
+    page.show();
+    settle();
+
+    // documentation: through the runner, a failure is shown
+    check(page.findChild<QPushButton *>(QStringLiteral("documentation")) != nullptr, "Documentation button on the Overview");
+    page.findChild<QPushButton *>(QStringLiteral("documentation"))->click();
+    check(rec.count(Kind::OpenUrl) == 1 && rec.calls.back().path == spn::ui::docsUrl() && page.actionMessage().isEmpty(),
+          "Documentation opens the docs address");
+    rec.result = false;
+    page.openDocumentation();
+    check(!page.actionMessage().isEmpty(), "a failed Documentation is reported");
+    rec.result = true;
+    page.openDocumentation();
+    check(page.actionMessage().isEmpty(), "the message goes away after success");
+
+    // tasks open pages, "new profile" asks for the picker
+    QStringList opened;
+    int picker = 0;
+    QObject::connect(&page, &OverviewPage::openPage, [&opened](const QString &id) { opened << id; });
+    QObject::connect(&page, &OverviewPage::newProgramProfile, [&picker] { ++picker; });
+    for (const char *name : {"task-tune", "task-axes", "task-modes"}) {
+        auto *b = page.findChild<QPushButton *>(QString::fromLatin1(name));
+        check(b != nullptr, "task button exists");
+        if (b) b->click();
+    }
+    check(opened == QStringList({QStringLiteral("channels"), QStringLiteral("axes"), QStringLiteral("modes")}),
+          "the task buttons open Channels, Axes and Modes");
+    page.findChild<QPushButton *>(QStringLiteral("new-program-profile"))->click();
+    check(picker == 1, "New profile for the running program is requested");
+
+    // mode switch: disabled without a daemon, then enabled and marked with the running mode
+    page.refresh();
+    check(page.modeCombo()->count() >= 3 && !page.modeCombo()->isEnabled(), "mode switch lists the modes but is disabled without a daemon");
+    {
+        const QString now = QString::number(static_cast<long long>(std::time(nullptr)));
+        const std::string text = "profile=global\ndevice=SpaceMouse Pro\nmode=timeline\nenabled=1\npaused=0\ndevices_seen=1\nupdated=" +
+                                 now.toStdString() + "\n";
+        status.update(text, true, static_cast<int64_t>(std::time(nullptr)));
+    }
+    page.refresh();
+    check(page.modeCombo()->isEnabled() && page.modeCombo()->currentData().toString() == QStringLiteral("timeline"),
+          "mode switch marks the mode the daemon runs");
+    rec.calls.clear();
+    page.switchMode(QStringLiteral("off"));
+    QFile request(QString::fromStdString(spn::modeRequestPath(ctx.runtimeDir)));
+    check(request.open(QIODevice::ReadOnly) && request.readAll().trimmed() == "off" && rec.count(Kind::RequestReload) == 1,
+          "switching a mode writes the request and asks for a reload");
+    request.close();
+    check(page.actionMessage().isEmpty(), "no error after switching");
+    rec.result = false;
+    page.switchMode(QStringLiteral("timeline"));
+    check(!page.actionMessage().isEmpty(), "a failed switch is reported");
+    rec.result = true;
+    page.switchMode(QStringLiteral("not a mode!"));
+    check(!page.actionMessage().isEmpty(), "an invalid mode is refused");
+    page.switchMode(QStringLiteral("normal"));
+
+    // profile filter
+    check(page.profileCardCount() == 3, "three profiles, no filter");
+    page.setProfileFilter(QStringLiteral("FIREFOX"));
+    check(page.profileCardCount() == 1, "the filter keeps the matching profile");
+    page.setProfileFilter(QStringLiteral("timeline"));
+    check(page.profileCardCount() == 1, "the filter looks at the mode");
+    page.setProfileFilter(QStringLiteral("no such profile"));
+    check(page.profileCardCount() == 0, "the filter can show nothing");
+    page.setProfileFilter(QString());
+    check(page.profileCardCount() == 3, "an empty filter shows all again");
+
+    // a very wide window: the content stops growing and stays centered
+    settle();
+    check(page.contentWidth() <= spn::ui::tokens::kMaxContentWidth && page.contentWidth() > 0, "the Overview content has a maximum width");
+    check(page.cardsFit() && page.cardsFillWidth(), "cards fit and fill the limited width");
+
+    // getting started: the device step names the not running daemon; the axes step follows the progress file
+    status.update("", false, static_cast<int64_t>(std::time(nullptr)));
+    page.refresh();
+    {
+        const QStringList t = page.gettingStartedTexts();
+        check(t.size() == 3 && t[0].contains(QStringLiteral("not running")) && t[1].startsWith(QStringLiteral("To do:")),
+              "the device step hints at the daemon, the axes step is open");
+    }
+    std::string perr;
+    check(spn::ui::markAxisAssistantApplied(spn::ui::uiProgressPath(ctx.configPath), &perr), "progress file written");
+    page.refresh();
+    check(page.gettingStartedTexts().size() == 3 && page.gettingStartedTexts()[1].startsWith(QStringLiteral("Done:")),
+          "the axes step is done after the assistant was applied");
+    QFile::remove(progress);
+
+    // log viewer: the end of the file, refresh, copy; the missing file is explained
+    const QString logPath = QString::fromStdString(spn::logFilePathIn(ctx.runtimeDir));
+    QFile::remove(logPath);
+    {
+        LogDialog gone(ctx.runtimeDir, strings);
+        check(gone.shownText().isEmpty() && !gone.note().isEmpty(), "no log file: the dialog says so");
+    }
+    {
+        QFile lf(logPath);
+        check(lf.open(QIODevice::WriteOnly), "log file created");
+        lf.write("first line\nsecond line\n");
+        lf.close();
+        page.showLog();
+        LogDialog *dlg = nullptr;
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *d = qobject_cast<LogDialog *>(top)) dlg = d;
+        check(dlg != nullptr, "Open log shows the log dialog");
+        if (dlg) {
+            check(dlg->shownText().contains(QStringLiteral("second line")), "the dialog shows the log");
+            check(lf.open(QIODevice::WriteOnly | QIODevice::Append), "log file appended");
+            lf.write("third line\n");
+            lf.close();
+            check(dlg->refresh() && dlg->shownText().contains(QStringLiteral("third line")), "Refresh reads the new lines");
+            dlg->copyAll();
+            check(QApplication::clipboard()->text() == dlg->shownText(), "Copy puts the text on the clipboard");
+            check(LogDialog::showFor(&page, ctx.runtimeDir, strings) == dlg, "a second Show log raises the open dialog");
+            dlg->close();
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        }
+    }
+    QFile::remove(logPath);
+
+    // In the window the request opens the running-program picker of the Profiles page directly
+    {
+        MainWindow mw(ctx);
+        mw.show();
+        settle();
+        int closed = 0;
+        QString className;
+        QTimer closer;
+        QObject::connect(&closer, &QTimer::timeout, [&] {
+            if (QWidget *m = QApplication::activeModalWidget()) {
+                className = QString::fromLatin1(m->metaObject()->className());
+                ++closed;
+                if (auto *d = qobject_cast<QDialog *>(m)) d->reject();
+            }
+        });
+        closer.start(50);
+        auto *ov = mw.findChild<OverviewPage *>();
+        check(ov != nullptr, "the window has an Overview");
+        if (ov) ov->findChild<QPushButton *>(QStringLiteral("new-program-profile"))->click();
+        for (int i = 0; i < 100 && closed == 0; ++i) {
+            QApplication::processEvents(QEventLoop::AllEvents, 50);
+            QThread::msleep(20);
+        }
+        closer.stop();
+        check(closed == 1 && className == QStringLiteral("AddAppDialog") && mw.currentPageId() == QStringLiteral("profiles"),
+              "New profile for the running program opens the picker on the Profiles page");
+    }
+
+    // Channels: the config key in tooltip and accessible description, the filter and the width limit
+    {
+        QWidget *channels = createChannelsPage(ctx);
+        channels->resize(2400, 900);
+        channels->show();
+        settle();
+        QAbstractSpinBox *sensV = nullptr, *sensH = nullptr;
+        int described = 0, spins = 0;
+        for (auto *s : channels->findChildren<QAbstractSpinBox *>()) {
+            if (s->objectName() == QStringLiteral("qt_spinbox_lineedit")) continue;
+            ++spins;
+            described += s->accessibleDescription().contains(QStringLiteral("Config key: ")) &&
+                         s->toolTip().contains(QStringLiteral("Config key: "));
+            if (s->toolTip().contains(QStringLiteral("Config key: SCROLL_V_SENS"))) sensV = s;
+            if (s->toolTip().contains(QStringLiteral("Config key: SCROLL_H_SENS"))) sensH = s;
+        }
+        check(spins > 0 && described == spins, "every spin box row names its config key");
+        check(sensV && sensH, "the sensitivity rows exist");
+        QLineEdit *filter = nullptr;
+        for (auto *e : channels->findChildren<QLineEdit *>())
+            if (e->accessibleName() == QStringLiteral("Filter settings")) filter = e;
+        check(filter != nullptr, "the Channels page has a filter box");
+        if (filter && sensV && sensH) {
+            filter->setText(QStringLiteral("scroll_h_sens"));
+            check(sensH->isVisibleTo(channels) && !sensV->isVisibleTo(channels), "the filter finds a row by its config key");
+            filter->setText(QStringLiteral("Vertical scroll"));
+            check(sensV->isVisibleTo(channels) && !sensH->isVisibleTo(channels), "the filter finds the rows of a group by its title");
+            filter->setText(QStringLiteral("nothing like it"));
+            check(!sensV->isVisibleTo(channels) && !sensH->isVisibleTo(channels), "a filter without a match hides every row");
+            filter->setText(QString());
+            check(sensV->isVisibleTo(channels) && sensH->isVisibleTo(channels), "an empty filter shows every row");
+        }
+        if (auto *area = channels->findChild<QScrollArea *>())
+            check(area->widget()->width() <= spn::ui::tokens::kMaxContentWidth, "the Channels content has a maximum width");
+        delete channels;
+    }
+
+    // the label of a button row names the number of buttons of the device
+    {
+        QWidget host;
+        auto *grid = new QGridLayout(&host);
+        spn::ui::BindingRow row;
+        row.number = 3;
+        row.text = "none";
+        ButtonRowEnv env;
+        env.strings = &strings;
+        env.deviceButtons = 15;
+        addButtonRow(&host, &host, grid, 0, row, env, ButtonRowHandlers());
+        env.deviceButtons = 0;
+        addButtonRow(&host, &host, grid, 1, row, env, ButtonRowHandlers());
+        QStringList tips;
+        for (auto *l : host.findChildren<QLabel *>())
+            if (l->text() == QStringLiteral("Button 3")) tips << l->toolTip();
+        check(tips.size() == 2 && tips[0] == QStringLiteral("This device has 15 buttons") && tips[1].isEmpty(),
+              "the button label names the button count of the device, not for an unknown device");
+    }
+    (void)tmpPath;
+    std::printf("quick actions self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
 // Overview: it is the first page, shows one card per profile of the configuration, and a card opens
 // its profile on the Profiles page.
 static bool overviewSelfTest(MainWindow &w) {
@@ -936,6 +1193,7 @@ int main(int argc, char **argv) {
                         tray.modeMenuCount() == 4 && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
         if (!overviewSelfTest(w)) return 1;
+        if (!quickActionsSelfTest(ctx, tmp.path())) return 1;
         if (!accessibilitySelfTest(w)) return 1;
         if (!profilesPageSelfTest(w, tmp.path(), [&w] { return accessibilitySelfTest(w); })) return 1;
         if (!themeSelfTest(w)) return 1;

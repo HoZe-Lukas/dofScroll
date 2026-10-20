@@ -15,6 +15,9 @@ public:
     virtual ~ActionRunner() = default;
     // Opens a file or folder with the system's default application. false + *err on failure.
     virtual bool openPath(const std::string &path, std::string *err) = 0;
+    // Opens an https address (documentation) with the system's default browser. Anything else is
+    // refused (ui_links.hpp: isOpenableUrl). false + *err on failure.
+    virtual bool openUrl(const std::string &url, std::string *err) = 0;
     // "Start at login" on/off (affects the next login only). false + *err on failure.
     virtual bool setAutostart(bool enable, std::string *err) = 0;
     // Asks the daemon to re-read the configuration (SIGHUP or the platform equivalent).
@@ -40,10 +43,10 @@ inline std::function<bool(std::string *err)> reloadVia(ActionRunner &runner) {
 // Records the calls and returns the configured result (tests).
 class RecordingActionRunner : public ActionRunner {
 public:
-    enum class Kind { OpenPath, SetAutostart, RequestReload, ReleaseKeys, RestartDaemon, RestartInterface };
+    enum class Kind { OpenPath, OpenUrl, SetAutostart, RequestReload, ReleaseKeys, RestartDaemon, RestartInterface };
     struct Call {
         Kind kind;
-        std::string path;     // OpenPath
+        std::string path;     // OpenPath, OpenUrl (the address)
         bool enable = false;  // SetAutostart
     };
     std::vector<Call> calls;
@@ -52,6 +55,9 @@ public:
 
     bool openPath(const std::string &path, std::string *err) override {
         return rec({Kind::OpenPath, path, false}, err);
+    }
+    bool openUrl(const std::string &url, std::string *err) override {
+        return rec({Kind::OpenUrl, url, false}, err);
     }
     bool setAutostart(bool enable, std::string *err) override {
         return rec({Kind::SetAutostart, "", enable}, err);

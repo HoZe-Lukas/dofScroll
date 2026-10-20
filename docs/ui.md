@@ -35,14 +35,38 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 
 | Category | Page (tab) | Content |
 |---|---|---|
-| Overview | Overview | The state of the daemon, quick actions (add a profile, release all keys, restart the daemon or the interface) and one card per device or program profile with its mode and a one-line summary of what it overrides; "Open" shows the profile on the Profiles page. Every profile of the configuration has a card |
+| Overview | Overview | The state of the daemon, task buttons, quick actions (see "Overview quick actions" below) and one card per device or program profile with its mode and a one-line summary of what it overrides (button bindings included); "Open" shows the profile on the Profiles page. Every profile of the configuration has a card, a filter box narrows the list |
 | Profiles | Profiles | Per-device and per-program profiles, see below |
-| Profiles | Channels | Scroll, zoom and the other output channels: sensitivity, dead zone, direction, curve preview |
+| Profiles | Channels | Scroll, zoom and the other output channels: sensitivity, dead zone, direction, curve preview; a filter box hides the rows that do not match, every row names its config key in the tooltip |
 | Modes | Modes | The available modes (built-in and files in the modes folder): new, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every mode the profiles that use it (selected as its mode or switched to by a button); a reminder that mode files can press any key |
 | Modes | Button modes | The button mode files (`buttons/`): create, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
 | Modes | Extensions | All modes and button modes in one list with their origin (built in, your file, example not installed); add a shipped example, remove your own file. Extensions are plain files, nothing executable |
 | Device | Axes | Live bars of the six axes and the axis assistant (wizard) that detects which axis does what |
-| Settings | General | Output on/off, global mode, "Start at login", read-only status of the daemon |
+| Settings | General | Output on/off, global mode, "Start at login", read-only status of the daemon, "Open config", "Show log..." and "Documentation" |
+
+## Overview quick actions
+
+- **What do you want to do?** Three buttons that open the page for a task: "Tune scroll and zoom"
+  (Channels), "Check the axes" (Axes) and "Switch modes" (Modes).
+- **Add a profile...** opens the Profiles page; **New profile for the running program...** opens the
+  running-program picker of the Profiles page directly.
+- **Active mode** lists the loaded modes and marks the one the daemon runs now. Picking one switches
+  the running daemon to it until the next reload or restart (the same runtime request as the tray's
+  Mode menu); the default mode in the configuration stays as it is. It is disabled while the daemon
+  is not running.
+- **Open log** (and "Show log..." on the General page and in the tray) opens a small log window: the
+  end of the daemon log (the last 64 KB, at a line start; control characters are replaced), with
+  Refresh and Copy. The log file is the one in the runtime directory
+  (`dofscroll.log`, see [troubleshooting.md](troubleshooting.md)).
+- **Documentation** (Overview, General, and on the Button modes page) opens the project
+  documentation in the default browser: `docs/ui.md`, or `docs/modes.md` from the Button modes page.
+  Only https addresses are ever opened.
+- **Release all keys**, **Restart daemon** and **Restart interface** as before.
+- The filter box above the profile cards matches every word against the name, the mode, the kind
+  ("device" or "program") and the settings of a profile, ignoring ASCII case. The tooltip of a card
+  lists all its settings, not only the first ones shown in the summary.
+- On a very wide window the Overview and Channels pages stop at a maximum content width
+  (`kMaxContentWidth` in `src/ui/model/design_tokens.hpp`) and stay centered.
 
 
 ## Editing a joystick mode
@@ -81,7 +105,10 @@ state.
 While the daemon has not seen a device or no profile exists yet, the Overview shows "Getting
 started": connect the SpaceMouse, check the axes on the Axes page (the assistant helps), add a
 profile for a program you use. Each step says "Done:" or "To do:" in words and opens the page that
-does it; the box disappears once the device is seen and a profile exists.
+does it; the box disappears once the device is seen and a profile exists. The first step opens the
+Axes page (it shows what the daemon sees of the device) and, while the daemon is not running, says
+so. The axes step is "Done:" after the axis assistant has been applied once; that is remembered in
+`ui-progress.conf` next to the configuration file (`axis_assistant_applied = 1`), not in `ui.conf`.
 
 Every input control has an accessible name (screen readers): the `--self-test` checks all pages for
 controls without one. The whole interface works with the keyboard (tab order follows the layout;
@@ -142,6 +169,7 @@ New, Duplicate or Import replaces a form with unsaved edits.
 - Add a device profile from the list of connected devices. The list and the factory button count
   (which limits the buttons you can bind) come from the daemon's live feed; without the feed the
   page falls back to the `device=` line of the status file.
+  When the device is known, the tooltip of each "Button n" label says how many buttons the device has.
 - "Add application..." opens a picker of the programs that are running now: search by name, match
   string or window title, refresh, and see the exact match string that will be stored. You never
   have to type an internal name. "Capture next focused program" waits a few seconds and takes the

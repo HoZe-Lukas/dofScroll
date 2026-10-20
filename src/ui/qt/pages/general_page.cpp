@@ -17,8 +17,10 @@
 #include <QVBoxLayout>
 
 #include "platform/autostart_platform.hpp"
+#include "log_dialog.hpp"
 #include "theme.hpp"
 #include "ui/model/general_page_model.hpp"
+#include "ui/model/ui_links.hpp"
 #include "ui/model/ui_settings.hpp"
 #include "ui_i18n.hpp"
 
@@ -107,6 +109,14 @@ public:
         auto *open = new QPushButton(T("Open config"));
         open->setToolTip(T("Open the configuration file with the default application"));
         row->addWidget(open);
+        auto *log = new QPushButton(T("Show log..."));
+        log->setObjectName(QStringLiteral("show-log"));
+        log->setToolTip(T("Show the end of the daemon log"));
+        row->addWidget(log);
+        auto *docs = new QPushButton(T("Documentation"));
+        docs->setObjectName(QStringLiteral("documentation"));
+        docs->setToolTip(T("Open the documentation of the interface in your browser"));
+        row->addWidget(docs);
         row->addStretch(1);
         cl->addLayout(row);
         configMsg_ = makeNote();
@@ -115,6 +125,14 @@ public:
             std::string err;
             if (ctx_.runner->openPath(ctx_.configPath, &err)) configMsg_->setText(QString());
             else configMsg_->setText(T("Could not open the file: ") + qs8(err));
+        });
+        QObject::connect(log, &QPushButton::clicked, this, [this] {
+            LogDialog::showFor(window(), ctx_.runtimeDir, *ctx_.strings);
+        });
+        QObject::connect(docs, &QPushButton::clicked, this, [this] {
+            std::string err;
+            if (spn::ui::openDocs(*ctx_.runner, "ui.md", &err)) configMsg_->setText(QString());
+            else configMsg_->setText(T("Could not open the documentation: ") + qs8(err));
         });
         col->addWidget(cfgBox);
 

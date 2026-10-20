@@ -114,6 +114,14 @@ int main() {
     for (size_t i : {size_t(8), size_t(9), size_t(10)}) assert(c.perform(c.menu().entries[i]));
     assert(runner.calls.size() == 3 && runner.calls[0].path == p.configPath &&
            runner.calls[1].path == p.runtimeDir + "/dofscroll.log" && runner.calls[2].path == p.modesDir);
+    // a view that shows the log itself takes over: the file is not handed to the system opener
+    {
+        runner.calls.clear();
+        int viewed = 0;
+        c.hooks().showLog = [&viewed] { ++viewed; };
+        assert(c.perform(c.menu().entries[9]) && viewed == 1 && runner.calls.empty());
+        c.hooks().showLog = nullptr;
+    }
     bool opened = false, quit = false;
     c.hooks().openSettings = [&] { opened = true; };
     c.hooks().quit = [&] { quit = true; };
