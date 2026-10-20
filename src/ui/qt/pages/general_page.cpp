@@ -96,38 +96,40 @@ public:
         QObject::connect(autostart_, &QCheckBox::clicked, this, [this](bool on) { runAutostart(true, on); });
         left->addWidget(loginBox);
 
-        // ---- language ----
-        auto *langBox = new QGroupBox(T("Language"));
-        auto *lg = new QVBoxLayout(langBox);
+        // ---- language and appearance: one box, so the page stays low at the default window size ----
+        auto *lookBox = new QGroupBox(T("Language and appearance"));
+        auto *lg = new QVBoxLayout(lookBox);
+        auto *langLabel = new QLabel(T("Language"));
         language_ = new QComboBox;
+        langLabel->setBuddy(language_);
         language_->addItem(T("System default"), int(Language::System));
         language_->addItem(QStringLiteral("English"), int(Language::English));
         language_->addItem(QStringLiteral("Deutsch"), int(Language::German));
         language_->setAccessibleName(T("Language"));
         const Language cur = loadUiSettings(uiSettingsPath()).language;
         language_->setCurrentIndex(language_->findData(int(cur)));
+        lg->addWidget(langLabel);
         lg->addWidget(language_);
         languageMsg_ = makeNote();
         languageMsg_->setText(T("Takes effect the next time dofscroll-ui is started."));
         lg->addWidget(languageMsg_);
         QObject::connect(language_, QOverload<int>::of(&QComboBox::activated), this, [this](int) { onLanguage(); });
-        left->addWidget(langBox);
 
-        // ---- appearance ----
-        auto *themeBox = new QGroupBox(T("Appearance"));
-        auto *tg = new QVBoxLayout(themeBox);
+        auto *themeLabel = new QLabel(T("Appearance"));
         theme_ = new QComboBox;
+        themeLabel->setBuddy(theme_);
         theme_->addItem(T("System default"), int(Theme::System));
         theme_->addItem(T("Light"), int(Theme::Light));
         theme_->addItem(T("Dark"), int(Theme::Dark));
         theme_->setAccessibleName(T("Theme"));
         theme_->setCurrentIndex(theme_->findData(int(loadUiSettings(uiSettingsPath()).theme)));
-        tg->addWidget(theme_);
+        lg->addWidget(themeLabel);
+        lg->addWidget(theme_);
         themeMsg_ = makeNote();
         themeMsg_->setText(T("Applies at once and is remembered."));
-        tg->addWidget(themeMsg_);
+        lg->addWidget(themeMsg_);
         QObject::connect(theme_, QOverload<int>::of(&QComboBox::activated), this, [this](int) { onTheme(); });
-        left->addWidget(themeBox);
+        left->addWidget(lookBox);
 
         // ---- daemon (not part of a profile) ----
         auto *daemonBox = new QGroupBox(T("Daemon"));

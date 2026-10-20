@@ -73,6 +73,7 @@
 #include "pages/device_page.hpp"
 #include "pages/log_dialog.hpp"
 #include "pages/mode_editor_widget.hpp"
+#include "pages/extensions_page.hpp"
 #include "pages/modes_page.hpp"
 #include "platform_hooks.hpp"
 #include "pages/profiles_page.hpp"
@@ -266,6 +267,64 @@ static bool accessibilitySelfTest(MainWindow &w) {
         }
         (void)controls;
     }
+    return ok;
+}
+
+// Extensions page (issue #129): the files of the user with a switch each; off renames "<id>.conf" to
+// "<id>.conf.disabled", on renames it back, nothing is overwritten, Remove deletes.
+static bool extensionsSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "extensions self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    auto write = [&](const QString &rel, const char *text) {
+        QFile f(tmpPath + rel);
+        if (!f.open(QIODevice::WriteOnly)) return false;
+        f.write(text);
+        return true;
+    };
+    check(write(QStringLiteral("/modes/ext-test.conf"), "NAME = Extension test\nDESCRIPTION = Only for the self-test\nBUTTON_1 = key:space\n") &&
+              write(QStringLiteral("/buttons/ext-latch.conf"), "NAME = Extension latch\nACTION = toggle:nav\n"),
+          "write the test files");
+    ExtensionsPage page(ctx);
+    page.show();
+    settle();
+    check(page.exists(QStringLiteral("joystick"), QStringLiteral("ext-test")) && page.exists(QStringLiteral("button"), QStringLiteral("ext-latch")),
+          "both kinds are listed");
+    QCheckBox *sw = page.switchOf(QStringLiteral("joystick"), QStringLiteral("ext-test"));
+    check(sw && sw->isChecked() && sw->accessibleName().contains(QStringLiteral("Extension test")), "the switch is on and has an accessible name");
+    // switching off renames the file; the switch follows the folder
+    check(page.setEnabled(QStringLiteral("joystick"), QStringLiteral("ext-test"), false) &&
+              !QFile::exists(tmpPath + QStringLiteral("/modes/ext-test.conf")) &&
+              QFile::exists(tmpPath + QStringLiteral("/modes/ext-test.conf.disabled")) &&
+              !page.isEnabled(QStringLiteral("joystick"), QStringLiteral("ext-test")),
+          "switching off renames the file");
+    sw = page.switchOf(QStringLiteral("joystick"), QStringLiteral("ext-test"));
+    check(sw && !sw->isChecked(), "the switch shows it as off");
+    // the daemon's loader no longer sees it, and sees it again when it is on
+    check(!spn::loadModes(ctx.modesDir.empty() ? std::string() : ctx.modesDir, nullptr).find("ext-test"), "the loader ignores a switched-off file");
+    check(page.setEnabled(QStringLiteral("joystick"), QStringLiteral("ext-test"), true) &&
+              QFile::exists(tmpPath + QStringLiteral("/modes/ext-test.conf")) && page.isEnabled(QStringLiteral("joystick"), QStringLiteral("ext-test")),
+          "switching on renames it back");
+    check(spn::loadModes(ctx.modesDir, nullptr).find("ext-test") != nullptr, "the loader reads it again");
+    // never overwrites: a switched-off copy with the same id is in the way
+    check(write(QStringLiteral("/buttons/ext-latch.conf.disabled"), "NAME = Another\nACTION = toggle:nav\n"), "write a conflicting file");
+    page.refresh();
+    check(!page.setEnabled(QStringLiteral("button"), QStringLiteral("ext-latch"), false) && !page.message().isEmpty() &&
+              QFile::exists(tmpPath + QStringLiteral("/buttons/ext-latch.conf")),
+          "a taken name is refused and the message says so");
+    check(QFile::remove(tmpPath + QStringLiteral("/buttons/ext-latch.conf.disabled")), "remove the conflicting file");
+    // removing deletes the file, with and without the question
+    page.refresh();
+    check(page.removeEntry(QStringLiteral("button"), QStringLiteral("ext-latch"), false) &&
+              !QFile::exists(tmpPath + QStringLiteral("/buttons/ext-latch.conf")) && !page.exists(QStringLiteral("button"), QStringLiteral("ext-latch")),
+          "Remove deletes the file");
+    check(page.removeEntry(QStringLiteral("joystick"), QStringLiteral("ext-test"), false) &&
+              !QFile::exists(tmpPath + QStringLiteral("/modes/ext-test.conf")),
+          "Remove deletes the other file too");
+    check(!page.setEnabled(QStringLiteral("joystick"), QStringLiteral("nothing-here"), true), "an unknown file is refused");
+    std::printf("extensions self-test: %s\n", ok ? "ok" : "failed");
     return ok;
 }
 
@@ -2577,6 +2636,7 @@ int main(int argc, char **argv) {
         if (!modeEditorSelfTest(ctx, tmp.path())) return 1;
         if (!modeFilesAutosaveSelfTest(ctx, tmp.path())) return 1;
         if (!examplesSelfTest(ctx, tmp.path())) return 1;
+        if (!extensionsSelfTest(ctx, tmp.path())) return 1;
         if (!modeLibrarySelfTest(ctx, tmp.path())) return 1;
         if (!modeEditorTabsSelfTest(ctx)) return 1;
         ModesPage modes(ctx);  // standalone (own catalog): built-in normal, off, timeline + the file mode
@@ -2605,7 +2665,7 @@ int main(int argc, char **argv) {
         bool tipsOk = static_cast<int>(tray.modeMenuToolTips().size()) == expectedModes;
         for (const QString &tip : tray.modeMenuToolTips()) tipsOk = tipsOk && !tip.isEmpty();
         if (!tipsOk) std::fprintf(stderr, "self-test failed: every entry of the tray's joystick mode menu carries the description as tooltip\n");
-        const bool ok = tipsOk && w.pageCount() == 7 && w.categoryCount() == 5 && w.profileCount() >= 0 &&
+        const bool ok = tipsOk && w.pageCount() == 8 && w.categoryCount() == 5 && w.profileCount() >= 0 &&
                         modes.modeCount() == expectedModes && tray.modeMenuCount() == expectedModes && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
         if (!overviewSelfTest(w)) return 1;
