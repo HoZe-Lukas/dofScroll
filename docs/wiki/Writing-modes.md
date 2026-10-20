@@ -162,7 +162,7 @@ How it works:
 - Signs are as for the channel: positive = down / right, second key of `keys:` / `step:`.
 - Tuning: each part uses its channel's sensitivity, dead zone, curve, smoothing and sign. To tune one part separately set `SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>`, for example `SCROLL_V_TILT_SENS = 8`. These are **absolute values**, not multipliers, with the same ranges as the channel keys; a key you do not set keeps the parent's value. They act only while the active mode splits that channel. `STEP_TRIGGER` applies to every `step:` part, measured after that part's sensitivity.
 - A mode with a split key is a non-default mode: `NAV_BUTTON` / `CLICK_BUTTON` do not apply, `BUTTON_<n> = nav` turns wheel parts into arrow keys.
-- The in-page editor has a "Split push and tilt" switch per channel (two action rows and a tuning box per part, see `docs/ui.md`); you can also write the keys in a text editor. How push and tilt feel apart on a real device, and whether `step:` on one triggers cleanly without the other, is not verified on hardware.
+- The in-page editor has a "Split push and tilt" switch per channel (two action rows and a tuning box per part, see `docs/ui.md`); the Axes page shows the push and tilt part of a split channel live; you can also write the keys in a text editor. How push and tilt feel apart on a real device, and whether `step:` on one triggers cleanly without the other, is not verified on hardware.
 
 ## 4. Recipes
 

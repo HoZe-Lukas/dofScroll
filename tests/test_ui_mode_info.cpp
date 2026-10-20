@@ -12,6 +12,7 @@
 #include "ui/model/button_choice_model.hpp"
 #include "ui/model/mode_info_model.hpp"
 #include "ui/model/settings_model.hpp"
+#include "ui/model/split_parts_model.hpp"
 #include "ui/model/tray_menu_model.hpp"
 
 using namespace spn;
@@ -63,6 +64,34 @@ int main() {
         assert(sl[2].rfind("Horizontal, push part: taps ", 0) == 0 && sl[3] == "Horizontal, tilt part: zooms (Ctrl + wheel)");
         assert(sl[4].rfind("Twist: ", 0) == 0);
         assert(joystickModeInfo(sp, "", id).find("Vertical, tilt part: does nothing") != std::string::npos);
+    }
+    // live view of the parts (Axes page): push = x/y/z terms, tilt = rx/rz terms of the channel mix
+    {
+        ModeDef sp = *timeline;
+        sp.vSplit.pushSet = true;
+        sp.vSplit.push.type = ChannelActionType::WheelV;
+        sp.vSplit.tiltSet = true;
+        sp.vSplit.tilt.type = ChannelActionType::Off;
+        Settings st;  // default mixes: V = z + rx, H = x - rz
+        RawAxes ax{};
+        ax[AX_Z] = 100;
+        ax[AX_RX] = -30;
+        ax[AX_X] = 55;
+        ax[AX_RZ] = 10;
+        std::vector<SplitPartRow> rows = splitPartRows(&sp, st, ax, id);
+        assert(rows.size() == 2 && rows[0].id == "v_push" && rows[1].id == "v_tilt");  // H is not split
+        assert(rows[0].value == 100 && rows[1].value == -30);
+        assert(rows[0].label == "Scroll V push" && rows[0].action == "scrolls vertically" && rows[1].action == "does nothing");
+        sp.hSplit.tiltSet = true;
+        sp.hSplit.tilt.type = ChannelActionType::Zoom;
+        rows = splitPartRows(&sp, st, ax, id);
+        assert(rows.size() == 4 && rows[2].id == "h_push" && rows[2].value == 55 && rows[3].id == "h_tilt" && rows[3].value == -10);
+        // a mode override of the mix wins
+        sp.overrides.emplace_back("SCROLL_V_MIX", "0.5*z + 2*rx");
+        rows = splitPartRows(&sp, st, ax, id);
+        assert(rows[0].value == 50 && rows[1].value == -60);
+        // no split, no rows
+        assert(splitPartRows(timeline, st, ax, id).empty() && splitPartRows(nullptr, st, ax, id).empty());
     }
     ChannelAction a;
     a.type = ChannelActionType::WheelV;
