@@ -2,7 +2,7 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Built-in modes
 
-A **joystick mode** decides what the three channels (vertical, horizontal, twist) do and can override settings; a **button mode** is one reusable behavior for a device button (a mode switch, a latch, a cycle list). Both kinds ship inside the program on every system: nothing has to be copied anywhere, the text of most of them is in [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/modes) and [examples/buttons/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/buttons) and is embedded at build time (`normal`, `off` and `timeline` are defined in [src/modes.cpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/modes.cpp)). For writing your own, see [Modes](Modes); to propose or contribute one, see [Mode requests and contributions](Contributing-modes).
+A **joystick mode** decides what the three channels (vertical, horizontal, twist) do and can override settings; a **button mode** is one reusable behavior for a device button (a mode switch, a latch, a cycle list). Both kinds ship inside the program on every system: nothing has to be copied anywhere, the text of most of them is in [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/modes) and [examples/buttons/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/buttons) and is embedded at build time (`normal`, `off` and `timeline` are defined in [src/modes.cpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/modes.cpp)). For writing your own, see the tutorial [How to write a mode](Writing-modes) and the reference [Modes](Modes); to propose or contribute one, see [Mode requests and contributions](Contributing-modes).
 
 ## How to use one
 
