@@ -1937,6 +1937,22 @@ int main(int argc, char **argv) {
                 ++written;
             }
         }
+        {   // the tabs of the profile editor, for Global and for a program profile
+            applyTheme(spn::ui::themeFromId("light"));
+            w.resize(1500, 820);
+            w.showPage(QStringLiteral("profiles"));
+            ProfilesPage *pp = w.profilesPage();
+            if (pp)
+                for (const char *who : {"global", "program"})
+                    for (const QString &tab : pp->tabIds()) {
+                        pp->selectSection(std::string(who) == "global" ? 0 : 2);
+                        pp->selectTab(tab);
+                        settle();
+                        const QString file = QString::fromUtf8(screenshotDir) +
+                                             QStringLiteral("/light-wide-profile-%1-%2.png").arg(QString::fromLatin1(who), tab);
+                        if (w.grab().save(file)) ++written;
+                    }
+        }
         {   // the in-page mode editor
             ModesPage page(ctx);
             page.resize(1100, 700);

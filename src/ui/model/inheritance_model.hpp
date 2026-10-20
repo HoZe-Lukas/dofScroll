@@ -30,6 +30,7 @@ struct KeyOrigin {
         FromMode,        // the joystick mode of the profile overrides the key
     };
     Kind kind = Kind::Plain;
+    std::string key;                      // the config key ("SCROLL_V_SENS", "BUTTON_2")
     std::string value;                    // the effective value (text)
     std::string inherited;                // the value the profile would have without its own setting
     std::string modeId;                   // FromMode
@@ -42,6 +43,7 @@ struct KeyOrigin {
 inline KeyOrigin keyOrigin(const SettingsModel &m, size_t section, const std::string &key) {
     KeyOrigin o;
     SettingsModel::Value v;
+    o.key = key;
     if (section >= m.sectionCount() || !m.value(section, key, &v)) return o;
     SettingsModel::Source src;
     const bool haveSrc = m.sourceOf(section, key, &src);
@@ -81,6 +83,7 @@ inline KeyOrigin buttonOrigin(const SettingsModel &m, size_t section, int number
     KeyOrigin o;
     if (section >= m.sectionCount()) return o;
     const std::string key = "BUTTON_" + std::to_string(number);
+    o.key = key;
     const std::vector<SettingsModel::ButtonRow> rows = m.buttonRows(section);
     for (const SettingsModel::ButtonRow &r : rows)
         if (r.number == number) {
@@ -114,9 +117,20 @@ inline KeyOrigin buttonOrigin(const SettingsModel &m, size_t section, int number
     return o;
 }
 
+// A value the way a person reads it: the on/off switch and the direction are words, everything else as is.
+inline std::string displayValue(const std::string &key, const std::string &text, const StringProvider &s) {
+    if (key == "ENABLED") return text == "0" ? s.tr("off") : s.tr("on");
+    if (key.size() > 5 && key.compare(key.size() - 5, 5, "_SIGN") == 0) return text == "-1" ? s.tr("inverted") : s.tr("normal");
+    return text;
+}
+
 // The short text of a row: where the value comes from, with the inherited value as a hint. "" for
 // the plain values of [global]. The state is always written out, never shown by colour alone.
-inline std::string originBadgeText(const KeyOrigin &o, const StringProvider &s) {
+inline std::string originBadgeText(const KeyOrigin &o0, const StringProvider &s) {
+    KeyOrigin o = o0;
+    o.value = displayValue(o.key, o.value, s);
+    o.inherited = displayValue(o.key, o.inherited, s);
+    for (std::string &v : o.deviceValues) v = displayValue(o.key, v, s);
     std::string t;
     switch (o.kind) {
         case KeyOrigin::Kind::Plain: return std::string();

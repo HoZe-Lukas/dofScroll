@@ -106,6 +106,7 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
         auto *origin = new QLabel(qs8(row.origin), parent);
         origin->setForegroundRole(QPalette::PlaceholderText);
         origin->setWordWrap(true);
+        origin->setMinimumWidth(180);
         origin->setMaximumWidth(320);
         origin->setAccessibleName(T("Origin of button") + QStringLiteral(" %1").arg(row.number));
         if (!row.originTip.empty()) origin->setToolTip(qs8(row.originTip));

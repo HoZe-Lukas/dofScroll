@@ -102,6 +102,14 @@ int main() {
     assert(overrideHintTooltip(names, id).find("device Pro") != std::string::npos);
     assert(m.profilesOverriding("BUTTON_3").size() == 1 && m.profilesOverriding("MODE").empty());
 
+    // on/off and the direction are words
+    assert(displayValue("ENABLED", "0", id) == "off" && displayValue("ENABLED", "1", id) == "on");
+    assert(displayValue("ZOOM_SIGN", "-1", id) == "inverted" && displayValue("SCROLL_H_SIGN", "1", id) == "normal");
+    assert(displayValue("SCROLL_V_SENS", "7", id) == "7");
+    assert(m.setValue(gimp, "ENABLED", "0", &err));
+    assert(originBadgeText(keyOrigin(m, gimp, "ENABLED"), id) == "Set in this profile (inherited: on)");
+    assert(m.clearOverride(gimp, "ENABLED"));
+
     // reset tooltips
     assert(resetTooltip(0, true, id) == "Back to the built-in default" && resetTooltip(0, false, id) == "Already the built-in default");
     assert(resetTooltip(ff, true, id).find("Reset to inherited") == 0 && resetTooltip(ff, false, id).find("Nothing to reset") == 0);

@@ -132,7 +132,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     profileFilter_->setAccessibleName(T("Search profiles"));
     profileFilter_->setToolTip(T("Show only the programs and devices whose name contains this text"));
     ll->addWidget(profileFilter_);
-    left->setMinimumWidth(200);
+    left->setMinimumWidth(170);
     tree_ = new QTreeWidget(left);
     tree_->setMinimumHeight(160);
     tree_->setHeaderHidden(true);
@@ -191,7 +191,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     tabs_->setAccessibleName(T("Profile sections"));
     tabs_->setDocumentMode(true);
     rl->addWidget(tabs_, 1);
-    tabs_->setMinimumWidth(380);  // the editor never gets squashed
+    tabs_->setMinimumWidth(260);  // the editor never gets squashed, and the page fits the smallest window
     split->setChildrenCollapsible(false);
 
     // The tabs exist once; they stay when another profile is selected (only their content changes).
