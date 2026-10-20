@@ -3339,3 +3339,73 @@ msgstr ""
 msgid "Your file, replaces the built-in button mode"
 msgstr "Deine Datei, ersetzt den eingebauten Tasten-Modus"
 
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Split push and tilt"
+msgstr "Schieben und Kippen trennen"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid ""
+"Give the push movement (forward/back, sideways) and the tilt movement their "
+"own functions"
+msgstr ""
+"Die Schiebebewegung (vor/zurück, seitlich) und die Kippbewegung bekommen "
+"jeweils eine eigene Funktion"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Vertical tilt"
+msgstr "Vertikales Kippen"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Horizontal tilt"
+msgstr "Horizontales Kippen"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Tuning: %1"
+msgstr "Feineinstellung: %1"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "As the channel"
+msgstr "Wie der Kanal"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Dead zone"
+msgstr "Totzone"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Direction (sign)"
+msgstr "Richtung (Vorzeichen)"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Curve"
+msgstr "Kurve"
+
+#: src/ui/model/mode_info_model.hpp
+msgid "Vertical, push part: %1"
+msgstr "Vertikal, Schiebeanteil: %1"
+
+#: src/ui/model/mode_info_model.hpp
+msgid "Vertical, tilt part: %1"
+msgstr "Vertikal, Kippanteil: %1"
+
+#: src/ui/model/mode_info_model.hpp
+msgid "Horizontal, push part: %1"
+msgstr "Horizontal, Schiebeanteil: %1"
+
+#: src/ui/model/mode_info_model.hpp
+msgid "Horizontal, tilt part: %1"
+msgstr "Horizontal, Kippanteil: %1"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid ""
+"Push (z, x, y) and tilt (rx, rz) are the two parts of a scroll channel. A "
+"joystick mode that splits a channel gives them different functions; twist "
+"(ry) is zoom by default."
+msgstr ""
+"Schieben (z, x, y) und Kippen (rx, rz) sind die beiden Anteile eines "
+"Scroll-Kanals. Ein Joystick-Modus, der einen Kanal trennt, gibt ihnen "
+"unterschiedliche Funktionen; Drehen (ry) ist standardmäßig Zoom."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Which movement drives which part"
+msgstr "Welche Bewegung welchen Anteil steuert"

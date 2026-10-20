@@ -382,6 +382,8 @@ device inactive. To get out of it, use the tray menu "Joystick mode", a `mode:ne
    button action.
 4. Check `journalctl --user -u dofscroll.service` for warnings about skipped lines.
 
+In the interface the "Split push and tilt" switch of a channel in the in-page editor does the same (see `docs/ui.md`).
+
 The interface can do the same without a text editor: on the Joystick modes page, "Edit" opens an in-page
 editor for name, channels, buttons and overrides (see [ui.md](ui.md#editing-a-joystick-mode)). The file
 stays plain text; the editor keeps comments and lines it does not know.

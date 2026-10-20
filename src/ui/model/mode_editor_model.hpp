@@ -85,6 +85,22 @@ struct ModeForm {
             if (b.first == n) return &b.second;
         return nullptr;
     }
+    // The value of the override `key` (case-insensitive), or nullptr.
+    const std::string *overrideValue(const std::string &key) const {
+        for (const auto &o : overrides)
+            if (utf8::upperAscii(o.first) == utf8::upperAscii(key)) return &o.second;
+        return nullptr;
+    }
+    // Sets the override `key`; an empty value removes it (the part or channel follows its parent again).
+    void setOverride(const std::string &key, const std::string &value) {
+        for (size_t i = 0; i < overrides.size(); ++i)
+            if (utf8::upperAscii(overrides[i].first) == utf8::upperAscii(key)) {
+                if (value.empty()) overrides.erase(overrides.begin() + long(i));
+                else overrides[i].second = value;
+                return;
+            }
+        if (!value.empty()) overrides.emplace_back(utf8::upperAscii(key), value);
+    }
     // Sets (action != "none") or clears (action empty or "none") the binding of button n.
     void setButton(int n, const std::string &action) {
         for (size_t i = 0; i < buttons.size(); ++i)

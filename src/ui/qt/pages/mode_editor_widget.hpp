@@ -58,6 +58,10 @@ signals:
 private:
     void rebuild();  // all widgets from the form
     int addChannelRow(QGridLayout *g, int row, const QString &label, spn::ui::ChannelForm *form);  // returns the rows used
+    // One scroll channel: the plain action row, or with "Split push and tilt" on a push and a tilt row
+    // plus the tuning fields of each part. Returns the rows used. prefix: "V" or "H".
+    int addSplitChannel(QGridLayout *g, int row, const QString &label, const QString &pushLabel, const QString &tiltLabel,
+                        spn::ui::ChannelForm *channel, spn::ui::SplitForm *split, const char *prefix);
     void showProblems();
     spn::ui::Autosave::Outcome finishWrite(const spn::ui::ModeEditor::SaveResult &r);
 

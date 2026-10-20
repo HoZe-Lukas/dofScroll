@@ -223,6 +223,11 @@ void AxesPage::buildLivePage(QWidget *page) {
     l->addWidget(connHint_);
     bars_ = new LiveBarsWidget(&session_->view(), false, page);
     l->addWidget(bars_, 1);
+    auto *parts = new QLabel(T("Push (z, x, y) and tilt (rx, rz) are the two parts of a scroll channel. A joystick mode "
+                               "that splits a channel gives them different functions; twist (ry) is zoom by default."));
+    parts->setWordWrap(true);
+    parts->setAccessibleName(T("Which movement drives which part"));
+    l->addWidget(parts);
 
     auto *row = new QHBoxLayout;
     pause_ = new QPushButton(T("Pause"));
