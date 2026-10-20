@@ -363,13 +363,22 @@ spn::ui::ThemeColors &current() {
     return c;
 }
 
-// The system asks for high contrast: Qt 6.10+ reports it on every platform; on Windows the high-contrast
+// The system asks for high contrast: newer Qt versions report it on every platform; on Windows the high-contrast
 // flag is read directly (older Qt). Elsewhere nothing reliable exists, so nothing is guessed from the palette
 // (a plain black-on-white theme must keep the normal look).
+// Detected by compiling, not by version number: a Qt that has no QStyleHints::contrastPreference() (Qt 6.10 has
+// none; it is newer) falls back to the overload that answers false.
+template <class Hints>
+auto contrastPreferenceIsHigh(const Hints *h, int) -> decltype(h->contrastPreference() == Qt::ContrastPreference::HighContrast) {
+    return h->contrastPreference() == Qt::ContrastPreference::HighContrast;
+}
+template <class Hints>
+bool contrastPreferenceIsHigh(const Hints *, long) {
+    return false;
+}
+
 bool systemHighContrast(const QPalette &) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-    if (QGuiApplication::styleHints()->contrastPreference() == Qt::ContrastPreference::HighContrast) return true;
-#endif
+    if (contrastPreferenceIsHigh(QGuiApplication::styleHints(), 0)) return true;
 #ifdef Q_OS_WIN
     HIGHCONTRASTW hc{sizeof(HIGHCONTRASTW), 0, nullptr};
     if (SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0) && (hc.dwFlags & HCF_HIGHCONTRASTON)) return true;
