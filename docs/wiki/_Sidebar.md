@@ -3,6 +3,7 @@
 **dofscroll**
 
 - [Home](Home)
+- [Requirements](Requirements)
 - [Installation](Installation)
 - [Quick start](Quick-start)
 - [User interface](User-interface)
