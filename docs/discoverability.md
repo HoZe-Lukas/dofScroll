@@ -19,6 +19,10 @@ Goal: people who search for "SpaceMouse scroll", "use a 3Dconnexion SpaceMouse t
 
 Edit both languages together. A change to a link or a section in one language that is missing in the other fails `scripts/check-site.sh`. If you change the inline theme script, the CSP hash in every page must change too (the check prints the expected hash).
 
+## Screenshots
+
+The hero pictures (`site/img/ui-window-*.png`, `ui-overview-*.png`, German ones in `site/img/de/`) are rebuilt without hardware by `scripts/make-site-screenshots.sh`. It runs `dofscroll-ui --screenshots` against a demo configuration (programs firefox, blender, gimp, okular; devices SpaceMouse Pro and Compact) and a status file as the daemon writes it (SpaceMouse Pro connected, running), once with the English and once with a temporary `ui.conf` with `language = de`, then palette-quantizes the PNGs (`scripts/optimize-png.py`). Run it after changes to the interface and commit the result. The animations on the page are plain CSS in `site/style.css` and stop under `prefers-reduced-motion`; `scripts/check-site.sh` checks the contrast of text on the gradients and the reduced-motion rule.
+
 ## Publishing (maintainer)
 
 1. Settings > Pages > Build and deployment > Source: GitHub Actions (`build_type=workflow`). Then run the `pages` workflow once or push a change under `site/`.
