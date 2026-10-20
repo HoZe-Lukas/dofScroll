@@ -4,6 +4,11 @@
 #include <QApplication>
 #include <QDir>
 #include <QCheckBox>
+#include <QImage>
+#include <QKeyEvent>
+#include <QPainter>
+#include <QStyleOptionTab>
+#include <QTabBar>
 #include <QDoubleSpinBox>
 #include <QGroupBox>
 #include <QToolButton>
@@ -50,6 +55,7 @@
 #include <ctime>
 
 #include "main_window.hpp"
+#include "vertical_tabs.hpp"
 #include "pages/add_app_dialog.hpp"
 #include "pages/add_device_dialog.hpp"
 #include "pages/axes_page.hpp"
@@ -314,6 +320,188 @@ static QLineEdit *lineEditNamed(QWidget *root, const QString &name) {
     for (QLineEdit *e : root->findChildren<QLineEdit *>())
         if (e->accessibleName() == name && e->isVisibleTo(root)) return e;
     return nullptr;
+}
+
+// Target size (WCAG 2.5.8, issue #104): every visible interactive control of every page is at least 24 x 24 px
+// (the controls are 32 to 34 px high by design; this asserts it for all of them, with the window at its default
+// size and at 150% font size).
+static bool targetSizeSelfTest(MainWindow &w) {
+    constexpr int kMin = 24;
+    bool ok = true;
+    // our own style sheet (Light and Dark) sizes the controls; the System theme leaves them to the platform
+    for (spn::ui::Theme theme : {spn::ui::Theme::Light, spn::ui::Theme::Dark}) {
+    applyTheme(theme);
+    settle();
+    for (const std::string &id : w.pageIds()) {
+        w.showPage(QString::fromStdString(id));
+        settle();
+        QWidget *page = w.currentPage();
+        if (!page) continue;
+        for (QWidget *c : page->findChildren<QWidget *>()) {
+            const bool interactive = qobject_cast<QAbstractButton *>(c) || qobject_cast<QComboBox *>(c) ||
+                                     qobject_cast<QAbstractSpinBox *>(c) || qobject_cast<QLineEdit *>(c) ||
+                                     (qobject_cast<QAbstractSlider *>(c) && !qobject_cast<QScrollBar *>(c));
+            if (!interactive || !c->isVisibleTo(page)) continue;
+            if (qobject_cast<QLineEdit *>(c) && (qobject_cast<QAbstractSpinBox *>(c->parentWidget()) || qobject_cast<QComboBox *>(c->parentWidget())))
+                continue;  // the inner line edit belongs to its parent control
+            if (c->parentWidget() && c->parentWidget()->metaObject()->className() == QByteArray("QAbstractSpinBox")) continue;
+            if (c->width() < kMin || c->height() < kMin) {
+                std::fprintf(stderr, "target size self-test failed: page %s: %s \"%s\" is %d x %d px\n", id.c_str(), c->metaObject()->className(),
+                             c->accessibleName().toUtf8().constData(), c->width(), c->height());
+                ok = false;
+            }
+        }
+    }
+    }
+    applyTheme(spn::ui::Theme::System);
+    settle();
+    std::printf("target size self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
+// Keyboard (issue #104): the tab order of every page follows the reading order (no jump back up the page), every "i"
+// info button can be reached with Tab and opens its popover with the keyboard, and Esc closes the popover.
+static bool keyboardSelfTest(MainWindow &w) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "keyboard self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    constexpr int kRowTolerance = 16;  // controls whose tops differ by less are one row
+    constexpr int kColumnGap = 160;    // controls whose left edges differ by more are in different columns
+    int infoButtons = 0;
+    for (const std::string &id : w.pageIds()) {
+        w.showPage(QString::fromStdString(id));
+        settle();
+        QWidget *page = w.currentPage();
+        if (!page) continue;
+        // the Tab chain restricted to the controls of this page that take Tab focus
+        std::vector<QWidget *> chain;
+        QWidget *start = page->focusWidget() ? page->focusWidget() : page;
+        for (QWidget *c = start->nextInFocusChain(); c && c != start; c = c->nextInFocusChain())
+            if (page->isAncestorOf(c) && c->isVisibleTo(page) && c->isEnabled() && (c->focusPolicy() & Qt::TabFocus) &&
+                !qobject_cast<QScrollBar *>(c) && c->objectName() != QStringLiteral("qt_scrollarea_viewport") &&
+                !(qobject_cast<QLineEdit *>(c) && (qobject_cast<QAbstractSpinBox *>(c->parentWidget()) || qobject_cast<QComboBox *>(c->parentWidget()))))
+                chain.push_back(c);
+        if (chain.size() > 1) {
+            // The chain is circular: start it at the control that is first on the page (top, then left).
+            auto pos = [page](QWidget *c) { return c->mapTo(page, QPoint(0, 0)); };
+            size_t first = 0;
+            for (size_t i = 1; i < chain.size(); ++i)
+                if (pos(chain[i]).y() < pos(chain[first]).y() - kRowTolerance ||
+                    (std::abs(pos(chain[i]).y() - pos(chain[first]).y()) <= kRowTolerance && pos(chain[i]).x() < pos(chain[first]).x()))
+                    first = i;
+            std::rotate(chain.begin(), chain.begin() + long(first), chain.end());
+            for (size_t i = 1; i < chain.size(); ++i) {
+                const QPoint p0 = pos(chain[i - 1]), p1 = pos(chain[i]);
+                // a move to another column (a pane to the right) may start at its top again
+                const bool sameColumn = std::abs(p1.x() - p0.x()) < kColumnGap;
+                const bool jumpsUp = sameColumn && p1.y() < p0.y() - kRowTolerance;
+                const bool backwardsInRow = std::abs(p1.y() - p0.y()) <= kRowTolerance && p1.x() < p0.x() - 2;
+                if (jumpsUp || backwardsInRow) {
+                    std::fprintf(stderr, "keyboard self-test failed: page %s: Tab goes from %s \"%s\" (%d,%d) to %s \"%s\" (%d,%d)\n", id.c_str(),
+                                 chain[i - 1]->metaObject()->className(), chain[i - 1]->accessibleName().toUtf8().constData(), p0.x(), p0.y(),
+                                 chain[i]->metaObject()->className(), chain[i]->accessibleName().toUtf8().constData(), p1.x(), p1.y());
+                    ok = false;
+                }
+            }
+        }
+        for (QToolButton *b : page->findChildren<QToolButton *>()) {
+            if (b->objectName() != QStringLiteral("infoButton") || !b->isVisibleTo(page)) continue;
+            ++infoButtons;
+            check(b->focusPolicy() & Qt::TabFocus, "an info button takes Tab focus");
+            check(!b->accessibleName().isEmpty(), "an info button has an accessible name");
+        }
+    }
+    check(infoButtons > 0, "there are info buttons to test");
+    // an info popover: opens by the keyboard (click() is what Space and Enter do), has a name, Esc closes it
+    w.showPage(QStringLiteral("profiles"));
+    settle();
+    QToolButton *info = nullptr;
+    for (QToolButton *b : w.currentPage()->findChildren<QToolButton *>())
+        if (b->objectName() == QStringLiteral("infoButton") && b->isVisibleTo(w.currentPage())) info = b;
+    check(info != nullptr, "the Profiles page has an info button");
+    if (info) {
+        info->click();
+        settle();
+        QWidget *popup = nullptr;
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (top->objectName() == QStringLiteral("infoPopup") && top->isVisible()) popup = top;
+        check(popup != nullptr && !InfoPopup::openText().isEmpty(), "the info button opens its popover");
+        if (popup) {
+            check(!popup->accessibleName().isEmpty(), "the popover has an accessible name");
+            QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+            QApplication::sendEvent(popup, &esc);
+            settle();
+            check(InfoPopup::openText().isEmpty(), "Esc closes the popover");
+        }
+    }
+    std::printf("keyboard self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
+// Sidebar tabs (issue #104): the current tab shows a 2 px focus ring while the bar has the keyboard focus, and
+// the arrow keys move between the categories.
+static bool sidebarFocusSelfTest(MainWindow &w) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "sidebar focus self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    for (const QPalette &pal : {QApplication::palette(), [] {
+             QPalette p;
+             p.setColor(QPalette::Window, QColor(0x20, 0x20, 0x24));
+             p.setColor(QPalette::WindowText, QColor(0xF2, 0xF2, 0xF2));
+             p.setColor(QPalette::Highlight, QColor(0x30, 0x30, 0x40));  // an accent without 3:1: the text colour is used
+             return p;
+         }()}) {
+        WestTabStyle style;
+        const QColor ring = WestTabStyle::focusRingColor(pal);
+        auto distance = [](const QColor &a, const QColor &b) {
+            return std::abs(a.red() - b.red()) + std::abs(a.green() - b.green()) + std::abs(a.blue() - b.blue());
+        };
+        auto edgePixel = [&](bool focus) {
+            QImage img(200, 60, QImage::Format_ARGB32);
+            img.fill(pal.color(QPalette::Window));
+            QPainter painter(&img);
+            QStyleOptionTab opt;
+            opt.rect = QRect(0, 0, 200, 60);
+            opt.palette = pal;
+            opt.state = QStyle::State_Enabled | QStyle::State_Selected | (focus ? QStyle::State_HasFocus : QStyle::State_None);
+            style.drawControl(QStyle::CE_TabBarTabShape, &opt, &painter, nullptr);
+            painter.end();
+            return img.pixelColor(1, 30);
+        };
+        check(distance(edgePixel(true), ring) < 60, "the current tab with focus is drawn with the ring colour");
+        check(distance(edgePixel(false), ring) >= 60, "without focus there is no ring");
+        const auto rgb = [](const QColor &c) { return spn::ui::Rgb{uint8_t(c.red()), uint8_t(c.green()), uint8_t(c.blue())}; };
+        check(spn::ui::contrastRatio(rgb(ring), rgb(pal.color(QPalette::Window))) >= 3.0, "the ring has 3:1 against the window");
+    }
+    QTabBar *bar = nullptr;
+    for (QTabBar *b : w.findChildren<QTabBar *>())
+        if (b->shape() == QTabBar::RoundedWest) bar = b;
+    check(bar != nullptr, "the sidebar tab bar exists");
+    if (bar) {
+        check(bar->focusPolicy() != Qt::NoFocus, "the sidebar tab bar can take the keyboard focus");
+        bar->setCurrentIndex(0);
+        QKeyEvent down(QEvent::KeyPress, Qt::Key_Down, Qt::NoModifier);
+        QApplication::sendEvent(bar, &down);
+        check(bar->currentIndex() == 1, "the Down key moves to the next category");
+        QKeyEvent up(QEvent::KeyPress, Qt::Key_Up, Qt::NoModifier);
+        QApplication::sendEvent(bar, &up);
+        check(bar->currentIndex() == 0, "the Up key moves back");
+        QKeyEvent end(QEvent::KeyPress, Qt::Key_End, Qt::NoModifier);
+        QApplication::sendEvent(bar, &end);
+        check(bar->currentIndex() == bar->count() - 1, "End moves to the last category");
+        QKeyEvent past(QEvent::KeyPress, Qt::Key_Down, Qt::NoModifier);
+        QApplication::sendEvent(bar, &past);
+        check(bar->currentIndex() == bar->count() - 1, "Down at the last category stays there");
+        QKeyEvent home(QEvent::KeyPress, Qt::Key_Home, Qt::NoModifier);
+        QApplication::sendEvent(bar, &home);
+        check(bar->currentIndex() == 0, "Home moves to the first category");
+    }
+    std::printf("sidebar focus self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
 }
 
 // Joystick mode editor sub-tabs: Settings, Buttons, Overrides; no Save or Revert button, the last tab is kept
@@ -2325,6 +2513,9 @@ int main(int argc, char **argv) {
         if (!overviewSelfTest(w)) return 1;
         if (!quickActionsSelfTest(ctx, tmp.path())) return 1;
         if (!accessibilitySelfTest(w)) return 1;
+        if (!sidebarFocusSelfTest(w)) return 1;
+        if (!targetSizeSelfTest(w)) return 1;
+        if (!keyboardSelfTest(w)) return 1;
         if (!profileEditorSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
         if (!autosaveAuditSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
         if (!legacyButtonsSelfTest()) return 1;

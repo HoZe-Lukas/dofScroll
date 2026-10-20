@@ -85,7 +85,7 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     auto *row = new QHBoxLayout(central);
     row->setContentsMargins(0, 0, 0, 0);
     row->setSpacing(0);
-    categoryBar_ = new QTabBar(central);
+    categoryBar_ = new WestTabBar(central);
     categoryBar_->setShape(QTabBar::RoundedWest);
     categoryBar_->setExpanding(false);
     categoryBar_->setIconSize(QSize(spn::ui::tokens::kIconSize, spn::ui::tokens::kIconSize));
