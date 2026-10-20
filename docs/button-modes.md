@@ -23,8 +23,9 @@ most 32 characters. The format is that of the main configuration: `KEY = value`,
 | `NAME` | Shown in the drop-downs. Fallback: the id. |
 | `DESCRIPTION` | Optional, shown as a tooltip and on the Button modes page. |
 | `ACTION` | Required. One button action as in `BUTTON_<n>`: `none`, `click`, `rightclick`, `middleclick`, `nav`, `key:<name>`, `mode:<id>`, `mode:next`, `mode:prev`, `toggle:nav`, `toggle:mode:<id>`. It must not be a `buttonmode:` reference (no nesting). |
+| `CYCLE` | Optional, only with `ACTION = mode:next` or `mode:prev`: the joystick modes this button cycles through, see [Choosing the modes to cycle through](#choosing-the-modes-to-cycle-through). |
 
-Every other key is skipped with a warning; a file without a valid `ACTION` is skipped. Example
+Every other key (`NAME`, `DESCRIPTION`, `ACTION` and `CYCLE` are the only ones) is skipped with a warning; a file without a valid `ACTION` is skipped. Example
 (`examples/buttons/latch-nav.conf`):
 
     NAME = Navigation latch
@@ -36,11 +37,37 @@ by the current user, opened without following links; invalid lines and files are
 warning in the log (`Button modes: ...`). The folder is checked about once a second and reloaded
 when its contents change.
 
-On the first start of the interface the three examples `latch-nav`, `next-mode` and `prev-mode` are copied into a
+On the first start of the interface the examples `latch-nav`, `next-mode`, `prev-mode` and `cycle-favorites` are copied into a
 missing `buttons/` folder (never overwriting anything). Without the interface:
 
     mkdir -p -m 0700 ~/.config/dofscroll/buttons
     cp /usr/share/dofscroll/examples/buttons/*.conf ~/.config/dofscroll/buttons/
+
+## Choosing the modes to cycle through
+
+Without `CYCLE`, `mode:next` and `mode:prev` walk through all loaded joystick modes in alphabetical
+order of id, so the order is arbitrary and grows with every mode you add. With `CYCLE` the button mode
+cycles through exactly the modes you list, in your order:
+
+    NAME = Next favorite mode
+    ACTION = mode:next
+    CYCLE = timeline, normal, slides
+
+- The value is a comma separated list of joystick mode ids (whitespace is tolerated, case is folded,
+  ids as in `MODE`), at most 32. A duplicate is dropped with a warning; an invalid id makes the line
+  invalid (warning, the button mode then cycles through all modes).
+- `next` goes to the entry after the effective mode and wraps from the last to the first; `prev` goes
+  the other way. If the effective mode is not in the list (the profile's mode, a `hold:mode:` or
+  `mode:<id>` override), `next` goes to the first entry and `prev` to the last.
+- An id that matches no loaded mode stays in the file and is skipped; the daemon logs
+  `mode cycle: unknown mode '<id>' skipped` once per load.
+- One file has one direction. For both directions make two button modes (`ACTION = mode:next` and
+  `ACTION = mode:prev`) with the same list, and assign them to two buttons. You can have several lists
+  (for example *Next video mode* and *Next browse mode*) and choose one per button on the Profiles page.
+- A raw `BUTTON_<n> = mode:next` and a button mode without `CYCLE` keep cycling through all modes.
+  Internally the daemon expands a button mode with `CYCLE` to `mode:next:<id>,<id>,...` (also accepted
+  in `BUTTON_<n>` and mode files, but the button mode is the supported way). `CYCLE` with another action
+  is ignored with a warning. Example: `examples/buttons/cycle-favorites.conf`.
 
 ## Using a button mode
 

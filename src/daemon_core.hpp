@@ -172,6 +172,7 @@ private:
     bool hold_active_ = false;   // a hold:mode: button is held and its mode is the override
     std::string hold_id_, hold_prev_override_, hold_prev_toggled_;  // the held mode, the state to restore
     bool mode_applied_ = false;  // selectMode activated a mode at least once
+    std::set<std::string> warned_cycle_;  // unknown ids of a mode cycle list already warned about (per load)
     std::string warned_mode_;  // unknown mode id already warned about
     bool warn_buttons_ = false;
 

@@ -5,6 +5,14 @@
 //   NAME = Navigation latch         # shown in drop-downs; fallback: the id
 //   DESCRIPTION = optional text
 //   ACTION = toggle:nav             # required: one button action as parseButtonAction accepts it
+//   CYCLE = video, slides, map      # optional, only with ACTION = mode:next or mode:prev
+//
+// CYCLE lists the joystick mode ids (comma separated, max. 32, duplicates dropped with a warning)
+// that the button cycles through, in this order, wrapping around: next = the following entry (the
+// first one when the current mode is not in the list), prev = the preceding one (the last one when
+// it is not in the list). Ids that match no loaded mode are skipped at runtime (one warning per
+// load). Without CYCLE, mode:next / mode:prev cycle through all loaded modes alphabetically. For
+// both directions use two button modes. CYCLE with any other ACTION is ignored with a warning.
 //
 // A button mode is used with the button action "buttonmode:<id>" (BUTTON_<n> in [global], [device:*],
 // [app:*] and mode files). The daemon core expands the reference at runtime (expandSettings,
@@ -28,7 +36,8 @@ struct ButtonMode {
     std::string path;
     ButtonActionType type = ButtonActionType::Unbound;
     Key key = Key::Space;
-    std::string target;       // mode id for ModeSwitch / ToggleMode
+    std::string target;       // mode id for ModeSwitch / ToggleMode ("next:a,b" with a cycle list)
+    std::vector<std::string> cycle;  // CYCLE ids (validated, deduplicated); empty = all modes
 };
 
 struct ButtonModeSet {

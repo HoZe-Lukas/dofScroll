@@ -10,6 +10,7 @@
 //   c.createNew("Latch")                      // commented template with ACTION = none, 0600, never overwrites
 //   c.duplicate("latch", "Latch 2")
 //   c.save("latch", label, description, "toggle:nav")   // rewrites the file atomically, id unchanged
+//   c.save(id, label, desc, "mode:next", cycleIds)       // with a CYCLE list (mode_cycle_model.hpp); empty = no CYCLE line
 //   c.inspectImport(path, name) / c.importFile(path, name)
 //   c.referencedBy("latch", settings, modes)  // where buttonmode:latch is still used
 //   c.remove("latch")
@@ -20,6 +21,7 @@
 #include "button_modes.hpp"
 #include "binding_editor_model.hpp"
 #include "mode_catalog.hpp"
+#include "mode_cycle_model.hpp"
 #include "platform/fs.hpp"
 #include "settings_model.hpp"
 #include "strings.hpp"
@@ -30,6 +32,7 @@ class ButtonModeCatalog {
 public:
     struct Entry {
         std::string id, label, description, action, path;
+        std::vector<std::string> cycle;     // CYCLE ids in order (action is then plain mode:next / mode:prev)
         std::vector<std::string> warnings;  // loader warnings of this file
     };
     struct Result {
@@ -71,7 +74,8 @@ public:
             e.id = b.id;
             e.label = b.label;
             e.description = b.description;
-            e.action = b.action;
+            e.cycle = b.cycle;
+            e.action = b.cycle.empty() ? b.action : (b.target.compare(0, 4, "prev") == 0 ? "mode:prev" : "mode:next");
             e.path = b.path;
             entries_.push_back(e);
         }
@@ -106,18 +110,21 @@ public:
 
     // ---- content ----
     static std::string newTemplate(const std::string &id, const std::string &label, const std::string &description,
-                                   const std::string &action) {
+                                   const std::string &action,
+                                   const std::vector<std::string> &cycle = std::vector<std::string>()) {
         std::string t;
         t += "# Button mode \"" + id + "\". Save the file; the daemon reloads it by itself. Documentation: docs/button-modes.md\n";
         t += "#\n";
         t += "# ACTION is one button action: none | click | rightclick | middleclick | nav | key:<name> |\n";
-        t += "#   mode:<id> | mode:next | toggle:nav | toggle:mode:<id>. Not allowed: buttonmode:<id>.\n";
+        t += "#   mode:<id> | mode:next | mode:prev | toggle:nav | toggle:mode:<id>. Not allowed: buttonmode:<id>.\n";
+        t += "# CYCLE = id, id, ... (only with mode:next / mode:prev) cycles through exactly these modes.\n";
         t += "# Use it with BUTTON_<n> = buttonmode:" + id + " or pick it in the interface.\n";
         t += "# WARNING: a button mode can press a key or click. Read files from other people before use.\n";
         t += "# An action that is the same everywhere and always belongs in the vendor driver.\n\n";
         t += "NAME = " + label + "\n";
         t += "DESCRIPTION = " + description + "\n";
         t += "ACTION = " + action + "\n";
+        if (!cycle.empty()) t += "CYCLE = " + ModeCycleList(cycle).toText() + "\n";
         return t;
     }
 
@@ -156,19 +163,25 @@ public:
         const std::string nid = ModeCatalog::deriveId(label);
         if (label.empty() || nid.empty()) return fail(r, "the name must contain letters or digits");
         if (taken(nid)) return fail(r, "a button mode with the id '" + nid + "' already exists");
-        return write(r, nid, newTemplate(nid, label, src->description, src->action));
+        return write(r, nid, newTemplate(nid, label, src->description, src->action, src->cycle));
     }
 
     // Rewrites the file of `id`: the leading comment block stays, then NAME, DESCRIPTION (if not
     // empty) and ACTION. The id (file name) never changes. Atomic.
     Result save(const std::string &id, const std::string &name, const std::string &description,
-                const std::string &action) {
+                const std::string &action,
+                const std::vector<std::string> &cycle = std::vector<std::string>()) {
         Result r;
         const Entry *e = find(id);
         if (!e) return fail(r, "no such button mode");
         std::string err;
         const std::string act = checkAction(action, &err);
         if (act.empty()) return fail(r, err);
+        if (!cycle.empty() && act != "mode:next" && act != "mode:prev")
+            return fail(r, "a cycle list needs the action mode:next or mode:prev");
+        if (cycle.size() > kMaxModeCycle) return fail(r, "too many modes in the cycle list");
+        for (const std::string &c : cycle)
+            if (!validModeId(c)) return fail(r, "invalid mode id in the cycle list");
         const std::string label = ModeCatalog::cleanLabel(name);
         const std::string desc = ModeCatalog::cleanLabel(description);
         std::string old;
@@ -187,6 +200,7 @@ public:
         if (!label.empty()) out += "NAME = " + label + "\n";
         if (!desc.empty()) out += "DESCRIPTION = " + desc + "\n";
         out += "ACTION = " + act + "\n";
+        if (!cycle.empty()) out += "CYCLE = " + ModeCycleList(cycle).toText() + "\n";
         if (!fs::writeFileReplace(e->path, out, &err)) return fail(r, "cannot write " + e->path + ": " + err);
         r.ok = true;
         r.id = id;

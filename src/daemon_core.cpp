@@ -247,6 +247,7 @@ void DaemonCore::loadModeSet() {
     modes_stamp_ = modesStamp(modes_dir_);  // before reading, like the config stamp
     std::vector<std::string> warnings;
     modes_ = loadModes(modes_dir_, &warnings);
+    warned_cycle_.clear();
     for (const std::string &w : warnings)
         std::cerr << LOG << "Modes: " << sanitizeForLog(w, 512) << std::endl;
 }
@@ -256,6 +257,7 @@ void DaemonCore::loadButtonModeSet() {
     std::vector<std::string> warnings;
     button_modes_ = loadButtonModes(button_modes_dir_, &warnings);
     warned_button_modes_.clear();
+    warned_cycle_.clear();
     for (const std::string &w : warnings)
         std::cerr << LOG << "Button modes: " << sanitizeForLog(w, 512) << std::endl;
 }
@@ -395,7 +397,7 @@ void DaemonCore::checkButtons() {
                   << " does not exist on this device" << std::endl;
 }
 
-// Button-triggered mode switch: "next" / "prev" cycle through all modes in alphabetical id order.
+// Button-triggered mode switch: "next" / "prev" cycle through all modes in alphabetical id order, "next:<ids>" / "prev:<ids>" through the list.
 void DaemonCore::switchMode(const std::string &target) {
     if (target == ModeRunner::kHoldReleaseRequest) {  // the button of a hold:mode: was released
         endHold(true);
@@ -419,6 +421,8 @@ void DaemonCore::switchMode(const std::string &target) {
     }
     hold_active_ = false;  // any other switch ends a hold without restoring anything
     std::string id = target;
+    bool fwd = true;
+    std::vector<std::string> list;
     if (target.compare(0, 7, "toggle:") == 0) {
         // toggle:mode:<id>: the second press (the switch is in effect and <id> is the effective
         // mode) drops the switch and returns to the mode that profile resolution gives.
@@ -432,17 +436,34 @@ void DaemonCore::switchMode(const std::string &target) {
             tick_period_ = periodFor(settings_.tick_hz);
             return;
         }
-    } else if (target == "next" || target == "prev") {
-        std::vector<std::string> ids;
-        for (const ModeDef &m : modes_.modes) ids.push_back(m.id);
-        std::sort(ids.begin(), ids.end());
-        if (target == "next") {
-            auto it = std::upper_bound(ids.begin(), ids.end(), runner_->mode().id);
-            id = it == ids.end() ? ids.front() : *it;
+    } else if (splitCycleTarget(target, &fwd, &list)) {
+        const std::string &cur = runner_->mode().id;
+        if (list.empty()) {
+            for (const ModeDef &m : modes_.modes) list.push_back(m.id);
+            std::sort(list.begin(), list.end());
+            if (fwd) {
+                auto it = std::upper_bound(list.begin(), list.end(), cur);
+                id = it == list.end() ? list.front() : *it;
+            } else {
+                // The id before the effective one; wraps from the first to the last.
+                auto it = std::lower_bound(list.begin(), list.end(), cur);
+                id = it == list.begin() ? list.back() : *(it - 1);
+            }
         } else {
-            // The id before the effective one; wraps from the first to the last.
-            auto it = std::lower_bound(ids.begin(), ids.end(), runner_->mode().id);
-            id = it == ids.begin() ? ids.back() : *(it - 1);
+            // A user-defined cycle: unknown ids are skipped (warned once per load).
+            std::vector<std::string> known;
+            for (const std::string &e : list) {
+                if (modes_.find(e)) {
+                    known.push_back(e);
+                } else if (warned_cycle_.insert(e).second) {
+                    std::cerr << LOG << "WARNING: mode cycle: unknown mode '" << sanitizeForLog(e) << "' skipped" << std::endl;
+                }
+            }
+            if (known.empty()) return;
+            auto it = std::find(known.begin(), known.end(), cur);
+            if (it == known.end()) id = fwd ? known.front() : known.back();
+            else if (fwd) id = (it + 1 == known.end()) ? known.front() : *(it + 1);
+            else id = it == known.begin() ? known.back() : *(it - 1);
         }
     }
     if (!modes_.find(id)) return;

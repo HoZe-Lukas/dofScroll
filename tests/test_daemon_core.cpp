@@ -385,6 +385,51 @@ static void testModePrev() {
     CHECK(id() == "alpha", "prev then next returns to the start (%s)", id().c_str());
 }
 
+// A button mode with CYCLE: next/prev walk exactly that list in that order, wrap around, start at
+// the first/last entry when the effective mode is not in the list, skip unknown ids; a button mode
+// without CYCLE keeps the alphabetical cycle over all modes.
+static void testModeCycleList() {
+    Rig r(std::string(BASE_CONF) + "MODE = normal\nBUTTON_1 = buttonmode:fwd\nBUTTON_2 = buttonmode:back\n"
+                                   "BUTTON_3 = buttonmode:all\n",
+          {{"alpha.conf", "SCROLL_V_SENS = 1\n"}, {"beta.conf", "SCROLL_V_SENS = 2\n"}, {"zed.conf", "SCROLL_V_SENS = 3\n"}});
+    r.writeButtonMode("fwd.conf", "ACTION = mode:next\nCYCLE = zed, ghost, alpha ,zed, beta\n");
+    r.writeButtonMode("back.conf", "ACTION = mode:prev\nCYCLE = zed, ghost, alpha, beta\n");
+    r.writeButtonMode("all.conf", "ACTION = mode:next\n");
+    r.reload.pending = true;
+    r.run(0.1);
+    auto press = [&](int b) {
+        r.src.pushButton(0, b, true);
+        r.run(0.1);
+        r.src.pushButton(0, b, false);
+        r.run(0.1);
+    };
+    auto id = [&] { return r.core->runner().mode().id; };
+    CHECK(id() == "normal", "starts in normal");
+    press(0);  // not in the list: next goes to the first entry
+    CHECK(id() == "zed", "next outside the list -> first entry (%s)", id().c_str());
+    press(0);  // ghost is skipped
+    CHECK(id() == "alpha", "next follows the list order, unknown id skipped (%s)", id().c_str());
+    press(0);
+    CHECK(id() == "beta", "next -> beta (%s)", id().c_str());
+    press(0);
+    CHECK(id() == "zed", "next wraps to the first entry (%s)", id().c_str());
+    press(1);  // prev from the first wraps to the last
+    CHECK(id() == "beta", "prev wraps to the last entry (%s)", id().c_str());
+    press(1);
+    CHECK(id() == "alpha", "prev goes to the previous entry (%s)", id().c_str());
+    // reload: back to normal (not in the list); prev goes to the last entry
+    r.reload.pending = true;
+    r.run(0.1);
+    CHECK(id() == "normal", "normal after the reload");
+    press(1);
+    CHECK(id() == "beta", "prev outside the list -> last entry (%s)", id().c_str());
+    // without CYCLE: alphabetical over all loaded modes (alpha < beta < normal)
+    r.reload.pending = true;
+    r.run(0.1);
+    press(2);
+    CHECK(id() == "off", "no CYCLE: alphabetical next after normal (%s)", id().c_str());
+}
+
 static std::string statusKey(const Rig &r, const std::string &key);
 
 // hold:mode:<id>: effective while the button is held, then the state from before comes back.
@@ -690,6 +735,7 @@ int main() {
     testConfigButtonsAndNormalFile();
     testModeSwitchButton();
     testModePrev();
+    testModeCycleList();
     testHoldMode();
     testModeNamedRelease();
     testToggleButtons();
