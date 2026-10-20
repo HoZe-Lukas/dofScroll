@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <QComboBox>
+#include <cstdio>
 #include <QDir>
 #include <QFileDialog>
 #include <QFile>
@@ -431,13 +432,19 @@ spn::ui::Autosave::Outcome ButtonModesPage::writeForm() {
     const std::string id = shownId_.toStdString();
     if (id.empty() || !catalog_.find(id)) return {false, true, "no button mode is selected"};
     const std::string action = composedAction();
-    if (action.empty()) return {false, true, "choose a key or a joystick mode first"};
+    if (action.empty()) {
+        std::fprintf(stderr, "button modes: the form composes no action\n");
+        return {false, true, "choose a key or a joystick mode first"};
+    }
     // a CYCLE list of the file (see button-modes.md) stays while the action still is mode:next / mode:prev
     const ButtonModeCatalog::Entry *entry = catalog_.find(id);
     const std::vector<std::string> cycle = entry && (action == "mode:next" || action == "mode:prev") ? entry->cycle : std::vector<std::string>();
     const ButtonModeCatalog::Result r =
         catalog_.save(id, name_->text().toUtf8().toStdString(), description_->text().toUtf8().toStdString(), action, cycle);
-    if (!r.ok) return {false, true, r.error};
+    if (!r.ok) {
+        std::fprintf(stderr, "button modes: saving '%s' failed: %s\n", action.c_str(), r.error.c_str());
+        return {false, true, r.error};
+    }
     dirty_ = false;
     keepForm_ = true;  // the list shows the new name; the form stays as it is (the caret does not jump)
     populate(qs(id));
