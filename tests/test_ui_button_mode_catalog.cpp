@@ -33,7 +33,29 @@ int main() {
     const std::string root = tu::makeTempDir("dofscroll-bmcat");
     const std::string dir = root + "/buttons";
     ButtonModeCatalog c(dir);
-    assert(c.buttonModes().empty() && c.generalWarnings().empty());
+    // the built-in button modes are there without any file
+    assert(c.buttonModes().size() == 4 && c.generalWarnings().empty());
+    {
+        const ButtonModeCatalog::Entry *ln = c.find("latch-nav");
+        assert(ln && ln->builtin && !ln->overridesBuiltin && ln->path.empty() && ln->action == "toggle:nav");
+        assert(!c.save("latch-nav", "x", "", "click").ok);  // no file to rewrite
+        assert(!c.remove("latch-nav").ok);
+        assert(!c.createNew("latch-nav").ok);  // the id is taken by a built-in
+        // editable copy: a file with the same id replaces the built-in one; removing it restores it
+        ButtonModeCatalog::Result cp = c.makeEditableCopy("latch-nav");
+        assert(cp.ok && cp.path == dir + "/latch-nav.conf" && !c.makeEditableCopy("latch-nav").ok);
+        ln = c.find("latch-nav");
+        assert(ln && !ln->builtin && ln->overridesBuiltin && ln->path == cp.path && ln->action == "toggle:nav");
+        assert(c.save("latch-nav", "Mine", "", "click").ok && c.find("latch-nav")->action == "click");
+        assert(!c.makeEditableCopy("nope").ok);
+        assert(c.remove("latch-nav").ok);
+        ln = c.find("latch-nav");
+        assert(ln && ln->builtin && ln->action == "toggle:nav" && c.buttonModes().size() == 4);
+        // duplicate a built-in under a new name
+        ButtonModeCatalog::Result d = c.duplicate("next-mode", "My next");
+        assert(d.ok && c.find("my-next") && !c.find("my-next")->builtin && c.find("my-next")->action == "mode:next");
+        assert(c.remove("my-next").ok);
+    }
 
     // create: unique id from the name, template, 0600, no overwrite
     ButtonModeCatalog::Result r = c.createNew("My Latch!");
@@ -46,7 +68,7 @@ int main() {
     assert(::stat(r.path.c_str(), &st) == 0 && (st.st_mode & 0777) == 0600);
     assert(::stat(dir.c_str(), &st) == 0 && (st.st_mode & 0777) == 0700);
 #endif
-    assert(c.buttonModes().size() == 1 && c.find("my-latch")->label == "My Latch!" && c.find("my-latch")->action == "none");
+    assert(c.buttonModes().size() == 5 && c.find("my-latch")->label == "My Latch!" && c.find("my-latch")->action == "none");
     assert(c.generalWarnings().empty() && c.find("my-latch")->warnings.empty());  // the template loads cleanly
     assert(!c.createNew("my latch").ok);  // same id
     assert(!c.createNew("!!!").ok && !c.createNew("").ok);

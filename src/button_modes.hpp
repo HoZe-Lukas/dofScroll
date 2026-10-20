@@ -15,7 +15,8 @@
 // both directions use two button modes. CYCLE with any other ACTION is ignored with a warning.
 //
 // A button mode is used with the button action "buttonmode:<id>" (BUTTON_<n> in [global], [device:*],
-// [app:*] and mode files). The daemon core expands the reference at runtime (expandSettings,
+// [app:*] and mode files). Three button modes are built in (see builtin_library.hpp); a file with the
+// same id replaces the built-in one. The daemon core expands the reference at runtime (expandSettings,
 // expandMode); the expansion is never written back to a config file. ACTION must not itself be a
 // buttonmode: reference. Limits and file safety are those of mode files (conf_dir.hpp).
 #pragma once
@@ -38,6 +39,7 @@ struct ButtonMode {
     Key key = Key::Space;
     std::string target;       // mode id for ModeSwitch / ToggleMode ("next:a,b" with a cycle list)
     std::vector<std::string> cycle;  // CYCLE ids (validated, deduplicated); empty = all modes
+    bool builtin = false;     // from the embedded library (builtin_library.hpp): no file, path is empty
 };
 
 struct ButtonModeSet {
@@ -52,7 +54,9 @@ std::string buttonModesDir();
 // (no valid ACTION); the reason is in warnings. Other problems are warnings only.
 bool parseButtonModeText(const std::string &text, ButtonMode *out, std::vector<std::string> *warnings);
 
-// All valid <id>.conf of dir. A missing directory is no error.
+// The built-in button modes (latch-nav, next-mode, prev-mode: examples/buttons, embedded at build
+// time) plus all valid <id>.conf of dir. A file with the id of a built-in replaces it. A missing
+// directory is no error; dir "" loads the built-ins only.
 ButtonModeSet loadButtonModes(const std::string &dir, std::vector<std::string> *warnings);
 std::string buttonModesStamp(const std::string &dir);
 

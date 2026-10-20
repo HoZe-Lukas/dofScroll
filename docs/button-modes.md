@@ -37,11 +37,13 @@ by the current user, opened without following links; invalid lines and files are
 warning in the log (`Button modes: ...`). The folder is checked about once a second and reloaded
 when its contents change.
 
-On the first start of the interface the examples `latch-nav`, `next-mode`, `prev-mode` and `cycle-favorites` are copied into a
-missing `buttons/` folder (never overwriting anything). Without the interface:
-
-    mkdir -p -m 0700 ~/.config/dofscroll/buttons
-    cp /usr/share/dofscroll/examples/buttons/*.conf ~/.config/dofscroll/buttons/
+Four button modes are built into the program on every system (they need no file; nothing is
+copied into `~/.config/dofscroll/buttons/`): `latch-nav` (`toggle:nav`), `next-mode` (`mode:next`),
+`prev-mode` (`mode:prev`) and `cycle-favorites` (`mode:next` through a list you choose with `CYCLE`). Their text is `examples/buttons/<id>.conf`, embedded at build time. The
+button mode catalog lists them with the origin "Built in". "Create editable copy" writes a file with
+the same id that replaces the built-in one until you delete it; a file byte-identical to the built-in
+is not listed as your own. `next-mode` and `prev-mode` cycle through all loaded joystick modes in
+alphabetical order, built-ins included (see [modes.md](modes.md)).
 
 ## Choosing the modes to cycle through
 

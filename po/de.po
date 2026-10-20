@@ -2831,3 +2831,30 @@ msgstr "Dieses Gerät hat %1 Tasten"
 #: src/ui/qt/main_window.cpp
 msgid "Page title"
 msgstr "Seitentitel"
+
+#: src/ui/qt/pages/button_modes_page.cpp (built-in button modes)
+msgid "Create editable copy"
+msgstr "Bearbeitbare Kopie erstellen"
+
+#: src/ui/qt/pages/button_modes_page.cpp (built-in button modes)
+msgid ""
+"A built-in button mode has no file: create a file with the same id that "
+"replaces it"
+msgstr ""
+"Ein eingebauter Tastenmodus hat keine Datei: eine Datei mit derselben ID "
+"erstellen, die ihn ersetzt"
+
+#: src/ui/qt/pages/button_modes_page.cpp (built-in button modes)
+msgid "Built in (no file)"
+msgstr "Eingebaut (keine Datei)"
+
+#: src/ui/qt/pages/button_modes_page.cpp (built-in button modes)
+msgid ""
+"The built-in button mode \"%1\" is not a file. Create an editable file with "
+"the same id? It replaces the built-in button mode until you delete the file. "
+"To keep the original, use Duplicate instead."
+msgstr ""
+"Der eingebaute Tastenmodus \"%1\" ist keine Datei. Eine bearbeitbare Datei "
+"mit derselben ID erstellen? Sie ersetzt den eingebauten Tastenmodus, bis Sie "
+"die Datei löschen. Um das Original zu behalten, verwenden Sie stattdessen "
+"Duplizieren."

@@ -34,23 +34,51 @@ profile.
 Limits: up to 64 mode files, each up to 64 KiB, up to 128 overrides per file, regular files only.
 Invalid lines or files are skipped with a warning in the log.
 
-## Built-in modes
+## Built-in joystick modes
+
+Nine joystick modes ship inside the program on every system. They need no file, no examples folder
+and no install path, and nothing is copied into your configuration directory. They appear
+everywhere a mode can be chosen (profile drop-downs, tray menu, Overview, `MODE = <id>`,
+`mode:<id>` buttons) with the origin "Built in".
 
 | Mode | Behavior |
 |---|---|
 | `normal` | All channels `default`, no bindings. Scroll, Ctrl+scroll zoom and `NAV_BUTTON` (the older `CLICK_BUTTON` also still works). |
 | `off` | All channels `none`. Switches control off without `ENABLED = 0`. |
 | `timeline` | Vertical `none`, horizontal and twist `keys:left,right`. Scrubbing and single frames for video editing. |
+| `slides` | Up/down = `pageup`/`pagedown` (gentle rate, `SCROLL_V_SENS = 2`), sideways and twist off. |
+| `media` | Up/down = arrow up/down (volume), sideways = left/right (seek), twist = `j`/`l`. The keys are program-specific. |
+| `map` | Arrow keys for panning, `minus`/`plus` on twist for zoom (see Key names). |
+| `precision` | Default channels with low sensitivities (`SCROLL_V_SENS = 2`, `SCROLL_H_SENS = 1`, `ZOOM_SENS = 2`). |
+| `tabs` | Sideways = `ctrl+pageup` / `ctrl+pagedown` (previous / next tab in browsers and terminals; not verified in every program). |
+| `browse` | Up/down = page up/down, sideways = left/right, twist = zoom. |
 
-The first start also seeds eight example files into `~/.config/dofscroll/modes/`:
-`browse-keys` (page up/down, left/right, zoom), `cycle-modes` (button 2 = `mode:next`),
-`timeline` (adds Space on button 1 and Home on button 2, active only in that mode) and four
-axis-only modes without button bindings: `slides` (up/down = page up/down, gentle rate), `media`
-(up/down, left/right and `j`/`l` for volume and seek; the keys are program-specific), `map` (arrow
-keys for panning, `minus`/`plus` for zoom; see Key names) and `precision` (default channels with
-low sensitivities). `tabs` sends `ctrl+pageup` / `ctrl+pagedown` on the horizontal channel (switch tabs
-in browsers and terminals; not verified in every program). Their behavior in real programs is not verified. The shipped
-examples contain no button-to-key bindings that would be the same in every mode, see [Buttons and the vendor driver](#buttons-and-the-vendor-driver).
+Their behavior in real programs is not verified. The built-in modes contain no button-to-key
+bindings, see [Buttons and the vendor driver](#buttons-and-the-vendor-driver).
+
+The text of `slides`, `media`, `map`, `precision`, `tabs` and `browse` is the single source
+`examples/modes/<id>.conf`; the build embeds it into the program, and the program parses it with the
+same parser as a user file. `timeline`, `normal` and `off` are defined in code. The embedded set is
+never written to disk.
+
+**Changing a built-in.** In the interface, "Create editable copy" writes `~/.config/dofscroll/modes/<id>.conf`
+with the same id. A user file with the id of a built-in replaces it until you delete the file (the
+built-in comes back). A user file that is byte-identical to a shipped example (for example the copy
+that older versions made on first start) is the built-in itself and is not listed as your file.
+Older versions also copied `browse-keys.conf` (now the built-in `browse`) and `cycle-modes.conf`;
+if you still use them, edit your profiles to `MODE = browse` or bind the `next-mode` button mode instead. An
+unchanged `browse-keys.conf` or `cycle-modes.conf` is ignored by the loader, so remove the file
+if you want it gone; a file you changed keeps working under its own id.
+
+There is no built-in `cycle-modes` mode: it only bound `mode:next` to button 2 in an otherwise default
+mode, which the button mode `next-mode` does better and in every mode.
+
+**`mode:next` / `mode:prev` with the built-in library.** They cycle through *all* loaded modes in
+alphabetical order of the id, built-ins included: `browse`, `map`, `media`, `normal`, `off`,
+`precision`, `slides`, `tabs`, `timeline` plus your own, so the cycle is long. Use `mode:<id>` or
+`toggle:mode:<id>` for a short fixed set. Built-in modes have no bindings of their own, so a cycle
+started from a mode of yours stops at the next built-in unless you give that mode a binding too
+(create an editable copy, or switch back through the tray menu).
 
 ## Channel actions
 
@@ -291,5 +319,4 @@ The tray "Mode" submenu lists, below the mode choices, one entry per mode:
 The editor is started outside the tray's sandbox, like "Open config file". After saving, the
 daemon reloads the modes by itself and the new entry appears in the menu within about a second.
 
-The example modes (`timeline`, `browse-keys`, `cycle-modes`) are good starting points: copy one and
-change it.
+The built-in modes are good starting points: "Create editable copy" and change it.

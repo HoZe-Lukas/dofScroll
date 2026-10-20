@@ -85,20 +85,23 @@ Read every file before you copy it into `~/.config/dofscroll/modes/`. Look for `
 
 A mode that turns output off (like `off`) leaves the device inactive. Get out with the tray "Mode" menu, a `mode:next` or `mode:<id>` binding in the main config, or by editing `MODE` and reloading.
 
-## Example modes
+## Built-in joystick modes
 
-Shipped in [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/modes) and seeded on first start:
+Built into the program on every system, no files needed (the text is in [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/modes), embedded at build time):
 
-| File | Behavior |
+| Mode | Behavior |
 |---|---|
-| `browse-keys.conf` | Up/down = page up/down, sideways = left/right, twist = zoom |
-| `cycle-modes.conf` | Default channels; button 2 = `mode:next` |
-| `slides.conf` | Up/down = page up/down, sideways and twist off; `SCROLL_V_SENS = 2` |
-| `media.conf` | Up/down = arrow up/down (volume), sideways = left/right (seek), twist = `j`/`l`; program-specific keys |
-| `map.conf` | Arrow keys for up/down and sideways, twist = `minus`/`plus` (layout caveat, see Key names) |
-| `precision.conf` | Default channels with low sensitivities (`SCROLL_V_SENS = 2`, `SCROLL_H_SENS = 1`, `ZOOM_SENS = 2`) |
-| `tabs.conf` | Sideways = `ctrl+pageup` / `ctrl+pagedown` (previous / next tab); needs no chord warning |
-| `timeline.conf` | Sideways and twist = left/right; button 1 Space, button 2 Home (only while this mode is active); `SCROLL_H_SENS = 4` |
+| `normal` | Default channels |
+| `off` | Sends nothing |
+| `timeline` | Sideways and twist = left/right arrow keys, vertical off |
+| `slides` | Up/down = page up/down, sideways and twist off; `SCROLL_V_SENS = 2` |
+| `media` | Up/down = arrow up/down (volume), sideways = left/right (seek), twist = `j`/`l`; program-specific keys |
+| `map` | Arrow keys for up/down and sideways, twist = `minus`/`plus` (layout caveat, see Key names) |
+| `precision` | Default channels with low sensitivities (`SCROLL_V_SENS = 2`, `SCROLL_H_SENS = 1`, `ZOOM_SENS = 2`) |
+| `tabs` | Sideways = `ctrl+pageup` / `ctrl+pagedown` (previous / next tab); needs no chord warning |
+| `browse` | Up/down = page up/down, sideways = left/right, twist = zoom |
+
+Built-in button modes: `latch-nav`, `next-mode`, `prev-mode` (see [Buttons](Buttons)). A file with the same id in `~/.config/dofscroll/modes/` replaces a built-in ("Create editable copy" in the interface). `mode:next` cycles through all loaded modes in alphabetical order, built-ins included.
 
 Use `timeline` for video editing in a program of your choice, for example `[app:resolve]` with `MODE = timeline` (DaVinci Resolve's behavior is not verified here).
 

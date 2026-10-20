@@ -202,17 +202,14 @@ Do these steps once per machine. Steps 1 and 5 need root.
 ### First start: seeding
 
 When the Qt interface or the GTK tray starts and no config exists, it creates
-`~/.config/dofscroll/dofscroll.conf` from `examples/default/dofscroll.conf` and copies the example
-modes into `~/.config/dofscroll/modes/` and the example button modes into `~/.config/dofscroll/buttons/` (each only when that folder is missing). It never overwrites an existing file. The daemon cannot
-write to that directory, so only the interface seeds. Without it, copy the files yourself:
+`~/.config/dofscroll/dofscroll.conf` from `examples/default/dofscroll.conf`. It never overwrites an
+existing file. The joystick modes and button modes are built into the program and are not copied.
+The daemon cannot write to that directory, so only the interface seeds. Without it, copy the file yourself:
 
-    mkdir -p -m 0700 ~/.config/dofscroll/modes
+    mkdir -p -m 0700 ~/.config/dofscroll
     cp /usr/share/dofscroll/examples/default/dofscroll.conf ~/.config/dofscroll/
-    cp /usr/share/dofscroll/examples/modes/*.conf ~/.config/dofscroll/modes/
-    mkdir -p -m 0700 ~/.config/dofscroll/buttons
-    cp /usr/share/dofscroll/examples/buttons/*.conf ~/.config/dofscroll/buttons/
 
-The interface looks for the examples in `$DOFSCROLL_EXAMPLES`, next to the executable, in
+The interface looks for the default configuration in `$DOFSCROLL_EXAMPLES`, next to the executable, in
 `../share/dofscroll/examples`, then `/usr/local/share/dofscroll/examples` and
 `/usr/share/dofscroll/examples`.
 

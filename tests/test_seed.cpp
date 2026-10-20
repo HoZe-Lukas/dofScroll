@@ -52,39 +52,32 @@ int main() {
 
     mkdir1(ex + "/default");
     mkdir1(ex + "/modes");
+    mkdir1(ex + "/buttons");
     put(ex + "/default/dofscroll.conf", "[global]\nA = 1\n");
     put(ex + "/modes/a.conf", "a\n");
-    put(ex + "/modes/b.conf", "b\n");
-    put(ex + "/modes/skip.txt", "x\n");
-    put(ex + "/modes/big.conf", std::string(70 * 1024, 'x'));
-    put(root + "/secret", "secret\n");
-#ifndef _WIN32
-    assert(::symlink((root + "/secret").c_str(), (ex + "/modes/link.conf").c_str()) == 0);
-#endif
+    put(ex + "/buttons/latch.conf", "ACTION = toggle:nav\n");
 
+    // only the configuration is seeded: the joystick and button modes are built in
     assert(spn::seedDefaults(&log));
     assert(!log.empty());
     assert(get(conf) == "[global]\nA = 1\n");
-    assert(get(modes + "/a.conf") == "a\n" && get(modes + "/b.conf") == "b\n");
-    assert(!exists(modes + "/skip.txt") && !exists(modes + "/big.conf") && !exists(modes + "/link.conf"));
+    assert(!exists(modes) && !exists(cfg + "/dofscroll/buttons") && countTmp(cfg + "/dofscroll") == 0);
 #ifndef _WIN32
     struct stat st;
     assert(::stat(conf.c_str(), &st) == 0 && (st.st_mode & 0777) == 0600);
-    assert(::stat(modes.c_str(), &st) == 0 && (st.st_mode & 0777) == 0700);
 #endif
 
     // idempotent, never overwrites
     put(conf, "mine\n");
-    put(modes + "/a.conf", "mine\n");
     assert(!spn::seedDefaults(&log));
-    assert(get(conf) == "mine\n" && get(modes + "/a.conf") == "mine\n");
+    assert(get(conf) == "mine\n" && !exists(modes));
 
-    // an existing modes dir blocks mode seeding, a missing config is re-seeded
+    // a missing config is re-seeded, existing user directories are left alone
     spn::fs::removeFile(conf);
-    put(ex + "/modes/c.conf", "c\n");
+    mkdir1(modes);
+    put(modes + "/a.conf", "mine\n");
     assert(spn::seedDefaults(&log));
-    assert(get(conf) == "[global]\nA = 1\n");
-    assert(get(modes + "/a.conf") == "mine\n" && !exists(modes + "/c.conf"));
+    assert(get(conf) == "[global]\nA = 1\n" && get(modes + "/a.conf") == "mine\n" && !exists(modes + "/b.conf"));
 
     // a config at the previous location counts as an existing config
     spn::fs::removeFile(conf);
@@ -93,39 +86,12 @@ int main() {
     assert(!spn::seedDefaults(&log));
     assert(!exists(conf));
 
-    // interrupted earlier run: a stale temp directory is cleaned up and the complete set is published
+    // an oversized example configuration is refused
     {
         tu::removeAll(cfg + "/dofscroll");
         tu::removeAll(cfg + "/spnav-scroll");
-        mkdir1(cfg + "/dofscroll");
-        const std::string stale = cfg + "/dofscroll/modes.tmp.99999";
-        mkdir1(stale);
-        put(stale + "/a.conf", "partial\n");
-        assert(!exists(modes));
-        assert(spn::seedDefaults(&log));
-        assert(!exists(stale));  // stale temp directory removed
-        assert(get(modes + "/a.conf") == "a\n" && get(modes + "/b.conf") == "b\n");
-        // no temporary leftovers next to the published files
-        assert(countTmp(cfg + "/dofscroll") == 0 && countTmp(modes) == 0);
-    }
-
-    // button modes: a missing buttons/ directory is seeded from examples/buttons once, never overwritten
-    {
-        const std::string buttons = cfg + "/dofscroll/buttons";
-        mkdir1(ex + "/buttons");
-        put(ex + "/buttons/latch.conf", "ACTION = toggle:nav\n");
-        put(ex + "/buttons/nextm.conf", "ACTION = mode:next\n");
-        put(ex + "/buttons/skip.txt", "x\n");
-        assert(!exists(buttons));
-        assert(spn::seedDefaults(&log) && log.find("button mode") != std::string::npos);
-        assert(get(buttons + "/latch.conf") == "ACTION = toggle:nav\n" && exists(buttons + "/nextm.conf"));
-        assert(!exists(buttons + "/skip.txt") && countTmp(cfg + "/dofscroll") == 0);
-        put(buttons + "/latch.conf", "mine\n");
-        assert(!spn::seedDefaults(&log));
-        assert(get(buttons + "/latch.conf") == "mine\n");
-        // a removed file is not brought back while the directory exists
-        spn::fs::removeFile(buttons + "/nextm.conf");
-        assert(!spn::seedDefaults(&log) && !exists(buttons + "/nextm.conf"));
+        put(ex + "/default/dofscroll.conf", std::string(70 * 1024, 'x'));
+        assert(!spn::seedDefaults(&log) && !exists(conf));
     }
 
     tu::removeAll(root);

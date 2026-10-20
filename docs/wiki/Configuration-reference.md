@@ -71,7 +71,7 @@ All are validated by `cmake --build build --target check-config`. Packages insta
 | [examples/dofscroll-pro.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-pro.conf) | SpaceMouse Pro, buttons off |
 | [examples/dofscroll-compact.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-compact.conf) | SpaceMouse Compact, both buttons active |
 | [examples/dofscroll-multi-device.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-multi-device.conf) | Both device profiles in one file |
-| [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/modes) | Example modes |
+| [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/modes) | Built-in joystick modes (embedded in the program) |
 
 ## Text and encoding
 

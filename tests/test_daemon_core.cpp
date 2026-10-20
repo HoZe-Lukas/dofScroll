@@ -294,7 +294,8 @@ static std::string statusMode(const Rig &r) {
 }
 
 static void testModeSwitchButton() {
-    // ids: alpha < normal < off < timeline (built-ins: normal, off, timeline)
+    // ids: alpha < browse < map < media < normal < off < precision < slides < tabs < timeline < zed
+    // (built-ins: normal, off, timeline, slides, media, map, precision, tabs, browse)
     Rig r(std::string(BASE_CONF) + "MODE = alpha\n",
           {{"alpha.conf", "BUTTON_2 = mode:next\nBUTTON_3 = key:space\n"},
            {"zed.conf", "BUTTON_2 = mode:next\nBUTTON_4 = mode:off\n"}});
@@ -311,22 +312,22 @@ static void testModeSwitchButton() {
     r.run(0.1);
     r.src.pushButton(0, 1, true);
     r.run(0.1);
-    CHECK(r.core->runner().mode().id == "normal", "next after alpha is normal (got %s)",
+    CHECK(r.core->runner().mode().id == "browse", "next after alpha is browse, the first built-in id (got %s)",
           r.core->runner().mode().id.c_str());
     r.src.pushButton(0, 1, false);
     r.src.pushButton(0, 2, false);
     r.run(0.1);
-    CHECK(statusMode(r) == "normal", "status shows the effective mode (%s)", statusMode(r).c_str());
+    CHECK(statusMode(r) == "browse", "status shows the effective mode (%s)", statusMode(r).c_str());
     // unrelated profile re-resolution (app change) keeps the override
     r.win.cls = "navigator firefox";
     r.run(0.3);
-    CHECK(r.core->runner().mode().id == "normal", "override is sticky across profile changes");
-    // normal has no binding: the user cannot cycle further from there. Reload clears the override.
+    CHECK(r.core->runner().mode().id == "browse", "override is sticky across profile changes");
+    // browse has no binding: the user cannot cycle further from there. Reload clears the override.
     writeFile(r.dir + "/modes/alpha.conf", "BUTTON_2 = mode:next\n");
     r.reload.pending = true;
     r.run(0.05);
     CHECK(r.core->runner().mode().id == "alpha", "reload clears the override (%s)", r.core->runner().mode().id.c_str());
-    // cycle through all modes and wrap: alpha -> normal; use zed to wrap by going to last
+    // cycle through all modes and wrap: alpha -> browse; use zed to wrap by going to last
     r.reload.pending = true;
     writeFile(r.conf, std::string(BASE_CONF) + "MODE = zed\n");
     r.run(0.05);
@@ -334,7 +335,7 @@ static void testModeSwitchButton() {
     press(1);  // next wraps around from the last id
     CHECK(r.core->runner().mode().id == "alpha", "next wraps to the first id");
     press(1);  // next -> normal
-    CHECK(r.core->runner().mode().id == "normal", "alpha -> normal");
+    CHECK(r.core->runner().mode().id == "browse", "alpha -> browse");
     CHECK(!r.rec.ctrl, "no stray state");
     r.reload.pending = true;  // back to zed
     r.run(0.05);
@@ -343,9 +344,35 @@ static void testModeSwitchButton() {
     CHECK(r.core->runner().mode().id == "off", "fixed target mode:off");
 }
 
+// The built-in library takes part in the cycle: a user file with the id of a built-in can start it,
+// the next id in alphabetical order is the next built-in (map after browse), and prev wraps to the last id.
+static void testModeCycleBuiltins() {
+    Rig r(std::string(BASE_CONF) + "MODE = browse\n",
+          {{"browse.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n"},
+           {"map.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n"},
+           {"zed.conf", "BUTTON_1 = mode:prev\n"}});
+    r.run(0.1);
+    auto press = [&](int b) {
+        r.src.pushButton(0, b, true);
+        r.run(0.1);
+        r.src.pushButton(0, b, false);
+        r.run(0.1);
+    };
+    auto id = [&] { return r.core->runner().mode().id; };
+    CHECK(id() == "browse", "starts in the overridden built-in (%s)", id().c_str());
+    press(1);
+    CHECK(id() == "map", "next after browse is the built-in map (%s)", id().c_str());
+    press(0);
+    CHECK(id() == "browse", "prev from map is browse (%s)", id().c_str());
+    press(0);
+    CHECK(id() == "zed", "prev from the first id wraps to the last (%s)", id().c_str());
+    press(0);
+    CHECK(id() == "timeline", "prev from zed is the built-in timeline (%s)", id().c_str());
+}
+
 // mode:prev is the mirror of mode:next: alphabetical ids, wrapping in both directions.
 static void testModePrev() {
-    // ids: alpha < normal < off < timeline < zed (built-ins: normal, off, timeline)
+    // ids: alpha < browse < ... < timeline < zed (nine built-ins, see above)
     Rig r(std::string(BASE_CONF) + "MODE = alpha\n",
           {{"alpha.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n"},
            {"zed.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n"}});
@@ -369,15 +396,15 @@ static void testModePrev() {
     CHECK(id() == "zed", "zed active after the reload");
     press(1);  // next from the last id wraps to the first
     CHECK(id() == "alpha", "next wraps from the last to the first (%s)", id().c_str());
-    press(1);  // next -> normal
-    CHECK(id() == "normal", "alpha -> normal");
+    press(1);  // next -> browse
+    CHECK(id() == "browse", "alpha -> browse");
     // next followed by prev returns to the start
     r.reload.pending = true;
     writeFile(r.conf, std::string(BASE_CONF) + "MODE = alpha\n");
     r.run(0.05);
     press(1);
-    CHECK(id() == "normal", "next from alpha");
-    // (normal has no binding: go back through the file mode instead)
+    CHECK(id() == "browse", "next from alpha");
+    // (browse has no binding: go back through the file mode instead)
     r.reload.pending = true;
     r.run(0.05);
     press(0);
@@ -736,6 +763,7 @@ int main() {
     testModeSwitchButton();
     testModePrev();
     testModeCycleList();
+    testModeCycleBuiltins();
     testHoldMode();
     testModeNamedRelease();
     testToggleButtons();

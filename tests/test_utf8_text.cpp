@@ -397,16 +397,15 @@ void testFileLayer(const std::string &dir) {
 void testSeeding(const std::string &root) {
     const std::string ex = root + "/examples (v1)", home = root + "/cfg home";
     std::string err;
-    assert(fs::mkdirsPrivate(ex + "/default", &err) && fs::mkdirsPrivate(ex + "/modes", &err));
+    assert(fs::mkdirsPrivate(ex + "/default", &err));
     assert(fs::mkdirsPrivate(home, &err));
     writeAll(ex + "/default/dofscroll.conf", "[global]\nMODE = normal\n\n[app:M\xc3\xbcller Tool]\nMODE = off\n");
-    writeAll(ex + "/modes/timeline.conf", "NAME = Zeitleiste \xe6\x97\xa5\xe6\x9c\xac\n");
     const std::string base = tu::useConfigBase(home);
     tu::setEnv("DOFSCROLL_EXAMPLES", ex);
     std::string log;
     assert(seedDefaults(&log));
     assert(readAll(base + "/dofscroll/dofscroll.conf") == readAll(ex + "/default/dofscroll.conf"));
-    assert(readAll(base + "/dofscroll/modes/timeline.conf") == readAll(ex + "/modes/timeline.conf"));
+    assert(!fs::pathExists(base + "/dofscroll/modes"));  // modes are built in, never copied
     assert(log.find("cfg home") != std::string::npos && utf8::isValid(log));
     ProfileSet ps;
     std::vector<std::string> warn;

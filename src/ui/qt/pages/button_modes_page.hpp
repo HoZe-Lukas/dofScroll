@@ -58,6 +58,7 @@ private:
     void onImport();
     void onSave();
     void onDelete();
+    void onEditableCopy();  // built-in button mode: file with the same id that replaces it
     void onOpenFolder();
     void onOpenInEditor();
     bool openInEditor(const std::string &path);
@@ -75,7 +76,7 @@ private:
     QLabel *fileLabel_ = nullptr;
     QPlainTextEdit *warnings_ = nullptr;
     QPushButton *newBtn_ = nullptr, *dupBtn_ = nullptr, *importBtn_ = nullptr, *delBtn_ = nullptr,
-                *folderBtn_ = nullptr, *saveBtn_ = nullptr, *revertBtn_ = nullptr, *textEditorBtn_ = nullptr;
+                *folderBtn_ = nullptr, *copyBtn_ = nullptr, *saveBtn_ = nullptr, *revertBtn_ = nullptr, *textEditorBtn_ = nullptr;
     QTimer *timer_ = nullptr;
     spn::ui::Binding binding_;  // the action as the editor shows it
     QString shownId_;  // the button mode the form shows (the list may be moved back to it)
