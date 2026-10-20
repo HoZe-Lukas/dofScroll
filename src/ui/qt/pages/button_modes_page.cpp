@@ -28,7 +28,9 @@
 #include "ui/model/design_tokens.hpp"
 #include "ui/model/ui_links.hpp"
 #include "ui_i18n.hpp"
-#include "unsaved_prompt.hpp"
+#include "seed.hpp"
+#include "ui/model/examples_model.hpp"
+#include "ui/model/ui_terms.hpp"
 
 using spn::ui::Binding;
 using spn::ui::BindingKind;
@@ -48,7 +50,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
       ownCatalog_(ctx.buttonModes ? nullptr : new ButtonModeCatalog(ctx.buttonModesDir)),
       catalog_(ctx.buttonModes ? *ctx.buttonModes : *ownCatalog_) {
     auto *root = new QVBoxLayout(this);
-    root->addWidget(new QLabel(QStringLiteral("<b>") + T("Button modes") + QStringLiteral("</b>"), this));
+    root->addWidget(new QLabel(QStringLiteral("<b>") + T(spn::ui::terms::kButtonModes) + QStringLiteral("</b>"), this));
 
     auto addNote = [&](const QString &text) {
         auto *l = new QLabel(text, this);
@@ -74,7 +76,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     auto *row = new QHBoxLayout;
     auto *split = new QSplitter(Qt::Horizontal, this);
     list_ = new QListWidget(split);
-    list_->setAccessibleName(T("Button modes"));
+    list_->setAccessibleName(T(spn::ui::terms::kButtonModes));
     list_->setToolTip(T("The files in the button modes folder"));
 
     auto *right = new QWidget(split);
@@ -107,19 +109,15 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     fileLabel_->setWordWrap(true);
     form->addRow(T("File:"), fileLabel_);
     rl->addLayout(form);
-    auto *editRow = new QHBoxLayout;
-    saveBtn_ = new QPushButton(T("Save"), right);
-    saveBtn_->setProperty("primary", true);  // the accent button of the page
-    saveBtn_->setToolTip(T("Write the changes to the button mode file"));
-    revertBtn_ = new QPushButton(T("Revert"), right);
-    revertBtn_->setToolTip(T("Discard the changes and reload the file"));
+    problem_ = new QLabel(right);
+    problem_->setWordWrap(true);
+    problem_->setProperty("error", true);
+    problem_->setVisible(false);
+    problem_->setAccessibleName(T("Problem"));
+    rl->addWidget(problem_);
     textEditorBtn_ = new QPushButton(T("Open in text editor"), right);
     textEditorBtn_->setToolTip(T("Open the file in your default editor"));
-    editRow->addWidget(saveBtn_);
-    editRow->addWidget(revertBtn_);
-    editRow->addWidget(textEditorBtn_);
-    editRow->addStretch(1);
-    rl->addLayout(editRow);
+    rl->addWidget(textEditorBtn_, 0, Qt::AlignLeft);
     warnings_ = new QPlainTextEdit(right);
     warnings_->setReadOnly(true);  // plain text only: button mode files are foreign content
     warnings_->setAccessibleName(T("Warnings of the selected button mode"));
@@ -138,6 +136,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
         return b;
     };
     newBtn_ = mk(T("New button mode"), T("Create a button mode file from a commented template"));
+    exampleBtn_ = mk(T("New from example..."), T("Copy one of the examples that ship with dofscroll into your folder"));
     dupBtn_ = mk(T("Duplicate"), T("Copy the selected button mode under a new name"));
     importBtn_ = mk(T("Import file..."), T("Add a button mode file from somewhere else (you see its warnings first)"));
     copyBtn_ = mk(T("Create editable copy"),
@@ -151,29 +150,29 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     setTabOrder(list_, name_);
     setTabOrder(name_, description_);
     setTabOrder(description_, kind_);
-    setTabOrder(kind_, saveBtn_);
-    setTabOrder(saveBtn_, revertBtn_);
-    setTabOrder(revertBtn_, textEditorBtn_);
+    setTabOrder(kind_, textEditorBtn_);
     setTabOrder(textEditorBtn_, newBtn_);
-    setTabOrder(newBtn_, dupBtn_);
+    setTabOrder(newBtn_, exampleBtn_);
+    setTabOrder(exampleBtn_, dupBtn_);
     setTabOrder(dupBtn_, importBtn_);
     setTabOrder(importBtn_, copyBtn_);
     setTabOrder(copyBtn_, delBtn_);
     setTabOrder(delBtn_, folderBtn_);
 
     connect(list_, &QListWidget::currentItemChanged, this, [this] { onCurrentChanged(); });
-    connect(name_, &QLineEdit::textEdited, this, [this] { markDirty(); });
-    connect(description_, &QLineEdit::textEdited, this, [this] { markDirty(); });
+    connect(name_, &QLineEdit::textEdited, this, [this] { markDirty(true); });
+    connect(description_, &QLineEdit::textEdited, this, [this] { markDirty(true); });
+    connect(name_, &QLineEdit::editingFinished, this, [this] { flush(); });  // focus out: now
+    connect(description_, &QLineEdit::editingFinished, this, [this] { flush(); });
     connect(kind_, &QComboBox::activated, this, [this](int idx) {
         const std::vector<std::string> ids = spn::ui::bindingModeIds(spn::loadModes(ctx_.modesDir, nullptr));
         binding_ = spn::ui::withKind(binding_, BindingKind(kind_->itemData(idx).toInt()), ids);
         rebuildActionArg();
-        markDirty();
+        markDirty(false);
     });
-    connect(saveBtn_, &QPushButton::clicked, this, [this] { onSave(); });
-    connect(revertBtn_, &QPushButton::clicked, this, [this] { loadForm(); });
     connect(textEditorBtn_, &QPushButton::clicked, this, [this] { onOpenInEditor(); });
     connect(newBtn_, &QPushButton::clicked, this, [this] { onNew(); });
+    connect(exampleBtn_, &QPushButton::clicked, this, [this] { onNewFromExample(); });
     connect(dupBtn_, &QPushButton::clicked, this, [this] { onDuplicate(); });
     connect(importBtn_, &QPushButton::clicked, this, [this] { onImport(); });
     connect(copyBtn_, &QPushButton::clicked, this, [this] { onEditableCopy(); });
@@ -183,6 +182,11 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     timer_ = new QTimer(this);
     timer_->setInterval(1000);
     connect(timer_, &QTimer::timeout, this, &ButtonModesPage::refreshIfChanged);
+
+    // The writer: a complete form only; its status goes to the footer of the window.
+    saver_ = std::make_unique<Autosaver>([this] { return dirty_ && !shownId_.isEmpty(); }, [this] { return writeForm(); },
+                                         ctx_.strings ? *ctx_.strings : ownStrings_, this);
+    connect(saver_.get(), &Autosaver::statusChanged, this, [this](const QString &text, bool error) { ctx_.report(text, error); });
 
     populate(QString());
 }
@@ -214,23 +218,11 @@ void ButtonModesPage::selectRow(const QString &id) {
         }
 }
 
-// True if the form may be replaced: nothing to lose, or the user chose Save (and it worked) or Discard.
-// dirty_ stays set; the caller resets it once the replacement really happens.
-bool ButtonModesPage::confirmLeaveForm() {
-    if (!dirty_) return true;
-    const std::string what = (name_->text().isEmpty() ? shownId_ : name_->text()).toStdString();
-    return spn::ui::mayLeaveForm(true, what, [this](const std::string &w) { return unsaved_prompt::ask(this, w); },
-                                 [this] { return save(shownId_.toStdString()); });
-}
-
 void ButtonModesPage::onCurrentChanged() {
     const QString target = currentId();
     if (dirty_ && target != shownId_) {
-        if (!confirmLeaveForm()) {
-            selectRow(shownId_);  // stay on the button mode that is being edited
-            return;
-        }
-        selectRow(target);  // a Save repopulated the list on the edited entry
+        flush();  // the button mode that was edited is written first; the write repopulates the list
+        selectRow(target);
     }
     loadForm();
 }
@@ -255,7 +247,8 @@ void ButtonModesPage::populate(const QString &selectId) {
         int select = 0, n = 0;
         for (const ButtonModeCatalog::Entry &b : catalog_.buttonModes()) {
             const QString id = qs(b.id), label = qs(b.label);
-            auto *it = new QListWidgetItem(label == id ? id : label + QStringLiteral(" (") + id + QStringLiteral(")"));
+            auto *it = new QListWidgetItem((label == id ? id : label + QStringLiteral(" (") + id + QStringLiteral(")")) +
+                                           QStringLiteral("  -  ") + qs8(spn::ui::buttonModeOriginText(QtStrings())));
             it->setData(kRoleId, id);
             if (!b.warnings.empty()) it->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
             it->setToolTip(qs(b.description));
@@ -265,9 +258,9 @@ void ButtonModesPage::populate(const QString &selectId) {
         }
         if (n) list_->setCurrentRow(select);
     }
-    if (dirty_ && current() && qs(current()->id) == selectId) {
-        // keep the edited form, only refresh the warnings
-        warnings_->setPlainText(QString());
+    if ((dirty_ || keepForm_) && current() && qs(current()->id) == selectId) {
+        // keep the edited form (a write must not reset what is being typed), only refresh the warnings
+        updateWarnings();
     } else {
         loadForm();
     }
@@ -287,6 +280,21 @@ void ButtonModesPage::loadForm() {
     rebuildActionArg();
     fileLabel_->setText(e ? (e->builtin ? T("Built in (no file)") : qs(e->path)) : QString());
     shownId_ = e ? qs(e->id) : QString();
+    updateWarnings();
+    const bool has = e != nullptr;
+    for (QWidget *w : {static_cast<QWidget *>(name_), static_cast<QWidget *>(description_), static_cast<QWidget *>(kind_),
+                       static_cast<QWidget *>(argHost_), static_cast<QWidget *>(textEditorBtn_)})
+        w->setEnabled(has);
+    dupBtn_->setEnabled(has);
+    delBtn_->setEnabled(has);
+    dirty_ = false;
+    showProblem(QString());
+    loading_ = false;
+}
+
+// The warnings of the selected entry and of the folder, below the form.
+void ButtonModesPage::updateWarnings() {
+    const ButtonModeCatalog::Entry *e = current();
     QString t;
     if (e && !e->warnings.empty()) {
         t += T("Warnings:") + QLatin1Char('\n');
@@ -299,18 +307,6 @@ void ButtonModesPage::loadForm() {
     if (!e && catalog_.buttonModes().empty())
         t = T("No button modes yet. \"New button mode\" creates one; the folder also accepts files you copy there.");
     warnings_->setPlainText(t);
-    const bool has = e != nullptr;
-    const bool editable = has && !e->builtin;  // a built-in button mode has no file to edit
-    for (QWidget *w : {static_cast<QWidget *>(name_), static_cast<QWidget *>(description_), static_cast<QWidget *>(kind_),
-                       static_cast<QWidget *>(argHost_), static_cast<QWidget *>(textEditorBtn_)})
-        w->setEnabled(editable);
-    dupBtn_->setEnabled(has);
-    copyBtn_->setEnabled(has && e->builtin);
-    delBtn_->setEnabled(editable);
-    dirty_ = false;
-    saveBtn_->setEnabled(false);
-    revertBtn_->setEnabled(false);
-    loading_ = false;
 }
 
 void ButtonModesPage::rebuildActionArg() {
@@ -323,7 +319,7 @@ void ButtonModesPage::rebuildActionArg() {
         connect(kc, &QComboBox::activated, this, [this, kc](int) {
             if (!kc->currentData().isValid()) return;
             binding_.arg = kc->currentData().toString().toStdString();
-            markDirty();
+            markDirty(false);
         });
         argWidget_ = kc;
     } else if (binding_.kind == BindingKind::Mode || binding_.kind == BindingKind::ToggleMode ||
@@ -336,24 +332,36 @@ void ButtonModesPage::rebuildActionArg() {
         mc->setCurrentIndex(std::max(0, mc->findData(qs(binding_.arg))));
         connect(mc, &QComboBox::activated, this, [this, mc](int) {
             binding_.arg = mc->currentData().toString().toStdString();
-            markDirty();
+            markDirty(false);
         });
         argWidget_ = mc;
     }
     if (argWidget_) lay->addWidget(argWidget_);
 }
 
-void ButtonModesPage::markDirty() {
+// An edit: an incomplete action (no key chosen) is said, not written; otherwise the write follows (a typed
+// text after a pause, a drop-down at once).
+void ButtonModesPage::markDirty(bool typed) {
     if (loading_) return;
     dirty_ = true;
-    saveBtn_->setEnabled(true);
-    revertBtn_->setEnabled(true);
+    if (composedAction().empty()) {
+        showProblem(T("Not saved until an action is complete: choose a key or a joystick mode."));
+        return;
+    }
+    showProblem(QString());
+    if (typed) saver_->requestDebounced();
+    else saver_->requestImmediate();
+}
+
+void ButtonModesPage::showProblem(const QString &text) {
+    problem_->setText(text);
+    problem_->setVisible(!text.isEmpty());
 }
 
 std::string ButtonModesPage::composedAction() const { return spn::ui::composeBinding(binding_); }
 
 void ButtonModesPage::showError(const QString &what, const std::string &detail) {
-    QMessageBox::warning(this, T("Button modes"), what + QStringLiteral("\n\n") + qs(detail));
+    QMessageBox::warning(this, T(spn::ui::terms::kButtonModes), what + QStringLiteral("\n\n") + qs(detail));
 }
 
 bool ButtonModesPage::openInEditor(const std::string &path) {
@@ -389,44 +397,39 @@ bool ButtonModesPage::stageEdit(const QString &name, const QString &description,
     kind_->setCurrentIndex(idx);
     rebuildActionArg();
     loading_ = false;
-    markDirty();
+    markDirty(false);
     return true;
 }
 
 bool ButtonModesPage::editCurrent(const QString &name, const QString &description, const QString &action) {
     if (!stageEdit(name, description, action)) return false;
     const std::string id = current()->id;
-    save(id);
+    flush();
     return !dirty_ && catalog_.find(id) != nullptr;
 }
 
-void ButtonModesPage::onSave() { save(currentId().toStdString()); }
-
-// Saves the form under `id`: the entry the form belongs to, which is not the selected row while the
-// selection is being moved to another entry.
-bool ButtonModesPage::save(const std::string &id) {
-    if (id.empty() || !catalog_.find(id)) return false;
+// Writes the form under shownId_: the entry the form belongs to, which is not the selected row while the
+// selection is being moved to another entry. A complete form only.
+spn::ui::Autosave::Outcome ButtonModesPage::writeForm() {
+    const std::string id = shownId_.toStdString();
+    if (id.empty() || !catalog_.find(id)) return {false, true, "no button mode is selected"};
     const std::string action = composedAction();
-    if (action.empty()) {
-        showError(T("Could not save the button mode."), "choose a key or a mode first");
-        return false;
-    }
+    if (action.empty()) return {false, true, "choose a key or a joystick mode first"};
     const ButtonModeCatalog::Result r =
         catalog_.save(id, name_->text().toUtf8().toStdString(), description_->text().toUtf8().toStdString(), action);
-    if (!r.ok) {
-        showError(T("Could not save the button mode."), r.error);
-        return false;
-    }
+    if (!r.ok) return {false, true, r.error};
     dirty_ = false;
+    keepForm_ = true;  // the list shows the new name; the form stays as it is (the caret does not jump)
     populate(qs(id));
-    return true;
+    keepForm_ = false;
+    return {true, true, std::string()};
 }
 
 void ButtonModesPage::onNew() {
     bool ok = false;
     const QString name = askName(T("New button mode"), T("Name of the new button mode:"), QString(), &ok);
     if (!ok) return;
-    if (!confirmLeaveForm()) return;
+    flush();
     const ButtonModeCatalog::Result r = catalog_.createNew(name.toStdString());
     if (!r.ok) return showError(T("Could not create the button mode."), r.error);
     dirty_ = false;
@@ -442,7 +445,7 @@ void ButtonModesPage::onDuplicate() {
     bool ok = false;
     const QString name = askName(T("Duplicate"), T("Name of the copy:"), T("%1 (copy)").arg(label), &ok);
     if (!ok) return;
-    if (!confirmLeaveForm()) return;
+    flush();
     const ButtonModeCatalog::Result r = catalog_.duplicate(id, name.toStdString());
     if (!r.ok) return showError(T("Could not duplicate the button mode."), r.error);
     dirty_ = false;
@@ -500,7 +503,7 @@ void ButtonModesPage::onImport() {
     box.setEscapeButton(no);
     box.exec();
     if (box.clickedButton() != yes) return;
-    if (!confirmLeaveForm()) return;
+    flush();
     const ButtonModeCatalog::Result r = catalog_.importFile(path, name);
     if (!r.ok) return showError(T("Could not import the button mode."), r.error);
     dirty_ = false;
@@ -529,9 +532,9 @@ void ButtonModesPage::onDelete() {
     box.setEscapeButton(no);
     box.exec();
     if (box.clickedButton() != yes) return;
+    dirty_ = false;  // the button mode is deleted: edits of it are moot
     const ButtonModeCatalog::Result r = catalog_.remove(id);
     if (!r.ok) return showError(T("Could not delete the button mode."), r.error);
-    dirty_ = false;
     populate(QString());
 }
 
@@ -547,4 +550,53 @@ void ButtonModesPage::onOpenInEditor() {
     if (!e) return;
     const std::string path = e->path;
     openInEditor(path);
+}
+
+// "New from example...": the examples that ship with dofscroll and are not in the folder yet.
+void ButtonModesPage::onNewFromExample() {
+    const std::vector<spn::ui::Example> ex = spn::ui::availableButtonModeExamples(catalog_, spn::examplesDir());
+    if (ex.empty()) {
+        QMessageBox::information(this, T("New from example"),
+                                 T("All examples are already in your button modes folder, or none ships with this installation."));
+        return;
+    }
+    QStringList items;
+    for (const spn::ui::Example &e : ex)
+        items << qs(e.label) + QStringLiteral("  -  ") + qs(spn::ui::exampleOriginText(QtStrings())) +
+                     (e.description.empty() ? QString() : QStringLiteral("  -  ") + qs(e.description));
+    bool ok = false;
+    const QString pick = QInputDialog::getItem(this, T("New from example"), T("Copy this example into your button modes folder:"),
+                                               items, 0, false, &ok);
+    if (!ok) return;
+    const int idx = items.indexOf(pick);
+    if (idx < 0) return;
+    if (!installExample(qs(ex[size_t(idx)].id))) showError(T("Could not add the example."), lastError_.toStdString());
+}
+
+bool ButtonModesPage::installExample(const QString &id) {
+    lastError_.clear();
+    for (const spn::ui::Example &e : spn::ui::availableButtonModeExamples(catalog_, spn::examplesDir())) {
+        if (qs(e.id) != id) continue;
+        flush();
+        const spn::ui::ExampleResult r = spn::ui::installButtonModeExample(catalog_, e);
+        if (!r.ok) {
+            lastError_ = qs(r.error);
+            return false;
+        }
+        dirty_ = false;
+        populate(qs(r.id));
+        return true;
+    }
+    lastError_ = T("This example is not offered.");
+    return false;
+}
+
+QStringList ButtonModesPage::exampleIds() const {
+    QStringList out;
+    for (const spn::ui::Example &e : spn::ui::availableButtonModeExamples(catalog_, spn::examplesDir())) out << qs(e.id);
+    return out;
+}
+
+QString ButtonModesPage::originOf(const QString &id) const {
+    return catalog_.find(id.toStdString()) ? qs(spn::ui::buttonModeOriginText(QtStrings())) : QString();
 }

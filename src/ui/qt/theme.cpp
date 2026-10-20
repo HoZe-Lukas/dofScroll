@@ -303,6 +303,12 @@ QString styleSheetFor(const spn::ui::ThemeColors &c) {
     add(QStringLiteral("QFrame[card=\"true\"] { background: %1; border: 1px solid %2; border-radius: %3px; }")
             .arg(hex(c.window), hex(c.border), rc));
     add(QStringLiteral("QFrame[card=\"true\"] QLabel { border: none; background: transparent; }"));
+    // problems next to a field: label.setProperty("error", true) (text, never colour alone) and
+    // input.setProperty("invalid", true) (red border)
+    add(QStringLiteral("QLabel[error=\"true\"] { color: %1; }").arg(hex(c.danger)));
+    add(QStringLiteral("QLineEdit[invalid=\"true\"], QAbstractSpinBox[invalid=\"true\"], QComboBox[invalid=\"true\"] "
+                       "{ border: 1px solid %1; }")
+            .arg(hex(c.danger)));
     // headings: label.setProperty("heading", "page" or "section")
     const double base = QApplication::font().pointSizeF() > 0 ? QApplication::font().pointSizeF() : 10.0;
     add(QStringLiteral("QLabel[heading=\"page\"] { font-size: %1pt; font-weight: 600; }").arg(base * 1.4));

@@ -52,7 +52,7 @@ static void testOrder() {
     // specific: Default (inherit), the button modes by name, then all actions
     std::vector<ButtonChoice> c = buttonChoices(BindingContext::Specific, false, bm, "", id);
     assert(c.size() == 3 + bindingKindsFor(BindingContext::Specific, false).size() - 0);
-    assert(c[0].type == ButtonChoice::Type::Inherit && c[0].label == "Default (inherit)");
+    assert(c[0].type == ButtonChoice::Type::Inherit && c[0].label == "Default (inherit from Global)");
     assert(c[1].type == ButtonChoice::Type::ButtonMode && c[1].label == "Navigation latch" && c[1].id == "latch-nav" &&
            c[1].tooltip == "Toggles navigation" && !c[1].missing);
     assert(c[2].label == "Next mode" && c[2].id == "next-mode");

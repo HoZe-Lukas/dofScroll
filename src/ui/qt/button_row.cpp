@@ -78,12 +78,6 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
         });
         arg = mc;
     }
-    if (!arg && env.showInherited && env.context == BindingContext::Specific && !row.overridden) {
-        // Inherited: say what it is, so the effect of "Default (inherit)" is visible.
-        auto *l = new QLabel(T("inherited:") + QLatin1Char(' ') + qs8(row.text), parent);
-        l->setForegroundRole(QPalette::PlaceholderText);
-        arg = l;
-    }
     if (arg) grid->addWidget(arg, r, 2);
 
     QObject::connect(kind, &QComboBox::activated, owner, [handlers, kind, choices](int idx) {
@@ -101,5 +95,16 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
             if (handlers.reset) handlers.reset();
         });
         grid->addWidget(reset, r, 3);
+    }
+    // Where the action comes from: "Inherited from Global: key:space", "Set in this profile", or in [global]
+    // the profiles that override it. Written out, never only a colour.
+    if (!row.origin.empty()) {
+        auto *origin = new QLabel(qs8(row.origin), parent);
+        origin->setForegroundRole(QPalette::PlaceholderText);
+        origin->setWordWrap(true);
+        origin->setMaximumWidth(320);
+        origin->setAccessibleName(T("Origin of button") + QStringLiteral(" %1").arg(row.number));
+        if (!row.originTip.empty()) origin->setToolTip(qs8(row.originTip));
+        grid->addWidget(origin, r, 4);
     }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // The per-button drop-down of the Profiles page: one list for "what does this button do", in this
-// order: "Default (inherit)" (device and program profiles; in [global] "Nothing" instead), the
+// order: "Default (inherit from Global)" (device and program profiles; in [global] "Nothing" instead), the
 // button modes (by name), then the plain actions. A referenced button mode that is not installed
 // stays selectable as "missing: <id>" and is never rewritten. Toolkit-free; the view only shows it.
 #pragma once
@@ -35,7 +35,7 @@ inline std::vector<ButtonChoice> buttonChoices(BindingContext ctx, bool advanced
     if (ctx == BindingContext::Specific) {
         ButtonChoice c;
         c.type = ButtonChoice::Type::Inherit;
-        c.label = str.tr("Default (inherit)");
+        c.label = str.tr("Default (inherit from Global)");
         out.push_back(c);
     } else {
         ButtonChoice c;

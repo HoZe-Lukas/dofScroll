@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// "Modes" page: a thin view on spn::ui::ModeCatalog. List of all modes (built-in, file, built-in
-// overridden by a file), detail pane with description and loader warnings, and the actions New,
-// Duplicate, Import, Edit, Delete, Open folder. The folder is watched by polling the catalog's
+// "Joystick modes" page: a thin view on spn::ui::ModeCatalog. List of all joystick modes (built-in, file,
+// built-in overridden by a file) with the origin of each, detail pane with description and loader
+// warnings, and the actions New, New from example, Duplicate, Import, Edit, Delete, Open folder. The
+// editor saves by itself (see mode_editor_widget.hpp); nothing asks about unsaved changes. The folder is watched by polling the catalog's
 // stamp once a second while the page is visible (no file-system watcher dependency).
 #pragma once
 #include <QWidget>
@@ -41,10 +42,14 @@ public:
     const QString &lastError() const { return lastError_; }
     const spn::ui::ModeCatalog &catalog() const { return catalog_; }
     QString currentId() const;                 // id of the selected list row
-    // True while the in-page editor is shown and holds edits that are not saved.
-    bool hasUnsavedChanges() const;
-    // Asks Save / Discard / Cancel if there are unsaved edits; false means "stay" (also used before Quit).
-    bool confirmLeaveEditor();
+    // True while the in-page editor is shown and a change waits for its write (a pause or a flush).
+    bool pendingEdits() const;
+    // Writes the pending change of the editor now (page switch, another mode, quit).
+    void flushEditor();
+    // New from example: the ids of the examples that are not installed yet, and copying one (no dialog).
+    QStringList exampleIds() const;
+    bool installExample(const QString &id);
+    QString originOf(const QString &id) const;  // "Built in", "Your file", ... of a listed joystick mode
 
 public slots:
     void refreshIfChanged();  // timer; also callable directly
@@ -62,6 +67,7 @@ private:
     void selectRow(const QString &id);  // without signals
     const spn::ui::ModeCatalog::ModeEntry *current() const;
     void onNew();
+    void onNewFromExample();
     void onDuplicate();
     void onImport();
     void onEdit();
@@ -80,7 +86,7 @@ private:
     QPlainTextEdit *detail_ = nullptr;
     QStackedWidget *right_ = nullptr;  // details | editor
     ModeEditorWidget *editor_ = nullptr;
-    QPushButton *newBtn_ = nullptr, *dupBtn_ = nullptr, *importBtn_ = nullptr, *editBtn_ = nullptr,
+    QPushButton *newBtn_ = nullptr, *exampleBtn_ = nullptr, *dupBtn_ = nullptr, *importBtn_ = nullptr, *editBtn_ = nullptr,
                 *delBtn_ = nullptr, *folderBtn_ = nullptr, *exportBtn_ = nullptr, *renameBtn_ = nullptr;
     QTimer *timer_ = nullptr;
     QString shownId_;  // the mode whose details or editor are shown (the list may be moved back to it)

@@ -4,7 +4,10 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QGridLayout>
+#include <cstdlib>
 #include <QComboBox>
+#include <QSpinBox>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -19,6 +22,8 @@
 #include "platform/autostart_platform.hpp"
 #include "log_dialog.hpp"
 #include "theme.hpp"
+#include "ui/model/channels_page_model.hpp"
+#include "ui/model/design_tokens.hpp"
 #include "ui/model/general_page_model.hpp"
 #include "ui/model/ui_links.hpp"
 #include "ui/model/ui_settings.hpp"
@@ -38,7 +43,40 @@ struct AutoResult {
 class GeneralPage : public QWidget {
 public:
     explicit GeneralPage(const UiContext &ctx) : QWidget(nullptr), ctx_(ctx) {
+        // Two columns, so that the page fits the default window without scrolling: what you switch
+        // and choose on the left, the daemon, the status and the files on the right.
         auto *col = new QVBoxLayout(this);
+        using namespace spn::ui::tokens;
+        col->setContentsMargins(kPageMargin, kSpaceLg, kPageMargin, kPageMargin);
+        col->setSpacing(kSectionGap);
+        auto *cols = new QHBoxLayout;
+        cols->setSpacing(kSectionGap);
+        auto *left = new QVBoxLayout, *right = new QVBoxLayout;
+        left->setSpacing(kSectionGap);
+        right->setSpacing(kSectionGap);
+        cols->addLayout(left, 1);
+        cols->addLayout(right, 1);
+        col->addLayout(cols);
+
+        // ---- output on/off ----
+        auto *outBox = new QGroupBox(T("Output"));
+        auto *ol = new QVBoxLayout(outBox);
+        output_ = new QCheckBox(T("Send scroll, zoom and key events"));
+        output_->setAccessibleName(T("Output"));
+        output_->setToolTip(T("Turns everything dofscroll sends on or off. The tray's Enabled item is the same switch.") +
+                            QStringLiteral("\n") + T("Config key: %1").arg(QStringLiteral("ENABLED")));
+        ol->addWidget(output_);
+        outputMsg_ = makeNote();
+        outputMsg_->setText(T("Off: the 3D mouse does nothing through dofscroll (the vendor driver still works). A "
+                              "program profile can switch output off for one program only."));
+        ol->addWidget(outputMsg_);
+        QObject::connect(output_, &QCheckBox::toggled, this, [this](bool on) {
+            if (loadingModel_) return;
+            std::string err;
+            if (!ctx_.settings->setValue(0, "ENABLED", on ? "1" : "0", &err)) outputMsg_->setText(qs8(err));
+            else ctx_.saveSoon();
+        });
+        left->addWidget(outBox);
 
         // ---- start at login ----
         auto *loginBox = new QGroupBox(T("Start at login"));
@@ -54,7 +92,7 @@ public:
         loginHint->setText(T("Affects the next login only; a running program is not started or stopped."));
         ll->addWidget(loginHint);
         QObject::connect(autostart_, &QCheckBox::clicked, this, [this](bool on) { runAutostart(true, on); });
-        col->addWidget(loginBox);
+        left->addWidget(loginBox);
 
         // ---- language ----
         auto *langBox = new QGroupBox(T("Language"));
@@ -71,7 +109,7 @@ public:
         languageMsg_->setText(T("Takes effect the next time dofscroll-ui is started."));
         lg->addWidget(languageMsg_);
         QObject::connect(language_, QOverload<int>::of(&QComboBox::activated), this, [this](int) { onLanguage(); });
-        col->addWidget(langBox);
+        left->addWidget(langBox);
 
         // ---- appearance ----
         auto *themeBox = new QGroupBox(T("Appearance"));
@@ -87,7 +125,59 @@ public:
         themeMsg_->setText(T("Applies at once and is remembered."));
         tg->addWidget(themeMsg_);
         QObject::connect(theme_, QOverload<int>::of(&QComboBox::activated), this, [this](int) { onTheme(); });
-        col->addWidget(themeBox);
+        left->addWidget(themeBox);
+
+        // ---- daemon (not part of a profile) ----
+        auto *daemonBox = new QGroupBox(T("Daemon"));
+        auto *dl = new QGridLayout(daemonBox);
+        dl->setColumnStretch(1, 1);
+        int drow = 0;
+        tick_ = new QSpinBox;
+        tick_->setRange(30, 1000);
+        tick_->setKeyboardTracking(false);
+        tick_->setAccessibleName(T("Tick rate (Hz)"));
+        tick_->setToolTip(T("How many times per second the daemon generates events (30..1000)") + QStringLiteral("\n") +
+                          T("Config key: %1").arg(QStringLiteral("TICK_HZ")));
+        auto *tickLabel = new QLabel(T("Tick rate (Hz)"));
+        tickLabel->setBuddy(tick_);
+        dl->addWidget(tickLabel, drow, 0);
+        dl->addWidget(tick_, drow, 1);
+        ++drow;
+        QObject::connect(tick_, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
+            if (loadingModel_) return;
+            std::string err;
+            if (!ctx_.settings->setValue(0, "TICK_HZ", std::to_string(v), &err)) daemonMsg_->setText(qs8(err));
+            else {
+                daemonMsg_->setText(QString());
+                ctx_.saveSoon();
+            }
+        });
+#if !defined(_WIN32) && !defined(__APPLE__)  // X11/uinput exist on Linux only (Windows: SendInput, macOS: CGEvent)
+        backend_ = new QComboBox;
+        for (const char *id : {"auto", "x11", "uinput"}) backend_->addItem(QString::fromLatin1(id), QString::fromLatin1(id));
+        backend_->setAccessibleName(T("Output backend"));
+        backend_->setToolTip(T("auto: Wayland -> uinput, otherwise X11 (with fallback). Takes effect after the daemon is "
+                               "restarted.") + QStringLiteral("\n") + T("Config key: %1").arg(QStringLiteral("BACKEND")));
+        auto *beLabel = new QLabel(T("Output backend"));
+        beLabel->setBuddy(backend_);
+        dl->addWidget(beLabel, drow, 0);
+        dl->addWidget(backend_, drow, 1);
+        ++drow;
+        QObject::connect(backend_, QOverload<int>::of(&QComboBox::activated), this, [this](int) {
+            std::string err;
+            if (!ctx_.settings->setValue(0, "BACKEND", backend_->currentData().toString().toUtf8().toStdString(), &err))
+                daemonMsg_->setText(qs8(err));
+            else {
+                daemonMsg_->setText(QString());
+                ctx_.saveSoon();
+            }
+        });
+#endif
+        daemonMsg_ = makeNote();
+        daemonMsg_->setText(T("These apply to the whole program, not to a profile. The output backend takes effect after "
+                              "the daemon is restarted."));
+        dl->addWidget(daemonMsg_, drow, 0, 1, 2);
+        right->addWidget(daemonBox);
 
         // ---- status ----
         auto *statusBox = new QGroupBox(T("Status"));
@@ -96,7 +186,7 @@ public:
         statusLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
         statusLabel_->setWordWrap(true);
         sl->addWidget(statusLabel_);
-        col->addWidget(statusBox);
+        right->addWidget(statusBox);
 
         // ---- configuration file ----
         auto *cfgBox = new QGroupBox(T("Configuration file"));
@@ -134,17 +224,23 @@ public:
             if (spn::ui::openDocs(*ctx_.runner, "ui.md", &err)) configMsg_->setText(QString());
             else configMsg_->setText(T("Could not open the documentation: ") + qs8(err));
         });
-        col->addWidget(cfgBox);
+        right->addWidget(cfgBox);
 
         // ---- version ----
         auto *version = makeNote();
         version->setText(T("dofscroll %1").arg(QApplication::applicationVersion()));
         col->addWidget(version);
+        left->addStretch(1);
+        right->addStretch(1);
         col->addStretch(1);
 
         statusTimer_.setInterval(1000);
-        QObject::connect(&statusTimer_, &QTimer::timeout, this, [this] { refreshStatus(); });
+        QObject::connect(&statusTimer_, &QTimer::timeout, this, [this] {
+            refreshStatus();
+            refreshFromModel();
+        });
         refreshStatus();
+        refreshFromModel();
         runAutostart(false, false);
     }
     ~GeneralPage() override {
@@ -154,6 +250,7 @@ public:
 protected:
     void showEvent(QShowEvent *e) override {
         refreshStatus();
+        refreshFromModel();
         statusTimer_.start();
         QWidget::showEvent(e);
     }
@@ -168,6 +265,21 @@ private:
         l->setWordWrap(true);
         l->setForegroundRole(QPalette::PlaceholderText);
         return l;
+    }
+
+    // The values of the configuration this page shows (the tray or another window may have changed
+    // them); a control that has the keyboard focus is left alone.
+    void refreshFromModel() {
+        if (!ctx_.settings) return;
+        loadingModel_ = true;
+        spn::ui::SettingsModel::Value v;
+        if (!output_->hasFocus() && ctx_.settings->value(0, "ENABLED", &v)) output_->setChecked(v.text != "0");
+        if (!tick_->hasFocus() && ctx_.settings->value(0, "TICK_HZ", &v)) tick_->setValue(std::atoi(v.text.c_str()));
+        if (backend_ && !backend_->hasFocus() && ctx_.settings->value(0, "BACKEND", &v)) {
+            const int i = backend_->findData(qs8(v.text));
+            backend_->setCurrentIndex(i < 0 ? 0 : i);
+        }
+        loadingModel_ = false;
     }
 
     void refreshStatus() {
@@ -239,6 +351,11 @@ private:
     }
 
     UiContext ctx_;
+    QCheckBox *output_ = nullptr;
+    QLabel *outputMsg_ = nullptr, *daemonMsg_ = nullptr;
+    QSpinBox *tick_ = nullptr;
+    QComboBox *backend_ = nullptr;
+    bool loadingModel_ = false;
     QCheckBox *autostart_ = nullptr;
     QLabel *autostartMsg_ = nullptr;
     QComboBox *theme_ = nullptr;

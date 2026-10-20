@@ -3,6 +3,10 @@
 // dofscroll-ui: Qt6 Widgets tray icon and settings window (see docs/ui-options.md).
 #include <QApplication>
 #include <QDir>
+#include <QCheckBox>
+#include <QDoubleSpinBox>
+#include <QGroupBox>
+#include <QToolButton>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QLocale>
@@ -37,6 +41,7 @@
 #include <QTimer>
 #include <QTranslator>
 #include <algorithm>
+#include <memory>
 #include <cstdio>
 #include <functional>
 #include <cstring>
@@ -50,18 +55,20 @@
 #include "common.hpp"
 #include "pages/profiles_env.hpp"
 #include "pages/button_modes_page.hpp"
-#include "pages/channels_page.hpp"
-#include "pages/extensions_page.hpp"
+#include "autosaver.hpp"
+#include "pages/channels_editor.hpp"
+#include "pages/device_page.hpp"
 #include "pages/log_dialog.hpp"
 #include "pages/mode_editor_widget.hpp"
 #include "pages/modes_page.hpp"
 #include "platform_hooks.hpp"
-#include "unsaved_prompt.hpp"
 #include "pages/profiles_page.hpp"
 #include "pages/overview_page.hpp"
 #include "qt_action_runner.hpp"
 #include "theme.hpp"
 #include "tray.hpp"
+#include "ui/model/tray_controller.hpp"
+#include "ui_i18n.hpp"
 #include "ui/model/design_tokens.hpp"
 #include "ui/model/first_start.hpp"
 #include "ui/model/instance_paths.hpp"
@@ -184,7 +191,7 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
     const QByteArray text = f.readAll();
     check(text.contains("NAME = Edited") && text.contains("DESCRIPTION = Changed") && text.contains("ACTION = key:space"),
           "the file holds the edited values");
-    check(!page.dirty(), "saved: no unsaved changes");
+    check(!page.pending(), "saved: nothing pending");
     // a file that appears in the folder shows up (the page polls the folder stamp)
     QFile second(tmpPath + QStringLiteral("/buttons/second.conf"));
     check(second.open(QIODevice::WriteOnly) && second.write("ACTION = click\n") > 0, "write a second file");
@@ -194,124 +201,6 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
     QFile::remove(tmpPath + QStringLiteral("/buttons/second.conf"));
     page.refreshIfChanged();
     check(page.buttonModeCount() == kBuiltin + 1, "a removed file disappears from the list");
-    return ok;
-}
-
-// Unsaved edits are never dropped silently: selecting another entry, reloading the same one, creating or
-// importing something and quitting all ask Save / Discard / Cancel first (the question is answered by a hook here).
-static bool unsavedGuardSelfTest(const UiContext &ctx, const QString &tmpPath, MainWindow &window) {
-    using spn::ui::UnsavedChoice;
-    bool ok = true;
-    auto check = [&ok](bool cond, const char *what) {
-        if (!cond) std::fprintf(stderr, "unsaved-changes self-test failed: %s\n", what);
-        ok = ok && cond;
-    };
-    int asked = 0;
-    UnsavedChoice answer = UnsavedChoice::Cancel;
-    unsaved_prompt::setUnsavedAnswer([&](const std::string &) {
-        ++asked;
-        return answer;
-    });
-    auto fileText = [&](const QString &rel) {
-        QFile f(tmpPath + rel);
-        return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
-    };
-
-    {   // Modes page, in-page editor
-        ModesPage page(ctx);
-        page.show();
-        settle();
-        auto edit = [&](const char *name) {
-            page.selectMode(QStringLiteral("mine"));
-            page.openEditor();
-            page.editorWidget()->editor().form().name = name;
-        };
-        asked = 0;
-        page.selectMode(QStringLiteral("mine"));
-        page.selectMode(QStringLiteral("timeline"));
-        check(asked == 0, "no question without edits");
-        edit("Unsaved");
-        check(page.hasUnsavedChanges(), "the edit is pending");
-        answer = UnsavedChoice::Cancel;
-        page.selectMode(QStringLiteral("timeline"));
-        check(asked == 1 && page.currentId() == QStringLiteral("mine") && page.hasUnsavedChanges() &&
-                  page.editorWidget()->editor().form().name == "Unsaved",
-              "Cancel keeps the row and the edits");
-        check(!page.openEditor() && page.hasUnsavedChanges(), "Cancel on Edit of the same mode keeps the edits");
-        answer = UnsavedChoice::Discard;
-        page.selectMode(QStringLiteral("timeline"));
-        check(page.currentId() == QStringLiteral("timeline") && !page.hasUnsavedChanges() &&
-                  !fileText(QStringLiteral("/modes/mine.conf")).contains("NAME = Unsaved"),
-              "Discard moves on and writes nothing");
-        edit("Saved by guard");
-        answer = UnsavedChoice::Save;
-        page.selectMode(QStringLiteral("timeline"));
-        check(page.currentId() == QStringLiteral("timeline") && !page.hasUnsavedChanges() &&
-                  fileText(QStringLiteral("/modes/mine.conf")).contains("NAME = Saved by guard"),
-              "Save writes the file and moves on");
-        edit("Again");
-        answer = UnsavedChoice::Discard;
-        check(page.openEditor() && !page.hasUnsavedChanges() && page.editorWidget()->editor().form().name == "Saved by guard",
-              "Discard on Edit of the same mode reloads the file");
-        // Save that fails (invalid value): stay where we are
-        page.editorWidget()->editor().form().overrides.emplace_back("SCROLL_V_SENS", "abc");
-        answer = UnsavedChoice::Save;
-        page.selectMode(QStringLiteral("timeline"));
-        check(page.currentId() == QStringLiteral("mine") && page.hasUnsavedChanges(), "a failed Save keeps the edits");
-        // Quit: the window asks for every page with edits
-        answer = UnsavedChoice::Discard;
-        page.selectMode(QStringLiteral("timeline"));
-    }
-    {   // Quit through the window
-        auto *modes = window.findChild<ModesPage *>();
-        check(modes != nullptr, "the window has a Modes page");
-        if (modes) {
-            check(window.confirmQuit(), "quit without edits is not asked");
-            modes->selectMode(QStringLiteral("mine"));
-            modes->openEditor();
-            modes->editorWidget()->editor().form().name = "Quit edit";
-            asked = 0;
-            answer = UnsavedChoice::Cancel;
-            check(!window.confirmQuit() && asked == 1 && modes->hasUnsavedChanges(), "Cancel stops the quit");
-            answer = UnsavedChoice::Discard;
-            check(window.confirmQuit() && !modes->hasUnsavedChanges(), "Discard lets the quit go on");
-        }
-    }
-    {   // Button modes page
-        QFile second(tmpPath + QStringLiteral("/buttons/guard.conf"));
-        check(second.open(QIODevice::WriteOnly) && second.write("NAME = Guard\nACTION = click\n") > 0, "write a second file");
-        second.close();
-        ButtonModesPage page(ctx);
-        page.show();
-        settle();
-        check(page.selectButtonMode(QStringLiteral("latch")), "the first entry is listed");
-        asked = 0;
-        check(page.stageEdit(QStringLiteral("Pending"), QStringLiteral("d"), QStringLiteral("key:space")) && page.dirty(), "staged edit");
-        answer = UnsavedChoice::Cancel;
-        page.selectButtonMode(QStringLiteral("guard"));
-        check(asked == 1 && page.currentId() == QStringLiteral("latch") && page.dirty(), "Cancel keeps the row and the edits");
-        answer = UnsavedChoice::Discard;
-        page.selectButtonMode(QStringLiteral("guard"));
-        check(page.currentId() == QStringLiteral("guard") && !page.dirty() &&
-                  !fileText(QStringLiteral("/buttons/latch.conf")).contains("Pending"),
-              "Discard moves on and writes nothing");
-        page.stageEdit(QStringLiteral("Kept"), QString(), QStringLiteral("click"));
-        answer = UnsavedChoice::Save;
-        page.selectButtonMode(QStringLiteral("latch"));
-        check(page.currentId() == QStringLiteral("latch") && !page.dirty() &&
-                  fileText(QStringLiteral("/buttons/guard.conf")).contains("NAME = Kept"),
-              "Save writes the file and moves on");
-        check(window.confirmQuit(), "quit with a clean button mode form is not asked");
-        page.stageEdit(QStringLiteral("Late"), QString(), QStringLiteral("click"));
-        asked = 0;
-        answer = UnsavedChoice::Cancel;
-        check(!page.confirmLeaveForm() && asked == 1, "the guard used before quit and New/Import answers Cancel");
-        answer = UnsavedChoice::Discard;
-        check(page.confirmLeaveForm(), "Discard lets it go on");
-        QFile::remove(tmpPath + QStringLiteral("/buttons/guard.conf"));
-    }
-    unsaved_prompt::setUnsavedAnswer(nullptr);
-    window.showPage(QStringLiteral("overview"));  // confirmQuit moved the window to the page with the edits
     return ok;
 }
 
@@ -408,196 +297,8 @@ static QLineEdit *lineEditNamed(QWidget *root, const QString &name) {
     return nullptr;
 }
 
-static bool underScrollArea(const QWidget *w) {
-    for (const QWidget *p = w->parentWidget(); p; p = p->parentWidget())
-        if (qobject_cast<const QAbstractScrollArea *>(p) && !qobject_cast<const QTreeWidget *>(p) &&
-            p->objectName() != QLatin1String("pageScroll"))  // the scroll area around the whole page does not count
-            return true;
-    return false;
-}
-
-static bool profilesPageSelfTest(MainWindow &w, const QString &tmpPath, const std::function<bool()> &accessibility) {
-    bool ok = true;
-    auto check = [&ok](bool cond, const char *what) {
-        if (!cond) std::fprintf(stderr, "profiles self-test failed: %s\n", what);
-        ok = ok && cond;
-    };
-    w.show();
-    w.showPage(QStringLiteral("profiles"));
-    settle();
-    auto *page = w.findChild<ProfilesPage *>();
-    if (!page) return false;
-    int asked = 0;
-    UnsavedChoice answer = UnsavedChoice::Cancel;
-    page->setUnsavedPrompt([&](const QString &) {
-        ++asked;
-        return answer;
-    });
-    auto tabs = [&] { return page->tabIds().join(QLatin1Char(',')); };
-
-    // sub-tabs: the default mode, a device profile (default mode), a profile with an installed mode
-    check(page->selectSection(0) && tabs() == QStringLiteral("general,buttons"), "default mode: General and Buttons");
-    check(page->selectSection(1) && tabs() == QStringLiteral("general,channels,buttons,overrides"),
-          "a profile has General, Channels, Buttons and Overrides");
-    {   // a profile with an installed mode shows the mode's buttons read-only in General (own models: modes loaded)
-        spn::ui::SettingsModel sm;
-        std::vector<std::string> warnings;
-        std::string err;
-        sm.load((tmpPath + QStringLiteral("/dofscroll.conf")).toStdString(), &warnings, &err);
-        sm.setModes(spn::loadModes((tmpPath + QStringLiteral("/modes")).toStdString(), nullptr),
-                    (tmpPath + QStringLiteral("/modes")).toStdString());
-        QtStrings qstr;
-        UiContext c2;
-        c2.settings = &sm;
-        c2.strings = &qstr;
-        c2.runner = nullptr;
-        c2.modesDir = (tmpPath + QStringLiteral("/modes")).toStdString();
-        c2.buttonModesDir = (tmpPath + QStringLiteral("/buttons")).toStdString();
-        c2.runtimeDir = (tmpPath + QStringLiteral("/run2")).toStdString();
-        ProfilesPage p2(c2);
-        p2.show();
-        settle();
-        check(p2.selectSection(2) && p2.tabIds().join(QLatin1Char(',')) == QStringLiteral("general,channels,overrides"),
-              "a profile with an installed mode has no Buttons tab");
-        QComboBox *mode = nullptr;
-        for (QComboBox *c : p2.findChildren<QComboBox *>())
-            if (c->accessibleName() == QStringLiteral("Joystick mode")) mode = c;
-        check(mode && mode->count() >= 3, "the installed modes are offered");
-        if (mode) QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 0));  // Default mode
-        settle();
-        check(p2.tabIds().join(QLatin1Char(',')) == QStringLiteral("general,channels,buttons,overrides") && p2.selectedModified(),
-              "choosing the default mode brings the Buttons tab back");
-        check(p2.revertSelected() && p2.tabIds().join(QLatin1Char(',')) == QStringLiteral("general,channels,overrides"),
-              "Revert restores the mode and hides the Buttons tab again");
-    }
-    // the last tab is remembered, also over a profile without it
-    check(page->selectSection(1) && page->selectTab(QStringLiteral("overrides")), "select the Overrides tab");
-    check(page->selectSection(3) && page->currentTabId() == QStringLiteral("overrides"), "the tab is kept for another profile");
-    check(page->selectSection(0) && page->currentTabId() == QStringLiteral("general"), "a missing tab falls back to General");
-    check(page->selectSection(1) && page->currentTabId() == QStringLiteral("overrides"), "the remembered tab comes back");
-
-    // Save and Revert are not inside a scrolling area
-    for (const QString &name : {QStringLiteral("Save"), QStringLiteral("Revert")}) {
-        QPushButton *b = nullptr;
-        for (QPushButton *c : page->findChildren<QPushButton *>())
-            if (c->text() == name) b = c;
-        check(b && !underScrollArea(b), "the footer button stays outside the scrolling area");
-    }
-    check(!page->revertEnabled() && !page->saveEnabled(), "nothing to save or revert at the start");
-
-    // an edit makes the profile modified; Revert restores the saved value
-    QLineEdit *edit = lineEditNamed(page, QStringLiteral("SCROLL_V_SENS"));
-    check(edit && edit->text() == QStringLiteral("9"), "the override of the device profile is shown");
-    auto editValue = [&](const QString &v) {
-        QLineEdit *e = lineEditNamed(page, QStringLiteral("SCROLL_V_SENS"));
-        if (!e) return false;
-        e->setText(v);
-        QMetaObject::invokeMethod(e, "editingFinished");
-        return true;
-    };
-    check(editValue(QStringLiteral("5")) && page->selectedModified() && page->revertEnabled() && page->saveEnabled(),
-          "an edit enables Save and Revert");
-    check(page->revertSelected() && !page->selectedModified() && !page->revertEnabled() && !page->saveEnabled(), "Revert");
-    edit = lineEditNamed(page, QStringLiteral("SCROLL_V_SENS"));
-    check(edit && edit->text() == QStringLiteral("9") && page->currentTabId() == QStringLiteral("overrides"),
-          "Revert reloads the saved value and keeps the tab");
-
-    // guard: another profile
-    check(editValue(QStringLiteral("5")), "edit again");
-    asked = 0;
-    answer = UnsavedChoice::Cancel;
-    page->selectSection(3);
-    check(!w.selectedProfileIs(3), "Cancel keeps the profile");
-    check(asked == 1 && w.selectedProfileIs(1) && page->selectedModified(), "Cancel: asked once, edit still there");
-    answer = UnsavedChoice::Discard;
-    check(page->selectSection(3) && w.selectedProfileIs(3) && asked == 2, "Discard: the other profile opens");
-    check(page->selectSection(1) && lineEditNamed(page, QStringLiteral("SCROLL_V_SENS")) &&
-              lineEditNamed(page, QStringLiteral("SCROLL_V_SENS"))->text() == QStringLiteral("9") && !page->selectedModified(),
-          "Discard dropped the edit");
-    check(editValue(QStringLiteral("5")), "edit once more");
-    answer = UnsavedChoice::Save;
-    check(page->selectSection(3) && asked == 3 && !page->saveEnabled(), "Save writes and moves on");
-    {
-        QFile f(tmpPath + QStringLiteral("/dofscroll.conf"));
-        check(f.open(QIODevice::ReadOnly) && f.readAll().contains("SCROLL_V_SENS = 5"), "the file holds the saved value");
-    }
-
-    // guard: another page; Cancel returns to the Profiles page
-    check(page->selectSection(1) && editValue(QStringLiteral("6")), "edit before leaving the page");
-    answer = UnsavedChoice::Cancel;
-    asked = 0;
-    w.showPage(QStringLiteral("overview"));
-    settle();
-    check(asked == 1 && w.currentPageId() == QStringLiteral("profiles") && page->selectedModified(), "Cancel stays on the Profiles page");
-    answer = UnsavedChoice::Discard;
-    w.showPage(QStringLiteral("overview"));
-    settle();
-    check(asked == 2 && w.currentPageId() == QStringLiteral("overview") && !page->selectedModified(), "Discard leaves the page");
-    w.showPage(QStringLiteral("profiles"));
-    settle();
-
-    // guard: closing the window (the event is only sent, so the window stays open)
-    check(page->selectSection(1) && editValue(QStringLiteral("7")), "edit before closing");
-    answer = UnsavedChoice::Cancel;
-    asked = 0;
-    QCloseEvent ev;
-    QApplication::sendEvent(&w, &ev);
-    check(asked == 1 && !ev.isAccepted(), "Cancel stops the close");
-    answer = UnsavedChoice::Discard;
-    QCloseEvent ev2;
-    QApplication::sendEvent(&w, &ev2);
-    check(asked == 2 && ev2.isAccepted() && !page->saveEnabled(), "Discard lets the window close");
-    page->setUnsavedPrompt(nullptr);
-
-    // search: the profile list and the settings rows
-    page->setProfileFilter(QStringLiteral("FIRE"));
-    check(page->visibleProfileCount() == 1, "the profile search finds one program");
-    page->setProfileFilter(QStringLiteral("pro"));
-    check(page->visibleProfileCount() == 1, "the profile search finds the device");
-    page->setProfileFilter(QStringLiteral("zzz"));
-    check(page->visibleProfileCount() == 0, "the profile search can find nothing");
-    page->setProfileFilter(QString());
-    check(page->visibleProfileCount() == 3, "an empty search shows every profile");
-    check(page->selectSection(1), "select the device profile");
-    page->setSettingsFilter(QString());
-    const int all = page->settingRowCount();
-    page->setSettingsFilter(QStringLiteral("scroll_v_sens"));
-    const int some = page->settingRowCount();
-    check(some >= 1 && some < all, "the settings search keeps the matching rows");
-    page->setSettingsFilter(QStringLiteral("no such setting"));
-    check(page->settingRowCount() == 0, "the settings search can find nothing");
-    page->setSettingsFilter(QString());
-    check(page->settingRowCount() == all, "an empty search shows every row again");
-
-    // accessibility and tab order of the new widgets, on every tab
-    for (const QString &id : page->tabIds()) {
-        page->selectTab(id);
-        check(accessibility(), "every input of the tab has an accessible name");
-    }
-    w.showPage(QStringLiteral("profiles"));
-    settle();
-    const QStringList order = {QStringLiteral("Search profiles"), QStringLiteral("Profiles"), QStringLiteral("Search settings"),
-                               QStringLiteral("Profile sections")};
-    int pos = -1;
-    QWidget *start = lineEditNamed(page, QStringLiteral("Search profiles"));
-    QList<QWidget *> chain;
-    QWidget *c = start;
-    do {
-        chain << c;
-        c = c ? c->nextInFocusChain() : nullptr;
-    } while (c && c != start && chain.size() < 4000);
-    for (const QString &name : order) {
-        int found = -1;
-        for (int i = 0; i < chain.size(); ++i)
-            if (chain[i]->accessibleName() == name) found = i;
-        check(found > pos, "the search boxes, the list and the tabs follow in tab order");
-        pos = std::max(pos, found);
-    }
-    return ok;
-}
-
-// Mode editor sub-tabs: Settings, Buttons, Overrides; Save and Revert stay outside the scrolling
-// area, the last tab is kept over a rebuild (Revert).
+// Joystick mode editor sub-tabs: Settings, Buttons, Overrides; no Save or Revert button, the last tab is kept
+// over a rebuild.
 static bool modeEditorTabsSelfTest(const UiContext &ctx) {
     bool ok = true;
     auto check = [&ok](bool cond, const char *what) {
@@ -612,61 +313,21 @@ static bool modeEditorTabsSelfTest(const UiContext &ctx) {
     check(ed->tabIds() == QStringList({QStringLiteral("settings"), QStringLiteral("buttons"), QStringLiteral("overrides")}),
           "Settings, Buttons and Overrides");
     check(ed->currentTabId() == QStringLiteral("settings"), "the first tab is Settings");
-    for (const QString &name : {QStringLiteral("Save"), QStringLiteral("Revert")}) {
-        QPushButton *b = nullptr;
-        for (QPushButton *c : ed->findChildren<QPushButton *>())
-            if (c->text() == name) b = c;
-        check(b && !underScrollArea(b), "the footer button stays outside the scrolling area");
-    }
-    check(!ed->revertEnabled() && !ed->saveEnabled(), "an unchanged mode has nothing to save");
+    for (const QString &name : {QStringLiteral("Save"), QStringLiteral("Revert")})
+        for (QPushButton *c : ed->findChildren<QPushButton *>()) check(c->text() != name, "no Save or Revert button");
+    check(!ed->pending(), "an unchanged joystick mode has nothing to write");
     ed->editor().form().overrides.emplace_back("SCROLL_V_SENS", "abc");
-    ed->save();  // refused: the invalid value; shows the problem list and enables Revert
-    check(ed->revertEnabled() && !ed->saveEnabled(), "an invalid edit enables Revert only");
+    ed->edited(true);  // refused: the invalid value is shown, nothing is scheduled
+    check(!ed->pending() && !ed->problemText().isEmpty(), "an invalid edit is shown and not written");
     check(ed->selectTab(QStringLiteral("buttons")), "select the Buttons tab");
-    QPushButton *revert = nullptr;
-    for (QPushButton *c : ed->findChildren<QPushButton *>())
-        if (c->text() == QStringLiteral("Revert")) revert = c;
-    if (revert) revert->click();
+    ed->editor().form().overrides.pop_back();  // the user fixed it: the form is valid again
+    ed->edited(false);
     settle();
-    check(ed->currentTabId() == QStringLiteral("buttons") && !ed->revertEnabled(), "Revert keeps the tab and reloads the file");
+    check(ed->currentTabId() == QStringLiteral("buttons") && ed->problemText().isEmpty(), "the tab stays");
+    ed->flush();
     ed->selectTab(QStringLiteral("overrides"));
     QLineEdit *ov = lineEditNamed(ed, QStringLiteral("SCROLL_V_SENS"));
     check(ov && ov->text() == QStringLiteral("2"), "the Overrides tab shows the saved override");
-    return ok;
-}
-
-// Extensions page: lists modes and button modes with their origin, adds a shipped example and removes it again.
-static bool extensionsSelfTest(const UiContext &ctx, const QString &tmpPath) {
-    bool ok = true;
-    auto check = [&ok](bool cond, const char *what) {
-        if (!cond) std::fprintf(stderr, "extensions self-test failed: %s\n", what);
-        ok = ok && cond;
-    };
-    QDir().mkpath(tmpPath + QStringLiteral("/ex/modes"));
-    QDir().mkpath(tmpPath + QStringLiteral("/ex/buttons"));
-    for (const auto &f : {std::make_pair("/ex/modes/ex-one.conf", "NAME = Example one\nV_ACTION = none\n"),
-                          std::make_pair("/ex/buttons/ex-btn.conf", "NAME = Example button\nACTION = click\n")}) {
-        QFile file(tmpPath + QString::fromLatin1(f.first));
-        if (!file.open(QIODevice::WriteOnly)) return false;
-        file.write(f.second);
-    }
-    qputenv("DOFSCROLL_EXAMPLES", (tmpPath + QStringLiteral("/ex")).toUtf8());
-    ExtensionsPage page(ctx);  // standalone: own catalogs
-    page.show();
-    settle();
-    const int before = page.extensionCount();
-    check(before >= 6, "built-in modes, the file modes and the examples are listed");
-    check(page.selectExtension(QStringLiteral("mode:ex-one")) && page.installSelected(), "install a mode example");
-    check(QFile::exists(tmpPath + QStringLiteral("/modes/ex-one.conf")), "the example file was copied");
-    check(page.extensionCount() == before, "the entry stays in the list, now as your file");
-    check(page.removeSelected() && !QFile::exists(tmpPath + QStringLiteral("/modes/ex-one.conf")), "remove it again");
-    check(page.selectExtension(QStringLiteral("button:ex-btn")) && page.installSelected() &&
-              QFile::exists(tmpPath + QStringLiteral("/buttons/ex-btn.conf")),
-          "install a button mode example");
-    check(page.removeSelected(), "remove the button mode");
-    check(page.selectExtension(QStringLiteral("mode:normal")) && !page.removeSelected() && !page.installSelected(),
-          "a built-in mode can neither be removed nor installed");
-    qunsetenv("DOFSCROLL_EXAMPLES");
     return ok;
 }
 
@@ -763,8 +424,8 @@ static bool quickActionsSelfTest(const UiContext &base, const QString &tmpPath) 
         check(b != nullptr, "task button exists");
         if (b) b->click();
     }
-    check(opened == QStringList({QStringLiteral("channels"), QStringLiteral("axes"), QStringLiteral("modes")}),
-          "the task buttons open Channels, Axes and Modes");
+    check(opened == QStringList({QStringLiteral("profile-channels"), QStringLiteral("axes"), QStringLiteral("modes")}),
+          "the task buttons open the Global Channels tab, Axes and the joystick modes");
     page.findChild<QPushButton *>(QStringLiteral("new-program-profile"))->click();
     check(picker == 1, "New profile for the running program is requested");
 
@@ -886,36 +547,32 @@ static bool quickActionsSelfTest(const UiContext &base, const QString &tmpPath) 
               "New profile for the running program opens the picker on the Profiles page");
     }
 
-    // Channels: the config key in tooltip and accessible description, the filter and the width limit
+    // Channels tab (the editor): the config key in tooltip and accessible description, the filter, the width limit
     {
-        QWidget *channels = createChannelsPage(ctx);
+        auto *channels = new ChannelsEditor(ctx);
         channels->resize(2400, 900);
         channels->show();
         settle();
         QAbstractSpinBox *sensV = nullptr, *sensH = nullptr;
         int described = 0, spins = 0;
-        for (auto *s : channels->findChildren<QAbstractSpinBox *>()) {
-            if (s->objectName() == QStringLiteral("qt_spinbox_lineedit")) continue;
+        for (auto *sp : channels->findChildren<QAbstractSpinBox *>()) {
+            if (sp->objectName() == QStringLiteral("qt_spinbox_lineedit")) continue;
             ++spins;
-            described += s->accessibleDescription().contains(QStringLiteral("Config key: ")) &&
-                         s->toolTip().contains(QStringLiteral("Config key: "));
-            if (s->toolTip().contains(QStringLiteral("Config key: SCROLL_V_SENS"))) sensV = s;
-            if (s->toolTip().contains(QStringLiteral("Config key: SCROLL_H_SENS"))) sensH = s;
+            described += sp->accessibleDescription().contains(QStringLiteral("Config key: ")) &&
+                         sp->toolTip().contains(QStringLiteral("Config key: "));
+            if (sp->toolTip().contains(QStringLiteral("Config key: SCROLL_V_SENS"))) sensV = sp;
+            if (sp->toolTip().contains(QStringLiteral("Config key: SCROLL_H_SENS"))) sensH = sp;
         }
         check(spins > 0 && described == spins, "every spin box row names its config key");
         check(sensV && sensH, "the sensitivity rows exist");
-        QLineEdit *filter = nullptr;
-        for (auto *e : channels->findChildren<QLineEdit *>())
-            if (e->accessibleName() == QStringLiteral("Filter settings")) filter = e;
-        check(filter != nullptr, "the Channels page has a filter box");
-        if (filter && sensV && sensH) {
-            filter->setText(QStringLiteral("scroll_h_sens"));
+        if (sensV && sensH) {
+            channels->setFilter(QStringLiteral("scroll_h_sens"));
             check(sensH->isVisibleTo(channels) && !sensV->isVisibleTo(channels), "the filter finds a row by its config key");
-            filter->setText(QStringLiteral("Vertical scroll"));
+            channels->setFilter(QStringLiteral("Vertical scroll"));
             check(sensV->isVisibleTo(channels) && !sensH->isVisibleTo(channels), "the filter finds the rows of a group by its title");
-            filter->setText(QStringLiteral("nothing like it"));
+            channels->setFilter(QStringLiteral("nothing like it"));
             check(!sensV->isVisibleTo(channels) && !sensH->isVisibleTo(channels), "a filter without a match hides every row");
-            filter->setText(QString());
+            channels->setFilter(QString());
             check(sensV->isVisibleTo(channels) && sensH->isVisibleTo(channels), "an empty filter shows every row");
         }
         if (auto *area = channels->findChild<QScrollArea *>())
@@ -1148,6 +805,939 @@ static bool themeSelfTest(MainWindow &w) {
     return ok;
 }
 
+// ---- helpers of the autosave self-tests ----
+
+// A window with its own temporary configuration and a runner that records the reload requests.
+struct Rig {
+    QTemporaryDir dir;
+    spn::ui::RecordingActionRunner rec;
+    UiContext ctx;
+    std::unique_ptr<MainWindow> win;
+    explicit Rig(const QByteArray &conf) {
+        const QString p = dir.path();
+        ctx.runner = &rec;
+        ctx.configPath = (p + QStringLiteral("/dofscroll.conf")).toStdString();
+        ctx.modesDir = (p + QStringLiteral("/modes")).toStdString();
+        ctx.buttonModesDir = (p + QStringLiteral("/buttons")).toStdString();
+        ctx.runtimeDir = (p + QStringLiteral("/run")).toStdString();
+        QDir().mkpath(p + QStringLiteral("/modes"));
+        QDir().mkpath(p + QStringLiteral("/buttons"));
+        QDir().mkpath(p + QStringLiteral("/run"));
+        QFile f(p + QStringLiteral("/dofscroll.conf"));
+        if (f.open(QIODevice::WriteOnly)) f.write(conf);
+        f.close();
+        ctx.reload = spn::ui::reloadVia(rec);
+        win = std::make_unique<MainWindow>(ctx);
+        win->show();
+        settle();
+    }
+    QString confPath() const { return QString::fromStdString(ctx.configPath); }
+    QString confText() const {
+        QFile f(confPath());
+        return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+    }
+    // The file as the daemon would read it.
+    spn::ui::SettingsModel disk() const {
+        spn::ui::SettingsModel m;
+        std::string err;
+        m.load(ctx.configPath, nullptr, &err);
+        return m;
+    }
+    int reloads() const { return rec.count(spn::ui::RecordingActionRunner::Kind::RequestReload); }
+    Autosaver *saver() { return win->autosaver(); }
+    // Waits (event loop, the real timer) until nothing is pending any more.
+    bool waitSaved(int ms = 3000) {
+        QElapsedTimer t;
+        t.start();
+        while (saver()->pending() && t.elapsed() < ms) QApplication::processEvents(QEventLoop::AllEvents, 20);
+        QApplication::processEvents();
+        return !saver()->pending();
+    }
+};
+
+template <class W>
+static W *findNamed(QWidget *root, const QString &name) {
+    for (W *w : root->findChildren<W *>())
+        if (w->accessibleName() == name && w->isVisibleTo(root)) return w;
+    return nullptr;
+}
+
+static QPushButton *buttonTexted(QWidget *root, const QString &text) {
+    for (QPushButton *b : root->findChildren<QPushButton *>())
+        if (b->text() == text) return b;
+    return nullptr;
+}
+
+// The text the user would type: sets it and emits what the line edit emits for typing.
+static void typeInto(QLineEdit *e, const QString &text) {
+    e->setText(text);
+    Q_EMIT e->textEdited(text);
+}
+
+static const spn::Section *sectionOf(const spn::ui::SettingsModel &m, spn::Section::Kind kind, const std::string &pattern) {
+    const size_t i = kind == spn::Section::GLOBAL ? 0 : m.profiles().find(kind, pattern);
+    return i == spn::ProfileSet::npos ? nullptr : &m.profiles().sections[i];
+}
+static const std::string *keyIn(const spn::Section *s, const std::string &key) {
+    if (!s) return nullptr;
+    for (const spn::KV &kv : s->kv)
+        if (kv.first == key) return &kv.second;
+    return nullptr;
+}
+
+// ---- autosave: the profile editor ----
+// Every change is written by itself (a switch at once, typed text after a pause), invalid values are not
+// written, the tabs stay when the profile changes, and the Channels tab edits the selected profile.
+static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &accessibility) {
+    using spn::Section;
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "profile editor self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    Rig rig("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\n\n[app:blender]\nENABLED = 0\n");
+    MainWindow &w = *rig.win;
+    w.showPage(QStringLiteral("profiles"));
+    settle();
+    ProfilesPage *page = w.profilesPage();
+    check(page != nullptr, "the window has a Profiles page");
+    if (!page) return false;
+    ChannelsEditor *ch = page->channelsEditor();
+    const QStringList allTabs = {QStringLiteral("general"), QStringLiteral("channels"), QStringLiteral("buttons"),
+                                 QStringLiteral("overrides")};
+
+    // the list: Global first, then the devices, then the programs, always next to the tabs
+    const QStringList labels = page->profileListLabels();
+    check(labels.size() >= 6 && labels[0] == QStringLiteral("Global") && labels[2].startsWith(QStringLiteral("SpaceMouse Pro")) &&
+              labels[4].startsWith(QStringLiteral("blender")),
+          "the list shows Global, then the devices, then the programs");
+    check(labels[2] == QStringLiteral("SpaceMouse Pro (1)") && labels[5] == QStringLiteral("firefox (1)"),
+          "the list shows how many settings a profile overrides");
+
+    // the same tabs for every profile; the header says which profile is edited
+    for (size_t s : {size_t(0), size_t(1), size_t(2), size_t(3)}) {
+        check(page->selectSection(s) && page->tabIds() == allTabs, "General, Channels, Buttons and Overrides for every profile");
+    }
+    check(page->selectSection(0) && page->headerName() == QStringLiteral("Global") &&
+              page->headerKind() == QStringLiteral("Global profile") && page->headerHasIcon() &&
+              page->headerNote().startsWith(QStringLiteral("Applies to every device and program")),
+          "the header of Global: icon, name, kind and the inheritance sentence");
+    check(page->selectSection(1) && page->headerName() == QStringLiteral("SpaceMouse Pro") &&
+              page->headerKind() == QStringLiteral("Device profile") &&
+              page->headerNote().startsWith(QStringLiteral("Everything you do not change here is inherited from Global")),
+          "the header of a device profile");
+    check(page->selectSection(3) && page->headerName() == QStringLiteral("blender") &&
+              page->headerKind() == QStringLiteral("Program profile"),
+          "the header of a program profile");
+
+    // the tab stays when another profile is selected
+    for (const QString &tab : allTabs) {
+        check(page->selectTab(tab), "select a tab");
+        for (size_t s : {size_t(0), size_t(2), size_t(1), size_t(3)})
+            check(page->selectSection(s) && page->currentTabId() == tab, "the tab stays for every profile");
+    }
+    page->selectTab(QStringLiteral("general"));
+
+    // no Save, Revert or Discard button, and no unsaved-changes dialog exists anywhere
+    for (const QString &name : {QStringLiteral("Save"), QStringLiteral("Revert"), QStringLiteral("Discard"), QStringLiteral("Save changes")})
+        check(buttonTexted(&w, name) == nullptr, "no Save or Revert button in the window");
+
+    // the Channels tab edits the selected profile
+    check(page->selectSection(1) && page->selectTab(QStringLiteral("channels")), "device profile, Channels tab");
+    auto *sens = qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_V_SENS"));
+    check(sens && sens->value() == 9 && ch->section() == 1, "the Channels tab shows the value of the selected profile");
+    check(ch->originFor("SCROLL_V_SENS").startsWith(QStringLiteral("Set in this profile")), "the origin says it is set in this profile");
+    check(ch->originFor("SCROLL_H_SENS").startsWith(QStringLiteral("Inherited from Global")), "an inherited value says where it comes from");
+    check(ch->resetFor("SCROLL_V_SENS")->isEnabled() && !ch->resetFor("SCROLL_H_SENS")->isEnabled(), "Reset only where the profile has its own value");
+    const int reloadsBefore = rig.reloads();
+    if (sens) sens->setValue(11);  // a committed value: written at once (next event loop turn)
+    check(rig.saver()->pending(), "the change is scheduled");
+    check(rig.waitSaved(), "and written");
+    {
+        const spn::ui::SettingsModel d = rig.disk();
+        const std::string *v = keyIn(sectionOf(d, Section::DEVICE, "SpaceMouse Pro"), "SCROLL_V_SENS");
+        check(v && *v == "11", "the file holds the new value of the device profile");
+        check(rig.reloads() == reloadsBefore + 1, "the daemon was told once");
+        check(d.effective(0).scroll_v.sensitivity == 5, "Global is untouched");
+    }
+    // Global: plain values, and "N profiles override this"
+    check(page->selectSection(0), "Global");
+    check(ch->section() == 0 && ch->originFor("SCROLL_V_SENS").contains(QStringLiteral("1 profile overrides this")),
+          "Global says that a profile overrides the value");
+    check(!ch->originFor("SCROLL_H_SENS").contains(QStringLiteral("override")), "no hint where no profile overrides");
+    auto *gsens = qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_H_SENS"));
+    if (gsens) gsens->setValue(7);
+    check(rig.waitSaved(), "Global written");
+    check(keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "SCROLL_H_SENS") &&
+              *keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "SCROLL_H_SENS") == "7",
+          "the file holds the value of Global");
+    check(page->selectSection(3) && qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_H_SENS"))->value() == 7 &&
+              ch->originFor("SCROLL_H_SENS").startsWith(QStringLiteral("Inherited from Global")),
+          "another profile inherits it and says so");
+    // Reset removes the key
+    check(page->selectSection(1), "device profile again");
+    ch->resetFor("SCROLL_V_SENS")->click();
+    check(rig.waitSaved() && !keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "SCROLL_V_SENS"),
+          "Reset to inherited removes the key from the file");
+    // setting a value back to 0 is written, not dropped
+    sens = qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_V_SENS"));
+    if (sens) sens->setValue(0);
+    check(rig.waitSaved(), "0 written");
+    {
+        const std::string *v = keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "SCROLL_V_SENS");
+        check(v && *v == "0", "a value of 0 is written");
+    }
+
+    // text: written after a pause (600 ms), an invalid text is not written
+    check(page->selectSection(0), "Global for the text fields");
+    auto *mix = qobject_cast<QLineEdit *>(ch->editorFor("SCROLL_V_MIX"));
+    check(mix != nullptr, "the mix field exists");
+    if (mix) {
+        const QString before = rig.confText();
+        const int reloadsBeforeText = rig.reloads();
+        typeInto(mix, QStringLiteral("q + z"));  // invalid: no such axis
+        check(!rig.saver()->pending() && rig.confText() == before && rig.reloads() == reloadsBeforeText,
+              "an invalid text is not written");
+        bool problemShown = false;
+        for (QLabel *l : ch->findChildren<QLabel *>())
+            problemShown = problemShown || l->text().startsWith(QStringLiteral("Invalid value: "));
+        check(problemShown, "the problem is shown next to the field");
+        check(mix->property("invalid").toBool(), "the field is marked invalid");
+        QElapsedTimer t;
+        t.start();
+        typeInto(mix, QStringLiteral("z + 0.5*rx"));
+        check(rig.saver()->pending() && rig.confText() == before, "a valid text waits for the pause");
+        check(rig.waitSaved(), "written after the pause");
+        check(t.elapsed() >= 500, "the pause is about 600 ms");
+        const std::string *v = keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "SCROLL_V_MIX");
+        check(v && v->find("0.5") != std::string::npos, "the file holds the typed mix");
+        check(!mix->property("invalid").toBool(), "the mark goes away");
+        check(rig.reloads() == reloadsBeforeText + 1, "one reload for the whole typing");
+    }
+    // typing and switching the profile at once: nothing is lost
+    if (mix) {
+        typeInto(mix, QStringLiteral("z - rx"));
+        check(rig.saver()->pending(), "typed text is pending");
+        page->selectSection(1);  // the profile switch writes it at once
+        check(!rig.saver()->pending(), "the profile switch flushed it");
+        const std::string *v = keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "SCROLL_V_MIX");
+        check(v && v->find("- rx") != std::string::npos, "the text typed before the switch is on disk");
+    }
+    // invert: on and off are both written
+    check(page->selectSection(2), "program profile");
+    auto *sign = qobject_cast<QCheckBox *>(ch->editorFor("SCROLL_V_SIGN"));
+    if (sign) {
+        sign->setChecked(true);
+        check(rig.waitSaved(), "sign written");
+        const std::string *v = keyIn(sectionOf(rig.disk(), Section::APP, "firefox"), "SCROLL_V_SIGN");
+        check(v && *v == "-1", "the inverted direction is written");
+        sign->setChecked(false);
+        check(rig.waitSaved(), "sign written again");
+        v = keyIn(sectionOf(rig.disk(), Section::APP, "firefox"), "SCROLL_V_SIGN");
+        check(v && *v == "1", "unchecking is written (the profile overrides the inherited direction)");
+    }
+    // the joystick mode: choosing "Same as Global" removes the key
+    check(page->selectSection(2) && page->selectTab(QStringLiteral("general")), "General tab of firefox");
+    {
+        auto *mode = findNamed<QComboBox>(page, QStringLiteral("Joystick mode"));
+        check(mode && mode->currentText().contains(QStringLiteral("imeline")), "the program profile shows its joystick mode");
+        check(mode && mode->itemText(0) == QStringLiteral("Same as Global"), "the first choice is 'Same as Global'");
+        if (mode) QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 0));
+        check(rig.waitSaved() && !keyIn(sectionOf(rig.disk(), Section::APP, "firefox"), "MODE"), "'Same as Global' removes MODE from the file");
+        settle();
+        mode = findNamed<QComboBox>(page, QStringLiteral("Joystick mode"));
+        if (mode) QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 2));  // another joystick mode
+        check(rig.waitSaved() && keyIn(sectionOf(rig.disk(), Section::APP, "firefox"), "MODE"), "a joystick mode is written");
+    }
+    // Global takes a joystick mode too
+    check(page->selectSection(0), "Global General tab");
+    {
+        settle();
+        auto *mode = findNamed<QComboBox>(page, QStringLiteral("Joystick mode"));
+        check(mode && mode->itemText(0) != QStringLiteral("Same as Global"), "Global has no 'Same as Global' choice");
+        check(mode && mode->count() >= 3, "Global offers the joystick modes");
+        if (mode) QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 2));
+        check(rig.waitSaved(), "Global mode written");
+        const std::string *v = keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "MODE");
+        check(v && *v != "normal", "the joystick mode of Global is in the file");
+        QLabel *badge = nullptr;
+        for (QLabel *l : page->findChildren<QLabel *>())
+            if (l->objectName() == QStringLiteral("modeOrigin")) badge = l;
+        check(badge && badge->text().contains(QStringLiteral("override")), "Global says which profiles choose another joystick mode");
+        mode = findNamed<QComboBox>(page, QStringLiteral("Joystick mode"));
+        if (mode) QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 0));  // back to normal
+        check(rig.waitSaved(), "Global mode written back");
+    }
+    // enabled: a switch per profile, written both ways, Reset removes the key
+    check(page->selectSection(3) && page->selectTab(QStringLiteral("general")), "General tab of blender");
+    {
+        settle();
+        auto *en = findNamed<QCheckBox>(page, QStringLiteral("Send events"));
+        check(en && !en->isChecked(), "blender is switched off");
+        if (en) en->setChecked(true);
+        check(rig.waitSaved(), "enabled written");
+        const std::string *v = keyIn(sectionOf(rig.disk(), Section::APP, "blender"), "ENABLED");
+        check(v && *v == "1", "switching on is written");
+        if (en) en->setChecked(false);
+        check(rig.waitSaved(), "disabled written");
+        v = keyIn(sectionOf(rig.disk(), Section::APP, "blender"), "ENABLED");
+        check(v && *v == "0", "switching off is written");
+        QToolButton *reset = nullptr;
+        for (QToolButton *b : page->findChildren<QToolButton *>())
+            if (b->accessibleName() == QStringLiteral("Reset to inherited ENABLED")) reset = b;
+        check(reset && reset->isEnabled(), "Reset to inherited exists for the output switch");
+        if (reset) reset->click();
+        check(rig.waitSaved() && !keyIn(sectionOf(rig.disk(), Section::APP, "blender"), "ENABLED"), "Reset removes ENABLED");
+    }
+    // Global has no output switch on the profile page: it is on the Settings page
+    check(page->selectSection(0), "Global");
+    settle();
+    check(findNamed<QCheckBox>(page, QStringLiteral("Send events")) == nullptr, "no setting appears in two places: the output switch is not in Global");
+
+    // buttons: the effective action and its origin, 'Inherit' first, written and removed again
+    check(page->selectSection(1) && page->selectTab(QStringLiteral("buttons")), "Buttons tab of the device profile");
+    settle();
+    {
+        auto *origin = findNamed<QLabel>(page, QStringLiteral("Origin of button 1"));
+        check(origin && origin->text().startsWith(QStringLiteral("Inherited from Global")), "a button row says where its action comes from");
+        auto *act = findNamed<QComboBox>(page, QStringLiteral("Action of button 1"));
+        check(act && act->itemText(0) == QStringLiteral("Default (inherit from Global)"), "'Default (inherit)' is the first choice");
+        int click = -1;
+        if (act)
+            for (int i = 0; i < act->count(); ++i)
+                if (act->itemText(i) == QStringLiteral("Left click")) click = i;
+        check(click >= 0, "the click action is offered");
+        if (act && click >= 0) QMetaObject::invokeMethod(act, "activated", Q_ARG(int, click));
+        check(rig.waitSaved(), "button written");
+        const std::string *v = keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "BUTTON_1");
+        check(v && *v == "click", "the button action is written");
+        settle();
+        origin = findNamed<QLabel>(page, QStringLiteral("Origin of button 1"));
+        check(origin && origin->text().startsWith(QStringLiteral("Set in this profile")), "the row now says it is set in this profile");
+        act = findNamed<QComboBox>(page, QStringLiteral("Action of button 1"));
+        if (act) QMetaObject::invokeMethod(act, "activated", Q_ARG(int, 0));  // Default (inherit)
+        check(rig.waitSaved() && !keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "BUTTON_1"),
+              "Default (inherit) removes the binding from the file");
+    }
+
+    // the Overrides tab: typed values are validated, written after a pause; Remove removes the key
+    check(page->selectSection(1) && page->selectTab(QStringLiteral("overrides")), "Overrides tab");
+    settle();
+    {
+        auto *edit = findNamed<QLineEdit>(page, QStringLiteral("SCROLL_V_SENS"));
+        check(edit != nullptr, "the override of the device profile is listed");
+        if (edit) {
+            const QString before = rig.confText();
+            typeInto(edit, QStringLiteral("abc"));
+            check(!rig.saver()->pending() && rig.confText() == before, "an invalid override text is not written");
+            typeInto(edit, QStringLiteral("13"));
+            check(rig.waitSaved(), "valid text written");
+            const std::string *v = keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "SCROLL_V_SENS");
+            check(v && *v == "13", "the file holds the override");
+        }
+        QToolButton *rm = nullptr;
+        for (QToolButton *b : page->findChildren<QToolButton *>())
+            if (b->accessibleName() == QStringLiteral("Remove SCROLL_V_SENS")) rm = b;
+        if (rm) rm->click();
+        check(rig.waitSaved() && !keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "SCROLL_V_SENS"),
+              "Remove removes the override from the file");
+    }
+
+    // restore defaults of a profile: only its own channel values go
+    check(page->selectSection(1) && page->selectTab(QStringLiteral("channels")), "Channels tab");
+    ch->editorFor("SCROLL_H_DEADZONE");
+    if (auto *dz = qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_H_DEADZONE"))) dz->setValue(33);
+    check(rig.waitSaved() && keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "SCROLL_H_DEADZONE"), "deadzone written");
+    check(ch->restoreDefaults() && rig.waitSaved() && !keyIn(sectionOf(rig.disk(), Section::DEVICE, "SpaceMouse Pro"), "SCROLL_H_DEADZONE"),
+          "Restore defaults removes the values of the profile");
+
+    // the search box applies to the Channels tab too
+    page->setSettingsFilter(QStringLiteral("scroll_h_sens"));
+    check(ch->visibleRowCount() == 1, "the settings search finds one channel row");
+    page->setSettingsFilter(QString());
+    check(ch->visibleRowCount() == ch->rowCount(), "an empty search shows every row");
+
+    // export of the selected profile
+    check(page->selectSection(3), "blender");
+    {
+        const QString file = rig.dir.path() + QStringLiteral("/export-blender.conf");
+        check(page->exportSelected(file), "export writes a file");
+        spn::ProfileSet ps;
+        check(spn::loadProfiles(file.toStdString(), &ps, nullptr) && ps.sections.size() == 2 && ps.sections[1].kind == Section::APP &&
+                  ps.sections[1].pattern == "blender",
+              "the exported file holds the section of the profile");
+        check(page->selectSection(0) && page->exportSelected(rig.dir.path() + QStringLiteral("/export-global.conf")) &&
+                  rig.dir.path().size() > 0,
+              "Global can be exported too");
+    }
+
+    // Overview task: 'Tune scroll and zoom' opens the Channels tab of Global
+    w.showPage(QStringLiteral("overview"));
+    settle();
+    if (auto *tune = w.findChild<QPushButton *>(QStringLiteral("task-tune"))) tune->click();
+    settle();
+    check(w.currentPageId() == QStringLiteral("profiles") && page->selectedSection() == 0 && page->currentTabId() == QStringLiteral("channels"),
+          "'Tune scroll and zoom' opens the Channels tab of the Global profile");
+
+    // accessible names of every input on every tab
+    for (const QString &id : allTabs) {
+        page->selectTab(id);
+        settle();
+        check(accessibility(w), "every input of the tab has an accessible name");
+    }
+
+    // a page switch writes what is typed
+    w.showPage(QStringLiteral("profiles"));
+    page->selectSection(0);
+    page->selectTab(QStringLiteral("channels"));
+    settle();
+    if (mix) {
+        typeInto(qobject_cast<QLineEdit *>(ch->editorFor("SCROLL_H_MIX")), QStringLiteral("x + 0.25*ry"));
+        check(rig.saver()->pending(), "typed text pending before the page switch");
+        w.showPage(QStringLiteral("overview"));
+        check(!rig.saver()->pending(), "the page switch flushed it");
+        const std::string *v = keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "SCROLL_H_MIX");
+        check(v && v->find("0.25") != std::string::npos, "the text is on disk after the page switch");
+    }
+    // closing the window writes what is typed
+    w.showPage(QStringLiteral("profiles"));
+    if (auto *e2 = qobject_cast<QLineEdit *>(ch->editorFor("ZOOM_MIX"))) {
+        typeInto(e2, QStringLiteral("rz"));
+        check(rig.saver()->pending(), "typed text pending before the close");
+        QCloseEvent ev;
+        QApplication::sendEvent(&w, &ev);
+        check(!rig.saver()->pending(), "closing the window flushed it");
+        const std::string *v = keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "ZOOM_MIX");
+        check(v && *v == "rz", "the text is on disk after the close");
+        w.show();
+        settle();
+    }
+    // quitting writes what is typed
+    w.showPage(QStringLiteral("profiles"));
+    if (auto *e3 = qobject_cast<QLineEdit *>(ch->editorFor("ZOOM_MIX"))) {
+        typeInto(e3, QStringLiteral("rx"));
+        check(w.flushPending() && !rig.saver()->pending(), "the quit path flushes");
+        const std::string *v = keyIn(sectionOf(rig.disk(), Section::GLOBAL, ""), "ZOOM_MIX");
+        check(v && *v == "rx", "the text is on disk after the flush of the quit path");
+    }
+    std::printf("profile editor self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
+// ---- autosave: the joystick mode editor and the button mode page ----
+// Valid changes are written by themselves, an invalid form is not, closing and switching write the last
+// change, and there is no Save, Revert or Discard button.
+static bool modeFilesAutosaveSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "mode files autosave self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    auto fileText = [&](const QString &rel) {
+        QFile f(tmpPath + rel);
+        return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+    };
+    auto waitFor = [](const std::function<bool()> &done, int ms) {
+        QElapsedTimer t;
+        t.start();
+        while (!done() && t.elapsed() < ms) QApplication::processEvents(QEventLoop::AllEvents, 20);
+        return done();
+    };
+    {
+        ModesPage page(ctx);
+        page.show();
+        settle();
+        check(page.selectMode(QStringLiteral("mine")) && page.openEditor() && page.editorWidget(), "the editor opens");
+        ModeEditorWidget *ed = page.editorWidget();
+        for (const QString &name : {QStringLiteral("Save"), QStringLiteral("Revert"), QStringLiteral("Discard")})
+            check(buttonTexted(&page, name) == nullptr, "no Save or Revert button in the joystick mode editor");
+        // typed text: written after a pause
+        ed->editor().form().name = "Typed name";
+        ed->edited(true);
+        check(ed->pending() && !fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("Typed name")), "typed text waits for the pause");
+        check(waitFor([&] { return !ed->pending(); }, 3000) && fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("NAME = Typed name")),
+              "and is written after it");
+        check(page.originOf(QStringLiteral("mine")) == QStringLiteral("Your file") && page.originOf(QStringLiteral("normal")) == QStringLiteral("Built in"),
+              "the list says where each joystick mode comes from");
+        // a drop-down (button binding) is written at once
+        ed->editor().form().setButton(3, "key:enter");
+        ed->edited(false);
+        check(waitFor([&] { return !ed->pending(); }, 2000) && fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("BUTTON_3 = key:enter")),
+              "a button binding is written");
+        // removing the binding removes the line
+        ed->editor().form().setButton(3, "none");
+        ed->edited(false);
+        check(waitFor([&] { return !ed->pending(); }, 2000) && !fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("BUTTON_3")),
+              "removing a binding removes it from the file");
+        // an invalid form is not written and says why
+        const QString before = fileText(QStringLiteral("/modes/mine.conf"));
+        ed->editor().form().overrides.emplace_back("SCROLL_H_SENS", "abc");
+        ed->edited(true);
+        check(!ed->pending() && !ed->problemText().isEmpty(), "an invalid form is not scheduled and shows the problem");
+        QThread::msleep(700);
+        QApplication::processEvents();
+        check(fileText(QStringLiteral("/modes/mine.conf")) == before, "the file stays as it was");
+        check(!ed->flush(), "a flush of an invalid form reports it");
+        ed->editor().form().overrides.back().second = "3";
+        ed->edited(true);
+        check(ed->pending(), "fixed: written again");
+        // closing writes the last change at once
+        ed->editor().form().description = "Closed with a pending change";
+        ed->edited(true);
+        QPushButton *close = buttonTexted(ed, QStringLiteral("Close editor"));
+        check(close != nullptr, "Close editor exists");
+        if (close) close->click();
+        check(!ed->pending() && fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("Closed with a pending change")),
+              "Close editor writes the pending change");
+        // switching to another joystick mode writes it too
+        check(page.selectMode(QStringLiteral("mine")) && page.openEditor(), "reopen");
+        ed->editor().form().name = "Switch edit";
+        ed->edited(true);
+        page.selectMode(QStringLiteral("timeline"));
+        check(!ed->pending() && fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("NAME = Switch edit")),
+              "selecting another joystick mode writes the pending change");
+        // the file changed on disk meanwhile: the question has a test seam, "no" keeps the file
+        check(page.selectMode(QStringLiteral("mine")) && page.openEditor(), "reopen again");
+        {
+            QFile f(tmpPath + QStringLiteral("/modes/mine.conf"));
+            check(f.open(QIODevice::Append) && f.write("# edited elsewhere\n") > 0, "change the file behind the editor");
+        }
+        int asked = 0;
+        ed->setOverwriteAnswer([&asked] {
+            ++asked;
+            return false;
+        });
+        ed->editor().form().name = "Not overwriting";
+        ed->edited(false);
+        check(waitFor([&] { return !ed->pending(); }, 2000) && asked == 1 &&
+                  !fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("Not overwriting")) &&
+                  fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("edited elsewhere")),
+              "a file changed elsewhere is not overwritten without a yes");
+        ed->setOverwriteAnswer([] { return true; });
+        ed->edited(false);
+        check(waitFor([&] { return !ed->pending(); }, 2000) && fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("NAME = Not overwriting")),
+              "with a yes it is");
+        // restore the original name for the later tests
+        ed->editor().form().name = "Mine";
+        ed->edited(false);
+        ed->flush();
+    }
+    {   // the button mode page
+        ButtonModesPage page(ctx);
+        page.show();
+        settle();
+        for (const QString &name : {QStringLiteral("Save"), QStringLiteral("Revert"), QStringLiteral("Discard")})
+            check(buttonTexted(&page, name) == nullptr, "no Save or Revert button on the button modes page");
+        check(page.selectButtonMode(QStringLiteral("latch")), "select the button mode");
+        check(page.stageEdit(QStringLiteral("Typed"), QStringLiteral("d"), QStringLiteral("toggle:nav")), "type into the form");
+        check(page.pending(), "the change is pending");
+        check(waitFor([&] { return !page.pending(); }, 3000) && fileText(QStringLiteral("/buttons/latch.conf")).contains(QStringLiteral("NAME = Typed")),
+              "written after the pause");
+        check(page.originOf(QStringLiteral("latch")) == QStringLiteral("Your file"), "the list says the button mode is your file");
+        // a drop-down is written at once (a key action comes with the default key, so it is complete)
+        auto *kind = findNamed<QComboBox>(&page, QStringLiteral("Action"));
+        check(kind != nullptr, "the action drop-down exists");
+        if (kind) {
+            int key = -1;
+            for (int i = 0; i < kind->count(); ++i)
+                if (kind->itemText(i) == QStringLiteral("Press key")) key = i;
+            check(key >= 0, "Press key is offered");
+            if (key >= 0) QMetaObject::invokeMethod(kind, "activated", Q_ARG(int, key));
+            check(waitFor([&] { return !page.pending(); }, 2000) && fileText(QStringLiteral("/buttons/latch.conf")).contains(QStringLiteral("ACTION = key:space")),
+                  "the action is written at once");
+        }
+        // typing and switching: nothing is lost
+        QFile other(tmpPath + QStringLiteral("/buttons/other.conf"));
+        check(other.open(QIODevice::WriteOnly) && other.write("NAME = Other\nACTION = click\n") > 0, "a second button mode");
+        other.close();
+        page.refreshIfChanged();
+        check(page.selectButtonMode(QStringLiteral("other")), "select it");
+        check(page.stageEdit(QStringLiteral("Other edited"), QString(), QStringLiteral("click")) && page.pending(), "type into it");
+        page.selectButtonMode(QStringLiteral("latch"));
+        check(!page.pending() && fileText(QStringLiteral("/buttons/other.conf")).contains(QStringLiteral("NAME = Other edited")),
+              "selecting another button mode writes the pending change");
+        QFile::remove(tmpPath + QStringLiteral("/buttons/other.conf"));
+        page.refreshIfChanged();
+        // restore
+        page.selectButtonMode(QStringLiteral("latch"));
+        page.editCurrent(QStringLiteral("Latch"), QString(), QStringLiteral("toggle:nav"));
+    }
+    std::printf("mode files autosave self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
+// "New from example...": the examples that ship with dofscroll and are not in the folder yet are copied
+// into the folder of the user (both pages), and every list entry says where it comes from.
+static bool examplesSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "examples self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    QDir().mkpath(tmpPath + QStringLiteral("/ex/modes"));
+    QDir().mkpath(tmpPath + QStringLiteral("/ex/buttons"));
+    for (const auto &f : {std::make_pair("/ex/modes/ex-one.conf", "NAME = Example one\nV_ACTION = none\n"),
+                          std::make_pair("/ex/buttons/ex-btn.conf", "NAME = Example button\nACTION = click\n")}) {
+        QFile file(tmpPath + QString::fromLatin1(f.first));
+        if (!file.open(QIODevice::WriteOnly)) return false;
+        file.write(f.second);
+    }
+    qputenv("DOFSCROLL_EXAMPLES", (tmpPath + QStringLiteral("/ex")).toUtf8());
+    {
+        ModesPage page(ctx);
+        page.show();
+        settle();
+        check(page.modeCount() >= 4, "the built-in joystick modes and the files are listed");
+        check(page.exampleIds().contains(QStringLiteral("ex-one")), "the example is offered");
+        check(buttonTexted(&page, QStringLiteral("New from example...")) != nullptr, "New from example... exists");
+        check(page.installExample(QStringLiteral("ex-one")) && QFile::exists(tmpPath + QStringLiteral("/modes/ex-one.conf")), "install a joystick mode example");
+        check(!page.exampleIds().contains(QStringLiteral("ex-one")) && page.originOf(QStringLiteral("ex-one")) == QStringLiteral("Your file"),
+              "it is not offered again and is now your file");
+        check(page.currentId() == QStringLiteral("ex-one"), "the new joystick mode is selected");
+        check(!page.installExample(QStringLiteral("ex-one")) && !page.lastError().isEmpty(), "installing twice is refused");
+        check(page.originOf(QStringLiteral("normal")) == QStringLiteral("Built in"), "built-in joystick modes say so");
+        QFile::remove(tmpPath + QStringLiteral("/modes/ex-one.conf"));
+    }
+    {
+        ButtonModesPage page(ctx);
+        page.show();
+        settle();
+        check(page.exampleIds().contains(QStringLiteral("ex-btn")), "the button mode example is offered");
+        check(buttonTexted(&page, QStringLiteral("New from example...")) != nullptr, "New from example... exists on the button modes page");
+        check(page.installExample(QStringLiteral("ex-btn")) && QFile::exists(tmpPath + QStringLiteral("/buttons/ex-btn.conf")), "install a button mode example");
+        check(page.originOf(QStringLiteral("ex-btn")) == QStringLiteral("Your file") && !page.exampleIds().contains(QStringLiteral("ex-btn")),
+              "it is your file now");
+        QFile::remove(tmpPath + QStringLiteral("/buttons/ex-btn.conf"));
+    }
+    qunsetenv("DOFSCROLL_EXAMPLES");
+    std::printf("examples self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
+// The old NAV_BUTTON / CLICK_BUTTON settings are moved to BUTTON_<n> when the window starts, the file is
+// written, the user is told once, and what cannot be moved stays and is listed.
+static bool legacyButtonsSelfTest() {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "legacy buttons self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    Rig rig("[global]\nNAV_BUTTON = 2\nNAV_BUTTON_ENABLED = 1\nCLICK_BUTTON = 1\nCLICK_BUTTON_ENABLED = 0\nBUTTON_4 = key:space\n");
+    const QString text = rig.confText();
+    check(!text.contains(QStringLiteral("NAV_BUTTON")) && !text.contains(QStringLiteral("CLICK_BUTTON")), "the old keys are gone from the file");
+    check(text.contains(QStringLiteral("BUTTON_3 = nav")) && text.contains(QStringLiteral("BUTTON_4 = key:space")), "the navigation button became BUTTON_3 = nav");
+    check(rig.reloads() >= 1, "the daemon was told");
+    check(rig.win->saveStatus().startsWith(QStringLiteral("Moved the old navigation/click button settings to the Buttons tab")),
+          "the user is told once in the status line");
+    ProfilesPage *page = rig.win->profilesPage();
+    check(page != nullptr, "Profiles page");
+    if (page) {
+        rig.win->showPage(QStringLiteral("profiles"));
+        page->selectTab(QStringLiteral("buttons"));
+        settle();
+        QLabel *note = nullptr;
+        for (QLabel *l : page->findChildren<QLabel *>())
+            if (l->objectName() == QStringLiteral("legacyButtonNotes")) note = l;
+        check(note && note->text().contains(QStringLiteral("BUTTON_3")), "the Buttons tab lists what was moved");
+        check(findNamed<QSpinBox>(page, QStringLiteral("Navigation button")) == nullptr, "there is no navigation button setting any more");
+    }
+    // a button above the count of the device: kept untouched and listed
+    Rig rig2("[global]\nNAV_BUTTON = 40\nNAV_BUTTON_ENABLED = 1\n");
+    check(rig2.confText().contains(QStringLiteral("NAV_BUTTON = 40")), "an unmovable setting stays in the file");
+    ProfilesPage *p2 = rig2.win->profilesPage();
+    if (p2) {
+        rig2.win->showPage(QStringLiteral("profiles"));
+        p2->selectTab(QStringLiteral("buttons"));
+        settle();
+        QLabel *note = nullptr;
+        for (QLabel *l : p2->findChildren<QLabel *>())
+            if (l->objectName() == QStringLiteral("legacyButtonNotes")) note = l;
+        check(note && note->text().contains(QStringLiteral("Not moved")), "and is listed as a note");
+    }
+    std::printf("legacy buttons self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
+// ---- audit: every editable control is persisted ----
+// Table-driven: change the control programmatically, wait for the autosave (the real timer), read the file
+// from disk like the daemon would and check the value; a cleared or unchecked state must be written (or
+// the key removed), and no other key of the profile may change. The table is printed.
+static bool autosaveAuditSelfTest(const std::function<bool(MainWindow &)> &) {
+    using spn::Section;
+    bool ok = true;
+    int rows = 0;
+    auto record = [&](const QString &element, bool persisted, const QString &how) {
+        ++rows;
+        std::printf("audit: %-58s persisted: %-3s (%s)\n", qPrintable(element), persisted ? "yes" : "NO", qPrintable(how));
+        if (!persisted) {
+            std::fprintf(stderr, "audit self-test failed: %s is not persisted\n", qPrintable(element));
+            ok = false;
+        }
+    };
+    Rig rig("[global]\nSCROLL_V_SENS = 5\nZOOM_LATERAL = x y\n\n[device:Dev]\n\n[app:audit-app]\nSCROLL_V_SIGN = -1\nENABLED = 0\n");
+    MainWindow &w = *rig.win;
+    w.showPage(QStringLiteral("profiles"));
+    ProfilesPage *page = w.profilesPage();
+    ChannelsEditor *ch = page->channelsEditor();
+    const size_t kGlobal = 0, kApp = rig.disk().profiles().find(Section::APP, "audit-app");
+
+    // reads: the value of a key in a profile of the file, and the keys of the profile other than `except`
+    auto valueOf = [&](size_t sec, const std::string &key) -> std::string {
+        const spn::ui::SettingsModel d = rig.disk();
+        const spn::Section &s = d.profiles().sections[sec];
+        for (const spn::KV &kv : s.kv)
+            if (kv.first == key) return kv.second;
+        return std::string("<absent>");
+    };
+    auto snapshot = [&](size_t sec) {
+        const spn::ui::SettingsModel d = rig.disk();
+        return d.profiles().sections[sec].kv;
+    };
+    auto othersUnchanged = [&](const std::vector<spn::KV> &before, size_t sec, const std::string &key) {
+        const std::vector<spn::KV> after = snapshot(sec);
+        for (const spn::KV &b : before) {
+            if (b.first == key) continue;
+            bool found = false;
+            for (const spn::KV &a : after)
+                if (a.first == b.first && a.second == b.second) found = true;
+            if (!found) return false;
+        }
+        return true;
+    };
+    auto go = [&](size_t sec, const char *tab) {
+        w.showPage(QStringLiteral("profiles"));
+        page->selectSection(sec);
+        page->selectTab(QString::fromLatin1(tab));
+        settle();
+    };
+    // one case: act, wait, compare the key in the file (expected "<absent>" = the key must be gone)
+    auto expect = [&](const QString &element, size_t sec, const std::string &key, const std::string &want,
+                      const std::function<void()> &act, bool prefix = false, bool groupReset = false) {
+        const std::vector<spn::KV> before = snapshot(sec);
+        act();
+        const bool saved = rig.waitSaved();
+        const std::string got = valueOf(sec, key);
+        const bool match = prefix ? got.rfind(want, 0) == 0 : got == want;
+        const bool others = groupReset || othersUnchanged(before, sec, key);
+        record(element, saved && match && others,
+               QStringLiteral("%1 = %2%3").arg(qs8(key), qs8(got), others ? QString() : QStringLiteral(", but another key changed")));
+    };
+
+    const struct { size_t sec; const char *name; } profiles[] = {{kGlobal, "Global"}, {kApp, "program profile"}};
+    for (const auto &p : profiles) {
+        const QString who = QString::fromLatin1(p.name);
+        const size_t sec = p.sec;
+        go(sec, "channels");
+        // numbers: 0 and a value back to its default are written
+        expect(who + QStringLiteral(": Sensitivity 0"), sec, "SCROLL_V_SENS", "0", [&] { qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_V_SENS"))->setValue(0); });
+        expect(who + QStringLiteral(": Sensitivity back to the default 5"), sec, "SCROLL_V_SENS", "5",
+               [&] { qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_V_SENS"))->setValue(5); });
+        expect(who + QStringLiteral(": Deadzone 0"), sec, "SCROLL_H_DEADZONE", "0", [&] { qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_H_DEADZONE"))->setValue(0); });
+        expect(who + QStringLiteral(": Deadzone 40"), sec, "SCROLL_H_DEADZONE", "40", [&] { qobject_cast<QSpinBox *>(ch->editorFor("SCROLL_H_DEADZONE"))->setValue(40); });
+        expect(who + QStringLiteral(": Smoothing 0"), sec, "ZOOM_SMOOTH_MS", "0", [&] { qobject_cast<QDoubleSpinBox *>(ch->editorFor("ZOOM_SMOOTH_MS"))->setValue(0); });
+        expect(who + QStringLiteral(": Smoothing 30"), sec, "ZOOM_SMOOTH_MS", "30", [&] { qobject_cast<QDoubleSpinBox *>(ch->editorFor("ZOOM_SMOOTH_MS"))->setValue(30); });
+        expect(who + QStringLiteral(": Entry time 120"), sec, "ZOOM_ENTER_MS", "120", [&] { qobject_cast<QSpinBox *>(ch->editorFor("ZOOM_ENTER_MS"))->setValue(120); });
+        expect(who + QStringLiteral(": Entry time 0"), sec, "ZOOM_ENTER_MS", "0", [&] { qobject_cast<QSpinBox *>(ch->editorFor("ZOOM_ENTER_MS"))->setValue(0); });
+        // a different value than the one Global has just got: a spin box that does not change writes nothing
+        const double ratio = sec == kGlobal ? 2.0 : 3.0, step = sec == kGlobal ? 55 : 65;
+        expect(who + QStringLiteral(": Exit ratio"), sec, "ZOOM_EXIT_RATIO", sec == kGlobal ? "2" : "3",
+               [&] { qobject_cast<QDoubleSpinBox *>(ch->editorFor("ZOOM_EXIT_RATIO"))->setValue(ratio); });
+        expect(who + QStringLiteral(": Step trigger"), sec, "STEP_TRIGGER", sec == kGlobal ? "55" : "65",
+               [&] { qobject_cast<QDoubleSpinBox *>(ch->editorFor("STEP_TRIGGER"))->setValue(step); });
+        // direction: both ways
+        expect(who + QStringLiteral(": Invert direction on"), sec, "SCROLL_H_SIGN", "-1", [&] { qobject_cast<QCheckBox *>(ch->editorFor("SCROLL_H_SIGN"))->setChecked(true); });
+        expect(who + QStringLiteral(": Invert direction off (only the direction changes)"), sec, "SCROLL_H_SIGN", "1",
+               [&] { qobject_cast<QCheckBox *>(ch->editorFor("SCROLL_H_SIGN"))->setChecked(false); });
+        // curve: exponent, then points, then the points field cleared
+        expect(who + QStringLiteral(": Curve exponent"), sec, "ZOOM_CURVE", "2.5", [&] { qobject_cast<QDoubleSpinBox *>(ch->editorFor("ZOOM_CURVE"))->setValue(2.5); });
+        expect(who + QStringLiteral(": Curve exponent back to linear (1)"), sec, "ZOOM_CURVE", "1", [&] { qobject_cast<QDoubleSpinBox *>(ch->editorFor("ZOOM_CURVE"))->setValue(1.0); });
+        {
+            QLineEdit *pts = nullptr;
+            for (QLineEdit *e : ch->findChildren<QLineEdit *>())
+                if (e->toolTip().contains(QStringLiteral("SCROLL_V_CURVE")) && e->placeholderText().startsWith(QStringLiteral("empty"))) pts = e;
+            if (pts) {
+                expect(who + QStringLiteral(": Curve points typed"), sec, "SCROLL_V_CURVE", "0:0", [&] { typeInto(pts, QStringLiteral("0:0 100:1 350:3")); }, true);
+                expect(who + QStringLiteral(": Curve points cleared (back to the exponent)"), sec, "SCROLL_V_CURVE", "1", [&] { typeInto(pts, QString()); });
+            } else {
+                record(who + QStringLiteral(": Curve points"), false, QStringLiteral("field not found"));
+            }
+        }
+        expect(who + QStringLiteral(": Axis mix typed"), sec, "SCROLL_H_MIX", "x + 0.5*ry",
+               [&] { typeInto(qobject_cast<QLineEdit *>(ch->editorFor("SCROLL_H_MIX")), QStringLiteral("x + 0.5*ry")); });
+        // zoom detection: deselect every axis, select one again
+        expect(who + QStringLiteral(": Zoom must dominate: all axes deselected"), sec, "ZOOM_LATERAL", "",
+               [&] {
+                   for (QCheckBox *c : ch->editorFor("ZOOM_LATERAL")->findChildren<QCheckBox *>()) c->setChecked(false);
+               });
+        {
+            const spn::ui::SettingsModel d = rig.disk();
+            record(who + QStringLiteral(": ... and reads back as no axis"), d.effective(sec).zoom_lateral.empty(), QStringLiteral("loaded from disk"));
+        }
+        expect(who + QStringLiteral(": Zoom must dominate: one axis selected"), sec, "ZOOM_LATERAL", "z",
+               [&] {
+                   for (QCheckBox *c : ch->editorFor("ZOOM_LATERAL")->findChildren<QCheckBox *>())
+                       if (c->text() == QStringLiteral("z")) c->setChecked(true);
+               });
+        // Reset per row removes the key of a profile (Global: back to the default value)
+        if (sec == kApp) {
+            expect(who + QStringLiteral(": Reset to inherited removes the key"), sec, "SCROLL_H_DEADZONE", "<absent>",
+                   [&] { ch->resetFor("SCROLL_H_DEADZONE")->click(); });
+            expect(who + QStringLiteral(": Reset this group removes its keys"), sec, "ZOOM_SMOOTH_MS", "<absent>", [&] {
+                for (QPushButton *c : ch->findChildren<QPushButton *>())
+                    if (c->accessibleName() == QStringLiteral("Reset this group - Twist / zoom")) {
+                        c->click();
+                        break;
+                    }
+            }, false, true);
+            expect(who + QStringLiteral(": Restore defaults removes every channel key"), sec, "SCROLL_V_SIGN", "<absent>", [&] { ch->restoreDefaults(); }, false, true);
+        } else {
+            expect(who + QStringLiteral(": Reset sets the built-in default (Deadzone)"), sec, "SCROLL_H_DEADZONE", "20",
+                   [&] { ch->resetFor("SCROLL_H_DEADZONE")->click(); });
+        }
+    }
+
+    // joystick mode and the output switch of a profile
+    go(kApp, "general");
+    expect(QStringLiteral("program profile: Joystick mode"), kApp, "MODE", "timeline", [&] {
+        auto *mode = findNamed<QComboBox>(page, QStringLiteral("Joystick mode"));
+        int idx = -1;
+        for (int i = 0; i < mode->count(); ++i)
+            if (mode->itemText(i).contains(QStringLiteral("imeline"))) idx = i;
+        QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, idx));
+    });
+    settle();
+    expect(QStringLiteral("program profile: Joystick mode 'Same as Global' removes MODE"), kApp, "MODE", "<absent>", [&] {
+        QMetaObject::invokeMethod(findNamed<QComboBox>(page, QStringLiteral("Joystick mode")), "activated", Q_ARG(int, 0));
+    });
+    settle();
+    expect(QStringLiteral("program profile: Output switched on (was off)"), kApp, "ENABLED", "1",
+           [&] { findNamed<QCheckBox>(page, QStringLiteral("Send events"))->setChecked(true); });
+    expect(QStringLiteral("program profile: Output switched off"), kApp, "ENABLED", "0",
+           [&] { findNamed<QCheckBox>(page, QStringLiteral("Send events"))->setChecked(false); });
+    go(kGlobal, "general");
+    expect(QStringLiteral("Global: Joystick mode"), kGlobal, "MODE", "off", [&] {
+        auto *mode = findNamed<QComboBox>(page, QStringLiteral("Joystick mode"));
+        int idx = -1;
+        for (int i = 0; i < mode->count(); ++i)
+            if (mode->itemText(i).startsWith(QStringLiteral("Off"))) idx = i;
+        QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, idx));
+    });
+    settle();
+    expect(QStringLiteral("Global: Joystick mode back to normal"), kGlobal, "MODE", "normal", [&] {
+        QMetaObject::invokeMethod(findNamed<QComboBox>(page, QStringLiteral("Joystick mode")), "activated", Q_ARG(int, 0));
+    });
+
+    // buttons: an action, another one, and 'Inherit' / Unbind
+    for (const auto &p : profiles) {
+        const size_t sec = p.sec;
+        const QString who = QString::fromLatin1(p.name);
+        go(sec, "buttons");
+        auto act = [&](const QString &text) {
+            auto *combo = findNamed<QComboBox>(page, QStringLiteral("Action of button 2"));
+            int idx = -1;
+            for (int i = 0; combo && i < combo->count(); ++i)
+                if (combo->itemText(i) == text) idx = i;
+            if (combo && idx >= 0) QMetaObject::invokeMethod(combo, "activated", Q_ARG(int, idx));
+        };
+        if (sec == kGlobal) {
+            // plain clicks sit behind "Advanced" in Global: open it first, as the user does
+            for (QGroupBox *g : page->findChildren<QGroupBox *>())
+                if (g->isCheckable()) g->setChecked(true);
+            settle();
+        }
+        expect(who + QStringLiteral(": Button 2 = navigation mode"), sec, "BUTTON_2", "nav", [&] { act(QStringLiteral("Navigation mode (arrow keys while held)")); });
+        settle();
+        expect(who + QStringLiteral(": Button 2 = right click"), sec, "BUTTON_2", "rightclick", [&] { act(QStringLiteral("Right click")); });
+        settle();
+        if (sec == kGlobal) {
+            expect(who + QStringLiteral(": Button 2 'Nothing' (Unbind) is written"), sec, "BUTTON_2", "none", [&] { act(QStringLiteral("Nothing")); });
+        } else {
+            expect(who + QStringLiteral(": Button 2 Default (inherit) removes the binding"), sec, "BUTTON_2", "<absent>",
+                   [&] { act(QStringLiteral("Default (inherit from Global)")); });
+        }
+    }
+
+    // overrides tab: Add override and edit and remove
+    go(kApp, "overrides");
+    expect(QStringLiteral("program profile: Add override"), kApp, "SCROLL_V_MIX", "z",
+           [&] {
+               if (QPushButton *b = buttonTexted(page, QStringLiteral("Add override"))) b->click();
+           }, true);
+    settle();
+
+    // the Settings page
+    w.showPage(QStringLiteral("settings"));
+    settle();
+    {
+        QWidget *sp = w.currentPage();
+        auto *out = findNamed<QCheckBox>(sp, QStringLiteral("Output"));
+        expect(QStringLiteral("Settings: Output off"), kGlobal, "ENABLED", "0", [&] { out->setChecked(false); });
+        expect(QStringLiteral("Settings: Output on"), kGlobal, "ENABLED", "1", [&] { out->setChecked(true); });
+        auto *tick = findNamed<QSpinBox>(sp, QStringLiteral("Tick rate (Hz)"));
+        expect(QStringLiteral("Settings: Tick rate"), kGlobal, "TICK_HZ", "120", [&] { tick->setValue(120); });
+        expect(QStringLiteral("Settings: Tick rate back to the default 250"), kGlobal, "TICK_HZ", "250", [&] { tick->setValue(250); });
+        if (auto *be = findNamed<QComboBox>(sp, QStringLiteral("Output backend"))) {
+            expect(QStringLiteral("Settings: Output backend"), kGlobal, "BACKEND", "x11", [&] {
+                be->setCurrentIndex(be->findData(QStringLiteral("x11")));
+                QMetaObject::invokeMethod(be, "activated", Q_ARG(int, be->currentIndex()));
+            });
+            expect(QStringLiteral("Settings: Output backend back to auto"), kGlobal, "BACKEND", "auto", [&] {
+                be->setCurrentIndex(be->findData(QStringLiteral("auto")));
+                QMetaObject::invokeMethod(be, "activated", Q_ARG(int, be->currentIndex()));
+            });
+        }
+        // language and appearance go to ui.conf at once
+        auto *lang = findNamed<QComboBox>(sp, QStringLiteral("Language"));
+        auto *theme = findNamed<QComboBox>(sp, QStringLiteral("Theme"));
+        const spn::ui::UiSettings keep = spn::ui::loadUiSettings(spn::ui::uiSettingsPath());
+        if (lang) {
+            lang->setCurrentIndex(lang->findData(int(spn::ui::Language::German)));
+            QMetaObject::invokeMethod(lang, "activated", Q_ARG(int, lang->currentIndex()));
+            record(QStringLiteral("Settings: Language (ui.conf)"), spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).language == spn::ui::Language::German,
+                   QStringLiteral("written at once"));
+            lang->setCurrentIndex(lang->findData(int(spn::ui::Language::English)));
+            QMetaObject::invokeMethod(lang, "activated", Q_ARG(int, lang->currentIndex()));
+            record(QStringLiteral("Settings: Language back to English (ui.conf)"), spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).language == spn::ui::Language::English,
+                   QStringLiteral("written at once"));
+        }
+        if (theme) {
+            theme->setCurrentIndex(theme->findData(int(spn::ui::Theme::Dark)));
+            QMetaObject::invokeMethod(theme, "activated", Q_ARG(int, theme->currentIndex()));
+            record(QStringLiteral("Settings: Theme (ui.conf)"), spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).theme == spn::ui::Theme::Dark, QStringLiteral("written at once"));
+            theme->setCurrentIndex(theme->findData(int(spn::ui::Theme::System)));
+            QMetaObject::invokeMethod(theme, "activated", Q_ARG(int, theme->currentIndex()));
+            applyTheme(spn::ui::Theme::System);
+        }
+        (void)keep;
+    }
+
+    // the tray's Enabled item writes ENABLED of Global (its own model, atomic, then reload)
+    {
+        spn::ui::RecordingActionRunner trayRunner;
+        QtStrings strings;
+        spn::ui::TrayController tray(spn::ui::TrayController::Paths{rig.ctx.configPath, rig.ctx.modesDir, rig.ctx.runtimeDir}, trayRunner, strings);
+        tray.refresh(0);
+        spn::ui::TrayEntry toggle;
+        for (const spn::ui::TrayEntry &e : tray.menu().entries)
+            if (e.action == spn::ui::TrayAction::ToggleEnabled) toggle = e;
+        // the window has no pending edit: it follows the file after the tray wrote it
+        const std::string was = valueOf(kGlobal, "ENABLED");
+        tray.perform(toggle);
+        const std::string now = valueOf(kGlobal, "ENABLED");
+        record(QStringLiteral("Tray: Enabled toggle"), now != was && now != "<absent>", QStringLiteral("ENABLED = %1").arg(qs8(now)));
+        // the window follows the file (no stale overwrite later) and its Settings page shows the same
+        auto *out = findNamed<QCheckBox>(w.currentPage(), QStringLiteral("Output"));
+        const bool wantOn = now == "1";
+        QElapsedTimer t;
+        t.start();
+        while (out && out->isChecked() != wantOn && t.elapsed() < 4000) QApplication::processEvents(QEventLoop::AllEvents, 50);
+        record(QStringLiteral("Tray: the window follows the change of the file"), out && out->isChecked() == wantOn, QStringLiteral("Output switch on the Settings page"));
+    }
+    std::printf("audit: %d controls checked\n", rows);
+    std::printf("autosave audit self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
 int main(int argc, char **argv) {
     bool selfTest = false;
     const char *screenshotDir = nullptr;
@@ -1274,8 +1864,11 @@ int main(int argc, char **argv) {
         // Private temporary directories: the test never touches the user's configuration.
         QTemporaryDir tmp;
         if (!tmp.isValid()) return 1;
+        // A runner that records instead of opening anything or signalling a daemon.
+        spn::ui::RecordingActionRunner recorder;
         UiContext ctx;
-        ctx.runner = &runner;
+        ctx.runner = &recorder;
+        ctx.reload = spn::ui::reloadVia(recorder);
         ctx.configPath = (tmp.path() + QStringLiteral("/dofscroll.conf")).toStdString();
         ctx.modesDir = (tmp.path() + QStringLiteral("/modes")).toStdString();
         ctx.buttonModesDir = (tmp.path() + QStringLiteral("/buttons")).toStdString();
@@ -1301,8 +1894,8 @@ int main(int argc, char **argv) {
         w.show();
         if (!buttonModesSelfTest(ctx, tmp.path())) return 1;
         if (!modeEditorSelfTest(ctx, tmp.path())) return 1;
-        if (!unsavedGuardSelfTest(ctx, tmp.path(), w)) return 1;
-        if (!extensionsSelfTest(ctx, tmp.path())) return 1;
+        if (!modeFilesAutosaveSelfTest(ctx, tmp.path())) return 1;
+        if (!examplesSelfTest(ctx, tmp.path())) return 1;
         if (!modeLibrarySelfTest(ctx, tmp.path())) return 1;
         if (!modeEditorTabsSelfTest(ctx)) return 1;
         ModesPage modes(ctx);  // standalone (own catalog): built-in normal, off, timeline + the file mode
@@ -1315,13 +1908,15 @@ int main(int argc, char **argv) {
                     tray.menuEntryCount(), avail ? 1 : 0);
         // every built-in (however many the embedded library holds) plus the one mode file of this test
         const int expectedModes = static_cast<int>(spn::loadModes("", nullptr).modes.size()) + 1;
-        const bool ok = w.pageCount() == 8 && w.categoryCount() == 5 && w.profileCount() >= 0 && !w.profilePageHasModeSelector() &&
+        const bool ok = w.pageCount() == 7 && w.categoryCount() == 5 && w.profileCount() >= 0 &&
                         modes.modeCount() == expectedModes && tray.modeMenuCount() == expectedModes && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
         if (!overviewSelfTest(w)) return 1;
         if (!quickActionsSelfTest(ctx, tmp.path())) return 1;
         if (!accessibilitySelfTest(w)) return 1;
-        if (!profilesPageSelfTest(w, tmp.path(), [&w] { return accessibilitySelfTest(w); })) return 1;
+        if (!profileEditorSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
+        if (!autosaveAuditSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
+        if (!legacyButtonsSelfTest()) return 1;
         if (!themeSelfTest(w)) return 1;
         if (!wheelSelfTest()) return 1;
         if (!defaultSizeFitsSelfTest(w)) return 1;

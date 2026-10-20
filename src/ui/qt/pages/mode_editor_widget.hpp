@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// In-page editor for a joystick mode file (Modes page): name, description, the three channels
-// (including chords and step:), the buttons (the shared button row) and the settings overrides.
-// A thin view on spn::ui::ModeEditor, which owns the logic (comment-preserving save, validation,
-// loader check, change detection).
+// In-page editor for a joystick mode file (Joystick modes page): name, description, the three
+// channels (including chords and step:), the buttons (the shared button row) and the settings
+// overrides. A thin view on spn::ui::ModeEditor, which owns the logic (comment-preserving save,
+// validation, loader check, change detection). There is no Save or Revert button: every valid
+// change is written by itself (a switch or drop-down at once, typed text after a pause); an
+// invalid form is not written and says what is wrong next to the fields. The file is only ever
+// replaced by a version the loader accepts.
 #pragma once
 #include <QStringList>
 #include <QWidget>
+#include <functional>
+#include <memory>
 #include <string>
 
+#include "autosaver.hpp"
 #include "ui/model/mode_editor_model.hpp"
 #include "qt_action_runner.hpp"
 #include "ui_context.hpp"
@@ -27,15 +33,23 @@ public:
     bool open(const std::string &path, const spn::ModeDef &def);
     spn::ui::ModeEditor &editor() { return editor_; }
     const spn::ui::ModeEditor &editor() const { return editor_; }
-    // Saves like the Save button (without asking about a changed file). false: refused.
+    // Writes the pending changes now (synchronously). true if there was nothing to write or the
+    // write worked; false if the form is invalid or the write was refused.
+    bool flush();
+    bool pending() const { return saver_ && saver_->pending(); }
+    // Writes the form now even if it was not changed (self-test); false: refused.
     bool save(bool overwriteChanged = false);
+    // Called when an edit changed the form (the views of the form call it); schedules the write.
+    void edited(bool typed);
+    // Test seam: answers the "the file changed on disk" question (true = overwrite) instead of a dialog.
+    void setOverwriteAnswer(std::function<bool()> answer) { overwriteAnswer_ = std::move(answer); }
+    Autosaver *autosaver() const { return saver_.get(); }
+    QString problemText() const;  // what is wrong with the form now ("" = valid)
     // Sub-tabs: settings (name, description, channels), buttons, overrides. The last one stays
     // selected while the form is rebuilt and when another mode is opened.
     QStringList tabIds() const;
     QString currentTabId() const;
     bool selectTab(const QString &id);
-    bool revertEnabled() const;
-    bool saveEnabled() const;
 
 signals:
     void closeRequested();
@@ -45,8 +59,7 @@ private:
     void rebuild();  // all widgets from the form
     int addChannelRow(QGridLayout *g, int row, const QString &label, spn::ui::ChannelForm *form);  // returns the rows used
     void showProblems();
-    void onSave();
-    void onRevert();
+    spn::ui::Autosave::Outcome finishWrite(const spn::ui::ModeEditor::SaveResult &r);
 
     UiContext ctx_;
     QtStrings ownStrings_;  // used when the context has no shared provider (standalone page, tests)
@@ -56,5 +69,7 @@ private:
     QString lastTab_ = QStringLiteral("settings");
     QLabel *title_ = nullptr, *problems_ = nullptr;
     QPlainTextEdit *warnings_ = nullptr;
-    QPushButton *saveBtn_ = nullptr, *revertBtn_ = nullptr, *closeBtn_ = nullptr, *textBtn_ = nullptr;
+    QPushButton *closeBtn_ = nullptr, *textBtn_ = nullptr;
+    std::unique_ptr<Autosaver> saver_;
+    std::function<bool()> overwriteAnswer_;
 };

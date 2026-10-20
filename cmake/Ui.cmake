@@ -29,6 +29,8 @@ if(DOFSCROLL_UI)
     src/ui/qt/main.cpp
     src/ui/qt/main_window.cpp
     src/ui/qt/main_window.hpp
+    src/ui/qt/autosaver.cpp
+    src/ui/qt/autosaver.hpp
     src/ui/qt/vertical_tabs.hpp
     src/ui/qt/theme.cpp
     src/ui/qt/theme.hpp
@@ -42,8 +44,8 @@ if(DOFSCROLL_UI)
     src/ui/qt/pages/page_registry.hpp
     src/ui/qt/pages/axes_page.cpp
     src/ui/qt/pages/axes_page.hpp
-    src/ui/qt/pages/channels_page.cpp
-    src/ui/qt/pages/channels_page.hpp
+    src/ui/qt/pages/channels_editor.cpp
+    src/ui/qt/pages/channels_editor.hpp
     src/ui/qt/pages/general_page.cpp
     src/ui/qt/pages/general_page.hpp
     src/ui/qt/pages/log_dialog.cpp
@@ -53,8 +55,8 @@ if(DOFSCROLL_UI)
     src/ui/qt/key_combo.hpp
     src/ui/qt/pages/button_modes_page.cpp
     src/ui/qt/pages/button_modes_page.hpp
-    src/ui/qt/pages/extensions_page.cpp
-    src/ui/qt/pages/extensions_page.hpp
+    src/ui/qt/pages/device_page.cpp
+    src/ui/qt/pages/device_page.hpp
     src/ui/qt/pages/mode_editor_widget.cpp
     src/ui/qt/pages/mode_editor_widget.hpp
     src/ui/qt/pages/modes_page.cpp

@@ -176,6 +176,8 @@ struct BindingRow {
     bool overridden = false;  // set in this section
     bool beyondLimit = false; // bound above the device's button count: shown read-only
     bool valid = true;        // text parsed
+    std::string origin;       // where the action comes from ("Inherited from Global: key:space"), "" = not shown
+    std::string originTip;    // tooltip of the origin ([global]: the profiles that override the button)
 };
 
 inline std::vector<BindingRow> bindingRows(const SettingsModel &m, size_t section) {

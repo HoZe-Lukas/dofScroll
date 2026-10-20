@@ -14,6 +14,8 @@
 #include <QProxyStyle>
 #include <QScreen>
 #include <QStackedWidget>
+#include <QStyle>
+#include <QFileInfo>
 #include <QStatusBar>
 #include <QTabBar>
 #include <QTabWidget>
@@ -47,7 +49,16 @@ QSize MainWindow::defaultWindowSize() {
 }
 
 MainWindow::MainWindow(const UiContext &base, QWidget *parent)
-    : QMainWindow(parent), modes_(base.modesDir), buttonModes_(base.buttonModesDir), ctx_(base) {
+    : QMainWindow(parent),
+      modes_(base.modesDir),
+      buttonModes_(base.buttonModesDir),
+      autosave_([this] { return settings_.dirty(); },
+                [this] {
+                    const spn::ui::SettingsModel::SaveResult r = settings_.save(strings_);
+                    return spn::ui::Autosave::Outcome{r.saved, r.reloaded, r.error};
+                },
+                strings_),
+      ctx_(base) {
     setWindowTitle(QStringLiteral("dofscroll"));
     resize(defaultWindowSize());  // the saved geometry (restoreWindowState) wins
     setMinimumSize(spn::ui::tokens::kMinWindowWidth, spn::ui::tokens::kMinWindowHeight);
@@ -63,6 +74,10 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     ctx_.modes = &modes_;
     ctx_.buttonModes = &buttonModes_;
     ctx_.strings = &strings_;
+    ctx_.autosave = &autosave_;
+    ctx_.notes = &startupNotes_;
+    settings_.setModes(modes_.modeSet(), ctx_.modesDir);  // the joystick modes a profile can choose
+    migrateLegacyButtons();
 
     // Left: one vertical tab per category. Right: the category (its pages as horizontal tabs).
     auto *central = new QWidget(this);
@@ -133,7 +148,11 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     // The Overview opens other pages: a card selects its profile, the buttons show a page.
     if (auto *overview = qobject_cast<OverviewPage *>(overviewPage_)) {
         connect(overview, &OverviewPage::openProfile, this, [this](int section) { openOverviewProfile(section); });
-        connect(overview, &OverviewPage::openPage, this, [this](const QString &id) { showPage(id); });
+        connect(overview, &OverviewPage::openPage, this, [this](const QString &id) {
+            // "Tune scroll and zoom" opens the Channels tab of the Global profile
+            if (id == QLatin1String("profile-channels")) openProfileTab(0, QStringLiteral("channels"));
+            else showPage(id);
+        });
         // "New profile for the running program": the Profiles page opens its running-program picker.
         connect(overview, &OverviewPage::newProgramProfile, this, [this] {
             if (!showPage(QStringLiteral("profiles")) || !profilesPage_) return;
@@ -147,7 +166,20 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     statusLabel_->setAccessibleName(T("Daemon status"));
     statusLabel_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);  // a long state is cut, never squeezes the window
     statusBar()->addWidget(statusLabel_, 1);
+    saveLabel_ = new QLabel(this);
+    saveLabel_->setAccessibleName(T("Save status"));
+    saveLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    statusBar()->addPermanentWidget(saveLabel_);
+    connect(&autosave_, &Autosaver::written, this, [this] { noteConfigStamp(); });
+    connect(&autosave_, &Autosaver::statusChanged, this, [this](const QString &text, bool error) {
+        saveLabel_->setText(text);
+        saveLabel_->setProperty("error", error);
+        saveLabel_->style()->unpolish(saveLabel_);
+        saveLabel_->style()->polish(saveLabel_);
+    });
 
+    noteConfigStamp();
+    if (!startupNotes_.empty()) autosave_.report(qs8(startupNotes_.front()), false);  // the footer exists now
     updateStatus();
     auto *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, [this] { updateStatus(); });
@@ -190,7 +222,49 @@ bool MainWindow::categoryIconsLoaded() const {
 }
 
 // Reads the daemon's status file (bounded, owner checked) into the status model.
+// The configuration file as the window last read or wrote it: size and modification time. The tray
+// (Enabled) and a text editor change the file too; the window follows when it has nothing of its own
+// to write.
+void MainWindow::noteConfigStamp() {
+    const QFileInfo fi(QString::fromStdString(ctx_.configPath));
+    configStamp_ = fi.exists() ? QString::number(fi.size()) + QLatin1Char(':') + QString::number(fi.lastModified().toMSecsSinceEpoch())
+                               : QString();
+}
+
+// An old configuration may still set the navigation or click button with NAV_BUTTON / CLICK_BUTTON. Those
+// settings are moved to BUTTON_<n> entries (the Buttons tab shows them), the file is written and the daemon
+// reloads it; what cannot be moved stays in the file and is listed as a note.
+void MainWindow::migrateLegacyButtons() {
+    if (!settings_.hasLegacyButtonKeys()) return;
+    const spn::ui::SettingsModel::LegacyMigration r = settings_.migrateLegacyButtons(strings_);
+    startupNotes_.clear();
+    if (!r.migrated.empty()) {
+        startupNotes_.push_back(strings_.tr("Moved the old navigation/click button settings to the Buttons tab"));
+        for (const std::string &m : r.migrated) startupNotes_.push_back(" - " + m);
+    }
+    for (const std::string &n : r.notices) startupNotes_.push_back(strings_.tr("Not moved: ") + n);
+    if (r.changed) {
+        autosave_.requestImmediate();
+        autosave_.flush();
+    }
+    if (!r.migrated.empty()) autosave_.report(qs8(startupNotes_.front()), false);
+}
+
+void MainWindow::followConfigFile() {
+    if (autosave_.pending() || settings_.dirty()) return;  // our own edits are on their way: they win
+    const QString before = configStamp_;
+    noteConfigStamp();
+    if (before == configStamp_) return;
+    std::vector<std::string> warnings;
+    std::string err;
+    if (!settings_.load(ctx_.configPath, &warnings, &err)) return;  // keep what is shown
+    settings_.setModes(modes_.modeSet(), ctx_.modesDir);
+    migrateLegacyButtons();
+    if (auto *p = qobject_cast<ProfilesPage *>(profilesPage_)) p->reloadFromModel();
+}
+
 void MainWindow::updateStatus() {
+    followConfigFile();
     std::string text;
     const bool ok = spn::ui::readStatusFile(ctx_.runtimeDir, &text);  // the daemon's directory on every OS
     status_.update(text, ok, static_cast<int64_t>(std::time(nullptr)));
@@ -218,22 +292,9 @@ void MainWindow::bringToFront() {
     activateWindow();
 }
 
-bool MainWindow::confirmQuit() {
-    // Pages with edits that exist only in the window: show the page, then ask (Save / Discard / Cancel).
-    for (ModesPage *page : findChildren<ModesPage *>()) {
-        if (!page->hasUnsavedChanges()) continue;
-        bringToFront();
-        showPage(QStringLiteral("modes"));
-        if (!page->confirmLeaveEditor()) return false;
-    }
-    for (ButtonModesPage *page : findChildren<ButtonModesPage *>()) {
-        if (!page->dirty()) continue;
-        bringToFront();
-        showPage(QStringLiteral("buttonmodes"));
-        if (!page->confirmLeaveForm()) return false;
-    }
-    return true;
-}
+bool MainWindow::flushPending() { return Autosaver::flushAll(); }
+
+QString MainWindow::saveStatus() const { return saveLabel_ ? saveLabel_->text() : QString(); }
 
 bool MainWindow::showPage(const QString &pageId) {
     const std::string id = pageId.toStdString();
@@ -261,6 +322,16 @@ MainWindow::~MainWindow() { delete takeCentralWidget(); }
 int MainWindow::pageCount() const { return static_cast<int>(spn::ui::navPageCount(nav_)); }
 
 int MainWindow::categoryCount() const { return static_cast<int>(nav_.size()); }
+
+bool MainWindow::openProfileTab(size_t section, const QString &tab) {
+    if (!showPage(QStringLiteral("profiles"))) return false;
+    auto *p = qobject_cast<ProfilesPage *>(profilesPage_);
+    if (!p) return false;
+    const bool ok = p->selectSection(section);
+    return p->selectTab(tab) && ok;
+}
+
+ProfilesPage *MainWindow::profilesPage() const { return qobject_cast<ProfilesPage *>(profilesPage_); }
 
 void MainWindow::openOverviewProfile(int section) {
     showPage(QStringLiteral("profiles"));
@@ -326,10 +397,6 @@ int MainWindow::profileCount() const {
     return p ? p->profileCount() : 0;
 }
 
-bool MainWindow::profilePageHasModeSelector() const {
-    const auto *p = qobject_cast<const ProfilesPage *>(profilesPage_);
-    return p && p->modeSelectorVisible();
-}
 
 void MainWindow::enableStatePersistence(const std::string &settingsPath) {
     statePath_ = settingsPath;
@@ -377,6 +444,7 @@ bool MainWindow::restoreWindowState() {
 }
 
 void MainWindow::savePage() {
+    flushPending();  // leaving a page or a tab: its last edit is written first
     if (statePath_.empty() || restoring_) return;
     const std::string page = currentPageId().toStdString();
     if (page.empty()) return;
@@ -413,6 +481,7 @@ void MainWindow::saveWindowState() {
 }
 
 void MainWindow::closeEvent(QCloseEvent *e) {
+    flushPending();  // the last edit is on disk before the window goes away
     saveWindowState();
     e->accept();  // hides the window; the process lives on in the tray
     if (qGuiApp->isSavingSession()) return;

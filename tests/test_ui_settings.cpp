@@ -310,8 +310,8 @@ int main() {
             SettingsModel lm;
             loadText("[global]\nNAV_BUTTON = 0\nNAV_BUTTON_ENABLED = 0\nCLICK_BUTTON = 1\nCLICK_BUTTON_ENABLED = 0\n", lm);
             assert(lm.hasLegacyButtonKeys());
-            const auto r = lm.migrateLegacyButtons(id);
-            assert(r.changed && r.migrated.empty() && r.notices.empty() && !lm.hasLegacyButtonKeys());
+            const auto mig = lm.migrateLegacyButtons(id);
+            assert(mig.changed && mig.migrated.empty() && mig.notices.empty() && !lm.hasLegacyButtonKeys());
             assert(lm.effective(0).buttons.empty());
         }
         // enabled in [global]: 0-based number becomes the 1-based BUTTON_<n>
@@ -320,8 +320,8 @@ int main() {
             loadText("[global]\nNAV_BUTTON = 2\nNAV_BUTTON_ENABLED = 1\nCLICK_BUTTON = 0\nCLICK_BUTTON_ENABLED = 1\n"
                      "BUTTON_5 = key:space\n[device:Pad]\nNAV_BUTTON_ENABLED = 0\n[app:x]\nNAV_BUTTON = 3\n"
                      "[app:y]\nSCROLL_V_SENS = 3\n", lm);
-            const auto r = lm.migrateLegacyButtons(id);
-            assert(r.changed && r.notices.empty() && r.migrated.size() >= 3);
+            const auto mig = lm.migrateLegacyButtons(id);
+            assert(mig.changed && mig.notices.empty() && mig.migrated.size() >= 3);
             assert(!lm.hasLegacyButtonKeys());
             assert(lm.effective(0).buttons.at(3) == "nav" && lm.effective(0).buttons.at(1) == "click");
             assert(lm.effective(0).buttons.at(5) == "key:space");  // untouched
@@ -343,8 +343,8 @@ int main() {
             lm.setDeviceInfo("SpaceMouse Pro", 15);
             const int lim2 = lm.buttonLimit();
             if (lim2 < 31) {
-                const auto r = lm.migrateLegacyButtons(id);
-                assert(r.changed && r.notices.size() == 1 && r.notices[0].find("NAV_BUTTON") != std::string::npos);
+                const auto mig = lm.migrateLegacyButtons(id);
+                assert(mig.changed && mig.notices.size() == 1 && mig.notices[0].find("NAV_BUTTON") != std::string::npos);
                 assert(lm.isOverridden(0, "NAV_BUTTON") && lm.isOverridden(0, "NAV_BUTTON_ENABLED"));  // kept
                 assert(lm.effective(0).buttons.at(1) == "click" && !lm.isOverridden(0, "CLICK_BUTTON"));  // the other pair moved
             }
@@ -353,8 +353,8 @@ int main() {
         {
             SettingsModel lm;
             loadText("[global]\nNAV_BUTTON = 0\nNAV_BUTTON_ENABLED = 1\nBUTTON_1 = key:space\n", lm);
-            const auto r = lm.migrateLegacyButtons(id);
-            assert(!r.changed && r.notices.size() == 1 && lm.isOverridden(0, "NAV_BUTTON_ENABLED"));
+            const auto mig = lm.migrateLegacyButtons(id);
+            assert(!mig.changed && mig.notices.size() == 1 && lm.isOverridden(0, "NAV_BUTTON_ENABLED"));
             assert(lm.effective(0).buttons.at(1) == "key:space" && !lm.dirty());
             // an equal binding is fine
             loadText("[global]\nNAV_BUTTON = 0\nNAV_BUTTON_ENABLED = 1\nBUTTON_1 = nav\n", lm);

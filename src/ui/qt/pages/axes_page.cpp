@@ -331,7 +331,17 @@ void AxesPage::applyWizard() {
         refreshWizard(now());
         return;
     }
-    const SettingsModel::SaveResult r = ctx_.settings->save(*ctx_.strings);
+    // The axis mixes are written now (not after a pause): the live page below shows their effect.
+    SettingsModel::SaveResult r;
+    if (ctx_.autosave) {
+        ctx_.autosave->requestImmediate();
+        ctx_.autosave->flush();
+        r.saved = !ctx_.settings->dirty();
+        r.reloaded = r.saved && !ctx_.autosave->failed();
+        r.error = ctx_.autosave->statusText().toUtf8().toStdString();
+    } else {
+        r = ctx_.settings->save(*ctx_.strings);
+    }
     if (!r.saved) {
         applyNote_ = T("Error: %1").arg(qs(r.error));
         refreshWizard(now());

@@ -15,6 +15,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QStyle>
 #include <QSignalBlocker>
 #include <QTabWidget>
 #include <QTimer>
@@ -126,37 +127,48 @@ ModeEditorWidget::ModeEditorWidget(const UiContext &ctx, QWidget *parent) : QWid
     warnings_->hide();
     root->addWidget(warnings_);
     auto *row = new QHBoxLayout;
-    saveBtn_ = new QPushButton(T("Save"), this);
-    saveBtn_->setProperty("primary", true);  // the accent button of the page
-    saveBtn_->setToolTip(T("Write the changes to the mode file"));
-    revertBtn_ = new QPushButton(T("Revert"), this);
-    revertBtn_->setToolTip(T("Discard the changes and reload the file"));
     textBtn_ = new QPushButton(T("Open in text editor"), this);
     closeBtn_ = new QPushButton(T("Close editor"), this);
-    for (QPushButton *b : {saveBtn_, revertBtn_, textBtn_}) row->addWidget(b);
+    row->addWidget(textBtn_);
     row->addStretch(1);
     row->addWidget(closeBtn_);
     root->addLayout(row);
-    connect(saveBtn_, &QPushButton::clicked, this, [this] { onSave(); });
-    connect(revertBtn_, &QPushButton::clicked, this, [this] { onRevert(); });
     connect(textBtn_, &QPushButton::clicked, this, [this] {
+        flush();  // the text editor shows what is written
         std::string err;
         if (ctx_.runner && !ctx_.runner->openPath(editor_.path(), &err))
-            QMessageBox::warning(this, T("Modes"), T("Could not open the file.") + QStringLiteral("\n\n") + qs8(err));
+            QMessageBox::warning(this, T("Joystick modes"), T("Could not open the file.") + QStringLiteral("\n\n") + qs8(err));
     });
     connect(closeBtn_, &QPushButton::clicked, this, [this] {
-        if (editor_.dirty() &&
-            QMessageBox::question(this, T("Close editor"), T("Discard the unsaved changes?"), QMessageBox::Yes | QMessageBox::No,
-                                  QMessageBox::No) != QMessageBox::Yes)
-            return;
+        flush();  // nothing is lost: the last valid state is written before the editor goes
         emit closeRequested();
     });
+    // The writer: valid changes only; its status goes to the footer of the window.
+    saver_ = std::make_unique<Autosaver>(
+        [this] { return editor_.isOpen() && editor_.dirty() && editor_.validate().empty(); },
+        [this] {
+            const ModeEditor::SaveResult r = editor_.save(false);
+            if (!r.ok && r.changedOnDisk) {
+                const bool overwrite =
+                    overwriteAnswer_ ? overwriteAnswer_()
+                                     : QMessageBox::question(this, T("Joystick modes"),
+                                                             T("The file changed on disk while you were editing. "
+                                                               "Overwrite it with your changes?"),
+                                                             QMessageBox::Yes | QMessageBox::No, QMessageBox::No) ==
+                                           QMessageBox::Yes;
+                if (overwrite) return finishWrite(editor_.save(true));
+            }
+            return finishWrite(r);
+        },
+        ctx_.strings ? *ctx_.strings : ownStrings_, this);
+    connect(saver_.get(), &Autosaver::statusChanged, this, [this](const QString &text, bool error) { ctx_.report(text, error); });
 }
 
 bool ModeEditorWidget::open(const std::string &path, const ModeDef &def) {
+    flush();  // the mode that was edited before is written first
     std::string err;
     if (!editor_.open(path, def, &err)) {
-        QMessageBox::warning(this, T("Modes"), T("Could not open the file.") + QStringLiteral("\n\n") + qs8(err));
+        QMessageBox::warning(this, T("Joystick modes"), T("Could not open the file.") + QStringLiteral("\n\n") + qs8(err));
         return false;
     }
     warnings_->hide();
@@ -179,7 +191,7 @@ int ModeEditorWidget::addChannelRow(QGridLayout *g, int row, const QString &labe
     int used = 1;
     if (form->usesKeys()) {
         // One line per direction below the drop-down, so the form never needs a horizontal scroll bar.
-        auto changed = [this] { showProblems(); };
+        auto changed = [this] { edited(false); };
         g->addWidget(new QLabel(T("Negative:"), this), row + 1, 0, Qt::AlignRight);
         g->addWidget(chordPicker(this, this, &form->neg, label + QStringLiteral(" ") + T("negative"), changed), row + 1, 1);
         g->addWidget(new QLabel(T("Positive:"), this), row + 2, 0, Qt::AlignRight);
@@ -193,13 +205,14 @@ int ModeEditorWidget::addChannelRow(QGridLayout *g, int row, const QString &labe
             form->pos = "down";
         }
         rebuild();
+        edited(false);
     });
     return used;
 }
 
 void ModeEditorWidget::rebuild() {
     ModeForm &f = editor_.form();
-    title_->setText(QStringLiteral("<b>") + T("Edit mode: %1").arg(qs8(f.id)).toHtmlEscaped() + QStringLiteral("</b>"));
+    title_->setText(QStringLiteral("<b>") + T("Edit joystick mode: %1").arg(qs8(f.id)).toHtmlEscaped() + QStringLiteral("</b>"));
     // One scrolling page per tab: settings (name, description, channels), buttons, overrides.
     int scrollPos = 0;
     if (auto *cur = qobject_cast<QScrollArea *>(tabs_->currentWidget())) scrollPos = cur->verticalScrollBar()->value();
@@ -234,12 +247,14 @@ void ModeEditorWidget::rebuild() {
     col->addLayout(form);
     connect(name, &QLineEdit::textEdited, this, [this](const QString &t) {
         editor_.form().name = t.toUtf8().toStdString();
-        showProblems();
+        edited(true);
     });
     connect(desc, &QLineEdit::textEdited, this, [this](const QString &t) {
         editor_.form().description = t.toUtf8().toStdString();
-        showProblems();
+        edited(true);
     });
+    connect(name, &QLineEdit::editingFinished, this, [this] { flush(); });  // focus out: now
+    connect(desc, &QLineEdit::editingFinished, this, [this] { flush(); });
 
     // Channels
     auto *chBox = new QGroupBox(T("Channels"), content);
@@ -292,15 +307,18 @@ void ModeEditorWidget::rebuild() {
                 if (!text.empty()) mf.setButton(n, text);
             }
             rebuild();
+            edited(false);
         };
         h.setArgument = [this, n](const Binding &b) {
             const std::string text = composeBinding(b);
             if (!text.empty()) editor_.form().setButton(n, text);
             rebuild();
+            edited(false);
         };
         h.reset = [this, n] {
             editor_.form().setButton(n, "none");
             rebuild();
+            edited(false);
         };
         addButtonRow(this, btBox, bg, n - 1, row, env, h);
     }
@@ -325,12 +343,14 @@ void ModeEditorWidget::rebuild() {
         h->addWidget(rm);
         connect(edit, &QLineEdit::textEdited, this, [this, i](const QString &t) {
             editor_.form().overrides[i].second = t.toUtf8().toStdString();
-            showProblems();
+            edited(true);
         });
+        connect(edit, &QLineEdit::editingFinished, this, [this] { flush(); });
         connect(rm, &QToolButton::clicked, this, [this, i] {
             auto &ov = editor_.form().overrides;
             ov.erase(ov.begin() + long(i));
             rebuild();
+            edited(false);
         });
         og->addRow(qs8(f.overrides[i].first) + QLatin1Char(':'), rowW);
     }
@@ -353,6 +373,7 @@ void ModeEditorWidget::rebuild() {
                 if (kv.first == key) value = kv.second;
             editor_.form().overrides.emplace_back(key, value);
             rebuild();
+            edited(false);
         });
     }
     ocol->addWidget(ovBox);
@@ -370,7 +391,7 @@ void ModeEditorWidget::rebuild() {
     showProblems();
 }
 
-void ModeEditorWidget::showProblems() {
+QString ModeEditorWidget::problemText() const {
     const std::vector<EditProblem> p = editor_.validate();
     QString t;
     for (const EditProblem &x : p) {
@@ -382,19 +403,34 @@ void ModeEditorWidget::showProblems() {
         else if (x.field.rfind("override:", 0) == 0) where = qs8(x.field.substr(9));
         t += where + QStringLiteral(": ") + qs8(x.message) + QLatin1Char('\n');
     }
-    problems_->setText(t.trimmed());
-    problems_->setVisible(!p.empty());
-    saveBtn_->setEnabled(p.empty() && editor_.dirty());
-    revertBtn_->setEnabled(editor_.dirty());
+    return t.trimmed();
 }
 
-bool ModeEditorWidget::save(bool overwriteChanged) {
-    const ModeEditor::SaveResult r = editor_.save(overwriteChanged);
+void ModeEditorWidget::showProblems() {
+    const QString t = problemText();
+    // An invalid form is never written; the text says so, next to the fields that need fixing.
+    problems_->setText(t.isEmpty() ? QString() : T("Not saved until this is fixed:") + QLatin1Char('\n') + t);
+    problems_->setProperty("error", !t.isEmpty());
+    problems_->style()->unpolish(problems_);
+    problems_->style()->polish(problems_);
+    problems_->setVisible(!t.isEmpty());
+}
+
+// An edit changed the form: show what is wrong, or write it (a typed text after a pause).
+void ModeEditorWidget::edited(bool typed) {
+    showProblems();
+    if (!editor_.validate().empty()) return;
+    if (typed) saver_->requestDebounced();
+    else saver_->requestImmediate();
+}
+
+Autosave::Outcome ModeEditorWidget::finishWrite(const ModeEditor::SaveResult &r) {
     if (!r.ok) {
-        if (r.changedOnDisk) return false;
         showProblems();
-        if (r.problems.empty()) QMessageBox::warning(this, T("Modes"), T("Could not save the mode.") + QStringLiteral("\n\n") + qs8(r.error));
-        return false;
+        std::string why = r.error;
+        if (why.empty() && r.changedOnDisk) why = "the file changed on disk";
+        if (why.empty() && !r.problems.empty()) why = r.problems.front().field + ": " + r.problems.front().message;
+        return Autosave::Outcome{false, true, why};
     }
     QString w;
     for (const std::string &s : r.warnings) w += QStringLiteral(" - ") + qs8(s) + QLatin1Char('\n');
@@ -402,29 +438,18 @@ bool ModeEditorWidget::save(bool overwriteChanged) {
     warnings_->show();
     showProblems();
     emit saved(qs8(editor_.form().id));
-    return true;
+    return Autosave::Outcome{true, true, std::string()};
 }
 
-void ModeEditorWidget::onSave() {
-    if (editor_.changedOnDisk()) {
-        const auto a = QMessageBox::question(this, T("Save"),
-                                             T("The file changed on disk while you were editing. Overwrite it with your changes?"),
-                                             QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-        if (a != QMessageBox::Yes) return;
-        save(true);
-        return;
-    }
-    save(false);
+bool ModeEditorWidget::flush() {
+    const bool wrote = saver_->flush();
+    return wrote && problemText().isEmpty();  // an invalid form is not written: say so
 }
 
-void ModeEditorWidget::onRevert() {
-    std::string err;
-    if (!editor_.revert(dir_, &err)) {
-        QMessageBox::warning(this, T("Modes"), qs8(err));
-        return;
-    }
-    warnings_->hide();
-    rebuild();
+bool ModeEditorWidget::save(bool overwriteChanged) {
+    if (!editor_.isOpen()) return false;
+    const ModeEditor::SaveResult r = editor_.save(overwriteChanged);
+    return finishWrite(r).saved;
 }
 
 QStringList ModeEditorWidget::tabIds() const {
@@ -445,6 +470,3 @@ bool ModeEditorWidget::selectTab(const QString &id) {
         }
     return false;
 }
-
-bool ModeEditorWidget::revertEnabled() const { return revertBtn_->isEnabled(); }
-bool ModeEditorWidget::saveEnabled() const { return saveBtn_->isEnabled(); }

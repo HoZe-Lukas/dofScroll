@@ -59,7 +59,8 @@ Tray::Tray(MainWindow *window, const QIcon &baseIcon, const UiContext &ctx, QObj
       timer_(new QTimer(this)) {
     controller_.hooks().openSettings = [this] { window_->bringToFront(); };
     controller_.hooks().quit = [this] {
-        if (window_->confirmQuit()) QApplication::quit();
+        window_->flushPending();  // the last edit is on disk before the process ends
+        QApplication::quit();
     };
     controller_.hooks().showLog = [this, dir = ctx.runtimeDir] { LogDialog::showFor(window_, dir, strings_); };
     icon_.setContextMenu(&menu_);

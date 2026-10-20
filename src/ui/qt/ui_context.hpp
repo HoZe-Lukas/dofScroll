@@ -7,7 +7,9 @@
 #pragma once
 #include <functional>
 #include <string>
+#include <vector>
 
+#include "autosaver.hpp"
 #include "config.hpp"
 #include "platform/platform.hpp"
 #include "ui/model/action_runner.hpp"
@@ -29,11 +31,29 @@ struct UiContext {
     // <runtimeDir>/reload.sock. Pages save through ctx.settings (which calls it), never directly.
     std::function<bool(std::string *err)> reload;
     // Shared models, owned by the MainWindow (outlive the pages).
-    spn::ui::SettingsModel *settings = nullptr;  // edit through it, then save()
+    spn::ui::SettingsModel *settings = nullptr;  // edit through it, then saveSoon()
     spn::ui::StatusModel *status = nullptr;      // daemon status, refreshed by the main window
     spn::ui::ModeCatalog *modes = nullptr;       // the modes folder
     spn::ui::ButtonModeCatalog *buttonModes = nullptr;  // the button modes folder
     const spn::ui::StringProvider *strings = nullptr;
+    // Notes about the configuration to show on the Buttons tab (the old navigation/click button
+    // settings that were moved, or could not be moved); owned by the MainWindow.
+    const std::vector<std::string> *notes = nullptr;
+    // Writes the configuration by itself after every edit (owned by the MainWindow). Pages change
+    // the SettingsModel and then call saveSoon() / saveTyped(); there is no Save button.
+    Autosaver *autosave = nullptr;
+    void saveSoon() const {  // a committed value: switch, drop-down, spin box, released slider, button row
+        if (autosave) autosave->requestImmediate();
+    }
+    void saveTyped() const {  // text still being typed: written when typing paused
+        if (autosave) autosave->requestDebounced();
+    }
+    void saveNow() const {  // synchronous (page switch, close)
+        if (autosave) autosave->flush();
+    }
+    void report(const QString &text, bool error) const {  // a line for the status bar
+        if (autosave) autosave->report(text, error);
+    }
 };
 
 inline UiContext makeUiContext(spn::ui::ActionRunner *runner) {

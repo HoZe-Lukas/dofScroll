@@ -99,9 +99,9 @@ struct OverviewTask {
 };
 
 inline std::vector<OverviewTask> overviewTasks() {
-    return {{"tune", "Tune scroll and zoom", "Sensitivity, deadzone, smoothing and curve of the channels", "channels"},
+    return {{"tune", "Tune scroll and zoom", "Sensitivity, deadzone, smoothing and curve of the channels (the Global profile, Channels tab)", "profile-channels"},
             {"axes", "Check the axes", "Move the cap and see which axis reacts; the assistant sets the axis mixes", "axes"},
-            {"modes", "Switch modes", "Modes change what the axes and buttons do", "modes"}};
+            {"modes", "Switch joystick modes", "Joystick modes change what the axes and buttons do", "modes"}};
 }
 
 inline std::vector<OverviewAction> overviewActions() {

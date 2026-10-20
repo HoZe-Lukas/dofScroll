@@ -104,7 +104,7 @@ static void testStatusAndActions() {
 static void testTasks() {
     const std::vector<OverviewTask> t = overviewTasks();
     assert(t.size() == 3);
-    assert(t[0].id == "tune" && t[0].page == "channels");
+    assert(t[0].id == "tune" && t[0].page == "profile-channels");  // the Channels tab of the Global profile
     assert(t[1].id == "axes" && t[1].page == "axes");
     assert(t[2].id == "modes" && t[2].page == "modes");
     for (const OverviewTask &x : t) assert(!x.label.empty() && !x.tip.empty());
