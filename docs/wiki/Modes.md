@@ -14,7 +14,7 @@ A file in the joystick modes folder with the id of a built-in joystick mode repl
 
 ## Writing a joystick mode file
 
-A step-by-step tutorial with copy-paste recipes (horizontal scroll, page keys, tabs, zoom, button modes, testing) is on [How to write a mode](Writing-modes). This section is the short reference.
+A step-by-step tutorial with copy-paste recipes (horizontal scroll, page keys, tabs, zoom, button modes, testing) is on [How to write a joystick mode](Writing-modes). This section is the short reference.
 
 For your own joystick modes put `<id>.conf` into `~/.config/dofscroll/modes/`. The id is the file name without `.conf` (`[a-z0-9_-]{1,32}`). Format: `KEY = value`, no sections, `#` and `;` comments.
 
@@ -55,7 +55,7 @@ The vertical channel mixes push forward/back (`z`) and tilt forward/back (`rx`),
     SCROLL_V_TILT_SENS = 8
 
 - The push part is the translation terms of the channel's mix (`x`, `y`, `z`), the tilt part the rotation terms (`rx`, `rz`), with the weights and signs you configured (defaults: V push `z`, V tilt `rx`, H push `x`, H tilt `-rz`). The twist term `ry` belongs to neither.
-- A mode without these keys behaves exactly as before. If a mode sets at least one split key of a channel, that channel runs as two independent sub-channels; a part without its own key uses `V_ACTION` / `H_ACTION`.
+- A joystick mode without these keys behaves exactly as before. If a joystick mode sets at least one split key of a channel, that channel runs as two independent sub-channels; a part without its own key uses `V_ACTION` / `H_ACTION`.
 - Each part uses the sensitivity, dead zone, curve, smoothing and sign of its channel. `SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>` replace single values with absolute values (not multipliers).
 
 Details: [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#split-push-and-tilt).
@@ -103,7 +103,7 @@ A joystick mode that turns output off (like `off`) leaves the device inactive. G
 In the interface (page Joystick modes) you can export a joystick mode file, rename it (new name and id; profiles that
 use the old id are listed first and keep pointing at it), see which profiles use a joystick mode, and import
 `.conf` files by dropping them onto the page. Imports get the same checks and the safety
-confirmation as the Import button. The id `release` is a normal mode id.
+confirmation as the Import button. The id `release` is a normal joystick mode id.
 
 ## Editing from the tray
 

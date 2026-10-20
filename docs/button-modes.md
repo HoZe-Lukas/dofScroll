@@ -53,7 +53,7 @@ Without `CYCLE`, `mode:next` and `mode:prev` walk through all loaded joystick mo
 order of id, so the order is arbitrary and grows with every joystick mode you add. With `CYCLE` the button mode
 cycles through exactly the joystick modes you list, in your order:
 
-    NAME = Next favorite mode
+    NAME = Next favorite joystick mode
     ACTION = mode:next
     CYCLE = timeline, normal, slides
 
@@ -68,7 +68,7 @@ cycles through exactly the joystick modes you list, in your order:
 - One file has one direction. For both directions make two button modes (`ACTION = mode:next` and
   `ACTION = mode:prev`) with the same list, and assign them to two buttons. You can have several lists
   (for example *Next video joystick mode* and *Next browse joystick mode*) and choose one per button on the Profiles page.
-- A raw `BUTTON_<n> = mode:next` and a button mode without `CYCLE` keep cycling through all modes.
+- A raw `BUTTON_<n> = mode:next` and a button mode without `CYCLE` keep cycling through all joystick modes.
   Internally the daemon expands a button mode with `CYCLE` to `mode:next:<id>,<id>,...` (also accepted
   in `BUTTON_<n>` and joystick mode files, but the button mode is the supported way). `CYCLE` with another action
   is ignored with a warning. Example: `examples/buttons/cycle-favorites.conf`.

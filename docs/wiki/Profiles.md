@@ -15,7 +15,7 @@ Profiles are sections in `dofscroll.conf` that override only the keys they list.
 ## Precedence
 
 ```
-[global]  <  matching [device:*]  <  active mode's overrides  <  matching [app:*]
+[global]  <  matching [device:*]  <  active joystick mode's overrides  <  matching [app:*]
 ```
 
 All device sections are applied before all app sections, each in file order, so a later matching section wins. The joystick mode is chosen by `MODE` from the resolved profile (global, device or app). An app section can select a joystick mode and still has the last word over that joystick mode's overrides.

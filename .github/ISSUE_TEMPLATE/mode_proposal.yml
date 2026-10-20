@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-name: Mode proposal
+name: Joystick or button mode proposal
 description: Propose a new joystick mode or button mode (a plain file, see #62)
 labels: ["enhancement"]
 body:
