@@ -23,5 +23,5 @@
 - [ ] It does not only re-implement a fixed driver mapping (a button that always sends the same key or click belongs in the vendor driver, see `docs/modes.md`)
 - [ ] Safety: I read the file for key, keys, zoom and mode actions; modifier chords and anything that could be harmful are explained in `DESCRIPTION`
 - [ ] `docs/modes.md` (built-in table) and `docs/wiki/Modes.md` list the new mode
-- [ ] `cmake --build build --target check-fast` passes (it parses every embedded file without warnings and keeps ids unique); tests that count the built-in modes are updated
+- [ ] `cmake --build build --target check-fast` passes (it parses every embedded file without warnings and keeps ids unique)
 - [ ] Tested: <!-- program and version, device, OS, session type, or "not tested on hardware" -->

@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <string>
 
+#include "builtin_counts.hpp"
 #include "testutil.hpp"
 #include "ui/model/mode_catalog.hpp"
 
@@ -39,11 +40,11 @@ int main() {
     assert(ModeCatalog::cleanLabel("  a\nb\t ") == "a b" && ModeCatalog::cleanLabel("\n").empty());
     assert(ModeCatalog::cleanLabel(std::string(100, 'x')).size() == 64);
 
-    ModeCatalog c(dir);  // directory missing: built-ins only (normal, off, timeline + six embedded example modes)
-    assert(c.modes().size() == 9 && c.stamp().empty());
+    ModeCatalog c(dir);  // directory missing: built-ins only (normal, off, timeline + the embedded example modes)
+    assert(c.modes().size() == tu::builtinModeCount() && c.stamp().empty());
     for (const auto &e : c.modes()) assert(e.origin == Origin::BuiltIn && e.path.empty() && e.warnings.empty());
     assert(c.find("timeline") && !c.find("nope"));
-    for (const char *id : {"slides", "media", "map", "precision", "tabs", "browse"}) {
+    for (const std::string &id : tu::embeddedExampleIds()) {
         const auto *e = c.find(id);
         assert(e && e->origin == Origin::BuiltIn && e->path.empty() && !e->label.empty());
     }
@@ -54,7 +55,7 @@ int main() {
         const spn::ModeDef *t = c.modeSet().find("tabs");
         assert(t && !t->builtin && t->h.type == spn::ChannelActionType::Keys && t->h.neg == spn::Key::PageUp);
         assert(c.remove("tabs").ok && c.find("tabs")->origin == Origin::BuiltIn);  // the built-in comes back
-        assert(!c.remove("browse").ok);  // a built-in without a file cannot be removed
+        assert(!c.remove(tu::embeddedExampleIds().front()).ok);  // a built-in without a file cannot be removed
     }
     assert(c.uniqueId("Timeline") == "timeline-2");
     assert(c.uniqueId("Fresh One") == "fresh-one");
@@ -100,7 +101,7 @@ int main() {
     assert(r.ok && r.id == "timeline" && c.find("timeline")->origin == Origin::BuiltInOverridden);
     assert(c.find("timeline")->path == dir + "/timeline.conf");
     assert(!c.makeEditableCopy("timeline").ok && !c.makeEditableCopy("my-mode").ok && !c.makeEditableCopy("zz").ok);
-    assert(c.modes().size() == 9 + 4);  // my-mode, timeline-copy, plain + timeline replaced in place
+    assert(c.modes().size() == tu::builtinModeCount() + 4);  // my-mode, timeline-copy, plain + timeline replaced in place
 
     // ---- remove ----
     assert(!c.remove("normal").ok && !c.remove("off").ok && !c.remove("nope").ok);

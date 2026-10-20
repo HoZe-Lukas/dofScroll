@@ -120,12 +120,14 @@ bool parseButtonModeText(const std::string &text, ButtonMode *out, std::vector<s
     return true;
 }
 
-ButtonModeSet loadButtonModes(const std::string &dir, std::vector<std::string> *warnings) {
+ButtonModeSet loadButtonModes(const std::string &dir, std::vector<std::string> *warnings,
+                              const BuiltinFile *library) {
     ButtonModeSet set;
     auto warnAll = [&](const std::string &m) {
         if (warnings && warnings->size() < 200) warnings->push_back(m);
     };
-    for (const BuiltinFile *f = builtinButtonModeFiles(); f && f->id; ++f) {
+    const BuiltinFile *lib = library ? library : builtinButtonModeFiles();
+    for (const BuiltinFile *f = lib; f && f->id; ++f) {
         ButtonMode b;
         b.id = f->id;
         b.path = std::string("built-in button mode ") + f->id;  // only for warnings, cleared below
@@ -135,7 +137,7 @@ ButtonModeSet loadButtonModes(const std::string &dir, std::vector<std::string> *
         if (ok) set.modes.push_back(b);
     }
     for (const confdir::Entry &e : confdir::readConfDir(dir, "button mode files", warnAll)) {
-        if (matchesBuiltinText(builtinButtonModeFiles(), e.id, e.text)) continue;  // identical to the built-in
+        if (matchesBuiltinText(lib, e.id, e.text)) continue;  // identical to the built-in
         ButtonMode b;
         b.id = e.id;
         b.path = e.path;

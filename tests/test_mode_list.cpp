@@ -5,6 +5,7 @@
 #include <cstdlib>
 
 #include "mode_list.hpp"
+#include "builtin_counts.hpp"
 #include "testutil.hpp"
 
 using namespace spn;
@@ -99,7 +100,7 @@ int main() {
         const std::string dir = tmpdir + "/modes";
         ModeSet fms = loadModes(dir, nullptr);
         auto ee = buildEditEntries(fms);
-        assert(ee.size() == fms.modes.size() && ee.size() == 9);
+        assert(ee.size() == fms.modes.size() && ee.size() == tu::builtinModeCount());
         for (auto &e : ee) assert(!e.has_file);
         assert(modeFilePath(dir, "../x").empty() && modeFilePath("", "a").empty());
         assert(modeFilePath(dir, "timeline") == dir + "/timeline.conf");

@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <string>
 
+#include "builtin_counts.hpp"
 #include "mode_request.hpp"
 #include "testutil.hpp"
 #include "ui/model/tray_controller.hpp"
@@ -49,7 +50,7 @@ int main() {
     assert(c.icon() == TrayController::Icon::NotRunning);
     assert(c.menu().entries.size() == 16);
     const TrayEntry &modeMenu = c.menu().entries[4];
-    assert(modeMenu.kind == TrayEntry::Kind::Submenu && modeMenu.children.size() == 10);  // nine built-ins + mine
+    assert(modeMenu.kind == TrayEntry::Kind::Submenu && modeMenu.children.size() == tu::builtinModeCount() + 1);  // all built-ins + mine
     int checked = 0;
     for (const auto &r : modeMenu.children)
         if (r.checked) {

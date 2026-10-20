@@ -84,6 +84,8 @@ issue form, or send the file directly with the "new mode" pull request template:
    project put it in `examples/modes/` (joystick) or `examples/buttons/` (button): the files of
    these folders are embedded and built into the program at build time, so nothing else has to be
    copied; for personal use put it in `~/.config/dofscroll/modes/` (or `buttons/`).
+   The tests derive the number of built-ins from the embedded library (`tests/builtin_counts.hpp`),
+   so adding a file needs no test change; new tests must do the same instead of counting literals.
 2. Use `NAME`, `DESCRIPTION`, `V_ACTION`/`H_ACTION`/`TWIST_ACTION`, `BUTTON_<n>` and any settings
    key as an override. Buttons are numbered from 1 and must not exceed the factory button count
    of the device.

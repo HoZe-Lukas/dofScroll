@@ -57,7 +57,9 @@ bool parseButtonModeText(const std::string &text, ButtonMode *out, std::vector<s
 // The built-in button modes (latch-nav, next-mode, prev-mode: examples/buttons, embedded at build
 // time) plus all valid <id>.conf of dir. A file with the id of a built-in replaces it. A missing
 // directory is no error; dir "" loads the built-ins only.
-ButtonModeSet loadButtonModes(const std::string &dir, std::vector<std::string> *warnings);
+// library: as for loadModes, tests only.
+ButtonModeSet loadButtonModes(const std::string &dir, std::vector<std::string> *warnings,
+                              const BuiltinFile *library = nullptr);
 std::string buttonModesStamp(const std::string &dir);
 
 // Replaces buttonmode:<id> in the BUTTON_<n> values of s by the action of that button mode. An
