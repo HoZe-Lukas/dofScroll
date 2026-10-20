@@ -99,12 +99,14 @@ int main() {
         const std::string dir = tmpdir + "/modes";
         ModeSet fms = loadModes(dir, nullptr);
         auto ee = buildEditEntries(fms);
-        assert(ee.size() == 3);
+        assert(ee.size() == fms.modes.size() && ee.size() == 9);
         for (auto &e : ee) assert(!e.has_file);
         assert(modeFilePath(dir, "../x").empty() && modeFilePath("", "a").empty());
         assert(modeFilePath(dir, "timeline") == dir + "/timeline.conf");
 
-        for (const char *id : {"normal", "off", "timeline"}) {
+        // every built-in (code-defined and embedded) survives the editable-copy round trip
+        for (const ModeDef &bm : fms.modes) {
+            const char *id = bm.id.c_str();
             const ModeDef *b = fms.find(id);
             assert(b && b->builtin);
             std::string path, err;
@@ -119,7 +121,7 @@ int main() {
         }
         std::vector<std::string> warn;
         ModeSet ms2 = loadModes(dir, &warn);
-        assert(warn.empty() && ms2.modes.size() == 3);
+        assert(warn.empty() && ms2.modes.size() == fms.modes.size());
         for (const ModeDef &b : fms.modes) {
             const ModeDef *f = ms2.find(b.id);
             assert(f && !f->builtin);

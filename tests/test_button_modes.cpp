@@ -39,6 +39,27 @@ int main() {
     g_dir = tu::tmpRoot() + "/test_button_modes." + std::to_string(tu::pid());
     clearDir();
     std::vector<std::string> w;
+    const size_t kBuiltin = 3;  // latch-nav, next-mode, prev-mode (examples/buttons, embedded)
+
+    // the built-in button modes: present with no directory, no warnings, no file, same as the examples
+    {
+        std::vector<std::string> bw;
+        const ButtonModeSet lib = loadButtonModes("", &bw);
+        assert(bw.empty() && lib.modes.size() == kBuiltin);
+        for (const char *id : {"latch-nav", "next-mode", "prev-mode"}) {
+            const ButtonMode *b = lib.find(id);
+            assert(b && b->builtin && b->path.empty() && !b->label.empty());
+        }
+        assert(lib.find("latch-nav")->type == ButtonActionType::ToggleNav);
+        assert(lib.find("prev-mode")->type == ButtonActionType::ModeSwitch && lib.find("prev-mode")->target == "prev");
+        // every built-in is expandable like an installed file
+        Settings st;
+        std::string err;
+        assert(applyKey(st, "BUTTON_1", "buttonmode:latch-nav", &err));
+        std::set<std::string> missing;
+        expandSettings(st, lib, &missing);
+        assert(missing.empty() && st.buttons[1] == "toggle:nav");
+    }
 
     // grammar of buttonmode:<id> in the shared button action parser
     {
@@ -67,13 +88,46 @@ int main() {
         assert(next && next->label == "Next mode" && next->type == ButtonActionType::ModeSwitch && next->target == "next");
     }
 
+    // a file identical to a shipped example is the built-in, not the user's own file
+    clearDir();
+    {
+        std::ifstream in(std::filesystem::path(__FILE__).parent_path() / ".." / "examples" / "buttons" / "next-mode.conf",
+                         std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        assert(!text.empty());
+        writeFile("next-mode.conf", text);
+        const ButtonModeSet same = loadButtonModes(g_dir, nullptr);
+        assert(same.modes.size() == kBuiltin && same.find("next-mode")->builtin);
+        writeFile("next-mode.conf", text + "# edited\n");
+        const ButtonModeSet edited = loadButtonModes(g_dir, nullptr);
+        assert(!edited.find("next-mode")->builtin);
+    }
+
+    // a file with the id of a built-in replaces it (in place); the others stay
+    clearDir();
+    writeFile("latch-nav.conf", "NAME = My latch\nACTION = click\n");
+    {
+        const ButtonModeSet ov = loadButtonModes(g_dir, nullptr);
+        const ButtonMode *b = ov.find("latch-nav");
+        assert(ov.modes.size() == kBuiltin && b && !b->builtin && b->label == "My latch" &&
+               b->type == ButtonActionType::Click && !b->path.empty());
+        assert(ov.find("next-mode") && ov.find("next-mode")->builtin);
+        // a broken override file is skipped with a warning and the built-in stays
+        clearDir();
+        writeFile("latch-nav.conf", "NAME = broken\n");
+        std::vector<std::string> bw;
+        const ButtonModeSet br = loadButtonModes(g_dir, &bw);
+        assert(br.find("latch-nav")->builtin && hasWarning(bw, "no valid ACTION"));
+    }
+
     // a valid file
+    clearDir();
     writeFile("latch.conf", "# comment\nNAME = Navigation latch\nDESCRIPTION = Toggles navigation\nACTION = toggle:nav  # x\n");
     writeFile("nextm.conf", "ACTION = mode:next\n");
     writeFile("key.conf", "NAME = Space\nACTION = key:Space\n");
     ButtonModeSet set = loadButtonModes(g_dir, &w);
     assert(w.empty());
-    assert(set.modes.size() == 3);
+    assert(set.modes.size() == kBuiltin + 3);
     const ButtonMode *b = set.find("latch");
     assert(b && b->label == "Navigation latch" && b->description == "Toggles navigation" &&
            b->type == ButtonActionType::ToggleNav && b->action == "toggle:nav");
@@ -91,7 +145,7 @@ int main() {
     writeFile("extra.conf", "ACTION = click\nV_ACTION = none\nSCROLL_V_SENS = 3\n[sec]\nnoequals\n");
     w.clear();
     set = loadButtonModes(g_dir, &w);
-    assert(set.modes.size() == 1 && set.find("extra"));
+    assert(set.modes.size() == kBuiltin + 1 && set.find("extra"));
     assert(hasWarning(w, "noaction.conf: no valid ACTION"));
     assert(hasWarning(w, "badaction.conf") && hasWarning(w, "unknown key"));
     assert(hasWarning(w, "nested.conf") && hasWarning(w, "cannot refer to another button mode"));
@@ -119,7 +173,7 @@ int main() {
     w.clear();
     set = loadButtonModes(g_dir, &w);
     assert(!set.find("a-big") && hasWarning(w, "file too large"));
-    assert(set.modes.size() <= 64 && hasWarning(w, "too many button mode files"));
+    assert(set.modes.size() <= 64 + kBuiltin && hasWarning(w, "too many button mode files"));
 
 #ifndef _WIN32
     // links are not followed
@@ -134,7 +188,7 @@ int main() {
     // missing directory is no error; stamp changes with the content
     {
         std::vector<std::string> w2;
-        assert(loadButtonModes(g_dir + "/nonexistent", &w2).modes.empty() && w2.empty());
+        assert(loadButtonModes(g_dir + "/nonexistent", &w2).modes.size() == kBuiltin && w2.empty());
         clearDir();
         writeFile("a.conf", "ACTION = click\n");
         const std::string s1 = buttonModesStamp(g_dir);

@@ -133,7 +133,7 @@ All are validated by `cmake --build build --target check-config`. Copy one to
 | `examples/dofscroll-pro.conf` | SpaceMouse Pro, buttons off. |
 | `examples/dofscroll-compact.conf` | SpaceMouse Compact, left button as nav button. |
 | `examples/dofscroll-multi-device.conf` | Both device profiles in one file. |
-| `examples/modes/*.conf` | Example modes, seeded into `~/.config/dofscroll/modes/`. |
+| `examples/modes/*.conf`, `examples/buttons/*.conf` | The built-in joystick modes and button modes (embedded into the program at build time, not installed or seeded). |
 
 ## Settings in the vendor driver
 

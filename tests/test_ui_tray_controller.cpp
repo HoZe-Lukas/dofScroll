@@ -49,7 +49,7 @@ int main() {
     assert(c.icon() == TrayController::Icon::NotRunning);
     assert(c.menu().entries.size() == 16);
     const TrayEntry &modeMenu = c.menu().entries[4];
-    assert(modeMenu.kind == TrayEntry::Kind::Submenu && modeMenu.children.size() == 4);  // normal, off, timeline, mine
+    assert(modeMenu.kind == TrayEntry::Kind::Submenu && modeMenu.children.size() == 10);  // nine built-ins + mine
     int checked = 0;
     for (const auto &r : modeMenu.children)
         if (r.checked) {

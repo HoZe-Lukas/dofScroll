@@ -140,6 +140,8 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     newBtn_ = mk(T("New button mode"), T("Create a button mode file from a commented template"));
     dupBtn_ = mk(T("Duplicate"), T("Copy the selected button mode under a new name"));
     importBtn_ = mk(T("Import file..."), T("Add a button mode file from somewhere else (you see its warnings first)"));
+    copyBtn_ = mk(T("Create editable copy"),
+                  T("A built-in button mode has no file: create a file with the same id that replaces it"));
     delBtn_ = mk(T("Delete"), T("Delete the button mode file"));
     folderBtn_ = mk(T("Open button modes folder"), T("Show the folder with the button mode files"));
     buttons->addStretch(1);
@@ -155,7 +157,8 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     setTabOrder(textEditorBtn_, newBtn_);
     setTabOrder(newBtn_, dupBtn_);
     setTabOrder(dupBtn_, importBtn_);
-    setTabOrder(importBtn_, delBtn_);
+    setTabOrder(importBtn_, copyBtn_);
+    setTabOrder(copyBtn_, delBtn_);
     setTabOrder(delBtn_, folderBtn_);
 
     connect(list_, &QListWidget::currentItemChanged, this, [this] { onCurrentChanged(); });
@@ -173,6 +176,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     connect(newBtn_, &QPushButton::clicked, this, [this] { onNew(); });
     connect(dupBtn_, &QPushButton::clicked, this, [this] { onDuplicate(); });
     connect(importBtn_, &QPushButton::clicked, this, [this] { onImport(); });
+    connect(copyBtn_, &QPushButton::clicked, this, [this] { onEditableCopy(); });
     connect(delBtn_, &QPushButton::clicked, this, [this] { onDelete(); });
     connect(folderBtn_, &QPushButton::clicked, this, [this] { onOpenFolder(); });
 
@@ -281,7 +285,7 @@ void ButtonModesPage::loadForm() {
         if (kind_->itemData(i).toInt() == int(binding_.kind)) idx = i;
     kind_->setCurrentIndex(idx);
     rebuildActionArg();
-    fileLabel_->setText(e ? qs(e->path) : QString());
+    fileLabel_->setText(e ? (e->builtin ? T("Built in (no file)") : qs(e->path)) : QString());
     shownId_ = e ? qs(e->id) : QString();
     QString t;
     if (e && !e->warnings.empty()) {
@@ -296,11 +300,13 @@ void ButtonModesPage::loadForm() {
         t = T("No button modes yet. \"New button mode\" creates one; the folder also accepts files you copy there.");
     warnings_->setPlainText(t);
     const bool has = e != nullptr;
+    const bool editable = has && !e->builtin;  // a built-in button mode has no file to edit
     for (QWidget *w : {static_cast<QWidget *>(name_), static_cast<QWidget *>(description_), static_cast<QWidget *>(kind_),
                        static_cast<QWidget *>(argHost_), static_cast<QWidget *>(textEditorBtn_)})
-        w->setEnabled(has);
+        w->setEnabled(editable);
     dupBtn_->setEnabled(has);
-    delBtn_->setEnabled(has);
+    copyBtn_->setEnabled(has && e->builtin);
+    delBtn_->setEnabled(editable);
     dirty_ = false;
     saveBtn_->setEnabled(false);
     revertBtn_->setEnabled(false);
@@ -371,7 +377,7 @@ bool ButtonModesPage::selectButtonMode(const QString &id) {
 }
 
 bool ButtonModesPage::stageEdit(const QString &name, const QString &description, const QString &action) {
-    if (!current()) return false;
+    if (!current() || current()->builtin) return false;  // a built-in button mode has no file to edit
     name_->setText(name);
     description_->setText(description);
     Binding b;
@@ -441,6 +447,24 @@ void ButtonModesPage::onDuplicate() {
     if (!r.ok) return showError(T("Could not duplicate the button mode."), r.error);
     dirty_ = false;
     populate(qs(r.id));
+}
+
+void ButtonModesPage::onEditableCopy() {
+    const ButtonModeCatalog::Entry *e = current();
+    if (!e || !e->builtin) return;
+    const std::string id = e->id;  // copy: the timer may rebuild the catalog while the dialog runs
+    const QMessageBox::StandardButton a = QMessageBox::question(
+        this, T("Create editable copy"),
+        T("The built-in button mode \"%1\" is not a file. Create an editable file with the same id? It replaces the "
+          "built-in button mode until you delete the file. To keep the original, use Duplicate instead.")
+            .arg(qs(id)),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (a != QMessageBox::Yes) return;
+    if (!confirmLeaveForm()) return;
+    const ButtonModeCatalog::Result r = catalog_.makeEditableCopy(id);
+    if (!r.ok) return showError(T("Could not create the file."), r.error);
+    dirty_ = false;
+    populate(qs(id));
 }
 
 void ButtonModesPage::onImport() {

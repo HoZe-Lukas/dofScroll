@@ -70,6 +70,8 @@ inline std::vector<ExtensionEntry> buildExtensions(const ModeCatalog &modes, con
         e.description = b.description;
         e.path = b.path;
         e.warnings = b.warnings.size();
+        e.origin = b.builtin ? ExtensionEntry::Origin::BuiltIn : ExtensionEntry::Origin::UserFile;
+        e.replacesBuiltIn = b.overridesBuiltin;
         out.push_back(e);
     }
     if (!examplesDir.empty()) {
@@ -87,7 +89,7 @@ inline std::vector<ExtensionEntry> buildExtensions(const ModeCatalog &modes, con
         }
         const ButtonModeSet exButtons = loadButtonModes(examplesDir + "/buttons", nullptr);
         for (const ButtonMode &b : exButtons.modes) {
-            if (buttons.find(b.id)) continue;
+            if (b.builtin || buttons.find(b.id)) continue;
             ExtensionEntry e;
             e.kind = ExtensionEntry::Kind::ButtonMode;
             e.origin = ExtensionEntry::Origin::ExampleAvailable;

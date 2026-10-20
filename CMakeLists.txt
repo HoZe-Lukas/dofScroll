@@ -128,6 +128,11 @@ else()
        ${CMAKE_SOURCE_DIR}/src/live_feed/live_feed_posix.cpp)
 endif()
 
+# Built-in mode library: examples/modes and examples/buttons embedded as byte arrays.
+include(cmake/BuiltinLibrary.cmake)
+dofscroll_generate_builtin_library(${CMAKE_BINARY_DIR}/generated/builtin_library.cpp)
+list(APPEND CORE_SRC ${CMAKE_BINARY_DIR}/generated/builtin_library.cpp)
+
 add_library(dofscroll_core STATIC ${CORE_SRC})
 target_include_directories(dofscroll_core PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(dofscroll_core PUBLIC dofscroll_flags Threads::Threads)
@@ -280,12 +285,7 @@ file(GLOB EXAMPLE_FILES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/examples/*.conf)
 install(FILES ${EXAMPLE_FILES} DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
 install(DIRECTORY examples/default DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
 install(DIRECTORY devices/ DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/devices FILES_MATCHING PATTERN "*.conf")
-if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/examples/buttons)
-  install(DIRECTORY examples/buttons DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
-endif()
-if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/examples/modes)
-  install(DIRECTORY examples/modes DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
-endif()
+# examples/modes and examples/buttons are built into the program (cmake/BuiltinLibrary.cmake), not installed.
 
 if(NOT DOFSCROLL_CORE_ONLY)
 include(cmake/Systemd.cmake)  # units go to <prefix>/lib (never lib64), udev rule only as example

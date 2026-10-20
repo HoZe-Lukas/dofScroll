@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "button_modes.hpp"
 
+#include "builtin_library.hpp"
 #include "conf_dir.hpp"
 #include "utf8.hpp"
 
@@ -124,11 +125,25 @@ ButtonModeSet loadButtonModes(const std::string &dir, std::vector<std::string> *
     auto warnAll = [&](const std::string &m) {
         if (warnings && warnings->size() < 200) warnings->push_back(m);
     };
+    for (const BuiltinFile *f = builtinButtonModeFiles(); f && f->id; ++f) {
+        ButtonMode b;
+        b.id = f->id;
+        b.path = std::string("built-in button mode ") + f->id;  // only for warnings, cleared below
+        const bool ok = parseButtonModeText(f->text, &b, warnings);
+        b.path.clear();
+        b.builtin = true;
+        if (ok) set.modes.push_back(b);
+    }
     for (const confdir::Entry &e : confdir::readConfDir(dir, "button mode files", warnAll)) {
+        if (matchesBuiltinText(builtinButtonModeFiles(), e.id, e.text)) continue;  // identical to the built-in
         ButtonMode b;
         b.id = e.id;
         b.path = e.path;
-        if (parseButtonModeText(e.text, &b, warnings)) set.modes.push_back(b);
+        if (!parseButtonModeText(e.text, &b, warnings)) continue;
+        bool replaced = false;
+        for (ButtonMode &x : set.modes)
+            if (x.id == b.id) { x = b; replaced = true; break; }
+        if (!replaced) set.modes.push_back(b);
     }
     return set;
 }

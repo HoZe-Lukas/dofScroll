@@ -13,6 +13,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
+#include <set>
 #include <string>
 
 #include "config.hpp"
@@ -137,12 +139,88 @@ static void testGrammar() {
     }
 }
 
+static const size_t kBuiltinModes = 9;  // normal, off, timeline + the six embedded example modes
+
 static void testBuiltins() {
     std::vector<std::string> w;
     ModeSet none = loadModes(g_dir + "/does-not-exist", &w);
     assert(w.empty());  // a missing directory is not an error
     assert(modesStamp(g_dir + "/does-not-exist").empty());
-    assert(none.modes.size() == 3 && none.normal().id == "normal" && none.normal().builtin);
+    // code-defined: normal, off, timeline; embedded from examples/modes: slides, media, map, precision, tabs, browse
+    assert(none.modes.size() == 9 && none.normal().id == "normal" && none.normal().builtin);
+    for (const char *id : {"normal", "off", "timeline", "slides", "media", "map", "precision", "tabs", "browse"}) {
+        const ModeDef *b = none.find(id);
+        assert(b && b->builtin && !b->label.empty());
+    }
+    assert(!none.find("cycle-modes") && !none.find("browse-keys"));  // dropped / renamed
+    {
+        std::set<std::string> ids;
+        for (const ModeDef &m : none.modes) assert(ids.insert(m.id).second);  // unique ids
+        // the embedded files parse without a warning and without a chord warning
+        std::vector<std::string> bw;
+        assert(loadModes("", &bw).modes.size() == 9 && bw.empty());
+        // the embedded text and the example file give the same mode
+        const std::string exDir =
+            (std::filesystem::path(__FILE__).parent_path() / ".." / "examples" / "modes").string();
+        // copies with an extra comment line (an identical file would be taken for the built-in itself)
+        clearDir();
+        for (const char *id : {"slides", "media", "map", "precision", "tabs", "browse"}) {
+            std::ifstream in(exDir + "/" + id + ".conf", std::ios::binary);
+            std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            assert(!text.empty());
+            writeFile(std::string(id) + ".conf", text + "\n# copy\n");
+        }
+        const ModeSet files = loadModes(g_dir, nullptr);
+        for (const char *id : {"slides", "media", "map", "precision", "tabs", "browse"}) {
+            const ModeDef *e = none.find(id), *f = files.find(id);
+            assert(e && f && e->builtin && !f->builtin);
+            assert(e->label == f->label && e->description == f->description && e->v == f->v && e->h == f->h &&
+                   e->twist == f->twist && e->overrides == f->overrides && e->buttons.size() == f->buttons.size());
+        }
+        assert(none.find("browse")->label == "Browse");
+        const ModeDef *pr = none.find("precision");
+        assert(pr->overrides.size() == 3 && pr->v.type == ChannelActionType::Default);
+        const ModeDef *sl = none.find("slides");
+        assert(sl->v.type == ChannelActionType::Keys && sl->h.type == ChannelActionType::Off);
+    }
+    // a user file byte-identical to a shipped example (built-in text, or the copy that earlier
+    // versions made on first start: browse-keys, cycle-modes, timeline, ...) is the built-in: not listed again
+    {
+        const std::string exDir =
+            (std::filesystem::path(__FILE__).parent_path() / ".." / "examples").string();
+        clearDir();
+        for (const char *id : {"slides", "browse"}) {
+            std::ifstream in(exDir + "/modes/" + id + ".conf", std::ios::binary);
+            writeFile(std::string(id) + ".conf", std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>()));
+        }
+        for (const char *id : {"timeline", "browse-keys", "cycle-modes", "tabs"}) {
+            std::ifstream in(exDir + "/legacy/modes/" + id + ".conf", std::ios::binary);
+            std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            assert(!text.empty());
+            writeFile(std::string(id) + ".conf", text);
+        }
+        std::vector<std::string> iw;
+        const ModeSet ms0 = loadModes(g_dir, &iw);
+        assert(iw.empty() && ms0.modes.size() == 9);
+        for (const ModeDef &m : ms0.modes) assert(m.builtin);
+        assert(!ms0.find("browse-keys") && !ms0.find("cycle-modes"));
+        // one changed byte makes it the user's own file again
+        writeFile("timeline.conf", "# mine\n" + std::string(std::istreambuf_iterator<char>(*std::make_unique<std::ifstream>(exDir + "/legacy/modes/timeline.conf", std::ios::binary)), {}));
+        const ModeSet ms1 = loadModes(g_dir, nullptr);
+        assert(ms1.find("timeline") && !ms1.find("timeline")->builtin);
+    }
+
+    // a file with the id of an embedded mode replaces it, the other built-ins stay
+    {
+        clearDir();
+        writeFile("slides.conf", "NAME = My slides\nV_ACTION = none\n");
+        std::vector<std::string> ow;
+        const ModeSet ov = loadModes(g_dir, &ow);
+        const ModeDef *s = ov.find("slides");
+        assert(ow.empty() && ov.modes.size() == 9 && s && !s->builtin && s->label == "My slides" &&
+               s->v.type == ChannelActionType::Off);
+        assert(ov.find("media") && ov.find("media")->builtin);
+    }
     assert(none.normal().allDefaultChannels() && none.normal().buttons.empty());
     const ModeDef *off = none.find("off");
     assert(off && off->v.type == ChannelActionType::Off && off->h.type == ChannelActionType::Off &&
@@ -183,7 +261,7 @@ static void testParser() {
     assert(m->overrides.size() == 2 && m->overrides[0].first == "SCROLL_H_SENS" && m->overrides[0].second == "4");
     assert(m->overrides[1].first == "ZOOM_SENS" && m->overrides[1].second == "7");
     assert(!m->allDefaultChannels());
-    assert(ms.modes.size() == 4);
+    assert(ms.modes.size() == kBuiltinModes + 1);
 
     // label falls back to the id; unlisted names are ignored
     clearDir();
@@ -193,14 +271,14 @@ static void testParser() {
     writeFile("readme.txt", "V_ACTION = none\n");
     writeFile(".conf", "V_ACTION = none\n");
     ms = loadModes(g_dir, &w);
-    assert(ms.modes.size() == 4 && ms.find("plain") && ms.find("plain")->label == "plain");
+    assert(ms.modes.size() == kBuiltinModes + 1 && ms.find("plain") && ms.find("plain")->label == "plain");
 
     // a file named like a built-in replaces it (normal stays at index 0)
     clearDir();
     writeFile("normal.conf", "NAME = My normal\nBUTTON_3 = nav\n");
     writeFile("timeline.conf", "H_ACTION = zoom\n");
     ms = loadModes(g_dir, &w);
-    assert(ms.modes.size() == 3 && ms.normal().id == "normal" && !ms.normal().builtin);
+    assert(ms.modes.size() == kBuiltinModes && ms.normal().id == "normal" && !ms.normal().builtin);
     assert(ms.normal().label == "My normal" && ms.normal().buttons.size() == 1);
     assert(ms.find("timeline")->h.type == ChannelActionType::Zoom && ms.find("timeline")->v.type == ChannelActionType::Default);
 }
@@ -252,7 +330,7 @@ static void testLimits() {
     }
     std::vector<std::string> w;
     ModeSet ms = loadModes(g_dir, &w);
-    assert(ms.modes.size() == 3 + 64);
+    assert(ms.modes.size() == kBuiltinModes + 64);
     assert(ms.find("m000") && ms.find("m063") && !ms.find("m064"));
     assert(hasWarning(w, "too many mode files"));
 
@@ -500,12 +578,18 @@ static void testSecurityHardening() {
     assert(hasWarning(w, "mode csup can press shortcut chords"));
     assert(hasWarning(w, "mode cdel can press shortcut chords") && hasWarning(w, "ctrl+w"));
 
-    // shipped example modes: no chord warning
+    // shipped example modes: no chord warning (loaded as files: not identical to the embedded text)
     const std::string src =
         (std::filesystem::path(__FILE__).parent_path() / ".." / "examples" / "modes").string();
+    clearDir();
+    for (const auto &de : std::filesystem::directory_iterator(src)) {
+        std::ifstream in(de.path(), std::ios::binary);
+        std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        writeFile(de.path().filename().string(), text + "\n# copy\n");
+    }
     w.clear();
-    ms = loadModes(src, &w);
-    assert(ms.find("browse-keys"));
+    ms = loadModes(g_dir, &w);
+    assert(ms.find("browse") && !ms.find("browse")->builtin);
     {
         const ModeDef *tabs = ms.find("tabs");
         assert(tabs && tabs->buttons.empty() && tabs->h.type == ChannelActionType::Keys &&

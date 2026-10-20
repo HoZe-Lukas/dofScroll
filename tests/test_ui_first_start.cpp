@@ -21,17 +21,17 @@ int main() {
     const std::string root = tu::makeTempDir("dofscroll-first-start"), ex = root + "/ex";
     std::filesystem::create_directories(root + "/cfg");
     std::filesystem::create_directories(ex + "/default");
-    std::filesystem::create_directories(ex + "/modes");
+    std::filesystem::create_directories(ex + "/modes");  // built in: never copied
     put(ex + "/default/dofscroll.conf", "[global]\nSENSITIVITY = 7\n");
-    put(ex + "/modes/timeline.conf", "NAME = Timeline\n");
+    put(ex + "/modes/slides.conf", "NAME = Slides\n");
     const std::string cfg = tu::useConfigBase(root + "/cfg");
     tu::setEnv("DOFSCROLL_EXAMPLES", ex);
-    const std::string conf = cfg + "/dofscroll/dofscroll.conf", mode = cfg + "/dofscroll/modes/timeline.conf";
+    const std::string conf = cfg + "/dofscroll/dofscroll.conf", mode = cfg + "/dofscroll/modes/mine.conf";
 
-    // a fresh account: the example configuration and modes appear
+    // a fresh account: the example configuration appears (the modes are built in)
     spn::ui::FirstStart r = spn::ui::runFirstStart();
     assert(r.seeded && !r.migrated);
-    assert(spn::fs::pathExists(conf) && spn::fs::pathExists(mode));
+    assert(spn::fs::pathExists(conf) && !spn::fs::pathExists(cfg + "/dofscroll/modes"));
     assert(get(conf) == "[global]\nSENSITIVITY = 7\n");
     const std::string t = r.text("dofscroll-ui");
     assert(t.find("dofscroll-ui: config migration: not needed or not possible") == 0);
@@ -39,10 +39,9 @@ int main() {
 
     // a second start changes nothing, and the user's own edits are never overwritten
     put(conf, "[global]\nSENSITIVITY = 99\n");
-    put(mode, "NAME = Mine\n");
     r = spn::ui::runFirstStart();
     assert(!r.seeded);
-    assert(get(conf) == "[global]\nSENSITIVITY = 99\n" && get(mode) == "NAME = Mine\n");
+    assert(get(conf) == "[global]\nSENSITIVITY = 99\n" && !spn::fs::pathExists(mode));
     assert(r.text("x").find("seeded defaults") == std::string::npos);
 
     // text(): no seeding line without seeding, the migration log is appended

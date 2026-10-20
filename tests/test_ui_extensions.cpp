@@ -30,7 +30,7 @@ int main() {
     put(modesDir + "/timeline.conf", "NAME = My timeline\nV_ACTION = none\n");  // replaces the built-in mode
     put(buttonsDir + "/latch.conf", "NAME = Latch\nACTION = toggle:nav\n");
     put(ex + "/modes/mine.conf", "NAME = Example mine\n");        // already installed (same id)
-    put(ex + "/modes/slides.conf", "NAME = Slides\nV_ACTION = keys:pageup,pagedown\n");
+    put(ex + "/modes/extra.conf", "NAME = Slides\nV_ACTION = keys:pageup,pagedown\n");
     put(ex + "/buttons/latch.conf", "ACTION = toggle:nav\n");     // already installed
     put(ex + "/buttons/next.conf", "NAME = Next\nACTION = mode:next\n");
 
@@ -43,13 +43,17 @@ int main() {
     assert(normal && normal->origin == O::BuiltIn && !normal->removable() && !normal->installable());
     const ExtensionEntry *mine = find(v, K::JoystickMode, "mine");
     assert(mine && mine->origin == O::UserFile && mine->removable() && mine->label == "Mine" && !mine->replacesBuiltIn);
+    const ExtensionEntry *slidesB = find(v, K::JoystickMode, "slides");
+    assert(slidesB && slidesB->origin == O::BuiltIn && !slidesB->removable() && !slidesB->installable());
+    const ExtensionEntry *latchNav = find(v, K::ButtonMode, "latch-nav");
+    assert(latchNav && latchNav->origin == O::BuiltIn && !latchNav->removable() && !latchNav->replacesBuiltIn);
     const ExtensionEntry *tl = find(v, K::JoystickMode, "timeline");
     assert(tl && tl->origin == O::UserFile && tl->replacesBuiltIn);
     const ExtensionEntry *latch = find(v, K::ButtonMode, "latch");
     assert(latch && latch->origin == O::UserFile && latch->label == "Latch");
     // examples that are not installed are offered, installed ones are not listed twice
-    const ExtensionEntry *slides = find(v, K::JoystickMode, "slides");
-    assert(slides && slides->origin == O::ExampleAvailable && slides->installable() && !slides->removable());
+    const ExtensionEntry *extra = find(v, K::JoystickMode, "extra");
+    assert(extra && extra->origin == O::ExampleAvailable && extra->installable() && !extra->removable());
     const ExtensionEntry *next = find(v, K::ButtonMode, "next");
     assert(next && next->origin == O::ExampleAvailable);
     int mineCount = 0, latchCount = 0;
@@ -74,19 +78,19 @@ int main() {
     assert(extensionKindText(K::ButtonMode, id) == "Button mode" && extensionKindText(K::JoystickMode, id) == "Joystick mode");
     assert(extensionOriginText(*normal, id) == "built in" && extensionOriginText(*mine, id) == "your file" &&
            extensionOriginText(*tl, id) == "your file, replaces the built-in mode" &&
-           extensionOriginText(*slides, id) == "example, not installed");
+           extensionOriginText(*extra, id) == "example, not installed");
 
-    const ExtensionEntry normalE = *normal, mineE = *mine, tlE = *tl, latchE = *latch, slidesE = *slides, nextE = *next;
+    const ExtensionEntry normalE = *normal, mineE = *mine, tlE = *tl, latchE = *latch, extraE = *extra, nextE = *next;
 
     // install an example: the file appears, the entry becomes a user file; installing twice fails
-    ExtensionResult r = installExtension(mc, bc, slidesE);
-    assert(r.ok && fs::pathExists(modesDir + "/slides.conf"));
-    r = installExtension(mc, bc, slidesE);
+    ExtensionResult r = installExtension(mc, bc, extraE);
+    assert(r.ok && fs::pathExists(modesDir + "/extra.conf"));
+    r = installExtension(mc, bc, extraE);
     assert(!r.ok);
     r = installExtension(mc, bc, nextE);
     assert(r.ok && fs::pathExists(buttonsDir + "/next.conf"));
     v = buildExtensions(mc, bc, ex);
-    assert(find(v, K::JoystickMode, "slides")->origin == O::UserFile && find(v, K::ButtonMode, "next")->origin == O::UserFile);
+    assert(find(v, K::JoystickMode, "extra")->origin == O::UserFile && find(v, K::ButtonMode, "next")->origin == O::UserFile);
     assert(!installExtension(mc, bc, mineE).ok);  // not an example
 
     // remove: user files only; a replacing file brings the built-in mode back

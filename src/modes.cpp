@@ -3,6 +3,7 @@
 // Mode files: parser, action grammar, built-in modes and the bounded directory loader.
 // See modes.hpp for the file format and the contract.
 #include "modes.hpp"
+#include "builtin_library.hpp"
 #include "utf8.hpp"
 
 #include <algorithm>
@@ -48,7 +49,13 @@ ModeDef builtinMode(const std::string &id, const std::string &label, const std::
     return m;
 }
 
-std::vector<ModeDef> builtinModes() {
+// Forward declaration: the embedded files are parsed with the same parser as installed files.
+bool parseModeText(const std::string &text, const std::string &file, ModeDef *out,
+                   std::vector<std::string> *warnings);
+
+// normal, off and timeline are defined here; the rest of the library (slides, media, map,
+// precision, tabs, browse) is parsed from the embedded example files, see builtin_library.hpp.
+std::vector<ModeDef> builtinModes(std::vector<std::string> *warnings) {
     std::vector<ModeDef> v;
     v.push_back(builtinMode("normal", "Normal", "Scroll, zoom and navigation as configured"));
     ModeDef off = builtinMode("off", "Off", "Sends nothing");
@@ -60,6 +67,18 @@ std::vector<ModeDef> builtinModes() {
     tl.h.neg = tl.twist.neg = Key::Left;
     tl.h.pos = tl.twist.pos = Key::Right;
     v.push_back(tl);
+    for (const BuiltinFile *f = builtinModeFiles(); f && f->id; ++f) {
+        bool defined = false;  // the code-defined modes above win over a file of the same id
+        for (const ModeDef &e : v)
+            if (e.id == f->id) defined = true;
+        if (defined) continue;
+        ModeDef m;
+        m.id = f->id;
+        if (!parseModeText(f->text, std::string("built-in mode ") + f->id, &m, warnings)) continue;
+        if (m.label.empty()) m.label = m.id;
+        m.builtin = true;
+        v.push_back(m);
+    }
     return v;
 }
 
@@ -379,7 +398,7 @@ std::string modesDir() {
 
 ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
     ModeSet set;
-    set.modes = builtinModes();
+    set.modes = builtinModes(warnings);
     auto warnAll = [&](const std::string &m) {
         if (warnings && warnings->size() < 200) warnings->push_back(m);
     };
@@ -387,6 +406,10 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
     for (const confdir::Entry &file : confdir::readConfDir(dir, "mode files", warnAll)) {
         const std::string &path = file.path;
         const std::string &text = file.text;
+        // A file identical to a shipped example (the built-in text, or the copy an earlier version
+        // made on first start) is that built-in, not the user's own file: it is not listed again.
+        if (matchesBuiltinText(builtinModeFiles(), file.id, text) || matchesBuiltinText(legacyModeFiles(), file.id, text))
+            continue;
         ModeDef m;
         m.id = file.id;
         if (!parseModeText(text, path, &m, warnings)) continue;

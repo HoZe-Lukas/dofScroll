@@ -33,6 +33,8 @@ public:
     struct Entry {
         std::string id, label, description, action, path;
         std::vector<std::string> cycle;     // CYCLE ids in order (action is then plain mode:next / mode:prev)
+        bool builtin = false;           // from the built-in library, no file (path is empty)
+        bool overridesBuiltin = false;  // a file that replaces a built-in button mode (removing it restores it)
         std::vector<std::string> warnings;  // loader warnings of this file
     };
     struct Result {
@@ -67,6 +69,7 @@ public:
         std::vector<std::string> warn;
         stamp_ = stamp();
         set_ = loadButtonModes(dir_, &warn);
+        const ButtonModeSet library = loadButtonModes("", nullptr);
         entries_.clear();
         general_.clear();
         for (const ButtonMode &b : set_.modes) {
@@ -77,6 +80,8 @@ public:
             e.cycle = b.cycle;
             e.action = b.cycle.empty() ? b.action : (b.target.compare(0, 4, "prev") == 0 ? "mode:prev" : "mode:next");
             e.path = b.path;
+            e.builtin = b.builtin;
+            e.overridesBuiltin = !b.builtin && library.find(b.id) != nullptr;
             entries_.push_back(e);
         }
         for (const std::string &w : warn) {
@@ -166,6 +171,16 @@ public:
         return write(r, nid, newTemplate(nid, label, src->description, src->action, src->cycle));
     }
 
+    // File for a built-in button mode: same id, so the file replaces the built-in one.
+    Result makeEditableCopy(const std::string &id) {
+        Result r;
+        const Entry *src = find(id);
+        if (!src) return fail(r, "no such button mode");
+        if (!src->builtin) return fail(r, "this button mode already has a file");
+        if (fs::pathExists(filePath(id))) return fail(r, "file already exists");
+        return write(r, id, newTemplate(id, src->label, src->description, src->action));
+    }
+
     // Rewrites the file of `id`: the leading comment block stays, then NAME, DESCRIPTION (if not
     // empty) and ACTION. The id (file name) never changes. Atomic.
     Result save(const std::string &id, const std::string &name, const std::string &description,
@@ -174,6 +189,7 @@ public:
         Result r;
         const Entry *e = find(id);
         if (!e) return fail(r, "no such button mode");
+        if (e->builtin) return fail(r, "a built-in button mode has no file; create an editable copy first");
         std::string err;
         const std::string act = checkAction(action, &err);
         if (act.empty()) return fail(r, err);
@@ -300,6 +316,7 @@ public:
         Result r;
         const Entry *e = find(id);
         if (!e) return fail(r, "no such button mode");
+        if (e->builtin) return fail(r, "built-in button modes cannot be removed");
         const std::string p = e->path;
         if (!fs::removeFile(p)) return fail(r, "cannot remove " + p);
         r.ok = true;
