@@ -25,6 +25,7 @@ public:
     // Opens the file of a loaded mode; false (and a message box) if it cannot be read.
     bool open(const std::string &path, const spn::ModeDef &def);
     spn::ui::ModeEditor &editor() { return editor_; }
+    const spn::ui::ModeEditor &editor() const { return editor_; }
     // Saves like the Save button (without asking about a changed file). false: refused.
     bool save(bool overwriteChanged = false);
 

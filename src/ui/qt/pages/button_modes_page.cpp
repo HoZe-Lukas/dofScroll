@@ -26,6 +26,7 @@
 #include "platform/fs.hpp"
 #include "qt_action_runner.hpp"
 #include "ui_i18n.hpp"
+#include "unsaved_prompt.hpp"
 
 using spn::ui::Binding;
 using spn::ui::BindingKind;
@@ -143,7 +144,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     setTabOrder(importBtn_, delBtn_);
     setTabOrder(delBtn_, folderBtn_);
 
-    connect(list_, &QListWidget::currentItemChanged, this, [this] { loadForm(); });
+    connect(list_, &QListWidget::currentItemChanged, this, [this] { onCurrentChanged(); });
     connect(name_, &QLineEdit::textEdited, this, [this] { markDirty(); });
     connect(description_, &QLineEdit::textEdited, this, [this] { markDirty(); });
     connect(kind_, &QComboBox::activated, this, [this](int idx) {
@@ -179,6 +180,41 @@ void ButtonModesPage::showEvent(QShowEvent *e) {
 void ButtonModesPage::hideEvent(QHideEvent *e) {
     QWidget::hideEvent(e);
     timer_->stop();
+}
+
+QString ButtonModesPage::currentId() const {
+    const QListWidgetItem *it = list_->currentItem();
+    return it ? it->data(kRoleId).toString() : QString();
+}
+
+void ButtonModesPage::selectRow(const QString &id) {
+    const QSignalBlocker block(list_);
+    for (int i = 0; i < list_->count(); ++i)
+        if (list_->item(i)->data(kRoleId).toString() == id) {
+            list_->setCurrentRow(i);
+            return;
+        }
+}
+
+// True if the form may be replaced: nothing to lose, or the user chose Save (and it worked) or Discard.
+// dirty_ stays set; the caller resets it once the replacement really happens.
+bool ButtonModesPage::confirmLeaveForm() {
+    if (!dirty_) return true;
+    const std::string what = (name_->text().isEmpty() ? shownId_ : name_->text()).toStdString();
+    return spn::ui::mayLeaveForm(true, what, [this](const std::string &w) { return unsaved_prompt::ask(this, w); },
+                                 [this] { return save(shownId_.toStdString()); });
+}
+
+void ButtonModesPage::onCurrentChanged() {
+    const QString target = currentId();
+    if (dirty_ && target != shownId_) {
+        if (!confirmLeaveForm()) {
+            selectRow(shownId_);  // stay on the button mode that is being edited
+            return;
+        }
+        selectRow(target);  // a Save repopulated the list on the edited entry
+    }
+    loadForm();
 }
 
 const ButtonModeCatalog::Entry *ButtonModesPage::current() const {
@@ -232,6 +268,7 @@ void ButtonModesPage::loadForm() {
     kind_->setCurrentIndex(idx);
     rebuildActionArg();
     fileLabel_->setText(e ? qs(e->path) : QString());
+    shownId_ = e ? qs(e->id) : QString();
     QString t;
     if (e && !e->warnings.empty()) {
         t += T("Warnings:") + QLatin1Char('\n');
@@ -310,7 +347,16 @@ QString ButtonModesPage::askName(const QString &title, const QString &label, con
     return QInputDialog::getText(this, title, label, QLineEdit::Normal, initial, ok).trimmed();
 }
 
-bool ButtonModesPage::editCurrent(const QString &name, const QString &description, const QString &action) {
+bool ButtonModesPage::selectButtonMode(const QString &id) {
+    for (int i = 0; i < list_->count(); ++i)
+        if (list_->item(i)->data(kRoleId).toString() == id) {
+            list_->setCurrentRow(i);
+            return true;
+        }
+    return false;
+}
+
+bool ButtonModesPage::stageEdit(const QString &name, const QString &description, const QString &action) {
     if (!current()) return false;
     name_->setText(name);
     description_->setText(description);
@@ -324,28 +370,43 @@ bool ButtonModesPage::editCurrent(const QString &name, const QString &descriptio
     rebuildActionArg();
     loading_ = false;
     markDirty();
+    return true;
+}
+
+bool ButtonModesPage::editCurrent(const QString &name, const QString &description, const QString &action) {
+    if (!stageEdit(name, description, action)) return false;
     const std::string id = current()->id;
-    onSave();
+    save(id);
     return !dirty_ && catalog_.find(id) != nullptr;
 }
 
-void ButtonModesPage::onSave() {
-    const ButtonModeCatalog::Entry *e = current();
-    if (!e) return;
-    const std::string id = e->id;
+void ButtonModesPage::onSave() { save(currentId().toStdString()); }
+
+// Saves the form under `id`: the entry the form belongs to, which is not the selected row while the
+// selection is being moved to another entry.
+bool ButtonModesPage::save(const std::string &id) {
+    if (id.empty() || !catalog_.find(id)) return false;
     const std::string action = composedAction();
-    if (action.empty()) return showError(T("Could not save the button mode."), "choose a key or a mode first");
+    if (action.empty()) {
+        showError(T("Could not save the button mode."), "choose a key or a mode first");
+        return false;
+    }
     const ButtonModeCatalog::Result r =
         catalog_.save(id, name_->text().toUtf8().toStdString(), description_->text().toUtf8().toStdString(), action);
-    if (!r.ok) return showError(T("Could not save the button mode."), r.error);
+    if (!r.ok) {
+        showError(T("Could not save the button mode."), r.error);
+        return false;
+    }
     dirty_ = false;
     populate(qs(id));
+    return true;
 }
 
 void ButtonModesPage::onNew() {
     bool ok = false;
     const QString name = askName(T("New button mode"), T("Name of the new button mode:"), QString(), &ok);
     if (!ok) return;
+    if (!confirmLeaveForm()) return;
     const ButtonModeCatalog::Result r = catalog_.createNew(name.toStdString());
     if (!r.ok) return showError(T("Could not create the button mode."), r.error);
     dirty_ = false;
@@ -355,10 +416,14 @@ void ButtonModesPage::onNew() {
 void ButtonModesPage::onDuplicate() {
     const ButtonModeCatalog::Entry *e = current();
     if (!e) return;
+    // Copies: the timer may rebuild the catalog while the dialog runs, which invalidates "e".
+    const std::string id = e->id;
+    const QString label = qs(e->label);
     bool ok = false;
-    const QString name = askName(T("Duplicate"), T("Name of the copy:"), T("%1 (copy)").arg(qs(e->label)), &ok);
+    const QString name = askName(T("Duplicate"), T("Name of the copy:"), T("%1 (copy)").arg(label), &ok);
     if (!ok) return;
-    const ButtonModeCatalog::Result r = catalog_.duplicate(e->id, name.toStdString());
+    if (!confirmLeaveForm()) return;
+    const ButtonModeCatalog::Result r = catalog_.duplicate(id, name.toStdString());
     if (!r.ok) return showError(T("Could not duplicate the button mode."), r.error);
     dirty_ = false;
     populate(qs(r.id));
@@ -397,6 +462,7 @@ void ButtonModesPage::onImport() {
     box.setEscapeButton(no);
     box.exec();
     if (box.clickedButton() != yes) return;
+    if (!confirmLeaveForm()) return;
     const ButtonModeCatalog::Result r = catalog_.importFile(path, name);
     if (!r.ok) return showError(T("Could not import the button mode."), r.error);
     dirty_ = false;
@@ -406,6 +472,7 @@ void ButtonModesPage::onImport() {
 void ButtonModesPage::onDelete() {
     const ButtonModeCatalog::Entry *e = current();
     if (!e) return;
+    // Copies: the timer may rebuild the catalog while the dialog runs, which invalidates "e".
     const std::string id = e->id;
     QString text = T("Delete the button mode file \"%1\"?").arg(qs(e->path));
     if (ctx_.settings && ctx_.modes) {
@@ -438,5 +505,8 @@ void ButtonModesPage::onOpenFolder() {
 }
 
 void ButtonModesPage::onOpenInEditor() {
-    if (const ButtonModeCatalog::Entry *e = current()) openInEditor(e->path);
+    const ButtonModeCatalog::Entry *e = current();
+    if (!e) return;
+    const std::string path = e->path;
+    openInEditor(path);
 }

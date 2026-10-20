@@ -33,6 +33,9 @@ public:
     explicit MainWindow(const UiContext &base, QWidget *parent = nullptr);
     ~MainWindow() override;  // destroys the pages before the models they reference
     void bringToFront();                      // show, un-minimize, raise and activate (every OS)
+    // Before the application quits: asks Save / Discard / Cancel for unsaved edits (Modes and Button modes
+    // pages). False: the user chose Cancel (or a save failed); do not quit.
+    bool confirmQuit();
     int pageCount() const;                    // pages in all categories
     int categoryCount() const;                // left tabs
     // Selects a page by registry id ("channels", "axes", ...): its category and its tab. False if unknown.

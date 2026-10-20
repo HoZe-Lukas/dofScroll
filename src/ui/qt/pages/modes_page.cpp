@@ -24,6 +24,7 @@
 #include "platform/fs.hpp"
 #include "qt_action_runner.hpp"
 #include "ui_i18n.hpp"
+#include "unsaved_prompt.hpp"
 
 using spn::ui::ModeCatalog;
 using Origin = ModeCatalog::Origin;
@@ -106,10 +107,7 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     setTabOrder(editBtn_, delBtn_);
     setTabOrder(delBtn_, folderBtn_);
 
-    connect(list_, &QListWidget::currentItemChanged, this, [this] {
-        right_->setCurrentWidget(detail_);  // the editor belongs to the mode it was opened for
-        updateDetail();
-    });
+    connect(list_, &QListWidget::currentItemChanged, this, [this] { onCurrentChanged(); });
     connect(list_, &QListWidget::itemDoubleClicked, this, [this] { onEdit(); });
     connect(newBtn_, &QPushButton::clicked, this, [this] { onNew(); });
     connect(dupBtn_, &QPushButton::clicked, this, [this] { onDuplicate(); });
@@ -144,6 +142,46 @@ void ModesPage::refreshIfChanged() {
     if (catalog_.refreshIfChanged()) populate(keep);
 }
 
+QString ModesPage::currentId() const {
+    const QListWidgetItem *it = list_->currentItem();
+    return it ? it->data(kRoleId).toString() : QString();
+}
+
+void ModesPage::selectRow(const QString &id) {
+    const QSignalBlocker block(list_);
+    for (int i = 0; i < list_->count(); ++i)
+        if (list_->item(i)->data(kRoleId).toString() == id) {
+            list_->setCurrentRow(i);
+            return;
+        }
+}
+
+bool ModesPage::hasUnsavedChanges() const { return right_->currentWidget() == editor_ && editor_->editor().dirty(); }
+
+bool ModesPage::confirmLeaveEditor() {
+    if (!hasUnsavedChanges()) return true;
+    const spn::ui::ModeForm &f = editor_->editor().form();
+    const std::string what = f.name.empty() ? f.id : f.name;
+    const bool ok = spn::ui::mayLeaveForm(true, what, [this](const std::string &w) { return unsaved_prompt::ask(this, w); },
+                                          [this] { return editor_->save(); });
+    if (ok) right_->setCurrentWidget(detail_);  // the editor is left; a discarded form is reloaded on the next open
+    return ok;
+}
+
+void ModesPage::onCurrentChanged() {
+    const QString target = currentId();
+    if (hasUnsavedChanges() && target != shownId_) {
+        if (!confirmLeaveEditor()) {
+            selectRow(shownId_);  // stay on the mode that is being edited
+            return;
+        }
+        selectRow(target);  // a Save repopulated the list on the edited mode
+    }
+    shownId_ = target;
+    right_->setCurrentWidget(detail_);  // the editor belongs to the mode it was opened for
+    updateDetail();
+}
+
 const ModeCatalog::ModeEntry *ModesPage::current() const {
     const QListWidgetItem *it = list_->currentItem();
     return it ? catalog_.find(it->data(kRoleId).toString().toStdString()) : nullptr;
@@ -164,6 +202,10 @@ void ModesPage::populate(const QString &selectId) {
         ++n;
     }
     if (n) list_->setCurrentRow(select);
+    // The editor belongs to one mode: a clean one for another mode (the list moved on) makes room for the details.
+    if (right_->currentWidget() == editor_ && !editor_->editor().dirty() && qs8(editor_->editor().form().id) != currentId())
+        right_->setCurrentWidget(detail_);
+    if (right_->currentWidget() != editor_) shownId_ = currentId();
     updateDetail();
 }
 
@@ -211,6 +253,7 @@ void ModesPage::onNew() {
     bool ok = false;
     const QString name = askName(T("New mode"), T("Name of the new mode:"), QString(), &ok);
     if (!ok) return;
+    if (!confirmLeaveEditor()) return;
     const ModeCatalog::Result r = catalog_.createNew(name.toStdString());
     if (!r.ok) return showError(T("Could not create the mode."), r.error);
     populate(QString::fromStdString(r.id));
@@ -220,11 +263,14 @@ void ModesPage::onNew() {
 void ModesPage::onDuplicate() {
     const ModeCatalog::ModeEntry *m = current();
     if (!m) return;
+    // Copies: the timer may rebuild the catalog while the dialog runs, which invalidates "m".
+    const std::string id = m->id;
+    const QString label = QString::fromStdString(m->label);
     bool ok = false;
-    const QString name = askName(T("Duplicate"), T("Name of the copy:"),
-                                 T("%1 (copy)").arg(QString::fromStdString(m->label)), &ok);
+    const QString name = askName(T("Duplicate"), T("Name of the copy:"), T("%1 (copy)").arg(label), &ok);
     if (!ok) return;
-    const ModeCatalog::Result r = catalog_.duplicate(m->id, name.toStdString());
+    if (!confirmLeaveEditor()) return;
+    const ModeCatalog::Result r = catalog_.duplicate(id, name.toStdString());
     if (!r.ok) return showError(T("Could not duplicate the mode."), r.error);
     populate(QString::fromStdString(r.id));
 }
@@ -264,6 +310,7 @@ void ModesPage::onImport() {
     box.exec();
     if (box.clickedButton() != yes) return;
 
+    if (!confirmLeaveEditor()) return;
     const ModeCatalog::Result r = catalog_.importFile(path, name);
     if (!r.ok) return showError(T("Could not import the mode."), r.error);
     populate(QString::fromStdString(r.id));
@@ -281,9 +328,18 @@ bool ModesPage::selectMode(const QString &id) {
 bool ModesPage::openEditor() {
     const ModeCatalog::ModeEntry *m = current();
     if (!m || m->path.empty()) return false;
-    const spn::ModeDef *def = catalog_.modeSet().find(m->id);
-    if (!def) return false;
-    if (!editor_->open(m->path, *def)) return false;
+    const std::string id = m->id;
+    // Opening reloads the file: ask first if the editor holds edits. A Save refreshes the catalog,
+    // so the entry and the definition are looked up again afterwards and copied before the editor
+    // (which may show a message box) runs.
+    if (!confirmLeaveEditor()) return false;
+    const ModeCatalog::ModeEntry *e = catalog_.find(id);
+    const spn::ModeDef *def = catalog_.modeSet().find(id);
+    if (!e || e->path.empty() || !def) return false;
+    const std::string path = e->path;
+    const spn::ModeDef defCopy = *def;
+    if (!editor_->open(path, defCopy)) return false;
+    shownId_ = QString::fromStdString(id);
     right_->setCurrentWidget(editor_);
     return true;
 }
@@ -291,12 +347,13 @@ bool ModesPage::openEditor() {
 void ModesPage::onEdit() {
     const ModeCatalog::ModeEntry *m = current();
     if (!m) return;
+    const std::string sid = m->id;  // copies: "m" does not survive a catalog refresh during a dialog
     if (!m->path.empty()) {
         openEditor();
         return;
     }
     // A built-in mode has no file: offer an editable copy with the same id that replaces it.
-    const QString id = QString::fromStdString(m->id);
+    const QString id = QString::fromStdString(sid);
     const QMessageBox::StandardButton a = QMessageBox::question(
         this, T("Edit"),
         T("The built-in mode \"%1\" is not a file. Create an editable file with the same id? It replaces the "
@@ -304,7 +361,7 @@ void ModesPage::onEdit() {
             .arg(id),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     if (a != QMessageBox::Yes) return;
-    const ModeCatalog::Result r = catalog_.makeEditableCopy(m->id);
+    const ModeCatalog::Result r = catalog_.makeEditableCopy(sid);
     if (!r.ok) return showError(T("Could not create the file."), r.error);
     populate(id);
     openEditor();
@@ -313,9 +370,12 @@ void ModesPage::onEdit() {
 void ModesPage::onDelete() {
     const ModeCatalog::ModeEntry *m = current();
     if (!m || m->origin == Origin::BuiltIn) return;
-    const QString id = QString::fromStdString(m->id);
+    // Copies: the timer may rebuild the catalog while the dialog runs, which invalidates "m".
+    const std::string sid = m->id;
+    const QString id = QString::fromStdString(sid);
+    const bool overridden = m->origin == Origin::BuiltInOverridden;
     QString text = T("Delete the mode file \"%1\"?").arg(QString::fromStdString(m->path));
-    if (m->origin == Origin::BuiltInOverridden)
+    if (overridden)
         text += QStringLiteral("\n\n") + T("This file replaces the built-in mode \"%1\"; the built-in mode comes back.").arg(id);
     text += QStringLiteral("\n\n") + T("This cannot be undone.");
     QMessageBox box(QMessageBox::Question, T("Delete"), text, QMessageBox::NoButton, this);
@@ -325,8 +385,11 @@ void ModesPage::onDelete() {
     box.setEscapeButton(no);
     box.exec();
     if (box.clickedButton() != yes) return;
-    const ModeCatalog::Result r = catalog_.remove(m->id);
+    // Edits of the mode being deleted are moot (the user confirmed); edits of another mode are not.
+    if (qs8(editor_->editor().form().id) != id && !confirmLeaveEditor()) return;
+    const ModeCatalog::Result r = catalog_.remove(sid);
     if (!r.ok) return showError(T("Could not delete the mode."), r.error);
+    right_->setCurrentWidget(detail_);
     populate(id);  // an overridden built-in is selected again, else the first entry
 }
 

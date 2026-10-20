@@ -20,6 +20,8 @@
 #include "common.hpp"
 #include "config.hpp"
 #include "pages/page_registry.hpp"
+#include "pages/button_modes_page.hpp"
+#include "pages/modes_page.hpp"
 #include "pages/overview_page.hpp"
 #include "pages/profiles_page.hpp"
 #include "platform/fs.hpp"
@@ -163,6 +165,23 @@ void MainWindow::bringToFront() {
     setWindowState((windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
     raise();
     activateWindow();
+}
+
+bool MainWindow::confirmQuit() {
+    // Pages with edits that exist only in the window: show the page, then ask (Save / Discard / Cancel).
+    for (ModesPage *page : findChildren<ModesPage *>()) {
+        if (!page->hasUnsavedChanges()) continue;
+        bringToFront();
+        showPage(QStringLiteral("modes"));
+        if (!page->confirmLeaveEditor()) return false;
+    }
+    for (ButtonModesPage *page : findChildren<ButtonModesPage *>()) {
+        if (!page->dirty()) continue;
+        bringToFront();
+        showPage(QStringLiteral("buttonmodes"));
+        if (!page->confirmLeaveForm()) return false;
+    }
+    return true;
 }
 
 bool MainWindow::showPage(const QString &pageId) {

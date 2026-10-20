@@ -33,6 +33,7 @@
 #include "pages/mode_editor_widget.hpp"
 #include "pages/modes_page.hpp"
 #include "platform_hooks.hpp"
+#include "unsaved_prompt.hpp"
 #include "qt_action_runner.hpp"
 #include "theme.hpp"
 #include "tray.hpp"
@@ -89,6 +90,124 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
     QFile::remove(tmpPath + QStringLiteral("/buttons/second.conf"));
     page.refreshIfChanged();
     check(page.buttonModeCount() == 1, "a removed file disappears from the list");
+    return ok;
+}
+
+// Unsaved edits are never dropped silently: selecting another entry, reloading the same one, creating or
+// importing something and quitting all ask Save / Discard / Cancel first (the question is answered by a hook here).
+static bool unsavedGuardSelfTest(const UiContext &ctx, const QString &tmpPath, MainWindow &window) {
+    using spn::ui::UnsavedChoice;
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "unsaved-changes self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    int asked = 0;
+    UnsavedChoice answer = UnsavedChoice::Cancel;
+    unsaved_prompt::setUnsavedAnswer([&](const std::string &) {
+        ++asked;
+        return answer;
+    });
+    auto fileText = [&](const QString &rel) {
+        QFile f(tmpPath + rel);
+        return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+    };
+
+    {   // Modes page, in-page editor
+        ModesPage page(ctx);
+        page.show();
+        settle();
+        auto edit = [&](const char *name) {
+            page.selectMode(QStringLiteral("mine"));
+            page.openEditor();
+            page.editorWidget()->editor().form().name = name;
+        };
+        asked = 0;
+        page.selectMode(QStringLiteral("mine"));
+        page.selectMode(QStringLiteral("timeline"));
+        check(asked == 0, "no question without edits");
+        edit("Unsaved");
+        check(page.hasUnsavedChanges(), "the edit is pending");
+        answer = UnsavedChoice::Cancel;
+        page.selectMode(QStringLiteral("timeline"));
+        check(asked == 1 && page.currentId() == QStringLiteral("mine") && page.hasUnsavedChanges() &&
+                  page.editorWidget()->editor().form().name == "Unsaved",
+              "Cancel keeps the row and the edits");
+        check(!page.openEditor() && page.hasUnsavedChanges(), "Cancel on Edit of the same mode keeps the edits");
+        answer = UnsavedChoice::Discard;
+        page.selectMode(QStringLiteral("timeline"));
+        check(page.currentId() == QStringLiteral("timeline") && !page.hasUnsavedChanges() &&
+                  !fileText(QStringLiteral("/modes/mine.conf")).contains("NAME = Unsaved"),
+              "Discard moves on and writes nothing");
+        edit("Saved by guard");
+        answer = UnsavedChoice::Save;
+        page.selectMode(QStringLiteral("timeline"));
+        check(page.currentId() == QStringLiteral("timeline") && !page.hasUnsavedChanges() &&
+                  fileText(QStringLiteral("/modes/mine.conf")).contains("NAME = Saved by guard"),
+              "Save writes the file and moves on");
+        edit("Again");
+        answer = UnsavedChoice::Discard;
+        check(page.openEditor() && !page.hasUnsavedChanges() && page.editorWidget()->editor().form().name == "Saved by guard",
+              "Discard on Edit of the same mode reloads the file");
+        // Save that fails (invalid value): stay where we are
+        page.editorWidget()->editor().form().overrides.emplace_back("SCROLL_V_SENS", "abc");
+        answer = UnsavedChoice::Save;
+        page.selectMode(QStringLiteral("timeline"));
+        check(page.currentId() == QStringLiteral("mine") && page.hasUnsavedChanges(), "a failed Save keeps the edits");
+        // Quit: the window asks for every page with edits
+        answer = UnsavedChoice::Discard;
+        page.selectMode(QStringLiteral("timeline"));
+    }
+    {   // Quit through the window
+        auto *modes = window.findChild<ModesPage *>();
+        check(modes != nullptr, "the window has a Modes page");
+        if (modes) {
+            check(window.confirmQuit(), "quit without edits is not asked");
+            modes->selectMode(QStringLiteral("mine"));
+            modes->openEditor();
+            modes->editorWidget()->editor().form().name = "Quit edit";
+            asked = 0;
+            answer = UnsavedChoice::Cancel;
+            check(!window.confirmQuit() && asked == 1 && modes->hasUnsavedChanges(), "Cancel stops the quit");
+            answer = UnsavedChoice::Discard;
+            check(window.confirmQuit() && !modes->hasUnsavedChanges(), "Discard lets the quit go on");
+        }
+    }
+    {   // Button modes page
+        QFile second(tmpPath + QStringLiteral("/buttons/guard.conf"));
+        check(second.open(QIODevice::WriteOnly) && second.write("NAME = Guard\nACTION = click\n") > 0, "write a second file");
+        second.close();
+        ButtonModesPage page(ctx);
+        page.show();
+        settle();
+        check(page.selectButtonMode(QStringLiteral("latch")), "the first entry is listed");
+        asked = 0;
+        check(page.stageEdit(QStringLiteral("Pending"), QStringLiteral("d"), QStringLiteral("key:space")) && page.dirty(), "staged edit");
+        answer = UnsavedChoice::Cancel;
+        page.selectButtonMode(QStringLiteral("guard"));
+        check(asked == 1 && page.currentId() == QStringLiteral("latch") && page.dirty(), "Cancel keeps the row and the edits");
+        answer = UnsavedChoice::Discard;
+        page.selectButtonMode(QStringLiteral("guard"));
+        check(page.currentId() == QStringLiteral("guard") && !page.dirty() &&
+                  !fileText(QStringLiteral("/buttons/latch.conf")).contains("Pending"),
+              "Discard moves on and writes nothing");
+        page.stageEdit(QStringLiteral("Kept"), QString(), QStringLiteral("click"));
+        answer = UnsavedChoice::Save;
+        page.selectButtonMode(QStringLiteral("latch"));
+        check(page.currentId() == QStringLiteral("latch") && !page.dirty() &&
+                  fileText(QStringLiteral("/buttons/guard.conf")).contains("NAME = Kept"),
+              "Save writes the file and moves on");
+        check(window.confirmQuit(), "quit with a clean button mode form is not asked");
+        page.stageEdit(QStringLiteral("Late"), QString(), QStringLiteral("click"));
+        asked = 0;
+        answer = UnsavedChoice::Cancel;
+        check(!page.confirmLeaveForm() && asked == 1, "the guard used before quit and New/Import answers Cancel");
+        answer = UnsavedChoice::Discard;
+        check(page.confirmLeaveForm(), "Discard lets it go on");
+        QFile::remove(tmpPath + QStringLiteral("/buttons/guard.conf"));
+    }
+    unsaved_prompt::setUnsavedAnswer(nullptr);
+    window.showPage(QStringLiteral("overview"));  // confirmQuit moved the window to the page with the edits
     return ok;
 }
 
@@ -514,6 +633,7 @@ int main(int argc, char **argv) {
         w.show();
         if (!buttonModesSelfTest(ctx, tmp.path())) return 1;
         if (!modeEditorSelfTest(ctx, tmp.path())) return 1;
+        if (!unsavedGuardSelfTest(ctx, tmp.path(), w)) return 1;
         if (!extensionsSelfTest(ctx, tmp.path())) return 1;
         ModesPage modes(ctx);  // standalone (own catalog): built-in normal, off, timeline + the file mode
         modes.show();
