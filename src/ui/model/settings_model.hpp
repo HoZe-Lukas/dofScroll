@@ -180,7 +180,7 @@ public:
     std::vector<ModeOption> modeOptions(size_t i) const {
         std::vector<ModeOption> out;
         if (i >= ps_.sections.size()) return out;
-        if (i > 0) out.push_back({"", "Default mode", "", true});
+        if (i > 0) out.push_back({"", "Same as Global", "", true});
         for (const ModeDef &m : modes_.modes) out.push_back({m.id, m.label.empty() ? m.id : m.label, m.id, true});
         if (hasKey(ps_.sections[i], "MODE")) {
             const std::string cur = ps_.sectionSettings(i).mode;
@@ -205,8 +205,8 @@ public:
     bool setMode(size_t i, int optionIndex, std::string *err, bool *layoutChanged = nullptr) {
         const std::vector<ModeOption> o = modeOptions(i);
         if (layoutChanged) *layoutChanged = false;
-        if (o.empty()) return failb(err, "no such profile or no modes loaded");
-        if (optionIndex < 0 || size_t(optionIndex) >= o.size()) return failb(err, "no such mode option");
+        if (o.empty()) return failb(err, "no such profile or no joystick modes loaded");
+        if (optionIndex < 0 || size_t(optionIndex) >= o.size()) return failb(err, "no such joystick mode option");
         if (i > 0 && optionIndex == 0) return clearOverride(i, "MODE", layoutChanged);
         return setValue(i, "MODE", o[size_t(optionIndex)].id, err, layoutChanged);
     }
@@ -236,7 +236,7 @@ public:
         ModeDef normal;  // all channels "default", no buttons
         if (!m) m = &normal;
         const bool allDefault = m->allDefaultChannels();
-        if (v.canChooseMode) v.groups.push_back({"mode", "Mode", {"MODE"}, false});
+        if (v.canChooseMode) v.groups.push_back({"mode", "Joystick mode", {"MODE"}, false});
         if (i > 0) v.groups.push_back({"general", "General", {"ENABLED"}, false});
         if (allDefault)
             v.groups.push_back({"buttons", "Buttons", {}, true});
@@ -296,7 +296,7 @@ public:
         const std::string id = effectiveMode(i);
         const ModeDef *m = modes_.find(id);
         if (!m || m->builtin || modesDir_.empty())
-            return failb(err, "this mode has no file (built-in or not loaded)");
+            return failb(err, "this joystick mode has no file (built-in or not loaded)");
         return runner.openPath(modelist::modeFilePath(modesDir_, id), err);
     }
 
@@ -591,7 +591,7 @@ public:
     std::string mode(size_t i) const { return i < ps_.sections.size() ? ps_.sectionSettings(i).mode : "normal"; }
     // By id; only for [device:*] / [app:*] (refused for [global]).
     bool setMode(size_t i, const std::string &id, std::string *err, bool *layoutChanged = nullptr) {
-        if (!validModeId(id)) return failb(err, "invalid mode id (a-z, 0-9, _ and -, at most 32 characters)");
+        if (!validModeId(id)) return failb(err, "invalid joystick mode id (a-z, 0-9, _ and -, at most 32 characters)");
         return setValue(i, "MODE", id, err, layoutChanged);
     }
 

@@ -202,7 +202,7 @@ static void testLayout() {
     assert(l.modeSelector && l.bindingEditor && l.overridesSection && !l.modeInfo);
     // first option is "Default mode", then the built-in modes
     const auto opts = sm.modeOptions(app);
-    assert(opts.size() >= 2 && opts[0].id.empty() && opts[0].label == "Default mode");
+    assert(opts.size() >= 2 && opts[0].id.empty() && opts[0].label == "Same as Global");
 
     // Choosing another mode switches the layout (info instead of editor) ...
     int idx = -1;

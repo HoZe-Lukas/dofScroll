@@ -309,7 +309,7 @@ public:
         for (const ModeDef &m : modes.modes)
             for (const ButtonBinding &b : m.buttons)
                 if (b.type == ButtonActionType::ButtonMode && b.mode == id)
-                    out.push_back("mode " + m.id + ": BUTTON_" + std::to_string(b.button));
+                    out.push_back("joystick mode " + m.id + ": BUTTON_" + std::to_string(b.button));
         return out;
     }
     Result remove(const std::string &id) {

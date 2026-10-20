@@ -110,7 +110,7 @@ ModeEditorWidget::ModeEditorWidget(const UiContext &ctx, QWidget *parent) : QWid
     // Sub-tabs, each scrolling on its own; the problem list and the buttons below stay visible.
     tabs_ = new QTabWidget(this);
     tabs_->setDocumentMode(true);
-    tabs_->setAccessibleName(T("Mode sections"));
+    tabs_->setAccessibleName(T("Joystick mode sections"));
     root->addWidget(tabs_, 1);
     connect(tabs_, &QTabWidget::currentChanged, this, [this](int i) {
         if (i >= 0 && tabs_->widget(i)) lastTab_ = tabs_->widget(i)->property("tabId").toString();
@@ -329,7 +329,7 @@ void ModeEditorWidget::rebuild() {
     auto *ocol = newTab("overrides", T("Overrides"), &overridesPage);
     auto *ovBox = new QGroupBox(T("Settings overrides"), overridesPage);
     auto *ol = new QVBoxLayout(ovBox);
-    ol->addWidget(new QLabel(T("Values that apply while this mode is active (for example the sensitivity)."), overridesPage));
+    ol->addWidget(new QLabel(T("Values that apply while this joystick mode is active (for example the sensitivity)."), overridesPage));
     auto *og = new QFormLayout;
     for (size_t i = 0; i < f.overrides.size(); ++i) {
         auto *rowW = new QWidget(overridesPage);

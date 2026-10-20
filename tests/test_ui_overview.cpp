@@ -29,9 +29,9 @@ static void testSummary() {
     OverviewProfile p;
     assert(profileSummary(p, id) == "Uses the default settings");
     p.mode = "timeline";
-    assert(profileSummary(p, id) == "Mode: timeline");
+    assert(profileSummary(p, id) == "Joystick mode: timeline");
     p.overrides = {"SCROLL_V_SENS = 9", "BUTTON_1 = key:space"};
-    assert(profileSummary(p, id) == "Mode: timeline, SCROLL_V_SENS = 9, BUTTON_1 = key:space");
+    assert(profileSummary(p, id) == "Joystick mode: timeline, SCROLL_V_SENS = 9, BUTTON_1 = key:space");
     p.mode.clear();
     assert(profileSummary(p, id) == "SCROLL_V_SENS = 9, BUTTON_1 = key:space");
     // more than kMaxSummaryItems settings: the rest is counted
@@ -61,9 +61,13 @@ static void testProfilesAndCounts() {
     assert(d.profiles[0].kind == Section::DEVICE && d.profiles[0].name == "SpaceMouse Pro");
     assert(d.profiles[0].mode.empty() && d.profiles[0].summary == "SCROLL_V_SENS = 9");
     assert(d.profiles[1].name == "firefox" && d.profiles[1].mode == "timeline");
-    assert(d.profiles[1].summary == "Mode: timeline, BUTTON_1 = key:space");
+    assert(d.profiles[1].summary == "Joystick mode: timeline, BUTTON_1 = key:space");
     assert(d.profiles[2].name == "blender" && d.profiles[2].summary == "ENABLED = 0");
     assert(d.profiles[3].name == "gimp" && d.profiles[3].summary == "Uses the default settings");
+    // how much of a profile is its own, the rest is inherited
+    assert(d.profiles[0].overrideCount == 1 && d.profiles[0].overrideText == "Overrides 1 setting");
+    assert(d.profiles[1].overrideCount == 2 && d.profiles[1].overrideText == "Overrides 2 settings");
+    assert(d.profiles[3].overrideCount == 0 && d.profiles[3].overrideText == "Overrides nothing: everything is inherited");
     // the section index is what the Profiles page selects
     for (const OverviewProfile &p : d.profiles) assert(m.sections()[p.section].pattern == p.name);
     // nothing configured: no cards
@@ -80,7 +84,7 @@ static void testStatusAndActions() {
     assert(d.defaultMode == "timeline");
     st.update("profile=app:firefox\ndevice=SpaceMouse Pro\napp=firefox\nmode=timeline\nenabled=1\npaused=0\ndevices_seen=1\nupdated=1000\n", true, 1002);
     d = buildOverview(m, st, id);
-    assert(d.daemonRunning && d.statusLine == "Profile: app:firefox  |  Mode: timeline");
+    assert(d.daemonRunning && d.statusLine == "Profile: app:firefox  |  Joystick mode: timeline");
     assert(d.infoLine == "Program: firefox  |  Device: SpaceMouse Pro" && d.warningLine.empty());
 
     const std::vector<OverviewAction> a = overviewActions();
@@ -120,8 +124,8 @@ static void testButtonOverrides() {
     assert(d.profiles.size() == 1);
     const OverviewProfile &p = d.profiles[0];
     assert(p.overrides.size() == 4 && p.overrides[0] == "BUTTON_1 = key:space");
-    assert(p.summary == "Mode: timeline, BUTTON_1 = key:space, BUTTON_2 = key:enter, BUTTON_3 = nav, +1 more");
-    assert(p.details == "Mode: timeline\nBUTTON_1 = key:space\nBUTTON_2 = key:enter\nBUTTON_3 = nav\nBUTTON_4 = key:tab");
+    assert(p.summary == "Joystick mode: timeline, BUTTON_1 = key:space, BUTTON_2 = key:enter, BUTTON_3 = nav, +1 more");
+    assert(p.details == "Joystick mode: timeline\nBUTTON_1 = key:space\nBUTTON_2 = key:enter\nBUTTON_3 = nav\nBUTTON_4 = key:tab");
     OverviewProfile none;
     assert(profileDetails(none, id) == "Uses the default settings");
 }

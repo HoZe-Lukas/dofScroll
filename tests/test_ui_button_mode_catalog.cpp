@@ -155,7 +155,7 @@ int main() {
         ms.modes.push_back(md);
         const std::vector<std::string> refs = c.referencedBy("my-latch", sm, ms);
         assert(refs.size() == 3);
-        assert(refs[0] == "[global] BUTTON_1" && refs[1] == "[app:blender] BUTTON_3" && refs[2] == "mode timeline: BUTTON_5");
+        assert(refs[0] == "[global] BUTTON_1" && refs[1] == "[app:blender] BUTTON_3" && refs[2] == "joystick mode timeline: BUTTON_5");
         assert(c.referencedBy("copy-of-it", sm, ms).size() == 1);
         assert(c.referencedBy("unused", sm, ms).empty());
     }

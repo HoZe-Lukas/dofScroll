@@ -1645,7 +1645,7 @@ static bool autosaveAuditSelfTest(const std::function<bool(MainWindow &)> &) {
                 if (g->isCheckable()) g->setChecked(true);
             settle();
         }
-        expect(who + QStringLiteral(": Button 2 = navigation mode"), sec, "BUTTON_2", "nav", [&] { act(QStringLiteral("Navigation mode (arrow keys while held)")); });
+        expect(who + QStringLiteral(": Button 2 = navigation mode"), sec, "BUTTON_2", "nav", [&] { act(QStringLiteral("Navigation (arrow keys while held)")); });
         settle();
         expect(who + QStringLiteral(": Button 2 = right click"), sec, "BUTTON_2", "rightclick", [&] { act(QStringLiteral("Right click")); });
         settle();

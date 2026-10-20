@@ -325,7 +325,7 @@ void ButtonModesPage::rebuildActionArg() {
     } else if (binding_.kind == BindingKind::Mode || binding_.kind == BindingKind::ToggleMode ||
                binding_.kind == BindingKind::HoldMode) {
         auto *mc = new QComboBox(argHost_);
-        mc->setAccessibleName(T("Mode"));
+        mc->setAccessibleName(T("Joystick mode"));
         std::vector<std::string> ids = spn::ui::bindingModeIds(spn::loadModes(ctx_.modesDir, nullptr));
         if (!binding_.arg.empty() && std::find(ids.begin(), ids.end(), binding_.arg) == ids.end()) ids.push_back(binding_.arg);
         for (const std::string &id : ids) mc->addItem(qs(id), qs(id));

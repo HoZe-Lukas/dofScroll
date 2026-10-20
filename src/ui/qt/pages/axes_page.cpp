@@ -154,7 +154,7 @@ protected:
         status_ += T("Mode:") + QLatin1Char(' ') + (live ? qs(truncateUtf8(s.mode, 64)) : QStringLiteral("-"));
         if (live) {
             if (!s.enabled) status_ += QStringLiteral("  |  ") + T("disabled");
-            if (s.nav) status_ += QStringLiteral("  |  ") + T("navigation mode");
+            if (s.nav) status_ += QStringLiteral("  |  ") + T("navigation");
             if (s.zooming) status_ += QStringLiteral("  |  ") + T("zooming");
             if (s.idle) status_ += QStringLiteral("  |  ") + T("idle");
         }

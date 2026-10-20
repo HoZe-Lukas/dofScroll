@@ -68,7 +68,7 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
         arg = kc;
     } else if (bk == BindingKind::Mode || bk == BindingKind::ToggleMode || bk == BindingKind::HoldMode) {
         auto *mc = new QComboBox(parent);
-        mc->setAccessibleName(T("Mode of button") + QStringLiteral(" %1").arg(row.number));
+        mc->setAccessibleName(T("Joystick mode of button") + QStringLiteral(" %1").arg(row.number));
         std::vector<std::string> ids = env.modeIds;
         if (std::find(ids.begin(), ids.end(), row.binding.arg) == ids.end()) ids.push_back(row.binding.arg);
         for (const std::string &id : ids) mc->addItem(qs8(id), qs8(id));

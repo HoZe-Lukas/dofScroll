@@ -140,7 +140,7 @@ private:
     void requestMode(const std::string &id) {
         std::string err;
         if (!writeModeRequest(paths_.runtimeDir, id, &err) || !runner_.requestReload(&err))
-            error_ = err.empty() ? std::string("cannot request the mode") : err;
+            error_ = err.empty() ? std::string("cannot request the joystick mode") : err;
     }
 
     void setEnabled(bool on) {

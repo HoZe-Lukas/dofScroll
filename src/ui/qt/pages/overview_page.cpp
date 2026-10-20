@@ -118,9 +118,9 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     al->addLayout(quickGrid_);
     layoutQuickActions();
     auto *modeRow = new QHBoxLayout;
-    auto *modeLabel = new QLabel(T("Active mode:"));
+    auto *modeLabel = new QLabel(T("Active joystick mode:"));
     mode_ = new QComboBox;
-    mode_->setAccessibleName(T("Active mode"));
+    mode_->setAccessibleName(T("Active joystick mode"));
     mode_->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     modeLabel->setBuddy(mode_);
     connect(mode_, QOverload<int>::of(&QComboBox::activated), this, [this](int i) { switchMode(mode_->itemData(i).toString()); });
@@ -147,7 +147,7 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     pl->addWidget(profilesCount_);
     filter_ = new QLineEdit;
     filter_->setClearButtonEnabled(true);
-    filter_->setPlaceholderText(T("Filter profiles by name, mode or setting"));
+    filter_->setPlaceholderText(T("Filter profiles by name, joystick mode or setting"));
     filter_->setAccessibleName(T("Filter profiles"));
     connect(filter_, &QLineEdit::textChanged, this, [this] { refresh(); });
     pl->addWidget(filter_);
@@ -155,7 +155,7 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     pl->addWidget(noMatch_);
     emptyState_ = new QFrame;
     auto *el = new QVBoxLayout(emptyState_);
-    auto *emptyText = new QLabel(T("No program or device has its own profile yet. A profile changes the mode or single "
+    auto *emptyText = new QLabel(T("No program or device has its own profile yet. A profile changes the joystick mode or single "
                                    "settings for one program or one device."));
     emptyText->setWordWrap(true);
     auto *emptyButton = new QPushButton(T("Add a profile..."));
@@ -199,7 +199,7 @@ void OverviewPage::refresh() {
     const std::vector<size_t> shown = spn::ui::filterOverviewProfiles(d, filter_->text().toUtf8().toStdString());
     profilesCount_->setText(d.profiles.empty()
                                 ? QString()
-                                : T("%1 device profile(s), %2 program profile(s). The default mode is %3.")
+                                : T("%1 device profile(s), %2 program profile(s). The Global joystick mode is %3.")
                                       .arg(d.deviceProfiles).arg(d.appProfiles).arg(qs8(d.defaultMode)));
     profilesCount_->setVisible(!d.profiles.empty());
     filter_->setVisible(!d.profiles.empty());
@@ -243,9 +243,9 @@ void OverviewPage::rebuildModes(const spn::ui::OverviewData &d) {
     mode_->setCurrentIndex(current);
     mode_->setEnabled(d.daemonRunning && mode_->count() > 0);
     mode_->setToolTip(d.daemonRunning
-                          ? T("Switches the mode of the running daemon until the next reload or restart. The default "
-                              "mode in the configuration stays as it is.")
-                          : T("The daemon is not running, so there is no mode to switch."));
+                          ? T("Switches the joystick mode of the running daemon until the next reload or restart. The Global "
+                              "joystick mode in the configuration stays as it is.")
+                          : T("The daemon is not running, so there is no joystick mode to switch."));
 }
 
 void OverviewPage::switchMode(const QString &id) {
@@ -287,6 +287,8 @@ void OverviewPage::rebuildCards(const spn::ui::OverviewData &d, const std::vecto
         name->setWordWrap(true);
         auto *summary = new QLabel(qs8(p.summary));
         summary->setWordWrap(true);
+        auto *overrides = note(qs8(p.overrideText));  // how much of the profile is its own, the rest is inherited
+        overrides->setObjectName(QStringLiteral("overrideCount"));
         auto *open = new QPushButton(T("Open"));
         open->setAccessibleName(T("Open profile") + QStringLiteral(" ") + qs8(p.name));
         const int section = static_cast<int>(p.section);
@@ -294,6 +296,7 @@ void OverviewPage::rebuildCards(const spn::ui::OverviewData &d, const std::vecto
         cl->addWidget(kind);
         cl->addWidget(name);
         cl->addWidget(summary);
+        cl->addWidget(overrides);
         cl->addStretch(1);
         cl->addWidget(open, 0, Qt::AlignLeft);
         cards_.push_back(card);

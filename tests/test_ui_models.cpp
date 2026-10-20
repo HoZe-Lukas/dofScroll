@@ -36,20 +36,20 @@ static void testStatus() {
     assert(m.mainLine(id) == "Daemon not running / no status data" && m.infoLine(id).empty());
     m.update(kFile, true, 1003);
     assert(m.state() == StatusModel::State::Running && m.daemonRunning());
-    assert(m.mainLine(id) == "Profile: app:firefox  |  Mode: timeline");
-    assert(m.mainLine(id, "Timeline") == "Profile: app:firefox  |  Mode: Timeline");
+    assert(m.mainLine(id) == "Profile: app:firefox  |  Joystick mode: timeline");
+    assert(m.mainLine(id, "Timeline") == "Profile: app:firefox  |  Joystick mode: Timeline");
     assert(m.infoLine(id) == "Program: firefox  |  Device: SpaceMouse Pro");
     assert(m.warningLine(id).empty());
     {  // toggle= : the navigation latch is shown, a toggled mode id containing "nav" is not mistaken for it
         StatusModel t;
         t.update(std::string(kFile) + "toggle=nav\n", true, 1003);
-        assert(t.mainLine(id) == "Profile: app:firefox  |  Mode: timeline  |  Navigation mode on");
+        assert(t.mainLine(id) == "Profile: app:firefox  |  Joystick mode: timeline  |  Navigation on");
         t.update(std::string(kFile) + "toggle=mode:navigator\n", true, 1003);
-        assert(t.mainLine(id) == "Profile: app:firefox  |  Mode: timeline");
+        assert(t.mainLine(id) == "Profile: app:firefox  |  Joystick mode: timeline");
         t.update(std::string(kFile) + "toggle=nav mode:x\n", true, 1003);
-        assert(t.mainLine(id).find("Navigation mode on") != std::string::npos);
+        assert(t.mainLine(id).find("Navigation on") != std::string::npos);
     }
-    assert(m.title(id) == "dofscroll - Profile: app:firefox  |  Mode: timeline");
+    assert(m.title(id) == "dofscroll - Profile: app:firefox  |  Joystick mode: timeline");
     // Staleness in both directions, and without "updated".
     m.update(kFile, true, 1006);
     assert(m.state() == StatusModel::State::Stale && !m.daemonRunning());
@@ -69,7 +69,7 @@ static void testStatus() {
     // Translation goes through the provider.
     Upper up;
     m.update(kFile, true, 1000);
-    assert(m.mainLine(up) == "T:Profile: app:firefox  |  T:Mode: timeline");
+    assert(m.mainLine(up) == "T:Profile: app:firefox  |  T:Joystick mode: timeline");
 }
 
 static ModeSet testModes() {
@@ -95,7 +95,7 @@ static void testTrayMenu() {
     in.globalEnabled = false;
     TrayMenu m = buildTrayMenu(in, id);
     assert(m.entries.size() == 16);
-    assert(m.entries[0].kind == TrayEntry::Kind::Info && m.entries[0].text == "Profile: app:firefox  |  Mode: Timeline");
+    assert(m.entries[0].kind == TrayEntry::Kind::Info && m.entries[0].text == "Profile: app:firefox  |  Joystick mode: Timeline");
     assert(m.entries[1].visible && !m.entries[2].visible);
     const TrayEntry &mode = m.entries[4];
     assert(mode.kind == TrayEntry::Kind::Submenu && mode.children.size() == 3);
@@ -103,7 +103,7 @@ static void testTrayMenu() {
     assert(mode.children[1].checked && mode.children[2].text == "Timeline (timeline)");
     assert(m.entries[5].kind == TrayEntry::Kind::Check && !m.entries[5].checked);
     assert(m.entries[7].action == TrayAction::OpenSettings && m.entries[11].action == TrayAction::ReleaseAllKeys && m.entries[15].action == TrayAction::Quit && m.entries[11].text == "Release all keys");
-    assert(m.title == "dofscroll - Profile: app:firefox  |  Mode: timeline");
+    assert(m.title == "dofscroll - Profile: app:firefox  |  Joystick mode: timeline");
 
     // No status, no modes.
     TrayMenu e = buildTrayMenu(TrayMenuInput(), id);

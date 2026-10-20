@@ -165,7 +165,7 @@ int main() {
 
     // Dropdown.
     auto opt = m.modeOptions(app);
-    assert(opt.size() == 4 && opt[0].id.empty() && opt[0].label == "Default mode" && opt[0].secondary.empty());
+    assert(opt.size() == 4 && opt[0].id.empty() && opt[0].label == "Same as Global" && opt[0].secondary.empty());
     assert(opt[1].id == "normal" && opt[2].id == "off" && opt[3].label == "Timeline" && opt[3].secondary == "timeline");
     assert(m.selectedModeOption(app) == 0);
     bool changed = false;

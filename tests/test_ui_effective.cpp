@@ -57,7 +57,7 @@ int main() {
     // rows: text for the origin, value of the mode, reset only for the profile's own keys
     std::vector<EffectiveRow> rows = effectiveRows(m, view, id);
     const EffectiveRow *r = find(rows, "SCROLL_V_SENS");
-    assert(r && r->value == "7" && r->sourceText == "from mode \"ov\"" && !r->canReset);
+    assert(r && r->value == "7" && r->sourceText == "from joystick mode \"ov\"" && !r->canReset);
     r = find(rows, "SCROLL_V_DEADZONE");
     assert(r && r->sourceText == "from the global settings" && !r->canReset);
     r = find(rows, "SCROLL_V_SMOOTH_MS");
