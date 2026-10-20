@@ -48,7 +48,7 @@ into a push part (translation terms of the mix) and a tilt part (rotation terms)
 actions, see [modes.md](modes.md#split-push-and-tilt); each part starts with the parent channel's
 values and these keys replace single values with **absolute** values (not multipliers, same ranges as
 the channel keys). They have no default, are not written to the config unless set, and act only while
-the active mode splits that channel.
+the active joystick mode splits that channel.
 
 Axes (libspnav convention, measured on a SpaceMouse Pro): push forward or back is `z`, sideways is
 `x`, lift or press is `y`, tilt forward or back is `rx`, tilt sideways is `rz`, twist is `ry`. If you

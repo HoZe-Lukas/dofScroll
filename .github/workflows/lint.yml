@@ -75,6 +75,9 @@ jobs:
       - name: UTF-8 text files
         run: sh scripts/check-utf8.sh
 
+      - name: UI strings say "joystick mode" or "button mode", never plain "mode"
+        run: sh scripts/check-terms.sh
+
       - name: Wiki page of the built-in modes is complete
         run: sh scripts/check-wiki-builtin-modes.sh
 

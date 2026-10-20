@@ -71,7 +71,7 @@ unchanged `browse-keys.conf` or `cycle-modes.conf` is ignored by the loader, so 
 if you want it gone; a file you changed keeps working under its own id.
 
 There is no built-in `cycle-modes` mode: it only bound `mode:next` to button 2 in an otherwise default
-joystick mode, which the button mode `next-mode` does better and in every mode.
+joystick mode, which the button mode `next-mode` does better and in every joystick mode.
 
 **`mode:next` / `mode:prev` with the built-in library.** They cycle through *all* loaded joystick modes in
 alphabetical order of the id, built-ins included: `browse`, `map`, `media`, `normal`, `off`,
@@ -117,7 +117,7 @@ table in `src/device_db.cpp`). The count is not the one `spacenavd` reports.
 | `buttonmode:<id>` | Behaves like the `ACTION` of the button mode file `buttons/<id>.conf`, see [button-modes.md](button-modes.md). Not nestable. An unknown id does nothing. |
 
 Toggles are state that only exists while the daemon runs. The status file shows it in the `toggle=` line
-(`nav`, `mode:<id>`, or both) and the tray shows "Navigation mode on" next to the mode. The state is cleared by
+(`nav`, `mode:<id>`, or both) and the tray shows "Navigation mode on" next to the joystick mode. The state is cleared by
 a reload (saving the config, the tray's "Release all keys", a `SIGHUP`), by a restart, when the daemon
 becomes inactive (suspend, `ENABLED = 0`, session switch) and by any joystick mode change, which releases everything held.
 `toggle:mode:<id>` is a runtime switch like `mode:<id>`: it stays across profile changes until it is toggled off.
@@ -163,14 +163,14 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 Examples: a button that always sends Esc belongs in the driver. A button that sends Space (play/pause) only while the `timeline` joystick mode is active, a button with `mode:next` and a button with `nav` belong in dofscroll.
 
 A joystick mode may bind keys or clicks that only make sense in that joystick mode, for example Space for
-play/pause in a timeline-style mode. Such bindings are active only while that joystick mode is active.
+play/pause in a timeline-style joystick mode. Such bindings are active only while that joystick mode is active.
 This is what the driver cannot do on Linux, because `spnavrc` knows nothing about dofscroll's
-modes.
+joystick modes.
 
 Why the driver is better for a mapping that is always the same: it works in every program and
 keeps working when dofscroll is stopped. dofscroll's own `key:`, `click`, `rightclick` and
 `middleclick` actions and the deprecated `CLICK_BUTTON` stay fully supported, also as an option for
-people without a driver. The shipped examples use them only for mode-specific bindings.
+people without a driver. The shipped examples use them only for joystick-mode-specific bindings.
 
 ### Linux: spacenavd
 
@@ -266,7 +266,7 @@ curve, smoothing and sensitivity are unchanged. Buttons (`key:`) stay single key
 
 The vertical channel mixes push forward/back (`z`) and tilt forward/back (`rx`), the horizontal
 channel push sideways (`x`) and tilt sideways (`rz`). With `V_ACTION` and `H_ACTION` both movements
-do the same thing. A mode can give them different functions by splitting a channel into a **push**
+do the same thing. A joystick mode can give them different functions by splitting a channel into a **push**
 part and a **tilt** part:
 
 | Key | Part | Default mix term |
@@ -290,7 +290,7 @@ Example: scroll with push, flip pages with tilt, zoom with the twist as usual:
     SCROLL_V_TILT_SENS = 8          # per-part tuning, see below
 
 **How the parts are derived.** They come from the channel's own mix expression (`SCROLL_V_MIX`,
-`SCROLL_H_MIX`, from the profile or the mode's overrides): the translation terms (`x`, `y`, `z`)
+`SCROLL_H_MIX`, from the profile or the joystick mode's overrides): the translation terms (`x`, `y`, `z`)
 form the push part, the rotation terms (`rx`, `rz`) the tilt part, with the weights and signs you
 configured. `0.5*rx + z` gives push `z` and tilt `0.5*rx`; `x - rz` gives push `x` and tilt `-rz`.
 A mix without rotation terms has an empty tilt part (it never fires), one without translation terms
@@ -298,14 +298,14 @@ an empty push part. A twist term (`ry`) in a scroll mix belongs to neither part 
 a split channel. Lift/press (`y`) counts as push if you put it in the mix; it is in no default mix,
 because grabbing and releasing the cap triggers it by accident.
 
-**Compatibility.** A mode that sets none of the four keys behaves exactly as before. If a mode sets
+**Compatibility.** A joystick mode that sets none of the four keys behaves exactly as before. If a joystick mode sets
 at least one split key of a channel, that channel runs as two independent sub-channels, each with
 its own smoothing, rate accumulator and `step:` state, and the mixed channel is not evaluated.
-A part without its own key uses the channel's `V_ACTION` / `H_ACTION` (default `default`), so a mode
+A part without its own key uses the channel's `V_ACTION` / `H_ACTION` (default `default`), so a joystick mode
 can override only one part. An explicit `default` on a part means the channel's normal behavior
 (the wheel), not `V_ACTION`. The other channel is unaffected: splitting V leaves H as it was.
-A mode with a split key is a custom-path mode (like any mode with a non-default action):
-`NAV_BUTTON` / `CLICK_BUTTON` from the settings do not apply, the mode's own buttons do (a button
+A joystick mode with a split key is a custom-path joystick mode (like any joystick mode with a non-default action):
+`NAV_BUTTON` / `CLICK_BUTTON` from the settings do not apply, the joystick mode's own buttons do (a button
 with `nav` turns wheel parts into arrow keys, as for the channel).
 
 **Per-part tuning.** Each part uses the sensitivity, dead zone, curve, smoothing and sign of its
@@ -314,19 +314,19 @@ parent channel (`SCROLL_V_SENS`, ...). To tune a part separately, set one or mor
 or `SCROLL_H_PUSH_DEADZONE`. These are **absolute values**, not multipliers: same syntax and ranges
 as the parent keys, and a key that is not set keeps the parent's value (so changing the channel's
 `SCROLL_V_SENS` still moves every part that has no value of its own). They are ordinary settings
-keys: valid in a mode file (where they belong) and in a profile section, and they act only while
-the active mode splits that channel. `STEP_TRIGGER` applies to every `step:` part and
+keys: valid in a joystick mode file (where they belong) and in a profile section, and they act only while
+the active joystick mode splits that channel. `STEP_TRIGGER` applies to every `step:` part and
 is measured after the part's sensitivity, as for a channel.
 
 Several parts can hold Ctrl at once for `zoom` (Ctrl is released when the last of them is back at
-rest). Everything a part holds is released on a mode switch, a reload, an unplugged device,
+rest). Everything a part holds is released on a joystick mode switch, a reload, an unplugged device,
 suspend and the safety net, like the rest.
 
 What the tilt and push feel like (and whether `step:` triggers cleanly on one without the other
 when you push diagonally) depends on the device and your hand and is not verified without hardware;
 raise the dead zone of the part that fires by accident.
 
-Validate a mode file with `build/tests/check_config --modes <directory>` (source build only).
+Validate a joystick mode file with `build/tests/check_config --modes <directory>` (source build only).
 
 ## Lift/press is unused
 
@@ -353,7 +353,7 @@ Chords in `keys:` (for example `keys:ctrl+w,ctrl+q`) are sent as written. The da
 a chord that contains `alt` or `super`, or that combines `ctrl` / `shift` with a key that is not a
 navigation key (arrows, Page Up/Down, Home, End, Space, Enter, Esc, and the zoom keys plus, minus and `0`). A chord of `ctrl`
 and/or `shift` with a navigation key, like `ctrl+pageup` or the zoom reset `ctrl+0`, produces no warning. The same
-rule applies to `key:<chord>` button actions in mode files and button mode files. The button modes that ship with the
+rule applies to `key:<chord>` button actions in joystick mode files and button mode files. The button modes that ship with the
 program (examples/buttons) are not checked: only files in your folders.
 
 Only use joystick mode files from sources you trust, and read a file before you copy it into
@@ -390,13 +390,13 @@ stays plain text; the editor keeps comments and lines it does not know.
 
 ## Editing joystick modes from the tray
 
-The tray "Joystick mode" submenu lists, below the joystick mode choices, one entry per mode:
+The tray "Joystick mode" submenu lists, below the joystick mode choices, one entry per joystick mode:
 
 - `Edit mode file: <name>` opens the joystick mode's file in the default editor.
 - `Create editable copy of <name>...` appears for built-in joystick modes that have no file yet (normal,
   off, timeline). It writes a commented template `<id>.conf` with the built-in's name, description
   and channel actions into the joystick modes folder (file mode 0600, never overwriting an existing file) and
-  opens it. A file of the same name replaces the built-in mode.
+  opens it. A file of the same name replaces the built-in joystick mode.
 - `Open modes folder` opens the folder in the file manager.
 
 The editor is started outside the tray's sandbox, like "Open config file". After saving, the

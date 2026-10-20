@@ -31,7 +31,7 @@ Also built in: `normal` and `off`. Switch the joystick mode from the tray "Joyst
 ## Next steps
 
 - Different behavior per program or device: [Profiles](Profiles)
-- Buttons: map always-the-same keys and clicks in the vendor driver, use dofscroll for mode-dependent bindings, joystick mode switching and nav: [Buttons](Buttons)
+- Buttons: map always-the-same keys and clicks in the vendor driver, use dofscroll for joystick-mode-dependent bindings, joystick mode switching and nav: [Buttons](Buttons)
 - Every key: [Configuration reference](Configuration-reference)
 
 Real-device behavior can only be confirmed by you on your hardware.
