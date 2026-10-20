@@ -1068,6 +1068,7 @@ static bool selectionContrastSelfTest(const UiContext &ctx) {
 static bool fontScaleSelfTest(MainWindow &w) {
     bool ok = true;
     const QFont base = QApplication::font();
+    const QSize baseSize = w.size();
     w.show();
     // the System theme (platform controls) and our own style sheet, whose lengths are in em (issue #104)
     for (spn::ui::Theme theme : {spn::ui::Theme::System, spn::ui::Theme::Light})
@@ -1077,6 +1078,8 @@ static bool fontScaleSelfTest(MainWindow &w) {
         QFont f = QApplication::font();
         f.setPointSizeF(f.pointSizeF() * scale);
         QApplication::setFont(f);
+        // someone with a larger font also uses a wider window (up to a 1920 px screen)
+        w.resize(std::min(int(scale * baseSize.width()), 1920), baseSize.height());
         settle();
         for (const std::string &id : w.pageIds()) {
             w.showPage(QString::fromStdString(id));
@@ -1120,6 +1123,7 @@ static bool fontScaleSelfTest(MainWindow &w) {
     }
     QApplication::setFont(base);
     applyTheme(spn::ui::Theme::System);
+    w.resize(baseSize);
     settle();
     std::printf("font scale self-test: %s\n", ok ? "ok" : "failed");
     return ok;

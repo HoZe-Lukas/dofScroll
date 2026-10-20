@@ -426,6 +426,18 @@ void OverviewPage::resizeEvent(QResizeEvent *e) {
     layoutCards();
 }
 
+// A larger font or another style makes buttons and cards wider without resizing the page, so the
+// columns are planned again (otherwise a stale plan keeps the page wider than the window).
+void OverviewPage::changeEvent(QEvent *e) {
+    QWidget::changeEvent(e);
+    if (e->type() == QEvent::FontChange || e->type() == QEvent::StyleChange) {
+        quickColumns_ = 0;
+        columns_ = 0;
+        layoutQuickActions();
+        layoutCards();
+    }
+}
+
 void OverviewPage::showEvent(QShowEvent *e) {
     QWidget::showEvent(e);
     refresh();
