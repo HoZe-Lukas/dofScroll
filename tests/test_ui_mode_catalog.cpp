@@ -170,8 +170,8 @@ int main() {
     {
         ProfileSet ps;
         ps.sections[0].kv = {{"BUTTON_4", "hold:mode:late"}, {"MODE", "late"}};  // MODE in [global] is not a use
-        const size_t a = ps.findOrAdd(Section::APP, "firefox");
-        ps.sections[a].kv = {{"mode", "late"}, {"BUTTON_1", "toggle:mode:late"}, {"BUTTON_2", "mode:late"},
+        const size_t appIdx = ps.findOrAdd(Section::APP, "firefox");
+        ps.sections[appIdx].kv = {{"mode", "late"}, {"BUTTON_1", "toggle:mode:late"}, {"BUTTON_2", "mode:late"},
                              {"BUTTON_3", "mode:other"}, {"BUTTON_5", "buttonmode:late"}, {"BUTTON_6", "key:space"}};
         const size_t d = ps.findOrAdd(Section::DEVICE, "SpaceMouse");
         ps.sections[d].kv = {{"MODE", "other"}};
@@ -209,8 +209,8 @@ int main() {
         assert(!c.rename("timeline", "Timeline two").ok);             // built-in
         assert(!c.rename("old-one", "Taken").ok && tu::exists(dir + "/old-one.conf"));  // id taken
         assert(!c.rename("old-one", "???").ok && !c.rename("nope", "X").ok);
-        const ModeCatalog::Result r = c.rename("old-one", "Brand New");
-        assert(r.ok && r.id == "brand-new" && !tu::exists(dir + "/old-one.conf") && tu::exists(dir + "/brand-new.conf"));
+        const ModeCatalog::Result renamed = c.rename("old-one", "Brand New");
+        assert(renamed.ok && renamed.id == "brand-new" && !tu::exists(dir + "/old-one.conf") && tu::exists(dir + "/brand-new.conf"));
         assert(!c.find("old-one") && c.find("brand-new") && c.find("brand-new")->label == "Brand New");
         std::string text;
         assert(fs::readFileBounded(dir + "/brand-new.conf", 4096, fs::ReadOptions(), &text).ok());
