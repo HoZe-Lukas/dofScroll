@@ -18,7 +18,7 @@ Profiles are sections in `dofscroll.conf` that override only the keys they list.
 [global]  <  matching [device:*]  <  active mode's overrides  <  matching [app:*]
 ```
 
-All device sections are applied before all app sections, each in file order, so a later matching section wins. The mode is chosen by `MODE` from the resolved profile (global, device or app). An app section can select a mode and still has the last word over that mode's overrides.
+All device sections are applied before all app sections, each in file order, so a later matching section wins. The joystick mode is chosen by `MODE` from the resolved profile (global, device or app). An app section can select a joystick mode and still has the last word over that joystick mode's overrides.
 
 ## Example
 
@@ -58,4 +58,4 @@ On X11, run `xprop WM_CLASS` and click the window. The daemon logs every profile
 - With two SpaceMice connected, `spacenavd` reports only one device, so `[device:*]` applies to both. Direct HID access (Windows, macOS ports) lifts this, but is unverified on hardware.
 - 3D programs that read the device directly get doubled input; switch dofscroll off for them with `ENABLED = 0` or `MODE = off`.
 
-See also [Configuration reference](Configuration-reference), [Modes](Modes).
+See also [Configuration reference](Configuration-reference), [Joystick modes](Modes).

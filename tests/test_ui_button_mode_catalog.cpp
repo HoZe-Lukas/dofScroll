@@ -160,6 +160,16 @@ int main() {
         assert(c.referencedBy("unused", sm, ms).empty());
     }
 
+    // export: a copy of the file, never over an existing one, unknown ids are refused
+    {
+        const std::string out = root + "/exported-copy.conf";
+        assert(c.exportTo("my-latch", out).ok && fs::pathExists(out));
+        std::string text;
+        assert(fs::readFileBounded(out, 4096, fs::ReadOptions(), &text).ok() && text.find("ACTION") != std::string::npos);
+        assert(!c.exportTo("my-latch", out).ok && !c.exportTo("my-latch", out).error.empty());
+        assert(!c.exportTo("no-such", root + "/other-copy.conf").ok && !c.exportTo("my-latch", "").ok);
+    }
+
     // change detection
     assert(!c.refreshIfChanged());
     put(dir + "/external.conf", "ACTION = click\n");

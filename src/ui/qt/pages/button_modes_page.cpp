@@ -5,6 +5,7 @@
 #include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
+#include <QFile>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QGroupBox>
@@ -147,6 +148,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     importBtn_ = mk(T("Import file..."), T("Add a button mode file from somewhere else (you see its warnings first)"));
     copyBtn_ = mk(T("Create editable copy"),
                   T("A built-in button mode has no file: create a file with the same id that replaces it"));
+    exportBtn_ = mk(T("Export..."), T("Save a copy of the button mode file somewhere else"));
     delBtn_ = mk(T("Delete"), T("Delete the button mode file"));
     folderBtn_ = mk(T("Open button modes folder"), T("Show the folder with the button mode files"));
     buttons->addStretch(1);
@@ -163,6 +165,8 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     setTabOrder(dupBtn_, importBtn_);
     setTabOrder(importBtn_, copyBtn_);
     setTabOrder(copyBtn_, delBtn_);
+    setTabOrder(importBtn_, exportBtn_);
+    setTabOrder(exportBtn_, delBtn_);
     setTabOrder(delBtn_, folderBtn_);
 
     connect(list_, &QListWidget::currentItemChanged, this, [this] { onCurrentChanged(); });
@@ -182,6 +186,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     connect(dupBtn_, &QPushButton::clicked, this, [this] { onDuplicate(); });
     connect(importBtn_, &QPushButton::clicked, this, [this] { onImport(); });
     connect(copyBtn_, &QPushButton::clicked, this, [this] { onEditableCopy(); });
+    connect(exportBtn_, &QPushButton::clicked, this, [this] { onExport(); });
     connect(delBtn_, &QPushButton::clicked, this, [this] { onDelete(); });
     connect(folderBtn_, &QPushButton::clicked, this, [this] { onOpenFolder(); });
 
@@ -293,6 +298,7 @@ void ButtonModesPage::loadForm() {
                        static_cast<QWidget *>(argHost_), static_cast<QWidget *>(textEditorBtn_)})
         w->setEnabled(has);
     dupBtn_->setEnabled(has);
+    exportBtn_->setEnabled(has);
     delBtn_->setEnabled(has);
     dirty_ = false;
     showProblem(QString());
@@ -609,4 +615,23 @@ QStringList ButtonModesPage::exampleIds() const {
 
 QString ButtonModesPage::originOf(const QString &id) const {
     return catalog_.find(id.toStdString()) ? qs(spn::ui::buttonModeOriginText(QtStrings())) : QString();
+}
+
+bool ButtonModesPage::exportButtonModeTo(const QString &id, const QString &dest) {
+    flush();  // the copy holds the last change
+    const ButtonModeCatalog::Result r = catalog_.exportTo(id.toStdString(), dest.toStdString());
+    lastError_ = qs(r.error);
+    return r.ok;
+}
+
+void ButtonModesPage::onExport() {
+    const ButtonModeCatalog::Entry *e = current();
+    if (!e) return;
+    const QString id = qs(e->id);
+    // The dialog asks before replacing; the model never overwrites, so an existing file is removed first.
+    const QString file = QFileDialog::getSaveFileName(this, T("Export button mode file"), QDir::homePath() + QLatin1Char('/') + id + QStringLiteral(".conf"),
+                                                      T("Button mode files (*.conf);;All files (*)"));
+    if (file.isEmpty()) return;
+    if (QFileInfo::exists(file) && !QFile::remove(file)) return showError(T("Could not export the button mode."), file.toStdString());
+    if (!exportButtonModeTo(id, file)) showError(T("Could not export the button mode."), lastError_.toStdString());
 }

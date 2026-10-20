@@ -11,7 +11,7 @@ The file is UTF-8 (a BOM is accepted, never written; LF written, CRLF accepted);
 | Item | Value |
 |---|---|
 | Config file | `~/.config/dofscroll/dofscroll.conf` (`$XDG_CONFIG_HOME` is used if it is an absolute path) |
-| Mode files | `~/.config/dofscroll/modes/*.conf` (see [modes.md](modes.md)) |
+| Joystick mode files | `~/.config/dofscroll/modes/*.conf` (see [modes.md](modes.md)) |
 | Legacy paths | `~/.config/spnav-scroll/spnav-scroll.conf`, `~/.config/spnav-scroll.conf` (read only if the new file is missing) |
 
 The tray and the daemon read and write the same format. The daemon reloads on `SIGHUP` and when the
@@ -62,15 +62,15 @@ in the tray.
 | `ZOOM_LATERAL` | `x z rx rz` | Axes the twist must dominate to enter zoom. |
 | `ZOOM_ENTER_MS` | `40` | How long the twist must dominate before zoom latches. |
 | `ZOOM_EXIT_RATIO` | `1.5` | Zoom ends when another axis exceeds the twist by this factor (at least 1.0). |
-| `STEP_TRIGGER` | `20` | Level at which a `step:` channel action (see [modes](modes.md)) fires one key tap, measured in steps per second after the channel's dead zone, curve, smoothing and sensitivity (`deflection * SENS / 20`; 0.5 to 10000). The action re-arms at half of it. Raise it for a firmer push, lower it together with a low `*_SENS`. |
+| `STEP_TRIGGER` | `20` | Level at which a `step:` channel action (see [joystick modes](modes.md)) fires one key tap, measured in steps per second after the channel's dead zone, curve, smoothing and sensitivity (`deflection * SENS / 20`; 0.5 to 10000). The action re-arms at half of it. Raise it for a firmer push, lower it together with a low `*_SENS`. |
 | `BACKEND` | `auto` | `auto`, `x11` or `uinput`. `auto` picks uinput under Wayland, else X11. If the chosen backend fails, the other is tried. Needs a daemon restart. |
 | `TICK_HZ` | `250` | Tick rate 30 to 1000. Can differ per profile. |
 | `ENABLED` | `1` | `0` switches all output off (scroll, zoom, keys, clicks) and releases held keys. |
-| `MODE` | `normal` | Active joystick mode, see [modes.md](modes.md). Can be set in `[global]` (the mode of everything that does not choose its own), `[device:*]` and `[app:*]`. |
+| `MODE` | `normal` | Active joystick mode, see [modes.md](modes.md). Can be set in `[global]` (the joystick mode of everything that does not choose its own), `[device:*]` and `[app:*]`. |
 | `LIVE_FEED` | `1` | `0` disables the live data feed to the UI (axes view, axis assistant); with `1` it only runs while a UI is connected. See `security.md`. |
 | `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | **Deprecated**, use `BUTTON_<n> = nav`. Button (0-based index) that turns X/Y into arrow keys while held. |
 | `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | **Deprecated**, use `BUTTON_<n> = click`. Button (0-based index) that is passed through as the left mouse button. A click that is the same everywhere is better set in the vendor driver, see [modes.md](modes.md#buttons-and-the-vendor-driver). |
-| `BUTTON_<n>` | none | Action of button `n`, same values as in mode files, see [modes.md](modes.md). `buttonmode:<id>` uses a named button behavior from `buttons/<id>.conf`, see [button-modes.md](button-modes.md). |
+| `BUTTON_<n>` | none | Action of button `n`, same values as in joystick mode files, see [modes.md](modes.md). `buttonmode:<id>` uses a named button behavior from `buttons/<id>.conf`, see [button-modes.md](button-modes.md). |
 
 ### Deprecated: NAV_BUTTON and CLICK_BUTTON
 
@@ -91,7 +91,7 @@ that button to something else, the old keys stay in the file untouched and the B
 them as "Not moved". Disabled keys (`..._ENABLED = 0`, which older saves wrote everywhere) are
 dropped silently. The daemon and the config loader keep reading the old keys.
 
-dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
+dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch or toggle joystick modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
 
 `BUTTON_<n>` in the main config works at runtime, in any section. Buttons are numbered from 1 and
 at most 32. `n` must not exceed the factory button count of the device model
@@ -100,7 +100,7 @@ The Qt interface learns the device name and this factory count from the daemon's
 info frame, see [port-architecture.md](port-architecture.md#live-feed)); without the feed the
 Profiles page falls back to the `device=` line of the status file and the Axes page to the highest
 button it has seen.
-If the active mode binds the same button, the mode's binding wins over the config binding.
+If the active joystick mode binds the same button, the joystick mode's binding wins over the config binding.
 
 ## Profiles
 
@@ -114,10 +114,10 @@ Sections contain only the keys they override. `BACKEND` is read from `[global]` 
 
 ### Precedence
 
-Lowest to highest: `[global]` < matching `[device:*]` < overrides of the active mode < matching
+Lowest to highest: `[global]` < matching `[device:*]` < overrides of the active joystick mode < matching
 `[app:*]`. All device sections are applied before all app sections, each in file order, so a later
-matching section wins. The mode is chosen by `MODE` from the resolved profile (global, device or
-app), so an app section can select a mode and still has the last word over the mode's overrides.
+matching section wins. The joystick mode is chosen by `MODE` from the resolved profile (global, device or
+app), so an app section can select a joystick mode and still has the last word over the joystick mode's overrides.
 
 ### Inheritance
 

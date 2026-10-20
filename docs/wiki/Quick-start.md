@@ -16,7 +16,7 @@ The first five minutes on Linux (X11, the tested setup). This assumes you finish
 
 On first start the tray writes `~/.config/dofscroll/dofscroll.conf` from [examples/default/dofscroll.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/default/dofscroll.conf): a `[global]` section with the three channels (vertical scroll, horizontal scroll, zoom) and a `[device:...]` section each for SpaceMouse Pro and SpaceMouse Compact. The joystick modes are built into the program (nothing is copied):
 
-| Mode | What it does |
+| Joystick mode | What it does |
 |---|---|
 | `browse` | Page up/down, left/right, twist zooms |
 | `slides` | Up/down pages through slides (Page Up / Page Down), gentle rate |
@@ -24,14 +24,14 @@ On first start the tray writes `~/.config/dofscroll/dofscroll.conf` from [exampl
 | `map` | Arrow keys to pan, twist presses `minus`/`plus` |
 | `precision` | Normal behavior with low sensitivities |
 | `tabs` | Sideways switches tabs (Ctrl+Page Up / Page Down) |
-| `timeline` | Sideways and twist press the left/right arrow keys; button 1 is Space, button 2 is Home (only in this mode) |
+| `timeline` | Sideways and twist press the left/right arrow keys; button 1 is Space, button 2 is Home (only in this joystick mode) |
 
 Also built in: `normal` and `off`. Switch the mode from the tray "Mode" menu, or set `MODE = browse` in a profile. Read a mode file before you use it, see [Modes](Modes).
 
 ## Next steps
 
 - Different behavior per program or device: [Profiles](Profiles)
-- Buttons: map always-the-same keys and clicks in the vendor driver, use dofscroll for mode-dependent bindings, mode switching and nav: [Buttons](Buttons)
+- Buttons: map always-the-same keys and clicks in the vendor driver, use dofscroll for mode-dependent bindings, joystick mode switching and nav: [Buttons](Buttons)
 - Every key: [Configuration reference](Configuration-reference)
 
 Real-device behavior can only be confirmed by you on your hardware.

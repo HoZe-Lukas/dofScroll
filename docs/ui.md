@@ -111,7 +111,7 @@ Settings page too (they do not belong to a profile).
   documentation in the default browser: `docs/ui.md`, or `docs/modes.md` from the Button modes page.
   Only https addresses are ever opened.
 - **Release all keys**, **Restart daemon** and **Restart interface** as before.
-- The filter box above the profile cards matches every word against the name, the mode, the kind
+- The filter box above the profile cards matches every word against the name, the joystick mode, the kind
   ("device" or "program") and the settings of a profile, ignoring ASCII case. A card says how many settings the profile overrides ("Overrides 3 settings"; the
   profile list on the Profiles page shows the same number after the name). The tooltip of a card
   lists all its settings, not only the first ones shown in the summary.
@@ -216,7 +216,7 @@ navigation, a joystick mode switch). Config keys and file names do not change wi
 (`MODE`, `modes/*.conf`, `buttons/*.conf`, `buttonmode:<id>`).
 
 **Descriptions everywhere.** Every joystick mode and every button mode shows its short description
-(`DESCRIPTION`; all built-in modes have one; "No description" when a file has none) wherever it can be
+(`DESCRIPTION`; all built-in joystick modes have one; "No description" when a file has none) wherever it can be
 picked or listed: as tooltip of every entry of the joystick mode drop-downs (profile General tab,
 the joystick mode of a button, the Overview's Active joystick mode, the tray's Joystick mode menu)
 and of the button mode entries of the button drop-downs; as a second line (muted, wrapped) under the
@@ -401,7 +401,7 @@ Compiled and unit-tested in CI only; what has to be checked by hand on real mach
 ## Reload and runtime files
 
 Saving in the settings window notifies the running daemon: SIGHUP on Linux, a named event on
-Windows, a per-user local socket on macOS. The status, log and mode-request files live in one
+Windows, a per-user local socket on macOS. The status, log and joystick-mode-request files live in one
 per-user runtime directory that daemon and interface agree on (`$XDG_RUNTIME_DIR` on Linux,
 `%LOCALAPPDATA%\dofscroll` on Windows, `~/Library/Caches/dofscroll` on macOS). The interface
 reads the status file only when it is bounded in size, not a symlink and owned by the current
@@ -420,7 +420,7 @@ LaunchAgent on macOS. If the interface is not installed, only the daemon is swit
 
 The interface says **Joystick mode** for what the axes do (config key `MODE`, files in `modes/`)
 and **Button mode** for the named behavior of one button (`buttons/`, `buttonmode:<id>`); the plain
-word "mode" is not used. "Navigation" is the arrow-key action of a button, not a mode. The titles of
+word "mode" is not used (the one exception is the sidebar entry "Modes", the category that holds both kinds as tabs). "Navigation" is the arrow-key action of a button, not a mode. The titles of
 the pages and tabs come from one place, `src/ui/model/ui_terms.hpp`; to rename a kind, change the
 constant there and the texts that carry the word (search the old word in `src/ui`, `po/de.po` and
 `docs`: the sentences in `src/ui/qt/pages/*.cpp`, the model texts in

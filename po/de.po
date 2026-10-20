@@ -3294,3 +3294,17 @@ msgstr "Geräteprofile"
 #: src/ui
 msgid "Application profiles"
 msgstr "Anwendungsprofile"
+
+# --- dofscroll-ui: profile-centric editor, autosave, inheritance, joystick modes (new entries) ---
+
+#: src/ui
+msgid "Save a copy of the button mode file somewhere else"
+msgstr "Eine Kopie der Tasten-Modus-Datei woanders speichern"
+
+#: src/ui
+msgid "Export button mode file"
+msgstr "Tasten-Modus-Datei exportieren"
+
+#: src/ui
+msgid "Could not export the button mode."
+msgstr "Der Tasten-Modus konnte nicht exportiert werden."

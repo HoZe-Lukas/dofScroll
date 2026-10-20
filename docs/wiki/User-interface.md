@@ -30,7 +30,7 @@ Settings > Appearance: System default, Light or Dark. It applies at once and is 
 
 The editor of a profile (also Global) has the tabs General, Channels, Buttons and Overrides; the header shows which profile is edited (icon, name, kind) with one line about inheritance, the tab stays when you select another profile, and the list stays visible. Every setting row and button row says where its value comes from ("Inherited from Global: 5", "Set in this profile (inherited: 5)") and has a Reset; in Global a value that profiles override says "N profiles override this". "Export..." writes the selected profile as a `.conf` file. A search box above the list filters the profiles by name, one above the tabs filters the settings by label or key. The joystick mode editor has the tabs Settings, Buttons and Overrides in the same way and saves by itself. See [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md).
 
-"Add application..." lists the programs that are running now (search by name, match string or window title, refresh) and shows the exact match string that will be stored. "Capture next focused program" takes the program you switch to. Precedence: global < device < mode overrides < application, see [Profiles](Profiles).
+"Add application..." lists the programs that are running now (search by name, match string or window title, refresh) and shows the exact match string that will be stored. "Capture next focused program" takes the program you switch to. Precedence: global < device < joystick mode overrides < application, see [Profiles](Profiles).
 
 ## Tray
 

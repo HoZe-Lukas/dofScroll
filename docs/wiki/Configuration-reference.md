@@ -13,7 +13,7 @@ The file is UTF-8 (a BOM is accepted, never written; LF written, CRLF accepted);
 | Item | Value |
 |---|---|
 | Config file | `~/.config/dofscroll/dofscroll.conf` (`$XDG_CONFIG_HOME` is used if it is an absolute path) |
-| Mode files | `~/.config/dofscroll/modes/*.conf`, see [Modes](Modes) |
+| Joystick mode files | `~/.config/dofscroll/modes/*.conf`, see [Joystick modes](Modes) |
 | Legacy paths | `~/.config/spnav-scroll/spnav-scroll.conf` and `~/.config/spnav-scroll.conf`, read only if the new file is missing |
 | Windows | `%APPDATA%\dofscroll\dofscroll.conf`, same format (unverified on hardware) |
 
@@ -46,7 +46,7 @@ The seeded config uses different values than these built-in defaults; it is a st
 | `BACKEND` | `auto` | `auto`, `x11` or `uinput`; `auto` picks uinput under Wayland, else X11; if the chosen backend fails the other is tried; needs a restart |
 | `TICK_HZ` | `250` | Tick rate 30 to 1000 |
 | `ENABLED` | `1` | `0` switches all output off and releases held keys |
-| `MODE` | `normal` | Active mode, see [Modes](Modes) |
+| `MODE` | `normal` | Active joystick mode, see [Joystick modes](Modes) |
 | `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | Deprecated (use `BUTTON_<n> = nav`; the interface migrates them): raw 0-based button index that turns X/Y into arrow keys while held |
 | `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | Deprecated (use `BUTTON_<n> = click`; the interface migrates them): raw 0-based button index passed through as the left mouse button |
 | `BUTTON_<n>` | none | Action of button `n` (`nav`, `toggle:nav`, `mode:<id>`, `hold:mode:<id>`, `toggle:mode:<id>`, `buttonmode:<id>`, ...), see [Buttons](Buttons) |
@@ -59,7 +59,7 @@ The seeded config uses different values than these built-in defaults; it is a st
 | `[device:<text>]` | The device name reported by `spacenavd` contains `<text>` (case-insensitive substring) |
 | `[app:<text>]` | The active window's class contains `<text>` (case-insensitive substring) |
 
-Precedence, lowest to highest: `[global]` < matching `[device:*]` < overrides of the active mode < matching `[app:*]`. See [Profiles](Profiles). `BACKEND` is read from `[global]` at start.
+Precedence, lowest to highest: `[global]` < matching `[device:*]` < overrides of the active joystick mode < matching `[app:*]`. See [Profiles](Profiles). `BACKEND` is read from `[global]` at start.
 
 ## Example files
 

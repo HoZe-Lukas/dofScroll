@@ -5,7 +5,7 @@
 A **button mode** is a named button behavior in its own file. It is stored with the profile, can be
 used with any joystick mode, and the same button mode can be assigned to several buttons. In the
 interface every button of a profile has a drop-down that lists the button modes by name (Profiles
-page); the Button modes page (category Modes) creates, edits, duplicates, imports and deletes them.
+page); the Button modes page (category Joystick modes) creates, edits, duplicates, imports and deletes them.
 
 A button mode only describes what a button does. What the axes do is the *joystick mode*
 (see [modes.md](modes.md)). The principle of [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver)
@@ -23,7 +23,7 @@ most 32 characters. The format is that of the main configuration: `KEY = value`,
 | `NAME` | Shown in the drop-downs. Fallback: the id. |
 | `DESCRIPTION` | Optional, shown as a tooltip and on the Button modes page. |
 | `ACTION` | Required. One button action as in `BUTTON_<n>`: `none`, `click`, `rightclick`, `middleclick`, `nav`, `key:<name>`, `mode:<id>`, `mode:next`, `mode:prev`, `toggle:nav`, `toggle:mode:<id>`. It must not be a `buttonmode:` reference (no nesting). |
-| `CYCLE` | Optional, only with `ACTION = mode:next` or `mode:prev`: the joystick modes this button cycles through, see [Choosing the modes to cycle through](#choosing-the-modes-to-cycle-through). |
+| `CYCLE` | Optional, only with `ACTION = mode:next` or `mode:prev`: the joystick modes this button cycles through, see [Choosing the joystick modes to cycle through](#choosing-the-modes-to-cycle-through). |
 
 Every other key (`NAME`, `DESCRIPTION`, `ACTION` and `CYCLE` are the only ones) is skipped with a warning; a file without a valid `ACTION` is skipped. Example
 (`examples/buttons/latch-nav.conf`):
@@ -32,7 +32,7 @@ Every other key (`NAME`, `DESCRIPTION`, `ACTION` and `CYCLE` are the only ones) 
     DESCRIPTION = Press once to switch navigation on, again to switch it off
     ACTION = toggle:nav
 
-Limits and safety are those of mode files: at most 64 files of at most 64 KiB, regular files owned
+Limits and safety are those of joystick mode files: at most 64 files of at most 64 KiB, regular files owned
 by the current user, opened without following links; invalid lines and files are skipped with a
 warning in the log (`Button modes: ...`). The folder is checked about once a second and reloaded
 when its contents change.
@@ -45,11 +45,11 @@ the same id that replaces the built-in one until you delete it; a file byte-iden
 is not listed as your own. `next-mode` and `prev-mode` cycle through all loaded joystick modes in
 alphabetical order, built-ins included (see [modes.md](modes.md)).
 
-## Choosing the modes to cycle through
+## Choosing the joystick modes to cycle through
 
 Without `CYCLE`, `mode:next` and `mode:prev` walk through all loaded joystick modes in alphabetical
-order of id, so the order is arbitrary and grows with every mode you add. With `CYCLE` the button mode
-cycles through exactly the modes you list, in your order:
+order of id, so the order is arbitrary and grows with every joystick mode you add. With `CYCLE` the button mode
+cycles through exactly the joystick modes you list, in your order:
 
     NAME = Next favorite mode
     ACTION = mode:next
@@ -57,18 +57,18 @@ cycles through exactly the modes you list, in your order:
 
 - The value is a comma separated list of joystick mode ids (whitespace is tolerated, case is folded,
   ids as in `MODE`), at most 32. A duplicate is dropped with a warning; an invalid id makes the line
-  invalid (warning, the button mode then cycles through all modes).
-- `next` goes to the entry after the effective mode and wraps from the last to the first; `prev` goes
-  the other way. If the effective mode is not in the list (the profile's mode, a `hold:mode:` or
+  invalid (warning, the button mode then cycles through all joystick modes).
+- `next` goes to the entry after the effective joystick mode and wraps from the last to the first; `prev` goes
+  the other way. If the effective joystick mode is not in the list (the profile's joystick mode, a `hold:mode:` or
   `mode:<id>` override), `next` goes to the first entry and `prev` to the last.
-- An id that matches no loaded mode stays in the file and is skipped; the daemon logs
+- An id that matches no loaded joystick mode stays in the file and is skipped; the daemon logs
   `mode cycle: unknown mode '<id>' skipped` once per load.
 - One file has one direction. For both directions make two button modes (`ACTION = mode:next` and
   `ACTION = mode:prev`) with the same list, and assign them to two buttons. You can have several lists
-  (for example *Next video mode* and *Next browse mode*) and choose one per button on the Profiles page.
+  (for example *Next video joystick mode* and *Next browse joystick mode*) and choose one per button on the Profiles page.
 - A raw `BUTTON_<n> = mode:next` and a button mode without `CYCLE` keep cycling through all modes.
   Internally the daemon expands a button mode with `CYCLE` to `mode:next:<id>,<id>,...` (also accepted
-  in `BUTTON_<n>` and mode files, but the button mode is the supported way). `CYCLE` with another action
+  in `BUTTON_<n>` and joystick mode files, but the button mode is the supported way). `CYCLE` with another action
   is ignored with a warning. Example: `examples/buttons/cycle-favorites.conf`.
 
 ## Using a button mode
@@ -83,11 +83,11 @@ in that file":
     BUTTON_5 = buttonmode:latch-nav       # the same button mode on a second button
 
 It works wherever `BUTTON_<n>` works: in `[global]`, `[device:*]`, `[app:*]` and in joystick mode
-files. **The precedence does not change**: a binding in the active mode file wins over `BUTTON_<n>`
-of the resolved profile, and the profile order is global < device < mode overrides < app.
+files. **The precedence does not change**: a binding in the active joystick mode file wins over `BUTTON_<n>`
+of the resolved profile, and the profile order is global < device < joystick mode overrides < app.
 
 The daemon replaces the reference by the action of the file when it applies a profile; this
-happens at runtime only. The configuration and the mode files keep the text `buttonmode:<id>`, and the
+happens at runtime only. The configuration and the joystick mode files keep the text `buttonmode:<id>`, and the
 interface shows and saves it as it is.
 
 An unknown id (no such file) is logged once (`unknown button mode '<id>'`) and the button does

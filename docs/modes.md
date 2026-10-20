@@ -1,19 +1,19 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
-# Modes
+# Joystick modes
 
-A mode decides what the three channels and the device buttons do. Modes are plain files, no
+A joystick mode decides what the three channels and the device buttons do. Joystick modes are plain files, no
 recompiling needed. Parser: `src/modes.hpp`, `src/modes.cpp`. Key names: `src/keys.hpp`.
 
-Exactly one mode is active. It is the one named by `MODE` in the resolved profile, otherwise
+Exactly one joystick mode is active. It is the one named by `MODE` in the resolved profile, otherwise
 `normal`. Select it in `[global]`, `[device:*]` or `[app:*]` (see
-[configuration.md](configuration.md)). The tray also has a quick "Mode" menu that sets the global
+[configuration.md](configuration.md)). The tray also has a quick "Joystick mode" menu that sets the global
 `MODE`.
 
-## Mode files
+## Joystick mode files
 
-Location: `~/.config/dofscroll/modes/<id>.conf`. The file name without `.conf` is the mode id
-(`[a-z0-9_-]{1,32}`). A file with the id of a built-in mode replaces the built-in one. The daemon
+Location: `~/.config/dofscroll/modes/<id>.conf`. The file name without `.conf` is the joystick mode id
+(`[a-z0-9_-]{1,32}`). A file with the id of a built-in joystick mode replaces the built-in one. The daemon
 reloads the directory when its contents change.
 
 Format: `KEY = value`, no sections, `#` and `;` comments.
@@ -27,11 +27,11 @@ Format: `KEY = value`, no sections, `#` and `;` comments.
     BUTTON_2 = key:home
     SCROLL_H_SENS = 4                           # any profile key is an override
 
-`MODE`, `ENABLED`, `BACKEND` and `TICK_HZ` are not allowed inside a mode file (the daemon rejects
+`MODE`, `ENABLED`, `BACKEND` and `TICK_HZ` are not allowed inside a joystick mode file (the daemon rejects
 them with a warning). Any other key from [configuration.md](configuration.md) is a settings override. The overrides are applied after the device profile and before the app
 profile.
 
-Limits: up to 64 mode files, each up to 64 KiB, up to 128 overrides per file, regular files only.
+Limits: up to 64 joystick mode files, each up to 64 KiB, up to 128 overrides per file, regular files only.
 Invalid lines or files are skipped with a warning in the log.
 
 ## Built-in joystick modes
@@ -41,7 +41,7 @@ and no install path, and nothing is copied into your configuration directory. Th
 everywhere a mode can be chosen (profile drop-downs, tray menu, Overview, `MODE = <id>`,
 `mode:<id>` buttons) with the origin "Built in".
 
-| Mode | Behavior |
+| Joystick mode | Behavior |
 |---|---|
 | `normal` | All channels `default`, no bindings. Scroll, Ctrl+scroll zoom and the buttons you bind in the profile (the deprecated `NAV_BUTTON` and `CLICK_BUTTON` also still work). |
 | `off` | All channels `none`. Switches control off without `ENABLED = 0`. |
@@ -95,7 +95,7 @@ For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`) and `TWIST_ACTION` 
 
 ## Button actions
 
-`BUTTON_<n> = <action>`. Buttons are numbered from 1 (`BUTTON_1` is the first button), in mode files
+`BUTTON_<n> = <action>`. Buttons are numbered from 1 (`BUTTON_1` is the first button), in joystick mode files
 and in the main config alike. `BUTTON_0` is rejected with "buttons are numbered from 1". At most 32.
 `n` must not exceed the factory button count of the device model (Pro 15, Compact 2, Enterprise 31;
 table in `src/device_db.cpp`). The count is not the one `spacenavd` reports.
@@ -106,63 +106,63 @@ table in `src/device_db.cpp`). The count is not the one `spacenavd` reports.
 | `click`, `rightclick`, `middleclick` | Mouse button, held while the device button is held (drag works). |
 | `nav` | While held, X/Y send arrow keys instead of scrolling. |
 | `key:<name>` | Holds the key while the button is held. |
-| `mode:<id>` | Switches to mode `<id>` when the button is pressed. |
-| `mode:next` | Switches to the next loaded mode in alphabetical order of id, built-ins included, wrapping around. |
-| `hold:mode:<id>` | The mode `<id>` is effective while the button is held; on release the state from before the press comes back: a `mode:<id>` / `toggle:mode:<id>` override that was in effect, else the mode the profile gives. Example: `BUTTON_3 = hold:mode:precision` (slow and fine while the button is held). The release is noticed even if the held mode does not bind the button. Any other mode switch during the hold ends it without restoring; a reload, suspend / `ENABLED = 0` / session switch and an unplugged device end it too (the previous state comes back). `next` and `prev` are not valid; an unknown id is dropped with a warning at load. The status file shows `hold:<id>` in the `toggle=` line. |
-| `mode:next:<id>,<id>,...` / `mode:prev:<id>,...` | The same cycle through exactly the listed modes, in that order (wrapping; unknown ids skipped). Written by a button mode with a `CYCLE` list (see [button-modes.md](button-modes.md#choosing-the-modes-to-cycle-through)); this is how you choose which modes the button reaches and in which order. |
-| `mode:prev` | The mirror of `mode:next`: switches to the previous id in alphabetical order, wrapping from the first to the last. Stateless (no history). `next` and `prev` are reserved targets: a mode file called `next.conf` or `prev.conf` still loads, but `mode:next` and `mode:prev` always mean the cycle action. Not allowed in `toggle:mode:<id>`. |
+| `mode:<id>` | Switches to joystick mode `<id>` when the button is pressed. |
+| `mode:next` | Switches to the next loaded joystick mode in alphabetical order of id, built-ins included, wrapping around. |
+| `hold:mode:<id>` | The joystick mode `<id>` is effective while the button is held; on release the state from before the press comes back: a `mode:<id>` / `toggle:mode:<id>` override that was in effect, else the joystick mode the profile gives. Example: `BUTTON_3 = hold:mode:precision` (slow and fine while the button is held). The release is noticed even if the held joystick mode does not bind the button. Any other joystick mode switch during the hold ends it without restoring; a reload, suspend / `ENABLED = 0` / session switch and an unplugged device end it too (the previous state comes back). `next` and `prev` are not valid; an unknown id is dropped with a warning at load. The status file shows `hold:<id>` in the `toggle=` line. |
+| `mode:next:<id>,<id>,...` / `mode:prev:<id>,...` | The same cycle through exactly the listed joystick modes, in that order (wrapping; unknown ids skipped). Written by a button mode with a `CYCLE` list (see [button-modes.md](button-modes.md#choosing-the-joystick-modes-to-cycle-through)); this is how you choose which joystick modes the button reaches and in which order. |
+| `mode:prev` | The mirror of `mode:next`: switches to the previous id in alphabetical order, wrapping from the first to the last. Stateless (no history). `next` and `prev` are reserved targets: a joystick mode file called `next.conf` or `prev.conf` still loads, but `mode:next` and `mode:prev` always mean the cycle action. Not allowed in `toggle:mode:<id>`. |
 | `toggle:nav` | Every press switches the navigation mode on or off (arrow keys instead of scrolling), like a held `nav` button but latched. A held `nav` button and the latch add up. |
-| `toggle:mode:<id>` | The first press switches to mode `<id>`, the next press goes back to the mode the profile gives. `next` is not allowed. |
+| `toggle:mode:<id>` | The first press switches to joystick mode `<id>`, the next press goes back to the joystick mode the profile gives. `next` is not allowed. |
 | `buttonmode:<id>` | Behaves like the `ACTION` of the button mode file `buttons/<id>.conf`, see [button-modes.md](button-modes.md). Not nestable. An unknown id does nothing. |
 
 Toggles are state that only exists while the daemon runs. The status file shows it in the `toggle=` line
 (`nav`, `mode:<id>`, or both) and the tray shows "Navigation mode on" next to the mode. The state is cleared by
 a reload (saving the config, the tray's "Release all keys", a `SIGHUP`), by a restart, when the daemon
-becomes inactive (suspend, `ENABLED = 0`, session switch) and by any mode change, which releases everything held.
+becomes inactive (suspend, `ENABLED = 0`, session switch) and by any joystick mode change, which releases everything held.
 `toggle:mode:<id>` is a runtime switch like `mode:<id>`: it stays across profile changes until it is toggled off.
-`BUTTON_<n>` in the main config works for all of these, so a toggle bound there also works in the mode it
-switched to; a binding in a mode file for the same button wins. Plain `key:` or `click` toggles do not exist on
+`BUTTON_<n>` in the main config works for all of these, so a toggle bound there also works in the joystick mode it
+switched to; a binding in a joystick mode file for the same button wins. Plain `key:` or `click` toggles do not exist on
 purpose: a key that is switched on and off everywhere belongs in the vendor driver.
 
-The tray's "Mode" submenu uses the same runtime switch and never writes `MODE` into `[global]`:
-it writes the mode id into `dofscroll-mode-request` in the runtime directory (user-only, one line,
+The tray's "Joystick mode" submenu uses the same runtime switch and never writes `MODE` into `[global]`:
+it writes the joystick mode id into `dofscroll-mode-request` in the runtime directory (user-only, one line,
 valid id only) and asks the daemon to reload; the daemon applies it after re-reading config and
-modes, then deletes the file. Like a button switch it lasts until the next reload, a restart or
+joystick modes, then deletes the file. Like a button switch it lasts until the next reload, a restart or
 another switch (so toggling "Enabled" or saving the config drops it).
 
 The request file is treated as untrusted input: the writer never follows a link (it removes
 whatever is at the name and creates the file exclusively, user-only); the daemon opens it without
 following links, requires the current user as owner and no group/other permissions (POSIX), reads at
-most 64 bytes, accepts only a valid mode id (`[a-z0-9_-]{1,32}`) that is a loaded mode, ignores a
+most 64 bytes, accepts only a valid joystick mode id (`[a-z0-9_-]{1,32}`) that is a loaded joystick mode, ignores a
 request older than 30 seconds (a reload that never arrived) and removes the file in every case.
 
-The id `release` is an ordinary mode id: a file `release.conf` is valid and `BUTTON_n = mode:release`
+The id `release` is an ordinary joystick mode id: a file `release.conf` is valid and `BUTTON_n = mode:release`
 switches to it. (The daemon's internal notice that a `hold:mode:` button was released is a request
-string with a colon, which can never be a mode id.)
+string with a colon, which can never be a joystick mode id.)
 
-A binding in the active mode for a button wins over a `BUTTON_<n>` binding in the main config for
+A binding in the active joystick mode for a button wins over a `BUTTON_<n>` binding in the main config for
 the same button.
 
-A switch by `mode:` stays until the daemon restarts, the config or modes directory reloads, or
-another switch happens. Held keys and buttons are released on every switch. An unknown mode id in
-a mode file is dropped with a warning.
+A switch by `mode:` stays until the daemon restarts, the config or joystick modes directory reloads, or
+another switch happens. Held keys and buttons are released on every switch. An unknown joystick mode id in
+a joystick mode file is dropped with a warning.
 
-A mode whose three channel actions are all `default` runs the normal path, so dominance-based zoom
+A joystick mode whose three channel actions are all `default` runs the normal path, so dominance-based zoom
 and the deprecated `NAV_BUTTON`/`CLICK_BUTTON` still work, and its button bindings apply in addition.
 
 ## Buttons and the vendor driver
 
-dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles.
+dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch or toggle joystick modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles.
 
 | Where | What |
 |---|---|
 | Driver | A button mapping that is the same everywhere and always: Esc, Enter, a click, a shortcut. |
-| dofscroll | Bindings that depend on dofscroll's state: they apply only in a mode or profile, switch, toggle or hold modes (`mode:next`, `mode:prev`, `mode:<id>`, `toggle:mode:<id>`, `hold:mode:<id>`), or work with the axis handling (`nav`, `toggle:nav`). Also: shaping scroll and zoom from the six axes, keys derived from axes (`keys:<neg>,<pos>`), per-program and per-device profiles. |
+| dofscroll | Bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch, toggle or hold joystick modes (`mode:next`, `mode:prev`, `mode:<id>`, `toggle:mode:<id>`, `hold:mode:<id>`), or work with the axis handling (`nav`, `toggle:nav`). Also: shaping scroll and zoom from the six axes, keys derived from axes (`keys:<neg>,<pos>`), per-program and per-device profiles. |
 
-Examples: a button that always sends Esc belongs in the driver. A button that sends Space (play/pause) only while the `timeline` mode is active, a button with `mode:next` and a button with `nav` belong in dofscroll.
+Examples: a button that always sends Esc belongs in the driver. A button that sends Space (play/pause) only while the `timeline` joystick mode is active, a button with `mode:next` and a button with `nav` belong in dofscroll.
 
-A mode may bind keys or clicks that only make sense in that mode, for example Space for
-play/pause in a timeline-style mode. Such bindings are active only while that mode is active.
+A joystick mode may bind keys or clicks that only make sense in that joystick mode, for example Space for
+play/pause in a timeline-style mode. Such bindings are active only while that joystick mode is active.
 This is what the driver cannot do on Linux, because `spnavrc` knows nothing about dofscroll's
 modes.
 
@@ -220,7 +220,7 @@ Names are lower case.
 is sent as Shift and `=` (a US-style layout is assumed). `kp_plus` and `kp_minus` are the keypad keys and
 do not depend on the layout. Programs differ in which of them they accept for zoom.
 
-## Example: timeline mode
+## Example: timeline joystick mode
 
 For video editing (for example in DaVinci Resolve, whose behavior is not verified here):
 
@@ -244,7 +244,7 @@ sensitivity, sign). The tap fires when the processed value, a rate in steps per 
 (`deflection * SENS / 20` for a linear curve), reaches `STEP_TRIGGER` (default 20, see
 [configuration](configuration.md)). It re-arms only after the value has fallen to half of the
 trigger; there is no auto-repeat while the push is held. Pushing to the other side fires the other
-key (each side re-arms on its own). The state resets on mode change, reload and `releaseAll`.
+key (each side re-arms on its own). The state resets on joystick mode change, reload and `releaseAll`.
 Because the trigger is measured after `*_SENS`, a channel with a low sensitivity needs a lower
 `STEP_TRIGGER`. The chord warning rules below apply to `step:` exactly as to `keys:`. How the
 trigger level feels on a real device is not verified; tune `STEP_TRIGGER`.
@@ -327,13 +327,13 @@ raise the dead zone of the part that fires by accident.
 
 Validate a mode file with `build/tests/check_config --modes <directory>` (source build only).
 
-## Safety and sharing modes
+## Safety and sharing joystick modes
 
-A mode file is code-like. While a device button is held or an axis is deflected, it can press
+A joystick mode file is code-like. While a device button is held or an axis is deflected, it can press
 any key on the list in [Key names](#key-names), including modifiers (Ctrl, Alt, Super), function
 keys, Delete and Enter. Chords are reachable: Ctrl is held while a channel zooms, so a `keys:`
 action on another channel can send Ctrl+W or Ctrl+Q, and `key:ctrl` plus `key:alt` on two buttons
-combine with a third key. A mode file cannot type arbitrary text or send codes outside the key list,
+combine with a third key. A joystick mode file cannot type arbitrary text or send codes outside the key list,
 and every effect needs the physical device to be moved or pressed.
 
 Chords in `keys:` (for example `keys:ctrl+w,ctrl+q`) are sent as written. The daemon warns about
@@ -341,48 +341,48 @@ a chord that contains `alt` or `super`, or that combines `ctrl` / `shift` with a
 navigation key (arrows, Page Up/Down, Home, End, Space, Enter, Esc, plus/minus). A chord of `ctrl`
 and/or `shift` with a navigation key, like `ctrl+pageup`, produces no warning.
 
-Only use mode files from sources you trust, and read a file before you copy it into
+Only use joystick mode files from sources you trust, and read a file before you copy it into
 `~/.config/dofscroll/modes/`. When you review one, look for:
 
 - `key:` bindings, especially `ctrl`, `alt`, `super`, `shift`, `delete`, `esc`, `enter` and `f1` to `f12`.
 - `keys:<negative>,<positive>` actions on `V_ACTION`, `H_ACTION` or `TWIST_ACTION`, especially
   letters and digits, or in combination with a `zoom` channel (Ctrl is held then).
 - `zoom` on any channel, because it holds Ctrl.
-- `mode:` bindings that switch to another mode, and the other files such a mode points to.
+- `mode:` bindings that switch to another joystick mode, and the other files such a joystick mode points to.
 - Settings overrides that change sensitivities, signs or button behavior.
 
 The daemon warns at load time (in the log) about modifier-capable bindings, but the warning does not
-replace reading the file. If you share a mode, say what keys it presses.
+replace reading the file. If you share a joystick mode, say what keys it presses.
 
-A mode that turns output off or ignores the device (for example the built-in `off`) leaves the
-device inactive. To get out of it, use the tray menu "Mode", a `mode:next` or `mode:<id>` binding
-(put it in the main config so it stays available in every mode, or in the mode itself), or edit
+A joystick mode that turns output off or ignores the device (for example the built-in `off`) leaves the
+device inactive. To get out of it, use the tray menu "Joystick mode", a `mode:next` or `mode:<id>` binding
+(put it in the main config so it stays available in every joystick mode, or in the joystick mode itself), or edit
 `MODE` in the config and reload.
 
-## Add your own mode
+## Add your own joystick mode
 
 1. Create `~/.config/dofscroll/modes/<id>.conf` with the keys above.
 2. Wait about a second (automatic reload), or run `systemctl --user kill -s HUP dofscroll.service`.
-3. Select it with `MODE = <id>` in a profile, from the tray "Mode" menu, or with a `mode:<id>`
+3. Select it with `MODE = <id>` in a profile, from the tray "Joystick mode" menu, or with a `mode:<id>`
    button action.
 4. Check `journalctl --user -u dofscroll.service` for warnings about skipped lines.
 
-The interface can do the same without a text editor: on the Modes page, "Edit" opens an in-page
+The interface can do the same without a text editor: on the Joystick modes page, "Edit" opens an in-page
 editor for name, channels, buttons and overrides (see [ui.md](ui.md#editing-a-joystick-mode)). The file
 stays plain text; the editor keeps comments and lines it does not know.
 
-## Editing modes from the tray
+## Editing joystick modes from the tray
 
-The tray "Mode" submenu lists, below the mode choices, one entry per mode:
+The tray "Joystick mode" submenu lists, below the joystick mode choices, one entry per mode:
 
-- `Edit mode file: <name>` opens the mode's file in the default editor.
-- `Create editable copy of <name>...` appears for built-in modes that have no file yet (normal,
+- `Edit mode file: <name>` opens the joystick mode's file in the default editor.
+- `Create editable copy of <name>...` appears for built-in joystick modes that have no file yet (normal,
   off, timeline). It writes a commented template `<id>.conf` with the built-in's name, description
-  and channel actions into the modes folder (mode 0600, never overwriting an existing file) and
+  and channel actions into the joystick modes folder (file mode 0600, never overwriting an existing file) and
   opens it. A file of the same name replaces the built-in mode.
 - `Open modes folder` opens the folder in the file manager.
 
 The editor is started outside the tray's sandbox, like "Open config file". After saving, the
-daemon reloads the modes by itself and the new entry appears in the menu within about a second.
+daemon reloads the joystick modes by itself and the new entry appears in the menu within about a second.
 
 The built-in modes are good starting points: "Create editable copy" and change it.

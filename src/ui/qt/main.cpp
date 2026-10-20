@@ -1436,6 +1436,15 @@ static bool modeFilesAutosaveSelfTest(const UiContext &ctx, const QString &tmpPa
         check(waitFor([&] { return !page.pending(); }, 3000) && fileText(QStringLiteral("/buttons/latch.conf")).contains(QStringLiteral("NAME = Typed")),
               "written after the pause");
         check(page.originOf(QStringLiteral("latch")) == QStringLiteral("Your file"), "the list says the button mode is your file");
+        // export: a copy of the file, never over an existing one
+        check(buttonTexted(&page, QStringLiteral("Export...")) != nullptr, "Export... exists on the button modes page");
+        {
+            const QString copy = tmpPath + QStringLiteral("/exported-latch.conf");
+            QFile::remove(copy);
+            check(page.exportButtonModeTo(QStringLiteral("latch"), copy) && QFile::exists(copy), "export writes a copy of the button mode file");
+            check(!page.exportButtonModeTo(QStringLiteral("latch"), copy) && !page.lastError().isEmpty(), "export never overwrites");
+            QFile::remove(copy);
+        }
         // a drop-down is written at once (a key action comes with the default key, so it is complete)
         auto *kind = findNamed<QComboBox>(&page, QStringLiteral("Action"));
         check(kind != nullptr, "the action drop-down exists");

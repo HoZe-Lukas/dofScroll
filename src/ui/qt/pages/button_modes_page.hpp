@@ -37,6 +37,7 @@ public:
     QStringList exampleIds() const;
     bool installExample(const QString &id);
     QString originOf(const QString &id) const;
+    bool exportButtonModeTo(const QString &id, const QString &dest);  // no dialog; false + lastError()
     const QString &lastError() const { return lastError_; }
     QString currentId() const;  // id of the selected list row
     bool selectButtonMode(const QString &id);  // self-test: select a row as a click would
@@ -67,6 +68,7 @@ private:
     void onDuplicate();
     void onImport();
     void onNewFromExample();
+    void onExport();
     void onDelete();
     void onEditableCopy();  // built-in button mode: file with the same id that replaces it
     void onOpenFolder();
@@ -86,7 +88,7 @@ private:
     QLabel *fileLabel_ = nullptr;
     QPlainTextEdit *warnings_ = nullptr;
     QLabel *problem_ = nullptr;
-    QPushButton *newBtn_ = nullptr, *exampleBtn_ = nullptr, *dupBtn_ = nullptr, *importBtn_ = nullptr, *delBtn_ = nullptr,
+    QPushButton *newBtn_ = nullptr, *exampleBtn_ = nullptr, *exportBtn_ = nullptr, *dupBtn_ = nullptr, *importBtn_ = nullptr, *delBtn_ = nullptr,
                 *folderBtn_ = nullptr, *textEditorBtn_ = nullptr;
     std::unique_ptr<Autosaver> saver_;
     QtStrings ownStrings_;

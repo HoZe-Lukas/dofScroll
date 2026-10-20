@@ -26,7 +26,7 @@ Lines carry the daemon's messages. Look for:
   `[device:*]` sections);
 - profile switches, with the matched device and app;
 - "control disabled" and "active again" (`ENABLED = 0` or `MODE = off` in effect);
-- warnings about skipped config lines or mode files;
+- warnings about skipped config lines or joystick mode files;
 - connection retries to `spacenavd`.
 
 For button indices and the live axis values, stop the service and run the daemon in a terminal:
@@ -146,7 +146,7 @@ Translations are looked up in `$DOFSCROLL_LOCALEDIR`, `../share/locale` next to 
 
 ### A button does nothing, or input arrives twice
 
-dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. Check the driver mapping first: a button that sends the same key or click everywhere is mapped in `/etc/spnavrc` (Linux) or the 3Dconnexion driver settings (Windows, macOS), see [modes.md](modes.md#buttons-and-the-vendor-driver). Double input usually means the driver also scrolls or pans in that program; turn that off per application, see [windows-mac.md](windows-mac.md).
+dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch or toggle joystick modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. Check the driver mapping first: a button that sends the same key or click everywhere is mapped in `/etc/spnavrc` (Linux) or the 3Dconnexion driver settings (Windows, macOS), see [modes.md](modes.md#buttons-and-the-vendor-driver). Double input usually means the driver also scrolls or pans in that program; turn that off per application, see [windows-mac.md](windows-mac.md).
 
 ### Scrolling is inverted or on the wrong axis
 
@@ -173,7 +173,7 @@ What the daemon does about it on its own:
   it holds and clears the output's own bookkeeping. If something was still held, the journal
   shows `safety release: ...` (at most once per 10 s). A button you hold on purpose
   (click-and-hold, a key bound to a button) is never released by the net.
-- A device list change, a profile or program change, a config reload, a mode switch, `ENABLED=0`
+- A device list change, a profile or program change, a config reload, a joystick mode switch, `ENABLED=0`
   and the tray's axis display (output pause) all release what is held.
 
 If a key still hangs, recover in this order:
