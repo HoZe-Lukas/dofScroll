@@ -96,7 +96,7 @@ jobs:
           build/dofscroll-ui --self-test
           qt=$(objdump -T build/dofscroll-ui | grep -o 'Qt_6\.[0-9]*' | sort -uV)
           echo "Qt symbol versions required: $qt"
-          echo "Qt symbol versions required by dofscroll-ui: $(echo $qt)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Qt symbol versions required by dofscroll-ui: $(echo "$qt" | tr '\n' ' ')" >> "$GITHUB_STEP_SUMMARY"
           if echo "$qt" | grep -v -x -E 'Qt_6\.[0-6]'; then
             echo "::error::dofscroll-ui needs a Qt symbol version above 6.6" >&2; exit 1
           fi
