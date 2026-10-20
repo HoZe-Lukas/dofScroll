@@ -12,8 +12,10 @@
 #include <string>
 
 #include "live_feed/live_feed.hpp"
+#include "qt_action_runner.hpp"
 #include "ui_context.hpp"
 #include "ui/model/axes_model.hpp"
+#include "ui/model/split_parts_model.hpp"
 #include "ui/model/suspend_heartbeat.hpp"
 
 class QLabel;
@@ -38,6 +40,8 @@ public:
     // drives it directly).
     void pollOnce(int64_t nowNs);
     spn::ui::AxesSession &session() { return *session_; }
+    // The push/tilt rows now shown for the active joystick mode (empty if it splits no channel).
+    const std::vector<spn::ui::SplitPartRow> &partRows() const { return parts_; }
     bool wizardVisible() const;
     bool wantsSuspend() const;
     const spn::ui::SuspendHeartbeat &suspend() const { return *suspend_; }
@@ -52,16 +56,19 @@ private:
     void buildLivePage(QWidget *page);
     void buildWizardPage(QWidget *page);
     void refreshLive(int64_t nowNs);
+    void refreshParts();
     void refreshWizard(int64_t nowNs);
     void applyWizard();
     int64_t now() const { return clock_.nsecsElapsed(); }
 
     UiContext ctx_;
+    QtStrings ownStrings_;  // used when the context has no shared provider (standalone page, tests)
     spn::LiveFeedClient::Connector connector_;
     QElapsedTimer clock_;
     std::unique_ptr<spn::LiveFeedClient> client_;
     std::unique_ptr<spn::ui::AxesSession> session_;
     std::unique_ptr<spn::ui::SuspendHeartbeat> suspend_;
+    std::vector<spn::ui::SplitPartRow> parts_;
     QTimer *timer_ = nullptr;
     QStackedWidget *stack_ = nullptr;
 

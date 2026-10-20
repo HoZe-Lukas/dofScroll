@@ -23,6 +23,7 @@
 
 #include "config.hpp"
 #include "ui/model/settings_model.hpp"
+#include "ui/model/split_parts_model.hpp"
 #include "ui/model/suspend_heartbeat.hpp"
 #include "ui/model/ui_progress.hpp"
 #include "ui_i18n.hpp"
@@ -68,10 +69,22 @@ public:
 
     QSize minimumSizeHint() const override {
         const int rh = rowHeight();
-        const int rows = AX_COUNT + (compact_ ? 0 : 3 + 3 + 2);
+        const int rows = AX_COUNT + (compact_ ? 0 : 3 + 3 + 2 + (parts_.empty() ? 0 : int(parts_.size()) + 1));
         return QSize(fontMetrics().horizontalAdvance(QStringLiteral("0")) * 36, rows * rh);
     }
     QSize sizeHint() const override { return minimumSizeHint() + QSize(120, 40); }
+
+    // Push and tilt parts of the channels the active joystick mode splits (empty: none), drawn below the
+    // channel outputs. The size follows the number of rows.
+    void setParts(std::vector<spn::ui::SplitPartRow> parts) {
+        const bool resize = parts.size() != parts_.size();
+        parts_ = std::move(parts);
+        QString desc;
+        for (const auto &r : parts_)
+            desc += qs8(r.label) + QStringLiteral(": ") + qs8(r.action) + QLatin1Char('\n');
+        setAccessibleDescription(desc.trimmed());
+        if (resize) updateGeometry();
+    }
 
 protected:
     void paintEvent(QPaintEvent *) override {
@@ -83,6 +96,7 @@ protected:
         int labelW = 0;  // the widest label, translated names included, so that none is cut
         for (const QString &l : axisLabel_) labelW = std::max(labelW, fm.horizontalAdvance(l));
         for (const QString &l : chanLabel_) labelW = std::max(labelW, fm.horizontalAdvance(l));
+        for (const auto &r : parts_) labelW = std::max(labelW, fm.horizontalAdvance(qs8(r.label)));
         labelW += 18;
         const int valueW = fm.horizontalAdvance(QStringLiteral("-00000")) + 8;
         const int barX = labelW, barW = std::max(40, width() - labelW - valueW - 4);
@@ -130,6 +144,15 @@ protected:
             row(chanLabel_[i], vm_->channelFraction(i), 0.0, false, buf_);
         }
 
+        if (!parts_.empty()) {
+            // Push (x, y, z) and tilt (rx, rz) part of a split channel, before sensitivity and curve.
+            y += rh / 2;
+            for (const auto &r : parts_) {
+                buf_.setNum(r.value);
+                row(qs8(r.label), spn::ui::barFraction(r.value, vm_->fullScale()), 0.0, false, buf_);
+            }
+        }
+
         y += rh / 2;
         // Button indicators 1..N (filled = pressed), wrapped.
         const int cell = rh + 2, count = vm_->buttonCount();
@@ -168,6 +191,7 @@ private:
 
     const AxesViewModel *vm_;
     bool compact_;
+    std::vector<spn::ui::SplitPartRow> parts_;
     QString axisLabel_[AX_COUNT], chanLabel_[3];
     QString buf_, status_;  // reused per frame
 };
@@ -387,8 +411,23 @@ void AxesPage::pollOnce(int64_t nowNs) {
     const bool finished = session_->poll(nowNs);
     refreshLive(nowNs);
     if (wizardVisible() || finished) refreshWizard(nowNs);
+    refreshParts();
     bars_->update();
     if (wizardVisible()) wizBars_->update();
+}
+
+// The push and tilt rows of the active joystick mode (as the daemon reports it); none while the daemon
+// is not connected or the mode splits no channel.
+void AxesPage::refreshParts() {
+    std::vector<spn::ui::SplitPartRow> rows;
+    const spn::ui::AxesViewModel &vm = session_->view();
+    if (vm.hasData() && ctx_.settings) {
+        const LiveSample &sample = vm.shown();
+        rows = spn::ui::splitPartRows(ctx_.settings->modeDef(sample.mode), ctx_.settings->effective(0), sample.axes,
+                                      ctx_.strings ? *ctx_.strings : ownStrings_);
+    }
+    parts_ = rows;
+    bars_->setParts(std::move(rows));
 }
 
 void AxesPage::refreshLive(int64_t nowNs) {
@@ -489,6 +528,18 @@ int axesPageSelfTest() {
     SelfTestConn *conn = nullptr;
     SettingsModel settings;
     settings.setProfiles(ProfileSet(), "axes-selftest-unused.conf");
+    {   // a joystick mode that splits the vertical channel (push scrolls, tilt does nothing)
+        ModeSet ms;
+        ModeDef m;
+        m.id = "splitm";
+        m.label = "Splitm";
+        m.vSplit.pushSet = true;
+        m.vSplit.push.type = ChannelActionType::WheelV;
+        m.vSplit.tiltSet = true;
+        m.vSplit.tilt.type = ChannelActionType::Off;
+        ms.modes.push_back(m);
+        settings.setModes(ms, std::string());
+    }
     UiContext ctx;
     ctx.settings = &settings;
     AxesPageEnv env;
@@ -515,13 +566,28 @@ int axesPageSelfTest() {
     }
     const bool connected = page.session().connected(t);
     const bool data = page.session().view().shown().axes[AX_Z] == 300 && page.session().view().buttonCount() == 2;
+    const bool noParts = page.partRows().empty();  // "normal" splits no channel
     page.grab();  // renders the custom widget offscreen
+    // the active mode splits V: push (z) and tilt (rx) rows with the live values, before the wizard
+    bool parts = false;
+    {
+        LiveSample s;
+        s.axes = RawAxes{0, 0, 120, 0, 0, 0};
+        s.axes[AX_RX] = -40;
+        s.mode = "splitm";
+        for (uint8_t b : encodeLiveSample(s)) conn->in.push_back(b);
+        t += 33000000;
+        page.pollOnce(t);
+        const auto &rows = page.partRows();
+        parts = rows.size() == 2 && rows[0].id == "v_push" && rows[0].value == 120 && rows[1].id == "v_tilt" && rows[1].value == -40;
+        page.grab();
+    }
     page.openWizard();
     page.pollOnce(t += 33000000);
     const bool wizOk = page.wizardVisible() && page.session().wizard().canStart(page.session().connected(t));
     page.grab();
     page.cancelWizard();
     const bool left = !page.wizardVisible();
-    std::printf("axes-page self-test: connected=%d data=%d wizard=%d cancel=%d\n", connected, data, wizOk, left);
-    return connected && data && wizOk && left ? 0 : 1;
+    std::printf("axes-page self-test: connected=%d data=%d parts=%d/%d wizard=%d cancel=%d\n", connected, data, noParts, parts, wizOk, left);
+    return connected && data && noParts && parts && wizOk && left ? 0 : 1;
 }

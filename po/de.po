@@ -3409,3 +3409,19 @@ msgstr ""
 #: src/ui/qt/pages/axes_page.cpp
 msgid "Which movement drives which part"
 msgstr "Welche Bewegung welchen Anteil steuert"
+
+#: src/ui/model/split_parts_model.hpp
+msgid "Scroll V push"
+msgstr "Scrollen V schieben"
+
+#: src/ui/model/split_parts_model.hpp
+msgid "Scroll V tilt"
+msgstr "Scrollen V kippen"
+
+#: src/ui/model/split_parts_model.hpp
+msgid "Scroll H push"
+msgstr "Scrollen H schieben"
+
+#: src/ui/model/split_parts_model.hpp
+msgid "Scroll H tilt"
+msgstr "Scrollen H kippen"

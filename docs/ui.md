@@ -82,7 +82,7 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Modes | Joystick modes | The available joystick modes (built-in and files in the modes folder) with their origin and description: new, new from example, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every joystick mode the profiles that use it; a reminder that mode files can press any key |
 | Modes | Button modes | The button mode files (`buttons/`): create, new from example, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
 | Device | Device | The connected devices and their button count (the number of button rows a profile offers), the daemon state |
-| Device | Axes | Live bars of the six axes and the axis assistant (wizard) that detects which axis does what |
+| Device | Axes | Live bars of the six axes (and, while the active joystick mode splits a scroll channel, the push and tilt parts of that channel) and the axis assistant (wizard) that detects which axis does what |
 | Settings | Settings | Output on/off (`ENABLED` of Global), start at login, language, theme (Appearance), the daemon settings (tick rate, output backend), the read-only status of the daemon, "Open config", "Show log..." and "Documentation" |
 
 The Channels settings (sensitivity, dead zone, direction, curve, zoom detection, smoothing) are not a
@@ -235,6 +235,14 @@ palette); spacing follows one scale (`src/ui/model/design_tokens.hpp`). The scre
 `dofscroll-ui --screenshots` show the light theme at three sizes and the dark theme at one.
 `dofscroll-ui --screenshots <dir>` renders every page at three window sizes into PNG files (use
 `QT_QPA_PLATFORM=offscreen` on a machine without a display); CI attaches them to the UI job.
+
+When the joystick mode the daemon runs splits the vertical or horizontal channel, the live view
+shows two more bars per split channel below the channel outputs ("Scroll V push", "Scroll V tilt",
+...): the value of the push part (the `x`, `y`, `z` terms of the channel mix) and of the tilt part
+(the `rx`, `rz` terms), before sensitivity and curve, in the units of the axis bars, so you see
+which movement drives which part. The screen reader description of the view lists what each part
+does. The page takes the mixes from the Global profile and the overrides of the active joystick
+mode; a per-program mix override is not applied here.
 
 While the Axes page is open the daemon pauses its output, so moving the cap does not scroll the
 window you look at. The page shows as many button cells as the factory button count of the
