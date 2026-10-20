@@ -1803,14 +1803,6 @@ msgstr "Ungespeicherte Änderungen"
 msgid "Button bindings"
 msgstr "Tastenbelegungen"
 
-#: src/ui/qt/pages/profiles_page.cpp:289
-msgid ""
-"Each button can switch the mode or hold the navigation mode (arrow keys "
-"instead of scrolling)."
-msgstr ""
-"Jede Taste kann den Modus wechseln oder den Navigationsmodus halten "
-"(Pfeiltasten statt Scrollen)."
-
 #: src/ui/qt/pages/profiles_page.cpp:301 src/ui/qt/pages/profiles_page.cpp:473
 msgid "Button"
 msgstr "Taste"
@@ -2543,3 +2535,7 @@ msgstr "Prüfen Sie auf der Seite Achsen, dass sich die Achsen wie erwartet bewe
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Add a profile for a program you use."
 msgstr "Legen Sie ein Profil für ein Programm an, das Sie verwenden."
+
+#: src/ui/model/button_choice_model.hpp:43
+msgid "Nothing"
+msgstr "Nichts"

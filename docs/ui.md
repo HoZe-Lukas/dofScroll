@@ -4,7 +4,9 @@
 
 `dofscroll-ui` is the Qt6 interface: a tray icon plus a settings window, one code base for Linux,
 Windows and macOS. It edits the same config file as the daemon and asks the daemon to reload, so
-changes apply immediately. The daemon runs without it. On Linux the older GTK tray
+changes apply immediately. The daemon runs without it. The interface starts minimized to the
+tray (no window opens); "Open settings" or a click on the tray icon shows the window. Without a
+system tray the window is shown minimized instead. On Linux the older GTK tray
 (`dofscroll-tray`) is still shipped; use one of the two, not both (see
 [installation.md](installation.md)).
 
@@ -32,7 +34,6 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Device | Axes | Live bars of the six axes and the axis assistant (wizard) that detects which axis does what |
 | Settings | General | Output on/off, global mode, "Start at login", read-only status of the daemon |
 
-This is the first step of the redesign (#52): the pages are unchanged, only their place moved.
 
 ## Editing a joystick mode
 
