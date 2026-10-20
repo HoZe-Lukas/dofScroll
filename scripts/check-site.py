@@ -9,7 +9,8 @@ no external script, style, font or image URLs and no style attributes; exactly o
 allowed by the hash in the Content-Security-Policy meta tag; canonical, hreflang and og tags;
 language parity between site/ (English) and site/de/ (German): same pages, same sections and FAQ
 entries, same outgoing link targets, reciprocal alternate links; sitemap and robots.txt; size
-budgets; and WCAG contrast of the colour variables in site/style.css for light and dark.
+budgets; the plain-text reading of every page (no words glued together across inline elements, no
+double spaces, no straight quotes in visible text); and WCAG contrast of the colour variables in site/style.css for light and dark.
 
 Usage: scripts/check-site.py [site-dir]
 """
@@ -135,6 +136,70 @@ def parse(path):
     if not text.lower().startswith("<!doctype html>"):
         err("%s: missing <!doctype html>" % path)
     return p
+
+BLOCK = {"address", "article", "aside", "blockquote", "body", "br", "dd", "details", "div", "dl", "dt",
+         "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6",
+         "head", "header", "hr", "html", "li", "main", "nav", "ol", "p", "pre", "section", "summary",
+         "table", "td", "th", "tr", "ul", "title", "button"}
+NO_TEXT = {"script", "style", "svg", "title"}
+
+
+class PlainText(HTMLParser):
+    """Mimics textContent without CSS: only block-level tags separate text, inline tags insert nothing.
+    Whatever is glued together here is read glued together by copy and paste, search snippets, screen
+    readers and the plain-text view, however much space the CSS puts between the elements."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.out = []         # text pieces; "\n" marks a block boundary
+        self.skip = 0
+        self.pre = 0
+        self.problems = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in NO_TEXT:
+            self.skip += 1
+        if tag == "pre":
+            self.pre += 1
+        if tag in BLOCK:
+            self.out.append("\n")
+
+    def handle_startendtag(self, tag, attrs):
+        if tag in BLOCK:
+            self.out.append("\n")
+
+    def handle_endtag(self, tag):
+        if tag in NO_TEXT and self.skip:
+            self.skip -= 1
+        if tag == "pre" and self.pre:
+            self.pre -= 1
+        if tag in BLOCK:
+            self.out.append("\n")
+
+    def handle_data(self, data):
+        if self.skip or not data:
+            return
+        prev = next((x[-1] for x in reversed(self.out) if x), "")
+        if not self.pre:
+            if "  " in data:
+                self.problems.append("double space in %r" % data.strip()[:40])
+            if '"' in data or "'" in data:
+                self.problems.append("straight quote in %r (use typographic quotes)" % data.strip()[:40])
+            if re.search(r"\S·|·\S", data):
+                self.problems.append("'·' without spaces in %r" % data.strip()[:40])
+            first = data[0]
+            if prev and not prev.isspace() and not first.isspace() and \
+                    first not in ".,:;!?)]»”’%-" and prev not in "([«“‘":
+                before = "".join(self.out)[-20:].replace("\n", " ")
+                self.problems.append("text glued across an element boundary: %r + %r" % (before, data.strip()[:20]))
+        self.out.append(data)
+
+
+def plain_text_check(path, tag):
+    pt = PlainText()
+    pt.feed(open(path, encoding="utf-8").read())
+    for m in pt.problems:
+        err("%s: %s" % (tag, m))
 
 
 def rel(root, path):
@@ -296,6 +361,7 @@ def main():
                     err("%s: title is %d characters, expected 50-60" % (tag, len(title)))
                 if not 150 <= len(desc) <= 160:
                     err("%s: description is %d characters, expected 150-160" % (tag, len(desc)))
+            plain_text_check(path, tag)
             if p.h1 != 1:
                 err("%s: expected exactly one <h1>, found %d" % (tag, p.h1))
             if p.meta.get("color-scheme") != "light dark":

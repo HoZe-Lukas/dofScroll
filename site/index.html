@@ -7,7 +7,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'sha256-zYLRmQPZD0mY6TyAXivPWdLLnINqJn956HApdot/2P8='; base-uri 'none'; form-action 'none'">
 <script>(function(d){var r=d.documentElement,k="dofscroll-theme",s=null,m=matchMedia("(prefers-color-scheme: dark)");function g(){if(s)return s;try{var t=localStorage.getItem(k);if(t==="light"||t==="dark")return t}catch(e){}return null}function f(){return g()||(m.matches?"dark":"light")}function a(){var t=f(),b=d.getElementById("theme");r.setAttribute("data-theme",t);if(b)b.setAttribute("aria-pressed",String(t==="dark"))}r.className="js";a();d.addEventListener("DOMContentLoaded",a);d.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("#theme");if(!b)return;s=f()==="dark"?"light":"dark";try{localStorage.setItem(k,s)}catch(x){}a()});if(m.addEventListener)m.addEventListener("change",a)})(document);</script>
 <title>dofscroll: SpaceMouse as scroll wheel and zoom control</title>
-<meta name="description" content="Use your 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program: browsers, PDF readers, maps. Free and open source for Linux, Windows, macOS.">
+<meta name="description" content="Use a 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program: browsers, PDF readers, maps. Free and open source for Linux, Windows and macOS.">
 <link rel="canonical" href="https://hoze-lukas.github.io/dofScroll/">
 <link rel="alternate" hreflang="en" href="https://hoze-lukas.github.io/dofScroll/">
 <link rel="alternate" hreflang="de" href="https://hoze-lukas.github.io/dofScroll/de/">
@@ -15,7 +15,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="dofscroll">
 <meta property="og:title" content="dofscroll: SpaceMouse as scroll wheel and zoom control">
-<meta property="og:description" content="Use your 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program: browsers, PDF readers, maps. Free and open source for Linux, Windows, macOS.">
+<meta property="og:description" content="Use a 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program: browsers, PDF readers, maps. Free and open source for Linux, Windows and macOS.">
 <meta property="og:url" content="https://hoze-lukas.github.io/dofScroll/">
 <meta property="og:locale" content="en_US">
 <meta property="og:locale:alternate" content="de_DE">
@@ -25,19 +25,23 @@
 <meta property="og:image:alt" content="dofscroll: SpaceMouse as scroll wheel and zoom control">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="dofscroll: SpaceMouse as scroll wheel and zoom control">
-<meta name="twitter:description" content="Use your 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program: browsers, PDF readers, maps. Free and open source for Linux, Windows, macOS.">
+<meta name="twitter:description" content="Use a 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program: browsers, PDF readers, maps. Free and open source for Linux, Windows and macOS.">
 <meta name="twitter:image" content="https://hoze-lukas.github.io/dofScroll/img/og.png">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="style.css">
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "dofscroll", "description": "Use your 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program: browsers, PDF readers, maps. Free and open source for Linux, Windows, macOS.", "url": "https://hoze-lukas.github.io/dofScroll/", "inLanguage": "en", "operatingSystem": "Linux, Windows, macOS", "applicationCategory": "UtilitiesApplication", "license": "https://www.gnu.org/licenses/gpl-3.0.html", "softwareVersion": "1.0.0", "downloadUrl": "https://github.com/HoZe-Lukas/dofScroll/releases/latest", "screenshot": "https://hoze-lukas.github.io/dofScroll/img/ui-window-light.png", "image": "https://hoze-lukas.github.io/dofScroll/img/og.png", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "dofscroll", "description": "Use a 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program: browsers, PDF readers, maps. Free and open source for Linux, Windows and macOS.", "url": "https://hoze-lukas.github.io/dofScroll/", "inLanguage": "en", "operatingSystem": "Linux, Windows, macOS", "applicationCategory": "UtilitiesApplication", "license": "https://www.gnu.org/licenses/gpl-3.0.html", "softwareVersion": "1.0.0", "downloadUrl": "https://github.com/HoZe-Lukas/dofScroll/releases/latest", "screenshot": "https://hoze-lukas.github.io/dofScroll/img/ui-window-light.png", "image": "https://hoze-lukas.github.io/dofScroll/img/og.png", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}}</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="wrap">
 <a class="brand" href="./"><img src="img/dofscroll-app.svg" width="28" height="28" alt="">dofscroll</a>
-<nav class="main" aria-label="Main"><a href="#feel">How it feels</a><a href="#features">What you get</a><a href="#download">Download</a><a href="#quickstart">How it works</a><a href="#faq">FAQ</a></nav>
+<nav class="main" aria-label="Main"><a href="#feel">How it feels</a>
+<a href="#features">What you get</a>
+<a href="#download">Download</a>
+<a href="#quickstart">How it works</a>
+<a href="#faq">FAQ</a></nav>
 <div class="tools">
 <a class="btn small" href="#download">Download</a>
 <a class="lang" href="de/" hreflang="de" lang="de">Deutsch</a>
@@ -47,7 +51,10 @@
 <section class="hero" aria-labelledby="top">
 <div class="wrap hero-grid">
 <div class="hero-copy">
-<p class="badges"><span class="pill">Free and open source</span><span class="pill">Linux · Windows · macOS</span></p>
+<ul class="badges">
+<li class="pill">Free and open source</li>
+<li class="pill">Linux · Windows · macOS</li>
+</ul>
 <h1 id="top">Scroll and zoom everywhere with your SpaceMouse</h1>
 <p class="lead">dofscroll makes a 3Dconnexion SpaceMouse work as a scroll wheel in browsers, PDF readers and maps.</p>
 <div class="cta">
@@ -92,8 +99,8 @@
 <h2 id="h-download">Download</h2>
 <ul class="cards three dl">
 <li class="card"><h3>Linux</h3><p>Fedora, RHEL, Debian, Ubuntu<br><code>.rpm</code> or <code>.deb</code>: open it with your package manager.</p><a class="btn" href="https://github.com/HoZe-Lukas/dofScroll/releases/latest">Download for Linux</a></li>
-<li class="card"><h3>Windows</h3><p>Windows 10 and 11<br>Run the setup <code>.exe</code>. SmartScreen asks first: More info, Run anyway.</p><a class="btn" href="https://github.com/HoZe-Lukas/dofScroll/releases/latest">Download for Windows</a></li>
-<li class="card"><h3>macOS</h3><p>Apple silicon<br>Open the DMG, drag the app to Applications. First start: right-click, Open.</p><a class="btn" href="https://github.com/HoZe-Lukas/dofScroll/releases/latest">Download for macOS</a></li>
+<li class="card"><h3>Windows</h3><p>Windows 10 and 11<br>Run the <code>.exe</code> setup. SmartScreen warns first: click More info, then Run anyway.</p><a class="btn" href="https://github.com/HoZe-Lukas/dofScroll/releases/latest">Download for Windows</a></li>
+<li class="card"><h3>macOS</h3><p>Apple silicon<br>Open the DMG, drag the app to Applications. First start: right-click, then Open.</p><a class="btn" href="https://github.com/HoZe-Lukas/dofScroll/releases/latest">Download for macOS</a></li>
 </ul>
 <p class="status" id="status">Tested on RHEL 9 with SpaceMouse Pro and Compact. Windows and macOS builds come from CI and have not been run on a device yet: <a href="https://github.com/HoZe-Lukas/dofScroll/issues">tell us how it goes</a>.</p>
 <details class="more"><summary>Check the download</summary>
@@ -140,7 +147,13 @@ systemctl --user enable --now dofscroll.service dofscroll-ui.service</code></pre
 <div class="wrap">
 <h2 id="h-links">Ready to try it?</h2>
 <div class="cta"><a class="btn big" href="#download">Download</a></div>
-<p class="morelinks"><a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Built-in-modes">Built-in modes</a><a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Writing-modes">Write a mode</a><a href="https://github.com/HoZe-Lukas/dofScroll/wiki">Wiki</a><a href="https://github.com/HoZe-Lukas/dofScroll">Source code</a><a href="https://github.com/HoZe-Lukas/dofScroll/blob/main/LICENSE">License</a></p>
+<ul class="morelinks">
+<li><a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Built-in-modes">Built-in modes</a></li>
+<li><a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Writing-modes">Write a mode</a></li>
+<li><a href="https://github.com/HoZe-Lukas/dofScroll/wiki">Wiki</a></li>
+<li><a href="https://github.com/HoZe-Lukas/dofScroll">Source code</a></li>
+<li><a href="https://github.com/HoZe-Lukas/dofScroll/blob/main/LICENSE">License</a></li>
+</ul>
 </div>
 </section>
 
