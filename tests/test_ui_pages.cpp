@@ -115,6 +115,9 @@ int main() {
     s.zoom_lateral = {AX_X, AX_RZ};
     assert(lateralMask(s) == ((1u << AX_X) | (1u << AX_RZ)));
     assert(lateralText(lateralMask(s)) == "x rz" && lateralText(0).empty());
+    // lift/press (y) in a mix is allowed but flagged (issue #94)
+    assert(mixUsesLiftPress("y") && mixUsesLiftPress("z + 0.5*y") && mixUsesLiftPress("-y"));
+    assert(!mixUsesLiftPress("z + rx") && !mixUsesLiftPress("0*y") && !mixUsesLiftPress("not a mix"));
     assert(m.setValue(0, "ZOOM_LATERAL", lateralText((1u << AX_Y) | (1u << AX_RX)), &err));
     assert(lateralMask(m.effective(0)) == ((1u << AX_Y) | (1u << AX_RX)));
 

@@ -337,7 +337,7 @@ for vertical scroll, both sideways movements (`x`, `rz`) for horizontal scroll a
 for zoom; `ZOOM_LATERAL` lists `x z rx rz`. A joystick mode file must not put `y` into a
 `*_MIX` or `ZOOM_LATERAL` override unless its `DESCRIPTION` says so (mention "lift/press").
 You can still choose `y` for a channel in your own configuration; it stays prone to false
-triggers. `tests/test_no_lift_press.cpp` scans the built-in joystick modes, the seeded default
+triggers, and the Channels page shows a warning next to an axis mix that uses `y`. `tests/test_no_lift_press.cpp` scans the built-in joystick modes, the seeded default
 configuration and the documented defaults and fails when `y` appears there.
 
 ## Safety and sharing joystick modes

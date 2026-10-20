@@ -871,6 +871,14 @@ msgstr ""
 msgid "Invalid value: "
 msgstr "Ungültiger Wert: "
 
+#: src/ui/qt/pages/channels_editor.cpp
+msgid ""
+"Warning: lift/press (y) is prone to false triggers when you grab or release "
+"the cap"
+msgstr ""
+"Warnung: Heben/Drücken (y) löst leicht fälschlich aus, wenn du die Kappe "
+"anfasst oder loslässt"
+
 #: src/ui/qt/pages/channels_page.cpp:215 src/ui/qt/pages/profiles_page.cpp:627
 msgid "Saved."
 msgstr "Gespeichert."

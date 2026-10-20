@@ -68,4 +68,15 @@ inline std::string lateralText(unsigned mask) {
     return t;
 }
 
+// True if an axis mix text (valid or not) puts a function on lift/press (axis y). That stays allowed
+// but is prone to false triggers when the cap is grabbed or released (issue #94, docs/modes.md).
+inline bool mixUsesLiftPress(const std::string &text) {
+    Mix m;
+    std::string err;
+    if (!parseMix(text, &m, &err)) return false;
+    for (const Term &t : m.terms)
+        if (t.axis == AX_Y && t.weight != 0) return true;
+    return false;
+}
+
 }  // namespace spn::ui

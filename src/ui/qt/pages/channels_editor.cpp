@@ -178,6 +178,15 @@ void ChannelsEditor::showProblem(QWidget *editor, QLabel *help, const QString &h
     setFlag(editor, "invalid", bad);
 }
 
+// A valid mix with lift/press (y) is accepted but flagged: the cap moves when it is grabbed.
+void ChannelsEditor::showLiftPressWarning(QLabel *help, const QString &helpText, const std::string &text) {
+    const bool warn = spn::ui::mixUsesLiftPress(text);
+    if (!help) return;
+    help->setText(warn ? T("Warning: lift/press (y) is prone to false triggers when you grab or release the cap")
+                       : helpText);
+    setFlag(help, "warning", warn);
+}
+
 // Validates and stores in the profile; shows the model's message at the row on failure (nothing is
 // written then, the file stays valid). typed: text still being typed, written after a pause.
 bool ChannelsEditor::apply(const std::string &key, const std::string &text, QWidget *editor, QLabel *help,
@@ -436,13 +445,15 @@ QGroupBox *ChannelsEditor::buildGroup(const SettingsModel::Group &g) {
                 spinRow(grid, &row, key, T(kt.label), help, [&](QLabel *hl) -> QWidget * {
                     auto *e = new QLineEdit;
                     connect(e, &QLineEdit::textEdited, this, [this, e, key, hl, help](const QString &t) {
-                        apply(key, t.toUtf8().toStdString(), e, hl, help, true);
+                        const std::string text = t.toUtf8().toStdString();
+                        if (apply(key, text, e, hl, help, true)) showLiftPressWarning(hl, help, text);
                     });
                     connect(e, &QLineEdit::editingFinished, this, [this] { ctx_.saveSoon(); });  // focus out: now
-                    refreshers_.push_back([this, e, key] {
+                    refreshers_.push_back([this, e, key, hl, help] {
                         QSignalBlocker b(e);
                         e->setText(qs8(displayText(key)));
                         setFlag(e, "invalid", false);
+                        showLiftPressWarning(hl, help, displayText(key));
                     });
                     editors_.emplace_back(key, e);
                     return e;

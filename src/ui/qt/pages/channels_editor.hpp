@@ -63,6 +63,7 @@ private:
     double number(const std::string &key) const;
     bool apply(const std::string &key, const std::string &text, QWidget *editor, QLabel *help, const QString &helpText,
                bool typed);
+    void showLiftPressWarning(QLabel *help, const QString &helpText, const std::string &text);
     void showProblem(QWidget *editor, QLabel *help, const QString &helpText, const QString &error);
     void changed(const std::string &key, bool typed);
     void refreshAll();
