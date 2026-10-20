@@ -3142,3 +3142,79 @@ msgstr "Der offizielle 3Dconnexion-Treiber, seine Schnittstelle und die Namen 3D
 #: src/ui/qt/pages/general_page.cpp
 msgid "About"
 msgstr "Über"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Extensions are plain files in your configuration folders. dofscroll reads them with its own checks and never runs them. Switch a file off to keep it without using it; a switched-off file with the id of a built-in joystick mode or button mode lets the built-in one apply again."
+msgstr "Erweiterungen sind einfache Dateien in deinen Konfigurationsordnern. dofscroll liest sie mit eigenen Prüfungen und führt sie nie aus. Schalte eine Datei aus, um sie zu behalten, ohne sie zu benutzen; eine ausgeschaltete Datei mit der Kennung eines eingebauten Joystick-Modus oder Tasten-Modus lässt den eingebauten wieder gelten."
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "No files of yours yet. Create or import one on the Joystick modes and Button modes pages."
+msgstr "Noch keine eigenen Dateien. Lege auf den Seiten Joystick-Modi und Tasten-Modi eine an oder importiere eine."
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Open folder"
+msgstr "Ordner öffnen"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Could not open the folder."
+msgstr "Der Ordner konnte nicht geöffnet werden."
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "files"
+msgstr "Dateien"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Switched on"
+msgstr "Eingeschaltet"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Switched off: the file is kept, but not used"
+msgstr "Ausgeschaltet: die Datei bleibt erhalten, wird aber nicht benutzt"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Used by: %1"
+msgstr "Verwendet von: %1"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Details"
+msgstr "Details"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Delete this file"
+msgstr "Diese Datei löschen"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Switch this file off (it is kept, but not used)"
+msgstr "Diese Datei ausschalten (sie bleibt erhalten, wird aber nicht benutzt)"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Switch this file on"
+msgstr "Diese Datei einschalten"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Could not switch the file: %1"
+msgstr "Die Datei konnte nicht umgeschaltet werden: %1"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Switched on: %1"
+msgstr "Eingeschaltet: %1"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Switched off: %1"
+msgstr "Ausgeschaltet: %1"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Delete the file \"%1\"? This cannot be undone."
+msgstr "Die Datei „%1“ löschen? Das lässt sich nicht rückgängig machen."
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "It is still used by: %1"
+msgstr "Sie wird noch verwendet von: %1"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Could not remove the file: %1"
+msgstr "Die Datei konnte nicht entfernt werden: %1"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Removed: %1"
+msgstr "Entfernt: %1"

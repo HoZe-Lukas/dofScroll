@@ -84,6 +84,7 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Profiles | Profiles | The list of profiles (Global first, then devices, then programs) and the editor of the selected one with the tabs General, Channels, Buttons and Overrides, see "Profiles" below |
 | Modes | Joystick modes | The available joystick modes (built-in and files in the joystick modes folder) with their origin and description: new, new from example, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every joystick mode the profiles that use it; a reminder that joystick mode files can press any key |
 | Modes | Button modes | The button mode files (`buttons/`): create, new from example, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
+| Modes | Extensions | Your joystick mode files and button mode files in one list, each with a switch (on / off), where it is used and Remove; "Open folder" for both folders, see "Extensions" below |
 | Device | Device | The connected devices and their button count (the number of button rows a profile offers), the daemon state |
 | Device | Axes | Live bars of the six axes (and, while the active joystick mode splits a scroll channel, the push and tilt parts of that channel) and the axis assistant (wizard) that detects which axis does what |
 | Settings | Settings | Output on/off (`ENABLED` of Global), start at login, language, theme (Appearance), the daemon settings (tick rate, output backend; on Windows and macOS also **Input path**: Automatic, 3Dconnexion driver or Direct (HID), key `INPUT`, with the active path shown), the read-only status of the daemon (including "Input: ..." on Windows and macOS), "Open config", "Show log...", "Documentation" and an **About** box (version, licences, Qt under the LGPL and, on Windows and macOS, the 3Dconnexion note) |
@@ -254,6 +255,25 @@ mode; a per-program mix override is not applied here.
 While the Axes page is open the daemon pauses its output, so moving the cap does not scroll the
 window you look at. The page shows as many button cells as the factory button count of the
 device (see below), or the highest button it has seen when no device information is available.
+
+## Extensions
+
+The Extensions page (category Modes, third tab) lists the files of yours that extend dofscroll: the joystick
+mode files (`modes/*.conf`) and the button mode files (`buttons/*.conf`). An extension is a plain file that the
+daemon's own loaders read with their checks and warnings; nothing is executed. Each row has
+
+- a **switch**: off renames `<id>.conf` to `<id>.conf.disabled` (the loaders only read names that end in `.conf`),
+  on renames it back. The file is kept, nothing is overwritten (if the other name is taken, the page says so and
+  leaves both files alone). A switched-off file with the id of a built-in joystick mode or button mode lets the
+  built-in one apply again. The change is written at once, there is no Save button;
+- the name and description of the file, and **where it is used** (profiles that select it, buttons that switch to
+  it) so you see what a switch changes;
+- **Remove**, which asks first and deletes the file, switched on or off.
+
+"Open folder" opens `modes/` or `buttons/`. Device description files (`devices/*.conf`) are not on this page:
+the daemon does not load them from the configuration folder, only `dofscroll-hidprobe` reads them (see
+`docs/devices.md`). The examples that ship with dofscroll are installed with "New from example..." on the Joystick
+modes and Button modes pages.
 
 ## Joystick modes and button modes
 
