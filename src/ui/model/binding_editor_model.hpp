@@ -32,13 +32,13 @@ inline const std::vector<BindingKindInfo> &bindingKinds() {
     // Advanced: plain clicks and keys; supported by config and daemon, usually better set in the driver.
     static const std::vector<BindingKindInfo> k = {
         {BindingKind::None, "none", "Nothing", false, false, false},
-        {BindingKind::Nav, "nav", "Navigation mode (arrow keys while held)", false, false, false},
-        {BindingKind::Mode, "mode", "Switch to mode", false, true, false},
-        {BindingKind::ModeNext, "mode:next", "Next mode", false, false, false},
-        {BindingKind::ModePrev, "mode:prev", "Previous mode", false, false, false},
-        {BindingKind::ToggleNav, "toggle:nav", "Navigation mode on/off (press to switch)", false, false, false},
-        {BindingKind::ToggleMode, "toggle:mode", "Toggle mode (press again to go back)", false, true, false},
-        {BindingKind::HoldMode, "hold:mode", "Mode while held", false, true, false},
+        {BindingKind::Nav, "nav", "Navigation (arrow keys while held)", false, false, false},
+        {BindingKind::Mode, "mode", "Switch to joystick mode", false, true, false},
+        {BindingKind::ModeNext, "mode:next", "Next joystick mode", false, false, false},
+        {BindingKind::ModePrev, "mode:prev", "Previous joystick mode", false, false, false},
+        {BindingKind::ToggleNav, "toggle:nav", "Navigation on/off (press to switch)", false, false, false},
+        {BindingKind::ToggleMode, "toggle:mode", "Toggle joystick mode (press again to go back)", false, true, false},
+        {BindingKind::HoldMode, "hold:mode", "Joystick mode while held", false, true, false},
         {BindingKind::Click, "click", "Left click", false, false, true},
         {BindingKind::RightClick, "rightclick", "Right click", false, false, true},
         {BindingKind::MiddleClick, "middleclick", "Middle click", false, false, true},
@@ -149,7 +149,7 @@ inline std::string composeBinding(const Binding &b) {
 }
 
 // The binding after the user switches the kind: keeps a still-fitting argument, else a default
-// ("space" for keys, the first offered mode for "Switch to mode").
+// ("space" for keys, the first offered mode for "Switch to joystick mode").
 inline Binding withKind(const Binding &cur, BindingKind kind, const std::vector<std::string> &modeIds) {
     Binding b;
     b.kind = kind;
@@ -161,7 +161,7 @@ inline Binding withKind(const Binding &cur, BindingKind kind, const std::vector<
     return b;
 }
 
-// Mode ids offered by "Switch to mode": every loaded mode (built-in and files).
+// Mode ids offered by "Switch to joystick mode": every loaded mode (built-in and files).
 inline std::vector<std::string> bindingModeIds(const ModeSet &ms) {
     std::vector<std::string> out;
     for (const ModeDef &m : ms.modes)
@@ -176,6 +176,8 @@ struct BindingRow {
     bool overridden = false;  // set in this section
     bool beyondLimit = false; // bound above the device's button count: shown read-only
     bool valid = true;        // text parsed
+    std::string origin;       // where the action comes from ("Inherited from Global: key:space"), "" = not shown
+    std::string originTip;    // tooltip of the origin ([global]: the profiles that override the button)
 };
 
 inline std::vector<BindingRow> bindingRows(const SettingsModel &m, size_t section) {
@@ -204,7 +206,7 @@ inline bool anyAdvancedBinding(const std::vector<BindingRow> &rows,
 inline bool applyBinding(SettingsModel &m, size_t section, int number, const Binding &b, std::string *err) {
     const std::string text = composeBinding(b);
     if (text.empty()) {
-        if (err) *err = "choose a key or a mode first";
+        if (err) *err = "choose a key or a joystick mode first";
         return false;
     }
     return m.setButton(section, number, text, err);

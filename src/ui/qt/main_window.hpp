@@ -35,9 +35,14 @@ public:
     explicit MainWindow(const UiContext &base, QWidget *parent = nullptr);
     ~MainWindow() override;  // destroys the pages before the models they reference
     void bringToFront();                      // show, un-minimize, raise and activate (every OS)
-    // Before the application quits: asks Save / Discard / Cancel for unsaved edits (Modes and Button modes
-    // pages). False: the user chose Cancel (or a save failed); do not quit.
-    bool confirmQuit();
+    // Writes every pending edit now, synchronously (page switch, window close, quit). Nothing is
+    // ever asked: all edits are saved by themselves, this only makes sure the last one is on disk.
+    // False if a write failed (the footer says why).
+    bool flushPending();
+    Autosaver *autosaver() { return &autosave_; }  // the writer of the configuration (self-test)
+    QString saveStatus() const;  // the text of the save status in the footer ("" = nothing to say)
+    // Opens a tab of a profile on the Profiles page ("general", "channels", "buttons", "overrides").
+    bool openProfileTab(size_t section, const QString &tab);
     int pageCount() const;                    // pages in all categories
     int categoryCount() const;                // left tabs
     // Selects a page by registry id ("channels", "axes", ...): its category and its tab. False if unknown.
@@ -58,7 +63,7 @@ public:
     QWidget *currentPage() const;             // the page that is shown (a tab of the category or its only page)
     QString currentPageId() const;            // registry id of the page that is shown
     bool selectedProfileIs(size_t section) const;  // is this profile selected on the Profiles page?
-    bool profilePageHasModeSelector() const;  // false for the default mode
+    class ProfilesPage *profilesPage() const;  // the page of the registry entry "profiles"
 
     // Window state: size, position and the selected page are kept in the per-user UI settings file
     // `settingsPath` (src/ui/model/ui_settings.hpp). This restores them now (a saved geometry that is
@@ -89,6 +94,9 @@ protected:
 private:
     QLabel *categoryTitle_ = nullptr;  // large title above the category
     void updateStatus();
+    void noteConfigStamp();
+    void followConfigFile();
+    void migrateLegacyButtons();  // NAV_BUTTON / CLICK_BUTTON -> BUTTON_<n>, once and visibly
     void savePage();
     void refreshAppearance();  // tab icons in the colour of the palette, tab style on top of the current style
 
@@ -98,15 +106,19 @@ private:
     spn::ui::ModeCatalog modes_;
     spn::ui::ButtonModeCatalog buttonModes_;
     QtStrings strings_;
+    Autosaver autosave_;  // writes settings_ after every edit
     UiContext ctx_;
     std::vector<spn::ui::NavCategory> nav_;
     QTabBar *categoryBar_ = nullptr;
     QProxyStyle *tabStyle_ = nullptr;
     QStackedWidget *categories_ = nullptr;
     QLabel *statusLabel_ = nullptr;
+    QLabel *saveLabel_ = nullptr;  // "Saved" / "Could not save: ..." in the footer
     QWidget *profilesPage_ = nullptr;  // the "Profiles" page from the registry
     QWidget *overviewPage_ = nullptr;  // the "Overview" page from the registry
     QLabel *trayNote_ = nullptr;       // status bar note when there is no tray
+    std::vector<std::string> startupNotes_;  // legacy NAV/CLICK button settings: moved / could not be moved
+    QString configStamp_;              // size and time of the configuration file as last read or written
     std::string statePath_;            // ui.conf the window state is kept in ("" = not kept)
     bool restoring_ = false;
     QTimer *stateTimer_ = nullptr;       // single shot: saves the geometry after a resize or move

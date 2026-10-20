@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Logic of the "Channels" page on top of SettingsModel: the groups shown on the page, reset of one
-// group and "restore defaults" (both remove the keys from [global], i.e. the built-in defaults
-// apply again), and the zoom lateral axes as a list of checkboxes. No toolkit.
+// Logic of the "Channels" tab of a profile on top of SettingsModel: the groups shown there, reset
+// of one group and "Restore defaults" of the profile (both remove the keys from the profile, i.e.
+// the inherited values apply again; in [global] the built-in defaults), and the zoom lateral axes
+// as a list of checkboxes. No toolkit.
 #pragma once
 #include <string>
 #include <vector>
@@ -12,9 +13,10 @@
 
 namespace spn::ui {
 
-// Groups of the page, in display order: vertical scroll, horizontal scroll, zoom (channel keys
-// plus the zoom detection keys) and "daemon" (backend, tick rate). ENABLED is the tray's toggle
-// and not part of the page.
+// Groups of the tab, in display order: vertical scroll, horizontal scroll, zoom (channel keys
+// plus the zoom detection keys) and the step trigger of "step:" channel actions. ENABLED, MODE
+// and the buttons are on the other tabs; BACKEND and TICK_HZ belong to the daemon and are on the
+// Settings page (daemonGroup()).
 inline std::vector<SettingsModel::Group> channelPageGroups() {
     std::vector<SettingsModel::Group> out;
     const std::vector<SettingsModel::Group> all = SettingsModel::globalChannelGroups();
@@ -27,26 +29,29 @@ inline std::vector<SettingsModel::Group> channelPageGroups() {
             if (d.id == "zoom_detect") z.keys.insert(z.keys.end(), d.keys.begin(), d.keys.end());
         out.push_back(z);
     }
-    out.push_back({"daemon", "Daemon", {"BACKEND", "TICK_HZ"}, false});
+    out.push_back({"steps", "Step actions", {"STEP_TRIGGER"}, false});
     return out;
 }
 
-// Removes the keys of the group from [global]. true if anything changed.
-inline bool resetGroup(SettingsModel &m, const SettingsModel::Group &g) {
+// The daemon settings (Settings page): they apply to the whole program, not to a profile.
+inline SettingsModel::Group daemonGroup() { return {"daemon", "Daemon", {"BACKEND", "TICK_HZ"}, false}; }
+
+// Removes the keys of the group from the profile `section`. true if anything changed.
+inline bool resetGroup(SettingsModel &m, size_t section, const SettingsModel::Group &g) {
     bool changed = false;
     for (const std::string &k : g.keys) {
-        if (m.isOverridden(0, k)) {
-            m.clearOverride(0, k);
+        if (m.isOverridden(section, k)) {
+            m.clearOverride(section, k);
             changed = true;
         }
     }
     return changed;
 }
 
-// "Restore defaults": all groups of the page.
-inline bool restoreAllDefaults(SettingsModel &m) {
+// "Restore defaults": all groups of the tab.
+inline bool restoreAllDefaults(SettingsModel &m, size_t section) {
     bool changed = false;
-    for (const SettingsModel::Group &g : channelPageGroups()) changed = resetGroup(m, g) || changed;
+    for (const SettingsModel::Group &g : channelPageGroups()) changed = resetGroup(m, section, g) || changed;
     return changed;
 }
 

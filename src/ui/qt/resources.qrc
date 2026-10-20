@@ -7,5 +7,7 @@
     <file alias="icons/modes.svg">icons/modes.svg</file>
     <file alias="icons/device.svg">icons/device.svg</file>
     <file alias="icons/settings.svg">icons/settings.svg</file>
+    <file alias="icons/global.svg">icons/global.svg</file>
+    <file alias="icons/app.svg">icons/app.svg</file>
   </qresource>
 </RCC>

@@ -6,25 +6,26 @@
 
 #include "pages/axes_page.hpp"
 #include "pages/button_modes_page.hpp"
-#include "pages/channels_page.hpp"
-#include "pages/extensions_page.hpp"
+#include "pages/device_page.hpp"
 #include "pages/general_page.hpp"
 #include "pages/modes_page.hpp"
 #include "pages/overview_page.hpp"
 #include "pages/profiles_page.hpp"
+#include "ui/model/ui_terms.hpp"
 #include "ui_i18n.hpp"
 
-// One line per page, in tab order; each page declares its factory in its own header.
+// One line per page, in tab order; each page declares its factory in its own header. The Channels
+// settings are not a page: they are the Channels tab of the profile editor (Profiles).
 const std::vector<PageFactory> &pageFactories() {
+    namespace terms = spn::ui::terms;
     static const std::vector<PageFactory> factories = {
         {"overview", "Overview", "overview", createOverviewPage},
         {"profiles", "Profiles", "profiles", createProfilesPage},
-        {"channels", "Channels", "profiles", createChannelsPage},
-        {"modes", "Modes", "modes", makeModesPage},
-        {"buttonmodes", "Button modes", "modes", createButtonModesPage},
-        {"extensions", "Extensions", "modes", createExtensionsPage},
+        {"modes", terms::kJoystickModes, "modes", makeModesPage},
+        {"buttonmodes", terms::kButtonModes, "modes", createButtonModesPage},
+        {"device", "Device", "device", createDevicePage},
         {"axes", "Axes", "device", createAxesPage},
-        {"general", "General", "settings", createGeneralPage},
+        {"settings", "Settings", "settings", createGeneralPage},
     };
     return factories;
 }

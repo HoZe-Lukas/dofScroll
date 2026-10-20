@@ -181,6 +181,25 @@ public:
         return write(r, id, newTemplate(id, src->label, src->description, src->action));
     }
 
+    // Copies the file of the button mode to `dest` (a file path chosen by the user; a built-in button
+    // mode is exported as the template text of the built-in). Never overwrites, never follows a link at
+    // `dest`; the content is read with the import limits.
+    Result exportTo(const std::string &id, const std::string &dest) const {
+        Result r;
+        const Entry *e = find(id);
+        if (!e) return fail(r, "no such button mode");
+        if (dest.empty()) return fail(r, "no destination");
+        std::string text;
+        if (e->builtin) text = newTemplate(id, e->label, e->description, e->action, e->cycle);
+        else if (!fs::readFileBounded(e->path, kMaxImportBytes, fs::ReadOptions(), &text).ok()) return fail(r, "cannot read " + e->path);
+        if (fs::pathExists(dest)) return fail(r, "the destination already exists");
+        if (!fs::createFileExclusive(dest, text)) return fail(r, "cannot create " + dest);
+        r.ok = true;
+        r.id = id;
+        r.path = dest;
+        return r;
+    }
+
     // Rewrites the file of `id`: the leading comment block stays, then NAME, DESCRIPTION (if not
     // empty) and ACTION. The id (file name) never changes. Atomic.
     Result save(const std::string &id, const std::string &name, const std::string &description,
@@ -309,7 +328,7 @@ public:
         for (const ModeDef &m : modes.modes)
             for (const ButtonBinding &b : m.buttons)
                 if (b.type == ButtonActionType::ButtonMode && b.mode == id)
-                    out.push_back("mode " + m.id + ": BUTTON_" + std::to_string(b.button));
+                    out.push_back("joystick mode " + m.id + ": BUTTON_" + std::to_string(b.button));
         return out;
     }
     Result remove(const std::string &id) {

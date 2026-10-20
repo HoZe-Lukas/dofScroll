@@ -40,6 +40,7 @@ struct ThemeColors {
     Rgb accentSoft;       // selected tab, row and menu entry (text stays windowText)
     Rgb accentHover;      // hovered primary button
     Rgb accentPressed;    // pressed primary button
+    Rgb danger;           // error text next to a field and error borders (always together with a text)
 };
 
 // Colour between a and b: t = 0 is a, t = 1 is b.
@@ -75,6 +76,7 @@ inline ThemeColors finishColors(ThemeColors c) {
     const Rgb towards = dark ? Rgb{255, 255, 255} : Rgb{0, 0, 0};
     c.accentHover = mixColors(c.highlight, towards, 0.12);
     c.accentPressed = mixColors(c.highlight, towards, 0.24);
+    c.danger = dark ? Rgb{0xFF, 0x8A, 0x80} : Rgb{0xB3, 0x26, 0x1E};
     return c;
 }
 

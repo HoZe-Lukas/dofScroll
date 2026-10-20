@@ -77,21 +77,31 @@ int main() {
     // ---- channels page ----
     const auto groups = channelPageGroups();
     assert(groups.size() == 4 && groups[0].id == "scroll_v" && groups[1].id == "scroll_h");
-    assert(groups[2].id == "zoom" && groups[2].keys.size() == 9 && groups[3].id == "daemon");
+    assert(groups[2].id == "zoom" && groups[2].keys.size() == 9 && groups[3].id == "steps");
     for (const auto &g : groups)
-        for (const auto &k : g.keys) assert(k != "ENABLED" && k != "MODE");
+        for (const auto &k : g.keys)
+            assert(k != "ENABLED" && k != "MODE" && k != "TICK_HZ" && k != "BACKEND" && k.find("NAV_") != 0 && k.find("CLICK_") != 0);
+    assert(daemonGroup().keys.size() == 2 && daemonGroup().keys[0] == "BACKEND");
 
     SettingsModel m;
     m.setProfiles(ProfileSet(), root + "/dofscroll.conf");
-    assert(!resetGroup(m, groups[0]));  // nothing to reset
+    assert(!resetGroup(m, 0, groups[0]));  // nothing to reset
     assert(m.setValue(0, "SCROLL_V_SENS", "9", &err) && m.setValue(0, "SCROLL_H_SENS", "8", &err));
     assert(m.setValue(0, "ZOOM_ENTER_MS", "100", &err) && m.setValue(0, "TICK_HZ", "120", &err));
     assert(!m.setValue(0, "SCROLL_V_DEADZONE", "abc", &err) && !err.empty());
-    assert(resetGroup(m, groups[0]) && !m.isOverridden(0, "SCROLL_V_SENS"));
+    assert(resetGroup(m, 0, groups[0]) && !m.isOverridden(0, "SCROLL_V_SENS"));
     assert(m.isOverridden(0, "SCROLL_H_SENS"));  // other group untouched
-    assert(resetGroup(m, groups[2]) && !m.isOverridden(0, "ZOOM_ENTER_MS"));
-    assert(restoreAllDefaults(m) && !m.isOverridden(0, "SCROLL_H_SENS") && !m.isOverridden(0, "TICK_HZ"));
-    assert(!restoreAllDefaults(m));
+    assert(resetGroup(m, 0, groups[2]) && !m.isOverridden(0, "ZOOM_ENTER_MS"));
+    assert(restoreAllDefaults(m, 0) && !m.isOverridden(0, "SCROLL_H_SENS"));
+    assert(m.isOverridden(0, "TICK_HZ"));  // a daemon setting is not part of a profile's tab
+    assert(!restoreAllDefaults(m, 0));
+    // the same for a profile: only its own keys go, the inherited values come back
+    const size_t app = m.addSection(Section::APP, "viewer", &err);
+    assert(m.setValue(0, "SCROLL_V_SENS", "6", &err) && m.setValue(app, "SCROLL_V_SENS", "11", &err));
+    assert(m.setValue(app, "STEP_TRIGGER", "40", &err) && m.setValue(app, "ENABLED", "0", &err));
+    assert(restoreAllDefaults(m, app) && !m.isOverridden(app, "SCROLL_V_SENS") && !m.isOverridden(app, "STEP_TRIGGER"));
+    assert(m.isOverridden(app, "ENABLED") && m.effective(app).scroll_v.sensitivity == 6 && m.isOverridden(0, "SCROLL_V_SENS"));
+    assert(m.clearOverride(app, "ENABLED") && m.removeSection(app, &err) && m.clearOverride(0, "SCROLL_V_SENS"));
 
     // save writes the file and calls the reload callback
     int reloads = 0;

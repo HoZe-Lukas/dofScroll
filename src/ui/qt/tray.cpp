@@ -59,7 +59,8 @@ Tray::Tray(MainWindow *window, const QIcon &baseIcon, const UiContext &ctx, QObj
       timer_(new QTimer(this)) {
     controller_.hooks().openSettings = [this] { window_->bringToFront(); };
     controller_.hooks().quit = [this] {
-        if (window_->confirmQuit()) QApplication::quit();
+        window_->flushPending();  // the last edit is on disk before the process ends
+        QApplication::quit();
     };
     controller_.hooks().showLog = [this, dir = ctx.runtimeDir] { LogDialog::showFor(window_, dir, strings_); };
     icon_.setContextMenu(&menu_);
@@ -85,6 +86,13 @@ int Tray::modeMenuCount() const {
     for (const auto &e : entries)
         if (e.kind == spn::ui::TrayEntry::Kind::Submenu) return int(e.children.size());
     return 0;
+}
+
+QStringList Tray::modeMenuToolTips() const {
+    QStringList out;
+    for (QMenu *sub : menu_.findChildren<QMenu *>(QString(), Qt::FindDirectChildrenOnly))
+        for (QAction *a : sub->actions()) out << a->toolTip();
+    return out;
 }
 
 int Tray::menuEntryCount() const { return int(menu_.actions().size()); }
@@ -122,10 +130,13 @@ void Tray::addEntry(QMenu *into, const spn::ui::TrayEntry &e) {
     }
     if (e.kind == Kind::Submenu) {
         QMenu *sub = into->addMenu(QString::fromStdString(e.text));
+        sub->setToolTipsVisible(true);
         auto *group = new QActionGroup(sub);
         group->setExclusive(true);
         for (const spn::ui::TrayEntry &c : e.children) {
             QAction *a = sub->addAction(QString::fromStdString(c.text));
+            a->setToolTip(QString::fromStdString(c.tooltip));  // the description of the joystick mode
+            a->setStatusTip(QString::fromStdString(c.tooltip));
             a->setCheckable(true);
             a->setChecked(c.checked);
             group->addAction(a);

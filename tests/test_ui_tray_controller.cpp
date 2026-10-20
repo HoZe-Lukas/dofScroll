@@ -64,7 +64,7 @@ int main() {
     assert(c.refresh(now));
     assert(c.icon() == TrayController::Icon::Enabled);
     for (const auto &r : c.menu().entries[4].children) assert(r.checked == (r.arg == "timeline"));
-    assert(c.tooltip().find("Mode:") != std::string::npos);
+    assert(c.tooltip().find("Joystick mode:") != std::string::npos);
     assert(!c.refresh(now));  // nothing changed
     put(p.runtimeDir + "/dofscroll-status", statusFile("normal", now, "0"));
     c.refresh(now);

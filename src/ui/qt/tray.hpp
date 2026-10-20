@@ -8,6 +8,7 @@
 #include <QIcon>
 #include <QMenu>
 #include <QObject>
+#include <QStringList>
 #include <QSystemTrayIcon>
 
 #include "qt_action_runner.hpp"
@@ -24,6 +25,7 @@ public:
     void show();
     int modeMenuCount() const;   // radio items in the Mode submenu
     int menuEntryCount() const;  // visible top-level actions and submenus
+    QStringList modeMenuToolTips() const;  // the tooltip of each entry of the joystick mode submenu (self-test)
     spn::ui::TrayController &controller() { return controller_; }
 
 private slots:

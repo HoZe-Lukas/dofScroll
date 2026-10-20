@@ -11,11 +11,11 @@ It consists of two programs. The Qt interface is the only tray and settings wind
 | Program | Task |
 |---|---|
 | `dofscroll` | Background daemon. Reads the SpaceMouse, produces the input events. |
-| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Channels, General, Axes, Modes, Profiles). Writes the same config file and tells the daemon to reload. See [docs/ui.md](docs/ui.md). |
+| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Overview, Profiles with the Channels tab, Joystick modes, Button modes, Device and Axes, Settings). Writes the same config file and tells the daemon to reload. See [docs/ui.md](docs/ui.md). |
 
 ## Design principle
 
-dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [docs/modes.md](docs/modes.md#buttons-and-the-vendor-driver).
+dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch or toggle joystick modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [docs/modes.md](docs/modes.md#buttons-and-the-vendor-driver).
 
 ## Status and testing
 
@@ -47,7 +47,7 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
 - Pausing output while the own session is not the active one (several users on one PC) was
   unit-tested with fake probes only; no second user session was available. The Windows and macOS
   probes are compile-checked only.
-- On Linux `spacenavd` reports one merged device, so two mice with different modes at once are
+- On Linux `spacenavd` reports one merged device, so two mice with different joystick modes at once are
   not possible.
 - Wayland: not tested; the uinput udev rule is opt-in; active-window profiles need `kdotool`.
 - Supported devices: models that `spacenavd` supports (Linux) or that report a known HID layout
@@ -88,33 +88,33 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 | Document | Content |
 |---|---|
 | [docs/installation.md](docs/installation.md) | Install from a release, first-time setup, upgrade, uninstall, build from source |
-| [docs/ui.md](docs/ui.md) | The Qt interface: pages, mode dropdown, profiles, running-program picker, tray |
+| [docs/ui.md](docs/ui.md) | The Qt interface: pages, profile editor, autosave, inheritance, joystick modes and button modes, running-program picker, tray |
 | [docs/configuration.md](docs/configuration.md) | Config file, all keys, profiles, precedence, examples |
 | [docs/button-modes.md](docs/button-modes.md) | Button modes: named button behaviors in `buttons/*.conf`, chosen per button |
-| [docs/modes.md](docs/modes.md) | Modes, button actions, key names, buttons versus the vendor driver (always-the-same button mappings belong in the driver) |
+| [docs/modes.md](docs/modes.md) | Joystick modes, button actions, key names, buttons versus the vendor driver (always-the-same button mappings belong in the driver) |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common problems, logs, status files |
 | [docs/devices.md](docs/devices.md) | Device descriptions |
 | [docs/security.md](docs/security.md) | Threat model, systemd hardening, uinput permissions |
 | [docs/releasing.md](docs/releasing.md) | How a release is made |
 | [docs/release-notes-0.1.0-beta.3.md](docs/release-notes-0.1.0-beta.3.md) | Release notes of 0.1.0-beta.3; beta.2 in [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-beta.2.md), beta.1 notes in [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) |
 | [docs/work-plan.md](docs/work-plan.md) | Roadmap and the Windows/macOS ports |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, pull requests, adding a mode or language |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, pull requests, adding a joystick mode or language |
 
 ## Text and encoding
 
-All text is UTF-8: configuration, mode and device files, logs, and every path (spaces, umlauts,
+All text is UTF-8: configuration, joystick mode and device files, logs, and every path (spaces, umlauts,
 CJK, emoji and characters such as `#` `;` `=` `%` `&` `[` `]` are fine). A BOM is accepted when
 reading and never written; case-insensitive matching folds ASCII letters only. Details and limits:
 [docs/encoding.md](docs/encoding.md).
 
 ## Security notes
 
-- **Mode files are code-like.** A mode file can press any key from the key list (including Ctrl,
+- **Joystick mode files are code-like.** A joystick mode file can press any key from the key list (including Ctrl,
   Alt and Super, and chords such as Ctrl+W through the zoom channel) while a button is held or an
-  axis is deflected. Only use mode files from sources you trust and read them first: look for
+  axis is deflected. Only use joystick mode files from sources you trust and read them first: look for
   `key:`, `keys:`, `zoom` and `mode:`. The daemon warns at load time about modifier-capable
   bindings. Details in [docs/modes.md](docs/modes.md#safety-and-sharing-modes). `ENABLED`,
-  `BACKEND` and `TICK_HZ` are not allowed in mode files.
+  `BACKEND` and `TICK_HZ` are not allowed in joystick mode files.
 - **The uinput udev rule is opt-in.** Packages do not enable `/dev/uinput` access. Only Wayland
   users need it; see [docs/installation.md](docs/installation.md).
 - Threat model, hardening and open points: [docs/security.md](docs/security.md).

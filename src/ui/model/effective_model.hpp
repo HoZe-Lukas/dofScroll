@@ -27,7 +27,7 @@ inline std::string sourceText(SettingsModel::Source s, const std::string &modeId
         case S::Global: return str.tr("from the global settings");
         case S::Device: return str.tr("from this device profile");
         case S::App: return str.tr("from this program profile");
-        case S::Mode: return format(str.tr("from mode \"%1\""), {modeId});
+        case S::Mode: return format(str.tr("from joystick mode \"%1\""), {modeId});
     }
     return std::string();
 }

@@ -68,21 +68,19 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
         arg = kc;
     } else if (bk == BindingKind::Mode || bk == BindingKind::ToggleMode || bk == BindingKind::HoldMode) {
         auto *mc = new QComboBox(parent);
-        mc->setAccessibleName(T("Mode of button") + QStringLiteral(" %1").arg(row.number));
+        mc->setAccessibleName(T("Joystick mode of button") + QStringLiteral(" %1").arg(row.number));
         std::vector<std::string> ids = env.modeIds;
         if (std::find(ids.begin(), ids.end(), row.binding.arg) == ids.end()) ids.push_back(row.binding.arg);
-        for (const std::string &id : ids) mc->addItem(qs8(id), qs8(id));
+        for (const std::string &id : ids) {
+            mc->addItem(qs8(id), qs8(id));
+            auto tip = env.modeTips.find(id);
+            if (tip != env.modeTips.end()) mc->setItemData(mc->count() - 1, qs8(tip->second), Qt::ToolTipRole);
+        }
         mc->setCurrentIndex(std::max(0, mc->findData(qs8(row.binding.arg))));
         QObject::connect(mc, &QComboBox::activated, owner, [handlers, mc, bk](int) {
             if (handlers.setArgument) handlers.setArgument(Binding{bk, mc->currentData().toString().toUtf8().toStdString()});
         });
         arg = mc;
-    }
-    if (!arg && env.showInherited && env.context == BindingContext::Specific && !row.overridden) {
-        // Inherited: say what it is, so the effect of "Default (inherit)" is visible.
-        auto *l = new QLabel(T("inherited:") + QLatin1Char(' ') + qs8(row.text), parent);
-        l->setForegroundRole(QPalette::PlaceholderText);
-        arg = l;
     }
     if (arg) grid->addWidget(arg, r, 2);
 
@@ -101,5 +99,17 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
             if (handlers.reset) handlers.reset();
         });
         grid->addWidget(reset, r, 3);
+    }
+    // Where the action comes from: "Inherited from Global: key:space", "Set in this profile", or in [global]
+    // the profiles that override it. Written out, never only a colour.
+    if (!row.origin.empty()) {
+        auto *origin = new QLabel(qs8(row.origin), parent);
+        origin->setForegroundRole(QPalette::PlaceholderText);
+        origin->setWordWrap(true);
+        origin->setMinimumWidth(180);
+        origin->setMaximumWidth(320);
+        origin->setAccessibleName(T("Origin of button") + QStringLiteral(" %1").arg(row.number));
+        if (!row.originTip.empty()) origin->setToolTip(qs8(row.originTip));
+        grid->addWidget(origin, r, 4);
     }
 }

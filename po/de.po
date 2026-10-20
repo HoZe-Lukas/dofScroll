@@ -2329,3 +2329,997 @@ msgstr ""
 "mit derselben ID erstellen? Sie ersetzt den eingebauten Tastenmodus, bis Sie "
 "die Datei löschen. Um das Original zu behalten, verwenden Sie stattdessen "
 "Duplizieren."
+
+# --- dofscroll-ui: profile-centric editor, autosave, inheritance, joystick modes (new entries) ---
+
+#: src/ui
+msgid "Could not save: %1"
+msgstr "Konnte nicht gespeichert werden: %1"
+
+#: src/ui
+msgid "Saved"
+msgstr "Gespeichert"
+
+#: src/ui
+msgid "Saved, but the daemon was not notified: %1"
+msgstr "Gespeichert, aber der Daemon wurde nicht benachrichtigt: %1"
+
+#: src/ui
+msgid "Default (inherit from Global)"
+msgstr "Standard (von Global erben)"
+
+#: src/ui
+msgid "%1 axes"
+msgstr "%1 Achsen"
+
+#: src/ui
+msgid "%1 buttons"
+msgstr "%1 Tasten"
+
+#: src/ui
+msgid ""
+"The profile editor offers this many button rows (as reported by the "
+"driver)."
+msgstr ""
+"Der Profil-Editor bietet so viele Tastenzeilen an (wie vom Treiber "
+"gemeldet)."
+
+#: src/ui
+msgid ""
+"The profile editor offers this many button rows (from the table of known "
+"models)."
+msgstr ""
+"Der Profil-Editor bietet so viele Tastenzeilen an (aus der Tabelle "
+"bekannter Modelle)."
+
+#: src/ui
+msgid "Unnamed device"
+msgstr "Gerät ohne Namen"
+
+#: src/ui
+msgid "Up to 32 buttons can be configured on the Profiles page."
+msgstr "Auf der Seite Profile lassen sich bis zu 32 Tasten belegen."
+
+#: src/ui
+msgid "number of buttons unknown"
+msgstr "Anzahl der Tasten unbekannt"
+
+#: src/ui
+msgid "from joystick mode \"%1\""
+msgstr "aus dem Joystick-Modus \"%1\""
+
+#: src/ui
+msgid "Built in"
+msgstr "Eingebaut"
+
+#: src/ui
+msgid "Example, not installed yet"
+msgstr "Beispiel, noch nicht installiert"
+
+#: src/ui
+msgid "Your file"
+msgstr "Deine Datei"
+
+#: src/ui
+msgid "Your file, replaces the built-in joystick mode"
+msgstr "Deine Datei, ersetzt den eingebauten Joystick-Modus"
+
+#: src/ui
+msgid "%1 profiles override this"
+msgstr "%1 Profile überschreiben das"
+
+#: src/ui
+msgid "1 profile overrides this"
+msgstr "1 Profil überschreibt das"
+
+#: src/ui
+msgid "Already the built-in default"
+msgstr "Schon der eingebaute Standard"
+
+#: src/ui
+msgid ""
+"Applies to every device and program unless a device or program profile "
+"overrides it."
+msgstr ""
+"Gilt für jedes Gerät und jedes Programm, außer ein Geräte- oder "
+"Programmprofil überschreibt es."
+
+#: src/ui
+msgid "Back to the built-in default"
+msgstr "Zurück zum eingebauten Standard"
+
+#: src/ui
+msgid ""
+"Everything you do not change here is inherited from Global (and the "
+"device)."
+msgstr ""
+"Alles, was du hier nicht änderst, wird von Global (und vom Gerät) geerbt."
+
+#: src/ui
+msgid "From joystick mode \"%1\": %2"
+msgstr "Aus dem Joystick-Modus \"%1\": %2"
+
+#: src/ui
+msgid "Inherited from Global"
+msgstr "Von Global geerbt"
+
+#: src/ui
+msgid "Inherited from Global (built-in default)"
+msgstr "Von Global geerbt (eingebauter Standard)"
+
+#: src/ui
+msgid "Inherited from Global (built-in default): %1"
+msgstr "Von Global geerbt (eingebauter Standard): %1"
+
+#: src/ui
+msgid "Inherited from Global: %1"
+msgstr "Von Global geerbt: %1"
+
+#: src/ui
+msgid "Nothing to reset: this profile inherits it"
+msgstr "Nichts zurückzusetzen: dieses Profil erbt es"
+
+#: src/ui
+msgid "Overrides %1 settings"
+msgstr "Überschreibt %1 Einstellungen"
+
+#: src/ui
+msgid "Overrides 1 setting"
+msgstr "Überschreibt 1 Einstellung"
+
+#: src/ui
+msgid "Overrides nothing: everything is inherited"
+msgstr "Überschreibt nichts: alles wird geerbt"
+
+#: src/ui
+msgid "Reset to inherited: remove this profile's own value"
+msgstr "Auf geerbt zurücksetzen: den eigenen Wert dieses Profils entfernen"
+
+#: src/ui
+msgid "Set in this profile"
+msgstr "In diesem Profil gesetzt"
+
+#: src/ui
+msgid "Set in this profile (inherited: %1)"
+msgstr "In diesem Profil gesetzt (geerbt: %1)"
+
+#: src/ui
+msgid ""
+"These profiles set their own value, so the value of Global has no effect "
+"there:"
+msgstr ""
+"Diese Profile setzen einen eigenen Wert, der Wert von Global wirkt dort "
+"also nicht:"
+
+#: src/ui
+msgid "device"
+msgstr "Gerät"
+
+#: src/ui
+msgid "program"
+msgstr "Programm"
+
+#: src/ui
+msgid "device %1 sets %2"
+msgstr "Gerät %1 setzt %2"
+
+#: src/ui
+msgid "inverted"
+msgstr "umgekehrt"
+
+#: src/ui
+msgid "normal"
+msgstr "normal"
+
+#: src/ui
+msgid "off"
+msgstr "aus"
+
+#: src/ui
+msgid "on"
+msgstr "an"
+
+#: src/ui
+msgid ""
+"A joystick mode file can press any key, including shortcut chords (Ctrl, "
+"Alt, Super), whenever a button is pressed or the mouse is moved. Only "
+"keep files from sources you trust and read the file first."
+msgstr ""
+"Eine Joystick-Modus-Datei kann beliebige Tasten drücken, auch "
+"Tastenkombinationen (Strg, Alt, Super), sobald eine Taste gedrückt oder "
+"die Maus bewegt wird. Behalte nur Dateien aus vertrauenswürdigen Quellen "
+"und lies die Datei vorher."
+
+#: src/ui
+msgid "Action: %1"
+msgstr "Aktion: %1"
+
+#: src/ui
+msgid "Binds %1 buttons"
+msgstr "Belegt %1 Tasten"
+
+#: src/ui
+msgid "Horizontal push: %1"
+msgstr "Horizontal schieben: %1"
+
+#: src/ui
+msgid "No description"
+msgstr "Keine Beschreibung"
+
+#: src/ui
+msgid "Twist: %1"
+msgstr "Drehen: %1"
+
+#: src/ui
+msgid "Vertical push: %1"
+msgstr "Vertikal schieben: %1"
+
+#: src/ui
+msgid "does nothing"
+msgstr "tut nichts"
+
+#: src/ui
+msgid "scrolls horizontally"
+msgstr "scrollt horizontal"
+
+#: src/ui
+msgid "scrolls vertically"
+msgstr "scrollt vertikal"
+
+#: src/ui
+msgid ""
+"taps %1 in one direction and %2 in the other, faster the further you push"
+msgstr ""
+"tippt %1 in die eine und %2 in die andere Richtung, schneller je weiter "
+"du schiebst"
+
+#: src/ui
+msgid "taps %1 or %2 once per push"
+msgstr "tippt %1 oder %2 einmal pro Schub"
+
+#: src/ui
+msgid "works as set in the profile (scroll and zoom as configured)"
+msgstr ""
+"arbeitet wie im Profil eingestellt (Scrollen und Zoom wie konfiguriert)"
+
+#: src/ui
+msgid "zooms (Ctrl + wheel)"
+msgstr "zoomt (Strg + Rad)"
+
+#: src/ui
+msgid "Joystick mode: %1"
+msgstr "Joystick-Modus: %1"
+
+#: src/ui
+msgid "%1: %2 -> %3 = %4"
+msgstr "%1: %2 -> %3 = %4"
+
+#: src/ui
+msgid "%1: %2 = %3 is above the %4 buttons of this device"
+msgstr "%1: %2 = %3 liegt über den %4 Tasten dieses Geräts"
+
+#: src/ui
+msgid "%1: %2 is already set; %3 was left as it is"
+msgstr "%1: %2 ist schon belegt; %3 blieb unverändert"
+
+#: src/ui
+msgid "Navigation on"
+msgstr "Navigation an"
+
+#: src/ui
+msgid "This joystick mode is not installed"
+msgstr "Dieser Joystick-Modus ist nicht installiert"
+
+#: src/ui
+msgid "Joystick mode of button"
+msgstr "Joystick-Modus der Taste"
+
+#: src/ui
+msgid "Origin of button"
+msgstr "Herkunft der Taste"
+
+#: src/ui
+msgid "Moved the old navigation/click button settings to the Buttons tab"
+msgstr ""
+"Die alten Einstellungen für Navigations- und Klicktaste wurden auf den "
+"Reiter Tasten verschoben"
+
+#: src/ui
+msgid "Not moved: "
+msgstr "Nicht verschoben: "
+
+#: src/ui
+msgid "Save status"
+msgstr "Speicherstatus"
+
+#: src/ui
+msgid "navigation"
+msgstr "Navigation"
+
+#: src/ui
+msgid ""
+"All examples are already in your button modes folder, or none ships with "
+"this installation."
+msgstr ""
+"Alle Beispiele sind schon in deinem Ordner für Tasten-Modi, oder diese "
+"Installation bringt keine mit."
+
+#: src/ui
+msgid "Copy one of the examples that ship with dofscroll into your folder"
+msgstr "Eines der mitgelieferten Beispiele in deinen Ordner kopieren"
+
+#: src/ui
+msgid "Copy this example into your button modes folder:"
+msgstr "Dieses Beispiel in deinen Ordner für Tasten-Modi kopieren:"
+
+#: src/ui
+msgid "New from example"
+msgstr "Neu aus Beispiel"
+
+#: src/ui
+msgid "New from example..."
+msgstr "Neu aus Beispiel..."
+
+#: src/ui
+msgid ""
+"Not saved until an action is complete: choose a key or a joystick mode."
+msgstr ""
+"Wird erst gespeichert, wenn die Aktion vollständig ist: wähle eine Taste "
+"oder einen Joystick-Modus."
+
+#: src/ui
+msgid "Problem"
+msgstr "Problem"
+
+#: src/ui
+msgid "This example is not offered."
+msgstr "Dieses Beispiel wird nicht angeboten."
+
+#: src/ui
+msgid ""
+"How the cap movement becomes scrolling and zooming. A change is saved at "
+"once and the daemon reloads it."
+msgstr ""
+"Wie die Bewegung der Kappe zu Scrollen und Zoomen wird. Eine Änderung "
+"wird sofort gespeichert und der Daemon lädt sie neu."
+
+#: src/ui
+msgid ""
+"Remove every value of this tab from the profile: the inherited values "
+"(the built-in defaults for Global) apply again"
+msgstr ""
+"Jeden Wert dieses Reiters aus dem Profil entfernen: die geerbten Werte "
+"(bei Global die eingebauten Standards) gelten wieder"
+
+#: src/ui
+msgid ""
+"Remove the settings of this group from the profile so the inherited "
+"values apply"
+msgstr ""
+"Die Einstellungen dieser Gruppe aus dem Profil entfernen, damit die "
+"geerbten Werte gelten"
+
+#: src/ui
+msgid "Reset all settings on this tab to the inherited values?"
+msgstr ""
+"Alle Einstellungen dieses Reiters auf die geerbten Werte zurücksetzen?"
+
+#: src/ui
+msgid "Reset this group"
+msgstr "Diese Gruppe zurücksetzen"
+
+#: src/ui
+msgid "Reset to inherited"
+msgstr "Auf geerbt zurücksetzen"
+
+#: src/ui
+msgid "Connected devices"
+msgstr "Angeschlossene Geräte"
+
+#: src/ui
+msgid "No device found. Start spacenavd and plug in the device."
+msgstr "Kein Gerät gefunden. Starte spacenavd und schließe das Gerät an."
+
+#: src/ui
+msgid ""
+"The connected 3D mouse and how many buttons a profile offers for it. Live "
+"axes and the axis assistant are on the Axes tab."
+msgstr ""
+"Die angeschlossene 3D-Maus und wie viele Tasten ein Profil dafür "
+"anbietet. Live-Achsen und der Achsen-Assistent sind auf dem Reiter Achsen."
+
+#: src/ui
+msgid "Daemon"
+msgstr "Daemon"
+
+#: src/ui
+msgid ""
+"Off: the 3D mouse does nothing through dofscroll (the vendor driver still "
+"works). A program profile can switch output off for one program only."
+msgstr ""
+"Aus: die 3D-Maus tut über dofscroll nichts (der Herstellertreiber "
+"funktioniert weiter). Ein Programmprofil kann die Ausgabe nur für ein "
+"Programm abschalten."
+
+#: src/ui
+msgid "Send scroll, zoom and key events"
+msgstr "Scroll-, Zoom- und Tastenereignisse senden"
+
+#: src/ui
+msgid ""
+"These apply to the whole program, not to a profile. The output backend "
+"takes effect after the daemon is restarted."
+msgstr ""
+"Diese gelten für das ganze Programm, nicht für ein Profil. Das "
+"Ausgabe-Backend wirkt nach einem Neustart des Daemons."
+
+#: src/ui
+msgid ""
+"Turns everything dofscroll sends on or off. The tray's Enabled item is "
+"the same switch."
+msgstr ""
+"Schaltet alles ein oder aus, was dofscroll sendet. Der Eintrag "
+"\"Aktiviert\" im Tray ist derselbe Schalter."
+
+#: src/ui
+msgid "Edit joystick mode: %1"
+msgstr "Joystick-Modus bearbeiten: %1"
+
+#: src/ui
+msgid "Joystick mode sections"
+msgstr "Abschnitte des Joystick-Modus"
+
+#: src/ui
+msgid "Joystick modes"
+msgstr "Joystick-Modi"
+
+#: src/ui
+msgid "Not saved until this is fixed:"
+msgstr "Wird erst gespeichert, wenn das behoben ist:"
+
+#: src/ui
+msgid ""
+"Values that apply while this joystick mode is active (for example the "
+"sensitivity)."
+msgstr ""
+"Werte, die gelten, solange dieser Joystick-Modus aktiv ist (zum Beispiel "
+"die Empfindlichkeit)."
+
+#: src/ui
+msgid ""
+"A joystick mode says what the axes and buttons do: scroll, zoom, press "
+"keys. Pick one for a profile on the Profiles page."
+msgstr ""
+"Ein Joystick-Modus sagt, was die Achsen und Tasten tun: scrollen, zoomen, "
+"Tasten drücken. Wähle einen für ein Profil auf der Seite Profile."
+
+#: src/ui
+msgid ""
+"A joystick mode with this id already exists. Name for the imported "
+"joystick mode:"
+msgstr ""
+"Ein Joystick-Modus mit dieser ID gibt es schon. Name für den importierten "
+"Joystick-Modus:"
+
+#: src/ui
+msgid ""
+"Add a joystick mode file from somewhere else (you see its warnings first)"
+msgstr ""
+"Eine Joystick-Modus-Datei von woanders hinzufügen (du siehst zuerst ihre "
+"Warnungen)"
+
+#: src/ui
+msgid ""
+"All examples are already in your joystick modes folder, or none ships "
+"with this installation."
+msgstr ""
+"Alle Beispiele sind schon in deinem Ordner für Joystick-Modi, oder diese "
+"Installation bringt keine mit."
+
+#: src/ui
+msgid ""
+"All joystick modes: the built-in ones and the files in the joystick modes "
+"folder"
+msgstr ""
+"Alle Joystick-Modi: die eingebauten und die Dateien im Ordner für "
+"Joystick-Modi"
+
+#: src/ui
+msgid "Copy the selected joystick mode under a new name"
+msgstr "Den gewählten Joystick-Modus unter neuem Namen kopieren"
+
+#: src/ui
+msgid "Copy this example into your joystick modes folder:"
+msgstr "Dieses Beispiel in deinen Ordner für Joystick-Modi kopieren:"
+
+#: src/ui
+msgid "Could not create the joystick mode."
+msgstr "Der Joystick-Modus konnte nicht angelegt werden."
+
+#: src/ui
+msgid "Could not create the joystick modes folder."
+msgstr "Der Ordner für Joystick-Modi konnte nicht angelegt werden."
+
+#: src/ui
+msgid "Could not delete the joystick mode."
+msgstr "Der Joystick-Modus konnte nicht gelöscht werden."
+
+#: src/ui
+msgid "Could not duplicate the joystick mode."
+msgstr "Der Joystick-Modus konnte nicht dupliziert werden."
+
+#: src/ui
+msgid "Could not export the joystick mode."
+msgstr "Der Joystick-Modus konnte nicht exportiert werden."
+
+#: src/ui
+msgid "Could not import the joystick mode."
+msgstr "Der Joystick-Modus konnte nicht importiert werden."
+
+#: src/ui
+msgid "Could not rename the joystick mode."
+msgstr "Der Joystick-Modus konnte nicht umbenannt werden."
+
+#: src/ui
+msgid ""
+"Create a joystick mode file from a commented template and open it in your "
+"editor"
+msgstr ""
+"Eine Joystick-Modus-Datei aus einer kommentierten Vorlage anlegen und in "
+"deinem Editor öffnen"
+
+#: src/ui
+msgid "Delete the joystick mode file \"%1\"?"
+msgstr "Die Joystick-Modus-Datei \"%1\" löschen?"
+
+#: src/ui
+msgid "Delete the joystick mode file (your own files only)"
+msgstr "Die Joystick-Modus-Datei löschen (nur deine eigenen Dateien)"
+
+#: src/ui
+msgid "Details of the selected joystick mode"
+msgstr "Details des gewählten Joystick-Modus"
+
+#: src/ui
+msgid "Edit the joystick mode here: name, channels, buttons and overrides"
+msgstr ""
+"Den Joystick-Modus hier bearbeiten: Name, Kanäle, Tasten und "
+"Überschreibungen"
+
+#: src/ui
+msgid "Export joystick mode file"
+msgstr "Joystick-Modus-Datei exportieren"
+
+#: src/ui
+msgid ""
+"Give the joystick mode file a new name and id (profiles that use it are "
+"listed first)"
+msgstr ""
+"Der Joystick-Modus-Datei einen neuen Namen und eine neue ID geben "
+"(Profile, die sie nutzen, werden zuerst aufgelistet)"
+
+#: src/ui
+msgid "Import joystick mode file"
+msgstr "Joystick-Modus-Datei importieren"
+
+#: src/ui
+msgid "Import the joystick mode \"%1\"?"
+msgstr "Den Joystick-Modus \"%1\" importieren?"
+
+#: src/ui
+msgid "Joystick mode files (*.conf);;All files (*)"
+msgstr "Joystick-Modus-Dateien (*.conf);;Alle Dateien (*)"
+
+#: src/ui
+msgid ""
+"Joystick mode files can press any key. Only use joystick mode files from "
+"trusted sources."
+msgstr ""
+"Joystick-Modus-Dateien können beliebige Tasten drücken. Nutze nur "
+"Joystick-Modus-Dateien aus vertrauenswürdigen Quellen."
+
+#: src/ui
+msgid "Name of the new joystick mode:"
+msgstr "Name des neuen Joystick-Modus:"
+
+#: src/ui
+msgid "New joystick mode"
+msgstr "Neuer Joystick-Modus"
+
+#: src/ui
+msgid "New name of the joystick mode:"
+msgstr "Neuer Name des Joystick-Modus:"
+
+#: src/ui
+msgid "Open joystick modes folder"
+msgstr "Ordner für Joystick-Modi öffnen"
+
+#: src/ui
+msgid "Save a copy of the joystick mode file somewhere else"
+msgstr "Eine Kopie der Joystick-Modus-Datei woanders speichern"
+
+#: src/ui
+msgid "Show the folder with the joystick mode files"
+msgstr "Den Ordner mit den Joystick-Modus-Dateien zeigen"
+
+#: src/ui
+msgid ""
+"The built-in joystick mode \"%1\" is not a file. Create an editable file "
+"with the same id? It replaces the built-in joystick mode until you delete "
+"the file. To keep the original, use Duplicate instead."
+msgstr ""
+"Der eingebaute Joystick-Modus \"%1\" ist keine Datei. Eine bearbeitbare "
+"Datei mit derselben ID anlegen? Sie ersetzt den eingebauten "
+"Joystick-Modus, bis du die Datei löschst. Um das Original zu behalten, "
+"nutze stattdessen Duplizieren."
+
+#: src/ui
+msgid ""
+"The id of the joystick mode changes from \"%1\" to \"%2\". These profiles "
+"still refer to the old id and will fall back to the Global joystick mode "
+"until you change them:"
+msgstr ""
+"Die ID des Joystick-Modus ändert sich von \"%1\" auf \"%2\". Diese "
+"Profile verweisen noch auf die alte ID und fallen auf den "
+"Global-Joystick-Modus zurück, bis du sie änderst:"
+
+#: src/ui
+msgid ""
+"This file replaces the built-in joystick mode \"%1\"; the built-in one "
+"comes back."
+msgstr ""
+"Diese Datei ersetzt den eingebauten Joystick-Modus \"%1\"; der eingebaute "
+"kommt zurück."
+
+#: src/ui
+msgid "Warnings for the joystick modes folder:"
+msgstr "Warnungen für den Ordner der Joystick-Modi:"
+
+#: src/ui
+msgid "What it does:"
+msgstr "Was er tut:"
+
+#: src/ui
+msgid "selected as the joystick mode"
+msgstr "als Joystick-Modus gewählt"
+
+#: src/ui
+msgid ""
+"%1 device profile(s), %2 program profile(s). The Global joystick mode is "
+"%3."
+msgstr ""
+"%1 Geräteprofil(e), %2 Programmprofil(e). Der Global-Joystick-Modus ist "
+"%3."
+
+#: src/ui
+msgid "Active joystick mode"
+msgstr "Aktiver Joystick-Modus"
+
+#: src/ui
+msgid "Active joystick mode:"
+msgstr "Aktiver Joystick-Modus:"
+
+#: src/ui
+msgid "Filter profiles by name, joystick mode or setting"
+msgstr "Profile nach Name, Joystick-Modus oder Einstellung filtern"
+
+#: src/ui
+msgid ""
+"No program or device has its own profile yet. A profile changes the "
+"joystick mode or single settings for one program or one device."
+msgstr ""
+"Noch hat kein Programm und kein Gerät ein eigenes Profil. Ein Profil "
+"ändert den Joystick-Modus oder einzelne Einstellungen für ein Programm "
+"oder ein Gerät."
+
+#: src/ui
+msgid ""
+"Switches the joystick mode of the running daemon until the next reload or "
+"restart. The Global joystick mode in the configuration stays as it is."
+msgstr ""
+"Schaltet den Joystick-Modus des laufenden Daemons um, bis zum nächsten "
+"Neuladen oder Neustart. Der Global-Joystick-Modus in der Konfiguration "
+"bleibt unverändert."
+
+#: src/ui
+msgid "The daemon is not running, so there is no joystick mode to switch."
+msgstr ""
+"Der Daemon läuft nicht, also gibt es keinen Joystick-Modus zum Umschalten."
+
+#: src/ui
+msgid ""
+"A mapping that is the same everywhere is usually better set in the vendor "
+"driver (see docs/modes.md, \"Buttons and the vendor driver\"). Bindings "
+"that only apply in a certain joystick mode or profile are a dofscroll "
+"feature: set them in that profile."
+msgstr ""
+"Eine Belegung, die überall gleich ist, stellst du meist besser im "
+"Herstellertreiber ein (siehe docs/modes.md, \"Buttons and the vendor "
+"driver\"). Belegungen, die nur in einem bestimmten Joystick-Modus oder "
+"Profil gelten, sind eine dofscroll-Funktion: stelle sie in diesem Profil "
+"ein."
+
+#: src/ui
+msgid "About inheritance"
+msgstr "Über das Erben"
+
+#: src/ui
+msgid "About this joystick mode"
+msgstr "Über diesen Joystick-Modus"
+
+#: src/ui
+msgid "About this joystick mode: its description and what it does"
+msgstr "Über diesen Joystick-Modus: seine Beschreibung und was er tut"
+
+#: src/ui
+msgid "Advanced: every value this profile sets itself"
+msgstr "Erweitert: jeder Wert, den dieses Profil selbst setzt"
+
+#: src/ui
+msgid ""
+"Built-in joystick modes have no file; duplicate the joystick mode on the "
+"Joystick modes page to edit it"
+msgstr ""
+"Eingebaute Joystick-Modi haben keine Datei; dupliziere den Joystick-Modus "
+"auf der Seite Joystick-Modi, um ihn zu bearbeiten"
+
+#: src/ui
+msgid "Button bindings of this joystick mode:"
+msgstr "Tastenbelegungen dieses Joystick-Modus:"
+
+#: src/ui
+msgid ""
+"Choose another joystick mode for this profile, or keep \"Same as Global\"."
+msgstr ""
+"Wähle für dieses Profil einen anderen Joystick-Modus oder lass \"Wie "
+"Global\"."
+
+#: src/ui
+msgid "Configuration files (*.conf);;All files (*)"
+msgstr "Konfigurationsdateien (*.conf);;Alle Dateien (*)"
+
+#: src/ui
+msgid "Could not export the profile: "
+msgstr "Das Profil konnte nicht exportiert werden: "
+
+#: src/ui
+msgid "Device profile"
+msgstr "Geräteprofil"
+
+#: src/ui
+msgid ""
+"Each button can use a button mode, switch the joystick mode or hold the "
+"navigation mode (arrow keys instead of scrolling). All buttons are set "
+"here, one row each."
+msgstr ""
+"Jede Taste kann einen Tasten-Modus nutzen, den Joystick-Modus umschalten "
+"oder die Navigation halten (Pfeiltasten statt Scrollen). Alle Tasten "
+"werden hier eingestellt, je eine Zeile."
+
+#: src/ui
+msgid "Edit joystick mode file"
+msgstr "Joystick-Modus-Datei bearbeiten"
+
+#: src/ui
+msgid "Edited profile"
+msgstr "Bearbeitetes Profil"
+
+#: src/ui
+msgid "Export profile"
+msgstr "Profil exportieren"
+
+#: src/ui
+msgid "Global profile"
+msgstr "Globales Profil"
+
+#: src/ui
+msgid "Icon of the edited profile"
+msgstr "Symbol des bearbeiteten Profils"
+
+#: src/ui
+msgid "Kind of the edited profile"
+msgstr "Art des bearbeiteten Profils"
+
+#: src/ui
+msgid "No such profile."
+msgstr "Es gibt dieses Profil nicht."
+
+#: src/ui
+msgid "Notes about the old button settings"
+msgstr "Hinweise zu den alten Tasteneinstellungen"
+
+#: src/ui
+msgid "Open the joystick mode file in your default editor"
+msgstr "Die Joystick-Modus-Datei in deinem Standard-Editor öffnen"
+
+#: src/ui
+msgid "Profile exported"
+msgstr "Profil exportiert"
+
+#: src/ui
+msgid "Program profile"
+msgstr "Programmprofil"
+
+#: src/ui
+msgid "Reset to inherited: remove this profile's own binding"
+msgstr "Auf geerbt zurücksetzen: die eigene Belegung dieses Profils entfernen"
+
+#: src/ui
+msgid "Same as Global"
+msgstr "Wie Global"
+
+#: src/ui
+msgid "Save this profile (its section) as a .conf file"
+msgstr "Dieses Profil (seinen Abschnitt) als .conf-Datei speichern"
+
+#: src/ui
+msgid "Send events"
+msgstr "Ereignisse senden"
+
+#: src/ui
+msgid "Send scroll, zoom and key events while this profile is active"
+msgstr ""
+"Scroll-, Zoom- und Tastenereignisse senden, solange dieses Profil aktiv "
+"ist"
+
+#: src/ui
+msgid "Switch this off for a program that reads the SpaceMouse itself"
+msgstr "Schalte das für ein Programm aus, das die SpaceMouse selbst liest"
+
+#: src/ui
+msgid ""
+"The Global profile holds the base values, so it has nothing to override. "
+"Change them on the Channels and Buttons tabs."
+msgstr ""
+"Das globale Profil enthält die Basiswerte, also gibt es nichts zu "
+"überschreiben. Ändere sie auf den Reitern Kanäle und Tasten."
+
+#: src/ui
+msgid ""
+"The Global profile is the base of every other profile. A device or "
+"program profile inherits its settings unless it chooses another joystick "
+"mode or overrides a value."
+msgstr ""
+"Das globale Profil ist die Basis jedes anderen Profils. Ein Geräte- oder "
+"Programmprofil erbt seine Einstellungen, außer es wählt einen anderen "
+"Joystick-Modus oder überschreibt einen Wert."
+
+#: src/ui
+msgid ""
+"The channel values this profile sets itself, as raw text. Everything else "
+"is inherited. The Channels tab shows the same values with their origin "
+"and the controls to change them."
+msgstr ""
+"Die Kanalwerte, die dieses Profil selbst setzt, als Rohtext. Alles andere "
+"wird geerbt. Der Reiter Kanäle zeigt dieselben Werte mit ihrer Herkunft "
+"und den Bedienelementen zum Ändern."
+
+#: src/ui
+msgid ""
+"The joystick mode of this profile has its own button bindings; they are "
+"listed on the General tab. Choose \"Same as Global\" or the normal "
+"joystick mode to assign buttons here."
+msgstr ""
+"Der Joystick-Modus dieses Profils hat eigene Tastenbelegungen; sie stehen "
+"auf dem Reiter Allgemein. Wähle \"Wie Global\" oder den normalen "
+"Joystick-Modus, um hier Tasten zu belegen."
+
+#: src/ui
+msgid ""
+"The joystick mode that applies unless a device or program profile chooses "
+"another one."
+msgstr ""
+"Der Joystick-Modus, der gilt, außer ein Geräte- oder Programmprofil wählt "
+"einen anderen."
+
+#: src/ui
+msgid ""
+"These settings come from the joystick mode file and are read-only here."
+msgstr ""
+"Diese Einstellungen kommen aus der Joystick-Modus-Datei und sind hier "
+"schreibgeschützt."
+
+#: src/ui
+msgid "This joystick mode binds no buttons."
+msgstr "Dieser Joystick-Modus belegt keine Tasten."
+
+#: src/ui
+msgid ""
+"This profile names a joystick mode that is not installed; it behaves like "
+"the Global joystick mode until you choose another one."
+msgstr ""
+"Dieses Profil nennt einen Joystick-Modus, der nicht installiert ist; es "
+"verhält sich wie der Global-Joystick-Modus, bis du einen anderen wählst."
+
+#: src/ui
+msgid "Uses the joystick mode of Global: %1"
+msgstr "Nutzt den Joystick-Modus von Global: %1"
+
+#: src/ui
+msgid "What the axes do while this profile is active"
+msgstr "Was die Achsen tun, solange dieses Profil aktiv ist"
+
+#: src/ui
+msgid "Navigation (arrow keys while held)"
+msgstr "Navigation (Pfeiltasten, solange gehalten)"
+
+#: src/ui
+msgid "Switch to joystick mode"
+msgstr "Zu Joystick-Modus wechseln"
+
+#: src/ui
+msgid "Next joystick mode"
+msgstr "Nächster Joystick-Modus"
+
+#: src/ui
+msgid "Previous joystick mode"
+msgstr "Vorheriger Joystick-Modus"
+
+#: src/ui
+msgid "Navigation on/off (press to switch)"
+msgstr "Navigation an/aus (drücken zum Umschalten)"
+
+#: src/ui
+msgid "Toggle joystick mode (press again to go back)"
+msgstr "Joystick-Modus umschalten (nochmal drücken zum Zurückgehen)"
+
+#: src/ui
+msgid "Joystick mode while held"
+msgstr "Joystick-Modus, solange gehalten"
+
+#: src/ui
+msgid ""
+"Sensitivity, deadzone, smoothing and curve of the channels (the Global "
+"profile, Channels tab)"
+msgstr ""
+"Empfindlichkeit, Totzone, Glättung und Kurve der Kanäle (globales Profil, "
+"Reiter Kanäle)"
+
+#: src/ui
+msgid "Switch joystick modes"
+msgstr "Joystick-Modi umschalten"
+
+#: src/ui
+msgid "Joystick modes change what the axes and buttons do"
+msgstr "Joystick-Modi ändern, was die Achsen und Tasten tun"
+
+#: src/ui
+msgid "Step actions"
+msgstr "Schritt-Aktionen"
+
+#: src/ui
+msgid "Device profiles"
+msgstr "Geräteprofile"
+
+#: src/ui
+msgid "Application profiles"
+msgstr "Anwendungsprofile"
+
+# --- dofscroll-ui: profile-centric editor, autosave, inheritance, joystick modes (new entries) ---
+
+#: src/ui
+msgid "Save a copy of the button mode file somewhere else"
+msgstr "Eine Kopie der Tasten-Modus-Datei woanders speichern"
+
+#: src/ui
+msgid "Export button mode file"
+msgstr "Tasten-Modus-Datei exportieren"
+
+#: src/ui
+msgid "Could not export the button mode."
+msgstr "Der Tasten-Modus konnte nicht exportiert werden."
+
+# --- dofscroll-ui: profile-centric editor, autosave, inheritance, joystick modes (new entries) ---
+
+#: src/ui
+msgid ""
+"Built-in joystick modes have no file; duplicate the joystick mode on the "
+"Modes page to edit it"
+msgstr ""
+"Eingebaute Joystick-Modi haben keine Datei; dupliziere den Joystick-Modus "
+"auf der Seite Modi, um ihn zu bearbeiten"
+
+#: src/ui
+msgid "Your file, replaces the built-in button mode"
+msgstr "Deine Datei, ersetzt den eingebauten Tasten-Modus"
+

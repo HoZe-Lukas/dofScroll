@@ -196,13 +196,13 @@ static void testLayout() {
     const size_t app = ProfileTreeModel::add(sm, Section::APP, "viewer", &err);
 
     ProfilePageLayout g = profilePageLayout(sm, 0);
-    assert(!g.modeSelector && g.bindingEditor && !g.modeInfo && !g.overridesSection && !g.editModeFile);
+    assert(g.modeSelector && g.bindingEditor && !g.modeInfo && !g.overridesSection && !g.editModeFile);
 
     ProfilePageLayout l = profilePageLayout(sm, app);
     assert(l.modeSelector && l.bindingEditor && l.overridesSection && !l.modeInfo);
     // first option is "Default mode", then the built-in modes
     const auto opts = sm.modeOptions(app);
-    assert(opts.size() >= 2 && opts[0].id.empty() && opts[0].label == "Default mode");
+    assert(opts.size() >= 2 && opts[0].id.empty() && opts[0].label == "Same as Global");
 
     // Choosing another mode switches the layout (info instead of editor) ...
     int idx = -1;
@@ -223,8 +223,10 @@ static void testLayout() {
     assert(sm.setMode(app, std::string("ghostmode"), &err));
     l = profilePageLayout(sm, app);
     assert(l.unknownMode && l.bindingEditor && !l.modeInfo);
-    // [global] never takes a mode
-    assert(!sm.setMode(0, 1, &err));
+    // [global] takes a mode like any profile (no "Default mode" entry there)
+    for (const auto &o : sm.modeOptions(0)) assert(!o.id.empty());
+    assert(sm.setMode(0, 1, &err, &changed) && changed && sm.isOverridden(0, "MODE"));
+    assert(profilePageLayout(sm, 0).modeSelector);
 }
 
 // Non-ASCII names, spaces and special characters in profile names (UTF-8, byte-exact).
@@ -381,43 +383,8 @@ static void testFilter() {
     assert(ProfileTreeModel::filterMatches("", "x"));
 }
 
-// Revert of the unsaved edits of one profile.
-static void testRevertSection() {
-    SettingsModel m;
-    ProfileSet ps;
-    ps.findOrAdd(Section::APP, "firefox");
-    ps.findOrAdd(Section::APP, "gimp");
-    m.setProfiles(ps, "");
-    std::string err;
-    const size_t ff = ps.find(Section::APP, "firefox"), gimp = ps.find(Section::APP, "gimp");
-    assert(!m.sectionModified(ff) && !m.dirty());
-    assert(m.setValue(ff, "SCROLL_V_SENS", "7", &err));
-    assert(m.setValue(gimp, "SCROLL_V_SENS", "3", &err));
-    assert(m.sectionModified(ff) && m.sectionModified(gimp) && !m.sectionModified(0) && m.dirty());
-    bool removed = true;
-    assert(m.revertSection(ff, &removed) && !removed);
-    assert(!m.sectionModified(ff) && !m.isOverridden(ff, "SCROLL_V_SENS"));
-    assert(m.dirty() && m.sectionModified(gimp));  // the other profile keeps its edit
-    assert(m.revertSection(gimp) && !m.dirty());
-    // a profile added since the last save is removed again
-    const size_t added = m.addSection(Section::APP, "new", &err);
-    assert(added != ProfileSet::npos && m.sectionModified(added) && m.dirty());
-    assert(m.revertSection(added, &removed) && removed && !m.dirty());
-    assert(m.sectionCount() == 3);
-    // a renamed profile gets its name and keys back
-    assert(m.renameSection(ff, "firefox-esr", &err) && m.setValue(ff, "SCROLL_V_SENS", "5", &err));
-    assert(m.sectionModified(ff));
-    assert(m.revertSection(ff, &removed) && !removed && m.sections()[ff].pattern == "firefox" && !m.dirty());
-    // revert all
-    assert(m.setValue(0, "SCROLL_V_SENS", "2", &err) && m.setValue(gimp, "SCROLL_V_SENS", "4", &err));
-    m.revertAll();
-    assert(!m.dirty() && !m.sectionModified(0) && !m.sectionModified(gimp));
-    assert(m.setValue(0, "SCROLL_V_SENS", "2", &err) && m.sectionModified(0));
-}
-
 int main() {
     testFilter();
-    testRevertSection();
     testUtf8();
     testKeyList();
     testBindingParse();

@@ -97,9 +97,9 @@ public:
         if (status_.paused) t += s.tr(" (paused)");
         if (!status_.enabled) t += s.tr(" (disabled)");
         const std::string &mode = modeLabel.empty() ? status_.mode : modeLabel;
-        if (!mode.empty()) t += "  |  " + format(s.tr("Mode: %1"), {clean(mode, 40)});
+        if (!mode.empty()) t += "  |  " + format(s.tr("Joystick mode: %1"), {clean(mode, 40)});
         // "nav" is a whole word of the space separated list (not a part of a mode id)
-        if ((" " + status_.toggle + " ").find(" nav ") != std::string::npos) t += "  |  " + s.tr("Navigation mode on");
+        if ((" " + status_.toggle + " ").find(" nav ") != std::string::npos) t += "  |  " + s.tr("Navigation on");
         return t;
     }
     std::string infoLine(const StringProvider &s) const {

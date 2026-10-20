@@ -12,30 +12,28 @@
 //   m.setValue(i, "SCROLL_V_SENS", "7", &err); // validated by applyKey; section keeps only overrides
 //   m.clearOverride(i, "SCROLL_V_SENS");       // back to the inherited value (not for [global])
 //   m.setButton(i, 3, "key:space", &err);      // BUTTON_3, 1 <= n <= buttonLimit()
-//   m.setValue(i, "MODE", "timeline", &err);   // the MODE key like any other
+//   m.setValue(i, "MODE", "timeline", &err);   // the MODE key like any other (also in [global])
 //   m.validate(strings) -> error strings; m.save() -> atomic write, then the reload callback.
 //
 // Mode rules (the settings page is mode-aware):
-//  * [global] is the default mode ("normal") only: the model neither offers nor writes MODE there
-//    (setValue/setMode refuse it, visibleSettings omits it, modeOptions is empty). A MODE key
-//    found in an old [global] section is kept in the file, reported by notices() and as a load
-//    warning with the hint to move it to a [device:*] or [app:*] section, and can be removed with
-//    clearOverride.
-//  * MODE can be chosen in [device:*] and [app:*] sections only, as a dropdown: modeOptions(i) is
-//    the ordered option list (entry 0 "Default mode" = MODE not set, inherited; then all loaded
-//    modes in load order, built-ins first, with display name and the id as secondary text; an id
-//    that is set but not loaded is appended), selectedModeOption(i) the current index and
-//    setMode(i, optionIndex) writes MODE, or clears it for entry 0. Exactly one mode is active.
+//  * MODE can be chosen in every profile, [global] included, as a dropdown: modeOptions(i) is the
+//    ordered option list (for [device:*] and [app:*] entry 0 "Default mode" = MODE not set,
+//    inherited; for [global] there is no such entry because the global mode is the base; then all
+//    loaded modes in load order, built-ins first, with display name and the id as secondary text;
+//    an id that is set but not loaded is appended), selectedModeOption(i) the current index and
+//    setMode(i, optionIndex) writes MODE, or clears it for entry 0 (never for [global]). Exactly
+//    one mode is active.
 //  * The effective mode of a section is its own MODE, else the inherited one (global < device <
-//    mode < app as in the daemon; which device/app combination is active at runtime is unknown
-//    here, so an app section only looks at itself and [global]).
+//    mode overrides < app as in the daemon; which device/app combination is active at runtime is
+//    unknown here, so an app section only looks at itself and [global]). The mode of [global] is
+//    the base for every profile that does not choose its own; the overrides of that mode apply on
+//    top of the [global] values.
 //  * Channel settings (mix, sensitivity, deadzone, curve, smoothing, sign, zoom detection) are the
-//    same in every mode: globalChannelGroups() lists them as an always-available group set that
-//    is edited in [global] (index 0), whatever profile or mode is selected. General settings
-//    (start at login, language) and the axes assistant are not part of profile sections.
+//    same in every mode: globalChannelGroups() lists them as an always-available group set. They
+//    belong to a profile: every profile, [global] included, can hold them (index i). Start at login,
+//    language and the axes assistant are not part of profile sections.
 //  * visibleSettings(i) returns only the mode-dependent parts of the page of a profile: the
-//    "mode" and "general" (ENABLED) groups for [device:*]/[app:*], the "buttons" group (NAV/CLICK
-//    button and the BUTTON_<n> rows) while all three channel actions of the mode are "default"
+//    "mode" group for every profile and the "general" (ENABLED) group for [device:*]/[app:*], the "buttons" group (the BUTTON_<n> rows) while all three channel actions of the mode are "default"
 //    (the normal path), and for a non-default mode its channel actions and button bindings as
 //    read-only ModeInfo ("Edit mode file" is editModeFile() through the ActionRunner).
 //    Per-profile overrides of channel values stay possible: Visible::overrides lists the
@@ -48,7 +46,9 @@
 //
 // Keys are the canonical names of config.hpp (SCROLL_V_/SCROLL_H_/ZOOM_ MIX, SENS, DEADZONE, SIGN,
 // CURVE, SMOOTH_MS; ZOOM_LATERAL, ZOOM_ENTER_MS, ZOOM_EXIT_RATIO, BACKEND, TICK_HZ, ENABLED,
-// MODE, NAV_BUTTON[_ENABLED], CLICK_BUTTON[_ENABLED]); BUTTON_<n> goes through setButton.
+// MODE); BUTTON_<n> goes through setButton. NAV_BUTTON[_ENABLED] and CLICK_BUTTON[_ENABLED] are
+// deprecated: the model does not offer them any more (visibleSettings, the overrides list) and
+// migrateLegacyButtons() turns a file that still uses them into BUTTON_<n> entries.
 // Values are stored in canonical form (what allKeys would write). An "override" is a key present
 // in the section; the inherited value is the one of [global].
 #pragma once
@@ -121,6 +121,7 @@ public:
         std::string label;      // display name; entry 0: English source "Default mode" (translate in the view)
         std::string secondary;  // the id, "" for entry 0
         bool known = true;      // false: id set in the file but no such mode loaded
+        std::string description;  // DESCRIPTION of the mode ("" for entry 0 and unknown ids)
     };
     using ReloadFn = std::function<bool(std::string *err)>;
 
@@ -134,69 +135,19 @@ public:
             return false;
         }
         ps_ = ps;
-        saved_ = ps;
         path_ = path;
         dirty_ = false;
-        if (warnings && legacyGlobalMode())
-            warnings->push_back(globalModeNotice(IdentityStrings()));
         return true;
     }
     // Takes an already loaded set (tests, other sources).
     void setProfiles(const ProfileSet &ps, const std::string &path) {
         ps_ = ps;
-        saved_ = ps;
         path_ = path;
         dirty_ = false;
     }
     const ProfileSet &profiles() const { return ps_; }
     const std::string &path() const { return path_; }
     bool dirty() const { return dirty_; }
-
-    // ---- unsaved edits per profile ----
-    // The state of the last load or save is kept. A profile is "modified" when its pattern and
-    // keys differ from the profile of the same kind and name there (a profile that did not exist
-    // yet counts as modified).
-    bool sectionModified(size_t i) const {
-        if (i >= ps_.sections.size()) return false;
-        const Section *s = savedCounterpart(i);
-        return !s || !sameSection(*s, ps_.sections[i]);
-    }
-    // Discards the unsaved edits of profile i: its keys return to the saved state; a profile
-    // added since then is removed (*removed = true). A profile renamed since then gets its saved
-    // name back when exactly one saved profile of its kind is missing. dirty() is recomputed.
-    bool revertSection(size_t i, bool *removed = nullptr) {
-        if (removed) *removed = false;
-        if (i >= ps_.sections.size()) return false;
-        if (!sectionModified(i)) return true;
-        const Section *s = savedCounterpart(i);
-        if (!s && i > 0) {
-            std::vector<const Section *> missing;
-            for (size_t k = 1; k < saved_.sections.size(); ++k) {
-                const Section &c = saved_.sections[k];
-                bool present = false;
-                for (size_t j = 1; j < ps_.sections.size(); ++j)
-                    present = present || (ps_.sections[j].kind == c.kind && ps_.sections[j].pattern == c.pattern);
-                if (!present && c.kind == ps_.sections[i].kind) missing.push_back(&c);
-            }
-            if (missing.size() == 1) s = missing[0];
-        }
-        if (s) {
-            ps_.sections[i] = *s;
-            ProfileSet fresh;  // drops the stale search index
-            fresh.sections = ps_.sections;
-            ps_ = fresh;
-        } else {
-            ps_.remove(i);
-            if (removed) *removed = true;
-        }
-        dirty_ = !sameSet(saved_, ps_);
-        return true;
-    }
-    // Discards every unsaved edit (back to the state of the last load or save).
-    void revertAll() {
-        ps_ = saved_;
-        dirty_ = false;
-    }
 
     // ---- device / button limit ----
     // Number of editable buttons: factoryButtonCount(name, reported) if plausible (1..kMaxButtons),
@@ -219,45 +170,47 @@ public:
         modes_ = ms;
         modesDir_ = modesDir;
     }
-    // Effective mode id of section i ("normal" for [global]).
+    // Effective mode id of section i (the MODE of [global], "normal" when it sets none).
     std::string effectiveMode(size_t i) const {
-        if (i == 0 || i >= ps_.sections.size()) return "normal";
+        if (i >= ps_.sections.size()) return "normal";
         const std::string id = ps_.sectionSettings(i).mode;
         return validModeId(id) ? id : std::string("normal");
     }
-    // Dropdown options for the mode of section i (empty for [global] and invalid indices).
+    // The loaded joystick mode with this id (nullptr if none): its description and channel actions.
+    const ModeDef *modeDef(const std::string &id) const { return modes_.find(id); }
+    // Dropdown options for the mode of section i (empty for invalid indices). [device:*] and
+    // [app:*] start with the entry "Default mode" (MODE not set); [global] has no such entry.
     std::vector<ModeOption> modeOptions(size_t i) const {
         std::vector<ModeOption> out;
-        if (i == 0 || i >= ps_.sections.size()) return out;
-        out.push_back({"", "Default mode", "", true});
-        for (const ModeDef &m : modes_.modes) out.push_back({m.id, m.label.empty() ? m.id : m.label, m.id, true});
+        if (i >= ps_.sections.size()) return out;
+        if (i > 0) out.push_back({"", "Same as Global", "", true, ""});
+        for (const ModeDef &m : modes_.modes) out.push_back({m.id, m.label.empty() ? m.id : m.label, m.id, true, m.description});
         if (hasKey(ps_.sections[i], "MODE")) {
             const std::string cur = ps_.sectionSettings(i).mode;
             bool found = false;
-            for (size_t k = 1; k < out.size(); ++k) found = found || out[k].id == cur;
-            if (!found) out.push_back({cur, cur, cur, false});
+            for (const ModeOption &o : out) found = found || (!o.id.empty() && o.id == cur);
+            if (!found) out.push_back({cur, cur, cur, false, ""});
         }
         return out;
     }
-    // Index into modeOptions(i): 0 if MODE is not set in the section; -1 for [global]/invalid.
+    // Index into modeOptions(i): 0 if MODE is not set in a [device:*]/[app:*] section; for [global]
+    // the index of its mode ("normal" when it sets none); -1 for invalid indices or no modes.
     int selectedModeOption(size_t i) const {
-        if (i == 0 || i >= ps_.sections.size()) return -1;
-        if (!hasKey(ps_.sections[i], "MODE")) return 0;
-        const std::string cur = ps_.sectionSettings(i).mode;
+        if (i >= ps_.sections.size()) return -1;
         const std::vector<ModeOption> o = modeOptions(i);
-        for (size_t k = 1; k < o.size(); ++k)
+        if (i > 0 && !hasKey(ps_.sections[i], "MODE")) return 0;
+        const std::string cur = ps_.sectionSettings(i).mode;
+        for (size_t k = i > 0 ? 1 : 0; k < o.size(); ++k)
             if (o[k].id == cur) return int(k);
-        return 0;
+        return i > 0 ? 0 : (o.empty() ? -1 : 0);
     }
-    // Picks an option: 0 clears MODE (inherit), otherwise writes that mode's id.
+    // Picks an option: 0 clears MODE (inherit; [device:*]/[app:*] only), otherwise writes that mode's id.
     bool setMode(size_t i, int optionIndex, std::string *err, bool *layoutChanged = nullptr) {
         const std::vector<ModeOption> o = modeOptions(i);
-        if (o.empty()) return setValue(i, "MODE", "normal", err, layoutChanged);  // refused with the [global] message
-        if (optionIndex < 0 || size_t(optionIndex) >= o.size()) return failb(err, "no such mode option");
-        if (optionIndex == 0) {
-            if (layoutChanged) *layoutChanged = false;
-            return clearOverride(i, "MODE", layoutChanged);
-        }
+        if (layoutChanged) *layoutChanged = false;
+        if (o.empty()) return failb(err, "no such profile or no joystick modes loaded");
+        if (optionIndex < 0 || size_t(optionIndex) >= o.size()) return failb(err, "no such joystick mode option");
+        if (i > 0 && optionIndex == 0) return clearOverride(i, "MODE", layoutChanged);
         return setValue(i, "MODE", o[size_t(optionIndex)].id, err, layoutChanged);
     }
     // Channel settings are the same in every mode: always available, edited in [global] (index 0),
@@ -279,20 +232,17 @@ public:
     Visible visibleSettings(size_t i) const {
         Visible v;
         v.modeId = effectiveMode(i);
-        v.canChooseMode = i > 0;
+        v.canChooseMode = i < ps_.sections.size();
         const ModeDef *m = modes_.find(v.modeId);
         v.isDefaultMode = v.modeId == "normal";
         v.modeLoaded = m != nullptr || v.isDefaultMode;
         ModeDef normal;  // all channels "default", no buttons
         if (!m) m = &normal;
         const bool allDefault = m->allDefaultChannels();
-        if (v.canChooseMode) {
-            v.groups.push_back({"mode", "Mode", {"MODE"}, false});
-            v.groups.push_back({"general", "General", {"ENABLED"}, false});
-        }
+        if (v.canChooseMode) v.groups.push_back({"mode", "Joystick mode", {"MODE"}, false});
+        if (i > 0) v.groups.push_back({"general", "General", {"ENABLED"}, false});
         if (allDefault)
-            v.groups.push_back({"buttons", "Buttons",
-                                {"NAV_BUTTON", "NAV_BUTTON_ENABLED", "CLICK_BUTTON", "CLICK_BUTTON_ENABLED"}, true});
+            v.groups.push_back({"buttons", "Buttons", {}, true});
         if (!v.isDefaultMode && v.modeLoaded) {
             v.mode.id = m->id;
             v.mode.label = m->label.empty() ? m->id : m->label;
@@ -349,7 +299,7 @@ public:
         const std::string id = effectiveMode(i);
         const ModeDef *m = modes_.find(id);
         if (!m || m->builtin || modesDir_.empty())
-            return failb(err, "this mode has no file (built-in or not loaded)");
+            return failb(err, "this joystick mode has no file (built-in or not loaded)");
         return runner.openPath(modelist::modeFilePath(modesDir_, id), err);
     }
 
@@ -405,6 +355,18 @@ public:
     // ---- values ----
     // Settings of section i (global: defaults + [global]; else global + the section's keys).
     Settings effective(size_t i) const { return ps_.sectionSettings(i); }
+    // The same with the overrides of the effective mode on top (an [app:*] section's own keys
+    // still win, as in the daemon): what a channel of this profile really does.
+    Settings effectiveWithMode(size_t i) const {
+        Settings s = ps_.sectionSettings(i);
+        if (i >= ps_.sections.size()) return s;
+        const ModeDef *m = modes_.find(effectiveMode(i));
+        if (!m || m->overrides.empty()) return s;
+        for (const auto &kv : m->overrides) applyKey(s, upper(kv.first), kv.second, nullptr);
+        if (ps_.sections[i].kind == Section::APP)
+            for (const KV &kv : ps_.sections[i].kv) applyKey(s, upper(kv.first), kv.second, nullptr);
+        return s;
+    }
 
     bool value(size_t i, const std::string &key, Value *out) const {
         const std::string k = upper(key);
@@ -421,10 +383,22 @@ public:
     bool isOverridden(size_t i, const std::string &key) const {
         return i < ps_.sections.size() && hasKey(ps_.sections[i], upper(key));
     }
+    // Device and program profiles that set the key themselves (section indices): what "N profiles
+    // override this" counts when a value of [global] is edited.
+    std::vector<size_t> profilesOverriding(const std::string &key) const {
+        std::vector<size_t> out;
+        const std::string k = upper(key);
+        for (size_t i = 1; i < ps_.sections.size(); ++i)
+            if (hasKey(ps_.sections[i], k)) out.push_back(i);
+        return out;
+    }
+    // Number of settings (keys, buttons included) the profile sets itself; [global] counts what the
+    // file holds.
+    size_t overrideCount(size_t i) const { return i < ps_.sections.size() ? ps_.sections[i].kv.size() : 0; }
 
     // Value the effective mode of section i sets for key, else fallback.
     std::string modeOverrideValue(size_t i, const std::string &key, const std::string &fallback) const {
-        if (i == 0 || i >= ps_.sections.size()) return fallback;
+        if (i >= ps_.sections.size()) return fallback;
         const ModeDef *m = modes_.find(effectiveMode(i));
         if (m)
             for (const auto &kv : m->overrides)
@@ -443,7 +417,7 @@ public:
             *out = Source::App;
             return true;
         }
-        if (i > 0) {
+        {
             const ModeDef *m = modes_.find(effectiveMode(i));
             if (m)
                 for (const auto &kv : m->overrides)
@@ -466,8 +440,6 @@ public:
         const std::string k = upper(key);
         if (layoutChanged) *layoutChanged = false;
         if (i >= ps_.sections.size()) return failb(err, "no such profile");
-        if (i == 0 && k == "MODE")
-            return failb(err, "MODE cannot be set in [global] (it is the default mode); choose it in a device or app profile");
         if (!isEditableKey(k)) return failb(err, "unknown setting " + key);
         Settings t = ps_.sectionSettings(i);
         if (!applyKey(t, k, text, err)) return false;
@@ -522,11 +494,107 @@ public:
         return clearOverride(i, "BUTTON_" + std::to_string(number));
     }
 
+    // ---- deprecated NAV_BUTTON / CLICK_BUTTON ----
+    // The two legacy keys pairs (0-based button number plus an enable flag) are replaced by
+    // BUTTON_<n> = nav / click (1-based). Result of migrateLegacyButtons().
+    struct LegacyMigration {
+        bool changed = false;                   // the model was edited (save it)
+        std::vector<std::string> migrated;      // what was moved, e.g. "[global]: NAV_BUTTON -> BUTTON_1 = nav"
+        std::vector<std::string> notices;       // what could not be moved and stays in the file untouched
+    };
+    // True if any section still has one of the legacy keys (older saves wrote them with their
+    // defaults, so this is true for most old files; migrateLegacyButtons() drops unused ones silently).
+    bool hasLegacyButtonKeys() const {
+        for (const Section &sec : ps_.sections)
+            for (const KV &kv : sec.kv) {
+                const std::string k = upper(kv.first);
+                if (isLegacyButtonKey(k)) return true;
+            }
+        return false;
+    }
+    // Moves NAV_BUTTON / CLICK_BUTTON into BUTTON_<n> entries so that every profile behaves as
+    // before: n = number + 1, action "nav" or "click". All or nothing per key pair: if any profile
+    // cannot be moved (the button is above the device's button count, or the profile already binds
+    // that button to something else) the pair stays in the file untouched and a notice says so.
+    // Legacy keys that are disabled are simply dropped (they have no effect).
+    LegacyMigration migrateLegacyButtons(const StringProvider &str) {
+        LegacyMigration r;
+        struct Kind { const char *pre, *action; };
+        for (const Kind &kd : {Kind{"NAV_", "nav"}, Kind{"CLICK_", "click"}}) {
+            const std::string keyNum = std::string(kd.pre) + "BUTTON", keyOn = keyNum + "_ENABLED";
+            bool touched = false;
+            for (const Section &sec : ps_.sections) touched = touched || hasKey(sec, keyNum) || hasKey(sec, keyOn);
+            if (!touched) continue;
+            auto eff = [&](size_t i, bool *on, int *n) {
+                const Settings t = ps_.sectionSettings(i);
+                *on = keyOn[0] == 'N' ? t.nav_button_enabled : t.click_button_enabled;
+                *n = (keyOn[0] == 'N' ? t.nav_button : t.click_button) + 1;
+            };
+            // check first: nothing is changed unless every profile can be moved
+            std::vector<std::string> problems;
+            for (size_t i = 0; i < ps_.sections.size(); ++i) {
+                bool on;
+                int n;
+                eff(i, &on, &n);
+                if (!on) continue;
+                const std::string title = info(i).title;
+                if (n < 1 || n > limit_) {
+                    if (i > 0 && !hasKey(ps_.sections[i], keyNum) && !hasKey(ps_.sections[i], keyOn)) continue;  // reported at the source
+                    problems.push_back(format(str.tr("%1: %2 = %3 is above the %4 buttons of this device"),
+                                              {title, keyNum, std::to_string(n - 1), std::to_string(limit_)}));
+                    continue;
+                }
+                const std::string bk = "BUTTON_" + std::to_string(n);
+                for (const KV &kv : ps_.sections[i].kv)
+                    if (upper(kv.first) == bk && kv.second != kd.action)
+                        problems.push_back(format(str.tr("%1: %2 is already set; %3 was left as it is"),
+                                                  {title, bk, keyNum}));
+            }
+            if (!problems.empty()) {
+                for (const std::string &p : problems) r.notices.push_back(p);
+                continue;
+            }
+            // as before, per profile: the global setting first, then what each profile changes
+            bool gOn;
+            int gN;
+            eff(0, &gOn, &gN);
+            std::vector<std::pair<size_t, std::pair<bool, int>>> want;  // the effective state of every profile
+            for (size_t i = 1; i < ps_.sections.size(); ++i) {
+                bool on;
+                int n;
+                eff(i, &on, &n);
+                want.push_back({i, {on, n}});
+            }
+            auto bind = [&](size_t i, int n, const std::string &action) {
+                const std::string bk = "BUTTON_" + std::to_string(n);
+                if (hasKey(ps_.sections[i], bk)) return;  // the profile's own binding is kept
+                if (store(i, bk, action, nullptr))
+                    r.migrated.push_back(format(str.tr("%1: %2 -> %3 = %4"),
+                                                {info(i).title, keyNum, bk, action}));
+            };
+            if (gOn) bind(0, gN, kd.action);
+            for (const auto &w : want) {
+                const size_t i = w.first;
+                const bool on = w.second.first;
+                const int n = w.second.second;
+                if (on && !(gOn && gN == n)) bind(i, n, kd.action);
+                if (gOn && !(on && gN == n)) bind(i, gN, "none");  // this profile turned the global one off
+            }
+            for (Section &sec : ps_.sections) {
+                eraseKey(sec, keyNum);
+                eraseKey(sec, keyOn);
+            }
+            r.changed = true;
+        }
+        if (r.changed) dirty_ = true;
+        return r;
+    }
+
     // ---- mode ----
     std::string mode(size_t i) const { return i < ps_.sections.size() ? ps_.sectionSettings(i).mode : "normal"; }
     // By id; only for [device:*] / [app:*] (refused for [global]).
     bool setMode(size_t i, const std::string &id, std::string *err, bool *layoutChanged = nullptr) {
-        if (!validModeId(id)) return failb(err, "invalid mode id (a-z, 0-9, _ and -, at most 32 characters)");
+        if (!validModeId(id)) return failb(err, "invalid joystick mode id (a-z, 0-9, _ and -, at most 32 characters)");
         return setValue(i, "MODE", id, err, layoutChanged);
     }
 
@@ -551,12 +619,6 @@ public:
                     out.push_back(format(s.tr("%1: %2 = %3: %4"), {title, kv.first, kv.second, e}));
             }
         }
-        return out;
-    }
-    // Hints that are no errors: a legacy MODE in [global].
-    std::vector<std::string> notices(const StringProvider &s) const {
-        std::vector<std::string> out;
-        if (legacyGlobalMode()) out.push_back(globalModeNotice(s));
         return out;
     }
     // Mode ids used by a section but not loaded (a hint, not an error: the daemon falls back).
@@ -585,7 +647,6 @@ public:
             return r;
         }
         r.saved = true;
-        saved_ = ps_;
         dirty_ = false;
         r.reloaded = true;
         if (reload_ && !reload_(&e)) {
@@ -596,35 +657,14 @@ public:
     }
 
 private:
-    static bool sameSection(const Section &a, const Section &b) {
-        return a.kind == b.kind && a.pattern == b.pattern && a.kv == b.kv;
-    }
-    static bool sameSet(const ProfileSet &a, const ProfileSet &b) {
-        if (a.sections.size() != b.sections.size()) return false;
-        for (size_t i = 0; i < a.sections.size(); ++i)
-            if (!sameSection(a.sections[i], b.sections[i])) return false;
-        return true;
-    }
-    // The saved profile of the same kind and name (index 0: [global]).
-    const Section *savedCounterpart(size_t i) const {
-        if (i == 0) return saved_.sections.empty() ? nullptr : &saved_.sections[0];
-        for (size_t k = 1; k < saved_.sections.size(); ++k)
-            if (saved_.sections[k].kind == ps_.sections[i].kind && saved_.sections[k].pattern == ps_.sections[i].pattern)
-                return &saved_.sections[k];
-        return nullptr;
-    }
-    // A MODE other than "normal" in [global] (saving always writes MODE = normal there).
-    bool legacyGlobalMode() const {
-        return !ps_.sections.empty() && hasKey(ps_.sections[0], "MODE") && ps_.sectionSettings(0).mode != "normal";
-    }
-    static std::string globalModeNotice(const StringProvider &s) {
-        return s.tr("[global]: MODE is only supported for the default mode; move it to a device or app profile");
-    }
     static std::string upper(std::string s) {
         for (char &c : s) c = char(spn::utf8::upperChar(c));
         return s;
     }
     static bool isButtonKey(const std::string &k) { return k.rfind("BUTTON_", 0) == 0; }
+    static bool isLegacyButtonKey(const std::string &k) {
+        return k == "NAV_BUTTON" || k == "NAV_BUTTON_ENABLED" || k == "CLICK_BUTTON" || k == "CLICK_BUTTON_ENABLED";
+    }
     static bool isEditableKey(const std::string &k) {
         static const std::vector<KV> all = allKeys(Settings());
         return lookup(all, k) != nullptr;
@@ -689,7 +729,6 @@ private:
     }
 
     ProfileSet ps_;
-    ProfileSet saved_;  // state of the last load or save (revert)
     std::string path_;
     bool dirty_ = false;
     int limit_ = int(kMaxButtons);

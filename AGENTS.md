@@ -42,6 +42,8 @@ open (`Text file busy`); stop it before rebuilding.
 
 - Text is UTF-8 everywhere (BOM read, never written, LF written); case-insensitive matching folds ASCII only; never use `isalpha`/`tolower` on UTF-8 bytes (use `src/utf8.hpp`); see `docs/encoding.md`.
 
+- UI: no Save, Revert or "unsaved changes" question anywhere. Every edit goes into the model and is written by the autosave (`UiContext::saveSoon()` / `saveTyped()`, `src/ui/model/autosave.hpp`); an invalid value is never written and is shown next to its field. The two kinds of modes are called "Joystick mode" and "Button mode" in the UI (never plain "mode"; `src/ui/model/ui_terms.hpp`). Inheritance (Global < device < joystick mode overrides < program) is always shown in words.
+
 - English everywhere (code, comments, docs, logs, commits). Only `po/*.po` has other languages.
   UI strings are English in the source and translated through gettext.
 - New files carry the SPDX header (`GPL-3.0-or-later`, copyright line as in existing files).

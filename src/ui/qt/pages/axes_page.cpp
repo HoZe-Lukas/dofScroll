@@ -151,10 +151,10 @@ protected:
         const LiveSample &s = vm_->shown();
         status_.clear();
         if (!vm_->deviceLabel().empty()) status_ = qs(truncateUtf8(vm_->deviceLabel(), 96)) + QStringLiteral("  |  ");
-        status_ += T("Mode:") + QLatin1Char(' ') + (live ? qs(truncateUtf8(s.mode, 64)) : QStringLiteral("-"));
+        status_ += T("Joystick mode:") + QLatin1Char(' ') + (live ? qs(truncateUtf8(s.mode, 64)) : QStringLiteral("-"));
         if (live) {
             if (!s.enabled) status_ += QStringLiteral("  |  ") + T("disabled");
-            if (s.nav) status_ += QStringLiteral("  |  ") + T("navigation mode");
+            if (s.nav) status_ += QStringLiteral("  |  ") + T("navigation");
             if (s.zooming) status_ += QStringLiteral("  |  ") + T("zooming");
             if (s.idle) status_ += QStringLiteral("  |  ") + T("idle");
         }
@@ -331,7 +331,17 @@ void AxesPage::applyWizard() {
         refreshWizard(now());
         return;
     }
-    const SettingsModel::SaveResult r = ctx_.settings->save(*ctx_.strings);
+    // The axis mixes are written now (not after a pause): the live page below shows their effect.
+    SettingsModel::SaveResult r;
+    if (ctx_.autosave) {
+        ctx_.autosave->requestImmediate();
+        ctx_.autosave->flush();
+        r.saved = !ctx_.settings->dirty();
+        r.reloaded = r.saved && !ctx_.autosave->failed();
+        r.error = ctx_.autosave->statusText().toUtf8().toStdString();
+    } else {
+        r = ctx_.settings->save(*ctx_.strings);
+    }
     if (!r.saved) {
         applyNote_ = T("Error: %1").arg(qs(r.error));
         refreshWizard(now());

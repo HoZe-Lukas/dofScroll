@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// "Profiles" page: tree (Global, device profiles, application profiles) on the left and the
-// profile page on the right. The right side is rebuilt whenever the selected profile or its
-// effective mode changes. All decisions come from the models in src/ui/model/.
+// "Profiles" page: the list of profiles on the left (Global first, then the devices, then the
+// programs) and the editor of the selected profile on the right. The editor always says which
+// profile it edits (icon, name and kind in the header) and has the same tabs for every profile:
+// General (joystick mode, enabled), Channels (scroll and zoom, see channels_editor.hpp), Buttons
+// and Overrides (advanced). Switching the profile keeps the tab. Every change is saved by itself
+// (UiContext::autosave); there is no Save or Revert button and nothing asks about unsaved changes.
+// All decisions come from the models in src/ui/model/.
 #pragma once
-#include <QElapsedTimer>
 #include <QWidget>
 
 #include <functional>
@@ -12,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include <QElapsedTimer>
 #include <QPointer>
 #include <QStringList>
 
@@ -22,84 +26,81 @@
 #include "ui/model/live_feed_model.hpp"
 #include "ui_context.hpp"
 
+class ChannelsEditor;
+class QEvent;
 class QHideEvent;
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QScrollArea;
 class QTabWidget;
 class QTreeWidget;
 class QTreeWidgetItem;
-
-// Answer of the "unsaved changes" question (Save, Discard, Cancel).
-enum class UnsavedChoice { Save, Discard, Cancel };
-// Asks the question; `what` names the profile, empty for "the configuration". Tests replace it.
-using UnsavedPrompt = std::function<UnsavedChoice(const QString &what)>;
 
 class ProfilesPage : public QWidget {
     Q_OBJECT
 public:
     explicit ProfilesPage(const UiContext &ctx, QWidget *parent = nullptr);
-    int profileCount() const;          // tree entries below the default mode
-    bool modeSelectorVisible() const;  // false for the default mode
+    int profileCount() const;  // tree entries below Global
     // Selects the profile of a settings section (a click on an Overview card). False if there is none.
     bool selectSection(size_t section);
     size_t selectedSection() const { return currentSection(); }
 
-    // Sub-tabs of the selected profile: general, channels, buttons, overrides (those that apply).
+    // Tabs of the selected profile: general, channels, buttons, overrides (the same for every profile).
     QStringList tabIds() const;
     QString currentTabId() const;
     bool selectTab(const QString &id);
+    // The header of the editor: which profile is edited.
+    QString headerName() const;  // "Global", the device name or the program name
+    QString headerKind() const;  // "Global profile", "Device profile" or "Program profile"
+    QString headerNote() const;  // the one line about inheritance below the name
+    bool headerHasIcon() const;
+    QStringList profileListLabels() const;  // the list as shown: Global, group headers and profiles in order
+    QString treeLabel(size_t section) const;  // the label of a profile in the list (name and number of overrides)
+    ChannelsEditor *channelsEditor() const { return channels_; }
     // Search boxes: the profile list (names) and the settings rows of the selected profile.
     void setProfileFilter(const QString &text);
     void setSettingsFilter(const QString &text);
-    int visibleProfileCount() const;  // profiles shown in the list (default mode not counted)
-    int settingRowCount() const { return settingRows_; }  // rows built in the tabs of the selected profile
-    // Revert: discards the unsaved edits of the selected profile.
-    bool revertSelected();
-    bool selectedModified() const;
-    bool revertEnabled() const;
-    bool saveEnabled() const;
-    // Question for unsaved changes (Save/Discard/Cancel); the default is a message box.
-    void setUnsavedPrompt(UnsavedPrompt p) { prompt_ = std::move(p); }
-    // The guard used when another profile or page is shown and when the window closes: true if
-    // it is fine to continue (nothing unsaved, or saved/discarded). wholeFile: any unsaved edit.
-    bool resolveUnsaved(bool wholeFile);
+    int visibleProfileCount() const;  // profiles shown in the list (Global not counted)
+    int settingRowCount() const;      // rows shown in the tabs of the selected profile
+    // Export of the selected profile (its section as a .conf file) without a dialog; false + lastError().
+    bool exportSelected(const QString &file);
+    const QString &lastError() const { return lastError_; }
+    // The model changed behind the page (the configuration file was edited elsewhere): show it again.
+    void reloadFromModel() { rebuildTree(currentSection()); }
 
 protected:
     void hideEvent(QHideEvent *e) override;
     void showEvent(QShowEvent *e) override;
-    bool eventFilter(QObject *obj, QEvent *e) override;
+    void changeEvent(QEvent *e) override;
 
 private slots:
     void onSelectionChanged(QTreeWidgetItem *current, QTreeWidgetItem *previous);
-    void revert();
     void addApplication();
     void addDevice();
     void renameProfile();
     void removeProfile();
-    void save();
+    void exportProfile();
 
 private:
     void rebuildTree(size_t selectSection);
-    void rebuildTreeByName(spn::Section::Kind kind, const std::string &pattern);
     void applyProfileFilter();
-    void guardLeave();
-    void returnToPage();
-    QString shownName() const;
     bool settingMatches(const QString &label, const std::string &key) const;
     void rebuildContent();
-    void setStatus(const QString &text);
+    void rebuildHeader();
+    void refreshTreeLabels();  // the numbers of overrides in the list
+    void setTabContent(QScrollArea *area, const QList<QWidget *> &parts);
     void updateButtons();
     size_t currentSection() const;
     void refreshDeviceLimit(size_t section);
     void queueRebuild();
     void pollDeviceFeed();
     QWidget *buildModeSelector(size_t section);
+    QWidget *buildEnabled(size_t section);
     QWidget *buildBindings(size_t section);
-    QWidget *buildButtonSettings(size_t section);
     QWidget *buildModeInfo(size_t section);
     QWidget *buildOverrides(size_t section);
-    QWidget *buildEffective(size_t section);
+    void problem(const QString &text);  // a message for the status bar
 
     const UiContext &ctx_;
     ProfilesEnv env_;
@@ -111,19 +112,16 @@ private:
     QElapsedTimer feedClock_;
     QTreeWidget *tree_;
     QLineEdit *profileFilter_, *settingsFilter_;
+    QLabel *headerIcon_ = nullptr, *headerName_ = nullptr, *headerKind_ = nullptr, *headerNote_ = nullptr;
     QTabWidget *tabs_;
-    QLabel *status_;
-    QPushButton *add_app_, *add_dev_, *rename_, *remove_, *save_, *revert_;
-    UnsavedPrompt prompt_;
-    QPointer<QWidget> filtered_;  // the window whose close event is guarded
-    QString lastTab_ = QStringLiteral("general");  // remembered for the session
-    size_t shown_ = 0;       // section the tabs show
-    size_t builtSection_ = static_cast<size_t>(-1);  // section the tabs were built for last
+    QScrollArea *general_ = nullptr, *buttons_ = nullptr, *overrides_ = nullptr;
+    ChannelsEditor *channels_ = nullptr;
+    QPushButton *add_app_, *add_dev_, *rename_, *remove_, *export_;
+    size_t shown_ = 0;  // section the tabs show
     int settingRows_ = 0;
-    bool leaving_ = false;
     bool advancedOpen_ = false;
-    bool modeSelectorVisible_ = false;
     bool rebuildQueued_ = false;
+    QString lastError_;
 };
 
 QWidget *createProfilesPage(const UiContext &ctx);

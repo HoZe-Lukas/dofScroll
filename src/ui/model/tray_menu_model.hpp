@@ -38,6 +38,7 @@ struct TrayEntry {
     bool checked = false;  // Radio / Check
     TrayAction action = TrayAction::None;
     std::string arg;                  // SetMode: the mode id
+    std::string tooltip;              // SetMode: the description of the joystick mode ("No description" if it has none)
     std::vector<TrayEntry> children;  // Submenu
 };
 
@@ -86,7 +87,7 @@ inline TrayMenu buildTrayMenu(const TrayMenuInput &in, const StringProvider &s) 
 
     TrayEntry mode;
     mode.kind = TrayEntry::Kind::Submenu;
-    mode.text = s.tr("Mode");
+    mode.text = s.tr("Joystick mode");
     if (in.modes)
         for (const auto &e : modelist::buildMenuEntries(*in.modes, in.globalMode)) {
             TrayEntry r;
@@ -95,6 +96,8 @@ inline TrayMenu buildTrayMenu(const TrayMenuInput &in, const StringProvider &s) 
             r.checked = e.active;
             r.action = TrayAction::SetMode;
             r.arg = e.id;
+            if (const ModeDef *def = in.modes->find(e.id)) r.tooltip = def->description.empty() ? s.tr("No description") : def->description;
+            else r.tooltip = s.tr("This joystick mode is not installed");
             mode.children.push_back(r);
         }
     m.entries.push_back(mode);
@@ -106,7 +109,7 @@ inline TrayMenu buildTrayMenu(const TrayMenuInput &in, const StringProvider &s) 
     m.entries.push_back(item("Settings...", TrayAction::OpenSettings));
     m.entries.push_back(item("Open config file", TrayAction::OpenConfig));
     m.entries.push_back(item("Show log...", TrayAction::OpenLog));
-    m.entries.push_back(item("Open modes folder", TrayAction::OpenModesFolder));
+    m.entries.push_back(item("Open joystick modes folder", TrayAction::OpenModesFolder));
     m.entries.push_back(item("Release all keys", TrayAction::ReleaseAllKeys));
     m.entries.push_back(item("Restart daemon", TrayAction::RestartDaemon));
     m.entries.push_back(item("Restart interface", TrayAction::RestartInterface));

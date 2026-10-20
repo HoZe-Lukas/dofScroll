@@ -4,7 +4,8 @@
 
 `dofscroll-ui` is the Qt6 interface: a tray icon plus a settings window, one code base for Linux,
 Windows and macOS. It edits the same config file as the daemon and asks the daemon to reload, so
-changes apply immediately. The daemon runs without it. The interface starts minimized to the
+changes apply immediately. There is no Save button: every change is saved by itself (see "Saving"
+below). The daemon runs without it. The interface starts minimized to the
 tray (no window opens); "Open settings" or a click on the tray icon shows the window. Without a
 system tray the window is shown minimized instead.
 
@@ -76,70 +77,102 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 
 | Category | Page (tab) | Content |
 |---|---|---|
-| Overview | Overview | The state of the daemon, task buttons, quick actions (see "Overview quick actions" below) and one card per device or program profile with its mode and a one-line summary of what it overrides (button bindings included); "Open" shows the profile on the Profiles page. Every profile of the configuration has a card, a filter box narrows the list |
-| Profiles | Profiles | Per-device and per-program profiles, see below |
-| Profiles | Channels | Scroll, zoom and the other output channels: sensitivity, dead zone, direction, curve preview; a filter box hides the rows that do not match, every row names its config key in the tooltip |
-| Modes | Modes | The available modes (built-in and files in the modes folder): new, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every mode the profiles that use it (selected as its mode or switched to by a button); a reminder that mode files can press any key |
-| Modes | Button modes | The button mode files (`buttons/`): create, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
-| Modes | Extensions | All modes and button modes in one list with their origin (built in, your file, example not installed); add a shipped example, remove your own file. Extensions are plain files, nothing executable |
+| Overview | Overview | Only summarizes and links: the state of the daemon, task buttons, quick actions (see "Overview quick actions" below) and one card per device or program profile with its joystick mode, a one-line summary of what it overrides and how many settings that are; "Open" shows the profile on the Profiles page. Every profile of the configuration has a card, a filter box narrows the list |
+| Profiles | Profiles | The list of profiles (Global first, then devices, then programs) and the editor of the selected one with the tabs General, Channels, Buttons and Overrides, see "Profiles" below |
+| Modes | Joystick modes | The available joystick modes (built-in and files in the modes folder) with their origin and description: new, new from example, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every joystick mode the profiles that use it; a reminder that mode files can press any key |
+| Modes | Button modes | The button mode files (`buttons/`): create, new from example, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
+| Device | Device | The connected devices and their button count (the number of button rows a profile offers), the daemon state |
 | Device | Axes | Live bars of the six axes and the axis assistant (wizard) that detects which axis does what |
-| Settings | General | Output on/off, global mode, "Start at login", read-only status of the daemon, "Open config", "Show log..." and "Documentation" |
+| Settings | Settings | Output on/off (`ENABLED` of Global), start at login, language, theme (Appearance), the daemon settings (tick rate, output backend), the read-only status of the daemon, "Open config", "Show log..." and "Documentation" |
+
+The Channels settings (sensitivity, dead zone, direction, curve, zoom detection, smoothing) are not a
+page of their own: they belong to a profile and are the Channels tab of the profile editor, for
+Global and for every other profile. No setting appears in two places: the output switch is on the
+Settings page (not in the Global profile), the daemon settings (tick rate, backend) are on the
+Settings page too (they do not belong to a profile).
 
 ## Overview quick actions
 
 - **What do you want to do?** Three buttons that open the page for a task: "Tune scroll and zoom"
-  (Channels), "Check the axes" (Axes) and "Switch modes" (Modes).
+  (the Channels tab of the Global profile), "Check the axes" (Axes) and "Switch joystick modes"
+  (Joystick modes).
 - **Add a profile...** opens the Profiles page; **New profile for the running program...** opens the
   running-program picker of the Profiles page directly.
-- **Active mode** lists the loaded modes and marks the one the daemon runs now. Picking one switches
-  the running daemon to it until the next reload or restart (the same runtime request as the tray's
-  Mode menu); the default mode in the configuration stays as it is. It is disabled while the daemon
-  is not running.
-- **Open log** (and "Show log..." on the General page and in the tray) opens a small log window: the
+- **Active joystick mode** lists the loaded joystick modes and marks the one the daemon runs now;
+  every entry has its description as tooltip. Picking one switches the running daemon to it until
+  the next reload or restart (the same runtime request as the tray's Joystick mode menu); the
+  Global joystick mode in the configuration stays as it is. It is disabled while the daemon is not
+  running.
+- **Open log** (and "Show log..." on the Settings page and in the tray) opens a small log window: the
   end of the daemon log (the last 64 KB, at a line start; control characters are replaced), with
   Refresh and Copy. The log file is the one in the runtime directory
   (`dofscroll.log`, see [troubleshooting.md](troubleshooting.md)).
-- **Documentation** (Overview, General, and on the Button modes page) opens the project
+- **Documentation** (Overview, Settings, and on the Button modes page) opens the project
   documentation in the default browser: `docs/ui.md`, or `docs/modes.md` from the Button modes page.
   Only https addresses are ever opened.
 - **Release all keys**, **Restart daemon** and **Restart interface** as before.
-- The filter box above the profile cards matches every word against the name, the mode, the kind
-  ("device" or "program") and the settings of a profile, ignoring ASCII case. The tooltip of a card
+- The filter box above the profile cards matches every word against the name, the joystick mode, the kind
+  ("device" or "program") and the settings of a profile, ignoring ASCII case. A card says how many settings the profile overrides ("Overrides 3 settings"; the
+  profile list on the Profiles page shows the same number after the name). The tooltip of a card
   lists all its settings, not only the first ones shown in the summary.
-- On a very wide window the Overview and Channels pages stop at a maximum content width
+- On a very wide window the Overview and the Channels tab stop at a maximum content width
   (`kMaxContentWidth` in `src/ui/model/design_tokens.hpp`) and stay centered.
 
 
 ## Editing a joystick mode
 
-"Edit" on the Modes page opens an editor next to the list (a built-in mode first gets an editable
-file with the same id, as before). It edits name and description, the three channels (default, off,
-vertical or horizontal wheel, zoom, **keys** or **step** with modifier check boxes and a key picker
-per direction), the buttons (the same drop-down per button as on the Profiles page, including the
-button modes and "Default (inherit)", which removes the binding) and the settings overrides (key,
-value, Add, Remove; `MODE`, `ENABLED`, `BACKEND` and `TICK_HZ` are not offered). Problems are listed
-inline and Save stays disabled until they are gone.
+"Edit" on the Joystick modes page opens an editor next to the list (a built-in joystick mode first
+gets an editable file with the same id). It edits name and description (the description field is
+always there; a joystick mode without one shows "No description"), the three channels (default,
+off, vertical or horizontal wheel, zoom, **keys** or **step** with modifier check boxes and a key
+picker per direction), the buttons (the same drop-down per button as on the Profiles page, including
+the button modes and "Default (inherit from Global)", which removes the binding) and the settings
+overrides (key, value, Add, Remove; `MODE`, `ENABLED`, `BACKEND` and `TICK_HZ` are not offered).
 
 The editor has three tabs: Settings (name, description, the three channels), Buttons and
-Overrides. Each tab scrolls on its own; the problem list and the buttons Save, Revert, "Open in text
-editor" and "Close editor" stay visible below the tabs. The selected tab is kept while you edit
-and when you open another mode. (There is no preview tab: the editor has nothing to preview.)
+Overrides. Each tab scrolls on its own; the problem list and the buttons "Open in text editor" and
+"Close editor" stay visible below the tabs. The selected tab is kept while you edit and when you
+open another joystick mode.
 
-Save rewrites the file line by line: the lines of the keys the editor owns are updated in place, new
-ones are appended, cleared ones are removed; comments, the SAFETY header and unknown lines stay as
-they are, and the id (file name) never changes. The result is checked with the daemon's loader
-first (a save that would drop one of its lines is refused) and replaces the file atomically; the
-loader's warnings, including "can press shortcut chords", are shown below the form. If the file
-changed on disk while you were editing, Save asks before overwriting. Revert reloads the file;
-"Open in text editor" is still there for people who prefer the file.
+There is no Save or Revert button: a change is written by itself, a drop-down or switch at once,
+typed text about 600 ms after you stopped typing or when you leave the field. Only a valid file is
+ever written: the editor lists what is wrong ("Not saved until this is fixed: ...") and leaves the
+file as it is until the form is valid again. Writing rewrites the file line by line: the lines of
+the keys the editor owns are updated in place, new ones are appended, cleared ones are removed;
+comments, the SAFETY header and unknown lines stay as they are, and the id (file name) never
+changes. The result is checked with the daemon's loader first (a write that would drop one of its
+lines is refused) and replaces the file atomically; the loader's warnings, including "can press
+shortcut chords", are shown below the form. If the file changed on disk while you were editing, the
+editor asks before overwriting it (the one question that remains: "Overwrite it with your changes?").
+Switching to another joystick mode, "Close editor", leaving the page, closing the window and Quit
+write the last change first.
 
-Edits are never dropped silently. While the editor holds unsaved changes, selecting another mode,
-Edit or a double click on the same mode (which reloads the file), New, Duplicate and Import ask
-**Save / Discard / Cancel** first; Cancel keeps the list on the mode being edited. Quit in the tray
-menu asks the same once for the Modes and Button modes pages. The General page (language, theme,
-start at login) and the Axes page (the assistant ends with Apply or Cancel) have no form with a
-Save button: their changes are applied or written at once, so they have no Revert and no unsaved
-state.
+## Saving
+
+Nothing in the interface has a Save, Revert or "unsaved changes" question. Every edit is saved by
+itself and tells the daemon to reload:
+
+- Switches, drop-downs, spin boxes, a released slider, button rows, Reset, Add and Remove are
+  written at once (the next turn of the event loop; edits of one gesture become one write and one
+  reload).
+- Text fields (axis mix, curve points, override values, names and descriptions) are checked while
+  you type. A valid text is written about 600 ms after the last key (or when you leave the field);
+  an invalid text is not written: the field gets a red border and the problem is written next to it
+  ("Invalid value: ..."), and the file stays valid.
+- The footer shows "Saved" for a moment, or "Could not save: <reason>" until the next successful
+  write; a daemon that could not be notified is reported too ("Saved, but the daemon was not
+  notified").
+- Page switches, tab switches, profile switches, closing the window and Quit write what is pending
+  first, synchronously, so no edit is lost. (An invalid form of the joystick mode editor cannot be
+  written by design; it stays as you left it in the editor until you fix it.)
+- The window follows the configuration file: when the tray (Enabled) or a text editor changes it
+  and the window has nothing of its own pending, the window reads it again.
+
+The model of the rule (debounce, burst coalescing, flush, failure handling) is
+`src/ui/model/autosave.hpp` with a fake clock in `tests/test_ui_autosave.cpp`; the Qt side is
+`src/ui/qt/autosaver.hpp`. The `--self-test` changes every kind of control, waits for the
+autosave, reads the file from disk and checks it (`autosaveAuditSelfTest`: about 70 controls, the
+audit table is printed).
 
 ## Getting started and accessibility
 
@@ -175,76 +208,156 @@ While the Axes page is open the daemon pauses its output, so moving the cap does
 window you look at. The page shows as many button cells as the factory button count of the
 device (see below), or the highest button it has seen when no device information is available.
 
-## Joystick mode and button modes
+## Joystick modes and button modes
 
-The Profiles page has a "Joystick mode" dropdown per profile (global, device, application): it
-chooses what the axes do. Every button row has its own dropdown with these entries, in this order:
-"Default (inherit)" (device and program profiles; it removes the profile's own `BUTTON_<n>` line,
-and the row shows what is inherited; in the default profile the first entry is "Nothing"), the
-**button modes** by name (tooltip: the description), then the plain actions: navigation, mode
-switch (`mode:<id>`, `mode:next`), toggles (`toggle:nav`, `toggle:mode:<id>`) and, behind "Advanced"
-in the default profile, click and key. Choosing a button mode writes `BUTTON_<n> = buttonmode:<id>`;
-the same button mode can be chosen on several buttons. A reference to a button mode that is not
-installed shows as "missing: <id>" and is not rewritten. See [button-modes.md](button-modes.md).
-The tray shows "Navigation mode on" while the navigation mode is latched. Precedence is
-unchanged: global < device < mode overrides < application. A profile that names a mode which does
-not exist is shown with a warning instead of being changed silently.
+There are two kinds of modes. A **joystick mode** says what the axes (and optionally buttons)
+do: scroll, zoom, keys. A **button mode** is a named behavior of a single button (a key, a click,
+navigation, a joystick mode switch). Config keys and file names do not change with the words
+(`MODE`, `modes/*.conf`, `buttons/*.conf`, `buttonmode:<id>`).
 
-Mode library: "Export..." saves a copy of the selected mode file (a built-in mode as its template
-text) to a place you choose and never overwrites without asking. "Rename..." gives a file mode a new
-name; the id (and file name) follows the name. Profiles that still use the old id are listed and
-confirmed first; they are not rewritten and fall back to the default mode until you change them. A
-built-in mode, or a file that replaces one, cannot be renamed. The details of every mode show "Used
-by": the profile sections whose `MODE` selects it or whose `BUTTON_<n>` is `mode:<id>`,
-`toggle:mode:<id>` or `hold:mode:<id>`. Dropping `.conf` files onto the Modes page imports them with
-the same checks, warnings and confirmation as Import; files are only read, never run.
+**Descriptions everywhere.** Every joystick mode and every button mode shows its short description
+(`DESCRIPTION`; all built-in joystick modes have one; "No description" when a file has none) wherever it can be
+picked or listed: as tooltip of every entry of the joystick mode drop-downs (profile General tab,
+the joystick mode of a button, the Overview's Active joystick mode, the tray's Joystick mode menu)
+and of the button mode entries of the button drop-downs; as a second line (muted, wrapped) under the
+name in the lists of the Joystick modes and Button modes pages; and in the detail view. Next to
+the joystick mode drop-down of a profile is an **i** button: it opens a popover with the name, where
+the joystick mode comes from (Built in / Your file), the description and what it does per channel in
+plain words ("Vertical push: scrolls vertically", "Horizontal push: taps Left or Right once per
+push", ...). The description field of both editors is always available.
 
-The **Button modes** page (category Modes, next to Modes) manages the button mode files: list,
-editor for name, description and action with Save and Revert, New, Duplicate, Import, Delete (it
-names the profiles and mode files that still use the button mode) and "Open button modes folder".
-The same Save / Discard / Cancel question appears before another button mode is selected, or before
-New, Duplicate or Import replaces a form with unsaved edits.
+**Origin hints.** Every entry of the lists says where it comes from: "Built in", "Your file", "Your
+file, replaces the built-in joystick mode" (button modes: "Built in", "Your file", "Your file, replaces the
+built-in button mode"). A built-in button mode has no file: "Create editable copy" makes a file with the same
+id that replaces it (a built-in joystick mode offers the same on "Edit"). **New from example...** (both pages) offers the
+examples that ship with dofscroll and are not in your folder yet ("Example, not installed yet"); the
+chosen one is copied like an import (checked, never overwrites) and selected. Delete removes only
+your own file (a file that replaces a built-in one brings the built-in back).
 
-## Profiles and the running-program picker
+The Profiles page has a "Joystick mode" drop-down per profile on the General tab (Global, device,
+program): Global chooses the joystick mode that applies unless a device or program profile chooses
+another one; the others have "Same as Global" as first choice. Every button row on the Buttons tab
+has its own drop-down with these entries, in this order: "Default (inherit from Global)" (device
+and program profiles; it removes the profile's own `BUTTON_<n>` line; in Global the first entry is
+"Nothing"), the **button modes** by name (tooltip: the description), then the plain actions:
+navigation, joystick mode switch (`mode:<id>`, `mode:next`), toggles (`toggle:nav`,
+`toggle:mode:<id>`) and, behind "Advanced" in Global, click and key. All buttons are assigned
+there, one row each; the old `NAV_BUTTON` / `CLICK_BUTTON` settings are not offered any more (see
+[configuration.md](configuration.md#deprecated-nav_button-and-click_button)). Choosing a button mode
+writes `BUTTON_<n> = buttonmode:<id>`; the same button mode can be chosen on several buttons. A
+reference to a button mode that is not installed shows as "missing: <id>" and is not rewritten. See
+[button-modes.md](button-modes.md). The tray shows "Navigation on" while navigation is latched.
+Precedence is unchanged: Global < device < joystick mode overrides < program. A profile that names a
+joystick mode that does not exist is shown with a warning instead of being changed silently.
+
+Mode library: "Export..." saves a copy of the selected joystick mode file (a built-in one as its
+template text) to a place you choose and never overwrites without asking. "Rename..." gives a file
+a new name; the id (and file name) follows the name. Profiles that still use the old id are listed
+and confirmed first; they are not rewritten and fall back to the Global joystick mode until you change
+them. A built-in joystick mode, or a file that replaces one, cannot be renamed. The details of every
+joystick mode show "What it does" and "Used by": the profile sections whose `MODE` selects it or
+whose `BUTTON_<n>` is `mode:<id>`, `toggle:mode:<id>` or `hold:mode:<id>`. Dropping `.conf` files
+onto the Joystick modes page imports them with the same checks, warnings and confirmation as
+Import; files are only read, never run.
+
+The **Button modes** page (category Modes, next to Joystick modes) manages the button mode files:
+list, editor for name, description and action (saved by itself, see "Saving"; a drop-down is written
+at once), New, New from example, Duplicate, Import, Delete (it names the profiles and joystick mode
+files that still use the button mode) and "Open button modes folder". A `CYCLE` list of a
+`mode:next` / `mode:prev` button mode stays in the file when the name or description changes.
+
+## Profiles
+
+The list on the left (Global first, then device profiles, then program profiles; each profile shows
+the number of settings it overrides, "firefox (3)") stays visible next to the tabs of the selected
+profile. The editor on the right always says which profile it edits: **icon, name and kind** (Global
+profile, Device profile, Program profile) in the header, so it never looks like a global page, and
+one line about inheritance: Global "Applies to every device and program unless a device or program
+profile overrides it.", the others "Everything you do not change here is inherited from Global (and
+the device)."
+
+The tabs are the same for every profile and the selected tab stays when you select another profile:
+
+- **General**: the joystick mode (drop-down with the **i** info button) and, for device and program
+  profiles, the output switch of the profile ("Send scroll, zoom and key events while this profile
+  is active", `ENABLED`). A profile with another joystick mode also shows what that joystick mode
+  does, read-only, with "Edit joystick mode file". Global has no output switch here: it is on the
+  Settings page.
+- **Channels**: sensitivity, dead zone, direction, smoothing, axis mix, curve (exponent or points,
+  with a live preview), zoom detection (the axes the twist must dominate, entry time, exit ratio) and
+  the step trigger, in groups per channel. A filter box (the search box above the tabs) hides the
+  rows that do not match; every row names its config key in the tooltip. "Restore defaults" removes
+  every value of the tab from the profile; "Reset this group" and the per-row "Reset" do the same
+  for a group or a row. The editor edits the selected profile, Global included.
+- **Buttons**: one row per button of the device (factory button count), the effective action, where
+  it comes from, and the drop-down described above. Global may assign buttons like any other
+  profile. A profile whose joystick mode has its own bindings shows a note instead (the bindings
+  are listed on the General tab).
+- **Overrides** (advanced): the channel values this profile sets itself as raw text, with Remove
+  (inherit again) and Add override. Global has nothing to override (it holds the base values).
+
+Profile actions below the list: **Add application...** (running-program picker), **Add device...**,
+**Rename...**, **Remove** and **Export...**, which writes the selected profile (its section, for
+Global the `[global]` keys the file holds) as a `.conf` file that can be copied into another
+configuration. Import of a whole profile is not offered; joystick modes and button modes have
+Import.
+
+### Inheritance
+
+Everything (joystick mode, every channel value, every button, button modes) can be set in Global
+exactly like in any other profile; a device or program profile holds only what it changes
+(precedence: Global < device < joystick mode overrides < program, see
+[configuration.md](configuration.md#inheritance)). The editor makes this explicit, in words (never by
+colour alone), and gives every row a per-row **Reset** (Reset to inherited):
+
+- Every setting row and button row of a device or program profile shows its state: "Inherited from
+  Global: 5", "Inherited from Global (built-in default): 5", "Set in this profile (inherited: 5)" or
+  `From joystick mode "timeline": 21`. A program profile also names the device profiles that set the
+  same key ("; device Pro sets 9"), because the profile cannot know which device is active.
+- In Global a value that device or program profiles override shows "N profiles override this" (the
+  tooltip lists them), so it is clear why the value has no effect there. The same hint appears at
+  the joystick mode and at the button rows.
+- The Overview cards and the profile list show how many settings a profile overrides.
+- The first choice of a button's drop-down is "Default (inherit from Global)" in device and program
+  profiles; the Reset of a row, "Default (inherit)", "Same as Global" and Reset all remove only the
+  profile's own key.
+
+### Add application and the device list
 
 - Add a device profile from the list of connected devices. The list and the factory button count
   (which limits the buttons you can bind) come from the daemon's live feed; without the feed the
-  page falls back to the `device=` line of the status file.
-  When the device is known, the tooltip of each "Button n" label says how many buttons the device has.
+  page falls back to the `device=` line of the status file. When the device is known, the tooltip of
+  each "Button n" label says how many buttons the device has; the Device page lists the same.
 - "Add application..." opens a picker of the programs that are running now: search by name, match
   string or window title, refresh, and see the exact match string that will be stored. You never
   have to type an internal name. "Capture next focused program" waits a few seconds and takes the
   program you switch to. A manual entry with validation is the fallback.
-- The editor of the selected profile has sub-tabs: **General** (what the profile is, the joystick
-  mode, and for another mode its read-only channels and buttons), **Channels** (the effective
-  values, see below), **Buttons** (bindings, navigation and click button; not shown for a profile
-  whose mode has its own bindings) and **Overrides** (values only this profile sets; "Remove" on an
-  override makes the profile inherit the value again). The default mode has General and Buttons
-  only. Each tab scrolls on its own; the status line, Revert and Save stay visible below the tabs.
-  The last tab you used is kept for the session (a profile without that tab shows General).
-- Revert drops the unsaved edits of the selected profile and loads the saved values (a profile you
-  added since the last save disappears, a rename is undone); other profiles keep their edits and
-  "Save" still writes everything. When you select another profile, another page or close the
-  window while the shown profile has unsaved edits, a question offers Save, Discard or Cancel
-  (closing asks about any unsaved edit).
 - Search: the box above the profile list shows only the programs and devices whose name contains
   the text; the box above the tabs shows only the settings of the selected profile whose label or
   key matches (button rows by "Button n", `BUTTON_n` or the action). Matching ignores ASCII case.
-- "Effective values" (device and program profiles) lists every channel setting with the value that
-  applies and where it comes from, written out: built-in default, global settings, this device
-  profile, the mode, or this program profile (precedence as above). "Reset" removes the value the
-  profile sets itself.
-- Button bindings: a button is bound to a key, a mode switch or `nav`. Remember the principle: a
-  binding that is the same everywhere and always belongs in the vendor driver, see
+- Button bindings: a button is bound to a key, a joystick mode switch or navigation. Remember the
+  principle: a binding that is the same everywhere and always belongs in the vendor driver, see
   [modes.md](modes.md#buttons-and-the-vendor-driver).
 
 The program list comes from implementations of `src/platform/running_apps.hpp` for X11, Windows
 (`EnumWindows`) and macOS (`NSWorkspace`); the Windows and macOS ones are only compile-checked.
 
+### Old NAV_BUTTON / CLICK_BUTTON settings
+
+When the interface loads a configuration that still sets the navigation or click button with
+`NAV_BUTTON` / `CLICK_BUTTON` (and the matching `..._ENABLED`), it moves them once to the equivalent
+`BUTTON_<n>` entries (`BUTTON_<n> = nav`, `BUTTON_<n> = click`, n = the old 0-based number + 1) in
+the profile that had them, writes the file atomically, tells the daemon and says so in the footer
+("Moved the old navigation/click button settings to the Buttons tab"); the Buttons tab keeps the list
+of what was moved. A pair is moved all or nothing: if a button is above the button count of the
+device or the profile already binds that button to something else, the old keys stay in the file
+untouched and the Buttons tab lists them as "Not moved: ...". Disabled old keys (older saves wrote
+`NAV_BUTTON_ENABLED = 0` everywhere) are simply dropped. The daemon still understands the old keys.
+
 ## Tray menu
 
-Status line, "Mode" submenu (the global mode), "Enabled", "Settings...", "Open config file",
-"Show log...", "Open modes folder", "Release all keys", "Restart daemon", "Restart interface",
+Status line, "Joystick mode" submenu (the Global joystick mode; every entry has its description as tooltip), "Enabled", "Settings...", "Open config file",
+"Show log...", "Open joystick modes folder", "Release all keys", "Restart daemon", "Restart interface",
 "Quit". "Release all keys" starts
 `dofscroll --release-keys` as a separate process (the daemon binary next to the interface, else
 `dofscroll` from `PATH`); the same command works in a terminal (see
@@ -281,16 +394,16 @@ Compiled and unit-tested in CI only; what has to be checked by hand on real mach
 - **macOS Dock.** The `.app` has `LSUIElement` (no Dock icon). The same Info.plist is embedded in
   the plain executable of a CMake build (linker option `-sectcreate`), so a run from the build
   directory does not show a Dock icon without a window either. Unchecked on hardware.
-- **Output backend.** The "Output backend" choice (X11, uinput) on the Channels page exists on
+- **Output backend.** The "Output backend" choice (X11, uinput) on the Settings page exists on
   Linux only; Windows uses SendInput and macOS CGEvent.
 - **German catalog.** `dofscroll_de.qm` is next to the executable on every system (Linux
   `/usr/bin`, Windows install folder, macOS `dofscroll.app/Contents/MacOS`). To check: set the
-  language to German on the General page and restart the interface.
+  language to German on the Settings page and restart the interface.
 
 ## Reload and runtime files
 
 Saving in the settings window notifies the running daemon: SIGHUP on Linux, a named event on
-Windows, a per-user local socket on macOS. The status, log and mode-request files live in one
+Windows, a per-user local socket on macOS. The status, log and joystick-mode-request files live in one
 per-user runtime directory that daemon and interface agree on (`$XDG_RUNTIME_DIR` on Linux,
 `%LOCALAPPDATA%\dofscroll` on Windows, `~/Library/Caches/dofscroll` on macOS). The interface
 reads the status file only when it is bounded in size, not a symlink and owned by the current
@@ -300,10 +413,22 @@ paths are CI-verified only, not run on hardware.
 
 ## Start at login
 
-The General page has one switch for the daemon and the interface. It uses systemd user units on
+The Settings page has one switch for the daemon and the interface. It uses systemd user units on
 Linux (`dofscroll.service`, `dofscroll-ui.service`), the per-user Run key on Windows and a
 LaunchAgent on macOS. If the interface is not installed, only the daemon is switched. See
 [installation.md](installation.md).
+
+## Terms
+
+The interface says **Joystick mode** for what the axes do (config key `MODE`, files in `modes/`)
+and **Button mode** for the named behavior of one button (`buttons/`, `buttonmode:<id>`); the plain
+word "mode" is not used (the one exception is the sidebar entry "Modes", the category that holds both kinds as tabs). "Navigation" is the arrow-key action of a button, not a mode. The titles of
+the pages and tabs come from one place, `src/ui/model/ui_terms.hpp`; to rename a kind, change the
+constant there and the texts that carry the word (search the old word in `src/ui`, `po/de.po` and
+`docs`: the sentences in `src/ui/qt/pages/*.cpp`, the model texts in
+`src/ui/model/{mode_catalog,mode_info_model,binding_editor_model,settings_model,status_model,
+overview_model,tray_menu_model,examples_model}.hpp`, and the German catalog "Joystick-Modus" /
+"Tasten-Modus"). The GTK tray (`dofscroll-tray`) is separate and keeps its own words.
 
 ## Languages
 

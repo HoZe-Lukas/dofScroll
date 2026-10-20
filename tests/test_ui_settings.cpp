@@ -3,6 +3,8 @@
 // Unit tests for src/ui/model/settings_model.hpp.
 #include <cassert>
 #include <cstdio>
+#include <fstream>
+#include <iterator>
 #include <string>
 
 #include "testutil.hpp"
@@ -131,12 +133,30 @@ int main() {
     const ModeSet ms = makeModes();
     m.setModes(ms, dir + "/modes");
     assert(m.effectiveMode(0) == "normal" && m.effectiveMode(app) == "normal");
-    // [global]: no MODE.
-    assert(!m.setValue(0, "MODE", "timeline", &err) && err.find("[global]") != std::string::npos);
-    assert(!m.setMode(0, "timeline", &err) && !m.setMode(0, 1, &err));
-    assert(m.modeOptions(0).empty() && m.selectedModeOption(0) == -1);
+    // [global] takes MODE like any profile; there is no "Default mode" entry there.
+    {
+        const auto go = m.modeOptions(0);
+        assert(go.size() == 3 && go[0].id == "normal" && go[1].id == "off" && go[2].id == "timeline");
+        assert(m.selectedModeOption(0) == 0);  // no MODE key: "normal"
+        assert(!m.setMode(0, 3, &err) && !m.setMode(0, -1, &err));
+        bool gchanged = false;
+        assert(m.setMode(0, 2, &err, &gchanged) && gchanged && m.effectiveMode(0) == "timeline");
+        assert(m.selectedModeOption(0) == 2 && m.isOverridden(0, "MODE") && m.mode(0) == "timeline");
+        // ... and the profiles without a mode of their own inherit it, until they choose another one
+        assert(m.effectiveMode(app) == "timeline" && m.effectiveMode(dev) == "timeline");
+        assert(m.setMode(app, 2, &err) && m.effectiveMode(app) == "off");
+        assert(m.setMode(app, 0, &err) && m.effectiveMode(app) == "timeline");
+        // the overrides of the global mode show their origin in [global] too
+        SettingsModel::Source src;
+        assert(m.sourceOf(0, "SCROLL_V_SENS", &src) && src == SettingsModel::Source::Global);
+        assert(m.setValue(0, "MODE", "gone", &err) && m.modeOptions(0).size() == 4 && !m.modeOptions(0)[3].known);
+        assert(m.selectedModeOption(0) == 3);
+        assert(m.setMode(0, 0, &err, &gchanged) && gchanged && m.effectiveMode(0) == "normal");
+        assert(m.setValue(0, "MODE", "normal", &err) && m.selectedModeOption(0) == 0);
+    }
     auto gv = m.visibleSettings(0);
-    assert(!gv.canChooseMode && !hasGroup(gv, "mode") && gv.overrides.keys.empty() && gv.addableOverrides.empty());
+    assert(gv.canChooseMode && hasGroup(gv, "mode") && !hasGroup(gv, "general"));
+    assert(gv.overrides.keys.empty() && gv.addableOverrides.empty());
     assert(hasGroup(gv, "buttons") && gv.isDefaultMode);
     // Channel groups are global and always available.
     auto cg = SettingsModel::globalChannelGroups();
@@ -145,7 +165,7 @@ int main() {
 
     // Dropdown.
     auto opt = m.modeOptions(app);
-    assert(opt.size() == 4 && opt[0].id.empty() && opt[0].label == "Default mode" && opt[0].secondary.empty());
+    assert(opt.size() == 4 && opt[0].id.empty() && opt[0].label == "Same as Global" && opt[0].secondary.empty());
     assert(opt[1].id == "normal" && opt[2].id == "off" && opt[3].label == "Timeline" && opt[3].secondary == "timeline");
     assert(m.selectedModeOption(app) == 0);
     bool changed = false;
@@ -242,23 +262,114 @@ int main() {
     assert(m.removeSection(app, &err) && m.sectionCount() == 2 && m.dirty());
     assert(!m.removeSection(0, &err) && !m.removeSection(9, &err));
 
-    // ---- legacy MODE in [global] ----
+    // ---- MODE and buttons in [global] survive a save and load ----
     {
-        const std::string p2 = dir + "/legacy.conf";
-        assert(fs::writeFileReplace(p2, "MODE = timeline\nSCROLL_V_SENS = 4\n", &err));
+        const std::string p2 = dir + "/global-mode.conf";
+        assert(fs::writeFileReplace(p2, "MODE = timeline\nSCROLL_V_SENS = 4\nBUTTON_2 = nav\n", &err));
         SettingsModel lm;
         warn.clear();
-        assert(lm.load(p2, &warn, &err));
-        assert(warn.size() == 1 && warn[0].find("move it") != std::string::npos);
-        assert(lm.notices(id).size() == 1 && lm.validate(id).empty());
-        assert(lm.isOverridden(0, "MODE"));  // kept
+        assert(lm.load(p2, &warn, &err) && warn.empty());  // no warning: the global mode is a feature
+        lm.setModes(ms2, dir + "/modes");
+        assert(lm.effectiveMode(0) == "timeline" && lm.selectedModeOption(0) == 2 && lm.validate(id).empty());
+        assert(lm.setMode(0, 1, &err) && lm.setButton(0, 3, "key:space", &err));
         assert(lm.save(id).saved);
         SettingsModel again;
-        warn.clear();
         again.load(p2, &warn, &err);
-        assert(warn.size() == 1);  // still kept in the file
-        assert(again.clearOverride(0, "MODE") && again.notices(id).empty());
-        assert(again.save(id).saved);
+        again.setModes(ms2, dir + "/modes");
+        assert(again.effectiveMode(0) == "off" && again.effective(0).buttons.at(2) == "nav" &&
+               again.effective(0).buttons.at(3) == "key:space");
+        assert(again.buttonRows(0)[2].overridden);
+    }
+    // The effective values with the overrides of the mode on top.
+    {
+        ModeSet mo = ms2;
+        mo.modes[2].overrides = {{"SCROLL_H_SENS", "21"}};  // timeline
+        SettingsModel em;
+        assert(em.load(dir + "/none.conf", nullptr, &err));
+        em.setModes(mo, dir + "/modes");
+        assert(em.setValue(0, "SCROLL_H_SENS", "8", &err) && em.setValue(0, "MODE", "timeline", &err));
+        assert(em.effective(0).scroll_h.sensitivity == 8 && em.effectiveWithMode(0).scroll_h.sensitivity == 21);
+        SettingsModel::Source src;
+        assert(em.sourceOf(0, "SCROLL_H_SENS", &src) && src == SettingsModel::Source::Mode);
+        assert(em.modeOverrideValue(0, "SCROLL_H_SENS", "x") == "21");
+        const size_t a2 = em.addSection(Section::APP, "viewer", &err);
+        assert(em.effectiveWithMode(a2).scroll_h.sensitivity == 21);  // inherits the global mode
+        assert(em.setValue(a2, "SCROLL_H_SENS", "33", &err) && em.effectiveWithMode(a2).scroll_h.sensitivity == 33);  // app wins
+    }
+
+    // ---- deprecated NAV_BUTTON / CLICK_BUTTON become BUTTON_<n> ----
+    {
+        auto loadText = [&](const std::string &text, SettingsModel &lm) {
+            const std::string p3 = dir + "/legacy-buttons.conf";
+            assert(fs::writeFileReplace(p3, text, &err));
+            std::vector<std::string> w;
+            assert(lm.load(p3, &w, &err));
+        };
+        // defaults written by older saves: dropped without a message
+        {
+            SettingsModel lm;
+            loadText("[global]\nNAV_BUTTON = 0\nNAV_BUTTON_ENABLED = 0\nCLICK_BUTTON = 1\nCLICK_BUTTON_ENABLED = 0\n", lm);
+            assert(lm.hasLegacyButtonKeys());
+            const auto mig = lm.migrateLegacyButtons(id);
+            assert(mig.changed && mig.migrated.empty() && mig.notices.empty() && !lm.hasLegacyButtonKeys());
+            assert(lm.effective(0).buttons.empty());
+        }
+        // enabled in [global]: 0-based number becomes the 1-based BUTTON_<n>
+        {
+            SettingsModel lm;
+            loadText("[global]\nNAV_BUTTON = 2\nNAV_BUTTON_ENABLED = 1\nCLICK_BUTTON = 0\nCLICK_BUTTON_ENABLED = 1\n"
+                     "BUTTON_5 = key:space\n[device:Pad]\nNAV_BUTTON_ENABLED = 0\n[app:x]\nNAV_BUTTON = 3\n"
+                     "[app:y]\nSCROLL_V_SENS = 3\n", lm);
+            const auto mig = lm.migrateLegacyButtons(id);
+            assert(mig.changed && mig.notices.empty() && mig.migrated.size() >= 3);
+            assert(!lm.hasLegacyButtonKeys());
+            assert(lm.effective(0).buttons.at(3) == "nav" && lm.effective(0).buttons.at(1) == "click");
+            assert(lm.effective(0).buttons.at(5) == "key:space");  // untouched
+            const size_t dv = lm.profiles().find(Section::DEVICE, "Pad"), ax = lm.profiles().find(Section::APP, "x");
+            const size_t ay = lm.profiles().find(Section::APP, "y");
+            assert(lm.effective(dv).buttons.at(3) == "none" && lm.effective(dv).buttons.at(1) == "click");  // turned it off
+            assert(lm.effective(ax).buttons.at(3) == "none" && lm.effective(ax).buttons.at(4) == "nav");    // other number: enabled stays global, so it is on at 4 and off at 3
+            assert(lm.effective(ay).buttons.at(3) == "nav");  // inherits
+            assert(lm.dirty() && lm.save(id).saved);
+            SettingsModel back;
+            assert(back.load(dir + "/legacy-buttons.conf", nullptr, &err) && !back.hasLegacyButtonKeys());
+            assert(back.effective(dv).buttons.at(3) == "none" && back.effective(0).buttons.at(3) == "nav");
+        }
+        // above the factory count: kept untouched, listed as a notice
+        {
+            SettingsModel lm;
+            lm.setDeviceInfo("SpaceMouse Pro", 15);
+            loadText("[global]\nNAV_BUTTON = 30\nNAV_BUTTON_ENABLED = 1\nCLICK_BUTTON = 0\nCLICK_BUTTON_ENABLED = 1\n", lm);
+            lm.setDeviceInfo("SpaceMouse Pro", 15);
+            const int lim2 = lm.buttonLimit();
+            if (lim2 < 31) {
+                const auto mig = lm.migrateLegacyButtons(id);
+                assert(mig.changed && mig.notices.size() == 1 && mig.notices[0].find("NAV_BUTTON") != std::string::npos);
+                assert(lm.isOverridden(0, "NAV_BUTTON") && lm.isOverridden(0, "NAV_BUTTON_ENABLED"));  // kept
+                assert(lm.effective(0).buttons.at(1) == "click" && !lm.isOverridden(0, "CLICK_BUTTON"));  // the other pair moved
+            }
+        }
+        // a conflicting binding of the profile itself: nothing moves
+        {
+            SettingsModel lm;
+            loadText("[global]\nNAV_BUTTON = 0\nNAV_BUTTON_ENABLED = 1\nBUTTON_1 = key:space\n", lm);
+            const auto mig = lm.migrateLegacyButtons(id);
+            assert(!mig.changed && mig.notices.size() == 1 && lm.isOverridden(0, "NAV_BUTTON_ENABLED"));
+            assert(lm.effective(0).buttons.at(1) == "key:space" && !lm.dirty());
+            // an equal binding is fine
+            loadText("[global]\nNAV_BUTTON = 0\nNAV_BUTTON_ENABLED = 1\nBUTTON_1 = nav\n", lm);
+            assert(lm.migrateLegacyButtons(id).notices.empty() && !lm.hasLegacyButtonKeys());
+        }
+        // saving no longer writes the unused legacy keys
+        {
+            SettingsModel lm;
+            loadText("[global]\nSCROLL_V_SENS = 4\n", lm);
+            assert(lm.setValue(0, "SCROLL_V_SENS", "6", &err) && lm.save(id).saved);
+            std::ifstream in(dir + "/legacy-buttons.conf");
+            const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            assert(text.find("SCROLL_V_SENS = 6") != std::string::npos && text.find("NAV_BUTTON") == std::string::npos &&
+                   text.find("CLICK_BUTTON") == std::string::npos);
+        }
     }
 
     tu::removeAll(dir);

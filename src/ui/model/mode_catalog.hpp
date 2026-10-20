@@ -190,18 +190,18 @@ public:
         const std::string label = cleanLabel(displayName);
         const std::string id = deriveId(label);
         if (label.empty() || id.empty()) return fail(r, "the name must contain letters or digits");
-        if (taken(id)) return fail(r, "a mode with the id '" + id + "' already exists");
+        if (taken(id)) return fail(r, "a joystick mode with the id '" + id + "' already exists");
         return write(r, id, newModeTemplate(id, label));
     }
     // Copy of any mode (built-ins included) under a new name; the copy has no file link to the source.
     Result duplicate(const std::string &id, const std::string &newName) {
         Result r;
         const ModeDef *src = set_.find(id);
-        if (!src) return fail(r, "no such mode");
+        if (!src) return fail(r, "no such joystick mode");
         const std::string label = cleanLabel(newName);
         const std::string nid = deriveId(label);
         if (label.empty() || nid.empty()) return fail(r, "the name must contain letters or digits");
-        if (taken(nid)) return fail(r, "a mode with the id '" + nid + "' already exists");
+        if (taken(nid)) return fail(r, "a joystick mode with the id '" + nid + "' already exists");
         ModeDef copy = *src;
         copy.id = nid;
         copy.label = label;
@@ -212,8 +212,8 @@ public:
     Result makeEditableCopy(const std::string &id) {
         Result r;
         const ModeDef *src = set_.find(id);
-        if (!src) return fail(r, "no such mode");
-        if (!src->builtin) return fail(r, "this mode already has a file");
+        if (!src) return fail(r, "no such joystick mode");
+        if (!src->builtin) return fail(r, "this joystick mode already has a file");
         if (fs::pathExists(modelist::modeFilePath(dir_, id))) return fail(r, "file already exists");
         return write(r, id, modelist::modeTemplate(*src));
     }
@@ -251,8 +251,8 @@ public:
             if (stem.size() > 5 && stem.compare(stem.size() - 5, 5, ".conf") == 0) stem.resize(stem.size() - 5);
         }
         const std::string id = deriveId(stem);
-        if (id.empty()) return fail(r, "cannot derive a mode id from the name");
-        if (taken(id)) return fail(r, "a mode with the id '" + id + "' already exists; choose another name");
+        if (id.empty()) return fail(r, "cannot derive a joystick mode id from the name");
+        if (taken(id)) return fail(r, "a joystick mode with the id '" + id + "' already exists; choose another name");
         r.id = id;
 
         // Parse with the real loader in a private staging directory next to the modes directory.
@@ -274,7 +274,7 @@ public:
         const ModeDef *m = probe.find(id);
         if (!m || m->builtin) {
             for (const std::string &w : warn) r.warnings.push_back(relocate(w, staging, dir_));
-            return fail(r, "the file is not a valid mode file");
+            return fail(r, "the file is not a valid joystick mode file");
         }
         for (const std::string &w : warn) r.warnings.push_back(relocate(w, staging, dir_));
         r.ok = true;
@@ -297,14 +297,14 @@ public:
     }
     // Text for the view before an imported mode is kept.
     static std::string importSafetyNote(const StringProvider &s) {
-        return s.tr("A mode file can press any key, including shortcut chords (Ctrl, Alt, Super), whenever a button is "
+        return s.tr("A joystick mode file can press any key, including shortcut chords (Ctrl, Alt, Super), whenever a button is "
                     "pressed or the mouse is moved. Only keep files from sources you trust and read the file first.");
     }
 
     // ---- used by profiles ----
     // A profile section that refers to a mode: its MODE key selects it (selects), and/or buttons
-    // switch to it (BUTTON_<n> = mode:<id>, toggle:mode:<id>, hold:mode:<id>). [global] can only
-    // refer through buttons. Toolkit-free, reads the raw keys of the sections.
+    // switch to it (BUTTON_<n> = mode:<id>, toggle:mode:<id>, hold:mode:<id>). [global] counts like
+    // any other profile (it can select a mode too). Toolkit-free, reads the raw keys of the sections.
     struct ModeUse {
         size_t section = 0;  // index in the ProfileSet
         Section::Kind kind = Section::GLOBAL;
@@ -326,7 +326,7 @@ public:
                 for (unsigned char c : kv.first) key += (c >= 'a' && c <= 'z') ? char(c - 32) : char(c);
                 std::string val = utf8::trim(kv.second);
                 if (key == "MODE") {
-                    if (i != 0 && val == id) u.selects = true;
+                    if (val == id && !(i == 0 && id == "normal")) u.selects = true;  // the saved [global] always says MODE = normal
                 } else if (key.compare(0, 7, "BUTTON_") == 0) {
                     ButtonActionType t = ButtonActionType::Unbound;
                     Key k = Key::Space;
@@ -357,12 +357,12 @@ public:
     Result exportTo(const std::string &id, const std::string &dest) const {
         Result r;
         const ModeEntry *e = find(id);
-        if (!e) return fail(r, "no such mode");
+        if (!e) return fail(r, "no such joystick mode");
         if (dest.empty()) return fail(r, "no destination");
         std::string text;
         if (e->path.empty()) {
             const ModeDef *def = set_.find(id);
-            if (!def) return fail(r, "no such mode");
+            if (!def) return fail(r, "no such joystick mode");
             text = modelist::modeTemplate(*def);
         } else if (!fs::readFileBounded(e->path, kMaxImportBytes, fs::ReadOptions(), &text).ok()) {
             return fail(r, "cannot read " + e->path);
@@ -384,12 +384,12 @@ public:
     Result rename(const std::string &id, const std::string &newName) {
         Result r;
         const ModeEntry *e = find(id);
-        if (!e) return fail(r, "no such mode");
-        if (e->origin != Origin::File) return fail(r, "only modes from a file can be renamed");
+        if (!e) return fail(r, "no such joystick mode");
+        if (e->origin != Origin::File) return fail(r, "only joystick modes from a file can be renamed");
         const std::string label = cleanLabel(newName);
         const std::string nid = deriveId(label);
         if (label.empty() || nid.empty()) return fail(r, "the name must contain letters or digits");
-        if (nid != id && taken(nid)) return fail(r, "a mode with the id '" + nid + "' already exists");
+        if (nid != id && taken(nid)) return fail(r, "a joystick mode with the id '" + nid + "' already exists");
         std::string text;
         if (!fs::readFileBounded(e->path, kMaxImportBytes, fs::ReadOptions(), &text).ok())
             return fail(r, "cannot read " + e->path);
@@ -446,8 +446,8 @@ public:
     Result remove(const std::string &id) {
         Result r;
         const ModeEntry *e = find(id);
-        if (!e) return fail(r, "no such mode");
-        if (e->origin == Origin::BuiltIn) return fail(r, "built-in modes cannot be removed");
+        if (!e) return fail(r, "no such joystick mode");
+        if (e->origin == Origin::BuiltIn) return fail(r, "built-in joystick modes cannot be removed");
         const std::string p = e->path;
         if (!fs::removeFile(p)) return fail(r, "cannot remove " + p);
         r.id = id;

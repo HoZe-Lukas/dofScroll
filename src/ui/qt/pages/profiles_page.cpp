@@ -7,6 +7,8 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QEvent>
+#include <QFileDialog>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
@@ -16,35 +18,40 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QCloseEvent>
 #include <QScrollArea>
 #include <QScrollBar>
-#include <QTabBar>
-#include <QTabWidget>
-#include <QStackedWidget>
 #include <QSignalBlocker>
-#include <QSpinBox>
 #include <QSplitter>
-#include <QStandardItemModel>
+#include <QStandardPaths>
+#include <QStyle>
+#include <QTabWidget>
 #include <QTimer>
 #include <QToolButton>
 #include <QTreeWidget>
 #include <QTreeWidgetItemIterator>
 #include <QVBoxLayout>
 #include <QHideEvent>
+#include <QShowEvent>
 
 #include "add_app_dialog.hpp"
 #include "add_device_dialog.hpp"
 #include "button_row.hpp"
+#include "channels_editor.hpp"
+#include "info_popup.hpp"
 #include "key_combo.hpp"
+#include "platform/fs.hpp"
 #include "ui/model/binding_editor_model.hpp"
 #include "ui/model/button_choice_model.hpp"
-#include <QStandardItem>
+#include "ui/model/design_tokens.hpp"
 #include "ui/model/effective_model.hpp"
+#include "ui/model/inheritance_model.hpp"
+#include "ui/model/examples_model.hpp"
+#include "ui/model/mode_info_model.hpp"
 #include "ui/model/key_list.hpp"
+#include "ui/model/profile_export.hpp"
 #include "ui/model/profile_tree_model.hpp"
 #include "platform_hooks.hpp"
-#include "ui/model/design_tokens.hpp"
+#include "theme.hpp"
 #include "ui_i18n.hpp"
 
 using namespace spn;
@@ -53,6 +60,7 @@ using namespace spn::ui;
 namespace {
 enum { kRoleSection = Qt::UserRole };  // section index, -1 for group headers
 
+namespace tk = spn::ui::tokens;
 
 QLabel *wrapLabel(const QString &text, QWidget *parent = nullptr) {
     auto *l = new QLabel(text, parent);
@@ -61,9 +69,36 @@ QLabel *wrapLabel(const QString &text, QWidget *parent = nullptr) {
     return l;
 }
 
+QLabel *noteLabel(const QString &text, QWidget *parent = nullptr) {
+    QLabel *l = wrapLabel(text, parent);
+    l->setForegroundRole(QPalette::PlaceholderText);
+    return l;
+}
+
+QString iconResource(Section::Kind kind) {
+    return kind == Section::GLOBAL   ? QStringLiteral(":/icons/global.svg")
+           : kind == Section::DEVICE ? QStringLiteral(":/icons/device.svg")
+                                     : QStringLiteral(":/icons/app.svg");
+}
+
 }  // namespace
 
 QWidget *createProfilesPage(const UiContext &ctx) { return new ProfilesPage(ctx); }
+
+QStringList ProfilesPage::profileListLabels() const {
+    QStringList out;
+    for (int g = 0; g < tree_->topLevelItemCount(); ++g) {
+        const QTreeWidgetItem *top = tree_->topLevelItem(g);
+        out << top->text(0);
+        for (int c = 0; c < top->childCount(); ++c) out << top->child(c)->text(0);
+    }
+    return out;
+}
+
+QString ProfilesPage::treeLabel(size_t section) const {
+    const SettingsModel::SectionInfo info = ctx_.settings->sections()[section];
+    return section == 0 ? T("Global") : qs8(spn::ui::profileListLabel(info.pattern, ctx_.settings->overrideCount(section)));
+}
 
 ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(parent), ctx_(ctx) {
     env_.runningApps = [] { return spn::makeRunningAppsProvider(); };
@@ -83,19 +118,21 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
         t->start();
     }
     auto *outer = new QVBoxLayout(this);
+    outer->setContentsMargins(tk::kPageMargin, tk::kSpaceSm, tk::kPageMargin, tk::kSpaceMd);
     auto *split = new QSplitter(Qt::Horizontal, this);
 
+    // Left: the list of the profiles, always visible next to the tabs of the selected one.
     auto *left = new QWidget(split);
     auto *ll = new QVBoxLayout(left);
-    ll->setContentsMargins(0, 0, 0, 0);
+    ll->setContentsMargins(0, 0, tk::kSpaceMd, 0);
+    ll->setSpacing(tk::kSpaceSm);
     profileFilter_ = new QLineEdit(left);
     profileFilter_->setClearButtonEnabled(true);
     profileFilter_->setPlaceholderText(T("Search profiles..."));
     profileFilter_->setAccessibleName(T("Search profiles"));
     profileFilter_->setToolTip(T("Show only the programs and devices whose name contains this text"));
     ll->addWidget(profileFilter_);
-    ll->setSpacing(spn::ui::tokens::kSpaceSm);
-    left->setMinimumWidth(180);
+    left->setMinimumWidth(170);
     tree_ = new QTreeWidget(left);
     tree_->setMinimumHeight(160);
     tree_->setHeaderHidden(true);
@@ -109,13 +146,41 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     rename_->setToolTip(T("Change the match string of this profile"));
     remove_ = new QPushButton(T("Remove"), left);
     remove_->setToolTip(T("Delete this profile and its settings"));
-    for (QPushButton *b : {add_app_, add_dev_, rename_, remove_}) ll->addWidget(b);
+    export_ = new QPushButton(T("Export..."), left);
+    export_->setToolTip(T("Save this profile (its section) as a .conf file"));
+    for (QPushButton *b : {add_app_, add_dev_, rename_, remove_, export_}) ll->addWidget(b);
 
-    // Right side: the search box of the settings and the sub-tabs of the selected profile. Every
-    // tab scrolls on its own; the buttons below the split stay visible.
+    // Right: who is edited, the search box of the settings and the tabs.
     auto *right = new QWidget(split);
     auto *rl = new QVBoxLayout(right);
-    rl->setContentsMargins(0, 0, 0, 0);
+    rl->setContentsMargins(tk::kSpaceMd, 0, 0, 0);
+    rl->setSpacing(tk::kSpaceSm);
+    auto *header = new QWidget(right);
+    header->setObjectName(QStringLiteral("profileHeader"));
+    auto *hl = new QHBoxLayout(header);
+    hl->setContentsMargins(0, 0, 0, 0);
+    hl->setSpacing(tk::kSpaceMd);
+    headerIcon_ = new QLabel(header);
+    headerIcon_->setFixedSize(tk::kIconSize * 3 / 2, tk::kIconSize * 3 / 2);
+    headerIcon_->setScaledContents(true);
+    headerIcon_->setAccessibleName(T("Icon of the edited profile"));
+    headerName_ = new QLabel(header);
+    headerName_->setProperty("heading", QStringLiteral("section"));
+    headerName_->setAccessibleName(T("Edited profile"));
+    headerName_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    headerKind_ = new QLabel(header);
+    headerKind_->setForegroundRole(QPalette::PlaceholderText);
+    headerKind_->setAccessibleName(T("Kind of the edited profile"));
+    hl->addWidget(headerIcon_);
+    hl->addWidget(headerName_);
+    hl->addWidget(headerKind_);
+    hl->addStretch(1);
+    rl->addWidget(header);
+    headerNote_ = new QLabel(right);
+    headerNote_->setWordWrap(true);
+    headerNote_->setForegroundRole(QPalette::PlaceholderText);
+    headerNote_->setAccessibleName(T("About inheritance"));
+    rl->addWidget(headerNote_);
     settingsFilter_ = new QLineEdit(right);
     settingsFilter_->setClearButtonEnabled(true);
     settingsFilter_->setPlaceholderText(T("Search settings of this profile..."));
@@ -126,59 +191,78 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     tabs_->setAccessibleName(T("Profile sections"));
     tabs_->setDocumentMode(true);
     rl->addWidget(tabs_, 1);
-    tabs_->setMinimumWidth(380);  // the editor never gets squashed
+    tabs_->setMinimumWidth(260);  // the editor never gets squashed, and the page fits the smallest window
     split->setChildrenCollapsible(false);
+
+    // The tabs exist once; they stay when another profile is selected (only their content changes).
+    auto makeArea = [](const char *id) {
+        auto *area = new QScrollArea;
+        area->setWidgetResizable(true);
+        area->setFrameShape(QFrame::NoFrame);
+        area->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
+        area->setProperty("tabId", QString::fromLatin1(id));
+        return area;
+    };
+    general_ = makeArea("general");
+    buttons_ = makeArea("buttons");
+    overrides_ = makeArea("overrides");
+    channels_ = new ChannelsEditor(ctx_, tabs_);
+    channels_->setProperty("tabId", QStringLiteral("channels"));
+    tabs_->addTab(general_, T("General"));
+    tabs_->addTab(channels_, T("Channels"));
+    tabs_->addTab(buttons_, T("Buttons"));
+    tabs_->addTab(overrides_, T("Overrides"));
+    tabs_->setTabToolTip(3, T("Advanced: every value this profile sets itself"));
+
     split->addWidget(left);
     split->addWidget(right);
     split->setStretchFactor(0, 0);
     split->setStretchFactor(1, 1);
-    split->setSizes({230, 640});
+    split->setSizes({260, 760});
     outer->addWidget(split, 1);
-
-    auto *bar = new QHBoxLayout;
-    status_ = new QLabel(this);
-    status_->setWordWrap(true);
-    revert_ = new QPushButton(T("Revert"), this);
-    revert_->setToolTip(T("Discard the unsaved changes of this profile and load the saved values"));
-    save_ = new QPushButton(T("Save"), this);
-    save_->setProperty("primary", true);  // the accent button of the page
-    save_->setToolTip(T("Write the configuration and tell the daemon to reload it"));
-    bar->addWidget(status_, 1);
-    bar->addWidget(revert_);
-    bar->addWidget(save_);
-    outer->addLayout(bar);
 
     setTabOrder(profileFilter_, tree_);
     setTabOrder(tree_, add_app_);
     setTabOrder(add_app_, add_dev_);
     setTabOrder(add_dev_, rename_);
     setTabOrder(rename_, remove_);
-    setTabOrder(remove_, settingsFilter_);
+    setTabOrder(remove_, export_);
+    setTabOrder(export_, settingsFilter_);
     setTabOrder(settingsFilter_, tabs_);
-    setTabOrder(tabs_, revert_);
-    setTabOrder(revert_, save_);
 
     connect(tree_, &QTreeWidget::currentItemChanged, this,
             [this](QTreeWidgetItem *cur, QTreeWidgetItem *prev) { onSelectionChanged(cur, prev); });
     connect(profileFilter_, &QLineEdit::textChanged, this, [this] { applyProfileFilter(); });
-    connect(settingsFilter_, &QLineEdit::textChanged, this, [this] { queueRebuild(); });
-    connect(tabs_, &QTabWidget::currentChanged, this, [this](int i) {
-        if (i >= 0 && tabs_->widget(i)) lastTab_ = tabs_->widget(i)->property("tabId").toString();
+    connect(settingsFilter_, &QLineEdit::textChanged, this, [this] {
+        channels_->setFilter(settingsFilter_->text());
+        queueRebuild();
     });
+    connect(tabs_, &QTabWidget::currentChanged, this, [this] { ctx_.saveNow(); });
     connect(add_app_, &QPushButton::clicked, this, &ProfilesPage::addApplication);
     connect(add_dev_, &QPushButton::clicked, this, &ProfilesPage::addDevice);
     connect(rename_, &QPushButton::clicked, this, &ProfilesPage::renameProfile);
     connect(remove_, &QPushButton::clicked, this, &ProfilesPage::removeProfile);
-    connect(revert_, &QPushButton::clicked, this, &ProfilesPage::revert);
-    connect(save_, &QPushButton::clicked, this, &ProfilesPage::save);
+    connect(export_, &QPushButton::clicked, this, &ProfilesPage::exportProfile);
+
+    // the numbers of overrides in the list follow the edits
+    if (ctx_.autosave) connect(ctx_.autosave, &Autosaver::written, this, [this] { refreshTreeLabels(); });
 
     rebuildTree(0);
 }
 
-int ProfilesPage::profileCount() const {
-    return int(ProfileTreeModel::entries(*ctx_.settings).size()) - 1;
+void ProfilesPage::refreshTreeLabels() {
+    if (!ctx_.settings) return;
+    const spn::ui::IdentityStrings fallback;
+    const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
+    for (QTreeWidgetItemIterator it(tree_); *it; ++it) {
+        const int s = (*it)->data(0, kRoleSection).toInt();
+        if (s <= 0 || size_t(s) >= ctx_.settings->sectionCount()) continue;
+        (*it)->setText(0, treeLabel(size_t(s)));
+        (*it)->setToolTip(0, qs8(spn::ui::profileOverrideCountText(ctx_.settings->overrideCount(size_t(s)), strings)));
+    }
 }
-bool ProfilesPage::modeSelectorVisible() const { return modeSelectorVisible_; }
+
+int ProfilesPage::profileCount() const { return int(ProfileTreeModel::entries(*ctx_.settings).size()) - 1; }
 
 size_t ProfilesPage::currentSection() const {
     const QTreeWidgetItem *it = tree_->currentItem();
@@ -186,32 +270,26 @@ size_t ProfilesPage::currentSection() const {
     return s < 0 ? 0 : size_t(s);
 }
 
-void ProfilesPage::setStatus(const QString &text) { status_->setText(text); }
+void ProfilesPage::problem(const QString &text) { ctx_.report(text, true); }
 
 void ProfilesPage::updateButtons() {
     const size_t s = currentSection();
     rename_->setEnabled(s != 0);
     remove_->setEnabled(s != 0);
-    save_->setEnabled(ctx_.settings->dirty());
-    revert_->setEnabled(ctx_.settings->sectionModified(s));
-}
-
-bool ProfilesPage::selectedModified() const { return ctx_.settings->sectionModified(currentSection()); }
-bool ProfilesPage::revertEnabled() const { return revert_->isEnabled(); }
-bool ProfilesPage::saveEnabled() const { return save_->isEnabled(); }
-
-QString ProfilesPage::shownName() const {
-    return shown_ == 0 ? T("Default mode") : qs8(ctx_.settings->sections()[shown_].pattern);
 }
 
 void ProfilesPage::rebuildTree(size_t selectSection) {
     QSignalBlocker block(tree_);
     tree_->clear();
+    const spn::ui::IdentityStrings fallbackStrings;
+    const spn::ui::StringProvider *sp = ctx_.strings ? ctx_.strings : &fallbackStrings;
     QTreeWidgetItem *dev = nullptr, *app = nullptr, *select = nullptr;
+    const QColor iconColor = palette().color(QPalette::WindowText);
     for (const ProfileEntry &e : ProfileTreeModel::entries(*ctx_.settings)) {
         QTreeWidgetItem *it;
         if (e.isDefault) {
             it = new QTreeWidgetItem(tree_, QStringList(T("Global")));
+            it->setToolTip(0, qs8(headerExplanation(0, Section::GLOBAL, *sp)));
         } else {
             QTreeWidgetItem *&group = e.kind == Section::DEVICE ? dev : app;
             if (!group) {
@@ -220,8 +298,11 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
                 group->setFlags(Qt::ItemIsEnabled);
                 group->setExpanded(true);
             }
-            it = new QTreeWidgetItem(group, QStringList(qs8(e.pattern)));
+            const size_t n = ctx_.settings->overrideCount(e.section);
+            it = new QTreeWidgetItem(group, QStringList(qs8(profileListLabel(e.pattern, n))));
+            it->setToolTip(0, qs8(profileOverrideCountText(n, *sp)));
         }
+        it->setIcon(0, themedIcon(iconResource(e.kind), iconColor, tk::kIconSize));
         it->setData(0, kRoleSection, int(e.section));
         if (e.section == selectSection) select = it;
     }
@@ -235,6 +316,10 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
 bool ProfilesPage::selectSection(size_t section) {
     for (QTreeWidgetItemIterator it(tree_); *it; ++it) {
         if ((*it)->data(0, kRoleSection).toInt() == int(section) && (*it)->flags() & Qt::ItemIsSelectable) {
+            if (tree_->currentItem() == *it) {
+                rebuildContent();  // the model may have changed since
+                return true;
+            }
             tree_->setCurrentItem(*it);  // onSelectionChanged rebuilds the content
             return true;
         }
@@ -242,14 +327,8 @@ bool ProfilesPage::selectSection(size_t section) {
     return false;
 }
 
-// Selects the profile of a kind and name after a revert changed the indices (default mode if gone).
-void ProfilesPage::rebuildTreeByName(Section::Kind kind, const std::string &pattern) {
-    const size_t idx = kind == Section::GLOBAL ? 0 : ctx_.settings->profiles().find(kind, pattern);
-    rebuildTree(idx == ProfileSet::npos ? 0 : idx);
-}
-
 // Search box of the list: hides the profiles whose name does not contain the text, and a group
-// header without a visible profile. The default mode is always shown.
+// header without a visible profile. Global is always shown.
 void ProfilesPage::applyProfileFilter() {
     const std::string text = profileFilter_->text().toUtf8().toStdString();
     std::vector<size_t> keep;
@@ -257,7 +336,7 @@ void ProfilesPage::applyProfileFilter() {
         keep.push_back(e.section);
     for (int g = 0; g < tree_->topLevelItemCount(); ++g) {
         QTreeWidgetItem *top = tree_->topLevelItem(g);
-        if (top->data(0, kRoleSection).toInt() >= 0) continue;  // the default mode
+        if (top->data(0, kRoleSection).toInt() >= 0) continue;  // Global
         int visible = 0;
         for (int c = 0; c < top->childCount(); ++c) {
             QTreeWidgetItem *it = top->child(c);
@@ -283,39 +362,16 @@ void ProfilesPage::setProfileFilter(const QString &text) { profileFilter_->setTe
 
 void ProfilesPage::setSettingsFilter(const QString &text) {
     settingsFilter_->setText(text);
+    channels_->setFilter(text);
     rebuildContent();  // at once, not queued: callers read the rows
 }
 
-// Kind and name of the profile of a section (the section numbers change when a profile is
-// removed or restored, the name does not).
-static void profileIdentity(const SettingsModel &m, size_t section, Section::Kind *kind, std::string *pattern) {
-    *kind = Section::GLOBAL;
-    pattern->clear();
-    if (section == 0 || section >= m.sectionCount()) return;
-    const SettingsModel::SectionInfo info = m.sections()[section];
-    *kind = info.kind;
-    *pattern = info.pattern;
-}
+int ProfilesPage::settingRowCount() const { return settingRows_ + channels_->visibleRowCount(); }
 
-// Another profile was picked. Unsaved edits of the profile that is left are asked about first;
-// Cancel keeps it selected.
-void ProfilesPage::onSelectionChanged(QTreeWidgetItem *current, QTreeWidgetItem *previous) {
-    const size_t target = current ? size_t(std::max(0, current->data(0, kRoleSection).toInt())) : 0;
-    if (!leaving_ && target != shown_ && shown_ < ctx_.settings->sectionCount() && ctx_.settings->sectionModified(shown_)) {
-        Section::Kind kind;
-        std::string pattern;
-        profileIdentity(*ctx_.settings, target, &kind, &pattern);
-        leaving_ = true;
-        const bool go = resolveUnsaved(false);
-        leaving_ = false;
-        if (!go) {
-            QSignalBlocker block(tree_);
-            tree_->setCurrentItem(previous);
-            return;
-        }
-        rebuildTreeByName(kind, pattern);  // a Discard can renumber the profiles
-        return;
-    }
+// Another profile was picked: what was typed so far is written first, then the tabs show the new
+// profile (the tab stays).
+void ProfilesPage::onSelectionChanged(QTreeWidgetItem *, QTreeWidgetItem *) {
+    ctx_.saveNow();
     rebuildContent();
 }
 
@@ -338,134 +394,35 @@ bool ProfilesPage::selectTab(const QString &id) {
     return false;
 }
 
-// Revert button: the unsaved edits of the selected profile are dropped.
-bool ProfilesPage::revertSelected() {
-    const size_t s = currentSection();
-    if (!ctx_.settings->sectionModified(s)) return false;
-    Section::Kind kind;
-    std::string pattern;
-    profileIdentity(*ctx_.settings, s, &kind, &pattern);
-    bool removed = false;
-    ctx_.settings->revertSection(s, &removed);
-    if (removed) {
-        kind = Section::GLOBAL;
-        pattern.clear();
-    } else if (s > 0) {
-        // a restored rename has its saved name again
-        pattern = ctx_.settings->sections()[s].pattern;
-    }
-    rebuildTreeByName(kind, pattern);
-    setStatus(ctx_.settings->dirty() ? T("Changes of this profile discarded.")
-                                     : T("Changes discarded. Nothing is unsaved."));
-    updateButtons();
-    return true;
-}
+QString ProfilesPage::headerName() const { return headerName_->text(); }
+QString ProfilesPage::headerKind() const { return headerKind_->text(); }
+QString ProfilesPage::headerNote() const { return headerNote_->text(); }
+bool ProfilesPage::headerHasIcon() const { return !headerIcon_->pixmap(Qt::ReturnByValue).isNull(); }
 
-void ProfilesPage::revert() { revertSelected(); }
-
-// The guard: true if the caller may continue (nothing unsaved, saved, or discarded). After a
-// Discard of a profile the caller rebuilds the tree (the profiles can be renumbered).
-bool ProfilesPage::resolveUnsaved(bool wholeFile) {
-    SettingsModel &m = *ctx_.settings;
-    const bool modified = wholeFile ? m.dirty() : (shown_ < m.sectionCount() && m.sectionModified(shown_));
-    if (!modified) return true;
-    const QString what = wholeFile ? QString() : shownName();
-    UnsavedChoice c = UnsavedChoice::Cancel;
-    if (prompt_) {
-        c = prompt_(what);
-    } else {
-        QMessageBox box(QMessageBox::Question, T("Unsaved changes"),
-                        what.isEmpty() ? T("There are unsaved changes. Save them?")
-                                       : T("The profile \"%1\" has unsaved changes. Save them?").arg(what),
-                        QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
-        box.setDefaultButton(QMessageBox::Save);
-        const int r = box.exec();
-        c = r == QMessageBox::Save ? UnsavedChoice::Save
-            : r == QMessageBox::Discard ? UnsavedChoice::Discard : UnsavedChoice::Cancel;
-    }
-    if (c == UnsavedChoice::Save) {
-        save();
-        return wholeFile ? !m.dirty() : !m.sectionModified(shown_);
-    }
-    if (c == UnsavedChoice::Discard) {
-        if (wholeFile) {
-            Section::Kind kind;
-            std::string pattern;
-            profileIdentity(m, shown_, &kind, &pattern);
-            m.revertAll();
-            rebuildTreeByName(kind, pattern);  // the window may be shown again later
-        } else {
-            m.revertSection(shown_);
+// A palette change (theme) repaints the icons in the colour of the new palette.
+void ProfilesPage::changeEvent(QEvent *e) {
+    QWidget::changeEvent(e);
+    if (e->type() == QEvent::PaletteChange && tree_ && ctx_.settings) {
+        const QColor c = palette().color(QPalette::WindowText);
+        for (QTreeWidgetItemIterator it(tree_); *it; ++it) {
+            const int s = (*it)->data(0, kRoleSection).toInt();
+            if (s < 0 || size_t(s) >= ctx_.settings->sectionCount()) continue;
+            const Section::Kind kind = s == 0 ? Section::GLOBAL : ctx_.settings->sections()[size_t(s)].kind;
+            (*it)->setIcon(0, themedIcon(iconResource(kind), c, tk::kIconSize));
         }
-        updateButtons();
-        return true;
-    }
-    return false;
-}
-
-// The window closes: ask once for the whole configuration (the edits live in one model).
-void ProfilesPage::showEvent(QShowEvent *e) {
-    QWidget::showEvent(e);
-    QWidget *w = window();
-    if (w && w != filtered_) {
-        if (filtered_) filtered_->removeEventFilter(this);
-        w->installEventFilter(this);
-        filtered_ = w;
+        rebuildHeader();
     }
 }
 
-bool ProfilesPage::eventFilter(QObject *obj, QEvent *e) {
-    if (obj == filtered_ && e->type() == QEvent::Close && !leaving_) {
-        leaving_ = true;
-        const bool go = resolveUnsaved(true);
-        leaving_ = false;
-        if (!go) {
-            e->ignore();
-            return true;
-        }
-    }
-    return QWidget::eventFilter(obj, e);
-}
-
-// Another page was shown while this profile has unsaved edits: ask; Cancel comes back here.
 void ProfilesPage::hideEvent(QHideEvent *e) {
     QWidget::hideEvent(e);
-    if (leaving_ || e->spontaneous()) return;
-    QWidget *w = window();
-    if (!w || !w->isVisible() || w->isMinimized()) return;
-    if (shown_ >= ctx_.settings->sectionCount() || !ctx_.settings->sectionModified(shown_)) return;
-    QTimer::singleShot(0, this, [this] { guardLeave(); });
+    ctx_.saveNow();  // leaving the page: the last edit is on disk
 }
 
-void ProfilesPage::guardLeave() {
-    if (leaving_ || isVisible() || !window()->isVisible()) return;
-    if (shown_ >= ctx_.settings->sectionCount() || !ctx_.settings->sectionModified(shown_)) return;
-    leaving_ = true;
-    Section::Kind kind;
-    std::string pattern;
-    profileIdentity(*ctx_.settings, shown_, &kind, &pattern);
-    if (resolveUnsaved(false))
-        rebuildTreeByName(kind, pattern);
-    else
-        returnToPage();
-    leaving_ = false;
-}
-
-// Makes this page the current one again: its tab and its category.
-void ProfilesPage::returnToPage() {
-    QWidget *child = this;
-    for (QWidget *p = parentWidget(); p; child = p, p = p->parentWidget()) {
-        auto *st = qobject_cast<QStackedWidget *>(p);
-        if (!st) continue;
-        if (auto *tw = qobject_cast<QTabWidget *>(st->parentWidget())) {
-            tw->setCurrentWidget(child);
-            continue;
-        }
-        st->setCurrentWidget(child);
-        const QList<QTabBar *> bars = window()->findChildren<QTabBar *>();
-        for (QTabBar *b : bars)
-            if (b->accessibleName() == T("Categories")) b->setCurrentIndex(st->indexOf(child));
-    }
+// The page comes back: the installed joystick modes or the device may have changed meanwhile.
+void ProfilesPage::showEvent(QShowEvent *e) {
+    QWidget::showEvent(e);
+    rebuildContent();
 }
 
 void ProfilesPage::queueRebuild() {
@@ -496,84 +453,99 @@ void ProfilesPage::refreshDeviceLimit(size_t section) {
     ctx_.settings->setDeviceInfo(l.name, l.reported);
 }
 
+// Icon, name and kind of the edited profile: the editor never looks like a global page.
+void ProfilesPage::rebuildHeader() {
+    const size_t section = shown_ < ctx_.settings->sectionCount() ? shown_ : 0;
+    const SettingsModel::SectionInfo info = ctx_.settings->sections()[section];
+    const int px = tk::kIconSize * 3 / 2;
+    const QIcon ic = themedIcon(iconResource(info.kind), palette().color(QPalette::WindowText), px);
+    headerIcon_->setPixmap(ic.pixmap(px, px));
+    headerName_->setText(section == 0 ? T("Global") : qs8(info.pattern));
+    const spn::ui::IdentityStrings fallback;
+    headerNote_->setText(qs8(spn::ui::headerExplanation(section, info.kind, ctx_.strings ? *ctx_.strings : fallback)));
+    headerKind_->setText(section == 0                   ? T("Global profile")
+                         : info.kind == Section::DEVICE ? T("Device profile")
+                                                        : T("Program profile"));
+}
+
+// Fills the tab area with the parts (the old content is replaced).
+void ProfilesPage::setTabContent(QScrollArea *area, const QList<QWidget *> &parts) {
+    const int scrollPos = area->verticalScrollBar()->value();
+    auto *content = new QWidget;
+    content->setMaximumWidth(tk::kMaxContentWidth);
+    auto *l = new QVBoxLayout(content);
+    l->setContentsMargins(tk::kSpaceMd, tk::kSpaceLg, tk::kSpaceMd, tk::kPageMargin);
+    l->setSpacing(tk::kSectionGap);
+    for (QWidget *w : parts)
+        if (w) l->addWidget(w);
+    l->addStretch(1);
+    area->setWidget(content);  // deletes the previous content
+    if (scrollPos > 0) QTimer::singleShot(0, area, [area, scrollPos] { area->verticalScrollBar()->setValue(scrollPos); });
+}
+
 void ProfilesPage::rebuildContent() {
     const size_t section = currentSection();
     shown_ = section;
+    if (ctx_.modes) ctx_.settings->setModes(ctx_.modes->modeSet(), ctx_.modesDir);
     updateButtons();
     refreshDeviceLimit(section);
-    const ProfilePageLayout layout = profilePageLayout(*ctx_.settings, section);
-    modeSelectorVisible_ = layout.modeSelector;
+    rebuildHeader();
     settingRows_ = 0;
     const bool filtering = !settingsFilter_->text().isEmpty();
+    const ProfilePageLayout layout = profilePageLayout(*ctx_.settings, section);
 
-    // Keep the scroll position of the tab when the same profile is rebuilt after an edit.
-    int scrollPos = 0;
-    if (auto *cur = qobject_cast<QScrollArea *>(tabs_->currentWidget()))
-        if (builtSection_ == section) scrollPos = cur->verticalScrollBar()->value();
-    builtSection_ = section;
+    // Channels: the persistent editor shows this profile.
+    channels_->setSection(section);
+    channels_->setFilter(settingsFilter_->text());
 
-    QSignalBlocker block(tabs_);
-    while (tabs_->count() > 0) {
-        QWidget *w = tabs_->widget(0);
-        tabs_->removeTab(0);
-        w->deleteLater();
-    }
-
-    // One scrolling page per sub-tab; the buttons below the tabs are not part of it.
-    auto addTab = [this](const char *id, const QString &title, const QList<QWidget *> &parts) {
-        auto *scroll = new QScrollArea;
-        scroll->setWidgetResizable(true);
-        scroll->setFrameShape(QFrame::NoFrame);
-        scroll->setProperty("tabId", QString::fromLatin1(id));
-        auto *content = new QWidget;
-        auto *l = new QVBoxLayout(content);
-        for (QWidget *w : parts)
-            if (w) l->addWidget(w);
-        l->addStretch(1);
-        scroll->setWidget(content);
-        tabs_->addTab(scroll, title);
-    };
-    // A tab whose rows are all filtered out says so.
     auto noMatch = [filtering](const QList<QWidget *> &parts) {
         QList<QWidget *> out = parts;
         bool any = false;
         for (QWidget *w : parts) any = any || w;
-        if (!any && filtering) out << wrapLabel(T("No setting of this tab matches the search."));
+        if (!any && filtering) out << noteLabel(T("No setting of this tab matches the search."));
         return out;
     };
 
-    // General: what the profile is, its mode.
-    const QString title = section == 0 ? T("Default mode") : qs8(ctx_.settings->sections()[section].pattern);
+    // General: the joystick mode, whether the profile sends anything, what the mode is.
     QList<QWidget *> general;
-    general << new QLabel(QStringLiteral("<b>") + title.toHtmlEscaped() + QStringLiteral("</b>"));
     if (section == 0)
-        general << wrapLabel(T("Settings of the default mode. Device and application profiles inherit "
-                               "from it unless they choose another mode or override a value."));
-    if (layout.modeSelector) general << buildModeSelector(section);
+        general << noteLabel(T("The Global profile is the base of every other profile. A device or program profile "
+                               "inherits its settings unless it chooses another joystick mode or overrides a value."));
+    general << buildModeSelector(section);
     if (layout.unknownMode)
-        general << wrapLabel(T("This profile names a mode that is not installed; it behaves like the "
-                               "default mode until you choose another one."));
+        general << noteLabel(T("This profile names a joystick mode that is not installed; it behaves like the "
+                               "Global joystick mode until you choose another one."));
+    general << buildEnabled(section);
     if (layout.modeInfo) general << buildModeInfo(section);
-    addTab("general", T("General"), general);
+    setTabContent(general_, noMatch(general));
 
-    // Channels: the value of every axis setting of the profile and where it comes from.
-    if (layout.overridesSection) addTab("channels", T("Channels"), noMatch({buildEffective(section)}));
+    // Buttons: the bindings of the profile, or a hint when the joystick mode brings its own.
+    QList<QWidget *> buttons;
+    if (ctx_.notes && !ctx_.notes->empty()) {
+        QString text;
+        for (const std::string &n : *ctx_.notes) text += (text.isEmpty() ? QString() : QStringLiteral("\n")) + qs8(n);
+        auto *note = wrapLabel(text);
+        note->setObjectName(QStringLiteral("legacyButtonNotes"));
+        note->setAccessibleName(T("Notes about the old button settings"));
+        buttons << note;
+    }
+    if (layout.bindingEditor) {
+        buttons << buildBindings(section);
+    } else {
+        buttons << noteLabel(T("The joystick mode of this profile has its own button bindings; they are listed on the "
+                               "General tab. Choose \"Same as Global\" or the normal joystick mode to assign buttons "
+                               "here."));
+    }
+    setTabContent(buttons_, noMatch(buttons));
 
-    // Buttons: bindings and the navigation/click buttons (not for a mode with its own bindings).
-    if (layout.bindingEditor)
-        addTab("buttons", T("Buttons"), noMatch({buildBindings(section), buildButtonSettings(section)}));
-
-    // Overrides: channel values that only apply to this profile.
-    if (layout.overridesSection) addTab("overrides", T("Overrides"), noMatch({buildOverrides(section)}));
-
-    int idx = 0;
-    for (int i = 0; i < tabs_->count(); ++i)
-        if (tabs_->widget(i)->property("tabId").toString() == lastTab_) idx = i;
-    tabs_->setCurrentIndex(idx);
-    block.unblock();
-    if (scrollPos > 0)
-        if (auto *cur = qobject_cast<QScrollArea *>(tabs_->currentWidget()))
-            QTimer::singleShot(0, cur, [cur, scrollPos] { cur->verticalScrollBar()->setValue(scrollPos); });
+    // Overrides (advanced): everything the profile sets itself.
+    QList<QWidget *> over;
+    if (section == 0)
+        over << noteLabel(T("The Global profile holds the base values, so it has nothing to override. Change them on the "
+                            "Channels and Buttons tabs."));
+    else
+        over << buildOverrides(section);
+    setTabContent(overrides_, noMatch(over));
 }
 
 // Search box of the settings: does a row (label and key) match the text?
@@ -586,29 +558,150 @@ QWidget *ProfilesPage::buildModeSelector(size_t section) {
     if (!settingMatches(T("Joystick mode"), "MODE")) return nullptr;
     ++settingRows_;
     auto *box = new QGroupBox(T("Joystick mode"));
-    auto *l = new QFormLayout(box);
+    auto *l = new QVBoxLayout(box);
+    l->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
     auto *combo = new QComboBox(box);
     combo->setAccessibleName(T("Joystick mode"));
-    combo->setToolTip(T("The joystick mode (what the axes do) that applies while this profile is active"));
+    combo->setToolTip(T("What the axes do while this profile is active") + QStringLiteral("\n") +
+                      T("Config key: %1").arg(QStringLiteral("MODE")));
+    const spn::ui::IdentityStrings fallbackStrings;
+    const spn::ui::StringProvider &strs = ctx_.strings ? *ctx_.strings : fallbackStrings;
     const std::vector<SettingsModel::ModeOption> opts = ctx_.settings->modeOptions(section);
+    const std::string globalMode = ctx_.settings->effectiveMode(0);
     for (size_t i = 0; i < opts.size(); ++i) {
         const SettingsModel::ModeOption &o = opts[i];
-        QString text = i == 0 ? T("Default mode") : qs8(o.label);
-        if (i > 0 && o.label != o.id) text += QStringLiteral(" (") + qs8(o.id) + QLatin1Char(')');
+        QString text = o.id.empty() ? T("Same as Global") : qs8(o.label);
+        if (!o.id.empty() && o.label != o.id) text += QStringLiteral(" (") + qs8(o.id) + QLatin1Char(')');
         if (!o.known) text += QStringLiteral(" - ") + T("not installed");
         combo->addItem(text);
+        // every entry carries the description of its joystick mode as tooltip
+        QString tip;
+        if (o.id.empty()) {
+            const ModeDef *g = ctx_.settings->modeDef(globalMode);
+            tip = T("Uses the joystick mode of Global: %1").arg(g && !g->label.empty() ? qs8(g->label) : qs8(globalMode)) +
+                  QStringLiteral("\n") + (g ? qs8(spn::ui::joystickModeTooltip(*g, strs)) : QString());
+        } else if (!o.known) {
+            tip = T("This joystick mode is not installed");
+        } else {
+            tip = o.description.empty() ? qs8(spn::ui::noDescriptionText(strs)) : qs8(o.description);
+        }
+        combo->setItemData(combo->count() - 1, tip, Qt::ToolTipRole);
     }
     combo->setCurrentIndex(std::max(0, ctx_.settings->selectedModeOption(section)));
-    l->addRow(T("Joystick mode:"), combo);
+    // the "i" button: name, origin, description and what the joystick mode does, for the chosen entry
+    auto infoFor = [this, combo, opts, globalMode, &strs]() {
+        const int idx = std::max(0, combo->currentIndex());
+        const std::string id = size_t(idx) < opts.size() && !opts[size_t(idx)].id.empty() ? opts[size_t(idx)].id : globalMode;
+        const ModeDef *def = ctx_.settings->modeDef(id);
+        if (!def) return T("This joystick mode is not installed");
+        std::string origin;
+        if (ctx_.modes)
+            if (const spn::ui::ModeCatalog::ModeEntry *e = ctx_.modes->find(id)) origin = spn::ui::modeOriginText(e->origin, strs);
+        return qs8(spn::ui::joystickModeInfo(*def, origin, strs));
+    };
+    auto *infoButton = makeInfoButton(box, T("About this joystick mode"), T("About this joystick mode: its description and what it does"));
+    connect(infoButton, &QToolButton::clicked, this, [infoButton, infoFor] { InfoPopup::open(infoButton, infoFor()); });
+    connect(combo, &QComboBox::currentIndexChanged, this, [combo, infoButton, infoFor](int) { combo->setToolTip(infoFor()); });
+    combo->setToolTip(infoFor());
+    auto *comboRow = new QHBoxLayout;
+    comboRow->addWidget(combo, 1);
+    comboRow->addWidget(infoButton);
+    l->addLayout(comboRow);
+    l->addWidget(noteLabel(section == 0 ? T("The joystick mode that applies unless a device or program profile chooses "
+                                            "another one.")
+                                        : T("Choose another joystick mode for this profile, or keep \"Same as Global\".")));
+    {   // where the joystick mode comes from; in Global the profiles that choose another one
+        const spn::ui::IdentityStrings fallback;
+        const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
+        std::string text;
+        QString tip;
+        if (section == 0) {
+            std::vector<std::string> names;
+            text = spn::ui::overrideHint(*ctx_.settings, "MODE", strings, &names);
+            if (!text.empty()) tip = qs8(spn::ui::overrideHintTooltip(names, strings));
+        } else {
+            spn::ui::KeyOrigin o;
+            o.kind = ctx_.settings->isOverridden(section, "MODE") ? spn::ui::KeyOrigin::Kind::SetHere
+                     : ctx_.settings->isOverridden(0, "MODE")      ? spn::ui::KeyOrigin::Kind::FromGlobal
+                                                                   : spn::ui::KeyOrigin::Kind::FromGlobalDefault;
+            o.value = ctx_.settings->effectiveMode(section);
+            o.inherited = ctx_.settings->effectiveMode(0);
+            text = spn::ui::originBadgeText(o, strings);
+        }
+        if (!text.empty()) {
+            auto *badge = noteLabel(qs8(text));
+            badge->setObjectName(QStringLiteral("modeOrigin"));
+            badge->setToolTip(tip);
+            l->addWidget(badge);
+        }
+    }
     connect(combo, &QComboBox::activated, this, [this, section](int idx) {
         std::string err;
         bool changed = false;
-        if (!ctx_.settings->setMode(section, idx, &err, &changed))
-            setStatus(qs8(err));
-        else
-            setStatus(T("Unsaved changes"));
-        updateButtons();
-        queueRebuild();
+        if (!ctx_.settings->setMode(section, idx, &err, &changed)) problem(qs8(err));
+        else ctx_.saveSoon();
+        queueRebuild();  // the layout follows the effective mode
+    });
+    return box;
+}
+
+// Device and program profiles: whether the profile sends anything. [global]: the master switch is
+// on the Settings page, not here (no setting appears in two places).
+QWidget *ProfilesPage::buildEnabled(size_t section) {
+    if (section == 0) return nullptr;
+    if (!settingMatches(T("Send events"), "ENABLED")) return nullptr;
+    SettingsModel::Value v;
+    if (!ctx_.settings->value(section, "ENABLED", &v)) return nullptr;
+    ++settingRows_;
+    auto *box = new QGroupBox(T("Output"));
+    auto *l = new QGridLayout(box);
+    l->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
+    l->setColumnStretch(0, 1);
+    auto *check = new QCheckBox(T("Send scroll, zoom and key events while this profile is active"));
+    check->setChecked(v.text == "1");
+    check->setAccessibleName(T("Send events"));
+    check->setToolTip(T("Switch this off for a program that reads the SpaceMouse itself") + QStringLiteral("\n") +
+                      T("Config key: %1").arg(QStringLiteral("ENABLED")));
+    auto *origin = new QLabel;
+    origin->setForegroundRole(QPalette::PlaceholderText);
+    auto *reset = new QToolButton;
+    reset->setText(T("Reset"));
+    auto refresh = [this, section, origin, reset] {
+        SettingsModel::Value cur;
+        SettingsModel::Source src;
+        if (!ctx_.settings->value(section, "ENABLED", &cur)) return;
+        (void)src;
+        const spn::ui::IdentityStrings fallback;
+        const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
+        const spn::ui::KeyOrigin o = spn::ui::keyOrigin(*ctx_.settings, section, "ENABLED");
+        origin->setText(qs8(spn::ui::originBadgeText(o, strings)));
+        reset->setEnabled(o.canReset);
+        reset->setToolTip(qs8(spn::ui::resetTooltip(section, o.canReset, strings)));
+        reset->setAccessibleName(T("Reset to inherited") + QStringLiteral(" ENABLED"));
+    };
+    refresh();
+    l->addWidget(check, 0, 0, 1, 2);
+    origin->setWordWrap(true);
+    l->addWidget(origin, 1, 0);
+    l->addWidget(reset, 1, 1);
+    connect(check, &QCheckBox::toggled, this, [this, section, refresh](bool on) {
+        std::string err;
+        if (!ctx_.settings->setValue(section, "ENABLED", on ? "1" : "0", &err)) {
+            problem(qs8(err));
+            return;
+        }
+        refresh();
+        ctx_.saveSoon();
+    });
+    connect(reset, &QToolButton::clicked, this, [this, section, check, refresh] {
+        ctx_.settings->clearOverride(section, "ENABLED");
+        SettingsModel::Value cur;
+        if (ctx_.settings->value(section, "ENABLED", &cur)) {
+            QSignalBlocker b(check);
+            check->setChecked(cur.text == "1");
+        }
+        refresh();
+        ctx_.saveSoon();
     });
     return box;
 }
@@ -625,17 +718,35 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
             rows.push_back(r);
     if (rows.empty() && !settingsFilter_->text().isEmpty()) return nullptr;
     settingRows_ += int(rows.size());
+    {   // where each action comes from (inheritance made explicit)
+        const spn::ui::IdentityStrings fallback;
+        const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
+        for (BindingRow &r : rows) {
+            const spn::ui::KeyOrigin o = spn::ui::buttonOrigin(*ctx_.settings, section, r.number);
+            r.origin = spn::ui::originBadgeText(o, strings);
+            if (section == 0) {
+                std::vector<std::string> names;
+                const std::string hint = spn::ui::overrideHint(*ctx_.settings, "BUTTON_" + std::to_string(r.number), strings, &names);
+                if (!hint.empty()) {
+                    r.origin = hint;
+                    r.originTip = spn::ui::overrideHintTooltip(names, strings);
+                }
+            }
+        }
+    }
 
     auto *box = new QGroupBox(T("Button bindings"));
     auto *outer = new QVBoxLayout(box);
-    outer->addWidget(wrapLabel(T("Each button can use a button mode, switch the mode or hold the navigation mode "
-                                 "(arrow keys instead of scrolling).")));
+    outer->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
+    outer->addWidget(wrapLabel(T("Each button can use a button mode, switch the joystick mode or hold the navigation mode "
+                                 "(arrow keys instead of scrolling). All buttons are set here, one row each.")));
     auto *grid = new QGridLayout;
     grid->setColumnStretch(2, 1);
     outer->addLayout(grid);
 
-    // Modes offered by "Switch to mode": every installed mode (built-in and files).
-    const std::vector<std::string> offered = bindingModeIds(loadModes(ctx_.modesDir, nullptr));
+    // Joystick modes offered by "Switch to mode": every installed one (built-in and files).
+    const ModeSet installedModes = loadModes(ctx_.modesDir, nullptr);
+    const std::vector<std::string> offered = bindingModeIds(installedModes);
     const ButtonModeSet buttonModes = loadButtonModes(ctx_.buttonModesDir, nullptr);
 
     ButtonRowEnv env;
@@ -644,15 +755,19 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
     env.buttonModes = &buttonModes;
     env.modeIds = offered;
     env.strings = ctx_.strings;
+    {   // the description of every joystick mode is the tooltip of its entry
+        const spn::ui::IdentityStrings fallback;
+        const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
+        for (const ModeDef &m : installedModes.modes) env.modeTips[m.id] = spn::ui::joystickModeTooltip(m, strings);
+    }
     // kMaxButtons: the device is not known, so there is no real count to name
     env.deviceButtons = ctx_.settings->buttonLimit() < int(spn::kMaxButtons) ? ctx_.settings->buttonLimit() : 0;
     env.resetText = section == 0 ? T("Unbind") : T("Inherit");
     env.resetTip = section == 0 ? T("Remove this binding")
-                                : T("Remove this profile's own binding and use the inherited one");
+                                : T("Reset to inherited: remove this profile's own binding");
     auto changed = [this](bool ok, const std::string &err) {
-        if (ok) setStatus(T("Unsaved changes"));
-        else if (!err.empty()) setStatus(qs8(err));
-        updateButtons();
+        if (ok) ctx_.saveSoon();
+        else if (!err.empty()) problem(qs8(err));
         queueRebuild();
     };
     int r = 0;
@@ -676,7 +791,7 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
         ++r;
     }
 
-    // Default mode only: plain key/click bindings behind a collapsed section with a short hint.
+    // Global only: plain key/click bindings behind a collapsed section with a short hint.
     if (hasAdvancedSection(ctxKind)) {
         auto *adv = new QGroupBox(T("Advanced: let dofscroll send keys or clicks"));
         adv->setCheckable(true);
@@ -685,7 +800,7 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
         auto *note = wrapLabel(
             T("A mapping that is the same everywhere is usually better set in the vendor driver "
               "(see docs/modes.md, \"Buttons and the vendor driver\"). Bindings that only apply in "
-              "a certain mode or profile are a dofscroll feature: set them in that profile."));
+              "a certain joystick mode or profile are a dofscroll feature: set them in that profile."));
         al->addWidget(note);
         note->setVisible(advancedOpen_);
         connect(adv, &QGroupBox::toggled, this, [this](bool on) {
@@ -697,67 +812,11 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
     return box;
 }
 
-QWidget *ProfilesPage::buildButtonSettings(size_t section) {
-    auto *box = new QGroupBox(T("Navigation and click buttons"));
-    auto *form = new QFormLayout(box);
-    int shownRows = 0;
-    const struct {
-        const char *enabledKey, *numberKey, *label, *tip;
-    } rows[] = {
-        {"NAV_BUTTON_ENABLED", "NAV_BUTTON", "Navigation button",
-         "Hold this button to send arrow keys instead of scrolling"},
-        {"CLICK_BUTTON_ENABLED", "CLICK_BUTTON", "Click button", "Press this button to click the left mouse button"}};
-    for (const auto &r : rows) {
-        SettingsModel::Value en, num;
-        if (!ctx_.settings->value(section, r.enabledKey, &en) || !ctx_.settings->value(section, r.numberKey, &num))
-            continue;
-        if (!settingMatches(T(r.label), r.numberKey)) continue;
-        ++shownRows;
-        auto *row = new QWidget(box);
-        auto *h = new QHBoxLayout(row);
-        h->setContentsMargins(0, 0, 0, 0);
-        auto *check = new QCheckBox(T("Enabled"), row);
-        check->setChecked(en.text == "1");
-        auto *spin = new QSpinBox(row);
-        spin->setRange(0, ctx_.settings->buttonLimit());
-        spin->setValue(num.text.empty() ? 0 : std::atoi(num.text.c_str()));
-        spin->setToolTip(T(r.tip));
-        spin->setAccessibleName(T(r.label));
-        h->addWidget(check);
-        h->addWidget(new QLabel(T("Button number:")));
-        h->addWidget(spin);
-        h->addStretch(1);
-        const std::string ek = r.enabledKey, nk = r.numberKey;
-        connect(check, &QCheckBox::toggled, this, [this, section, ek](bool on) {
-            std::string err;
-            if (!ctx_.settings->setValue(section, ek, on ? "1" : "0", &err))
-                setStatus(qs8(err));
-            else
-                setStatus(T("Unsaved changes"));
-            updateButtons();
-        });
-        connect(spin, &QSpinBox::editingFinished, this, [this, section, nk, spin] {
-            std::string err;
-            if (!ctx_.settings->setValue(section, nk, std::to_string(spin->value()), &err))
-                setStatus(qs8(err));
-            else
-                setStatus(T("Unsaved changes"));
-            updateButtons();
-        });
-        form->addRow(T(r.label) + QLatin1Char(':'), row);
-    }
-    if (shownRows == 0) {
-        delete box;
-        return nullptr;
-    }
-    settingRows_ += shownRows;
-    return box;
-}
-
 QWidget *ProfilesPage::buildModeInfo(size_t section) {
     const SettingsModel::Visible v = ctx_.settings->visibleSettings(section);
     auto *box = new QGroupBox(qs8(v.mode.label));
     auto *l = new QVBoxLayout(box);
+    l->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
     if (!v.mode.description.empty()) l->addWidget(wrapLabel(qs8(v.mode.description)));
     auto *form = new QFormLayout;
     form->addRow(T("Vertical scroll:"), new QLabel(qs8(v.mode.v)));
@@ -766,67 +825,25 @@ QWidget *ProfilesPage::buildModeInfo(size_t section) {
     l->addLayout(form);
     // The mode's own bindings (including key and click actions) are shown as they are.
     if (v.mode.buttons.empty()) {
-        l->addWidget(new QLabel(T("This mode binds no buttons.")));
+        l->addWidget(new QLabel(T("This joystick mode binds no buttons.")));
     } else {
-        l->addWidget(new QLabel(T("Button bindings of this mode:")));
+        l->addWidget(new QLabel(T("Button bindings of this joystick mode:")));
         auto *bf = new QFormLayout;
         for (const auto &b : v.mode.buttons)
             bf->addRow(T("Button") + QStringLiteral(" %1:").arg(b.first), new QLabel(qs8(b.second)));
         l->addLayout(bf);
     }
-    l->addWidget(wrapLabel(T("These settings come from the mode file and are read-only here.")));
-    auto *edit = new QPushButton(T("Edit mode file"), box);
+    l->addWidget(wrapLabel(T("These settings come from the joystick mode file and are read-only here.")));
+    auto *edit = new QPushButton(T("Edit joystick mode file"), box);
     edit->setEnabled(v.mode.hasFile);
-    edit->setToolTip(v.mode.hasFile ? T("Open the mode file in your default editor")
-                                    : T("Built-in modes have no file; duplicate the mode on the Modes page to edit it"));
+    edit->setToolTip(v.mode.hasFile ? T("Open the joystick mode file in your default editor")
+                                    : T("Built-in joystick modes have no file; duplicate the joystick mode on the Joystick modes "
+                                        "page to edit it"));
     connect(edit, &QPushButton::clicked, this, [this, section] {
         std::string err;
-        if (!ctx_.settings->editModeFile(section, *ctx_.runner, &err)) setStatus(qs8(err));
+        if (!ctx_.settings->editModeFile(section, *ctx_.runner, &err)) problem(qs8(err));
     });
     l->addWidget(edit, 0, Qt::AlignLeft);
-    return box;
-}
-
-QWidget *ProfilesPage::buildEffective(size_t section) {
-    auto *box = new QGroupBox(T("Effective values"));
-    auto *outer = new QVBoxLayout(box);
-    outer->addWidget(wrapLabel(T("The value that applies in this profile and where it comes from.")));
-    auto *grid = new QGridLayout;
-    grid->setColumnStretch(2, 1);
-    int row = 0;
-    for (const EffectiveRow &r : effectiveRows(*ctx_.settings, section, *ctx_.strings)) {
-        if (!settingMatches(qs8(r.key), r.key)) continue;
-        ++settingRows_;
-        auto *key = new QLabel(qs8(r.key), box);
-        auto *val = new QLabel(qs8(r.value), box);
-        auto *src = new QLabel(qs8(r.sourceText), box);
-        key->setAccessibleName(qs8(r.key));
-        val->setAccessibleName(qs8(r.key) + QStringLiteral(" = ") + qs8(r.value));
-        src->setAccessibleName(qs8(r.key) + QStringLiteral(": ") + qs8(r.sourceText));
-        grid->addWidget(key, row, 0);
-        grid->addWidget(val, row, 1);
-        grid->addWidget(src, row, 2);
-        if (r.canReset) {
-            auto *reset = new QToolButton(box);
-            reset->setText(T("Reset"));
-            reset->setToolTip(T("Remove the value of this profile and inherit it again"));
-            reset->setAccessibleName(T("Reset") + QLatin1Char(' ') + qs8(r.key));
-            const std::string k = r.key;
-            connect(reset, &QToolButton::clicked, this, [this, section, k] {
-                ctx_.settings->clearOverride(section, k);
-                setStatus(T("Unsaved changes"));
-                updateButtons();
-                queueRebuild();
-            });
-            grid->addWidget(reset, row, 3);
-        }
-        ++row;
-    }
-    outer->addLayout(grid);
-    if (row == 0 && !settingsFilter_->text().isEmpty()) {
-        delete box;
-        return nullptr;
-    }
     return box;
 }
 
@@ -835,12 +852,13 @@ QWidget *ProfilesPage::buildOverrides(size_t section) {
     const bool filtering = !settingsFilter_->text().isEmpty();
     auto *box = new QGroupBox(T("Overrides for this profile"));
     auto *outer = new QVBoxLayout(box);
+    outer->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
     auto *inner = new QWidget(box);
     auto *il = new QVBoxLayout(inner);
     il->setContentsMargins(0, 0, 0, 0);
     int shownRows = 0;
-    il->addWidget(wrapLabel(T("Channel values that only apply to this profile. Everything else is "
-                              "inherited; change shared values on the Channels page.")));
+    il->addWidget(wrapLabel(T("The channel values this profile sets itself, as raw text. Everything else is inherited. "
+                              "The Channels tab shows the same values with their origin and the controls to change them.")));
     auto *form = new QFormLayout;
     for (const std::string &key : v.overrides.keys) {
         SettingsModel::Value val;
@@ -853,27 +871,31 @@ QWidget *ProfilesPage::buildOverrides(size_t section) {
         auto *edit = new QLineEdit(qs8(val.text), row);
         edit->setToolTip(T("Inherited value:") + QLatin1Char(' ') + qs8(val.inherited));
         edit->setAccessibleName(qs8(key));
+        auto *hint = new QLabel(row);
+        hint->setProperty("error", true);
+        hint->setVisible(false);
         auto *rm = new QToolButton(row);
         rm->setText(T("Remove"));
         rm->setToolTip(T("Remove this override and inherit the value again"));
+        rm->setAccessibleName(T("Remove") + QLatin1Char(' ') + qs8(key));
         h->addWidget(edit, 1);
+        h->addWidget(hint);
         h->addWidget(rm);
-        connect(edit, &QLineEdit::editingFinished, this, [this, section, key, edit] {
+        // typing: validated at every change, written after a pause (an invalid text is not written)
+        connect(edit, &QLineEdit::textEdited, this, [this, section, key, edit, hint](const QString &t) {
             std::string err;
-            SettingsModel::Value cur;
-            if (ctx_.settings->value(section, key, &cur) && cur.text == edit->text().toUtf8().toStdString()) return;
-            if (!ctx_.settings->setValue(section, key, edit->text().toUtf8().toStdString(), &err)) {
-                setStatus(qs8(key) + QStringLiteral(": ") + qs8(err));
-                if (ctx_.settings->value(section, key, &cur)) edit->setText(qs8(cur.text));
-            } else {
-                setStatus(T("Unsaved changes"));
-            }
-            updateButtons();
+            const bool ok = ctx_.settings->setValue(section, key, t.toUtf8().toStdString(), &err);
+            hint->setText(ok ? QString() : T("Invalid value: ") + qs8(err));
+            hint->setVisible(!ok);
+            edit->setProperty("invalid", !ok);
+            edit->style()->unpolish(edit);
+            edit->style()->polish(edit);
+            if (ok) ctx_.saveTyped();
         });
+        connect(edit, &QLineEdit::editingFinished, this, [this] { ctx_.saveSoon(); });
         connect(rm, &QToolButton::clicked, this, [this, section, key] {
             ctx_.settings->clearOverride(section, key);
-            setStatus(T("Unsaved changes"));
-            updateButtons();
+            ctx_.saveSoon();
             queueRebuild();
         });
         form->addRow(qs8(key) + QLatin1Char(':'), row);
@@ -891,10 +913,9 @@ QWidget *ProfilesPage::buildOverrides(size_t section) {
         connect(add, &QPushButton::clicked, this, [this, section, combo] {
             std::string err;
             if (!ctx_.settings->addOverride(section, combo->currentData().toString().toUtf8().toStdString(), &err))
-                setStatus(qs8(err));
+                problem(qs8(err));
             else
-                setStatus(T("Unsaved changes"));
-            updateButtons();
+                ctx_.saveSoon();
             queueRebuild();
         });
     }
@@ -913,10 +934,10 @@ void ProfilesPage::addApplication() {
     std::string err;
     const size_t idx = ProfileTreeModel::add(*ctx_.settings, Section::APP, dlg.matchString().toUtf8().toStdString(), &err);
     if (idx == ProfileSet::npos) {
-        setStatus(qs8(err));
+        problem(qs8(err));
         return;
     }
-    setStatus(T("Unsaved changes"));
+    ctx_.saveSoon();
     rebuildTree(idx);
 }
 
@@ -926,10 +947,10 @@ void ProfilesPage::addDevice() {
     std::string err;
     const size_t idx = ProfileTreeModel::add(*ctx_.settings, Section::DEVICE, dlg.deviceName().toUtf8().toStdString(), &err);
     if (idx == ProfileSet::npos) {
-        setStatus(qs8(err));
+        problem(qs8(err));
         return;
     }
-    setStatus(T("Unsaved changes"));
+    ctx_.saveSoon();
     rebuildTree(idx);
 }
 
@@ -943,10 +964,10 @@ void ProfilesPage::renameProfile() {
     if (!ok) return;
     std::string err;
     if (!ProfileTreeModel::rename(*ctx_.settings, s, text.toUtf8().toStdString(), &err)) {
-        setStatus(qs8(err));
+        problem(qs8(err));
         return;
     }
-    setStatus(T("Unsaved changes"));
+    ctx_.saveSoon();
     rebuildTree(s);
 }
 
@@ -959,20 +980,35 @@ void ProfilesPage::removeProfile() {
         return;
     std::string err;
     if (!ProfileTreeModel::remove(*ctx_.settings, s, &err)) {
-        setStatus(qs8(err));
+        problem(qs8(err));
         return;
     }
-    setStatus(T("Unsaved changes"));
+    ctx_.saveSoon();
     rebuildTree(0);
 }
 
-void ProfilesPage::save() {
-    const SettingsModel::SaveResult r = ctx_.settings->save(*ctx_.strings);
-    if (!r.saved)
-        setStatus(T("Not saved:") + QLatin1Char(' ') + qs8(r.error));
-    else if (!r.reloaded)
-        setStatus(T("Saved. The daemon was not notified:") + QLatin1Char(' ') + qs8(r.error));
-    else
-        setStatus(T("Saved."));
-    updateButtons();
+bool ProfilesPage::exportSelected(const QString &file) {
+    lastError_.clear();
+    const size_t s = currentSection();
+    const std::string text = profileExportText(*ctx_.settings, s);
+    if (text.empty()) {
+        lastError_ = T("No such profile.");
+        return false;
+    }
+    std::string err;
+    if (!spn::fs::writeFileReplace(file.toStdString(), text, &err)) {
+        lastError_ = qs8(err);
+        return false;
+    }
+    return true;
+}
+
+void ProfilesPage::exportProfile() {
+    const std::string name = profileExportFileName(*ctx_.settings, currentSection());
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    const QString file = QFileDialog::getSaveFileName(this, T("Export profile"), dir + QLatin1Char('/') + qs8(name),
+                                                      T("Configuration files (*.conf);;All files (*)"));
+    if (file.isEmpty()) return;
+    if (!exportSelected(file)) problem(T("Could not export the profile: ") + lastError_);
+    else ctx_.report(T("Profile exported"), false);
 }

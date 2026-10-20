@@ -24,6 +24,7 @@
 #include "mode_list.hpp"
 #include "mode_request.hpp"
 #include "modes.hpp"
+#include "ui/model/inheritance_model.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/status_model.hpp"
 #include "ui/model/strings.hpp"
@@ -41,6 +42,8 @@ struct OverviewProfile {
     std::string name;                    // device or program pattern
     std::string mode;                    // MODE of the profile; "" = it uses the default mode
     std::vector<std::string> overrides;  // "KEY = value" of every setting it sets, except MODE, in file order
+    size_t overrideCount = 0;            // settings the profile sets itself (MODE and buttons included)
+    std::string overrideText;            // "Overrides 3 settings" / "Overrides nothing: everything is inherited" (translated)
     std::string summary;                 // the one line for the card (translated)
     std::string details;                 // every setting on its own line (tooltip of the card, translated)
 };
@@ -73,7 +76,7 @@ inline std::string clipValue(const std::string &v, size_t max = kMaxSummaryValue
 
 inline std::string profileSummary(const OverviewProfile &p, const StringProvider &s) {
     std::vector<std::string> parts;
-    if (!p.mode.empty()) parts.push_back(format(s.tr("Mode: %1"), {clipValue(p.mode)}));
+    if (!p.mode.empty()) parts.push_back(format(s.tr("Joystick mode: %1"), {clipValue(p.mode)}));
     for (size_t i = 0; i < p.overrides.size() && i < kMaxSummaryItems; ++i) parts.push_back(clipValue(p.overrides[i]));
     if (p.overrides.size() > kMaxSummaryItems)
         parts.push_back(format(s.tr("+%1 more"), {std::to_string(p.overrides.size() - kMaxSummaryItems)}));
@@ -85,7 +88,7 @@ inline std::string profileSummary(const OverviewProfile &p, const StringProvider
 
 inline std::string profileDetails(const OverviewProfile &p, const StringProvider &s) {
     std::string out;
-    if (!p.mode.empty()) out += format(s.tr("Mode: %1"), {p.mode});
+    if (!p.mode.empty()) out += format(s.tr("Joystick mode: %1"), {p.mode});
     for (const std::string &o : p.overrides) out += (out.empty() ? "" : "\n") + o;
     return out.empty() ? s.tr("Uses the default settings") : out;
 }
@@ -99,9 +102,9 @@ struct OverviewTask {
 };
 
 inline std::vector<OverviewTask> overviewTasks() {
-    return {{"tune", "Tune scroll and zoom", "Sensitivity, deadzone, smoothing and curve of the channels", "channels"},
+    return {{"tune", "Tune scroll and zoom", "Sensitivity, deadzone, smoothing and curve of the channels (the Global profile, Channels tab)", "profile-channels"},
             {"axes", "Check the axes", "Move the cap and see which axis reacts; the assistant sets the axis mixes", "axes"},
-            {"modes", "Switch modes", "Modes change what the axes and buttons do", "modes"}};
+            {"modes", "Switch joystick modes", "Joystick modes change what the axes and buttons do", "modes"}};
 }
 
 inline std::vector<OverviewAction> overviewActions() {
@@ -141,6 +144,8 @@ inline OverviewData buildOverview(const SettingsModel &settings, const StatusMod
             if (kv.first == "MODE") p.mode = kv.second;
             else p.overrides.push_back(kv.first + " = " + kv.second);
         }
+        p.overrideCount = sec.kv.size();
+        p.overrideText = profileOverrideCountText(p.overrideCount, s);
         p.summary = profileSummary(p, s);
         p.details = profileDetails(p, s);
         (sec.kind == Section::DEVICE ? d.deviceProfiles : d.appProfiles)++;

@@ -205,7 +205,7 @@ public:
         const ModeSet ms = loadModes(dir, nullptr);
         const ModeDef *m = ms.find(form_.id);
         if (!m) {
-            if (err) *err = "the mode is no longer loaded";
+            if (err) *err = "the joystick mode is no longer loaded";
             return false;
         }
         return open(path_, *m, err);
@@ -247,7 +247,7 @@ public:
             const std::string key = upper(form_.overrides[i].first);
             const std::string field = "override:" + key;
             if (std::find(allowed.begin(), allowed.end(), key) == allowed.end()) {
-                out.push_back({field, "this setting cannot be overridden in a mode"});
+                out.push_back({field, "this setting cannot be overridden in a joystick mode"});
                 continue;
             }
             for (size_t j = 0; j < i; ++j)
@@ -417,7 +417,7 @@ private:
             if (w.rfind(staging, 0) == 0) w = dir + w.substr(staging.size());
         const ModeDef *m = probe.find(form_.id);
         if (!m) {
-            *error = "the file would not load as a mode";
+            *error = "the file would not load as a joystick mode";
             return false;
         }
         // Refuse when the loader drops a line this form wrote (not for foreign lines that were already ignored).

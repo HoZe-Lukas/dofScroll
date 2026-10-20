@@ -15,10 +15,10 @@ That is the maintainer's setup, the only one that can be verified on hardware to
 On Linux, `spacenavd` applies its own sensitivity, dead zone and axis settings first; keep it at defaults and tune in dofscroll. Programs that read the device themselves (Blender, CAD) get input twice unless you add `[app:<name>]` with `ENABLED = 0`. On Windows, disable the 3Dconnexion driver's per-application navigation for programs you test. The proprietary 3Dconnexion SDK is not used. See [Profiles](Profiles).
 
 **Can I use two SpaceMice?**
-On Linux through `spacenavd` they arrive as one merged stream, so `[device:*]` profiles apply to both and per-device modes are not possible. The Windows and macOS ports read each device separately, but that is unverified on hardware.
+On Linux through `spacenavd` they arrive as one merged stream, so `[device:*]` profiles apply to both and per-device joystick modes are not possible. The Windows and macOS ports read each device separately, but that is unverified on hardware.
 
-**Is it safe to share or download modes?**
-Treat a mode file like a script: it can press any key on the key list, including modifier chords, while a button is held or an axis is deflected. Read it first (look for `key:`, `keys:`, `zoom`, `mode:`), and when you share one, say which keys it presses. See [Modes](Modes).
+**Is it safe to share or download joystick modes?**
+Treat a joystick mode file like a script: it can press any key on the key list, including modifier chords, while a button is held or an axis is deflected. Read it first (look for `key:`, `keys:`, `zoom`, `mode:`), and when you share one, say which keys it presses. See [Joystick modes](Modes).
 
 **Does it run as root?**
 No. The daemon and tray run as your user in systemd user units. Only enabling `spacenavd` and the optional udev rule need root.
@@ -33,7 +33,7 @@ It was removed in 0.1.0-beta.3: the Qt interface (`dofscroll-ui`) is the only tr
 On Linux, models `spacenavd` supports. Factory button counts are known for the six models on [Buttons](Buttons); only Pro and Compact are tested.
 
 **Should I map a button to Esc, Enter or a click in dofscroll or in the driver?**
-If it is the same everywhere and always, set it in the driver: it works in every program and survives dofscroll being stopped. If it should apply only in a certain mode or profile (Space as play/pause in `timeline`), bind it in dofscroll (`key:`, `click`). dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a mode or profile, switch or toggle modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [Buttons](Buttons).
+If it is the same everywhere and always, set it in the driver: it works in every program and survives dofscroll being stopped. If it should apply only in a certain joystick mode or profile (Space as play/pause in `timeline`), bind it in dofscroll (`key:`, `click`). dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch or toggle joystick modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [Buttons](Buttons).
 
 **How many buttons can I bind?**
 Up to the factory count of your model (2 for Compact, 15 for Pro), numbered from 1. See [Buttons](Buttons).
