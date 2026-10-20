@@ -2543,3 +2543,15 @@ msgstr "Legen Sie ein Profil für ein Programm an, das Sie verwenden."
 #: src/ui/model/button_choice_model.hpp:43
 msgid "Nothing"
 msgstr "Nichts"
+
+#: src/ui/qt/main_window.cpp
+msgid "No system tray found: closing the window quits dofscroll-ui"
+msgstr "Kein Systemtray gefunden: Das Schließen des Fensters beendet dofscroll-ui"
+
+#: src/ui/qt/main_window.cpp
+msgid "System tray note"
+msgstr "Hinweis zum Systemtray"
+
+#: src/ui/qt/tray.cpp
+msgid "dofscroll is still running in the tray"
+msgstr "dofscroll läuft weiter im Tray"

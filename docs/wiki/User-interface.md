@@ -2,7 +2,7 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # User interface
 
-`dofscroll-ui` is the Qt6 tray icon and settings window, one code base for Linux, Windows and macOS. It edits the same config file as the daemon and asks the daemon to reload. It starts minimized to the tray (no window opens); use the tray's "Settings..." to show it. Without a system tray the window is shown minimized. Checked by the maintainer only on Linux (RHEL 9, X11, KDE Plasma); the Windows and macOS builds are not run on hardware. Full text: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md).
+`dofscroll-ui` is the Qt6 tray icon and settings window, one code base for Linux, Windows and macOS. It edits the same config file as the daemon and asks the daemon to reload. It starts minimized to the tray (no window opens); use the tray's "Settings..." to show it. Without a system tray the window is shown minimized, and closing it quits the interface (the status bar says so). With a tray, closing the window hides it to the tray (a short notice appears the first time); the tray's "Quit" ends the interface. The window remembers its size, position and last page (`ui.conf`). Checked by the maintainer only on Linux (RHEL 9, X11, KDE Plasma); the Windows and macOS builds are not run on hardware. Full text: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md).
 
 ## Pages
 

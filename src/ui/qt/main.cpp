@@ -36,6 +36,7 @@
 #include "qt_action_runner.hpp"
 #include "theme.hpp"
 #include "tray.hpp"
+#include "ui/model/design_tokens.hpp"
 #include "ui/model/first_start.hpp"
 #include "ui/model/instance_paths.hpp"
 #include "ui/model/restart_plan.hpp"
@@ -249,6 +250,87 @@ static bool overviewSelfTest(MainWindow &w) {
     return ok;
 }
 
+// Window state: size, position and page survive a close and a new window; a geometry that is off all
+// screens is ignored and the minimum size holds; a hidden window comes back on the saved page; closing
+// hides the window with a tray and quits without one.
+static bool windowStateSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "window state self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    const std::string path = (tmpPath + QStringLiteral("/window-state/ui.conf")).toStdString();
+    int quits = 0, notices = 0;
+    std::vector<std::string> ids;
+    {
+        MainWindow a(ctx);
+        ids = a.pageIds();
+        check(ids.size() >= 3, "pages to choose from");
+        QObject::connect(&a, &MainWindow::quitRequested, [&quits] { ++quits; });
+        QObject::connect(&a, &MainWindow::hiddenToTray, [&notices] { ++notices; });
+        a.enableStatePersistence(path);  // no file yet: defaults
+        check(a.size() == QSize(960, 560), "no file: the default size");
+        a.show();
+        check(a.showPage(QString::fromStdString(ids[2])), "select a page");
+        a.resize(900, 540);
+        a.move(30, 40);
+        settle();
+        // with a tray: closing hides the window and the process goes on
+        check(a.trayAvailable() && a.trayNote().isEmpty(), "a tray is assumed by default, no note");
+        a.close();
+        check(!a.isVisible() && quits == 0, "with a tray, closing only hides the window");
+        check(notices == 1, "the first close shows the tray notice");
+        a.show();
+        a.close();
+        check(notices == 1, "later closes show no notice");
+        const spn::ui::UiSettings s = spn::ui::loadUiSettings(path);
+        check(s.window.valid && s.window.w == 900 && s.window.h == 540 && s.page == ids[2], "the state was saved on close");
+        // without a tray: closing quits, and the note says so
+        a.setTrayAvailable(false);
+        check(!a.trayNote().isEmpty(), "the status bar says there is no tray");
+        a.show();
+        a.close();
+        check(quits == 1 && !a.isVisible() && notices == 1, "without a tray, closing asks to quit, without a notice");
+        a.setTrayAvailable(true);
+        check(a.trayNote().isEmpty(), "the note goes away with a tray");
+    }
+    {
+        MainWindow b(ctx);
+        b.enableStatePersistence(path);
+        check(b.currentPageId().toStdString() == ids[2], "the last page is selected again");
+        check(b.size() == QSize(900, 540), "the size is restored");
+        check(b.pos() == QPoint(30, 40), "the position is restored");
+        // a hidden window comes back on the saved page when it is raised (tray click, second start)
+        b.showPage(QString::fromStdString(ids[0]));
+        check(spn::ui::loadUiSettings(path).page == ids[0], "a page change is saved at once");
+        std::string err;
+        spn::ui::updateUiSettings(path, [&](spn::ui::UiSettings &s) { s.page = ids[1]; }, &err);
+        check(!b.isVisible(), "hidden before raising");
+        b.bringToFront();
+        check(b.currentPageId().toStdString() == ids[1], "raising a hidden window shows the saved page");
+        b.hide();
+    }
+    // a geometry that is off all screens is ignored; a tiny one is raised to the minimum; junk is ignored
+    auto sizeAfter = [&](const char *line, QPoint *where) {
+        QFile f(QString::fromStdString(path));
+        if (!f.open(QIODevice::WriteOnly)) return QSize();
+        f.write(line);
+        f.close();
+        MainWindow c(ctx);
+        c.enableStatePersistence(path);
+        if (where) *where = c.pos();
+        return c.size();
+    };
+    QPoint at;
+    check(sizeAfter("window = 90000,90000,900,540\n", &at) == QSize(960, 560), "off all screens: ignored");
+    check(sizeAfter("window = 10,10,100,100\n", &at) == QSize(spn::ui::tokens::kMinWindowWidth, spn::ui::tokens::kMinWindowHeight) &&
+              at == QPoint(10, 10),
+          "the minimum size holds");
+    check(sizeAfter("window = nonsense\npage = ..\n", &at) == QSize(960, 560), "junk: defaults");
+    std::printf("window state self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
 // Themes: Dark and Light change the palette of the application, the left tab icons follow it, and
 // "System" brings the original palette back. Without the SVG module the icons are skipped.
 static bool themeSelfTest(MainWindow &w) {
@@ -447,6 +529,7 @@ int main(int argc, char **argv) {
         if (!overviewSelfTest(w)) return 1;
         if (!accessibilitySelfTest(w)) return 1;
         if (!themeSelfTest(w)) return 1;
+        if (!windowStateSelfTest(ctx, tmp.path())) return 1;
         return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen
     }
 
@@ -484,15 +567,21 @@ int main(int argc, char **argv) {
 
     MainWindow window(ctx);
     window.setWindowIcon(icon);
+    const bool hasTray = QSystemTrayIcon::isSystemTrayAvailable();
+    window.setTrayAvailable(hasTray);  // without a tray, closing the window quits
+    QObject::connect(&window, &MainWindow::quitRequested, &app, &QApplication::quit);
+    window.enableStatePersistence(spn::ui::uiSettingsPath());  // size, position and page of the last run
     Tray tray(&window, icon, ctx);
     tray.show();
     // Starts minimized to the tray: no window is shown. Without a system tray the icon would be
     // unreachable, so the window is then shown minimized (the taskbar or the second start reach it).
-    if (!QSystemTrayIcon::isSystemTrayAvailable()) window.showMinimized();
+    if (!hasTray) window.showMinimized();
     QTimer raiseTimer;
     QObject::connect(&raiseTimer, &QTimer::timeout, [&] {
         if (QFile::exists(raiseMarker) && QFile::remove(raiseMarker)) window.bringToFront();
     });
     raiseTimer.start(500);
-    return app.exec();
+    const int code = app.exec();
+    window.saveWindowState();  // "Quit" from the tray with the window open
+    return code;
 }
