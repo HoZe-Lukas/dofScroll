@@ -18,6 +18,9 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include <QStackedWidget>
+
+#include "pages/mode_editor_widget.hpp"
 #include "platform/fs.hpp"
 #include "qt_action_runner.hpp"
 #include "ui_i18n.hpp"
@@ -60,9 +63,19 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     list_ = new QListWidget(split);
     list_->setAccessibleName(T("Modes"));
     list_->setToolTip(T("All modes: built-in modes and the files in the modes folder"));
-    detail_ = new QPlainTextEdit(split);
+    right_ = new QStackedWidget(split);
+    detail_ = new QPlainTextEdit(right_);
     detail_->setReadOnly(true);  // plain text only: mode files are foreign content
     detail_->setAccessibleName(T("Details of the selected mode"));
+    right_->addWidget(detail_);
+    editor_ = new ModeEditorWidget(ctx_, right_);
+    right_->addWidget(editor_);
+    connect(editor_, &ModeEditorWidget::closeRequested, this, [this] { right_->setCurrentWidget(detail_); });
+    connect(editor_, &ModeEditorWidget::saved, this, [this](const QString &id) {
+        catalog_.refresh();
+        populate(id);
+        right_->setCurrentWidget(editor_);  // stay in the editor after saving
+    });
     split->setStretchFactor(0, 1);
     split->setStretchFactor(1, 2);
     row->addWidget(split, 1);
@@ -77,7 +90,7 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     newBtn_ = mk(T("New mode"), T("Create a mode file from a commented template and open it in your editor"));
     dupBtn_ = mk(T("Duplicate"), T("Copy the selected mode under a new name"));
     importBtn_ = mk(T("Import file..."), T("Add a mode file from somewhere else (you see its warnings first)"));
-    editBtn_ = mk(T("Edit"), T("Open the mode file in your default editor"));
+    editBtn_ = mk(T("Edit"), T("Edit the mode here: name, channels, buttons and overrides"));
     delBtn_ = mk(T("Delete"), T("Delete the mode file (file modes only)"));
     folderBtn_ = mk(T("Open modes folder"), T("Show the folder with the mode files"));
     buttons->addStretch(1);
@@ -93,7 +106,10 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     setTabOrder(editBtn_, delBtn_);
     setTabOrder(delBtn_, folderBtn_);
 
-    connect(list_, &QListWidget::currentItemChanged, this, [this] { updateDetail(); });
+    connect(list_, &QListWidget::currentItemChanged, this, [this] {
+        right_->setCurrentWidget(detail_);  // the editor belongs to the mode it was opened for
+        updateDetail();
+    });
     connect(list_, &QListWidget::itemDoubleClicked, this, [this] { onEdit(); });
     connect(newBtn_, &QPushButton::clicked, this, [this] { onNew(); });
     connect(dupBtn_, &QPushButton::clicked, this, [this] { onDuplicate(); });
@@ -253,11 +269,30 @@ void ModesPage::onImport() {
     populate(QString::fromStdString(r.id));
 }
 
+bool ModesPage::selectMode(const QString &id) {
+    for (int i = 0; i < list_->count(); ++i)
+        if (list_->item(i)->data(kRoleId).toString() == id) {
+            list_->setCurrentRow(i);
+            return true;
+        }
+    return false;
+}
+
+bool ModesPage::openEditor() {
+    const ModeCatalog::ModeEntry *m = current();
+    if (!m || m->path.empty()) return false;
+    const spn::ModeDef *def = catalog_.modeSet().find(m->id);
+    if (!def) return false;
+    if (!editor_->open(m->path, *def)) return false;
+    right_->setCurrentWidget(editor_);
+    return true;
+}
+
 void ModesPage::onEdit() {
     const ModeCatalog::ModeEntry *m = current();
     if (!m) return;
     if (!m->path.empty()) {
-        openInEditor(m->path);
+        openEditor();
         return;
     }
     // A built-in mode has no file: offer an editable copy with the same id that replaces it.
@@ -272,7 +307,7 @@ void ModesPage::onEdit() {
     const ModeCatalog::Result r = catalog_.makeEditableCopy(m->id);
     if (!r.ok) return showError(T("Could not create the file."), r.error);
     populate(id);
-    openInEditor(r.path);
+    openEditor();
 }
 
 void ModesPage::onDelete() {

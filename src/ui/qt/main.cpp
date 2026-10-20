@@ -9,7 +9,18 @@
 #include <QStandardPaths>
 #include <QSystemTrayIcon>
 #include <QTemporaryDir>
+#include <QAccessible>
+#include <QScrollBar>
 #include <QThread>
+#include <QAbstractScrollArea>
+#include <QAbstractSlider>
+#include <QAbstractSpinBox>
+#include <QComboBox>
+#include <QLineEdit>
+#include <QListWidget>
+#include <QPlainTextEdit>
+#include <QTreeView>
+#include <QTreeWidget>
 #include <QTimer>
 #include <QTranslator>
 #include <cstdio>
@@ -18,6 +29,8 @@
 #include "main_window.hpp"
 #include "pages/axes_page.hpp"
 #include "pages/button_modes_page.hpp"
+#include "pages/extensions_page.hpp"
+#include "pages/mode_editor_widget.hpp"
 #include "pages/modes_page.hpp"
 #include "qt_action_runner.hpp"
 #include "theme.hpp"
@@ -74,6 +87,113 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
     QFile::remove(tmpPath + QStringLiteral("/buttons/second.conf"));
     page.refreshIfChanged();
     check(page.buttonModeCount() == 1, "a removed file disappears from the list");
+    return ok;
+}
+
+// Accessibility: every input control on every page has an accessible name (screen readers), and the tab
+// order reaches the first control of each page. Reports the controls without a name.
+static bool accessibilitySelfTest(MainWindow &w) {
+    bool ok = true;
+    for (const std::string &id : w.pageIds()) {
+        w.showPage(QString::fromStdString(id));
+        settle();
+        QWidget *page = w.currentPage();
+        if (!page) continue;
+        int controls = 0;
+        const QList<QWidget *> all = page->findChildren<QWidget *>();
+        for (QWidget *c : all) {
+            const bool input = qobject_cast<QComboBox *>(c) || qobject_cast<QLineEdit *>(c) || qobject_cast<QAbstractSpinBox *>(c) ||
+                               qobject_cast<QAbstractSlider *>(c) || qobject_cast<QPlainTextEdit *>(c) ||
+                               qobject_cast<QListWidget *>(c) || qobject_cast<QTreeWidget *>(c) || qobject_cast<QTreeView *>(c);
+            if (!input || !c->isVisibleTo(page)) continue;
+            // inner line edits of combo boxes and spin boxes belong to their parent control
+            if (qobject_cast<QLineEdit *>(c) && (qobject_cast<QAbstractSpinBox *>(c->parentWidget()) || qobject_cast<QComboBox *>(c->parentWidget())))
+                continue;
+            if (c->objectName() == QStringLiteral("qt_scrollarea_viewport")) continue;
+            ++controls;
+            if (qobject_cast<QAbstractScrollArea *>(c) == nullptr && qobject_cast<QAbstractSlider *>(c) &&
+                qobject_cast<QScrollBar *>(c))
+                continue;  // scroll bars are labelled by the platform
+            // The name a screen reader gets: the accessible name, or the label whose buddy the control is.
+            QAccessibleInterface *iface = QAccessible::queryAccessibleInterface(c);
+            if (!iface || iface->text(QAccessible::Name).isEmpty()) {
+                std::fprintf(stderr, "accessibility self-test failed: page %s: %s without an accessible name\n", id.c_str(),
+                             c->metaObject()->className());
+                ok = false;
+            }
+        }
+        (void)controls;
+    }
+    return ok;
+}
+
+// Extensions page: lists modes and button modes with their origin, adds a shipped example and removes it again.
+static bool extensionsSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "extensions self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    QDir().mkpath(tmpPath + QStringLiteral("/ex/modes"));
+    QDir().mkpath(tmpPath + QStringLiteral("/ex/buttons"));
+    for (const auto &f : {std::make_pair("/ex/modes/ex-one.conf", "NAME = Example one\nV_ACTION = none\n"),
+                          std::make_pair("/ex/buttons/ex-btn.conf", "NAME = Example button\nACTION = click\n")}) {
+        QFile file(tmpPath + QString::fromLatin1(f.first));
+        if (!file.open(QIODevice::WriteOnly)) return false;
+        file.write(f.second);
+    }
+    qputenv("DOFSCROLL_EXAMPLES", (tmpPath + QStringLiteral("/ex")).toUtf8());
+    ExtensionsPage page(ctx);  // standalone: own catalogs
+    page.show();
+    settle();
+    const int before = page.extensionCount();
+    check(before >= 6, "built-in modes, the file modes and the examples are listed");
+    check(page.selectExtension(QStringLiteral("mode:ex-one")) && page.installSelected(), "install a mode example");
+    check(QFile::exists(tmpPath + QStringLiteral("/modes/ex-one.conf")), "the example file was copied");
+    check(page.extensionCount() == before, "the entry stays in the list, now as your file");
+    check(page.removeSelected() && !QFile::exists(tmpPath + QStringLiteral("/modes/ex-one.conf")), "remove it again");
+    check(page.selectExtension(QStringLiteral("button:ex-btn")) && page.installSelected() &&
+              QFile::exists(tmpPath + QStringLiteral("/buttons/ex-btn.conf")),
+          "install a button mode example");
+    check(page.removeSelected(), "remove the button mode");
+    check(page.selectExtension(QStringLiteral("mode:normal")) && !page.removeSelected() && !page.installSelected(),
+          "a built-in mode can neither be removed nor installed");
+    qunsetenv("DOFSCROLL_EXAMPLES");
+    return ok;
+}
+
+// Mode editor: opens the file mode "mine" in the page, edits channel, button and override, saves, and checks the
+// file (comments and the name survive, the daemon loader accepts the result).
+static bool modeEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "mode editor self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    ModesPage page(ctx);
+    page.show();
+    settle();
+    check(page.selectMode(QStringLiteral("mine")), "the file mode is listed");
+    check(page.openEditor() && page.editorWidget(), "the editor opens for a file mode");
+    spn::ui::ModeForm &f = page.editorWidget()->editor().form();
+    check(f.id == "mine" && f.name == "Mine" && f.button(1) && *f.button(1) == "key:space", "the form shows the file");
+    f.h = {spn::ChannelActionType::Step, "ctrl+pageup", "ctrl+pagedown"};
+    f.setButton(2, "toggle:nav");
+    f.overrides.emplace_back("SCROLL_V_SENS", "2");
+    check(page.editorWidget()->editor().validate().empty(), "the edited form is valid");
+    check(page.editorWidget()->save(), "save");
+    QFile file(tmpPath + QStringLiteral("/modes/mine.conf"));
+    check(file.open(QIODevice::ReadOnly), "the file exists");
+    const QByteArray text = file.readAll();
+    check(text.contains("NAME = Mine") && text.contains("H_ACTION = step:ctrl+pageup,ctrl+pagedown") &&
+              text.contains("BUTTON_2 = toggle:nav") && text.contains("SCROLL_V_SENS = 2") && text.contains("BUTTON_1 = key:space"),
+          "the file holds the edits and keeps the rest");
+    const spn::ModeSet ms = spn::loadModes((tmpPath + QStringLiteral("/modes")).toStdString(), nullptr);
+    const spn::ModeDef *m = ms.find("mine");
+    check(m && m->h.type == spn::ChannelActionType::Step && m->buttons.size() == 2, "the daemon loader reads the saved file");
+    // an invalid value is refused and nothing is written
+    f.overrides.back().second = "abc";
+    check(!page.editorWidget()->editor().validate().empty() && !page.editorWidget()->save(), "invalid values are refused");
     return ok;
 }
 
@@ -221,6 +341,12 @@ int main(int argc, char **argv) {
         QDir().mkpath(tmp.path() + QStringLiteral("/modes"));
         QDir().mkpath(tmp.path() + QStringLiteral("/buttons"));
         QDir().mkpath(QString::fromUtf8(screenshotDir));
+        {
+            QFile mf(tmp.path() + QStringLiteral("/modes/slides.conf"));
+            if (!mf.open(QIODevice::WriteOnly)) return 1;
+            mf.write("# SAFETY: a mode file can press any key.\nNAME = Slides\nDESCRIPTION = Pages through slides\n"
+                     "V_ACTION = step:pageup,pagedown\nH_ACTION = none\nBUTTON_1 = mode:next\nSCROLL_V_SENS = 2\n");
+        }
         for (const auto &bmf : {std::make_pair("latch-nav", "NAME = Navigation latch\nDESCRIPTION = Press once to switch navigation on, again to switch it off\nACTION = toggle:nav\n"),
                                 std::make_pair("next-mode", "NAME = Next mode\nACTION = mode:next\n")}) {
             QFile f(tmp.path() + QStringLiteral("/buttons/") + QString::fromLatin1(bmf.first) + QStringLiteral(".conf"));
@@ -251,6 +377,16 @@ int main(int argc, char **argv) {
                                               QString::fromStdString(id));
                 if (!w.grab().save(file)) return 1;
                 ++written;
+            }
+        }
+        {   // the in-page mode editor
+            ModesPage page(ctx);
+            page.resize(1100, 700);
+            page.show();
+            settle();
+            if (page.selectMode(QStringLiteral("slides")) && page.openEditor()) {
+                settle();
+                if (page.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-mode-editor.png"))) ++written;
             }
         }
         std::printf("screenshots: %d files in %s\n", written, screenshotDir);
@@ -287,6 +423,8 @@ int main(int argc, char **argv) {
         MainWindow w(ctx);
         w.show();
         if (!buttonModesSelfTest(ctx, tmp.path())) return 1;
+        if (!modeEditorSelfTest(ctx, tmp.path())) return 1;
+        if (!extensionsSelfTest(ctx, tmp.path())) return 1;
         ModesPage modes(ctx);  // standalone (own catalog): built-in normal, off, timeline + the file mode
         modes.show();
         Tray tray(&w, icon, ctx);
@@ -295,10 +433,11 @@ int main(int argc, char **argv) {
         std::printf("self-test: entries=%d profiles=%d modes=%d tray-modes=%d tray-entries=%d tray-available=%d\n",
                     w.pageCount(), w.profileCount(), modes.modeCount(), tray.modeMenuCount(),
                     tray.menuEntryCount(), avail ? 1 : 0);
-        const bool ok = w.pageCount() == 7 && w.categoryCount() == 5 && w.profileCount() >= 0 && !w.profilePageHasModeSelector() && modes.modeCount() == 4 &&
+        const bool ok = w.pageCount() == 8 && w.categoryCount() == 5 && w.profileCount() >= 0 && !w.profilePageHasModeSelector() && modes.modeCount() == 4 &&
                         tray.modeMenuCount() == 4 && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
         if (!overviewSelfTest(w)) return 1;
+        if (!accessibilitySelfTest(w)) return 1;
         if (!themeSelfTest(w)) return 1;
         return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen
     }

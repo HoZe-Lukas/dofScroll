@@ -84,6 +84,13 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     al->addWidget(actionMsg_);
     col->addWidget(actionBox);
 
+    // ---- first-run guidance ----
+    auto *gettingBox = new QGroupBox(T("Getting started"));
+    new QVBoxLayout(gettingBox);
+    gettingBox_ = gettingBox;
+    gettingBox->setVisible(false);
+    col->addWidget(gettingBox);
+
     // ---- profiles ----
     auto *profilesBox = new QGroupBox(T("Profiles"));
     auto *pl = new QVBoxLayout(profilesBox);
@@ -125,6 +132,11 @@ void OverviewPage::refresh() {
                                       .arg(d.deviceProfiles).arg(d.appProfiles).arg(qs8(d.defaultMode)));
     profilesCount_->setVisible(!d.profiles.empty());
     emptyState_->setVisible(d.profiles.empty());
+    {
+        const std::vector<spn::ui::GettingStartedStep> steps = spn::ui::gettingStartedSteps(d, *ctx_.status, *ctx_.strings);
+        gettingBox_->setVisible(spn::ui::showGettingStarted(steps));
+        if (gettingBox_->isVisible()) rebuildGettingStarted(steps);
+    }
 
     // Rebuild the cards only when what they show changed (this runs every second).
     QString key;
@@ -172,6 +184,39 @@ void OverviewPage::rebuildCards() {
 }
 
 // Cards wrap: as many columns as fit with kCardMinWidth each, at least one.
+void OverviewPage::rebuildGettingStarted(const std::vector<spn::ui::GettingStartedStep> &steps) {
+    QString key;
+    for (const auto &st : steps) key += qs8(st.id) + (st.done ? QLatin1Char('1') : QLatin1Char('0'));
+    if (key == gettingKey_) return;
+    gettingKey_ = key;
+    auto *lay = qobject_cast<QVBoxLayout *>(gettingBox_->layout());
+    while (QLayoutItem *it = lay->takeAt(0)) {
+        if (QWidget *w = it->widget()) w->deleteLater();
+        if (QLayout *l = it->layout()) {
+            while (QLayoutItem *x = l->takeAt(0)) {
+                if (QWidget *w = x->widget()) w->deleteLater();
+                delete x;
+            }
+        }
+        delete it;
+    }
+    for (const spn::ui::GettingStartedStep &st : steps) {
+        auto *row = new QHBoxLayout;
+        // The state is written out: "Done:" / "To do:" (never only a colour or a symbol).
+        auto *label = new QLabel((st.done ? T("Done:") : T("To do:")) + QLatin1Char(' ') + qs8(st.text), gettingBox_);
+        label->setWordWrap(true);
+        row->addWidget(label, 1);
+        if (!st.page.empty() && !st.done) {
+            auto *open = new QPushButton(T("Open"), gettingBox_);
+            open->setAccessibleName(T("Open") + QLatin1Char(' ') + qs8(st.text));
+            const QString page = qs8(st.page);
+            connect(open, &QPushButton::clicked, this, [this, page] { emit openPage(page); });
+            row->addWidget(open);
+        }
+        lay->addLayout(row);
+    }
+}
+
 void OverviewPage::layoutCards() {
     // From the width of the page, not of the card host: the host can be held wide by the minimum width
     // of the cards of the current columns (a larger font), which would then never let it wrap.

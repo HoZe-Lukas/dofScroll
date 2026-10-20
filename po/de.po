@@ -2339,3 +2339,207 @@ msgstr "Vorheriger Modus"
 #: src/ui/model/binding_editor_model.hpp
 msgid "Mode while held"
 msgstr "Modus, solange gedrückt"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Default (as in the profile)"
+msgstr "Standard (wie im Profil)"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Off"
+msgstr "Aus"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Vertical wheel"
+msgstr "Vertikales Mausrad"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Horizontal wheel"
+msgstr "Horizontales Mausrad"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Zoom (Ctrl + wheel)"
+msgstr "Zoom (Strg + Mausrad)"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Keys (a rate of key presses)"
+msgstr "Tasten (eine Rate von Tastendrücken)"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Step (one key press per push)"
+msgstr "Schritt (ein Tastendruck pro Auslenkung)"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Problems"
+msgstr "Probleme"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Warnings of the saved file"
+msgstr "Warnungen der gespeicherten Datei"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Write the changes to the mode file"
+msgstr "Änderungen in die Moduldatei schreiben"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Close editor"
+msgstr "Editor schließen"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Discard the unsaved changes?"
+msgstr "Die ungespeicherten Änderungen verwerfen?"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Negative:"
+msgstr "Negativ:"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Positive:"
+msgstr "Positiv:"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "negative"
+msgstr "negativ"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "positive"
+msgstr "positiv"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Edit mode: %1"
+msgstr "Modus bearbeiten: %1"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Vertical push"
+msgstr "Vertikale Auslenkung"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Horizontal push"
+msgstr "Horizontale Auslenkung"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Buttons"
+msgstr "Tasten"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Remove this binding; the profile's binding for the button applies again"
+msgstr "Diese Belegung entfernen; es gilt wieder die Belegung des Profils"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Settings overrides"
+msgstr "Einstellungs-Überschreibungen"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Values that apply while this mode is active (for example the sensitivity)."
+msgstr "Werte, die gelten, solange dieser Modus aktiv ist (zum Beispiel die Empfindlichkeit)."
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "The saved file has no loader warnings."
+msgstr "Die gespeicherte Datei hat keine Lade-Warnungen."
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "The file changed on disk while you were editing. Overwrite it with your changes?"
+msgstr "Die Datei wurde auf der Platte geändert, während Sie sie bearbeitet haben. Mit Ihren Änderungen überschreiben?"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Could not save the mode."
+msgstr "Der Modus konnte nicht gespeichert werden."
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Edit the mode here: name, channels, buttons and overrides"
+msgstr "Den Modus hier bearbeiten: Name, Kanäle, Tasten und Überschreibungen"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Extensions"
+msgstr "Erweiterungen"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "dofscroll is extended with plain files: joystick modes and button modes. Nothing executable. Here you see where each one comes from, add the examples that ship with dofscroll and remove your own files. Edit them on the Modes and Button modes pages."
+msgstr "dofscroll wird mit einfachen Dateien erweitert: Joystick-Modi und Tastenmodi. Nichts Ausführbares. Hier sehen Sie, woher jede kommt, fügen die mitgelieferten Beispiele hinzu und entfernen eigene Dateien. Bearbeitet werden sie auf den Seiten Modi und Tastenmodi."
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Type"
+msgstr "Typ"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Origin"
+msgstr "Herkunft"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Add example"
+msgstr "Beispiel hinzufügen"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Copy the selected example into your folder"
+msgstr "Das gewählte Beispiel in Ihren Ordner kopieren"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Delete the selected file of yours"
+msgstr "Die gewählte eigene Datei löschen"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Details of the selected extension"
+msgstr "Details der gewählten Erweiterung"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Delete \"%1\"?"
+msgstr "„%1“ löschen?"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "The built-in mode comes back."
+msgstr "Der eingebaute Modus kommt zurück."
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Could not create the folder."
+msgstr "Der Ordner konnte nicht angelegt werden."
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Could not add the example."
+msgstr "Das Beispiel konnte nicht hinzugefügt werden."
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Could not remove the file."
+msgstr "Die Datei konnte nicht entfernt werden."
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "warnings: %1"
+msgstr "Warnungen: %1"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "built in"
+msgstr "eingebaut"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "your file"
+msgstr "Ihre Datei"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "your file, replaces the built-in mode"
+msgstr "Ihre Datei, ersetzt den eingebauten Modus"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "example, not installed"
+msgstr "Beispiel, nicht installiert"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Getting started"
+msgstr "Erste Schritte"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Done:"
+msgstr "Erledigt:"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "To do:"
+msgstr "Zu tun:"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Connect your SpaceMouse. The daemon has to see it."
+msgstr "Schließen Sie Ihre SpaceMouse an. Der Daemon muss sie sehen."
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Check on the Axes page that the axes move as you expect (the assistant helps)."
+msgstr "Prüfen Sie auf der Seite Achsen, dass sich die Achsen wie erwartet bewegen (der Assistent hilft)."
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Add a profile for a program you use."
+msgstr "Legen Sie ein Profil für ein Programm an, das Sie verwenden."

@@ -30,6 +30,7 @@
 #include "add_app_dialog.hpp"
 #include "add_device_dialog.hpp"
 #include "feed_dir.hpp"
+#include "button_row.hpp"
 #include "key_combo.hpp"
 #include "ui/model/binding_editor_model.hpp"
 #include "ui/model/button_choice_model.hpp"
@@ -298,112 +299,39 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
     const std::vector<std::string> offered = bindingModeIds(loadModes(ctx_.modesDir, nullptr));
     const ButtonModeSet buttonModes = loadButtonModes(ctx_.buttonModesDir, nullptr);
 
-    const bool advanced = !hasAdvancedSection(ctxKind) || advancedOpen_;
+    ButtonRowEnv env;
+    env.context = ctxKind;
+    env.advancedOpen = !hasAdvancedSection(ctxKind) || advancedOpen_;
+    env.buttonModes = &buttonModes;
+    env.modeIds = offered;
+    env.strings = ctx_.strings;
+    env.resetText = section == 0 ? T("Unbind") : T("Inherit");
+    env.resetTip = section == 0 ? T("Remove this binding")
+                                : T("Remove this profile's own binding and use the inherited one");
+    auto changed = [this](bool ok, const std::string &err) {
+        if (ok) setStatus(T("Unsaved changes"));
+        else if (!err.empty()) setStatus(qs8(err));
+        updateButtons();
+        queueRebuild();
+    };
     int r = 0;
     for (const BindingRow &row : rows) {
-        auto *label = new QLabel(T("Button") + QStringLiteral(" %1").arg(row.number));
-        grid->addWidget(label, r, 0);
-        if (row.beyondLimit || !row.valid) {
-            auto *ro = new QLabel(qs8(row.text) + QStringLiteral("  ") +
-                                  (row.beyondLimit ? T("(above this device's button count)")
-                                                   : T("(not a valid action)")));
-            grid->addWidget(ro, r, 1, 1, 3);
-            ++r;
-            continue;
-        }
-        auto *kind = new QComboBox;
-        kind->setAccessibleName(T("Action of button") + QStringLiteral(" %1").arg(row.number));
-        const std::vector<ButtonChoice> choices = buttonChoices(
-            ctxKind, advanced, buttonModes,
-            row.binding.kind == BindingKind::ButtonMode ? row.binding.arg : std::string(), *ctx_.strings);
-        const int selected = selectedButtonChoice(choices, ctxKind, row);
-        ButtonChoice::Group lastGroup = ButtonChoice::Group::None;
-        for (size_t i = 0; i < choices.size(); ++i) {
-            const ButtonChoice &c = choices[i];
-            if (c.group != lastGroup && c.group != ButtonChoice::Group::None) {
-                // Group header: a disabled entry that cannot be chosen.
-                kind->addItem(c.group == ButtonChoice::Group::ButtonModes ? T("Button modes") : T("Actions"));
-                auto *item = qobject_cast<QStandardItemModel *>(kind->model())->item(kind->count() - 1);
-                item->setFlags(item->flags() & ~(Qt::ItemIsSelectable | Qt::ItemIsEnabled));
-                kind->setItemData(kind->count() - 1, QVariant(), Qt::UserRole);
-            }
-            lastGroup = c.group;
-            kind->addItem(qs8(c.label), int(i));
-            if (!c.tooltip.empty()) kind->setItemData(kind->count() - 1, qs8(c.tooltip), Qt::ToolTipRole);
-            if (int(i) == selected) kind->setCurrentIndex(kind->count() - 1);
-        }
-        if (selected < 0) kind->setCurrentIndex(-1);
-        grid->addWidget(kind, r, 1);
-
-        QWidget *arg = nullptr;
-        if (row.binding.kind == BindingKind::Key) {
-            auto *kc = makeKeyCombo(qs8(row.binding.arg), box);
-            kc->setAccessibleName(T("Key of button") + QStringLiteral(" %1").arg(row.number));
-            connect(kc, &QComboBox::activated, this, [this, section, row, kc](int) {
-                std::string err;
-                Binding b{BindingKind::Key, kc->currentData().toString().toUtf8().toStdString()};
-                if (kc->currentData().isValid() && applyBinding(*ctx_.settings, section, row.number, b, &err))
-                    setStatus(T("Unsaved changes"));
-                else if (!err.empty())
-                    setStatus(qs8(err));
-                updateButtons();
-                queueRebuild();
-            });
-            arg = kc;
-        } else if (row.binding.kind == BindingKind::Mode || row.binding.kind == BindingKind::ToggleMode ||
-                   row.binding.kind == BindingKind::HoldMode) {
-            auto *mc = new QComboBox(box);
-            mc->setAccessibleName(T("Mode of button") + QStringLiteral(" %1").arg(row.number));
-            std::vector<std::string> ids = offered;
-            if (std::find(ids.begin(), ids.end(), row.binding.arg) == ids.end()) ids.push_back(row.binding.arg);
-            for (const std::string &id : ids) mc->addItem(qs8(id), qs8(id));
-            mc->setCurrentIndex(std::max(0, mc->findData(qs8(row.binding.arg))));
-            connect(mc, &QComboBox::activated, this, [this, section, row, mc](int) {
-                std::string err;
-                Binding b{row.binding.kind, mc->currentData().toString().toUtf8().toStdString()};
-                if (applyBinding(*ctx_.settings, section, row.number, b, &err))
-                    setStatus(T("Unsaved changes"));
-                else
-                    setStatus(qs8(err));
-                updateButtons();
-                queueRebuild();
-            });
-            arg = mc;
-        }
-        if (!arg && section > 0 && !row.overridden) {
-            // Inherited: say what it is, so the effect of "Default (inherit)" is visible.
-            arg = new QLabel(T("inherited:") + QLatin1Char(' ') + qs8(row.text), box);
-            arg->setForegroundRole(QPalette::PlaceholderText);
-        }
-        if (arg) grid->addWidget(arg, r, 2);
-
-        connect(kind, &QComboBox::activated, this, [this, section, row, kind, choices, offered](int idx) {
-            const QVariant data = kind->itemData(idx);
-            if (!data.isValid()) return;  // a group header
-            const size_t ci = size_t(data.toInt());
-            if (ci >= choices.size()) return;
+        ButtonRowHandlers h;
+        h.choose = [this, section, row, offered, changed](const ButtonChoice &c) {
             std::string err;
-            if (applyButtonChoice(*ctx_.settings, section, row, choices[ci], offered, &err))
-                setStatus(T("Unsaved changes"));
-            else
-                setStatus(qs8(err));
-            updateButtons();
-            queueRebuild();
-        });
-
-        if (row.overridden) {
-            auto *reset = new QToolButton;
-            reset->setText(section == 0 ? T("Unbind") : T("Inherit"));
-            reset->setToolTip(section == 0 ? T("Remove this binding")
-                                           : T("Remove this profile's own binding and use the inherited one"));
-            connect(reset, &QToolButton::clicked, this, [this, section, row] {
-                ctx_.settings->clearButton(section, row.number);
-                setStatus(T("Unsaved changes"));
-                updateButtons();
-                queueRebuild();
-            });
-            grid->addWidget(reset, r, 3);
-        }
+            const bool ok = applyButtonChoice(*ctx_.settings, section, row, c, offered, &err);
+            changed(ok, err);
+        };
+        h.setArgument = [this, section, row, changed](const Binding &b) {
+            std::string err;
+            const bool ok = applyBinding(*ctx_.settings, section, row.number, b, &err);
+            changed(ok, err);
+        };
+        h.reset = [this, section, row, changed] {
+            ctx_.settings->clearButton(section, row.number);
+            changed(true, std::string());
+        };
+        addButtonRow(this, box, grid, r, row, env, h);
         ++r;
     }
 

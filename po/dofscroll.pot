@@ -2170,3 +2170,207 @@ msgstr ""
 #: src/ui/model/binding_editor_model.hpp
 msgid "Mode while held"
 msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Default (as in the profile)"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Off"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Vertical wheel"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Horizontal wheel"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Zoom (Ctrl + wheel)"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Keys (a rate of key presses)"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Step (one key press per push)"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Problems"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Warnings of the saved file"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Write the changes to the mode file"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Close editor"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Discard the unsaved changes?"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Negative:"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Positive:"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "negative"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "positive"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Edit mode: %1"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Vertical push"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Horizontal push"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Buttons"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Remove this binding; the profile's binding for the button applies again"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Settings overrides"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Values that apply while this mode is active (for example the sensitivity)."
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "The saved file has no loader warnings."
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "The file changed on disk while you were editing. Overwrite it with your changes?"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Could not save the mode."
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Edit the mode here: name, channels, buttons and overrides"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Extensions"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "dofscroll is extended with plain files: joystick modes and button modes. Nothing executable. Here you see where each one comes from, add the examples that ship with dofscroll and remove your own files. Edit them on the Modes and Button modes pages."
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Type"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Origin"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Add example"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Copy the selected example into your folder"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Delete the selected file of yours"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Details of the selected extension"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Delete \"%1\"?"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "The built-in mode comes back."
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Could not create the folder."
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Could not add the example."
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Could not remove the file."
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "warnings: %1"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "built in"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "your file"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "your file, replaces the built-in mode"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "example, not installed"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Getting started"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Done:"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "To do:"
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Connect your SpaceMouse. The daemon has to see it."
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Check on the Axes page that the axes move as you expect (the assistant helps)."
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Add a profile for a program you use."
+msgstr ""

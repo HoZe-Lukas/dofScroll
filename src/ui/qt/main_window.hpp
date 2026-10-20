@@ -46,6 +46,7 @@ public:
     bool overviewCardsFit() const;
     bool overviewCardsFillWidth() const;            // no squashed card after a resize
     void openOverviewProfile(int section);    // what a click on an Overview card does (also used by the self-test)
+    QWidget *currentPage() const;             // the page that is shown (a tab of the category or its only page)
     QString currentPageId() const;            // registry id of the page that is shown
     bool selectedProfileIs(size_t section) const;  // is this profile selected on the Profiles page?
     bool profilePageHasModeSelector() const;  // false for the default mode

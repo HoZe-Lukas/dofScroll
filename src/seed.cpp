@@ -142,6 +142,8 @@ int seedDirectory(const std::string &srcDir, const std::string &cfgDir, const st
 
 }  // namespace
 
+std::string examplesDir() { return findExamplesDir(); }
+
 bool seedDefaults(std::string *log) {
     const std::string prev = previousConfigPath();
     const std::string modesPath = modesDir();  // <base>/dofscroll/modes

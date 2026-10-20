@@ -7,6 +7,7 @@
 #include "pages/axes_page.hpp"
 #include "pages/button_modes_page.hpp"
 #include "pages/channels_page.hpp"
+#include "pages/extensions_page.hpp"
 #include "pages/general_page.hpp"
 #include "pages/modes_page.hpp"
 #include "pages/overview_page.hpp"
@@ -21,6 +22,7 @@ const std::vector<PageFactory> &pageFactories() {
         {"channels", "Channels", "profiles", createChannelsPage},
         {"modes", "Modes", "modes", makeModesPage},
         {"buttonmodes", "Button modes", "modes", createButtonModesPage},
+        {"extensions", "Extensions", "modes", createExtensionsPage},
         {"axes", "Axes", "device", createAxesPage},
         {"general", "General", "settings", createGeneralPage},
     };

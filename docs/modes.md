@@ -268,6 +268,10 @@ device inactive. To get out of it, use the tray menu "Mode", a `mode:next` or `m
    button action.
 4. Check `journalctl --user -u dofscroll.service` for warnings about skipped lines.
 
+The interface can do the same without a text editor: on the Modes page, "Edit" opens an in-page
+editor for name, channels, buttons and overrides (see [ui.md](ui.md#editing-a-joystick-mode)). The file
+stays plain text; the editor keeps comments and lines it does not know.
+
 ## Editing modes from the tray
 
 The tray "Mode" submenu lists, below the mode choices, one entry per mode:

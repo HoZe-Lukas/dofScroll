@@ -400,6 +400,9 @@ private:
         spin->setSingleStep(0.05);
         spin->setDecimals(2);
         spin->setKeyboardTracking(false);
+        const QString curveName = T("Curve (exponent)") + QStringLiteral(" - ") + qs8(groupId);
+        slider->setAccessibleName(curveName);
+        spin->setAccessibleName(curveName);
         auto *pair = new QWidget;
         auto *pl = new QHBoxLayout(pair);
         pl->setContentsMargins(0, 0, 0, 0);

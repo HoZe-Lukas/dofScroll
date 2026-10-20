@@ -10,6 +10,8 @@
 
 #include <vector>
 
+#include "ui/model/overview_model.hpp"
+
 #include "ui_context.hpp"
 
 class QFrame;
@@ -41,6 +43,7 @@ protected:
     void showEvent(QShowEvent *e) override;
 
 private:
+    void rebuildGettingStarted(const std::vector<spn::ui::GettingStartedStep> &steps);
     void rebuildCards();
     void layoutCards();
     void runAction(int index);
@@ -49,6 +52,8 @@ private:
     QLabel *statusLine_ = nullptr, *infoLine_ = nullptr, *warningLine_ = nullptr;
     QLabel *actionMsg_ = nullptr, *profilesCount_ = nullptr;
     QFrame *emptyState_ = nullptr;
+    QWidget *gettingBox_ = nullptr;      // first-run guidance, hidden once the device is seen and a profile exists
+    QString gettingKey_;
     QWidget *cardHost_ = nullptr;
     QGridLayout *cardGrid_ = nullptr;
     std::vector<QFrame *> cards_;

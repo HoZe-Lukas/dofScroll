@@ -202,6 +202,13 @@ int MainWindow::overviewCardCount() const {
     return o ? o->profileCardCount() : 0;
 }
 
+QWidget *MainWindow::currentPage() const {
+    const int c = categoryBar_->currentIndex();
+    QWidget *w = c >= 0 ? categories_->widget(c) : nullptr;
+    if (auto *tabs = qobject_cast<QTabWidget *>(w)) return tabs->currentWidget();
+    return w;
+}
+
 QString MainWindow::currentPageId() const {
     const int c = categoryBar_->currentIndex();
     if (c < 0 || c >= static_cast<int>(nav_.size())) return QString();

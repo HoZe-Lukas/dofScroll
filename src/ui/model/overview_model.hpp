@@ -104,4 +104,31 @@ inline OverviewData buildOverview(const SettingsModel &settings, const StatusMod
     return d;
 }
 
+// First-run guidance: what a new user does first. Shown on the Overview until the device is seen and
+// the first profile exists; every step says in words whether it is done (not by colour alone) and
+// names the page that does it.
+struct GettingStartedStep {
+    std::string id;    // "device", "axes", "profile"
+    std::string text;  // translated
+    bool done = false;
+    std::string page;  // page id that does it; "" = nothing to open
+};
+
+inline std::vector<GettingStartedStep> gettingStartedSteps(const OverviewData &d, const StatusModel &status,
+                                                           const StringProvider &s) {
+    const bool deviceSeen = status.daemonRunning() && (status.status().devices_seen > 0 || !status.status().device.empty());
+    std::vector<GettingStartedStep> out;
+    out.push_back({"device", s.tr("Connect your SpaceMouse. The daemon has to see it."), deviceSeen, ""});
+    out.push_back({"axes", s.tr("Check on the Axes page that the axes move as you expect (the assistant helps)."), false, "axes"});
+    out.push_back({"profile", s.tr("Add a profile for a program you use."), !d.profiles.empty(), "profiles"});
+    return out;
+}
+
+// The guidance goes away by itself once the device is seen and a profile exists.
+inline bool showGettingStarted(const std::vector<GettingStartedStep> &steps) {
+    for (const GettingStartedStep &st : steps)
+        if ((st.id == "device" || st.id == "profile") && !st.done) return true;
+    return false;
+}
+
 }  // namespace spn::ui
