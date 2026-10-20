@@ -8,17 +8,13 @@ Exactly one mode is active: the one named by `MODE` in the resolved profile, oth
 
 ## Built-in modes
 
-| Mode | Behavior |
-|---|---|
-| `normal` | All channels `default`, no bindings: scroll, Ctrl+scroll zoom, `NAV_BUTTON` (the older `CLICK_BUTTON` also still works) |
-| `off` | All channels `none`; switches control off without `ENABLED = 0` |
-| `timeline` | Vertical `none`, horizontal and twist `keys:left,right` |
+Nine joystick modes (`normal`, `off`, `timeline`, `slides`, `media`, `map`, `precision`, `tabs`, `browse`) and four button modes (`latch-nav`, `next-mode`, `prev-mode`, `cycle-favorites`) are built into the program on every system. Nothing has to be copied into your folder to use them. Each one, with its channel actions, overrides and use, is described on [Built-in modes](Built-in-modes). To propose or send a new one, see [Mode requests and contributions](Contributing-modes).
 
 A file in the modes folder with the id of a built-in mode replaces it.
 
 ## Writing a mode file
 
-Put `<id>.conf` into `~/.config/dofscroll/modes/`. The id is the file name without `.conf` (`[a-z0-9_-]{1,32}`). Format: `KEY = value`, no sections, `#` and `;` comments.
+For your own modes put `<id>.conf` into `~/.config/dofscroll/modes/`. The id is the file name without `.conf` (`[a-z0-9_-]{1,32}`). Format: `KEY = value`, no sections, `#` and `;` comments.
 
 ```
 NAME = Timeline (scrub / single frames)
@@ -81,29 +77,9 @@ The loader skips what it cannot use and logs a warning: invalid lines or files, 
 
 A mode file is code-like. While a button is held or an axis is deflected it can press any key from the key list, including Ctrl, Alt, Super, function keys, Delete and Enter. Chords are reachable: Ctrl is held while a channel zooms, so a `keys:` action on another channel can send Ctrl+W or Ctrl+Q, and `keys:` accepts chords itself (`ctrl+pageup`); the daemon warns about chords with `alt`, `super` or non-navigation keys. It cannot type arbitrary text or send codes outside the key list, and every effect needs the physical device to be moved or pressed.
 
-Read every file before you copy it into `~/.config/dofscroll/modes/`. Look for `key:`, `keys:`, `zoom` and `mode:`. The daemon warns at load time about modifier-capable bindings, but that does not replace reading. If you share a mode, say which keys it presses. See also [Security](Security) and [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#safety-and-sharing-modes).
+Read every file you get from somebody else before you put it into `~/.config/dofscroll/modes/` (the built-in modes need no copying). Look for `key:`, `keys:`, `zoom` and `mode:`. The daemon warns at load time about modifier-capable bindings, but that does not replace reading. If you share a mode, say which keys it presses. See also [Security](Security) and [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#safety-and-sharing-modes).
 
 A mode that turns output off (like `off`) leaves the device inactive. Get out with the tray "Mode" menu, a `mode:next` or `mode:<id>` binding in the main config, or by editing `MODE` and reloading.
-
-## Built-in joystick modes
-
-Built into the program on every system, no files needed (the text is in [examples/modes/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/modes), embedded at build time):
-
-| Mode | Behavior |
-|---|---|
-| `normal` | Default channels |
-| `off` | Sends nothing |
-| `timeline` | Sideways and twist = left/right arrow keys, vertical off |
-| `slides` | Up/down = page up/down, sideways and twist off; `SCROLL_V_SENS = 2` |
-| `media` | Up/down = arrow up/down (volume), sideways = left/right (seek), twist = `j`/`l`; program-specific keys |
-| `map` | Arrow keys for up/down and sideways, twist = `minus`/`plus` (layout caveat, see Key names) |
-| `precision` | Default channels with low sensitivities (`SCROLL_V_SENS = 2`, `SCROLL_H_SENS = 1`, `ZOOM_SENS = 2`) |
-| `tabs` | Sideways = `ctrl+pageup` / `ctrl+pagedown` (previous / next tab); needs no chord warning |
-| `browse` | Up/down = page up/down, sideways = left/right, twist = zoom |
-
-Built-in button modes: `latch-nav`, `next-mode`, `prev-mode` (see [Buttons](Buttons)). A file with the same id in `~/.config/dofscroll/modes/` replaces a built-in ("Create editable copy" in the interface). `mode:next` cycles through all loaded modes in alphabetical order, built-ins included.
-
-Use `timeline` for video editing in a program of your choice, for example `[app:resolve]` with `MODE = timeline` (DaVinci Resolve's behavior is not verified here).
 
 ## Mode library
 

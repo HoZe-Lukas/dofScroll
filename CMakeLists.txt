@@ -218,6 +218,13 @@ if(BUILD_TESTING)
            -DFILE=${CMAKE_SOURCE_DIR}/.github/workflows/ports.yml
            -P ${CMAKE_SOURCE_DIR}/tests/check_ports_trigger.cmake)
 
+  # the wiki page of the built-in modes must list every built-in mode
+  find_program(SH_EXECUTABLE sh)
+  if(SH_EXECUTABLE)
+    add_test(NAME check_wiki_builtin_modes COMMAND ${SH_EXECUTABLE}
+             ${CMAKE_SOURCE_DIR}/scripts/check-wiki-builtin-modes.sh)
+  endif()
+
   # config validation: examples/*.conf and examples/default/dofscroll.conf
   add_executable(check_config tests/check_config.cpp)
   target_link_libraries(check_config PRIVATE dofscroll_core)

@@ -8,6 +8,8 @@
 - [User interface](User-interface)
 - [Configuration reference](Configuration-reference)
 - [Modes](Modes)
+- [Built-in modes](Built-in-modes)
+- [Mode requests and contributions](Contributing-modes)
 - [Profiles](Profiles)
 - [Buttons](Buttons)
 - [Devices](Devices)
