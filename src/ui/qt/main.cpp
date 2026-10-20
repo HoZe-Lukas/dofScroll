@@ -901,7 +901,7 @@ static bool fontScaleSelfTest(MainWindow &w) {
                 // inside a scroll area the widget is laid out at its hint: a smaller size means it is cut off
                 if (c->height() < hint.height() - 2 || (!wraps && c->width() < hint.width() - 2)) {
                     std::fprintf(stderr, "font scale self-test failed: x%.1f page %s: %s \"%s\" is %dx%d, needs %dx%d\n", scale,
-                                 id.c_str(), c->metaObject()->className(), qPrintable(lab ? lab->text().left(30) : c->objectName()),
+                                 id.c_str(), c->metaObject()->className(), qPrintable(lab ? lab->text().left(30) : qobject_cast<QAbstractButton *>(c) ? qobject_cast<QAbstractButton *>(c)->text().left(30) + QStringLiteral(" / ") + c->accessibleName().left(30) : c->objectName()),
                                  c->width(), c->height(), hint.width(), hint.height());
                     ok = false;
                 }

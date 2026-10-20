@@ -657,7 +657,8 @@ QWidget *ProfilesPage::buildEnabled(size_t section) {
     auto *l = new QGridLayout(box);
     l->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
     l->setColumnStretch(0, 1);
-    auto *check = new QCheckBox(T("Send scroll, zoom and key events while this profile is active"));
+    // The switch keeps a short text (a check box cannot wrap); the sentence is a wrapped label under it.
+    auto *check = new QCheckBox(T("Send events"));
     check->setChecked(v.text == "1");
     check->setAccessibleName(T("Send events"));
     check->setToolTip(T("Switch this off for a program that reads the SpaceMouse itself") + QStringLiteral("\n") +
@@ -681,9 +682,13 @@ QWidget *ProfilesPage::buildEnabled(size_t section) {
     };
     refresh();
     l->addWidget(check, 0, 0, 1, 2);
+    auto *what = new QLabel(T("Send scroll, zoom and key events while this profile is active"));
+    what->setWordWrap(true);
+    what->setForegroundRole(QPalette::PlaceholderText);
+    l->addWidget(what, 1, 0, 1, 2);
     origin->setWordWrap(true);
-    l->addWidget(origin, 1, 0);
-    l->addWidget(reset, 1, 1);
+    l->addWidget(origin, 2, 0);
+    l->addWidget(reset, 2, 1);
     connect(check, &QCheckBox::toggled, this, [this, section, refresh](bool on) {
         std::string err;
         if (!ctx_.settings->setValue(section, "ENABLED", on ? "1" : "0", &err)) {
