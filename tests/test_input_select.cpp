@@ -46,7 +46,9 @@ public:
         return WaitResult::Event;
     }
     std::vector<DeviceInfo> devices() const override {
-        return p_->open && p_->hasDevice ? std::vector<DeviceInfo>{DeviceInfo{}} : std::vector<DeviceInfo>();
+        std::vector<DeviceInfo> v;
+        if (p_->open && p_->hasDevice) v.push_back(DeviceInfo{});
+        return v;
     }
     void close() override {
         if (p_->open) ++p_->closes;
