@@ -77,6 +77,7 @@ public:
     // process would stay), and the status bar says so. Default: true.
     void setTrayAvailable(bool available);
     bool trayAvailable() const { return trayAvailable_; }
+    void refreshStatusNow() { updateStatus(); }  // re-reads the daemon's status file (screenshots, tests)
     QString trayNote() const;  // the status bar note about a missing tray ("" with a tray)
 
 signals:
