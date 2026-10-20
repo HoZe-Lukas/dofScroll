@@ -7,6 +7,7 @@
 #include <windows.h>
 #endif
 #include <QApplication>
+#include <utility>
 #include <QGuiApplication>
 #include <QStyleHints>
 #include <QComboBox>
@@ -368,9 +369,11 @@ spn::ui::ThemeColors &current() {
 // (a plain black-on-white theme must keep the normal look).
 // Detected by compiling, not by version number: a Qt that has no QStyleHints::contrastPreference() (Qt 6.10 has
 // none; it is newer) falls back to the overload that answers false.
-template <class Hints>
-auto contrastPreferenceIsHigh(const Hints *h, int) -> decltype(h->contrastPreference() == Qt::ContrastPreference::HighContrast) {
-    return h->contrastPreference() == Qt::ContrastPreference::HighContrast;
+// The enum type is taken from the return type of the member, so nothing here names a Qt type that an older
+// Qt does not have (the name must depend on the template parameter to be looked up only when it is used).
+template <class Hints, class Pref = decltype(std::declval<const Hints &>().contrastPreference())>
+auto contrastPreferenceIsHigh(const Hints *h, int) -> decltype(Pref::HighContrast, bool()) {
+    return h->contrastPreference() == Pref::HighContrast;
 }
 template <class Hints>
 bool contrastPreferenceIsHigh(const Hints *, long) {
