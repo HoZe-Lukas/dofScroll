@@ -386,7 +386,10 @@ configuration in `%APPDATA%\dofscroll` stays. Silent install: `setup.exe /S /AUT
 The ZIP needs no installation: unpack it, start `dofscroll.exe`, and use
 `scripts\install-autostart.ps1` if you want autostart.
 
-[port-windows-checklist.md](port-windows-checklist.md) lists what a tester has to verify.
+`dofscroll-ui.exe` has no console of its own; started from cmd or PowerShell it writes `--help`,
+`--version` and `--self-test` output into that console (not when started by double click). The
+German catalog `dofscroll_de.qm` is installed next to it. Only a real Windows machine can verify
+this; [port-windows-checklist.md](port-windows-checklist.md) lists what a tester has to verify.
 
 ### macOS image
 
@@ -408,7 +411,10 @@ The ZIP needs no installation: unpack it, start `dofscroll.exe`, and use
    is still loaded, `launchctl kickstart -k gui/$(id -u)/io.github.dofscroll.daemon` starts the new
    binary). Your configuration stays. The tray items **Restart daemon** (`launchctl kickstart -k`) and **Restart
    interface** are for restarts without an upgrade; the app does not detect a newer app on disk.
-6. **Uninstall:** run `.../launchagent/uninstall-launchagent.sh`, then move the app to the Trash.
+6. The menu bar icon is a template icon. macOS does not deliver a click on a tray icon that has a
+   menu, so open the window with **Settings...** in the menu. The German catalog is inside the app
+   (`Contents/MacOS/dofscroll_de.qm`). Neither is verified on real hardware.
+7. **Uninstall:** run `.../launchagent/uninstall-launchagent.sh`, then move the app to the Trash.
    Configuration in `~/Library/Application Support/dofscroll` stays.
 
 See [port-macos.md](port-macos.md) and [packaging/macos/README.md](../packaging/macos/README.md).

@@ -115,6 +115,16 @@ if(DOFSCROLL_UI)
       set(DOFSCROLL_UI_RUNNING_APPS_STUB OFF)
     endif()
   endif()
+  if(APPLE)
+    # An unbundled executable would show a Dock icon without a window (the program lives in the menu
+    # bar). The Info.plist of the .app (packaging/macos, LSUIElement) is embedded into the
+    # executable so that the plain CMake build behaves the same; the .app bundle's own plist wins.
+    set(VERSION ${PROJECT_VERSION})
+    configure_file(packaging/macos/Info.plist.in ${CMAKE_CURRENT_BINARY_DIR}/dofscroll-ui-Info.plist @ONLY)
+    unset(VERSION)
+    target_link_options(dofscroll-ui PRIVATE
+      "LINKER:-sectcreate,__TEXT,__info_plist,${CMAKE_CURRENT_BINARY_DIR}/dofscroll-ui-Info.plist")
+  endif()
   if(DOFSCROLL_UI_RUNNING_APPS_STUB)
     target_compile_definitions(dofscroll-ui PRIVATE DOFSCROLL_UI_RUNNING_APPS_STUB=1)
   endif()

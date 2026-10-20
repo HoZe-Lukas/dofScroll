@@ -2,11 +2,19 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "platform_hooks.hpp"
 
+#include <cstdio>
 #include <memory>
 #include <vector>
 
 #include "platform/platform.hpp"
 #include "platform/running_apps.hpp"
+
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
 
 #if defined(DOFSCROLL_UI_X11)
 #include <X11/Xlib.h>
@@ -38,12 +46,33 @@ std::unique_ptr<RunningAppsProvider> makeRunningAppsProvider() {
 
 namespace dofscroll_ui {
 
-std::function<std::string()> makeActiveWindowPoll() {
+void earlyPlatformInit() {
 #if defined(DOFSCROLL_UI_X11)
-    // ActiveWindow needs XInitThreads() before the process's first Xlib call (it polls from a
-    // background thread). Qt's xcb plugin does not use Xlib, so this is still the first call.
+    // ActiveWindow polls from a background thread, so Xlib must be thread safe. XInitThreads() has
+    // to be the first Xlib call of the process: before QApplication, whose platform plugin (or an
+    // OpenGL integration) may use Xlib too. It does not connect to the display, so it is harmless
+    // under Wayland.
     static const int threadsInit = XInitThreads();
     (void)threadsInit;
+#endif
+}
+
+void attachParentConsole() {
+#if defined(_WIN32)
+    if (!AttachConsole(ATTACH_PARENT_PROCESS)) return;  // no parent console (double click, service)
+    auto unset = [](DWORD which) {
+        const HANDLE h = GetStdHandle(which);
+        return h == nullptr || h == INVALID_HANDLE_VALUE;
+    };
+    // A stream that is redirected to a file or pipe (the caller captures it) stays as it is.
+    if (unset(STD_OUTPUT_HANDLE) && std::freopen("CONOUT$", "w", stdout)) std::setvbuf(stdout, nullptr, _IONBF, 0);
+    if (unset(STD_ERROR_HANDLE) && std::freopen("CONOUT$", "w", stderr)) std::setvbuf(stderr, nullptr, _IONBF, 0);
+#endif
+}
+
+std::function<std::string()> makeActiveWindowPoll() {
+#if defined(DOFSCROLL_UI_X11)
+    // XInitThreads() already ran in earlyPlatformInit(), before QApplication.
     auto win = std::make_shared<spn::ActiveWindow>();
     if (!win->init()) return nullptr;  // e.g. a Wayland session without a fallback
     return [win] { return win->poll(); };

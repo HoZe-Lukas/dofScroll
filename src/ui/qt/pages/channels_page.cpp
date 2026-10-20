@@ -343,6 +343,7 @@ private:
             const QString tickHelp = T("How many times per second the daemon generates events (30..1000)");
             spinRow(grid, &row, T("Tick rate (Hz)"), tickHelp,
                     [&](QLabel *hl) -> QWidget * { return intSpin("TICK_HZ", 30, 1000, tickHelp, hl); });
+#if !defined(_WIN32) && !defined(__APPLE__)  // X11/uinput exist on Linux only (Windows: SendInput, macOS: CGEvent)
             const QString beHelp = T("auto: Wayland -> uinput, otherwise X11 (with fallback). Takes effect "
                                      "after the daemon is restarted.");
             spinRow(grid, &row, T("Output backend"), beHelp, [&](QLabel *hl) -> QWidget * {
@@ -360,6 +361,7 @@ private:
                 });
                 return c;
             });
+#endif
         }
 
         auto *reset = new QPushButton(T("Reset to defaults"));

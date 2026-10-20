@@ -1977,6 +1977,10 @@ msgid "Cannot restart the daemon through the service manager"
 msgstr "Der Daemon kann nicht über den Dienstmanager neu gestartet werden"
 
 #: src/ui/qt/qt_action_runner.cpp
+msgid "Cannot stop the running daemon"
+msgstr "Der laufende Daemon kann nicht beendet werden"
+
+#: src/ui/qt/qt_action_runner.cpp
 msgid "Cannot restart the interface through the service manager"
 msgstr "Die Oberfläche kann nicht über den Dienstmanager neu gestartet werden"
 

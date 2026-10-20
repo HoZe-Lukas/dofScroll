@@ -10,7 +10,9 @@
 #include <QString>
 #include <QUrl>
 #include <vector>
-#ifndef _WIN32
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
 #endif
 
@@ -39,22 +41,6 @@ bool QtActionRunner::setAutostart(bool enable, std::string *err) {
 
 bool QtActionRunner::requestReload(std::string *err) { return spn::requestReload(err); }
 
-// Detached `dofscroll --release-keys` (argv, no shell): the daemon binary next to this executable if
-// there is one (same build or install), otherwise the one on PATH.
-bool QtActionRunner::releaseKeys(std::string *err) {
-    const std::string exeDir = QCoreApplication::applicationDirPath().toStdString();
-    const std::vector<std::string> argv = spn::ui::releaseKeysCommand(exeDir, [](const std::string &p) {
-        return QFileInfo(QString::fromStdString(p)).isExecutable();
-    });
-    QStringList args;
-    for (size_t i = 1; i < argv.size(); ++i) args << QString::fromStdString(argv[i]);
-    if (!QProcess::startDetached(QString::fromStdString(argv[0]), args)) {
-        if (err) *err = T("Cannot run %1").arg(QString::fromStdString(argv[0])).toStdString();
-        return false;
-    }
-    return true;
-}
-
 namespace {
 QStringList toQArgs(const spn::ui::Argv &argv) {
     QStringList args;
@@ -62,10 +48,22 @@ QStringList toQArgs(const spn::ui::Argv &argv) {
     return args;
 }
 
+// Windows: this is a GUI process, a child that is a console program (powershell.exe, dofscroll.exe)
+// would open a console window that flashes up. CREATE_NO_WINDOW prevents it. No effect elsewhere.
+void noConsoleWindow(QProcess *p) {
+#ifdef Q_OS_WIN
+    p->setCreateProcessArgumentsModifier(
+        [](QProcess::CreateProcessArguments *a) { a->flags |= CREATE_NO_WINDOW; });
+#else
+    (void)p;
+#endif
+}
+
 // Runs argv (no shell) and waits; the exit code, or -1 if it did not start or did not finish in time.
 int runWait(const spn::ui::Argv &argv, int timeoutMs) {
     if (argv.empty()) return -1;
     QProcess p;
+    noConsoleWindow(&p);
     p.start(QString::fromStdString(argv[0]), toQArgs(argv));
     if (!p.waitForStarted(5000)) return -1;
     if (!p.waitForFinished(timeoutMs)) {
@@ -77,7 +75,12 @@ int runWait(const spn::ui::Argv &argv, int timeoutMs) {
 }
 
 bool startDetached(const spn::ui::Argv &argv) {
-    return !argv.empty() && QProcess::startDetached(QString::fromStdString(argv[0]), toQArgs(argv));
+    if (argv.empty()) return false;
+    QProcess p;
+    noConsoleWindow(&p);
+    p.setProgram(QString::fromStdString(argv[0]));
+    p.setArguments(toQArgs(argv));
+    return p.startDetached();
 }
 
 unsigned currentUid() {
@@ -88,6 +91,20 @@ unsigned currentUid() {
 #endif
 }
 }  // namespace
+
+// Detached `dofscroll --release-keys` (argv, no shell): the daemon binary next to this executable if
+// there is one (same build or install), otherwise the one on PATH.
+bool QtActionRunner::releaseKeys(std::string *err) {
+    const std::string exeDir = QCoreApplication::applicationDirPath().toStdString();
+    const std::vector<std::string> argv = spn::ui::releaseKeysCommand(exeDir, [](const std::string &p) {
+        return QFileInfo(QString::fromStdString(p)).isExecutable();
+    });
+    if (!startDetached(argv)) {
+        if (err) *err = T("Cannot run %1").arg(QString::fromStdString(argv[0])).toStdString();
+        return false;
+    }
+    return true;
+}
 
 // Plan in restart_plan.hpp: the service manager restarts the daemon when it manages it, otherwise
 // stop (Windows: stop-daemon.ps1) and start the binary next to this executable.
@@ -101,7 +118,14 @@ bool QtActionRunner::restartDaemon(std::string *err) {
         if (err) *err = T("Cannot restart the daemon through the service manager").toStdString();
         return false;
     }
-    if (!plan.stop.empty()) runWait(plan.stop, 30000);
+    if (!plan.stop.empty()) {
+        // stop-daemon.ps1: 0 = no daemon was running, 10 = it was running and has been stopped.
+        const int rc = runWait(plan.stop, 30000);
+        if (rc != 0 && rc != 10) {
+            if (err) *err = T("Cannot stop the running daemon").toStdString();
+            return false;
+        }
+    }
     if (!startDetached(plan.spawn)) {
         if (err) *err = T("Cannot run %1").arg(QString::fromStdString(plan.spawn[0])).toStdString();
         return false;

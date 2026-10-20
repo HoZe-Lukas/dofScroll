@@ -47,6 +47,10 @@ if [ "$HAS_UI" -eq 1 ]; then
     RES="$APP/Contents/Resources"
     mkdir -p "$APP/Contents/MacOS" "$RES"
     cp "$BUILD/dofscroll-ui" "$APP/Contents/MacOS/dofscroll-ui"
+    # German catalog: dofscroll-ui looks for dofscroll_<lang>.qm next to its executable.
+    for qm in "$BUILD"/dofscroll_*.qm; do
+        [ -f "$qm" ] && cp "$qm" "$APP/Contents/MacOS/"
+    done
     sed "s|@VERSION@|$VERSION|g" "$HERE/Info.plist.in" > "$APP/Contents/Info.plist"
     DAEMON_DIR="$RES/daemon"
 else

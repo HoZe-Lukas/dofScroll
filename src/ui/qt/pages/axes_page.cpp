@@ -25,7 +25,6 @@
 #include "ui/model/settings_model.hpp"
 #include "ui/model/suspend_heartbeat.hpp"
 #include "ui_i18n.hpp"
-#include "feed_dir.hpp"
 
 using namespace spn;
 using namespace spn::ui;
@@ -174,7 +173,7 @@ AxesPage::AxesPage(const UiContext &ctx, const AxesPageEnv &env, QWidget *parent
     : QWidget(parent), ctx_(ctx), connector_(env.connector) {
     wiz::trHook() = &wizardTranslate;  // wizard messages are built toolkit-free
     if (!connector_) {
-        const std::string dir = ctx_.runtimeDir.empty() ? dofscroll_ui::feedRuntimeDir() : ctx_.runtimeDir;
+        const std::string dir = ctx_.runtimeDir;  // empty on Windows (named pipe)
         connector_ = [dir](std::string *err) { return connectFeed(dir, err); };
     }
     client_ = std::make_unique<LiveFeedClient>(connector_);

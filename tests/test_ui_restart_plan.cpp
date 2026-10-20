@@ -31,8 +31,9 @@ int main() {
     // Windows: the installer's stop script, then start the daemon again; no probe, no service manager
     DaemonRestartPlan w = daemonRestartPlan(Os::Windows, "C:/Programs/dofscroll", all, 0);
     assert(w.probe.empty() && w.managed.empty());
-    assert(w.stop.size() == 8 && w.stop[0] == "powershell.exe" && w.stop[5] == "C:/Programs/dofscroll/scripts/stop-daemon.ps1" &&
-           w.stop[6] == "-ExePath" && w.stop[7] == w.spawn[0]);
+    assert(w.stop.size() == 11 && w.stop[0] == "powershell.exe" && w.stop[1] == "-NoProfile" && w.stop[3] == "-WindowStyle" &&
+           w.stop[4] == "Hidden" && w.stop[8] == "C:/Programs/dofscroll/scripts/stop-daemon.ps1" && w.stop[9] == "-ExePath" &&
+           w.stop[10] == w.spawn[0]);
     assert(w.spawn[0] == "C:/Programs/dofscroll/" + daemon);
 
     // never a shell
