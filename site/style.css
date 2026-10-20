@@ -277,13 +277,13 @@ section.alt .card, section.alt ol.steps li { background: var(--bg); border: 1px 
 .feel .mark { fill: none; stroke: var(--on-accent); stroke-width: 2.5; stroke-linecap: round; }
 .feel .mark-dot { fill: var(--on-accent); }
 .feel .arc { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.feel .scrolling, .feel .pages, .feel .thumb, .feel .dot-on, .feel .cap { transform-box: fill-box; }
-.feel .cap { transform-origin: 50% 100%; }
+.feel .scrolling, .feel .pages, .feel .thumb, .feel .dot-on { transform-box: fill-box; }
+.feel .cap-shadow { fill: var(--border); opacity: 0.35; }
 .feel .zooming, .feel .twist-cap { transform-box: view-box; }
 .feel .zooming { transform-origin: 84px 66px; }
 .feel .twist-cap { transform-origin: 182px 82px; }
-.feel .scrolling, .feel .pages, .feel .thumb, .feel .dot-on, .feel .cap, .feel .zooming, .feel .twist-cap,
-.feel .chev-v, .feel .chev-h, .feel .arc-cw, .feel .arc-ccw {
+.feel .scrolling, .feel .pages, .feel .thumb, .feel .dot-on, .feel .cap, .feel .cap-shadow, .feel .zooming, .feel .twist-cap,
+.feel .c-up, .feel .c-down, .feel .c-left, .feel .c-right, .feel .arc-cw, .feel .arc-ccw {
   animation-duration: var(--feel-dur); animation-timing-function: ease-in-out; animation-iteration-count: infinite;
 }
 /* One loop per card, all moving parts share the same keyframe grid so cause and effect stay in sync. */
@@ -292,22 +292,26 @@ section.alt .card, section.alt ol.steps li { background: var(--bg); border: 1px 
 .f-browser .thumb-v { animation-name: b-thumb-v; }
 .f-browser .thumb-h { animation-name: b-thumb-h; }
 .f-browser .cap { animation-name: b-cap; }
-.f-browser .chev-v { animation-name: b-chev-v; }
-.f-browser .chev-h { animation-name: b-chev-h; }
+.f-browser .cap-shadow { animation-name: b-shadow; }
+.f-browser .c-up { animation-name: b-chev-v; }
+.f-browser .c-right { animation-name: b-chev-h; }
 @keyframes b-content { 0%, 5% { transform: translate(0, 0); } 15%, 25% { transform: translate(0, -64px); } 35%, 55% { transform: translate(0, 0); } 65%, 75% { transform: translate(-60px, 0); } 85%, 100% { transform: translate(0, 0); } }
 @keyframes b-thumb-v { 0%, 5% { transform: translateY(0); } 15%, 25% { transform: translateY(41px); } 35%, 100% { transform: translateY(0); } }
 @keyframes b-thumb-h { 0%, 55% { transform: translateX(0); } 65%, 75% { transform: translateX(36px); } 85%, 100% { transform: translateX(0); } }
-@keyframes b-cap { 0%, 5% { transform: none; } 15%, 25% { transform: scaleY(0.9); } 35%, 55% { transform: none; } 65%, 75% { transform: rotate(9deg); } 85%, 100% { transform: none; } }
+@keyframes b-cap { 0%, 5% { transform: translate(0, 0); } 15%, 25% { transform: translate(0, -7px); } 35%, 55% { transform: translate(0, 0); } 65%, 75% { transform: translate(7px, 0); } 85%, 100% { transform: translate(0, 0); } }
+@keyframes b-shadow { 0%, 5% { transform: translate(0, 0); } 15%, 25% { transform: translate(0, 3px); } 35%, 55% { transform: translate(0, 0); } 65%, 75% { transform: translate(-3px, 0); } 85%, 100% { transform: translate(0, 0); } }
 @keyframes b-chev-v { 0%, 5% { opacity: 0.25; } 15%, 25% { opacity: 1; } 35%, 100% { opacity: 0.25; } }
 @keyframes b-chev-h { 0%, 55% { opacity: 0.25; } 65%, 75% { opacity: 1; } 85%, 100% { opacity: 0.25; } }
 /* PDF: two pushes, each advances one page in steps; page 3 is a copy of page 1, so the loop has no jump. */
 .f-pdf .pages { animation-name: p-pages; }
 .f-pdf .dot-on { animation-name: p-dot; animation-timing-function: steps(1, end); }
 .f-pdf .cap { animation-name: p-cap; }
-.f-pdf .chev-v { animation-name: p-chev; }
+.f-pdf .cap-shadow { animation-name: p-shadow; }
+.f-pdf .c-up { animation-name: p-chev; }
 @keyframes p-pages { 0% { transform: translateY(0); } 15% { transform: translateY(0); animation-timing-function: steps(6, end); } 25% { transform: translateY(-112px); } 55% { transform: translateY(-112px); animation-timing-function: steps(6, end); } 65%, 100% { transform: translateY(-224px); } }
 @keyframes p-dot { 0% { transform: translateX(0); } 25% { transform: translateX(12px); } 65%, 100% { transform: translateX(0); } }
-@keyframes p-cap { 0%, 12% { transform: translateY(0); } 17% { transform: translateY(3px); } 24%, 52% { transform: translateY(0); } 57% { transform: translateY(3px); } 64%, 100% { transform: translateY(0); } }
+@keyframes p-cap { 0%, 12% { transform: translateY(0); } 17% { transform: translateY(-7px); } 24%, 52% { transform: translateY(0); } 57% { transform: translateY(-7px); } 64%, 100% { transform: translateY(0); } }
+@keyframes p-shadow { 0%, 12% { transform: translateY(0); } 17% { transform: translateY(3px); } 24%, 52% { transform: translateY(0); } 57% { transform: translateY(3px); } 64%, 100% { transform: translateY(0); } }
 @keyframes p-chev { 0%, 12% { opacity: 0.25; } 17% { opacity: 1; } 24%, 52% { opacity: 0.25; } 57% { opacity: 1; } 64%, 100% { opacity: 0.25; } }
 /* Map: the cap turns clockwise while the map zooms in, and back while it zooms out. */
 .f-map .zooming { animation-name: m-zoom; }
@@ -319,7 +323,7 @@ section.alt .card, section.alt ol.steps li { background: var(--bg); border: 1px 
 @keyframes m-arc-cw { 0%, 5% { opacity: 0; } 15%, 32% { opacity: 1; } 42%, 100% { opacity: 0; } }
 @keyframes m-arc-ccw { 0%, 52% { opacity: 0; } 62%, 80% { opacity: 1; } 92%, 100% { opacity: 0; } }
 .feel .arc-cw, .feel .arc-ccw { opacity: 0; }
-.feel .chev-v, .feel .chev-h { opacity: 0.25; }
+.feel .chev { opacity: 0.25; }
 
 .dl .card { display: flex; flex-direction: column; align-items: stretch; }
 .dl .card h3 { font-size: 1.25rem; }
@@ -386,7 +390,11 @@ h3, p { text-wrap: pretty; }
   .f-map .zooming { transform: scale(1.25); }
   .f-map .twist-cap { transform: rotate(14deg); }
   .f-map .arc-cw { opacity: 1; }
-  .feel .chev-v, .feel .chev-h { opacity: 0.6; }
+  .f-browser .cap { transform: translate(3px, -5px); }
+  .f-pdf .cap { transform: translateY(-5px); }
+  .f-browser .cap-shadow { transform: translate(-1px, 2px); }
+  .f-pdf .cap-shadow { transform: translateY(2px); }
+  .f-browser .c-up, .f-browser .c-right, .f-pdf .c-up { opacity: 0.8; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
