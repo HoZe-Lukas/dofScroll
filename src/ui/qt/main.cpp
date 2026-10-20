@@ -1090,6 +1090,15 @@ static bool fontScaleSelfTest(MainWindow &w) {
                     std::fprintf(stderr, "font scale self-test failed: x%.1f page %s: a form needs a horizontal scroll bar (%d px too wide)\n",
                                  scale, id.c_str(), area->horizontalScrollBar()->maximum());
                     ok = false;
+                    // which controls reach beyond the visible width (for the log of a failing run)
+                    for (QWidget *c : area->widget()->findChildren<QWidget *>()) {
+                        const int right = c->mapTo(area->widget(), QPoint(c->width(), 0)).x();
+                        if (c->isVisibleTo(area->widget()) && right > area->viewport()->width())
+                            std::fprintf(stderr, "  too wide: %s \"%s\" \"%s\" min %d right %d viewport %d\n", c->metaObject()->className(),
+                                         qPrintable(c->accessibleName().left(40)),
+                                         qPrintable(qobject_cast<QLabel *>(c) ? qobject_cast<QLabel *>(c)->text().left(40) : QString()),
+                                         c->minimumSizeHint().width(), right, area->viewport()->width());
+                    }
                 }
             }
             for (QWidget *c : page->findChildren<QWidget *>()) {
