@@ -213,14 +213,23 @@ Factory g_factory;
 
 }  // namespace
 
-extern "C" __declspec(dllexport) HRESULT __stdcall DllGetClassObject(REFCLSID clsid, REFIID riid, void **ppv) {
+// The Windows SDK declares these two without dllexport (a dllexport redefinition is error C2375 on
+// MSVC), so they are exported through the linker instead.
+#if defined(_MSC_VER)
+#pragma comment(linker, "/EXPORT:DllGetClassObject")
+#pragma comment(linker, "/EXPORT:DllCanUnloadNow")
+#define FAKE_TDX_COM_EXPORT
+#else
+#define FAKE_TDX_COM_EXPORT __declspec(dllexport)
+#endif
+extern "C" FAKE_TDX_COM_EXPORT HRESULT __stdcall DllGetClassObject(REFCLSID clsid, REFIID riid, void **ppv) {
     if (!ppv) return E_POINTER;
     *ppv = nullptr;
     if (!IsEqualCLSID(clsid, kFakeClsid)) return CLASS_E_CLASSNOTAVAILABLE;
     return g_factory.QueryInterface(riid, ppv);
 }
 
-extern "C" __declspec(dllexport) HRESULT __stdcall DllCanUnloadNow() { return S_FALSE; }
+extern "C" FAKE_TDX_COM_EXPORT HRESULT __stdcall DllCanUnloadNow() { return S_FALSE; }
 
 // ---- test control ---------------------------------------------------------------------------------
 

@@ -131,7 +131,7 @@ public:
         std::function<std::unique_ptr<InputSource>()> makeHid;
     };
 
-    SwitchingInput(Parts parts, InputOs os, InputMode mode = InputMode::Auto, SwitchTiming timing = SwitchTiming(),
+    SwitchingInput(Parts parts, InputOs os, InputMode mode = InputMode::Auto, const SwitchTiming &timing = SwitchTiming(),
                    std::function<int64_t()> clockNs = nullptr, std::function<void(const std::string &)> log = nullptr)
         : parts_(std::move(parts)), os_(os), timing_(timing), clock_(std::move(clockNs)), log_(std::move(log)) {
         mode_.store(static_cast<int>(mode));
