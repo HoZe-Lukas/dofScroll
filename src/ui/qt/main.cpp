@@ -169,7 +169,7 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
     ButtonModesPage page(ctx);  // standalone: its own catalog
     page.show();
     settle();
-    constexpr int kBuiltin = 4;  // latch-nav, next-mode, prev-mode, cycle-favorites are built in and listed without a file
+    const int kBuiltin = static_cast<int>(spn::loadButtonModes("", nullptr).modes.size());  // every built-in button mode is listed without a file
     check(page.buttonModeCount() == kBuiltin + 1, "one file plus the built-in button modes");
     check(page.selectButtonMode(QStringLiteral("latch-nav")) && page.catalog().find("latch-nav") &&
               page.catalog().find("latch-nav")->builtin,
@@ -1313,8 +1313,10 @@ int main(int argc, char **argv) {
         std::printf("self-test: entries=%d profiles=%d modes=%d tray-modes=%d tray-entries=%d tray-available=%d\n",
                     w.pageCount(), w.profileCount(), modes.modeCount(), tray.modeMenuCount(),
                     tray.menuEntryCount(), avail ? 1 : 0);
-        const bool ok = w.pageCount() == 8 && w.categoryCount() == 5 && w.profileCount() >= 0 && !w.profilePageHasModeSelector() && modes.modeCount() == 10 &&
-                        tray.modeMenuCount() == 10 && tray.menuEntryCount() >= 8;
+        // every built-in (however many the embedded library holds) plus the one mode file of this test
+        const int expectedModes = static_cast<int>(spn::loadModes("", nullptr).modes.size()) + 1;
+        const bool ok = w.pageCount() == 8 && w.categoryCount() == 5 && w.profileCount() >= 0 && !w.profilePageHasModeSelector() &&
+                        modes.modeCount() == expectedModes && tray.modeMenuCount() == expectedModes && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
         if (!overviewSelfTest(w)) return 1;
         if (!quickActionsSelfTest(ctx, tmp.path())) return 1;

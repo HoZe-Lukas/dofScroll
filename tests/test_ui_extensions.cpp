@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 
+#include "builtin_counts.hpp"
 #include "testutil.hpp"
 #include "ui/model/extensions_model.hpp"
 
@@ -43,8 +44,10 @@ int main() {
     assert(normal && normal->origin == O::BuiltIn && !normal->removable() && !normal->installable());
     const ExtensionEntry *mine = find(v, K::JoystickMode, "mine");
     assert(mine && mine->origin == O::UserFile && mine->removable() && mine->label == "Mine" && !mine->replacesBuiltIn);
-    const ExtensionEntry *slidesB = find(v, K::JoystickMode, "slides");
-    assert(slidesB && slidesB->origin == O::BuiltIn && !slidesB->removable() && !slidesB->installable());
+    for (const std::string &eid : tu::embeddedExampleIds()) {  // every embedded example mode is listed as built in
+        const ExtensionEntry *emb = find(v, K::JoystickMode, eid);
+        assert(emb && emb->origin == O::BuiltIn && !emb->removable() && !emb->installable());
+    }
     const ExtensionEntry *latchNav = find(v, K::ButtonMode, "latch-nav");
     assert(latchNav && latchNav->origin == O::BuiltIn && !latchNav->removable() && !latchNav->replacesBuiltIn);
     const ExtensionEntry *tl = find(v, K::JoystickMode, "timeline");

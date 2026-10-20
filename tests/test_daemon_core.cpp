@@ -3,6 +3,7 @@
 // Drives the platform-independent daemon core with a scripted input source, a recording
 // output, a fake active-window provider and a fake reload channel (no OS, no threads).
 #undef NDEBUG
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -14,7 +15,9 @@
 #include <vector>
 
 #include "daemon_core.hpp"
+#include "builtin_counts.hpp"
 #include "mode_request.hpp"
+#include "modes.hpp"
 #include "platform/fake_input.hpp"
 #include "testutil.hpp"
 
@@ -293,14 +296,32 @@ static std::string statusMode(const Rig &r) {
     return p == std::string::npos ? "" : b.substr(p + 5, b.find('\n', p) - p - 5);
 }
 
+// The ids mode:next / mode:prev cycle through: the built-ins (whatever the embedded library holds)
+// plus the given user ids, sorted. The tests below use the user ids "0-first" (sorts before every
+// built-in id, which start with a letter) and "zzzz-last" (after every one), so their positions do not
+// depend on how many built-ins exist or what they are called.
+static std::vector<std::string> cycleIds(const std::vector<std::string> &user) {
+    std::vector<std::string> ids = tu::sortedIds(spn::loadModes("", nullptr));
+    for (const std::string &u : user)
+        if (std::find(ids.begin(), ids.end(), u) == ids.end()) ids.push_back(u);
+    std::sort(ids.begin(), ids.end());
+    return ids;
+}
+// The id after `id` in the cycle, wrapping.
+static std::string cycleNext(const std::vector<std::string> &ids, const std::string &id) {
+    const size_t i = std::find(ids.begin(), ids.end(), id) - ids.begin();
+    return ids[(i + 1) % ids.size()];
+}
 static void testModeSwitchButton() {
-    // ids: alpha < browse < map < media < normal < off < precision < slides < tabs < timeline < zed
-    // (built-ins: normal, off, timeline, slides, media, map, precision, tabs, browse)
-    Rig r(std::string(BASE_CONF) + "MODE = alpha\n",
-          {{"alpha.conf", "BUTTON_2 = mode:next\nBUTTON_3 = key:space\n"},
-           {"zed.conf", "BUTTON_2 = mode:next\nBUTTON_4 = mode:off\n"}});
+    // ids: 0-first < <the built-ins in alphabetical order> < zzzz-last
+    const std::vector<std::string> ids = cycleIds({"0-first", "zzzz-last"});
+    const std::string firstBuiltin = ids[1];
+    assert(ids.front() == "0-first" && ids.back() == "zzzz-last" && ids.size() == tu::builtinModeCount() + 2);
+    Rig r(std::string(BASE_CONF) + "MODE = 0-first\n",
+          {{"0-first.conf", "BUTTON_2 = mode:next\nBUTTON_3 = key:space\n"},
+           {"zzzz-last.conf", "BUTTON_2 = mode:next\nBUTTON_4 = mode:off\n"}});
     r.run(0.1);
-    CHECK(r.core->runner().mode().id == "alpha", "starts in the configured mode");
+    CHECK(r.core->runner().mode().id == "0-first", "starts in the configured mode");
     auto press = [&](int b) {
         r.src.pushButton(0, b, true);
         r.run(0.1);
@@ -312,32 +333,32 @@ static void testModeSwitchButton() {
     r.run(0.1);
     r.src.pushButton(0, 1, true);
     r.run(0.1);
-    CHECK(r.core->runner().mode().id == "browse", "next after alpha is browse, the first built-in id (got %s)",
-          r.core->runner().mode().id.c_str());
+    CHECK(r.core->runner().mode().id == firstBuiltin, "next after 0-first is the first built-in id %s (got %s)",
+          firstBuiltin.c_str(), r.core->runner().mode().id.c_str());
     r.src.pushButton(0, 1, false);
     r.src.pushButton(0, 2, false);
     r.run(0.1);
-    CHECK(statusMode(r) == "browse", "status shows the effective mode (%s)", statusMode(r).c_str());
+    CHECK(statusMode(r) == firstBuiltin, "status shows the effective mode (%s)", statusMode(r).c_str());
     // unrelated profile re-resolution (app change) keeps the override
     r.win.cls = "navigator firefox";
     r.run(0.3);
-    CHECK(r.core->runner().mode().id == "browse", "override is sticky across profile changes");
-    // browse has no binding: the user cannot cycle further from there. Reload clears the override.
-    writeFile(r.dir + "/modes/alpha.conf", "BUTTON_2 = mode:next\n");
+    CHECK(r.core->runner().mode().id == firstBuiltin, "override is sticky across profile changes");
+    // the built-in has no binding: the user cannot cycle further from there. Reload clears the override.
+    writeFile(r.dir + "/modes/0-first.conf", "BUTTON_2 = mode:next\n");
     r.reload.pending = true;
     r.run(0.05);
-    CHECK(r.core->runner().mode().id == "alpha", "reload clears the override (%s)", r.core->runner().mode().id.c_str());
-    // cycle through all modes and wrap: alpha -> browse; use zed to wrap by going to last
+    CHECK(r.core->runner().mode().id == "0-first", "reload clears the override (%s)", r.core->runner().mode().id.c_str());
+    // cycle through all modes and wrap: 0-first -> first built-in; use zzzz-last to wrap by going to last
     r.reload.pending = true;
-    writeFile(r.conf, std::string(BASE_CONF) + "MODE = zed\n");
+    writeFile(r.conf, std::string(BASE_CONF) + "MODE = zzzz-last\n");
     r.run(0.05);
-    CHECK(r.core->runner().mode().id == "zed", "zed active");
+    CHECK(r.core->runner().mode().id == "zzzz-last", "zzzz-last active");
     press(1);  // next wraps around from the last id
-    CHECK(r.core->runner().mode().id == "alpha", "next wraps to the first id");
+    CHECK(r.core->runner().mode().id == "0-first", "next wraps to the first id");
     press(1);  // next -> normal
-    CHECK(r.core->runner().mode().id == "browse", "alpha -> browse");
+    CHECK(r.core->runner().mode().id == firstBuiltin, "0-first -> first built-in");
     CHECK(!r.rec.ctrl, "no stray state");
-    r.reload.pending = true;  // back to zed
+    r.reload.pending = true;  // back to zzzz-last
     r.run(0.05);
     r.src.pushButton(0, 3, true);
     r.run(0.1);
@@ -345,12 +366,15 @@ static void testModeSwitchButton() {
 }
 
 // The built-in library takes part in the cycle: a user file with the id of a built-in can start it,
-// the next id in alphabetical order is the next built-in (map after browse), and prev wraps to the last id.
+// the next id in alphabetical order is the next built-in, and prev wraps to the last id. The
+// built-ins used are the first two and the last one of the embedded library, whatever they are.
 static void testModeCycleBuiltins() {
-    Rig r(std::string(BASE_CONF) + "MODE = browse\n",
-          {{"browse.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n"},
-           {"map.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n"},
-           {"zed.conf", "BUTTON_1 = mode:prev\n"}});
+    const std::vector<std::string> ids = cycleIds({"zzzz-last"});
+    assert(ids.size() >= 4 && ids.back() == "zzzz-last");
+    const std::string b0 = ids[0], b1 = ids[1], bLast = ids[ids.size() - 2];
+    const std::string bind = "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n";
+    Rig r(std::string(BASE_CONF) + "MODE = " + b0 + "\n",
+          {{b0 + ".conf", bind}, {b1 + ".conf", bind}, {"zzzz-last.conf", "BUTTON_1 = mode:prev\n"}});
     r.run(0.1);
     auto press = [&](int b) {
         r.src.pushButton(0, b, true);
@@ -359,23 +383,25 @@ static void testModeCycleBuiltins() {
         r.run(0.1);
     };
     auto id = [&] { return r.core->runner().mode().id; };
-    CHECK(id() == "browse", "starts in the overridden built-in (%s)", id().c_str());
+    CHECK(id() == b0, "starts in the overridden built-in %s (%s)", b0.c_str(), id().c_str());
     press(1);
-    CHECK(id() == "map", "next after browse is the built-in map (%s)", id().c_str());
+    CHECK(id() == b1, "next after %s is the built-in %s (%s)", b0.c_str(), b1.c_str(), id().c_str());
     press(0);
-    CHECK(id() == "browse", "prev from map is browse (%s)", id().c_str());
+    CHECK(id() == b0, "prev from %s is %s (%s)", b1.c_str(), b0.c_str(), id().c_str());
     press(0);
-    CHECK(id() == "zed", "prev from the first id wraps to the last (%s)", id().c_str());
+    CHECK(id() == "zzzz-last", "prev from the first id wraps to the last (%s)", id().c_str());
     press(0);
-    CHECK(id() == "timeline", "prev from zed is the built-in timeline (%s)", id().c_str());
+    CHECK(id() == bLast, "prev from zzzz-last is the last built-in %s (%s)", bLast.c_str(), id().c_str());
 }
 
 // mode:prev is the mirror of mode:next: alphabetical ids, wrapping in both directions.
 static void testModePrev() {
-    // ids: alpha < browse < ... < timeline < zed (nine built-ins, see above)
-    Rig r(std::string(BASE_CONF) + "MODE = alpha\n",
-          {{"alpha.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n"},
-           {"zed.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n"}});
+    // ids: 0-first < <the built-ins> < zzzz-last
+    const std::vector<std::string> ids = cycleIds({"0-first", "zzzz-last"});
+    const std::string firstBuiltin = ids[1], lastBuiltin = ids[ids.size() - 2];
+    Rig r(std::string(BASE_CONF) + "MODE = 0-first\n",
+          {{"0-first.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n"},
+           {"zzzz-last.conf", "BUTTON_1 = mode:prev\nBUTTON_2 = mode:next\n"}});
     r.run(0.1);
     auto press = [&](int b) {
         r.src.pushButton(0, b, true);
@@ -384,32 +410,32 @@ static void testModePrev() {
         r.run(0.1);
     };
     auto id = [&] { return r.core->runner().mode().id; };
-    CHECK(id() == "alpha", "starts in alpha");
+    CHECK(id() == "0-first", "starts in 0-first");
     press(0);  // prev from the first id wraps to the last
-    CHECK(id() == "zed", "prev wraps from the first to the last (%s)", id().c_str());
+    CHECK(id() == "zzzz-last", "prev wraps from the first to the last (%s)", id().c_str());
     press(0);
-    CHECK(id() == "timeline", "prev goes to the previous id (%s)", id().c_str());
-    // timeline has no bindings of its own: continue from a mode that has them (reload, start at zed)
+    CHECK(id() == lastBuiltin, "prev goes to the previous id (%s)", id().c_str());
+    // the built-in has no bindings of its own: continue from a mode that has them (reload, start at zzzz-last)
     r.reload.pending = true;
-    writeFile(r.conf, std::string(BASE_CONF) + "MODE = zed\n");
+    writeFile(r.conf, std::string(BASE_CONF) + "MODE = zzzz-last\n");
     r.run(0.05);
-    CHECK(id() == "zed", "zed active after the reload");
+    CHECK(id() == "zzzz-last", "zzzz-last active after the reload");
     press(1);  // next from the last id wraps to the first
-    CHECK(id() == "alpha", "next wraps from the last to the first (%s)", id().c_str());
-    press(1);  // next -> browse
-    CHECK(id() == "browse", "alpha -> browse");
+    CHECK(id() == "0-first", "next wraps from the last to the first (%s)", id().c_str());
+    press(1);  // next -> the first built-in
+    CHECK(id() == firstBuiltin, "0-first -> first built-in");
     // next followed by prev returns to the start
     r.reload.pending = true;
-    writeFile(r.conf, std::string(BASE_CONF) + "MODE = alpha\n");
+    writeFile(r.conf, std::string(BASE_CONF) + "MODE = 0-first\n");
     r.run(0.05);
     press(1);
-    CHECK(id() == "browse", "next from alpha");
-    // (browse has no binding: go back through the file mode instead)
+    CHECK(id() == firstBuiltin, "next from 0-first");
+    // (the built-in has no binding: go back through the file mode instead)
     r.reload.pending = true;
     r.run(0.05);
     press(0);
     press(1);
-    CHECK(id() == "alpha", "prev then next returns to the start (%s)", id().c_str());
+    CHECK(id() == "0-first", "prev then next returns to the start (%s)", id().c_str());
 }
 
 // A button mode with CYCLE: next/prev walk exactly that list in that order, wrap around, start at
@@ -450,11 +476,12 @@ static void testModeCycleList() {
     CHECK(id() == "normal", "normal after the reload");
     press(1);
     CHECK(id() == "beta", "prev outside the list -> last entry (%s)", id().c_str());
-    // without CYCLE: alphabetical over all loaded modes (alpha < beta < normal)
+    // without CYCLE: alphabetical over all loaded modes (built-ins and alpha, beta, zed)
     r.reload.pending = true;
     r.run(0.1);
     press(2);
-    CHECK(id() == "off", "no CYCLE: alphabetical next after normal (%s)", id().c_str());
+    const std::string afterNormal = cycleNext(cycleIds({"alpha", "beta", "zed"}), "normal");
+    CHECK(id() == afterNormal, "no CYCLE: alphabetical next after normal is %s (%s)", afterNormal.c_str(), id().c_str());
 }
 
 static std::string statusKey(const Rig &r, const std::string &key);

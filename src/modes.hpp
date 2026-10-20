@@ -69,6 +69,7 @@
 #include <utility>
 #include <vector>
 
+#include "builtin_library.hpp"
 #include "keys.hpp"
 
 namespace spn {
@@ -161,7 +162,9 @@ std::string modesDir();
 // the current user only (opened with O_NOFOLLOW, so symlinks are rejected). Faulty lines/files
 // are skipped with a warning (warnings optional). A file of the same name replaces the
 // built-in mode.
-ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings);
+// library: replaces the embedded example files (a list as builtinModeFiles() returns); only for
+// tests that vary the library at run time, nullptr = the embedded one.
+ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings, const BuiltinFile *library = nullptr);
 
 // Cheap identity of the directory contents (names + mtime + size) for auto-reload.
 // Empty if the directory is missing.

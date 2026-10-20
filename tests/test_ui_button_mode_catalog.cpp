@@ -7,6 +7,7 @@
 #include <iterator>
 #include <string>
 
+#include "builtin_counts.hpp"
 #include "testutil.hpp"
 #include "ui/model/button_mode_catalog.hpp"
 
@@ -32,9 +33,10 @@ static bool hasWarning(const std::vector<std::string> &w, const std::string &par
 int main() {
     const std::string root = tu::makeTempDir("dofscroll-bmcat");
     const std::string dir = root + "/buttons";
+    const size_t kBuiltin = tu::builtinButtonModeCount();  // from the embedded library, never a literal
     ButtonModeCatalog c(dir);
     // the built-in button modes are there without any file
-    assert(c.buttonModes().size() == 4 && c.generalWarnings().empty());
+    assert(c.buttonModes().size() == kBuiltin && c.generalWarnings().empty());
     {
         const ButtonModeCatalog::Entry *ln = c.find("latch-nav");
         assert(ln && ln->builtin && !ln->overridesBuiltin && ln->path.empty() && ln->action == "toggle:nav");
@@ -50,7 +52,7 @@ int main() {
         assert(!c.makeEditableCopy("nope").ok);
         assert(c.remove("latch-nav").ok);
         ln = c.find("latch-nav");
-        assert(ln && ln->builtin && ln->action == "toggle:nav" && c.buttonModes().size() == 4);
+        assert(ln && ln->builtin && ln->action == "toggle:nav" && c.buttonModes().size() == kBuiltin);
         // duplicate a built-in under a new name
         ButtonModeCatalog::Result d = c.duplicate("next-mode", "My next");
         assert(d.ok && c.find("my-next") && !c.find("my-next")->builtin && c.find("my-next")->action == "mode:next");
@@ -68,7 +70,7 @@ int main() {
     assert(::stat(r.path.c_str(), &st) == 0 && (st.st_mode & 0777) == 0600);
     assert(::stat(dir.c_str(), &st) == 0 && (st.st_mode & 0777) == 0700);
 #endif
-    assert(c.buttonModes().size() == 5 && c.find("my-latch")->label == "My Latch!" && c.find("my-latch")->action == "none");
+    assert(c.buttonModes().size() == kBuiltin + 1 && c.find("my-latch")->label == "My Latch!" && c.find("my-latch")->action == "none");
     assert(c.generalWarnings().empty() && c.find("my-latch")->warnings.empty());  // the template loads cleanly
     assert(!c.createNew("my latch").ok);  // same id
     assert(!c.createNew("!!!").ok && !c.createNew("").ok);

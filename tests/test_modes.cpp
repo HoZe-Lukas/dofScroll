@@ -19,6 +19,7 @@
 
 #include "config.hpp"
 #include "modes.hpp"
+#include "builtin_counts.hpp"
 #include "testutil.hpp"
 
 using namespace spn;
@@ -139,16 +140,19 @@ static void testGrammar() {
     }
 }
 
-static const size_t kBuiltinModes = 9;  // normal, off, timeline + the six embedded example modes
+// normal, off, timeline + every embedded example mode: derived from the library, never a literal
+static const size_t kBuiltinModes = tu::builtinModeCount();
 
 static void testBuiltins() {
     std::vector<std::string> w;
     ModeSet none = loadModes(g_dir + "/does-not-exist", &w);
     assert(w.empty());  // a missing directory is not an error
     assert(modesStamp(g_dir + "/does-not-exist").empty());
-    // code-defined: normal, off, timeline; embedded from examples/modes: slides, media, map, precision, tabs, browse
-    assert(none.modes.size() == 9 && none.normal().id == "normal" && none.normal().builtin);
-    for (const char *id : {"normal", "off", "timeline", "slides", "media", "map", "precision", "tabs", "browse"}) {
+    // code-defined: normal, off, timeline; embedded from examples/modes: whatever files exist there
+    assert(none.modes.size() == kBuiltinModes && none.modes.size() == tu::codeDefinedModeCount() + tu::embeddedExampleIds().size() && none.normal().id == "normal" && none.normal().builtin);
+    std::vector<std::string> allBuiltin = tu::embeddedExampleIds();
+    for (const char *id : {"normal", "off", "timeline"}) allBuiltin.push_back(id);
+    for (const std::string &id : allBuiltin) {
         const ModeDef *b = none.find(id);
         assert(b && b->builtin && !b->label.empty());
     }
@@ -158,20 +162,20 @@ static void testBuiltins() {
         for (const ModeDef &m : none.modes) assert(ids.insert(m.id).second);  // unique ids
         // the embedded files parse without a warning and without a chord warning
         std::vector<std::string> bw;
-        assert(loadModes("", &bw).modes.size() == 9 && bw.empty());
+        assert(loadModes("", &bw).modes.size() == kBuiltinModes && bw.empty());
         // the embedded text and the example file give the same mode
         const std::string exDir =
             (std::filesystem::path(__FILE__).parent_path() / ".." / "examples" / "modes").string();
         // copies with an extra comment line (an identical file would be taken for the built-in itself)
         clearDir();
-        for (const char *id : {"slides", "media", "map", "precision", "tabs", "browse"}) {
+        for (const std::string &id : tu::embeddedExampleIds()) {
             std::ifstream in(exDir + "/" + id + ".conf", std::ios::binary);
             std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
             assert(!text.empty());
-            writeFile(std::string(id) + ".conf", text + "\n# copy\n");
+            writeFile(id + ".conf", text + "\n# copy\n");
         }
         const ModeSet files = loadModes(g_dir, nullptr);
-        for (const char *id : {"slides", "media", "map", "precision", "tabs", "browse"}) {
+        for (const std::string &id : tu::embeddedExampleIds()) {
             const ModeDef *e = none.find(id), *f = files.find(id);
             assert(e && f && e->builtin && !f->builtin);
             assert(e->label == f->label && e->description == f->description && e->v == f->v && e->h == f->h &&
@@ -201,7 +205,7 @@ static void testBuiltins() {
         }
         std::vector<std::string> iw;
         const ModeSet ms0 = loadModes(g_dir, &iw);
-        assert(iw.empty() && ms0.modes.size() == 9);
+        assert(iw.empty() && ms0.modes.size() == kBuiltinModes);
         for (const ModeDef &m : ms0.modes) assert(m.builtin);
         assert(!ms0.find("browse-keys") && !ms0.find("cycle-modes"));
         // one changed byte makes it the user's own file again
@@ -217,7 +221,7 @@ static void testBuiltins() {
         std::vector<std::string> ow;
         const ModeSet ov = loadModes(g_dir, &ow);
         const ModeDef *s = ov.find("slides");
-        assert(ow.empty() && ov.modes.size() == 9 && s && !s->builtin && s->label == "My slides" &&
+        assert(ow.empty() && ov.modes.size() == kBuiltinModes && s && !s->builtin && s->label == "My slides" &&
                s->v.type == ChannelActionType::Off);
         assert(ov.find("media") && ov.find("media")->builtin);
     }
@@ -589,6 +593,7 @@ static void testSecurityHardening() {
     }
     w.clear();
     ms = loadModes(g_dir, &w);
+    for (const std::string &id : tu::embeddedExampleIds()) assert(ms.find(id) && !ms.find(id)->builtin);
     assert(ms.find("browse") && !ms.find("browse")->builtin);
     {
         const ModeDef *tabs = ms.find("tabs");

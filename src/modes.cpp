@@ -55,7 +55,7 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
 
 // normal, off and timeline are defined here; the rest of the library (slides, media, map,
 // precision, tabs, browse) is parsed from the embedded example files, see builtin_library.hpp.
-std::vector<ModeDef> builtinModes(std::vector<std::string> *warnings) {
+std::vector<ModeDef> builtinModes(std::vector<std::string> *warnings, const BuiltinFile *library) {
     std::vector<ModeDef> v;
     v.push_back(builtinMode("normal", "Normal", "Scroll, zoom and navigation as configured"));
     ModeDef off = builtinMode("off", "Off", "Sends nothing");
@@ -67,7 +67,7 @@ std::vector<ModeDef> builtinModes(std::vector<std::string> *warnings) {
     tl.h.neg = tl.twist.neg = Key::Left;
     tl.h.pos = tl.twist.pos = Key::Right;
     v.push_back(tl);
-    for (const BuiltinFile *f = builtinModeFiles(); f && f->id; ++f) {
+    for (const BuiltinFile *f = library ? library : builtinModeFiles(); f && f->id; ++f) {
         bool defined = false;  // the code-defined modes above win over a file of the same id
         for (const ModeDef &e : v)
             if (e.id == f->id) defined = true;
@@ -396,9 +396,9 @@ std::string modesDir() {
     return base + "/dofscroll/modes";
 }
 
-ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
+ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings, const BuiltinFile *library) {
     ModeSet set;
-    set.modes = builtinModes(warnings);
+    set.modes = builtinModes(warnings, library);
     auto warnAll = [&](const std::string &m) {
         if (warnings && warnings->size() < 200) warnings->push_back(m);
     };
@@ -408,7 +408,7 @@ ModeSet loadModes(const std::string &dir, std::vector<std::string> *warnings) {
         const std::string &text = file.text;
         // A file identical to a shipped example (the built-in text, or the copy an earlier version
         // made on first start) is that built-in, not the user's own file: it is not listed again.
-        if (matchesBuiltinText(builtinModeFiles(), file.id, text) || matchesBuiltinText(legacyModeFiles(), file.id, text))
+        if (matchesBuiltinText(library ? library : builtinModeFiles(), file.id, text) || matchesBuiltinText(legacyModeFiles(), file.id, text))
             continue;
         ModeDef m;
         m.id = file.id;

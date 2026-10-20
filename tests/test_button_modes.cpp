@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "button_modes.hpp"
+#include "builtin_counts.hpp"
 #include "testutil.hpp"
 
 #ifndef _WIN32
@@ -39,13 +40,19 @@ int main() {
     g_dir = tu::tmpRoot() + "/test_button_modes." + std::to_string(tu::pid());
     clearDir();
     std::vector<std::string> w;
-    const size_t kBuiltin = 4;  // latch-nav, next-mode, prev-mode, cycle-favorites (examples/buttons, embedded)
+    // every file of examples/buttons, embedded: the count comes from the library, never a literal
+    const size_t kBuiltin = tu::builtinButtonModeCount();
+    assert(kBuiltin >= 1);
 
     // the built-in button modes: present with no directory, no warnings, no file, same as the examples
     {
         std::vector<std::string> bw;
         const ButtonModeSet lib = loadButtonModes("", &bw);
         assert(bw.empty() && lib.modes.size() == kBuiltin);
+        for (const BuiltinFile *f = builtinButtonModeFiles(); f && f->id; ++f) {  // each embedded file is listed
+            const ButtonMode *e = lib.find(f->id);
+            assert(e && e->builtin && e->path.empty());
+        }
         for (const char *id : {"latch-nav", "next-mode", "prev-mode"}) {
             const ButtonMode *b = lib.find(id);
             assert(b && b->builtin && b->path.empty() && !b->label.empty());
