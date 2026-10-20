@@ -237,6 +237,14 @@ void DaemonCore::loadConfig() {
     }
     for (const std::string &w : warnings)
         std::cerr << LOG << "Config: " << sanitizeForLog(w, 512) << std::endl;
+    // INPUT is a process-level key (the hybrid input of Windows and macOS; other sources ignore it).
+    if (d_.input) {
+        InputMode m = InputMode::Auto;
+        const Settings g = profiles_.resolve("", "");
+        if (g.input == "driver") m = InputMode::Driver;
+        else if (g.input == "hid") m = InputMode::Hid;
+        d_.input->setInputMode(m);
+    }
 }
 
 void DaemonCore::loadModeSet() {
@@ -703,6 +711,7 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
                            "\nenabled=" + (enabled ? "1" : "0") +
                            "\npaused=" + (suspended_ ? "1" : "0") +
                            "\ndevices_seen=" + std::to_string(devices_seen_) +
+                           (d_.input && !d_.input->pathLabel().empty() ? "\ninput=" + d_.input->pathLabel() : std::string()) +
                            "\nsession=" + (session_active_ ? "active" : "inactive") + "\n",
                        now_ns);
 

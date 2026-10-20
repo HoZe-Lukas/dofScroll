@@ -856,3 +856,46 @@ switching, remote desktop, multi-seat) every user's dofscroll daemon can receive
   query) the daemon counts as active, so detection problems never silence it. A locked screen of the
   active user is not detected on Windows and macOS. The vendor driver may handle several sessions
   differently; this was designed from the documented APIs and not tested with a second user session.
+
+## 13. Loading the driver interface (Windows and macOS)
+
+With `INPUT = driver` (or `auto` when the driver is installed) the daemon loads code that dofscroll
+does not own: the client library of the installed official 3Dconnexion driver. That is a new
+attack surface (code that runs inside the daemon, which can inject keys and clicks), so the loading
+is restricted, fixed and logged. Background and the legal side: [legal-notes.md](legal-notes.md).
+
+- **Fixed locations only.** macOS: `/Library/Frameworks/3DconnexionClient.framework/3DconnexionClient`.
+  Windows: the COM class registered for the ProgID `TDxInput.Device`. Nothing comes from `PATH`,
+  the current directory, the library search path, an environment variable, a config key or a
+  command-line option: **no setting can redirect the library** (that would be a code-injection hole
+  for anyone who can edit a config file). The tests load a fake driver through an explicit path
+  argument of a test-only factory that the daemon never calls.
+- **macOS checks before `dlopen`:** the path is resolved (`realpath`); the result must lie inside the
+  framework directory (no `..`, links out of it are refused), be a regular file, be **owned by
+  root** and **not writable by group or others**. Otherwise the driver path counts as not installed
+  and the reason is logged.
+- **Windows checks before the COM class is created:** the ProgID and class are read from
+  `HKEY_LOCAL_MACHINE` only (admin-writable); the class must **not be overridden for the current
+  user** (`HKEY_CURRENT_USER\Software\Classes` is where a non-admin program could plant its own
+  server); the server file (or, for a managed server, the code base file; its host must be a system
+  DLL) must exist, and its final path after links and junctions must lie **below Program Files** (the
+  pure path rules reject relative, UNC, device paths, `..` and alternate data streams). A GAC
+  assembly (no code base) is accepted.
+- **What these checks do not do:** they do not verify a signature or the identity of the vendor; they
+  only keep a different, user-writable file from being loaded in place of the installed driver. An
+  administrator or malware with administrator rights can replace the driver; so they can replace
+  dofscroll. On macOS a notarized, hardened-runtime build needs the entitlement
+  `com.apple.security.cs.disable-library-validation` to load a library signed by another team; this is
+  a trade-off to be decided when the DMG is signed (`release-process.md`), and the unsigned DMG
+  of today does not need it. Under the App Sandbox, registering with the driver fails (reported
+  publicly); dofscroll is not sandboxed.
+- **Failure modes:** driver absent, library or class refused by the checks, interface member
+  missing ("interface mismatch"), registration or `Connect` refused, driver stops answering. In every
+  case the path simply does not open: with `auto` the other path is used, with `driver` the daemon
+  logs why and retries with backoff; nothing is loaded partially, and the daemon never falls back to a
+  different library. A driver that stops answering makes the source report "closed" and the daemon
+  reconnects; held keys and motion are released first.
+- **What runs where:** driver callbacks (macOS) arrive on a driver thread or on the daemon's own
+  run loop; they only write into a bounded queue. Windows polls on one thread of its own.
+- Everything else about the device stream is as in section 12: the driver's interface is shared by
+  all sessions of the machine.

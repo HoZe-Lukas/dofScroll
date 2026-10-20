@@ -29,4 +29,23 @@ Notes:
   communicates with it through the `libspnav` socket protocol.
 - "3Dconnexion" and "SpaceMouse" are trademarks of their respective owners. dofscroll is
   independent and not affiliated with or endorsed by 3Dconnexion; no vendor code or driver is
-  included.
+  included (see the section on the optional driver interface below).
+
+## Optional: 3Dconnexion driver interface (Windows, macOS)
+
+On Windows and macOS, dofscroll can read the SpaceMouse through the programming interface of the
+**official 3Dconnexion driver, when that driver is installed** (setting `INPUT`, default
+`auto`); otherwise, or when you choose it, it reads the device directly as raw HID.
+
+- **Nothing is bundled.** No vendor header, library, binary or documentation is in the repository
+  or in any dofscroll package, and the vendor SDK is not linked at build time. dofscroll loads the
+  interface from the installed driver at run time: on macOS the `3DconnexionClient` framework
+  (`dlopen`, fixed path `/Library/Frameworks/3DconnexionClient.framework`), on Windows the COM
+  object `TDxInput.Device` (late binding, registered machine-wide, installed below Program
+  Files). The declarations in the source were written by the dofscroll project from public
+  knowledge, with the public source named next to each; see `docs/legal-notes.md`.
+- **Rights.** The driver, its interface and the names "3Dconnexion" and "SpaceMouse" belong to
+  3Dconnexion, a Logitech company. dofscroll is not affiliated with or endorsed by 3Dconnexion.
+  No permission was requested from 3Dconnexion; the project says so openly in `docs/legal-notes.md`.
+- Linux: not used; spacenavd is the driver there.
+- The active path is shown as "Input: 3Dconnexion driver" or "Input: direct (HID)".

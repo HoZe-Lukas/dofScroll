@@ -165,6 +165,26 @@ add_subdirectory(tools/hidprobe) # optional diagnostic, option DOFSCROLL_HIDPROB
 file(GLOB TEST_SRC CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/tests/test_*.cpp)
 set(TEST_TARGETS)
 if(BUILD_TESTING)
+  # Fake driver libraries for the driver-interface tests (tests/fake_driver/): they only export the names
+  # that our own declarations use; nothing of the vendor. Built with the warning flags but not with
+  # the sanitizer (a module loaded into a sanitized test needs no instrumentation).
+  if(WIN32)
+    add_library(fake_tdxinput SHARED tests/fake_driver/fake_tdxinput.cpp)
+    target_link_libraries(fake_tdxinput PRIVATE ole32 oleaut32 uuid)
+    set_target_properties(fake_tdxinput PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests
+                          LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+  else()
+    foreach(v "" "_missing" "_nocontrol")
+      add_library(fake_3dx_client${v} MODULE tests/fake_driver/fake_3dx_client.cpp)
+      set_target_properties(fake_3dx_client${v} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests
+                            CXX_VISIBILITY_PRESET hidden)
+      if(APPLE)
+        set_target_properties(fake_3dx_client${v} PROPERTIES SUFFIX ".dylib")
+      endif()
+    endforeach()
+    target_compile_definitions(fake_3dx_client_missing PRIVATE FAKE_3DX_MISSING)
+    target_compile_definitions(fake_3dx_client_nocontrol PRIVATE FAKE_3DX_NO_CONTROL)
+  endif()
   foreach(t ${TEST_SRC})
     get_filename_component(name ${t} NAME_WE)
     # key_tables.hpp maps to X11 keysyms and Linux KEY_* codes (Linux headers only)
@@ -177,6 +197,13 @@ if(BUILD_TESTING)
     endif()
     # test_mode_list uses mkdtemp/stat/0600 permissions (POSIX); the Windows file layer has its own tests
     if(name STREQUAL "test_mode_list" AND WIN32)
+      continue()
+    endif()
+    # macOS client interface loader (POSIX dlopen); Windows tests the COM interface instead
+    if(name STREQUAL "test_mac_driver_client" AND WIN32)
+      continue()
+    endif()
+    if(name STREQUAL "test_win_driver_com" AND NOT WIN32)
       continue()
     endif()
     # POSIX helper lookup (stat/access)
@@ -192,6 +219,25 @@ if(BUILD_TESTING)
       target_sources(${name} PRIVATE ${CMAKE_SOURCE_DIR}/src/platform/linux/runtime_files.cpp)
     endif()
     target_link_libraries(${name} PRIVATE dofscroll_core)
+    # driver-interface tests: production source + a fake driver library, loaded by an explicit path
+    if(name STREQUAL "test_mac_driver_client")
+      target_sources(${name} PRIVATE ${CMAKE_SOURCE_DIR}/src/platform/mac/mac_driver_input.cpp)
+      target_link_libraries(${name} PRIVATE ${CMAKE_DL_LIBS})
+      if(APPLE)
+        target_link_libraries(${name} PRIVATE "-framework CoreFoundation")
+      endif()
+      target_compile_definitions(${name} PRIVATE
+        FAKE_DRIVER_PATH="$<TARGET_FILE:fake_3dx_client>"
+        FAKE_DRIVER_MISSING_PATH="$<TARGET_FILE:fake_3dx_client_missing>"
+        FAKE_DRIVER_NOCONTROL_PATH="$<TARGET_FILE:fake_3dx_client_nocontrol>")
+      add_dependencies(${name} fake_3dx_client fake_3dx_client_missing fake_3dx_client_nocontrol)
+    endif()
+    if(name STREQUAL "test_win_driver_com")
+      target_sources(${name} PRIVATE ${CMAKE_SOURCE_DIR}/src/platform/win/win_driver_input.cpp)
+      target_link_libraries(${name} PRIVATE ole32 oleaut32 uuid shell32 advapi32)
+      target_compile_definitions(${name} PRIVATE FAKE_TDX_PATH="$<TARGET_FILE:fake_tdxinput>")
+      add_dependencies(${name} fake_tdxinput)
+    endif()
     set_target_properties(${name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
     add_test(NAME ${name} COMMAND ${name} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
     set_tests_properties(${name} PROPERTIES ENVIRONMENT

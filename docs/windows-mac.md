@@ -26,8 +26,11 @@ full texts read first-hand. Labels:
    versioned in principle, but only make sense with the same driver version. [verified]
 4. Anyone who needs exactly this repo's behavior (analog scroll speed, twist = zoom, horizontal
    scroll) would have to build their own tool. The 3Dconnexion SDK is proprietary and not
-   compatible with GPL-3.0; the ports described in `port-windows.md` and `port-macos.md`
-   therefore read the device directly (raw HID / IOHID) instead of using the SDK.
+   compatible with GPL-3.0, so dofscroll does not ship or link it. The ports described in
+   `port-windows.md` and `port-macos.md` read the device directly (raw HID / IOHID) and, when the
+   official driver is installed, can also read it **through the installed driver's interface, which is
+   loaded at run time** with declarations written from public knowledge (nothing of the vendor is
+   included; see `legal-notes.md` and the section "Driver interface backend" of `port-architecture.md`).
 
 ## Windows
 
@@ -110,7 +113,9 @@ full texts read first-hand. Labels:
   Check the current wording in the SDK download before use. [verified, source 13]
 - Older C/C++ SDK versions are in an archive area per the forum; a Linux SDK was reportedly
   never planned. [forum, source 12]
-- Because of these terms this project does not link the SDK (see `port-architecture.md`).
+- Because of these terms this project does not ship or link the SDK (see `port-architecture.md`). It
+  does load the installed driver's interface at run time when the driver is present; no permission was
+  requested from 3Dconnexion (`legal-notes.md`).
 
 ## Recommendation
 

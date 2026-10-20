@@ -8,11 +8,14 @@ RHEL 9, X11, KDE Plasma, with a SpaceMouse Pro and a SpaceMouse Compact. Everyth
 **Does it work on Wayland?**
 There is a uinput backend that `BACKEND = auto` picks under Wayland, but it is untested. It needs write access to `/dev/uinput` through a udev rule you install yourself, and program profiles work only with `kdotool` on KDE. See [Troubleshooting](Troubleshooting).
 
+**Does dofscroll use the 3Dconnexion driver? Do I have to stop it?**
+No, never stop it: the official driver keeps running for your CAD programs. On Windows and macOS dofscroll reads the SpaceMouse through the installed driver's programming interface when the driver is installed, and directly as raw HID otherwise (setting `INPUT = auto | driver | hid`, default `auto`; the interface shows which one is active). dofscroll contains nothing of the driver: it loads the installed driver's interface at run time, with declarations written from public knowledge. The driver, its interface and the names 3Dconnexion and SpaceMouse belong to 3Dconnexion (a Logitech company); dofscroll is not affiliated with or endorsed by them, and no permission was requested from them. This path has only been tested against a fake driver, never the real one. On Linux, `spacenavd` is the driver and `INPUT` is ignored. See [Requirements](Requirements) and `docs/legal-notes.md`.
+
 **Why X11 first?**
 That is the maintainer's setup, the only one that can be verified on hardware today. XTest is simple and needs no special permissions; the uinput backend needs an opt-in rule because `/dev/uinput` works below the display server (see [Security](Security)).
 
 **Does it conflict with the vendor driver or other programs?**
-On Linux, `spacenavd` applies its own sensitivity, dead zone and axis settings first; keep it at defaults and tune in dofscroll. Programs that read the device themselves (Blender, CAD) get input twice unless you add `[app:<name>]` with `ENABLED = 0`. On Windows, disable the 3Dconnexion driver's per-application navigation for programs you test. The proprietary 3Dconnexion SDK is not used. See [Profiles](Profiles).
+On Linux, `spacenavd` applies its own sensitivity, dead zone and axis settings first; keep it at defaults and tune in dofscroll. Programs that read the device themselves (Blender, CAD) get input twice unless you add `[app:<name>]` with `ENABLED = 0`. On Windows, disable the 3Dconnexion driver's per-application navigation for programs you test. The proprietary 3Dconnexion SDK is not shipped or linked. See [Profiles](Profiles).
 
 **Can I use two SpaceMice?**
 On Linux through `spacenavd` they arrive as one merged stream, so `[device:*]` profiles apply to both and per-device joystick modes are not possible. The Windows and macOS ports read each device separately, but that is unverified on hardware.

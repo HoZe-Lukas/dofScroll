@@ -76,6 +76,14 @@ struct FakeReload : ReloadListener {
 struct TestSource : FakeInputSource {
     std::vector<DeviceInfo> list;
     std::vector<DeviceInfo> devices() const override { return list; }
+    InputMode mode = InputMode::Auto;
+    int modeCalls = 0;
+    std::string label;  // what pathLabel() reports (the hybrid input of Windows and macOS)
+    void setInputMode(InputMode m) override {
+        mode = m;
+        ++modeCalls;
+    }
+    std::string pathLabel() const override { return label; }
 };
 
 static void writeFile(const std::string &p, const std::string &text) {
@@ -242,6 +250,31 @@ static void testReload() {
     r.run(0.1);
     CHECK((r.rec.mouse == std::vector<std::string>{"+1", "-1"}), "click after reload: %zu events",
           r.rec.mouse.size());
+}
+
+// INPUT reaches the input source at start and on reload; the active path appears in the status file.
+static void testInputMode() {
+    Rig r("[global]\nINPUT = driver\n");
+    CHECK(r.src.mode == InputMode::Driver && r.src.modeCalls >= 1, "INPUT=driver must reach the source");
+    r.run(0.05);
+    CHECK(!r.status.empty() && r.status.back().find("input=") == std::string::npos, "no input= line without a path label");
+    r.src.label = "driver";
+    r.run(0.05);
+    CHECK(r.status.back().find("\ninput=driver\n") != std::string::npos, "status must name the driver path");
+    r.src.label = "hid";
+    writeFile(r.conf, "[global]\nINPUT = hid\n");
+    r.reload.pending = true;
+    r.run(0.05);
+    CHECK(r.src.mode == InputMode::Hid, "reload must apply INPUT=hid");
+    CHECK(r.status.back().find("\ninput=hid\n") != std::string::npos, "status must name the HID path");
+    writeFile(r.conf, "[global]\nINPUT = bogus\n");  // invalid: the line is ignored, the default applies
+    r.reload.pending = true;
+    r.run(0.05);
+    CHECK(r.src.mode == InputMode::Auto, "an invalid INPUT falls back to auto");
+    writeFile(r.conf, "[global]\nINPUT = hid\n[app:blender]\nINPUT = driver\n");  // process-level: only [global] counts
+    r.reload.pending = true;
+    r.run(0.05);
+    CHECK(r.src.mode == InputMode::Hid, "INPUT in a profile does not change the process-level setting");
 }
 
 static void testAutoReload() {
@@ -799,6 +832,7 @@ int main() {
     testLiveFeedSink();
     testButtonBinding();
     testReload();
+    testInputMode();
     testModeRequest();
     testAutoReload();
     testDeviceAndWindowProfiles();

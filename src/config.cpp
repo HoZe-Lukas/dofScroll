@@ -256,6 +256,12 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
         s.backend = v;
         return true;
     }
+    if (key == "INPUT") {
+        std::string v = lower(trim(value));
+        if (v != "auto" && v != "driver" && v != "hid") return setErr(err, "auto, driver or hid expected");
+        s.input = v;
+        return true;
+    }
     if (key == "TICK_HZ") {
         if (!parseInt(value, &n)) return setErr(err, "integer expected");
         s.tick_hz = static_cast<int>(std::clamp(n, 30L, 1000L));
@@ -525,6 +531,7 @@ std::vector<KV> allKeys(const Settings &s) {
     kv.emplace_back("ZOOM_EXIT_RATIO", fmtNum(s.zoom_exit_ratio));
     kv.emplace_back("STEP_TRIGGER", fmtNum(s.step_trigger));
     kv.emplace_back("BACKEND", s.backend);
+    kv.emplace_back("INPUT", s.input);
     kv.emplace_back("TICK_HZ", std::to_string(s.tick_hz));
     kv.emplace_back("ENABLED", s.enabled ? "1" : "0");
     kv.emplace_back("LIVE_FEED", s.live_feed ? "1" : "0");

@@ -158,7 +158,7 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
             for (ButtonBinding &e : out->buttons)
                 if (e.button == b.button) { e = b; replaced = true; }
             if (!replaced) out->buttons.push_back(b);
-        } else if (key == "ENABLED" || key == "BACKEND" || key == "TICK_HZ") {
+        } else if (key == "ENABLED" || key == "BACKEND" || key == "INPUT" || key == "TICK_HZ") {
             // Process-level settings: a mode must not be able to switch the daemon off or change them.
             warn(lineno, key + " is not allowed in a mode file (global setting) - line ignored");
         } else {

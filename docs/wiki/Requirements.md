@@ -12,7 +12,7 @@ What you need on each operating system before dofscroll can work. Read this befo
 |---|---|---|---|
 | Linux, X11 | `dofscroll` daemon (XTest output) and `dofscroll-ui` | `spacenavd` running, a SpaceMouse, systemd user session (for the shipped units) | Verified on RHEL 9, KDE Plasma, SpaceMouse Pro and Compact. Other distributions: packages are built and install-tested in CI only |
 | Linux, Wayland | Same programs, uinput output | The above, plus write access to `/dev/uinput` (opt-in udev rule); `kdotool` for program profiles on KDE | Not tested on hardware |
-| Windows 10 / 11 | `dofscroll.exe` daemon (SendInput) and `dofscroll-ui.exe` | A SpaceMouse. No SDK and no vendor driver are required by dofscroll | Built by CI only, not run on hardware |
+| Windows 10 / 11 | `dofscroll.exe` daemon (SendInput) and `dofscroll-ui.exe` | A SpaceMouse. No SDK and no vendor driver are required by dofscroll; the official driver may stay installed (its interface is used when it is installed) | Built by CI only, not run on hardware |
 | macOS | `dofscroll.app` with daemon (CGEvent) and interface | A SpaceMouse, Apple silicon, **Input Monitoring** and **Accessibility** permissions | Built by CI only, not run on hardware |
 
 ## Hardware: supported devices
@@ -98,7 +98,7 @@ Program profiles need a query of the active window. X11 always has one. On KDE W
 
 ### Device access: no SDK, no driver needed by dofscroll
 
-dofscroll reads the SpaceMouse directly as a HID device (SetupAPI and `ReadFile`, opened read-only with sharing allowed). It does **not** use, link or bundle the 3Dconnexion SDK (its license is not compatible with GPL-3.0-or-later). It needs neither `spacenavd` nor an administrator account: the installer is per-user (default folder `%LOCALAPPDATA%\Programs\dofscroll`) and the Run-key autostart needs no elevation. The code is built for Windows 10 or newer (`_WIN32_WINNT=0x0A00`); the CI builds run on `windows-latest`. No hardware run has happened.
+dofscroll reads the SpaceMouse directly as a HID device (SetupAPI and `ReadFile`, opened read-only with sharing allowed). It does **not** ship, link or bundle the 3Dconnexion SDK (its license is not compatible with GPL-3.0-or-later); the optional use of the installed driver's interface is described in the next but one section. It needs neither `spacenavd` nor an administrator account: the installer is per-user (default folder `%LOCALAPPDATA%\Programs\dofscroll`) and the Run-key autostart needs no elevation. The code is built for Windows 10 or newer (`_WIN32_WINNT=0x0A00`); the CI builds run on `windows-latest`. No hardware run has happened.
 
 ### The official 3Dconnexion driver (3DxWare / 3Dconnexion Software)
 
@@ -106,13 +106,17 @@ What is known and what is not:
 
 - **Known (documentation, not hardware):** the official driver has per-application profiles and can translate SpaceMouse motion into scroll, zoom or keys for some programs. For programs without 3D support (browsers, PDF viewers) its generic scrolling is not documented and forum reports are mixed (old, 2007-2016, and partly for other driver versions).
 - **Known from the code:** dofscroll never opens the device exclusively. A failed open is logged with the Windows error and retried at each rescan.
-- **Community reports (not official, not run by us):** other HID-based tools report that on Windows the device can be read directly while the 3DxWare driver stays installed and running, see [Sources](#sources) 1 to 3. So the expectation is that the driver may stay installed; the part that causes trouble elsewhere is the vendor SDK, which dofscroll does not use.
+- **Community reports (not official, not run by us):** other HID-based tools report that on Windows the device can be read directly while the 3DxWare driver stays installed and running, see [Sources](#sources) 1 to 3. So the expectation is that the driver may stay installed; the part that causes trouble elsewhere is the vendor SDK, which dofscroll does not ship or link.
 - **UNRESOLVED for dofscroll (nobody has tested it):** whether, with a current driver version, the driver may stay installed while dofscroll runs, and whether both programs receive every report (or the driver opens the device exclusively and dofscroll logs a sharing violation). The Windows checklist tests both cases (driver running, driver stopped).
 - **Not a requirement:** dofscroll does not need the driver. Installing it is optional. Whether installing it is a good idea is exactly the unresolved question above.
 - **Double input:** a community note warns that with the driver installed it may also emit its own keyboard and mouse emulation, so check for double input (source 2).
 - **Axes:** raw HID axes can differ from what the driver delivers (one report: tilt and twist swapped without a driver profile, source 7). If an axis moves the wrong way, adjust it with `<CH>_SIGN` or the mix settings, see [Troubleshooting](Troubleshooting).
 - **If scrolling happens twice:** in the driver's control panel turn off the driver's own navigation (pan, zoom) and button assignments for the programs you use with dofscroll, or exit the driver's background process while testing.
 - **If the device cannot be opened:** look in `%LOCALAPPDATA%\dofscroll\dofscroll.log` for the Windows error. Exit the 3Dconnexion driver's background process and check whether dofscroll then receives input. If it does, the driver is holding the device.
+
+### Input path: the official driver's interface or direct HID (Windows)
+
+The official 3Dconnexion driver can stay installed and running for your CAD programs; you are never asked to stop it. dofscroll reads the SpaceMouse **through the driver's COM interface when the driver is installed** and directly as HID otherwise, chosen by `INPUT = auto | driver | hid` (default `auto`; drop-down "Input path" on the Settings page; the status line shows "Input: 3Dconnexion driver" or "Input: direct (HID)"). On Windows `auto` tries direct HID first and uses the driver as the fallback; this default is **unverified** (community reports say both can read at the same time). The driver's interface is loaded at run time from the installed driver and dofscroll contains nothing of it; the driver, its interface and the names 3Dconnexion and SpaceMouse belong to 3Dconnexion (a Logitech company), and dofscroll is not affiliated with or endorsed by them. No permission was requested from 3Dconnexion ([legal-notes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/legal-notes.md)). **Nothing of the driver path has been run against the real driver**, only against a fake driver in CI.
 
 ### Permissions and Windows security
 
@@ -139,7 +143,7 @@ What is known and what is not:
 
 ### Device access: no SDK, no driver needed by dofscroll
 
-dofscroll reads the SpaceMouse through `IOHIDManager`, matched on the vendor and product ids of the `devices/*.conf` files. It does **not** use the proprietary `3DconnexionClient` framework. The release image is built for Apple silicon (`arm64`) on the `macos-latest` runner; an Intel build is not provided and the minimum macOS version is not stated anywhere in the repository. The device is opened without seizing it.
+dofscroll reads the SpaceMouse through `IOHIDManager`, matched on the vendor and product ids of the `devices/*.conf` files. It does **not** ship or link the proprietary `3DconnexionClient` framework; the optional use of the installed driver's interface is described below. The release image is built for Apple silicon (`arm64`) on the `macos-latest` runner; an Intel build is not provided and the minimum macOS version is not stated anywhere in the repository. The device is opened without seizing it.
 
 ### The official 3Dconnexion driver (3Dconnexion Software)
 
@@ -149,6 +153,10 @@ dofscroll reads the SpaceMouse through `IOHIDManager`, matched on the vendor and
 - **Not a requirement:** dofscroll does not need the driver.
 - **If scrolling happens twice:** in the driver's settings (System Settings, 3Dconnexion section) turn off per-application navigation and button assignment for the programs you use with dofscroll, or quit the driver while testing.
 - **If the device cannot be read** (no input although the permissions are granted): quit the driver and restart the dofscroll daemon.
+
+### Input path: the official driver's interface or direct HID (macOS)
+
+The official 3Dconnexion driver can stay installed and running for your CAD programs; you are never asked to stop it. dofscroll reads the SpaceMouse **through the driver's client interface (the `3DconnexionClient` framework) when the driver is installed** and directly through IOHID otherwise, chosen by `INPUT = auto | driver | hid` (default `auto`; drop-down "Input path" on the Settings page; the status line shows "Input: 3Dconnexion driver" or "Input: direct (HID)"). On macOS `auto` prefers the driver when it is installed, because the driver is likely to hold the device so that direct reads get nothing; this default is **unverified**. The Input Monitoring permission is not needed for the driver path. Open and unverified: whether a program that is not in front receives events through the driver, and whether registering as a client changes how CAD programs behave. The interface is loaded at run time and dofscroll contains nothing of it; the driver, its interface and the names belong to 3Dconnexion (a Logitech company); dofscroll is not affiliated with or endorsed by them. No permission was requested from 3Dconnexion ([legal-notes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/legal-notes.md)). **Nothing of the driver path has been run against the real driver.**
 
 ### Permissions
 
@@ -178,8 +186,8 @@ The app is only ad-hoc signed and **not notarized**: Gatekeeper blocks the first
 
 ## Driver versus SDK, and what the research found
 
-- The **SDK** (the vendor API that applications link against) is not used and not bundled by dofscroll. This is a license decision, see `docs/windows-mac.md`.
-- The **driver** (3DxWare / 3Dconnexion Software) is an installed program. dofscroll does not need it. Whether it can stay installed is the open question, and the answer differs by OS in community reports: Windows, probably yes; macOS, possibly not (the helper may hold the device exclusively).
+- The **SDK** (the vendor API that applications link against) is not linked or bundled by dofscroll. This is a license decision, see `docs/windows-mac.md`. What dofscroll does instead on Windows and macOS: when the driver is installed it loads the driver's interface at run time (setting `INPUT`), with declarations written from public knowledge; see `docs/legal-notes.md`.
+- The **driver** (3DxWare / 3Dconnexion Software) is an installed program. dofscroll does not need it, and it may stay installed and running: dofscroll can read the device through its interface or directly (`INPUT`). Which path works next to the driver is the open question, and the answer differs by OS in community reports: Windows, probably yes; macOS, possibly not (the helper may hold the device exclusively).
 - On Linux there is no vendor driver. `spacenavd` is the open-source replacement for the 3Dconnexion driver and SDK and supports USB 3Dconnexion devices on GNU/Linux (source 8). dofscroll uses it instead of the vendor driver.
 - Nothing here replaces a hardware test. dofscroll's own checklists are `docs/port-windows-checklist.md` and `docs/port-macos-checklist.md`.
 

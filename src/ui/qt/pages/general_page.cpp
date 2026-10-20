@@ -20,11 +20,13 @@
 #include <QVBoxLayout>
 
 #include "platform/autostart_platform.hpp"
+#include "driver_platform.hpp"
 #include "log_dialog.hpp"
 #include "theme.hpp"
 #include "ui/model/channels_page_model.hpp"
 #include "ui/model/design_tokens.hpp"
 #include "ui/model/general_page_model.hpp"
+#include "ui/model/input_path_model.hpp"
 #include "ui/model/ui_links.hpp"
 #include "ui/model/ui_settings.hpp"
 #include "ui_i18n.hpp"
@@ -173,6 +175,35 @@ public:
             }
         });
 #endif
+#ifdef DOFSCROLL_DRIVER_UI  // Linux reads through spacenavd: INPUT is ignored there, so there is no control
+        input_ = new QComboBox;
+        for (const InputChoice &c : inputChoices(*ctx_.strings)) input_->addItem(qs8(c.label), qs8(c.value));
+        input_->setAccessibleName(T("Input path"));
+        input_->setToolTip(qs8(inputExplanation(*ctx_.strings)) + QStringLiteral("\n") +
+                           T("Config key: %1").arg(QStringLiteral("INPUT")));
+        auto *inLabel = new QLabel(T("Input path"));
+        inLabel->setBuddy(input_);
+        dl->addWidget(inLabel, drow, 0);
+        dl->addWidget(input_, drow, 1);
+        ++drow;
+        QObject::connect(input_, QOverload<int>::of(&QComboBox::activated), this, [this](int) {
+            std::string err;
+            if (!ctx_.settings->setValue(0, "INPUT", input_->currentData().toString().toUtf8().toStdString(), &err))
+                daemonMsg_->setText(qs8(err));
+            else {
+                daemonMsg_->setText(QString());
+                ctx_.saveSoon();
+            }
+        });
+        inputActive_ = makeNote();
+        inputActive_->setObjectName(QStringLiteral("input-active"));
+        dl->addWidget(inputActive_, drow, 0, 1, 2);
+        ++drow;
+        auto *inputHelp = makeNote();
+        inputHelp->setText(qs8(inputExplanation(*ctx_.strings)));
+        dl->addWidget(inputHelp, drow, 0, 1, 2);
+        ++drow;
+#endif
         daemonMsg_ = makeNote();
         daemonMsg_->setText(T("These apply to the whole program, not to a profile. The output backend takes effect after "
                               "the daemon is restarted."));
@@ -226,10 +257,23 @@ public:
         });
         right->addWidget(cfgBox);
 
-        // ---- version ----
-        auto *version = makeNote();
-        version->setText(T("dofscroll %1").arg(QApplication::applicationVersion()));
-        col->addWidget(version);
+        // ---- about: version, licences, and (Windows, macOS) what belongs to 3Dconnexion ----
+        auto *aboutBox = new QGroupBox(T("About"));
+        aboutBox->setObjectName(QStringLiteral("about-box"));
+        auto *al = new QVBoxLayout(aboutBox);
+#ifdef DOFSCROLL_DRIVER_UI
+        constexpr bool kDriverPlatform = true;
+#else
+        constexpr bool kDriverPlatform = false;
+#endif
+        for (const std::string &line : aboutLines(QApplication::applicationVersion().toStdString(),
+                                                  std::string(qVersion()), kDriverPlatform, *ctx_.strings)) {
+            auto *l = makeNote();
+            l->setText(qs8(line));
+            l->setTextInteractionFlags(Qt::TextSelectableByMouse);
+            al->addWidget(l);
+        }
+        col->addWidget(aboutBox);
         left->addStretch(1);
         right->addStretch(1);
         col->addStretch(1);
@@ -279,6 +323,8 @@ private:
             const int i = backend_->findData(qs8(v.text));
             backend_->setCurrentIndex(i < 0 ? 0 : i);
         }
+        if (input_ && !input_->hasFocus() && ctx_.settings->value(0, "INPUT", &v))
+            input_->setCurrentIndex(inputChoiceIndex(v.text));
         loadingModel_ = false;
     }
 
@@ -286,6 +332,7 @@ private:
         QStringList lines;
         for (const std::string &s : statusBlockLines(*ctx_.status, *ctx_.strings)) lines << qs8(s);
         statusLabel_->setText(lines.join(QLatin1Char('\n')));
+        if (inputActive_) inputActive_->setText(qs8(inputActiveLine(*ctx_.status, *ctx_.strings)));
     }
 
     // Reads (and first changes, if requested) the autostart state on a worker thread: the system
@@ -368,7 +415,8 @@ private:
     QCheckBox *output_ = nullptr;
     QLabel *outputMsg_ = nullptr, *daemonMsg_ = nullptr;
     QSpinBox *tick_ = nullptr;
-    QComboBox *backend_ = nullptr;
+    QComboBox *backend_ = nullptr, *input_ = nullptr;
+    QLabel *inputActive_ = nullptr;
     bool loadingModel_ = false;
     QCheckBox *autostart_ = nullptr;
     QLabel *autostartMsg_ = nullptr;

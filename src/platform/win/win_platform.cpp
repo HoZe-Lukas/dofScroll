@@ -16,14 +16,18 @@
 
 #include <sddl.h>
 
+#include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include "../platform.hpp"
 #include "../fs.hpp"
 #include "win_activewin.hpp"
+#include "win_driver_input.hpp"
+#include "../input_select.hpp"
 #include "win_hid_input.hpp"
 #include "win_objects.hpp"
 #include "win_output.hpp"
@@ -143,7 +147,30 @@ std::unique_ptr<InputSource> makeInputSource(const std::string &backend, std::st
         if (log) *log = "no devices directory found next to the executable (set DOFSCROLL_DEVICES)";
         return nullptr;
     }
-    return makeWinHidInput(dir, log);
+    // Hybrid input (INPUT = auto | driver | hid, applied by the daemon through setInputMode): raw HID and
+    // the COM interface of the installed 3Dconnexion driver. Which one comes first for "auto" is the
+    // table in input_select.hpp.
+    if (log) *log = "raw HID descriptions from " + dir;
+    SwitchingInput::Parts parts;
+    parts.driverInstalled = [] {
+        static std::mutex mu;
+        static std::string last;
+        std::string why;
+        const bool ok = winDriverInstalled(&why);
+        std::lock_guard<std::mutex> lk(mu);
+        if (!ok && why != last) std::cerr << "[dofscroll] 3Dconnexion driver interface not usable: " << why << std::endl;
+        last = ok ? std::string() : why;
+        return ok;
+    };
+    parts.makeDriver = [] {
+        std::string l;
+        return makeWinDriverInput(&l);
+    };
+    parts.makeHid = [dir] {
+        std::string l;
+        return makeWinHidInput(dir, &l);
+    };
+    return std::make_unique<SwitchingInput>(std::move(parts), InputOs::Windows);
 }
 
 // Windows has only the SendInput backend ("auto" or "sendinput"; anything else falls back to it).

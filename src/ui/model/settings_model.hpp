@@ -45,7 +45,7 @@
 //    the section changed, so the view rebuilds the page (no signals).
 //
 // Keys are the canonical names of config.hpp (SCROLL_V_/SCROLL_H_/ZOOM_ MIX, SENS, DEADZONE, SIGN,
-// CURVE, SMOOTH_MS; ZOOM_LATERAL, ZOOM_ENTER_MS, ZOOM_EXIT_RATIO, BACKEND, TICK_HZ, ENABLED,
+// CURVE, SMOOTH_MS; ZOOM_LATERAL, ZOOM_ENTER_MS, ZOOM_EXIT_RATIO, BACKEND, INPUT, TICK_HZ, ENABLED,
 // MODE); BUTTON_<n> goes through setButton. NAV_BUTTON[_ENABLED] and CLICK_BUTTON[_ENABLED] are
 // deprecated: the model does not offer them any more (visibleSettings, the overrides list) and
 // migrateLegacyButtons() turns a file that still uses them into BUTTON_<n> entries.
@@ -287,7 +287,7 @@ public:
                 const std::string k = upper(kv.first);
                 static const std::vector<KV> all = allKeys(Settings());
                 if (!lookup(all, k) || k == "MODE" || k == "ENABLED" || isButtonKey(k) || k.rfind("NAV_", 0) == 0 ||
-                    k.rfind("CLICK_", 0) == 0 || k == "BACKEND" || k == "TICK_HZ")
+                    k.rfind("CLICK_", 0) == 0 || k == "BACKEND" || k == "INPUT" || k == "TICK_HZ")
                     continue;
                 if (std::find(o.keys.begin(), o.keys.end(), k) == o.keys.end()) o.keys.push_back(k);
             }

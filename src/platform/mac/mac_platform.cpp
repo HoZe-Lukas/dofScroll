@@ -13,7 +13,9 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "../fs.hpp"
@@ -23,7 +25,9 @@
 #include "mac_hid_input.hpp"
 #include "mac_output.hpp"
 #include "mac_client.hpp"
+#include "mac_driver_input.hpp"
 #include "mac_paths.hpp"
+#include "../input_select.hpp"
 
 namespace spn {
 
@@ -112,7 +116,34 @@ std::unique_ptr<InputSource> makeInputSource(const std::string &backend, std::st
         fs::FileInfo i;
         return fs::statPath(d, &i) && i.isDir;
     });
-    return makeMacHidInput(dir, log);
+    // Hybrid input (INPUT = auto | driver | hid, applied by the daemon through setInputMode): the
+    // 3Dconnexion driver's client interface when the driver is installed, the raw HID path otherwise.
+    // Which one comes first for "auto" is the table in input_select.hpp.
+    {
+        std::string n;
+        std::unique_ptr<InputSource> probe = makeMacHidInput(dir, &n);  // only for the log line (descriptions found)
+        *log = n;
+    }
+    SwitchingInput::Parts parts;
+    parts.driverInstalled = [] {
+        static std::mutex mu;
+        static std::string last;
+        std::string why;
+        const bool ok = macDriverInstalled(&why);
+        std::lock_guard<std::mutex> lk(mu);
+        if (!ok && why != last) std::cerr << "[dofscroll] 3Dconnexion driver interface not usable: " << why << std::endl;
+        last = ok ? std::string() : why;
+        return ok;
+    };
+    parts.makeDriver = [dir] {
+        std::string l;
+        return makeMacDriverInput(dir, &l);
+    };
+    parts.makeHid = [dir] {
+        std::string l;
+        return makeMacHidInput(dir, &l);
+    };
+    return std::make_unique<SwitchingInput>(std::move(parts), InputOs::Mac);
 }
 
 std::unique_ptr<Output> makeOutput(const std::string &backend, std::string *log) {

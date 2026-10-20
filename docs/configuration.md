@@ -64,6 +64,7 @@ in the tray.
 | `ZOOM_EXIT_RATIO` | `1.5` | Zoom ends when another axis exceeds the twist by this factor (at least 1.0). |
 | `STEP_TRIGGER` | `20` | Level at which a `step:` channel action (see [joystick modes](modes.md)) fires one key tap, measured in steps per second after the channel's dead zone, curve, smoothing and sensitivity (`deflection * SENS / 20`; 0.5 to 10000). The action re-arms at half of it. Raise it for a firmer push, lower it together with a low `*_SENS`. |
 | `BACKEND` | `auto` | `auto`, `x11` or `uinput`. `auto` picks uinput under Wayland, else X11. If the chosen backend fails, the other is tried. Needs a daemon restart. |
+| `INPUT` | `auto` | `auto`, `driver` or `hid`. **Windows and macOS only; ignored on Linux**, where spacenavd is the driver. How the SpaceMouse is read: `driver` through the interface of the installed official 3Dconnexion driver (loaded at run time from the installed driver, nothing bundled; see [legal-notes.md](legal-notes.md)), `hid` directly as raw HID, `auto` by a built-in table (macOS: driver first when installed, otherwise HID; Windows: HID first, the driver as the fallback when HID cannot be opened). With `driver` or `hid` exactly that path is used and nothing else is tried; an invalid value is reported and `auto` applies. Read from `[global]` only, applied on reload without a restart (switching takes a few seconds). The active path is shown as `input=driver` or `input=hid` in the status file and as "Input: 3Dconnexion driver" or "Input: direct (HID)" in the interface and in the log. The defaults of `auto` are unverified guesses until tested on hardware. |
 | `TICK_HZ` | `250` | Tick rate 30 to 1000. Can differ per profile. |
 | `ENABLED` | `1` | `0` switches all output off (scroll, zoom, keys, clicks) and releases held keys. |
 | `MODE` | `normal` | Active joystick mode, see [modes.md](modes.md). Can be set in `[global]` (the joystick mode of everything that does not choose its own), `[device:*]` and `[app:*]`. |
@@ -120,7 +121,7 @@ If the active joystick mode binds the same button, the joystick mode's binding w
 | `[device:<text>]` | The device name reported by `spacenavd` contains `<text>` (case-insensitive substring). |
 | `[app:<text>]` | The active window's `WM_CLASS` contains `<text>` (case-insensitive substring). |
 
-Sections contain only the keys they override. `BACKEND` is read from `[global]` at start.
+Sections contain only the keys they override. `BACKEND` is read from `[global]` at start, `INPUT` from `[global]` (an `INPUT` line in a profile section has no effect).
 
 ### Precedence
 

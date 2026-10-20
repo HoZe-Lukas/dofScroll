@@ -50,6 +50,6 @@ active window class -> [app:*] profile -> resolved settings
 
 ## Why direct HID on the ports
 
-`spacenavd` exposes all SpaceMice as one merged stream, so per-device profiles and button counts are impossible through it. With direct HID access each device is its own handle with its own ID and report stream. The vendor SDK is not used on any OS (proprietary, revocable license, incompatible with distributing a GPL-3.0-or-later program; a project decision, not legal advice).
+`spacenavd` exposes all SpaceMice as one merged stream, so per-device profiles and button counts are impossible through it. With direct HID access each device is its own handle with its own ID and report stream. The vendor SDK is not shipped, linked or used at build time on any OS (proprietary, revocable license, incompatible with distributing a GPL-3.0-or-later program; a project decision, not legal advice). On Windows and macOS the installed official driver's interface is loaded at run time as a second input path (`INPUT`); nothing of it is contained in dofscroll.
 
 Port details: [port-windows.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-windows.md), [port-macos.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-macos.md). See also [Development](Development) and [Roadmap](Roadmap).

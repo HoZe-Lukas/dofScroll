@@ -40,6 +40,11 @@ struct InputEvent {
 
 enum class WaitResult { Event, Timeout, Closed };
 
+// Which way the SpaceMouse is read on Windows and macOS (config key INPUT): through the interface of
+// the installed official 3Dconnexion driver, directly as raw HID, or automatically (src/platform/
+// input_select.hpp). Linux reads through spacenavd and ignores it.
+enum class InputMode { Auto, Driver, Hid };
+
 class InputSource {
 public:
     virtual ~InputSource() = default;
@@ -49,6 +54,12 @@ public:
     virtual WaitResult wait(InputEvent *out, int timeoutMs) = 0;
     virtual std::vector<DeviceInfo> devices() const = 0;  // current snapshot
     virtual void close() = 0;
+    // Optional (Windows and macOS hybrid input): applies the configured INPUT mode; may be called at any time
+    // from the main thread (the reader thread picks it up). Other sources ignore it.
+    virtual void setInputMode(InputMode) {}
+    // Optional: id of the path the data comes from right now, "driver" or "hid"; empty when the source
+    // has no such choice (Linux) or none is active yet. Thread-safe.
+    virtual std::string pathLabel() const { return std::string(); }
 };
 
 // ---- Active window ---------------------------------------------------------------------------

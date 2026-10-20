@@ -54,6 +54,7 @@
 #include <cstring>
 #include <ctime>
 
+#include "driver_platform.hpp"
 #include "main_window.hpp"
 #include "vertical_tabs.hpp"
 #include "pages/add_app_dialog.hpp"
@@ -2202,6 +2203,39 @@ static bool autosaveAuditSelfTest(const std::function<bool(MainWindow &)> &) {
                 be->setCurrentIndex(be->findData(QStringLiteral("auto")));
                 QMetaObject::invokeMethod(be, "activated", Q_ARG(int, be->currentIndex()));
             });
+        }
+        // Input path (Windows and macOS only; Linux has no such control) autosaves like the other daemon settings
+        if (auto *in = findNamed<QComboBox>(sp, QStringLiteral("Input path"))) {
+            expect(QStringLiteral("Settings: Input path"), kGlobal, "INPUT", "driver", [&] {
+                in->setCurrentIndex(in->findData(QStringLiteral("driver")));
+                QMetaObject::invokeMethod(in, "activated", Q_ARG(int, in->currentIndex()));
+            });
+            expect(QStringLiteral("Settings: Input path back to automatic"), kGlobal, "INPUT", "auto", [&] {
+                in->setCurrentIndex(in->findData(QStringLiteral("auto")));
+                QMetaObject::invokeMethod(in, "activated", Q_ARG(int, in->currentIndex()));
+            });
+        } else {
+#ifndef DOFSCROLL_DRIVER_UI
+            record(QStringLiteral("Settings: no Input path control on Linux"), true, QStringLiteral("spacenavd is the driver there"));
+#else
+            record(QStringLiteral("Settings: Input path control"), false, QStringLiteral("missing"));
+#endif
+        }
+        // the About box names Qt and its licence; the 3Dconnexion note only where a driver interface is used
+        if (auto *about = sp->findChild<QGroupBox *>(QStringLiteral("about-box"))) {
+            QString text;
+            for (auto *l : about->findChildren<QLabel *>()) text += l->text() + QLatin1Char('\n');
+            const bool hasDriverNote = text.contains(QStringLiteral("Not affiliated with or endorsed by 3Dconnexion"));
+#ifdef DOFSCROLL_DRIVER_UI
+            const bool wantNote = true;
+#else
+            const bool wantNote = false;
+#endif
+            record(QStringLiteral("Settings: About box (Qt, LGPL, 3Dconnexion note)"),
+                   text.contains(QStringLiteral("Qt ")) && text.contains(QStringLiteral("LGPL")) && hasDriverNote == wantNote,
+                   QStringLiteral("Qt and licence notes; driver note only on Windows and macOS"));
+        } else {
+            record(QStringLiteral("Settings: About box"), false, QStringLiteral("missing"));
         }
         // language and appearance go to ui.conf at once
         auto *lang = findNamed<QComboBox>(sp, QStringLiteral("Language"));

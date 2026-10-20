@@ -59,7 +59,7 @@ static bool settingsEq(const Settings &a, const Settings &b) {
     return chanEq(a.scroll_v, b.scroll_v) && chanEq(a.scroll_h, b.scroll_h) &&
            chanEq(a.zoom, b.zoom) && a.zoom_lateral == b.zoom_lateral &&
            a.zoom_enter_ms == b.zoom_enter_ms && near(a.zoom_exit_ratio, b.zoom_exit_ratio) &&
-           a.backend == b.backend && a.tick_hz == b.tick_hz && a.nav_button == b.nav_button &&
+           a.backend == b.backend && a.input == b.input && a.tick_hz == b.tick_hz && a.nav_button == b.nav_button &&
            a.nav_button_enabled == b.nav_button_enabled && a.click_button == b.click_button &&
            a.click_button_enabled == b.click_button_enabled && a.enabled == b.enabled && a.mode == b.mode;
 }
@@ -154,6 +154,10 @@ static void testDefaultsAndApplyKey() {
     assert(applyKey(s, "TICK_HZ", "5000", &err) && s.tick_hz == 1000);
     assert(applyKey(s, "BACKEND", "UInput", &err) && s.backend == "uinput");
     assert(!applyKey(s, "BACKEND", "wayland", &err) && s.backend == "uinput");
+    assert(s.input == "auto");
+    assert(applyKey(s, "INPUT", " Driver ", &err) && s.input == "driver");
+    assert(applyKey(s, "INPUT", "HID", &err) && s.input == "hid");
+    assert(!applyKey(s, "INPUT", "usb", &err) && s.input == "hid" && !err.empty());
     assert(applyKey(s, "ZOOM_LATERAL", "x, rz  y", &err));
     assert(s.zoom_lateral == (std::vector<Axis>{AX_X, AX_RZ, AX_Y}));
     assert(!applyKey(s, "ZOOM_LATERAL", "x foo", &err));
@@ -279,6 +283,7 @@ static void testSaveLoad() {
     g.zoom.curve_points = {{0, 0}, {50, 0.1}, {350, 3}};
     g.zoom_lateral = {AX_X, AX_Y};
     g.backend = "x11";
+    g.input = "driver";
     g.tick_hz = 125;
     g.click_button_enabled = true;
     g.enabled = false;
