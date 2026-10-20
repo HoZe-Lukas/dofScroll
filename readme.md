@@ -71,7 +71,7 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
   (Windows, macOS); the factory button count is known for SpaceMouse Pro, Pro Wireless, Compact,
   Wireless, Enterprise and SpaceNavigator.
 
-Release notes: [docs/release-notes-0.1.1.md](docs/release-notes-0.1.1.md) (and [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
+Release notes: [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md) (and [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
 
 ## Download and install
 
@@ -113,7 +113,7 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 | [docs/devices.md](docs/devices.md) | Device descriptions |
 | [docs/security.md](docs/security.md) | Threat model, systemd hardening, uinput permissions |
 | [docs/releasing.md](docs/releasing.md) | How a release is made |
-| [docs/release-notes-0.1.1.md](docs/release-notes-0.1.1.md) | Release notes of 0.1.1; beta.2 in [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-beta.2.md), beta.1 notes in [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) |
+| [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md) | Release notes of 1.0.0; 0.1.1 in [docs/release-notes-0.1.1.md](docs/release-notes-0.1.1.md), beta.2 in [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-beta.2.md), beta.1 notes in [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) |
 | [docs/work-plan.md](docs/work-plan.md) | Roadmap and the Windows/macOS ports |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, pull requests, adding a joystick mode or language |
 

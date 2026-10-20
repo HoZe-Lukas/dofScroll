@@ -6,6 +6,13 @@ Design principle: dofscroll complements the vendor driver instead of duplicating
 
 Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
 
+## 1.0.0
+
+Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact); other Linux distributions
+install-tested in CI containers; Windows and macOS built by CI, never run with a real device. New since 0.1.1:
+a new symbol (app icon, tray icon, macOS template) and the website in English and German. Full notes:
+[docs/release-notes-1.0.0.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.0.0.md).
+
 ## 0.1.1 (pre-release, as every 0.x version)
 
 The Qt interface is the only tray and settings window (GTK tray removed), profile-centric interface with
