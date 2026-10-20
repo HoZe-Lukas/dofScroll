@@ -448,6 +448,18 @@ void OverviewPage::changeEvent(QEvent *e) {
     }
 }
 
+// The size hints of the buttons are only final once the style and the font are applied (the first plan is
+// made before that on some platforms): a layout request means a hint changed, so the columns are checked
+// again. The check returns at once when the number of columns stays the same.
+bool OverviewPage::event(QEvent *e) {
+    const bool handled = QWidget::event(e);
+    if (e->type() == QEvent::LayoutRequest) {
+        layoutQuickActions();
+        layoutCards();
+    }
+    return handled;
+}
+
 void OverviewPage::showEvent(QShowEvent *e) {
     QWidget::showEvent(e);
     refresh();

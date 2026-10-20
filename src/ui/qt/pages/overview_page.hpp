@@ -54,7 +54,8 @@ signals:
 protected:
     bool eventFilter(QObject *watched, QEvent *e) override;  // the card area got another width: wrap the cards again
     void resizeEvent(QResizeEvent *e) override;
-    void changeEvent(QEvent *e) override;  // another font or style: the widths of the buttons and cards changed
+    void changeEvent(QEvent *e) override;
+    bool event(QEvent *e) override;  // the size hints of the children changed: plan the columns again  // another font or style: the widths of the buttons and cards changed
     void showEvent(QShowEvent *e) override;
 
 private:
