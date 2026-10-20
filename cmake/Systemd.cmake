@@ -6,9 +6,6 @@
 # Final install prefix of packages (CPack uses it as CPACK_PACKAGING_INSTALL_PREFIX).
 set(DOFSCROLL_PACKAGING_PREFIX /usr)
 set(DOFSCROLL_UNITS dofscroll)
-if(DOFSCROLL_BUILD_TRAY)
-  list(APPEND DOFSCROLL_UNITS dofscroll-tray)
-endif()
 if(TARGET dofscroll-ui)  # Qt UI unit, switched with the daemon by "Start at login" (W18)
   list(APPEND DOFSCROLL_UNITS dofscroll-ui)
 endif()

@@ -11,8 +11,8 @@ rest of the project.
 ## Build
 
 Dependencies (RHEL 9 + EPEL; exact commands per distribution in `docs/installation.md`,
-section 4): `gcc-c++`, `spacenavd`, `libspnav-devel`, `libX11-devel`, `libXtst-devel`,
-`gtk3-devel`, `libappindicator-gtk3-devel` (plus `cmake` 3.16+ and `gettext`). If your system has
+section 4): `gcc-c++`, `spacenavd`, `libspnav-devel`, `libX11-devel`, `libXtst-devel`
+(plus `cmake` 3.16+ and `gettext`). If your system has
 no suitable `cmake`: `pip install --user cmake` (installs to `~/.local/bin`).
 
     cmake -S . -B build
@@ -101,7 +101,7 @@ UI strings are English in the source and translated with gettext; translations l
    `msginit -l <lang> -i po/dofscroll.pot -o po/<lang>.po`.
 2. Translate the entries; keep placeholders (`%s`, `%d`) and mnemonics intact.
 3. Add `<lang>` to `po/LINGUAS`. Rebuild: CMake compiles every `po/*.po` into
-   `share/locale/<lang>/LC_MESSAGES/dofscroll.mo` (needs `gettext`). Check it by running the tray
+   `share/locale/<lang>/LC_MESSAGES/dofscroll.mo` (needs `gettext`). Check it by running `dofscroll-ui`
    with `LANGUAGE=<lang>` and `DOFSCROLL_LOCALEDIR=build/locale`.
 4. When you add or change UI strings in the source, keep them English and re-extract the
    template so translators see the new entries.

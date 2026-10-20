@@ -184,7 +184,7 @@ AxesPage::AxesPage(const UiContext &ctx, const AxesPageEnv &env, QWidget *parent
     client_ = std::make_unique<LiveFeedClient>(connector_);
     session_ = std::make_unique<AxesSession>(*client_);
     clock_.start();
-    // The daemon sends no output while this page evaluates the mouse (like the GTK tray); the file
+    // The daemon sends no output while this page evaluates the mouse; the file
     // is removed when the page is hidden, destroyed or the application quits.
     suspend_ = std::make_unique<SuspendHeartbeat>(ctx_.runtimeDir);
     connect(qApp, &QCoreApplication::aboutToQuit, this, [this] { suspend_->stop(); });

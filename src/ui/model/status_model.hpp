@@ -63,7 +63,7 @@ class StatusModel {
 public:
     enum class State { NoStatus, Stale, Running, Paused, Disabled };
     // Age (seconds) beyond which the daemon counts as not running; the same tolerance applies to
-    // timestamps in the future (clock jumps). The GTK tray uses 5 as well.
+    // timestamps in the future (clock jumps).
     static constexpr int64_t kMaxAgeSeconds = 5;
 
     // fileReadable false: the file is missing or was refused (owner/permissions) -> NoStatus.

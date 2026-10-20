@@ -5,7 +5,7 @@
 # artifacts (packages-rpm-tgz, packages-deb). It never creates a release: ci.yml calls it for
 # tags and its release job attaches the artifacts; linux-packages-dry-run.yml calls it on demand.
 # The packages contain the Qt interface (dofscroll-ui) when the distribution provides Qt6; if the
-# Qt install fails the package is GTK-only and the job log and summary say so (no failure).
+# Qt install fails the package has only the daemon and the job log and summary say so (no failure).
 name: linux-packages
 
 on:
@@ -50,12 +50,11 @@ jobs:
           if [ -x /tmp/scan/rpm/usr/bin/dofscroll-ui ]; then
             desktop-file-validate /tmp/scan/rpm/usr/share/applications/dofscroll.desktop
             test -f /tmp/scan/rpm/usr/share/icons/hicolor/scalable/apps/dofscroll.svg
-            grep -q '^Conflicts=dofscroll-tray.service' /tmp/scan/rpm/usr/lib/systemd/user/dofscroll-ui.service
             echo "::notice::RPM contains the Qt interface (dofscroll-ui)"
             echo "RPM: Qt interface included" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::notice::RPM is GTK-only: Qt6 is missing in the build image (packaging/ci/rocky9.Dockerfile, target qt)"
-            echo "RPM: GTK-only (no Qt6)" >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::RPM has no tray or settings window: Qt6 is missing in the build image (packaging/ci/rocky9.Dockerfile, target qt)"
+            echo "RPM: daemon only (no Qt6)" >> "$GITHUB_STEP_SUMMARY"
           fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
@@ -76,9 +75,8 @@ jobs:
           retry() { for i in 1 2 3; do timeout 600 "$@" && return 0; echo "::warning::attempt $i/3 failed or timed out: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
           retry apt-get update
           retry apt-get install -y --no-install-recommends g++ make cmake git ca-certificates gettext file \
-            pkg-config dpkg-dev desktop-file-utils libspnav-dev libx11-dev libxtst-dev libgtk-3-dev \
-            libayatana-appindicator3-dev
-      - name: Install Qt6 (optional, without it the package is GTK-only)
+            pkg-config dpkg-dev desktop-file-utils libspnav-dev libx11-dev libxtst-dev
+      - name: Install Qt6 (optional, without it the package has only the daemon)
         id: qt
         continue-on-error: true
         run: |
@@ -109,12 +107,11 @@ jobs:
           if [ -x /tmp/scan/usr/bin/dofscroll-ui ]; then
             desktop-file-validate /tmp/scan/usr/share/applications/dofscroll.desktop
             test -f /tmp/scan/usr/share/icons/hicolor/scalable/apps/dofscroll.svg
-            grep -q '^Conflicts=dofscroll-tray.service' /tmp/scan/usr/lib/systemd/user/dofscroll-ui.service
             echo "::notice::DEB contains the Qt interface (dofscroll-ui)"
             echo "DEB: Qt interface included" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::notice::DEB is GTK-only: Qt6 was not available in Debian 12 (qt install: ${{ steps.qt.outcome }})"
-            echo "DEB: GTK-only (no Qt6)" >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::DEB has no tray or settings window: Qt6 was not available in Debian 12 (qt install: ${{ steps.qt.outcome }})"
+            echo "DEB: daemon only (no Qt6)" >> "$GITHUB_STEP_SUMMARY"
           fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:

@@ -6,7 +6,7 @@ Full documents: [docs/security.md](https://github.com/HoZe-Lukas/dofScroll/blob/
 
 ## Reporting a vulnerability
 
-Report privately through GitHub private vulnerability reporting: the repository's **Security** tab, then **Report a vulnerability** ([direct link](https://github.com/HoZe-Lukas/dofScroll/security/advisories/new)). Do not open a public issue or pull request and do not post details in discussions. GitHub is the only contact channel. This is a spare-time project: the goal is to acknowledge within about a week, there is no SLA and no bug bounty. Only the latest release and `main` get fixes (the project is pre-1.0). Vulnerabilities in `spacenavd`, `libspnav`, GTK, the X server or the kernel belong to those projects.
+Report privately through GitHub private vulnerability reporting: the repository's **Security** tab, then **Report a vulnerability** ([direct link](https://github.com/HoZe-Lukas/dofScroll/security/advisories/new)). Do not open a public issue or pull request and do not post details in discussions. GitHub is the only contact channel. This is a spare-time project: the goal is to acknowledge within about a week, there is no SLA and no bug bounty. Only the latest release and `main` get fixes (the project is pre-1.0). Vulnerabilities in `spacenavd`, `libspnav`, Qt, the X server or the kernel belong to those projects.
 
 ## What dofscroll is and is not
 

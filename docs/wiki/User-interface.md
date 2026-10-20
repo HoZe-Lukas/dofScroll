@@ -33,7 +33,7 @@ The editor of a profile has the sub-tabs General, Channels, Buttons and Override
 
 ## Tray
 
-Status, "Mode" submenu, "Enabled", "Settings...", "Open config file", "Show log...", "Open modes folder", "Release all keys" (runs `dofscroll --release-keys`, as in the GTK tray), "Restart daemon" (releases held keys, then restarts the daemon: systemd on Linux, launchd on macOS, stop and start on Windows), "Restart interface" (restarts the interface itself), "Quit".
+Status, "Mode" submenu, "Enabled", "Settings...", "Open config file", "Show log...", "Open modes folder", "Release all keys" (runs `dofscroll --release-keys`), "Restart daemon" (releases held keys, then restarts the daemon: systemd on Linux, launchd on macOS, stop and start on Windows), "Restart interface" (restarts the interface itself), "Quit".
 
 ## Saving and the daemon
 

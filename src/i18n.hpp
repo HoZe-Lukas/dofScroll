@@ -46,7 +46,7 @@ inline std::vector<std::string> localeDirs(const char *env_dir, const std::strin
     return v;
 }
 
-// Call once at program start, after setlocale(LC_ALL, "") (gtk_init does that too).
+// Call once at program start, after setlocale(LC_ALL, "").
 inline void init() {
     setlocale(LC_ALL, "");
     std::string exe_dir;

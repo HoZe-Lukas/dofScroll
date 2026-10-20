@@ -6,13 +6,12 @@ dofscroll turns a 3Dconnexion SpaceMouse into smooth scrolling, zooming, arrow k
 buttons for ordinary desktop programs. It reads the device through `spacenavd`/`libspnav` and
 sends the events through X11 (XTest) or, for Wayland, through uinput.
 
-It consists of two programs:
+It consists of two programs. The Qt interface is the only tray and settings window on Linux, Windows and macOS (the old GTK tray `dofscroll-tray` was removed in 0.1.0-beta.3, #43):
 
 | Program | Task |
 |---|---|
 | `dofscroll` | Background daemon. Reads the SpaceMouse, produces the input events. |
-| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Channels, General, Axes, Modes, Profiles). Writes the same config file and tells the daemon to reload. The default interface, see [docs/ui.md](docs/ui.md). |
-| `dofscroll-tray` | Linux GTK tray icon with a settings window, kept for one more release as the fallback when the Qt interface is not installed (#43). Run it or `dofscroll-ui`, not both. |
+| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Channels, General, Axes, Modes, Profiles). Writes the same config file and tells the daemon to reload. See [docs/ui.md](docs/ui.md). |
 
 ## Design principle
 
@@ -44,8 +43,7 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
 - Windows and macOS: never run with a real device. The Windows installer is not code-signed
   (SmartScreen warns) and the macOS DMG is only ad-hoc signed and not notarized (Gatekeeper
   blocks the first start). Notes in [docs/installation.md](docs/installation.md).
-- The Qt interface has not been checked on Windows or macOS desktops; on Linux the Qt interface is
-  now the documented default and the GTK tray the fallback.
+- The Qt interface has not been checked on Windows or macOS desktops.
 - Pausing output while the own session is not the active one (several users on one PC) was
   unit-tested with fake probes only; no second user session was available. The Windows and macOS
   probes are compile-checked only.
@@ -66,7 +64,7 @@ Release notes: [docs/release-notes-0.1.0-beta.3.md](docs/release-notes-0.1.0-bet
 3. Verify: `sha256sum -c --ignore-missing SHA256SUMS.txt`
 4. Install: `sudo dnf install ./dofscroll-*.rpm` (RHEL family, needs EPEL) or
    `sudo apt install ./dofscroll_*.deb` (Debian family). Linux packages contain the Qt interface
-   (`dofscroll-ui`) when Qt6 was available at build time, and always the GTK tray.
+   (`dofscroll-ui`) when Qt6 was available at build time.
    Windows: unsigned `-setup.exe` or portable ZIP (SmartScreen: More info, Run anyway). macOS:
    unsigned DMG (right-click > Open). Details per system: [docs/installation.md](docs/installation.md).
 5. Follow the first-time setup in [docs/installation.md](docs/installation.md). The user units
@@ -77,7 +75,6 @@ Release notes: [docs/release-notes-0.1.0-beta.3.md](docs/release-notes-0.1.0-bet
 1. `sudo systemctl enable --now spacenavd`
 2. Enable the user services (after the setup step in the installation guide):
    `systemctl --user enable --now dofscroll.service dofscroll-ui.service`
-   (the Qt interface is the default; `dofscroll-tray.service` instead for the GTK fallback).
    "Start at login" in the interface switches autostart on and off.
 3. Plug in the SpaceMouse. Push the cap: the window under the pointer scrolls. Twist: it zooms
    (Ctrl + scroll).

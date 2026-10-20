@@ -5,7 +5,7 @@
 ## Quick checks
 
     systemctl status spacenavd
-    systemctl --user status dofscroll.service dofscroll-tray.service
+    systemctl --user status dofscroll.service dofscroll-ui.service
     journalctl --user -u dofscroll.service -n 50
 
 ## Logs and status files
@@ -13,8 +13,8 @@
 | What | Where |
 |---|---|
 | Daemon log | `journalctl --user -u dofscroll.service` (add `-f` to follow, `-n 50` for the last lines, `-b` for this boot) |
-| Tray log | `journalctl --user -u dofscroll-tray.service` |
-| Log copy for the tray | `$XDG_RUNTIME_DIR/dofscroll.log` (usually `/run/user/<uid>/`, at most 300 lines) |
+| Interface log | `journalctl --user -u dofscroll-ui.service` |
+| Log copy for the interface | `$XDG_RUNTIME_DIR/dofscroll.log` (usually `/run/user/<uid>/`, at most 300 lines) |
 | Status file | `$XDG_RUNTIME_DIR/dofscroll-status`, lines `key=value`: `profile`, `device`, `app`, `enabled`, `paused`, `devices_seen`, `updated`. Removed on clean exit. |
 | Config | `~/.config/dofscroll/dofscroll.conf` and `~/.config/dofscroll/modes/` |
 
@@ -95,15 +95,15 @@ was chosen and why.
 
 ### Tray icon is missing
 
-The tray uses AppIndicator (StatusNotifierItem).
+The tray icon of `dofscroll-ui` uses the StatusNotifierItem (AppIndicator) protocol.
 
 - KDE Plasma: supported.
 - GNOME: install and enable the AppIndicator extension (on RHEL:
   `gnome-shell-extension-appindicator`; the package name on other distributions is unverified).
-- Check `journalctl --user -u dofscroll-tray.service` for errors.
+- Check `journalctl --user -u dofscroll-ui.service` for errors.
 - Without a tray (for example GNOME without the AppIndicator extension) dofscroll-ui opens its
   window minimized; restore it from the taskbar or the window list.
-- Builds without GTK (`-DDOFSCROLL_TRAY=OFF`) have no tray. Edit the config by hand.
+- A package built without Qt6 has no tray and no settings window. Edit the config by hand.
 
 The daemon works without the tray. The tray is only needed for the settings window and the first
 start seeding.
@@ -121,7 +121,7 @@ at the next start.
   from the taskbar.
 - "dofscroll-ui is already running" (exit 0): a live instance holds the lock; the second start asks
   it to show its window. If you see no window or tray icon, check
-  `systemctl --user status dofscroll-ui.service dofscroll-tray.service` (only one of the two runs).
+  `systemctl --user status dofscroll-ui.service`.
 - "cannot create the single-instance lock ..." (exit 1): the runtime directory is not writable.
   Check `ls -ld "$XDG_RUNTIME_DIR"` and that a unit override has not removed `%t` from
   `ReadWritePaths`.
@@ -133,14 +133,14 @@ at the next start.
 
 The UI follows the locale (`LC_MESSAGES`, `LANGUAGE`). To force English:
 
-    systemctl --user edit dofscroll-tray.service
+    systemctl --user edit dofscroll-ui.service
 
 and add
 
     [Service]
     Environment=LANGUAGE=C
 
-or start the tray by hand with `LANGUAGE=C dofscroll-tray`. Daemon log lines are always English.
+or start the interface by hand with `LANGUAGE=C dofscroll-ui`. Daemon log lines are always English.
 Translations are looked up in `$DOFSCROLL_LOCALEDIR`, `../share/locale` next to the binary,
 `/usr/local/share/locale` and `/usr/share/locale`. A missing catalog shows English.
 

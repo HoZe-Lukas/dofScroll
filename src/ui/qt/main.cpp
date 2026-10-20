@@ -1356,7 +1356,7 @@ int main(int argc, char **argv) {
     }
     QFile::remove(raiseMarker);  // stale request of an earlier start
 
-    // First start, as the GTK tray does (src/ui/model/first_start.hpp).
+    // First start (src/ui/model/first_start.hpp).
     std::fputs(spn::ui::runFirstStart().text("dofscroll-ui").c_str(), stderr);
 
     // The theme of the user (before any window exists, so the whole interface starts in it).

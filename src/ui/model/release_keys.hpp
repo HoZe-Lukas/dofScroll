@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Command line of the tray's "Release all keys": `dofscroll --release-keys`, a separate process
 // that releases Ctrl, arrow keys and mouse buttons through its own output connection (independent
-// of the running daemon, like the GTK tray). The program is the daemon binary next to the UI
+// of the running daemon). The program is the daemon binary next to the UI
 // executable when it exists, otherwise plain "dofscroll" (looked up on PATH). argv only, no shell.
 #pragma once
 #include <functional>

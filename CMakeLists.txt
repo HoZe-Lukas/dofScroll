@@ -11,9 +11,8 @@
 #   cmake --build build --target install-user-links | install-udev | uninstall
 #   cmake --install build --prefix /usr         # or: cpack --config build/CPackConfig.cmake
 #
-# Options: DOFSCROLL_TRAY (ON, needs GTK3 + appindicator), DOFSCROLL_HARDEN (ON),
-#          DOFSCROLL_SANITIZE (OFF, ASan/UBSan), DOFSCROLL_WERROR (OFF),
-#          DOFSCROLL_CORE_ONLY (ON outside Linux: core library + tests, no daemon/tray; the
+# Options: DOFSCROLL_HARDEN (ON), DOFSCROLL_SANITIZE (OFF, ASan/UBSan), DOFSCROLL_WERROR (OFF),
+#          DOFSCROLL_CORE_ONLY (ON outside Linux: core library + tests, no daemon; the
 #          Windows and macOS backends are added by cmake/windows.cmake and cmake/macos.cmake).
 #
 # Packaging notes: Linux packages (RPM, DEB, TGZ) are produced by CPack, see
@@ -41,7 +40,6 @@ else()
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g" CACHE STRING "" FORCE)
 endif()
 
-option(DOFSCROLL_TRAY     "Build the GTK tray (needs gtk3 + appindicator)" ON)
 option(DOFSCROLL_HARDEN   "Enable hardening compiler/linker flags" ON)
 option(DOFSCROLL_SANITIZE "Build with ASan/UBSan" OFF)
 option(DOFSCROLL_WERROR   "Treat warnings as errors" OFF)
@@ -111,7 +109,7 @@ endif()
 
 # ---- sources (globbed: new files need no CMake edit) --------------------------------------
 file(GLOB ALL_SRC CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.cpp)
-set(PROGRAM_SRC ${CMAKE_SOURCE_DIR}/src/dofscroll.cpp ${CMAKE_SOURCE_DIR}/src/dofscroll_tray.cpp)
+set(PROGRAM_SRC ${CMAKE_SOURCE_DIR}/src/dofscroll.cpp)
 file(GLOB BACKEND_SRC CONFIGURE_DEPENDS
      ${CMAKE_SOURCE_DIR}/src/output*.cpp ${CMAKE_SOURCE_DIR}/src/activewin.cpp)
 set(CORE_SRC ${ALL_SRC})
@@ -140,7 +138,6 @@ if(WIN32)
   target_link_libraries(dofscroll_core PUBLIC advapi32 bcrypt)
 endif()
 
-set(DOFSCROLL_BUILD_TRAY OFF)
 if(NOT DOFSCROLL_CORE_ONLY)
 # ---- daemon -----------------------------------------------------------------
 pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11 xtst)
@@ -152,18 +149,6 @@ add_executable(dofscroll src/dofscroll.cpp ${BACKEND_SRC} ${LINUX_SRC})
 target_include_directories(dofscroll PRIVATE ${SPNAV_INCLUDE})
 target_link_libraries(dofscroll PRIVATE dofscroll_core PkgConfig::X11 ${SPNAV_LIB})
 
-# ---- tray (optional) --------------------------------------------------------
-if(DOFSCROLL_TRAY)
-  pkg_check_modules(GTK3 IMPORTED_TARGET gtk+-3.0 appindicator3-0.1)
-  if(GTK3_FOUND)
-    set(DOFSCROLL_BUILD_TRAY ON)
-    add_executable(dofscroll-tray src/dofscroll_tray.cpp)
-    target_include_directories(dofscroll-tray PRIVATE ${SPNAV_INCLUDE})
-    target_link_libraries(dofscroll-tray PRIVATE dofscroll_core PkgConfig::GTK3 ${SPNAV_LIB})
-  else()
-    message(WARNING "gtk3/appindicator not found: dofscroll-tray is not built")
-  endif()
-endif()
 endif()  # NOT DOFSCROLL_CORE_ONLY
 
 # ---- Windows / macOS daemon (backends live in src/platform/<os>/, see docs/port-architecture.md) ----
@@ -249,7 +234,7 @@ endif()
 # They configure/build in <build>/check-werror and <build>/check-asan.
 option(DOFSCROLL_REQUIRE_ASAN "check: missing libasan/libubsan is an error (CI)" OFF)
 set(CHECK_COMMON -DSRC=${CMAKE_SOURCE_DIR} -DBIN=${CMAKE_BINARY_DIR}
-    -DWITH_TRAY=${DOFSCROLL_TRAY} -DCORE_ONLY=${DOFSCROLL_CORE_ONLY} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER})
+    -DCORE_ONLY=${DOFSCROLL_CORE_ONLY} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER})
 if(DOFSCROLL_REQUIRE_ASAN)
   list(APPEND CHECK_COMMON -DREQUIRE_ASAN=1)
 endif()
@@ -269,7 +254,7 @@ if(CPPCHECK_EXECUTABLE)
 else()
   add_custom_target(lint COMMAND ${CMAKE_COMMAND} -E echo "lint: cppcheck not installed - skipped")
 endif()
-add_custom_target(check-deps COMMAND ${CMAKE_COMMAND} -DWITH_TRAY=${DOFSCROLL_TRAY}
+add_custom_target(check-deps COMMAND ${CMAKE_COMMAND}
                   -DCXX=${CMAKE_CXX_COMPILER} -P ${CMAKE_SOURCE_DIR}/cmake/CheckDeps.cmake
                   USES_TERMINAL VERBATIM)
 add_custom_target(install-user-links COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_SOURCE_DIR}
@@ -284,11 +269,6 @@ add_custom_target(uninstall COMMAND ${CMAKE_COMMAND}
 # ---- install ----------------------------------------------------------------
 if(NOT DOFSCROLL_CORE_ONLY)
   install(TARGETS dofscroll RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-endif()
-if(DOFSCROLL_BUILD_TRAY)
-  install(TARGETS dofscroll-tray RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-  install(FILES icons/dofscroll-tray.svg
-          DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll-tray/icons)
 endif()
 
 file(GLOB EXAMPLE_FILES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/examples/*.conf)
@@ -305,6 +285,11 @@ if(BUILD_TESTING)
   add_test(NAME package_layout COMMAND ${CMAKE_COMMAND} -DBUILD_DIR=${CMAKE_BINARY_DIR}
            -DSRC=${CMAKE_SOURCE_DIR} -DCMAKE_CPACK_COMMAND=${CMAKE_CPACK_COMMAND}
            -DTMP=${CMAKE_BINARY_DIR}/package_layout -P ${CMAKE_SOURCE_DIR}/cmake/PackageLayoutTest.cmake)
+  find_program(SH_EXECUTABLE sh)
+  if(SH_EXECUTABLE)  # upgrade step: GTK tray users move to dofscroll-ui.service (fake systemctl)
+    add_test(NAME postinst_migration
+             COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_postinst_migration.sh ${CMAKE_SOURCE_DIR})
+  endif()
 endif()
 endif()  # NOT DOFSCROLL_CORE_ONLY
 

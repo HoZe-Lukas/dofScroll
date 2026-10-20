@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Check dependencies
-        run: cmake -DWITH_TRAY=ON -P cmake/CheckDeps.cmake
+        run: cmake -P cmake/CheckDeps.cmake
       - name: Configure (-Werror)
         run: cmake -S . -B build -DDOFSCROLL_WERROR=ON
       - name: Build
@@ -41,7 +41,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - name: Hardening check
-        run: sh scripts/check-hardening.sh build/dofscroll build/dofscroll-tray
+        run: sh scripts/check-hardening.sh build/dofscroll
 
   sanitizers:
     name: ASan/UBSan (Rocky Linux 9)
@@ -50,8 +50,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - name: Configure (ASan/UBSan, no tray)
-        run: cmake -S . -B build-asan -DDOFSCROLL_SANITIZE=ON -DDOFSCROLL_TRAY=OFF
+      - name: Configure (ASan/UBSan)
+        run: cmake -S . -B build-asan -DDOFSCROLL_SANITIZE=ON
       - name: Build
         run: cmake --build build-asan -j4
       - name: Test

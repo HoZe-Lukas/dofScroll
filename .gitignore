@@ -1,5 +1,4 @@
 dofscroll
-dofscroll-tray
 build/
 build-asan/
 build-*/

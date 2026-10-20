@@ -5,6 +5,9 @@
 # (not a fresh install) the user units that are running are restarted for every logged-in user,
 # so the new binaries are used without a re-login. Never fails the package transaction (always
 # exit 0), every call is time-limited, nothing in the users' configuration is touched.
+# Migration: the old GTK tray (dofscroll-tray.service) was removed. A user who had it enabled
+# gets dofscroll-ui.service enabled instead (and started, if the tray was running), so the tray
+# icon does not disappear; only systemd user unit links change, never the dofscroll configuration.
 #   RPM: $1 = number of installed instances after this one (1 = fresh install, 2+ = upgrade)
 #   DEB: $1 = configure, $2 = previous version (empty on a fresh install)
 
@@ -30,12 +33,59 @@ users=$(limited loginctl list-users --no-legend 2>/dev/null | while read -r _uid
     printf '%s\n' "$name"
 done)
 
+# Only when this package ships the Qt UI unit; otherwise the old tray link stays as it is.
+ui_unit=/usr/lib/systemd/user/dofscroll-ui.service
+
+# Is the removed dofscroll-tray.service enabled for the user whose home is $1? The unit file is
+# gone by now, so look for the enable link itself (a dangling symlink in a .wants directory).
+tray_link_in() {
+    for l in "$1"/.config/systemd/user/*.wants/dofscroll-tray.service; do
+        [ -L "$l" ] && return 0
+    done
+    return 1
+}
+
+migrate_user() {
+    m="$1@.host"
+    home=$(getent passwd "$1" 2>/dev/null | cut -d: -f6)
+    [ -n "$home" ] && [ -d "$home" ] || return 0
+    tray_link_in "$home" || return 0
+    was_active=0
+    limited systemctl --user --machine="$m" is-active --quiet dofscroll-tray.service \
+        >/dev/null 2>&1 && was_active=1
+    limited systemctl --user --machine="$m" stop dofscroll-tray.service >/dev/null 2>&1 || true
+    limited systemctl --user --machine="$m" disable dofscroll-tray.service >/dev/null 2>&1 || true
+    # Still there (systemctl cannot disable a unit without a unit file on some versions): remove
+    # only the dangling enable links of that one unit.
+    for l in "$home"/.config/systemd/user/*.wants/dofscroll-tray.service; do
+        [ -L "$l" ] && [ ! -e "$l" ] && rm -f "$l" 2>/dev/null
+    done
+    limited systemctl --user --machine="$m" enable dofscroll-ui.service >/dev/null 2>&1 || true
+    if [ "$was_active" = 1 ]; then
+        limited systemctl --user --machine="$m" start dofscroll-ui.service >/dev/null 2>&1 || true
+    fi
+    return 0
+}
+
+# System-wide enable (systemctl --global enable dofscroll-tray.service by an administrator).
+if [ -f "$ui_unit" ]; then
+    for l in /etc/systemd/user/*.wants/dofscroll-tray.service; do
+        if [ -L "$l" ]; then
+            limited systemctl --global disable dofscroll-tray.service >/dev/null 2>&1 || true
+            [ -L "$l" ] && [ ! -e "$l" ] && rm -f "$l" 2>/dev/null
+            limited systemctl --global enable dofscroll-ui.service >/dev/null 2>&1 || true
+            break
+        fi
+    done
+fi
+
 for name in $users; do
     case "$name" in
         '' | *[!A-Za-z0-9._-]*) continue ;;
     esac
     limited systemctl --user --machine="$name@.host" daemon-reload >/dev/null 2>&1 || true
+    if [ -f "$ui_unit" ]; then migrate_user "$name" || true; fi
     limited systemctl --user --machine="$name@.host" try-restart \
-        dofscroll.service dofscroll-ui.service dofscroll-tray.service >/dev/null 2>&1 || true
+        dofscroll.service dofscroll-ui.service >/dev/null 2>&1 || true
 done
 exit 0

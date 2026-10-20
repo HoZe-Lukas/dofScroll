@@ -16,7 +16,7 @@ RestartSec=1s
 # /run/spnav.sock, /dev/uinput (uinput backend), read access to the config
 # and possibly kdotool (DBus session bus, AF_UNIX). It may write only in the private
 # runtime dir %t (XDG_RUNTIME_DIR): status file dofscroll-status and log copy
-# dofscroll.log for the tray (docs/security.md); everything else stays read-only.
+# dofscroll.log for the interface (docs/security.md); everything else stays read-only.
 # KNOWN LIMIT: AF_UNIX also allows the DBus session bus. Through it, compromised
 # code could start a process OUTSIDE this sandbox via 'systemd-run --user'
 # (escape). The bus is only needed for the optional kdotool (KDE active window);

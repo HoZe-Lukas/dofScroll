@@ -10,7 +10,7 @@ One shared core and a thin platform layer per OS. The source code is the referen
 
 ```
  +------------------------------------------------------------+
- | UI: dofscroll-tray (GTK, Linux)   dofscroll-ui (Qt6)       |
+ | UI: dofscroll-ui (Qt6: tray icon and settings window)      |
  +----------------------+-------------------------------------+
                         | writes config, asks for reload
  +----------------------v-------------------------------------+

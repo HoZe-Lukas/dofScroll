@@ -112,7 +112,7 @@ inline std::string trim(const std::string &s) {
 }  // namespace utf8
 
 // ---- numbers in the C format ("0.5") whatever LC_NUMERIC is -------------------------------------
-// GTK programs call setlocale(LC_ALL, ""): in a locale with a decimal comma plain strtod/snprintf
+// Programs that call setlocale(LC_ALL, ""): in a locale with a decimal comma plain strtod/snprintf
 // would read "0.5" as 0 and write "0,5" into the configuration file.
 
 // strtod for the C format; a decimal comma (or whatever the locale uses) is never accepted.

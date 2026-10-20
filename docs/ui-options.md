@@ -5,8 +5,8 @@
 Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
 
 Status: decided 2026-10-19 (see `docs/ui-qt-session-prompt.md`). The interface is experimental
-(`dofscroll-ui`, skeleton only); the GTK tray stays on Linux until the Qt interface has the same
-features.
+(`dofscroll-ui`, skeleton only); the GTK tray stayed on Linux until the Qt interface had the same
+features and was removed in 0.1.0-beta.3 (#43).
 
 ## Decision
 
@@ -22,7 +22,7 @@ dynamically linked. No QML, no WebEngine.
 | GTK everywhere | Existing tray code (GTK3 + AppIndicator) | GTK on Windows/macOS needs a bundled runtime and looks foreign; AppIndicator exists only on Linux; the tray would still need per-OS code |
 
 Effort: Qt costs one rewrite of the settings window, but removes three separate UI efforts. The
-GTK tray keeps working during the migration.
+GTK tray kept working during the migration and has been removed since (0.1.0-beta.3).
 
 ## Translation decision
 

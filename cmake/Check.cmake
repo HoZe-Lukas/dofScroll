@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 # Script mode, driven by the check / check-fast targets:
-#   cmake -DMODE=fast|full -DSRC=<repo> -DBIN=<build dir> -DWITH_TRAY=ON|OFF
+#   cmake -DMODE=fast|full -DSRC=<repo> -DBIN=<build dir>
 #         [-DREQUIRE_ASAN=1] -P cmake/Check.cmake
 # fast: -Werror build + all tests (incl. example config validation)
 # full: fast + ASan/UBSan tests + cppcheck + hardening check of the -Werror build.
@@ -28,7 +28,7 @@ endfunction()
 
 set(WD ${BIN}/check-werror)
 step(werror-configure COMMAND ${CT} -S ${SRC} -B ${WD} -DDOFSCROLL_WERROR=ON
-     -DDOFSCROLL_TRAY=${WITH_TRAY} -DDOFSCROLL_CORE_ONLY=${CORE_ONLY})
+     -DDOFSCROLL_CORE_ONLY=${CORE_ONLY})
 step(werror-build COMMAND ${CT} --build ${WD} -j4)
 step(test COMMAND ${CTEST_EXE} --test-dir ${WD} --output-on-failure)
 
@@ -44,7 +44,7 @@ if(MODE STREQUAL "full")
   if(asan_rc EQUAL 0)
     set(AD ${BIN}/check-asan)
     step(asan-configure COMMAND ${CT} -S ${SRC} -B ${AD} -DDOFSCROLL_SANITIZE=ON
-         -DDOFSCROLL_TRAY=OFF -DDOFSCROLL_CORE_ONLY=${CORE_ONLY})
+         -DDOFSCROLL_CORE_ONLY=${CORE_ONLY})
     step(asan-build COMMAND ${CT} --build ${AD} -j4)
     step(asan-test COMMAND ${CTEST_EXE} --test-dir ${AD} --output-on-failure)
   elseif(REQUIRE_ASAN)
@@ -63,11 +63,7 @@ if(MODE STREQUAL "full")
     message("\ncppcheck not installed - skipped (CI installs it).")
   endif()
 
-  set(bins ${WD}/dofscroll)
-  if(EXISTS ${WD}/dofscroll-tray)
-    list(APPEND bins ${WD}/dofscroll-tray)
-  endif()
-  step(check-hardening COMMAND sh ${SRC}/scripts/check-hardening.sh ${bins})
+  step(check-hardening COMMAND sh ${SRC}/scripts/check-hardening.sh ${WD}/dofscroll)
 endif()
 
 if(fail)
