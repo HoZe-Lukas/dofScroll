@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "main_window.hpp"
+#include "ui/model/status_text.hpp"
 
 #include <QCloseEvent>
 #include <QEvent>
@@ -172,8 +173,12 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     statusBar()->addPermanentWidget(saveLabel_);
     connect(&autosave_, &Autosaver::written, this, [this] { noteConfigStamp(); });
     connect(&autosave_, &Autosaver::statusChanged, this, [this](const QString &text, bool error) {
-        saveLabel_->setText(text);
+        // a symbol before the words, and the status colour: never colour alone
+        const spn::ui::StatusKind kind = spn::ui::footerKind(text.toUtf8().toStdString(), error, strings_);
+        saveLabel_->setText(text.isEmpty() ? text : qs8(spn::ui::withMark(kind, text.toUtf8().toStdString())));
         saveLabel_->setProperty("error", error);
+        saveLabel_->setProperty("warning", !error && !text.isEmpty() && kind == spn::ui::StatusKind::Warning);
+        saveLabel_->setProperty("success", !error && !text.isEmpty() && kind == spn::ui::StatusKind::Success);
         saveLabel_->style()->unpolish(saveLabel_);
         saveLabel_->style()->polish(saveLabel_);
     });

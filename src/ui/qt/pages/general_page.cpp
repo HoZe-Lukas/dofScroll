@@ -318,11 +318,21 @@ private:
         autostart_->setToolTip(qs8(v.tooltip));
         QString text = qs8(v.text);
         if (!r.setOk) {
-            const QString failed = T("Could not change the setting: ") + qs8(r.setErr);
+            const QString failed = mark(spn::ui::StatusKind::Error, T("Could not change the setting: ") + qs8(r.setErr));
             text = text.isEmpty() ? failed : failed + QLatin1Char('\n') + text;
+        } else if (v.isError && !text.isEmpty()) {
+            text = mark(spn::ui::StatusKind::Warning, text);
         }
+        setErrorLook(autostartMsg_, !r.setOk);
         autostartMsg_->setText(text);
         autostartMsg_->setForegroundRole(v.isError || !r.setOk ? QPalette::WindowText : QPalette::PlaceholderText);
+    }
+
+    // The red status colour of a failure message (the symbol and the words carry the meaning too).
+    static void setErrorLook(QLabel *l, bool error) {
+        l->setProperty("error", error);
+        l->style()->unpolish(l);
+        l->style()->polish(l);
     }
 
     void onTheme() {
@@ -332,9 +342,11 @@ private:
         if (updateUiSettings(uiSettingsPath(), [theme](UiSettings &s) { s.theme = theme; }, &err)) {
             themeMsg_->setText(T("Applies at once and is remembered."));
             themeMsg_->setForegroundRole(QPalette::PlaceholderText);
+            setErrorLook(themeMsg_, false);
         } else {
-            themeMsg_->setText(T("Could not save the theme: ") + qs8(err));
+            themeMsg_->setText(mark(spn::ui::StatusKind::Error, T("Could not save the theme: ") + qs8(err)));
             themeMsg_->setForegroundRole(QPalette::WindowText);
+            setErrorLook(themeMsg_, true);
         }
     }
 
@@ -344,9 +356,11 @@ private:
         if (updateUiSettings(uiSettingsPath(), [language](UiSettings &s) { s.language = language; }, &err)) {
             languageMsg_->setText(T("Takes effect the next time dofscroll-ui is started."));
             languageMsg_->setForegroundRole(QPalette::PlaceholderText);
+            setErrorLook(languageMsg_, false);
         } else {
-            languageMsg_->setText(T("Could not save the language: ") + qs8(err));
+            languageMsg_->setText(mark(spn::ui::StatusKind::Error, T("Could not save the language: ") + qs8(err)));
             languageMsg_->setForegroundRole(QPalette::WindowText);
+            setErrorLook(languageMsg_, true);
         }
     }
 

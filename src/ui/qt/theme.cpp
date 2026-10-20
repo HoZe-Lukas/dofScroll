@@ -332,6 +332,7 @@ QString styleSheetFor(const spn::ui::ThemeColors &c) {
     // input.setProperty("invalid", true) (red border)
     add(QStringLiteral("QLabel[error=\"true\"] { color: %1; }").arg(hex(c.danger)));
     add(QStringLiteral("QLabel[warning=\"true\"] { color: %1; }").arg(hex(c.warning)));
+    add(QStringLiteral("QLabel[success=\"true\"] { color: %1; }").arg(hex(c.success)));
     add(QStringLiteral("QLineEdit[invalid=\"true\"], QAbstractSpinBox[invalid=\"true\"], QComboBox[invalid=\"true\"] "
                        "{ border: 1px solid %1; }")
             .arg(hex(c.danger)));

@@ -892,7 +892,7 @@ QWidget *ProfilesPage::buildOverrides(size_t section) {
         connect(edit, &QLineEdit::textEdited, this, [this, section, key, edit, hint](const QString &t) {
             std::string err;
             const bool ok = ctx_.settings->setValue(section, key, t.toUtf8().toStdString(), &err);
-            hint->setText(ok ? QString() : T("Invalid value: ") + qs8(err));
+            hint->setText(ok ? QString() : mark(spn::ui::StatusKind::Error, T("Invalid value: ") + qs8(err)));
             hint->setVisible(!ok);
             edit->setProperty("invalid", !ok);
             edit->style()->unpolish(edit);
