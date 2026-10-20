@@ -6,7 +6,17 @@
 Windows and macOS. It edits the same config file as the daemon and asks the daemon to reload, so
 changes apply immediately. The daemon runs without it. The interface starts minimized to the
 tray (no window opens); "Open settings" or a click on the tray icon shows the window. Without a
-system tray the window is shown minimized instead. On Linux the older GTK tray
+system tray the window is shown minimized instead.
+
+The window remembers its size, position and the page you last used (`window = x,y,w,h` and
+`page = <id>` in `ui.conf`, next to the language and theme) and restores them at the next start,
+also when you raise it from the tray or by starting the interface a second time. A saved position
+that is off all screens (for example a monitor was unplugged) is ignored, and the size never goes
+below the minimum window size. Closing the window with the close button hides it and the
+interface keeps running in the tray; the first time in a run, the tray shows a short notice
+("dofscroll is still running in the tray"). Without a system tray there is nothing to keep the
+interface reachable, so closing the window quits it, and the status bar says so ("No system tray
+found: closing the window quits dofscroll-ui"). Use "Quit" in the tray menu to quit otherwise. On Linux the older GTK tray
 (`dofscroll-tray`) is still shipped; use one of the two, not both (see
 [installation.md](installation.md)).
 

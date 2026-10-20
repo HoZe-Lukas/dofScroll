@@ -9,6 +9,7 @@
 #include <QIcon>
 #include <QMainWindow>
 #include <QString>
+#include <string>
 #include <vector>
 
 #include "qt_action_runner.hpp"
@@ -18,6 +19,7 @@
 #include "ui/model/status_model.hpp"
 #include "ui_context.hpp"
 
+class QCloseEvent;
 class QEvent;
 class QLabel;
 class QProxyStyle;
@@ -51,11 +53,33 @@ public:
     bool selectedProfileIs(size_t section) const;  // is this profile selected on the Profiles page?
     bool profilePageHasModeSelector() const;  // false for the default mode
 
+    // Window state: size, position and the selected page are kept in the per-user UI settings file
+    // `settingsPath` (src/ui/model/ui_settings.hpp). This restores them now (a saved geometry that is
+    // off all screens is ignored, the size respects the minimum) and from then on saves the page at
+    // every change and everything when the window is closed. Without this call nothing is read or
+    // written (the self-test windows).
+    void enableStatePersistence(const std::string &settingsPath);
+    bool restoreWindowState();  // false if the file holds no usable geometry
+    void saveWindowState();     // geometry (only while visible and not minimized) and page
+    // Is there a system tray? Without one, closing the window quits the application (an invisible
+    // process would stay), and the status bar says so. Default: true.
+    void setTrayAvailable(bool available);
+    bool trayAvailable() const { return trayAvailable_; }
+    QString trayNote() const;  // the status bar note about a missing tray ("" with a tray)
+
+signals:
+    // The window was closed and the process stays in the tray. Emitted on the first such close of a
+    // run only; the tray shows a short balloon for it.
+    void hiddenToTray();
+    void quitRequested();  // the window was closed and there is no tray to keep the process useful
+
 protected:
+    void closeEvent(QCloseEvent *e) override;
     bool event(QEvent *e) override;  // a palette change redraws the icons and the tab style
 
 private:
     void updateStatus();
+    void savePage();
     void refreshAppearance();  // tab icons in the colour of the palette, tab style on top of the current style
 
     // Declared before ctx_ and the widgets: the pages reference them.
@@ -72,4 +96,9 @@ private:
     QLabel *statusLabel_ = nullptr;
     QWidget *profilesPage_ = nullptr;  // the "Profiles" page from the registry
     QWidget *overviewPage_ = nullptr;  // the "Overview" page from the registry
+    QLabel *trayNote_ = nullptr;       // status bar note when there is no tray
+    std::string statePath_;            // ui.conf the window state is kept in ("" = not kept)
+    bool restoring_ = false;
+    bool trayAvailable_ = true;
+    bool trayNoticeShown_ = false;
 };

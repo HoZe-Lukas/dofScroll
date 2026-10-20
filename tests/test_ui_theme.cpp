@@ -32,7 +32,10 @@ static void testSetting() {
     assert(parseUiSettings("theme = neon\n").theme == Theme::System);
     assert(parseUiSettings("language = de\n").theme == Theme::System);  // an old file without a theme
     assert(parseUiSettings("theme = dark\ntheme = light\n").theme == Theme::Light);  // last wins
-    assert(!(UiSettings{Language::System, Theme::Dark} == UiSettings{Language::System, Theme::Light}));
+    UiSettings dark, light;
+    dark.theme = Theme::Dark;
+    light.theme = Theme::Light;
+    assert(!(dark == light));
 }
 
 static void testUpdateKeepsTheOtherSetting() {

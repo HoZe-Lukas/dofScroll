@@ -2,10 +2,13 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "main_window.hpp"
 
-#include <QHBoxLayout>
+#include <QCloseEvent>
 #include <QEvent>
+#include <QGuiApplication>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QProxyStyle>
+#include <QScreen>
 #include <QStackedWidget>
 #include <QStatusBar>
 #include <QTabBar>
@@ -23,6 +26,7 @@
 #include "ui/model/runtime_files.hpp"
 #include "theme.hpp"
 #include "ui/model/design_tokens.hpp"
+#include "ui/model/ui_settings.hpp"
 #include "ui_i18n.hpp"
 #include "vertical_tabs.hpp"
 
@@ -79,9 +83,11 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
                 else host = w;
             }
         }
+        if (tabs) connect(tabs, &QTabWidget::currentChanged, this, [this] { savePage(); });
         categories_->addWidget(tabs ? static_cast<QWidget *>(tabs) : host);
     }
     connect(categoryBar_, &QTabBar::currentChanged, categories_, &QStackedWidget::setCurrentIndex);
+    connect(categoryBar_, &QTabBar::currentChanged, this, [this] { savePage(); });
     // The Overview opens other pages: a card selects its profile, the buttons show a page.
     if (auto *overview = qobject_cast<OverviewPage *>(overviewPage_)) {
         connect(overview, &OverviewPage::openProfile, this, [this](int section) { openOverviewProfile(section); });
@@ -144,6 +150,15 @@ void MainWindow::updateStatus() {
 }
 
 void MainWindow::bringToFront() {
+    // A window that was hidden (closed to the tray, or never shown) comes back on the saved page.
+    if (!statePath_.empty() && !isVisible()) {
+        const std::string page = spn::ui::loadUiSettings(statePath_).page;
+        if (!page.empty()) {
+            restoring_ = true;
+            showPage(QString::fromStdString(page));
+            restoring_ = false;
+        }
+    }
     show();
     setWindowState((windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
     raise();
@@ -232,3 +247,92 @@ bool MainWindow::profilePageHasModeSelector() const {
     const auto *p = qobject_cast<const ProfilesPage *>(profilesPage_);
     return p && p->modeSelectorVisible();
 }
+
+void MainWindow::enableStatePersistence(const std::string &settingsPath) {
+    statePath_ = settingsPath;
+    restoreWindowState();
+}
+
+bool MainWindow::restoreWindowState() {
+    if (statePath_.empty()) return false;
+    const spn::ui::UiSettings saved = spn::ui::loadUiSettings(statePath_);
+    if (!saved.page.empty()) {
+        restoring_ = true;
+        showPage(QString::fromStdString(saved.page));  // an id that no longer exists is ignored
+        restoring_ = false;
+    }
+    if (!saved.window.valid) return false;
+    std::vector<spn::ui::ScreenRect> screens;
+    for (const QScreen *s : QGuiApplication::screens()) {
+        const QRect r = s->availableGeometry();
+        screens.push_back({r.x(), r.y(), r.width(), r.height()});
+    }
+    const spn::ui::WindowGeometry g = spn::ui::withMinimumSize(saved.window, spn::ui::tokens::kMinWindowWidth,
+                                                               spn::ui::tokens::kMinWindowHeight);
+    if (!spn::ui::geometryVisibleOn(g, screens)) return false;  // off all screens (a screen was removed)
+    resize(g.w, g.h);
+    move(g.x, g.y);  // outer frame position, as saved
+    return true;
+}
+
+void MainWindow::savePage() {
+    if (statePath_.empty() || restoring_) return;
+    const std::string page = currentPageId().toStdString();
+    if (page.empty()) return;
+    std::string err;
+    if (!spn::ui::updateUiSettings(statePath_, [&page](spn::ui::UiSettings &s) { s.page = page; }, &err))
+        fprintf(stderr, "dofscroll-ui: cannot save the window state: %s\n", err.c_str());
+}
+
+void MainWindow::saveWindowState() {
+    if (statePath_.empty()) return;
+    const std::string page = currentPageId().toStdString();
+    // A window that was never shown, or is minimized, has no geometry worth keeping.
+    const bool geometry = isVisible() && !isMinimized();
+    spn::ui::WindowGeometry g;
+    if (geometry) {
+        const bool normal = !(isMaximized() || isFullScreen());
+        const QPoint p = normal ? pos() : normalGeometry().topLeft();
+        const QSize sz = normal ? size() : normalGeometry().size();
+        g.valid = true;
+        g.x = p.x();
+        g.y = p.y();
+        g.w = sz.width();
+        g.h = sz.height();
+    }
+    std::string err;
+    if (!spn::ui::updateUiSettings(
+            statePath_,
+            [&](spn::ui::UiSettings &s) {
+                if (g.valid) s.window = g;
+                if (!page.empty()) s.page = page;
+            },
+            &err))
+        fprintf(stderr, "dofscroll-ui: cannot save the window state: %s\n", err.c_str());
+}
+
+void MainWindow::closeEvent(QCloseEvent *e) {
+    saveWindowState();
+    e->accept();  // hides the window; the process lives on in the tray
+    if (qGuiApp->isSavingSession()) return;
+    if (!trayAvailable_) {
+        emit quitRequested();
+    } else if (!trayNoticeShown_) {
+        trayNoticeShown_ = true;
+        emit hiddenToTray();
+    }
+}
+
+void MainWindow::setTrayAvailable(bool available) {
+    trayAvailable_ = available;
+    if (available) {
+        delete trayNote_;
+        trayNote_ = nullptr;
+    } else if (!trayNote_) {
+        trayNote_ = new QLabel(T("No system tray found: closing the window quits dofscroll-ui"), this);
+        trayNote_->setAccessibleName(T("System tray note"));
+        statusBar()->addPermanentWidget(trayNote_);
+    }
+}
+
+QString MainWindow::trayNote() const { return trayNote_ ? trayNote_->text() : QString(); }
