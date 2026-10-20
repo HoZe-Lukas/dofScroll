@@ -1,6 +1,7 @@
 <RCC>
   <qresource prefix="/">
     <file alias="dofscroll-tray.svg">../../../icons/dofscroll-tray.svg</file>
+    <file alias="dofscroll-app.svg">../../../icons/dofscroll-app.svg</file>
     <file alias="dofscroll-tray-template.svg">../../../icons/dofscroll-tray-template.svg</file>
     <file alias="icons/overview.svg">icons/overview.svg</file>
     <file alias="icons/profiles.svg">icons/profiles.svg</file>

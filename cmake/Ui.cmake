@@ -154,7 +154,7 @@ if(DOFSCROLL_UI)
     # the binary because dofscroll-ui looks for dofscroll_<lang>.qm in its own directory.
     install(FILES packaging/linux/dofscroll.desktop
             DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-    install(FILES icons/dofscroll-tray.svg RENAME dofscroll.svg
+    install(FILES icons/dofscroll-app.svg RENAME dofscroll.svg
             DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
     if(DOFSCROLL_LCONVERT)
       install(FILES $<TARGET_FILE_DIR:dofscroll-ui>/dofscroll_de.qm

@@ -2272,7 +2272,7 @@ int main(int argc, char **argv) {
     applyTheme(spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).theme);
 
     MainWindow window(ctx);
-    window.setWindowIcon(icon);
+    window.setWindowIcon(QIcon(QStringLiteral(":/dofscroll-app.svg")));  // taskbar and window: the colourful app icon
     const bool hasTray = QSystemTrayIcon::isSystemTrayAvailable();
     window.setTrayAvailable(hasTray);  // without a tray, closing the window quits
     QObject::connect(&window, &MainWindow::quitRequested, &app, &QApplication::quit);

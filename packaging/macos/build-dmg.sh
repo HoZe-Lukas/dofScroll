@@ -73,9 +73,9 @@ if [ "$HAS_UI" -eq 1 ]; then
     ICONSET="$OUT/dofscroll.iconset"
     rm -rf "$ICONSET" "$OUT/icon-src"
     mkdir -p "$ICONSET" "$OUT/icon-src"
-    if qlmanage -t -s 1024 -o "$OUT/icon-src" "$ROOT/icons/dofscroll-tray.svg" >/dev/null 2>&1 \
-        && [ -f "$OUT/icon-src/dofscroll-tray.svg.png" ]; then
-        src="$OUT/icon-src/dofscroll-tray.svg.png"
+    if qlmanage -t -s 1024 -o "$OUT/icon-src" "$ROOT/icons/dofscroll-app.svg" >/dev/null 2>&1 \
+        && [ -f "$OUT/icon-src/dofscroll-app.svg.png" ]; then
+        src="$OUT/icon-src/dofscroll-app.svg.png"
         for s in 16 32 128 256 512; do
             sips -z "$s" "$s" "$src" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
             sips -z $((s * 2)) $((s * 2)) "$src" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
