@@ -1069,9 +1069,13 @@ static bool fontScaleSelfTest(MainWindow &w) {
     bool ok = true;
     const QFont base = QApplication::font();
     w.show();
+    // the System theme (platform controls) and our own style sheet, whose lengths are in em (issue #104)
+    for (spn::ui::Theme theme : {spn::ui::Theme::System, spn::ui::Theme::Light})
     for (double scale : {1.5, 2.0}) {
-        QFont f = base;
-        f.setPointSizeF(base.pointSizeF() * scale);
+        QApplication::setFont(base);
+        applyTheme(theme);
+        QFont f = QApplication::font();
+        f.setPointSizeF(f.pointSizeF() * scale);
         QApplication::setFont(f);
         settle();
         for (const std::string &id : w.pageIds()) {
@@ -1079,6 +1083,15 @@ static bool fontScaleSelfTest(MainWindow &w) {
             settle();
             QWidget *page = w.currentPage();
             if (!page) continue;
+            // layout quality: a form page does not need a horizontal scroll bar (its width is the window's)
+            for (QScrollArea *area : page->findChildren<QScrollArea *>()) {
+                if (!area->isVisibleTo(page) || !area->widgetResizable()) continue;
+                if (area->horizontalScrollBar()->maximum() > 0) {
+                    std::fprintf(stderr, "font scale self-test failed: x%.1f page %s: a form needs a horizontal scroll bar (%d px too wide)\n",
+                                 scale, id.c_str(), area->horizontalScrollBar()->maximum());
+                    ok = false;
+                }
+            }
             for (QWidget *c : page->findChildren<QWidget *>()) {
                 if (!c->isVisibleTo(page)) continue;
                 const auto *lab = qobject_cast<QLabel *>(c);
@@ -1097,6 +1110,7 @@ static bool fontScaleSelfTest(MainWindow &w) {
         }
     }
     QApplication::setFont(base);
+    applyTheme(spn::ui::Theme::System);
     settle();
     std::printf("font scale self-test: %s\n", ok ? "ok" : "failed");
     return ok;

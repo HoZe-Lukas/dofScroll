@@ -29,6 +29,7 @@
 #endif
 
 #include "ui/model/design_tokens.hpp"
+#include "ui/model/qss_scale.hpp"
 
 namespace {
 
@@ -340,7 +341,8 @@ QString styleSheetFor(const spn::ui::ThemeColors &c) {
     const double base = QApplication::font().pointSizeF() > 0 ? QApplication::font().pointSizeF() : 10.0;
     add(QStringLiteral("QLabel[heading=\"page\"] { font-size: %1pt; font-weight: 600; }").arg(base * 1.4));
     add(QStringLiteral("QLabel[heading=\"section\"] { font-size: %1pt; font-weight: 600; }").arg(base * 1.15));
-    return q;
+    // lengths in em, so that the geometry follows the font size of the system (border widths stay in px)
+    return QString::fromStdString(spn::ui::pxToEm(q.toStdString()));
 }
 
 // The colours of the sheet for "System": the platform palette with our accent and shapes.
