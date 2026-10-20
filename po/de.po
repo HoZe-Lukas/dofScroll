@@ -2563,3 +2563,59 @@ msgstr "„%1“ hat ungespeicherte Änderungen. Zuerst speichern?"
 #: src/ui/qt/unsaved_prompt.hpp
 msgid "Discard"
 msgstr "Verwerfen"
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Rename"
+msgstr "Umbenennen"
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Give the mode file a new name and id (profiles that use it are listed first)"
+msgstr "Der Moduldatei einen neuen Namen und eine neue ID geben (Profile, die sie verwenden, werden vorher aufgelistet)"
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Export..."
+msgstr "Exportieren..."
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Save a copy of the mode file somewhere else"
+msgstr "Eine Kopie der Moduldatei an anderer Stelle speichern"
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Used by: no profile"
+msgstr "Verwendet von: kein Profil"
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Used by:"
+msgstr "Verwendet von:"
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "selected as the mode"
+msgstr "als Modus gewählt"
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "switched to by button %1"
+msgstr "wird von Taste %1 aktiviert"
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Export mode file"
+msgstr "Moduldatei exportieren"
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Could not export the mode."
+msgstr "Der Modus konnte nicht exportiert werden."
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Could not rename the mode."
+msgstr "Der Modus konnte nicht umbenannt werden."
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "New name of the mode:"
+msgstr "Neuer Name des Modus:"
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid ""
+"The id of the mode changes from \"%1\" to \"%2\". These profiles still refer "
+"to the old id and will fall back to the default mode until you change them:"
+msgstr ""
+"Die ID des Modus ändert sich von „%1“ zu „%2“. Diese Profile verweisen noch "
+"auf die alte ID und fallen auf den Standardmodus zurück, bis Sie sie ändern:"

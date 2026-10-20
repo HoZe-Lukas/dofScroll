@@ -370,6 +370,8 @@ static void testModeSwitchBinding() {
     assert(parseButtonAction("mode:timeline", &t, &k, &err, &id) && t == ButtonActionType::ModeSwitch && id == "timeline");
     assert(parseButtonAction(" Mode:NEXT ", &t, &k, &err, &id) && id == "next");
     assert(!parseButtonAction("mode:", &t, &k, &err) && !err.empty());
+    assert(validModeId("release") && parseButtonAction("mode:release", &t, &k, &err, &id) && id == "release");
+    assert(!validModeId("release:hold"));  // the internal hold-release request is not a mode id
     assert(!parseButtonAction("mode:bad name", &t, &k, &err));
     assert(parseButtonAction("mode:x", &t, &k, &err));  // id pointer is optional
 

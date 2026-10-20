@@ -6,6 +6,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 
 #include "testutil.hpp"
@@ -54,6 +55,18 @@ static void testUpdateKeepsTheOtherSetting() {
     std::ofstream(dir + "/blocker") << "x";
     err.clear();
     assert(!updateUiSettings(dir + "/blocker/sub/ui.conf", [](UiSettings &s) { s.theme = Theme::Light; }, &err) && !err.empty());
+    // an existing file that cannot be loaded (oversized) is not overwritten: the other setting stays
+    const std::string big = dir + "/big.conf";
+    std::ofstream(big) << "language = de\n# " << std::string(5000, 'x') << "\n";
+    err.clear();
+    assert(!updateUiSettings(big, [](UiSettings &s) { s.theme = Theme::Dark; }, &err) && !err.empty());
+    std::ifstream in(big);
+    const std::string kept((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    assert(kept.find("language = de") == 0 && kept.size() > 5000);
+    // a directory in place of the file is refused as well
+    std::filesystem::create_directory(dir + "/asdir.conf");
+    err.clear();
+    assert(!updateUiSettings(dir + "/asdir.conf", [](UiSettings &s) { s.theme = Theme::Dark; }, &err) && !err.empty());
     std::filesystem::remove_all(dir);
 }
 

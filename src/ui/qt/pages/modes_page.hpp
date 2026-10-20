@@ -6,6 +6,7 @@
 // stamp once a second while the page is visible (no file-system watcher dependency).
 #pragma once
 #include <QWidget>
+#include <QStringList>
 #include <memory>
 #include <string>
 
@@ -18,6 +19,8 @@ class QPushButton;
 class QStackedWidget;
 class ModeEditorWidget;
 class QTimer;
+class QDragEnterEvent;
+class QDropEvent;
 
 class ModesPage : public QWidget {
     Q_OBJECT
@@ -27,6 +30,15 @@ public:
     bool selectMode(const QString &id);        // selects a mode in the list (self-test, other pages)
     bool openEditor();                         // the in-page editor for the selected mode (a file mode)
     ModeEditorWidget *editorWidget() const { return editor_; }
+    // Mode library: the profiles that use the selected mode, as text lines for the details pane.
+    QStringList usedByLines(const QString &id) const;
+    // Import of a dropped or chosen file; with `interactive` it asks before keeping the file and
+    // shows errors, without it (self-test) it only reports through lastError(). True if imported.
+    bool importPath(const QString &file, bool interactive = true);
+    // No dialogs; failures are reported through lastError(). Rename does not rewrite profiles.
+    bool exportModeTo(const QString &id, const QString &dest);
+    bool renameMode(const QString &id, const QString &newName);
+    const QString &lastError() const { return lastError_; }
     const spn::ui::ModeCatalog &catalog() const { return catalog_; }
     QString currentId() const;                 // id of the selected list row
     // True while the in-page editor is shown and holds edits that are not saved.
@@ -38,6 +50,8 @@ public slots:
     void refreshIfChanged();  // timer; also callable directly
 
 protected:
+    void dragEnterEvent(QDragEnterEvent *e) override;
+    void dropEvent(QDropEvent *e) override;
     void showEvent(QShowEvent *e) override;
     void hideEvent(QHideEvent *e) override;
 
@@ -51,6 +65,8 @@ private:
     void onDuplicate();
     void onImport();
     void onEdit();
+    void onExport();
+    void onRename();
     void onDelete();
     void onOpenFolder();
     bool openInEditor(const std::string &path);
@@ -65,9 +81,10 @@ private:
     QStackedWidget *right_ = nullptr;  // details | editor
     ModeEditorWidget *editor_ = nullptr;
     QPushButton *newBtn_ = nullptr, *dupBtn_ = nullptr, *importBtn_ = nullptr, *editBtn_ = nullptr,
-                *delBtn_ = nullptr, *folderBtn_ = nullptr;
+                *delBtn_ = nullptr, *folderBtn_ = nullptr, *exportBtn_ = nullptr, *renameBtn_ = nullptr;
     QTimer *timer_ = nullptr;
     QString shownId_;  // the mode whose details or editor are shown (the list may be moved back to it)
+    QString lastError_;
 };
 
 QWidget *makeModesPage(const UiContext &ctx);

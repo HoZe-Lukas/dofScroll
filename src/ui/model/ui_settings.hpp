@@ -191,13 +191,17 @@ inline std::string serializeUiSettings(const UiSettings &s) {
     return out;
 }
 
-// Missing, unreadable, foreign-owned or oversized file: defaults.
-inline UiSettings loadUiSettings(const std::string &path) {
+// Missing, unreadable, foreign-owned or oversized file: defaults. *status (optional) tells which
+// case it was: NotFound is the normal first start, anything else other than Ok is a file that
+// exists but cannot be used.
+inline UiSettings loadUiSettings(const std::string &path, fs::ReadStatus *status = nullptr) {
     std::string text;
     fs::ReadOptions opt;
     opt.refuseLinks = true;
     opt.requireOwner = true;
-    if (!fs::readFileBounded(path, 4096, opt, &text).ok()) return UiSettings();
+    const fs::ReadResult rr = fs::readFileBounded(path, 4096, opt, &text);
+    if (status) *status = rr.status;
+    if (!rr.ok()) return UiSettings();
     return parseUiSettings(text);
 }
 
@@ -208,9 +212,16 @@ inline bool saveUiSettings(const std::string &path, const UiSettings &s, std::st
 // Changes one setting without touching the others: reads the file (defaults if it is missing),
 // lets `change` modify the settings, writes them back. Used by every control of the interface that
 // saves a setting, so that saving the language cannot reset the theme or the other way round.
+// A file that exists but cannot be loaded (unreadable, foreign owner, oversized, not a regular
+// file) is not replaced: the call fails with an error and the file stays as it is.
 template <class Change>
 inline bool updateUiSettings(const std::string &path, Change change, std::string *err) {
-    UiSettings s = loadUiSettings(path);
+    fs::ReadStatus st = fs::ReadStatus::Ok;
+    UiSettings s = loadUiSettings(path, &st);
+    if (st != fs::ReadStatus::Ok && st != fs::ReadStatus::NotFound) {
+        if (err) *err = "the existing settings file " + path + " cannot be read, it was not changed";
+        return false;
+    }
     change(s);
     return saveUiSettings(path, s, err);
 }

@@ -248,6 +248,54 @@ static bool accessibilitySelfTest(MainWindow &w) {
     return ok;
 }
 
+// Mode library: used-by lines, export, rename and the import of a dropped file (the confirmation dialog is skipped).
+static bool modeLibrarySelfTest(UiContext ctx, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "mode library self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    spn::ui::SettingsModel settings;
+    spn::ProfileSet ps;
+    const size_t a = ps.findOrAdd(spn::Section::APP, "blender");
+    ps.sections[a].kv = {{"MODE", "mine"}, {"BUTTON_2", "toggle:mode:mine"}};
+    settings.setProfiles(ps, ctx.configPath);
+    ctx.settings = &settings;
+    ModesPage page(ctx);
+    page.show();
+    settle();
+    const QStringList uses = page.usedByLines(QStringLiteral("mine"));
+    check(uses.size() == 1 && uses[0].startsWith(QStringLiteral("[app:blender]")) && uses[0].contains(QLatin1Char('2')),
+          "the profile that uses the mode is listed");
+    check(page.usedByLines(QStringLiteral("normal")).isEmpty(), "an unused mode has no profile");
+    const QString out = tmpPath + QStringLiteral("/exported-mine.conf");
+    check(page.exportModeTo(QStringLiteral("mine"), out) && QFile::exists(out), "export writes a copy");
+    // a dropped file goes through the same loader as Import; the id comes from the file name
+    const int before = page.modeCount();
+    check(page.importPath(out, false) && page.modeCount() == before + 1 && page.selectMode(QStringLiteral("exported-mine")),
+          "the exported file can be imported again");
+    QFile dropped(tmpPath + QStringLiteral("/dropped-one.conf"));
+    check(dropped.open(QIODevice::WriteOnly), "write a file to drop");
+    dropped.write("NAME = Dropped\nBUTTON_1 = key:space\n");
+    dropped.close();
+    check(page.importPath(dropped.fileName(), false) && page.selectMode(QStringLiteral("dropped-one")), "a dropped file is imported");
+    QFile bad(tmpPath + QStringLiteral("/bad.conf"));
+    check(bad.open(QIODevice::WriteOnly), "write an invalid file");
+    bad.write(QByteArray(70000, 'x'));
+    bad.close();
+    const int n = page.modeCount();
+    check(!page.importPath(bad.fileName(), false) && page.modeCount() == n, "an invalid file is refused");
+    check(page.renameMode(QStringLiteral("dropped-one"), QStringLiteral("Dropped Two")) &&
+              page.selectMode(QStringLiteral("dropped-two")) && !page.selectMode(QStringLiteral("dropped-one")) &&
+              QFile::exists(tmpPath + QStringLiteral("/modes/dropped-two.conf")),
+          "rename moves the file and the id");
+    check(!page.renameMode(QStringLiteral("normal"), QStringLiteral("Other")), "a built-in cannot be renamed");
+    // clean up what this test added
+    for (const char *f : {"/modes/dropped-two.conf", "/modes/exported-mine.conf"})
+        QFile::remove(tmpPath + QString::fromLatin1(f));
+    return ok;
+}
+
 // Extensions page: lists modes and button modes with their origin, adds a shipped example and removes it again.
 static bool extensionsSelfTest(const UiContext &ctx, const QString &tmpPath) {
     bool ok = true;
@@ -635,6 +683,7 @@ int main(int argc, char **argv) {
         if (!modeEditorSelfTest(ctx, tmp.path())) return 1;
         if (!unsavedGuardSelfTest(ctx, tmp.path(), w)) return 1;
         if (!extensionsSelfTest(ctx, tmp.path())) return 1;
+        if (!modeLibrarySelfTest(ctx, tmp.path())) return 1;
         ModesPage modes(ctx);  // standalone (own catalog): built-in normal, off, timeline + the file mode
         modes.show();
         Tray tray(&w, icon, ctx);

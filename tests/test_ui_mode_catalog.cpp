@@ -166,6 +166,60 @@ int main() {
     assert(c.stamp() != s1 && c.refreshIfChanged() && c.find("late"));
     (void)stamp0;
 
+    // ---- used by profiles ----
+    {
+        ProfileSet ps;
+        ps.sections[0].kv = {{"BUTTON_4", "hold:mode:late"}, {"MODE", "late"}};  // MODE in [global] is not a use
+        const size_t a = ps.findOrAdd(Section::APP, "firefox");
+        ps.sections[a].kv = {{"mode", "late"}, {"BUTTON_1", "toggle:mode:late"}, {"BUTTON_2", "mode:late"},
+                             {"BUTTON_3", "mode:other"}, {"BUTTON_5", "buttonmode:late"}, {"BUTTON_6", "key:space"}};
+        const size_t d = ps.findOrAdd(Section::DEVICE, "SpaceMouse");
+        ps.sections[d].kv = {{"MODE", "other"}};
+        const std::vector<ModeCatalog::ModeUse> u = ModeCatalog::usedBy(ps, "late");
+        assert(u.size() == 2);
+        assert(u[0].section == 0 && !u[0].selects && u[0].buttons == std::vector<int>({4}));
+        assert(u[1].kind == Section::APP && u[1].selects && u[1].buttons == std::vector<int>({1, 2}));
+        assert(ModeCatalog::useTitle(u[0]) == "[global]" && ModeCatalog::useTitle(u[1]) == "[app:firefox]");
+        assert(ModeCatalog::usedBy(ps, "other").size() == 2);   // the device selects it, the app has a button
+        assert(ModeCatalog::usedBy(ps, "nosuch").empty() && ModeCatalog::usedBy(ps, "").empty());
+    }
+
+    // ---- export ----
+    {
+        put(dir + "/exp.conf", "NAME = Exp\nBUTTON_1 = key:space\n");
+        c.refresh();
+        const std::string out = root + "/exported.conf";
+        assert(c.exportTo("exp", out).ok && tu::exists(out));
+        assert(!c.exportTo("exp", out).ok);  // never overwrites
+        assert(!c.exportTo("nope", root + "/x.conf").ok && !c.exportTo("exp", "").ok);
+        // the export is a valid mode file for the importer
+        assert(c.inspectImport(out, "exp-again").ok);
+        // a built-in is exported as its template
+        const std::string bo = root + "/builtin.conf";
+        assert(c.exportTo("timeline", bo).ok && c.inspectImport(bo, "tl-copy").ok);
+    }
+
+    // ---- rename ----
+    {
+        put(dir + "/old-one.conf", "# keep me\nNAME = Old one\nname = twice\nBUTTON_1 = key:space\n");
+        put(dir + "/taken.conf", "NAME = Taken\n");
+        c.refresh();
+        assert(ModeCatalog::withName("A = 1\n", "X") == "NAME = X\nA = 1\n");
+        assert(!c.rename("normal", "Normal two").ok);                 // built-in
+        assert(!c.rename("timeline", "Timeline two").ok);             // built-in
+        assert(!c.rename("old-one", "Taken").ok && tu::exists(dir + "/old-one.conf"));  // id taken
+        assert(!c.rename("old-one", "???").ok && !c.rename("nope", "X").ok);
+        const ModeCatalog::Result r = c.rename("old-one", "Brand New");
+        assert(r.ok && r.id == "brand-new" && !tu::exists(dir + "/old-one.conf") && tu::exists(dir + "/brand-new.conf"));
+        assert(!c.find("old-one") && c.find("brand-new") && c.find("brand-new")->label == "Brand New");
+        std::string text;
+        assert(fs::readFileBounded(dir + "/brand-new.conf", 4096, fs::ReadOptions(), &text).ok());
+        assert(text == "# keep me\nNAME = Brand New\nBUTTON_1 = key:space\n");
+        // same id, new display name: rewritten in place
+        const ModeCatalog::Result r2 = c.rename("brand-new", "Brand-New!");
+        assert(r2.ok && r2.id == "brand-new" && c.find("brand-new")->label == "Brand-New!");
+    }
+
     IdentityStrings id;
     assert(ModeCatalog::importSafetyNote(id).find("any key") != std::string::npos);
 

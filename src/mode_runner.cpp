@@ -175,12 +175,12 @@ void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, b
     // has been ended by another switch.
     const uint32_t released = prev_buttons_ & ~buttons;
     if (hold_release_pending_ && switch_request_.empty()) {
-        switch_request_ = "release";
+        switch_request_ = kHoldReleaseRequest;
         hold_release_pending_ = false;
     }
     if (hold_button_ > 0 && buttonHeld(released, hold_button_ - 1)) {
         hold_button_ = 0;
-        if (switch_request_.empty()) switch_request_ = "release";
+        if (switch_request_.empty()) switch_request_ = kHoldReleaseRequest;
         else hold_release_pending_ = true;
     }
     // Press edges only; nothing to look at (or to parse) while no button went down.

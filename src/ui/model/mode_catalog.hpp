@@ -12,6 +12,9 @@
 //   c.makeEditableCopy("normal")             // file with the same id: overrides the built-in
 //   c.inspectImport(path, name)              // check before copying: id, warnings, errors
 //   c.importFile(path, name)                 // same checks, then atomic copy, never overwrites
+//   c.rename(id, "New name")                 // file modes: new NAME and id (file name); references are NOT rewritten
+//   c.exportTo(id, destPath)                 // copy of the mode file to a chosen path, never overwrites
+//   ModeCatalog::usedBy(profiles, id)        // profile sections that select or switch to the mode
 //   c.remove(id)                             // file modes only; removing an override restores the built-in
 //   c.stamp() / c.refreshIfChanged()         // folder change detection for the view
 // Every operation that changes the folder refreshes the catalog. Operations return a Result with
@@ -20,10 +23,12 @@
 // mouse is moved; importSafetyNote() is the text the view shows before an imported file is kept.
 #pragma once
 #include <cctype>
+#include <cstdlib>
 #include "utf8.hpp"
 #include <string>
 #include <vector>
 
+#include "config.hpp"
 #include "mode_list.hpp"
 #include "modes.hpp"
 #include "platform/fs.hpp"
@@ -294,6 +299,145 @@ public:
     static std::string importSafetyNote(const StringProvider &s) {
         return s.tr("A mode file can press any key, including shortcut chords (Ctrl, Alt, Super), whenever a button is "
                     "pressed or the mouse is moved. Only keep files from sources you trust and read the file first.");
+    }
+
+    // ---- used by profiles ----
+    // A profile section that refers to a mode: its MODE key selects it (selects), and/or buttons
+    // switch to it (BUTTON_<n> = mode:<id>, toggle:mode:<id>, hold:mode:<id>). [global] can only
+    // refer through buttons. Toolkit-free, reads the raw keys of the sections.
+    struct ModeUse {
+        size_t section = 0;  // index in the ProfileSet
+        Section::Kind kind = Section::GLOBAL;
+        std::string pattern;
+        bool selects = false;               // MODE = <id>
+        std::vector<int> buttons;           // 1-based numbers of the buttons that switch to the mode
+    };
+    static std::vector<ModeUse> usedBy(const ProfileSet &ps, const std::string &id) {
+        std::vector<ModeUse> out;
+        if (id.empty()) return out;
+        for (size_t i = 0; i < ps.sections.size(); ++i) {
+            const Section &sec = ps.sections[i];
+            ModeUse u;
+            u.section = i;
+            u.kind = sec.kind;
+            u.pattern = sec.pattern;
+            for (const KV &kv : sec.kv) {
+                std::string key;
+                for (unsigned char c : kv.first) key += (c >= 'a' && c <= 'z') ? char(c - 32) : char(c);
+                std::string val = utf8::trim(kv.second);
+                if (key == "MODE") {
+                    if (i != 0 && val == id) u.selects = true;
+                } else if (key.compare(0, 7, "BUTTON_") == 0) {
+                    ButtonActionType t = ButtonActionType::Unbound;
+                    Key k = Key::Space;
+                    std::string err, target;
+                    if (!parseButtonAction(val, &t, &k, &err, &target)) continue;
+                    if ((t == ButtonActionType::ModeSwitch || t == ButtonActionType::ToggleMode ||
+                         t == ButtonActionType::HoldMode) && target == id) {
+                        const int n = std::atoi(key.c_str() + 7);
+                        if (n >= 1) u.buttons.push_back(n);
+                    }
+                }
+            }
+            if (u.selects || !u.buttons.empty()) out.push_back(u);
+        }
+        return out;
+    }
+    // "[app:firefox]" style title of a use, for lists and warnings (not translated).
+    static std::string useTitle(const ModeUse &u) {
+        if (u.kind == Section::DEVICE) return "[device:" + u.pattern + "]";
+        if (u.kind == Section::APP) return "[app:" + u.pattern + "]";
+        return "[global]";
+    }
+
+    // ---- export ----
+    // Copies the file of a File / BuiltInOverridden mode to `dest` (a file path chosen by the user).
+    // Never overwrites, never follows a link at `dest`; the content is read with the import limits.
+    // Built-in modes without a file are exported as the template text of the built-in.
+    Result exportTo(const std::string &id, const std::string &dest) const {
+        Result r;
+        const ModeEntry *e = find(id);
+        if (!e) return fail(r, "no such mode");
+        if (dest.empty()) return fail(r, "no destination");
+        std::string text;
+        if (e->path.empty()) {
+            const ModeDef *def = set_.find(id);
+            if (!def) return fail(r, "no such mode");
+            text = modelist::modeTemplate(*def);
+        } else if (!fs::readFileBounded(e->path, kMaxImportBytes, fs::ReadOptions(), &text).ok()) {
+            return fail(r, "cannot read " + e->path);
+        }
+        if (fs::pathExists(dest)) return fail(r, "the destination already exists");
+        if (!fs::createFileExclusive(dest, text)) return fail(r, "cannot create " + dest);
+        r.ok = true;
+        r.id = id;
+        r.path = dest;
+        return r;
+    }
+
+    // ---- rename ----
+    // Gives a file mode a new display name and the id derived from it (the file is renamed to
+    // <id>.conf, the NAME line is rewritten, everything else in the file is kept). Profiles that
+    // refer to the old id are NOT changed: the view lists usedBy(profiles, id) first. A change of
+    // the name that keeps the id rewrites the file in place. Built-ins and files that replace a
+    // built-in cannot be renamed (the id is the link to the built-in). Result::id is the new id.
+    Result rename(const std::string &id, const std::string &newName) {
+        Result r;
+        const ModeEntry *e = find(id);
+        if (!e) return fail(r, "no such mode");
+        if (e->origin != Origin::File) return fail(r, "only modes from a file can be renamed");
+        const std::string label = cleanLabel(newName);
+        const std::string nid = deriveId(label);
+        if (label.empty() || nid.empty()) return fail(r, "the name must contain letters or digits");
+        if (nid != id && taken(nid)) return fail(r, "a mode with the id '" + nid + "' already exists");
+        std::string text;
+        if (!fs::readFileBounded(e->path, kMaxImportBytes, fs::ReadOptions(), &text).ok())
+            return fail(r, "cannot read " + e->path);
+        const std::string out = withName(text, label);
+        const std::string dest = modelist::modeFilePath(dir_, nid);
+        std::string err;
+        if (nid == id) {
+            if (!fs::writeFileReplace(e->path, out, &err)) return fail(r, err);
+        } else {
+            if (!fs::createFileExclusive(dest, out)) return fail(r, "cannot create " + dest);
+            if (!fs::removeFile(e->path)) {
+                fs::removeFile(dest);
+                return fail(r, "cannot remove " + e->path);
+            }
+        }
+        r.ok = true;
+        r.id = nid;
+        r.path = dest;
+        refresh();
+        return r;
+    }
+    // The text with its NAME line set to `label`: the first NAME line is rewritten, further NAME
+    // lines are dropped, and without one the line is added at the top.
+    static std::string withName(const std::string &text, const std::string &label) {
+        std::string out;
+        bool done = false;
+        size_t pos = 0;
+        while (pos < text.size()) {
+            const size_t nl = text.find('\n', pos);
+            const size_t end = nl == std::string::npos ? text.size() : nl;
+            const std::string line = text.substr(pos, end - pos);
+            pos = nl == std::string::npos ? text.size() : nl + 1;
+            const size_t eq = line.find('=');
+            bool isName = false;
+            if (eq != std::string::npos && !line.empty() && line[0] != '#' && line[0] != ';') {
+                std::string key = utf8::trim(line.substr(0, eq));
+                for (char &c : key) c = (c >= 'a' && c <= 'z') ? char(c - 32) : c;
+                isName = key == "NAME";
+            }
+            if (isName) {
+                if (!done) out += "NAME = " + label + "\n";
+                done = true;
+            } else {
+                out += line + "\n";
+            }
+        }
+        if (!done) out = "NAME = " + label + "\n" + out;
+        return out;
     }
 
     // ---- remove ----
