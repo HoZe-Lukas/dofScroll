@@ -1062,34 +1062,44 @@ static bool selectionContrastSelfTest(const UiContext &ctx) {
     return ok;
 }
 
-// Large fonts (the operating system's font scale at 150% and 200%): no label or button may be cut off.
-// Pages live in scroll areas, so a page that needs more room than the window gives scrolls instead of
-// squashing its content: every visible label and button is at least as big as it asks for at its minimum.
+// Large fonts (the operating system's font scale at 150% and 200%) and narrow windows: no label or button
+// may be cut off. Pages live in scroll areas, so a page that needs more room than the window gives scrolls
+// instead of squashing its content: every visible label and button is at least as big as it asks for at its
+// minimum. Scroll bars are only the fallback: at the normal font size in the normal window no page shows a
+// horizontal scroll bar.
 static bool fontScaleSelfTest(MainWindow &w) {
     bool ok = true;
     const QFont base = QApplication::font();
     const QSize baseSize = w.size();
     w.show();
+    struct Case {
+        double scale;
+        int width;           // window width; 0 = the default, -1 = as wide as a user with this font would make it
+        bool noScrollBar;    // a horizontal scroll bar is a failure
+    };
+    const Case cases[] = {{1.0, 0, true}, {1.5, -1, false}, {2.0, -1, false}, {1.0, 560, false}, {2.0, 560, false}};
     // the System theme (platform controls) and our own style sheet, whose lengths are in em (issue #104)
     for (spn::ui::Theme theme : {spn::ui::Theme::System, spn::ui::Theme::Light})
-    for (double scale : {1.5, 2.0}) {
+    for (const Case &cs : cases) {
+        const double scale = cs.scale;
         QApplication::setFont(base);
         applyTheme(theme);
         QFont f = QApplication::font();
         f.setPointSizeF(f.pointSizeF() * scale);
         QApplication::setFont(f);
         // someone with a larger font also uses a wider window (up to a 1920 px screen)
-        w.resize(std::min(int(scale * baseSize.width()), 1920), baseSize.height());
+        const int width = cs.width > 0 ? cs.width : cs.width == 0 ? baseSize.width() : std::min(int(scale * baseSize.width()), 1920);
+        w.resize(width, baseSize.height());
         settle();
         for (const std::string &id : w.pageIds()) {
             w.showPage(QString::fromStdString(id));
             settle();
             QWidget *page = w.currentPage();
             if (!page) continue;
-            // layout quality: a form page does not need a horizontal scroll bar (its width is the window's)
+            // layout quality: by default (normal font, normal window) a form page needs no horizontal scroll bar
             for (QScrollArea *area : page->findChildren<QScrollArea *>()) {
                 if (!area->isVisibleTo(page) || !area->widgetResizable()) continue;
-                if (area->horizontalScrollBar()->maximum() > 0) {
+                if (cs.noScrollBar && area->horizontalScrollBar()->maximum() > 0) {
                     std::fprintf(stderr, "font scale self-test failed: x%.1f page %s: a form needs a horizontal scroll bar (%d px too wide)\n",
                                  scale, id.c_str(), area->horizontalScrollBar()->maximum());
                     ok = false;
@@ -1113,7 +1123,7 @@ static bool fontScaleSelfTest(MainWindow &w) {
                 const bool wraps = lab && lab->wordWrap();
                 // inside a scroll area the widget is laid out at its hint: a smaller size means it is cut off
                 if (c->height() < hint.height() - 2 || (!wraps && c->width() < hint.width() - 2)) {
-                    std::fprintf(stderr, "font scale self-test failed: x%.1f page %s: %s \"%s\" is %dx%d, needs %dx%d\n", scale,
+                    std::fprintf(stderr, "font scale self-test failed: x%.1f width %d page %s: %s \"%s\" is %dx%d, needs %dx%d\n", scale, width,
                                  id.c_str(), c->metaObject()->className(), qPrintable(lab ? lab->text().left(30) : qobject_cast<QAbstractButton *>(c) ? qobject_cast<QAbstractButton *>(c)->text().left(30) + QStringLiteral(" / ") + c->accessibleName().left(30) : c->objectName()),
                                  c->width(), c->height(), hint.width(), hint.height());
                     ok = false;

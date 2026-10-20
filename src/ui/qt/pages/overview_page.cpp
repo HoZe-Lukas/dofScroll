@@ -355,7 +355,9 @@ void OverviewPage::rebuildGettingStarted(const std::vector<spn::ui::GettingStart
 void OverviewPage::layoutQuickActions() {
     int widest = 0;
     for (const QPushButton *b : quickButtons_) widest = std::max(widest, b->sizeHint().width());
-    const int available = width() - 2 * spn::ui::tokens::kPageMargin - 2 * spn::ui::tokens::kCardPadding;
+    // the content is not wider than kMaxContentWidth, however wide the window is (as for the cards)
+    const int available = std::min(width(), spn::ui::tokens::kMaxContentWidth) - 2 * spn::ui::tokens::kPageMargin -
+                          2 * spn::ui::tokens::kCardPadding;
     const int cell = widest + spn::ui::tokens::kRowGap;
     int columns = width() > 0 ? std::max(1, (available + spn::ui::tokens::kRowGap) / cell) : 1;
     columns = std::min(columns, static_cast<int>(quickButtons_.size()));
