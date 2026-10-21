@@ -881,7 +881,7 @@ QWidget *ProfilesPage::buildModeInfo(size_t section) {
             desc->setTextFormat(Qt::PlainText);
             l->addWidget(desc);
         }
-    auto *grid = new motionview::MotionGrid(box);
+    auto *grid = new motionview::MotionGrid(box, 2);  // narrow tab: two columns
     grid->setObjectName(QStringLiteral("profileMotions"));
     grid->setMotions(a.motions);
     l->addWidget(grid);

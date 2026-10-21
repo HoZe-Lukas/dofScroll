@@ -211,7 +211,9 @@ public:
 // where the value comes from. A muted card (off, not used) keeps its words.
 class MotionGrid : public QWidget {
 public:
-    explicit MotionGrid(QWidget *parent = nullptr) : QWidget(parent) {
+    // columns 3: vertical, horizontal, twist/lift side by side (wide panes); columns 2: push and tilt of a channel
+    // side by side, three rows (narrow panes such as the profile tab, wider fonts of Windows and macOS)
+    explicit MotionGrid(QWidget *parent = nullptr, int columns = 3) : QWidget(parent) {
         auto *grid = new QGridLayout(this);
         grid->setContentsMargins(0, 0, 0, 0);
         grid->setSpacing(spn::ui::tokens::kSpaceXs);  // three cards side by side: tight gaps keep the page narrow
@@ -239,8 +241,9 @@ public:
             cl->addWidget(c.how);
             cl->addWidget(c.source);
             cl->addStretch(1);
-            grid->addWidget(c.frame, i % 2, i / 2);
-            grid->setColumnStretch(i / 2, 1);
+            const int row = columns == 2 ? i / 2 : i % 2, col = columns == 2 ? i % 2 : i / 2;
+            grid->addWidget(c.frame, row, col);
+            grid->setColumnStretch(col, 1);
             cards_.push_back(c);
         }
         setAccessibleName(T("What each motion does"));
