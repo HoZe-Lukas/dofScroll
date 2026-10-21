@@ -2,12 +2,12 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "pages/cycle_editor_widget.hpp"
 
+#include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
-#include <QPushButton>
-#include <QRadioButton>
 #include <QSignalBlocker>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 #include "qt_action_runner.hpp"
@@ -25,13 +25,16 @@ CycleEditorWidget::CycleEditorWidget(QWidget *parent) : QGroupBox(T("Cycle throu
     auto *lay = new QVBoxLayout(this);
     lay->setSpacing(spn::ui::tokens::kRowGap);
     setToolTip(T("Which joystick modes the button goes through, in this order, wrapping around."));
-    all_ = new QRadioButton(T("All joystick modes"), this);
-    all_->setToolTip(T("All joystick modes, in alphabetical order of their ids"));
-    only_ = new QRadioButton(T("Only these joystick modes"), this);
-    all_->setAccessibleName(T("All joystick modes, in alphabetical order of their ids"));
-    only_->setAccessibleName(T("Only these joystick modes"));
-    lay->addWidget(all_);  // one below the other: side by side they make the page wider than a window
-    lay->addWidget(only_);
+    choice_ = new QComboBox(this);
+    choice_->addItem(T("All joystick modes"));
+    choice_->addItem(T("Only these joystick modes"));
+    choice_->setItemData(0, T("All joystick modes, in alphabetical order of their ids"), Qt::ToolTipRole);
+    choice_->setAccessibleName(T("Which joystick modes the button goes through"));
+    // a fixed number of characters: the widths of radio buttons and long texts follow the font and made the editor
+    // column wider than the window on Windows
+    choice_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    choice_->setMinimumContentsLength(8);
+    lay->addWidget(choice_);
     list_ = new QListWidget(this);
     list_->setAccessibleName(T("Joystick modes to cycle through"));
     list_->setToolTip(T("Tick the joystick modes the button goes through; the numbers show the order"));
@@ -40,8 +43,12 @@ CycleEditorWidget::CycleEditorWidget(QWidget *parent) : QGroupBox(T("Cycle throu
     list_->setMinimumHeight(110);
     lay->addWidget(list_, 1);
     auto *col = new QHBoxLayout;  // the move buttons below the list (beside it the widget would be too wide)
-    up_ = new QPushButton(T("Move up"), this);
-    down_ = new QPushButton(T("Move down"), this);
+    up_ = new QToolButton(this);
+    down_ = new QToolButton(this);
+    up_->setText(QStringLiteral("\u25B2"));
+    down_->setText(QStringLiteral("\u25BC"));
+    up_->setAccessibleName(T("Move up"));
+    down_->setAccessibleName(T("Move down"));
     up_->setToolTip(T("Move the selected ticked joystick mode earlier in the cycle"));
     down_->setToolTip(T("Move the selected ticked joystick mode later in the cycle"));
     col->addWidget(up_);
@@ -58,24 +65,20 @@ CycleEditorWidget::CycleEditorWidget(QWidget *parent) : QGroupBox(T("Cycle throu
     lay->addWidget(summary_);
     lay->addWidget(hint_);
     lay->addWidget(note_);
-    setTabOrder(all_, only_);
-    setTabOrder(only_, list_);
+    setTabOrder(choice_, list_);
     setTabOrder(list_, up_);
     setTabOrder(up_, down_);
 
-    connect(all_, &QRadioButton::toggled, this, [this](bool on) {
-        if (on && !building_) setOnlySelected(false);
-    });
-    connect(only_, &QRadioButton::toggled, this, [this](bool on) {
-        if (on && !building_) setOnlySelected(true);
+    connect(choice_, QOverload<int>::of(&QComboBox::activated), this, [this](int i) {
+        if (!building_) setOnlySelected(i == 1);
     });
     connect(list_, &QListWidget::itemChanged, this, [this](QListWidgetItem *it) {
         if (building_) return;
         setChecked(it->data(kRoleId).toString(), it->checkState() == Qt::Checked);
     });
     connect(list_, &QListWidget::currentItemChanged, this, [this] { updateButtons(); });
-    connect(up_, &QPushButton::clicked, this, [this] { moveUp(currentRowId()); });
-    connect(down_, &QPushButton::clicked, this, [this] { moveDown(currentRowId()); });
+    connect(up_, &QToolButton::clicked, this, [this] { moveUp(currentRowId()); });
+    connect(down_, &QToolButton::clicked, this, [this] { moveDown(currentRowId()); });
 }
 
 void CycleEditorWidget::setState(const spn::ModeSet &modes, const std::vector<std::string> &cycle, bool editable) {
@@ -131,9 +134,8 @@ QStringList CycleEditorWidget::shownRows() const {
 void CycleEditorWidget::rebuild(const QString &keepId) {
     building_ = true;
     {
-        const QSignalBlocker b1(list_), b2(all_), b3(only_);
-        all_->setChecked(!model_.onlySelected());
-        only_->setChecked(model_.onlySelected());
+        const QSignalBlocker b1(list_), b2(choice_);
+        choice_->setCurrentIndex(model_.onlySelected() ? 1 : 0);
         list_->clear();
         const QtStrings strings;
         int select = -1, n = 0;
@@ -154,8 +156,7 @@ void CycleEditorWidget::rebuild(const QString &keepId) {
     }
     building_ = false;
     list_->setEnabled(editable_);  // ticking a mode switches to "only these"
-    all_->setEnabled(editable_);
-    only_->setEnabled(editable_);
+    choice_->setEnabled(editable_);
     updateButtons();
 }
 

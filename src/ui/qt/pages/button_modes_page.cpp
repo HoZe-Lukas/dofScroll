@@ -117,7 +117,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     // The width of the page must not follow the longest action text (platform fonts differ a lot):
     // a fixed number of characters, the list opens wide enough for every entry.
     kind_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    kind_->setMinimumContentsLength(12);  // the editor column scrolls but must fit the default window without a horizontal bar
+    kind_->setMinimumContentsLength(8);  // the editor column scrolls but must fit the default window without a horizontal bar
     argHost_ = new QWidget(right);
     auto *ah = new QHBoxLayout(argHost_);
     ah->setContentsMargins(0, 0, 0, 0);
@@ -159,6 +159,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     rl->addStretch(1);
     split->setStretchFactor(0, 1);
     split->setStretchFactor(1, 2);
+    split->setSizes({260, 520});  // the list would otherwise follow its longest description and squeeze the editor
     row->addWidget(split, 1);
 
     auto *buttons = new QVBoxLayout;

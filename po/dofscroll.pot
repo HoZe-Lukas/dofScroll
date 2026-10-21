@@ -2261,3 +2261,7 @@ msgstr ""
 #: src/ui
 msgid "Cycles: %1"
 msgstr ""
+
+#: src/ui/qt/pages/cycle_editor_widget.cpp
+msgid "Which joystick modes the button goes through"
+msgstr ""

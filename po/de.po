@@ -3515,3 +3515,7 @@ msgstr "Die eingebauten Tasten-Modi für den nächsten und den vorherigen Joysti
 #: src/ui
 msgid "Cycles: %1"
 msgstr "Schaltet durch: %1"
+
+#: src/ui/qt/pages/cycle_editor_widget.cpp
+msgid "Which joystick modes the button goes through"
+msgstr "Durch welche Joystick-Modi die Taste schaltet"

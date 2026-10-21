@@ -16,8 +16,8 @@
 
 class QLabel;
 class QListWidget;
-class QPushButton;
-class QRadioButton;
+class QComboBox;
+class QToolButton;
 
 class CycleEditorWidget : public QGroupBox {
     Q_OBJECT
@@ -45,9 +45,9 @@ private:
     QString currentRowId() const;
 
     spn::ui::CycleEditorModel model_;
-    QRadioButton *all_ = nullptr, *only_ = nullptr;
+    QComboBox *choice_ = nullptr;  // "All joystick modes" / "Only these joystick modes" (a drop-down: radio buttons are too wide for the narrow editor column)
     QListWidget *list_ = nullptr;
-    QPushButton *up_ = nullptr, *down_ = nullptr;
+    QToolButton *up_ = nullptr, *down_ = nullptr;
     QLabel *summary_ = nullptr, *hint_ = nullptr, *note_ = nullptr;
     bool editable_ = true;
     bool building_ = false;
