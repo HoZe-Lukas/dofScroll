@@ -68,6 +68,12 @@ cycles through exactly the joystick modes you list, in your order:
 - One file has one direction. For both directions make two button modes (`ACTION = mode:next` and
   `ACTION = mode:prev`) with the same list, and assign them to two buttons. You can have several lists
   (for example *Next video joystick mode* and *Next browse joystick mode*) and choose one per button on the Profiles page.
+- In the interface: on the Button modes page, with the action "Next joystick mode" or "Previous joystick mode",
+  the section **Cycle through** chooses between all joystick modes and "Only these joystick modes": tick the
+  modes, order them with "Move up" / "Move down" (the page writes the `CYCLE` line; no tick or "All"
+  removes it). Ids that match no loaded joystick mode are shown as "missing: <id>" and kept. The built-in
+  button modes have no file: `next-mode` and `prev-mode` go through all joystick modes, `cycle-favorites`
+  through `timeline`, `normal`; "Create editable copy" lets you change that.
 - A raw `BUTTON_<n> = mode:next` and a button mode without `CYCLE` keep cycling through all joystick modes.
   Internally the daemon expands a button mode with `CYCLE` to `mode:next:<id>,<id>,...` (also accepted
   in `BUTTON_<n>` and joystick mode files, but the button mode is the supported way). `CYCLE` with another action

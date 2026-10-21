@@ -2185,3 +2185,83 @@ msgstr ""
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Delete this copy of a shipped example (nothing changes, the built-in one applies)"
 msgstr ""
+
+#: src/ui
+msgid "Cycle through"
+msgstr ""
+
+#: src/ui
+msgid "Which joystick modes the button goes through, in this order, wrapping around."
+msgstr ""
+
+#: src/ui/qt/pages/cycle_editor_widget.cpp
+msgid "All joystick modes"
+msgstr ""
+
+#: src/ui/qt/pages/cycle_editor_widget.cpp
+msgid "All joystick modes, in alphabetical order of their ids"
+msgstr ""
+
+#: src/ui
+msgid "Only these joystick modes"
+msgstr ""
+
+#: src/ui
+msgid "Joystick modes to cycle through"
+msgstr ""
+
+#: src/ui
+msgid "Tick the joystick modes the button goes through; the numbers show the order"
+msgstr ""
+
+#: src/ui
+msgid "Move up"
+msgstr ""
+
+#: src/ui
+msgid "Move down"
+msgstr ""
+
+#: src/ui
+msgid "Move the selected ticked joystick mode earlier in the cycle"
+msgstr ""
+
+#: src/ui
+msgid "Move the selected ticked joystick mode later in the cycle"
+msgstr ""
+
+#: src/ui
+msgid "Order of the cycle"
+msgstr ""
+
+#: src/ui
+msgid "The button goes through all joystick modes, alphabetically."
+msgstr ""
+
+#: src/ui
+msgid "Nothing ticked yet: the button goes through all joystick modes, alphabetically."
+msgstr ""
+
+#: src/ui
+msgid "Order: %1"
+msgstr ""
+
+#: src/ui
+msgid "The list is full (at most 32 joystick modes)."
+msgstr ""
+
+#: src/ui
+msgid "A joystick mode that is missing stays in the file and is skipped; untick it to remove it."
+msgstr ""
+
+#: src/ui
+msgid "The built-in button modes for the next and the previous joystick mode go through all joystick modes; the built-in cycle-favorites goes through timeline, then normal. Create an editable copy to choose the joystick modes yourself."
+msgstr ""
+
+#: src/ui
+msgid "Cycles: %1"
+msgstr ""
+
+#: src/ui/qt/pages/cycle_editor_widget.cpp
+msgid "Which joystick modes the button goes through"
+msgstr ""

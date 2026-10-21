@@ -18,6 +18,7 @@
 #include "ui/model/button_mode_catalog.hpp"
 #include "ui_context.hpp"
 
+class CycleEditorWidget;
 class QComboBox;
 class QLabel;
 class QLineEdit;
@@ -38,8 +39,10 @@ public:
     QStringList exampleIds() const;
     bool installExample(const QString &id);
     QString originOf(const QString &id) const;
+    bool createEditableCopy(const QString &id);  // no question; the file of a built-in button mode, selected
     bool exportButtonModeTo(const QString &id, const QString &dest);  // no dialog; false + lastError()
     const QString &lastError() const { return lastError_; }
+    CycleEditorWidget *cycleEditor() const { return cycle_; }  // the "Cycle through" section (self-test)
     QString currentId() const;  // id of the selected list row
     bool selectButtonMode(const QString &id);  // self-test: select a row as a click would
     // For the self-test: set the editor fields as the user would (stageEdit), and write them too (editCurrent).
@@ -88,6 +91,7 @@ private:
     QWidget *argHost_ = nullptr;
     QWidget *argWidget_ = nullptr;
     QLabel *fileLabel_ = nullptr;
+    CycleEditorWidget *cycle_ = nullptr;  // only for the actions Next / Previous joystick mode
     motionview::ButtonChips *actionChip_ = nullptr;
     QPlainTextEdit *warnings_ = nullptr;
     QLabel *problem_ = nullptr;

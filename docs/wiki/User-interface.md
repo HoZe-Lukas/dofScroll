@@ -56,7 +56,7 @@ Problems are listed below the form ("Not saved until this is fixed: ..."); an in
 
 ### Button modes
 
-A **button mode** is one named behavior of a button (a key, a click, navigation, switching the joystick mode, a cycle through chosen joystick modes). The page lists them (Built in, Your file, replaces the built-in), with New, New from example, Duplicate, Import, Delete (it names what still uses it), "Create editable copy" for built-in ones and the editor for name, description and action. Choose a button mode in the drop-down of any button.
+A **button mode** is one named behavior of a button (a key, a click, navigation, switching the joystick mode, a cycle through chosen joystick modes). The page lists them (Built in, Your file, replaces the built-in), with New, New from example, Duplicate, Import, Delete (it names what still uses it), "Create editable copy" for built-in ones and the editor for name, description and action. For "Next joystick mode" / "Previous joystick mode" the editor also has **Cycle through**: all joystick modes alphabetically, or only the ticked ones in the order you set with Move up / Move down. Choose a button mode in the drop-down of any button.
 
 ### User modes
 

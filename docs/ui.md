@@ -240,7 +240,7 @@ toolkit-free (colour tokens in `src/ui/model/theme_colors.hpp`); the Qt checks a
 | Colour alone | Every error, warning and success message starts with a symbol (error, warning sign, check mark; `src/ui/model/status_text.hpp`) and keeps its words ("Could not save: ...", "Invalid value: ...", "Warning: ...", "Saved"): the hint under a field, the problem lists of the joystick mode and button mode editors, the Settings messages and the footer, which also uses the status colours (red, orange, green). "Inherited from ..." and "Set in this profile" are words; on/off is a switch with a knob position, not only a colour | `test_ui_status_text`, `--self-test` (problem next to the field has its symbol), review rule |
 | Colour-vision deficiencies | Status, accent, focus and border colours keep 3:1 luminance contrast after a protanopia, deuteranopia and tritanopia simulation (Machado matrices); selected text keeps 7:1 | `test_ui_theme` (`simulateCvd`) |
 | Operating system | System follows the platform palette (light or dark). A high-contrast request (the Qt contrast preference where Qt provides it, Windows high-contrast mode) switches the style sheet off so that the platform palette is shown unchanged. On other systems or older Qt nothing is detected | code review; needs a human on the platform |
-| Font size | The base font is the system font (plus 8%); the interface has no fixed pixel font sizes. The lengths of the style sheet (padding, heights, radii, indicator sizes) are in em, converted from the design pixels at a reference font of 14 px (`src/ui/model/qss_scale.hpp`), so the geometry follows the font size of the system; border widths stay in pixels. At 150% and 200% font size and in a window of 560 px, in the System theme and in the Light theme, no label or button is cut off: a page that is too narrow scrolls (the scroll bar appears only then); at the normal font size in the normal window no page shows a horizontal scroll bar | `test_ui_qss_scale`, self-test "font scale" |
+| Font size | The base font is the system font (plus 8%); the interface has no fixed pixel font sizes. The lengths of the style sheet (padding, heights, radii, indicator sizes) are in em, converted from the design pixels at a reference font of 14 px (`src/ui/model/qss_scale.hpp`), so the geometry follows the font size of the system; border widths stay in pixels. At 150% and 200% font size and in a window of 560 px, in the System theme and in the Light theme, no label or button is cut off: a page that is too narrow scrolls (the scroll bar appears only then); at the normal font size in the normal window no page shows a horizontal scroll bar (the normal window is the first-start size of 1560 x 1040 px; on a smaller screen it is cut to 90 % of the screen and a page may scroll, as it may in a window you made smaller) | `test_ui_qss_scale`, self-test "font scale" |
 | Motion | The interface has no animations, so there is nothing to reduce | none needed |
 | Screen readers, keyboard | Every input has an accessible name; the tab order follows the layout (no jump back up inside a column); the arrow keys, Home and End move between the left categories (the current one shows the focus ring); every "i" info button takes Tab focus and opens its popover with Space or Enter, the popover has an accessible name and Esc closes it; Escape closes dialogs | `accessibility`, `keyboard` and `sidebar focus` self-tests |
 
@@ -358,8 +358,20 @@ Import; files are only read, never run.
 The **Button modes** page (category Modes, next to Joystick modes) manages the button mode files:
 list, editor for name, description and action (saved by itself, see "Saving"; a drop-down is written
 at once), New, New from example, Duplicate, Import, Delete (it names the profiles and joystick mode
-files that still use the button mode) and "Open button modes folder". A `CYCLE` list of a
-`mode:next` / `mode:prev` button mode stays in the file when the name or description changes.
+files that still use the button mode) and "Open button modes folder". With the action
+"Next joystick mode" or "Previous joystick mode" the editor shows the section **Cycle through**: the
+choice "All joystick modes" (alphabetical order of their ids) or "Only these joystick modes", a check list of every
+loaded joystick mode (built in and yours; the ticked ones come first, numbered in cycle order), "Move
+up" / "Move down" for the selected ticked one, and the result in words ("Order: 1 timeline, 2
+normal"). Ticking a mode switches to "Only these"; no tick or "All" writes no `CYCLE` line (all
+joystick modes). An id in the file that matches no loaded joystick mode is shown as "missing: <id>"
+and kept (the daemon only warns and skips it); unticking removes it. It is saved by itself like the
+other fields. A built-in button mode has no file, so its section is read-only and says that
+and prev-mode go through all joystick modes while cycle-favorites uses timeline, then normal; "Create
+editable copy" makes it editable. The tooltip of a button mode in the list shows "Cycles: timeline,
+normal". The `CYCLE` list is kept when the name or description changes. The logic is in
+`src/ui/model/cycle_editor_model.hpp` (tests: `tests/test_ui_cycle_editor.cpp`), the view in
+`src/ui/qt/pages/cycle_editor_widget.cpp`.
 
 ## Profiles
 

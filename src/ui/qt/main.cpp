@@ -68,6 +68,7 @@
 #include "common.hpp"
 #include "pages/profiles_env.hpp"
 #include "pages/button_modes_page.hpp"
+#include "pages/cycle_editor_widget.hpp"
 #include "autosaver.hpp"
 #include "described_item_delegate.hpp"
 #include "info_popup.hpp"
@@ -223,6 +224,54 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
         check(ticked == 1, "the ctrl box is ticked for key:ctrl+0");
     }
     check(page.editCurrent(QStringLiteral("Edited"), QStringLiteral("Changed"), QStringLiteral("key:space")), "back to a plain key");
+    // "Cycle through" (CYCLE list): only for the actions Next / Previous joystick mode
+    {
+        CycleEditorWidget *ce = page.cycleEditor();
+        check(ce && !ce->isVisibleTo(&page), "no cycle section for a key action");
+        check(page.editCurrent(QStringLiteral("Edited"), QStringLiteral("Changed"), QStringLiteral("mode:next")), "save mode:next");
+        settle();
+        auto fileText = [&]() {
+            QFile cf(tmpPath + QStringLiteral("/buttons/latch.conf"));
+            const bool opened = cf.open(QIODevice::ReadOnly);
+            return opened ? cf.readAll() : QByteArray();
+        };
+        check(ce->isVisibleTo(&page) && !ce->model().onlySelected() && !fileText().contains("\nCYCLE"), "mode:next shows the section: all modes");
+        check(ce->setChecked(QStringLiteral("timeline"), true) && ce->setChecked(QStringLiteral("normal"), true), "tick two modes");
+        page.flush();
+        check(fileText().contains("CYCLE = timeline, normal\n") && !page.pending(), "the file holds the CYCLE line");
+        check(ce->shownRows().value(0).startsWith(QStringLiteral("1. ")) && ce->shownRows().value(1).startsWith(QStringLiteral("2. ")),
+              "the order is shown as numbers");
+        check(ce->moveDown(QStringLiteral("timeline")), "move down");
+        page.flush();
+        check(fileText().contains("CYCLE = normal, timeline\n"), "the file holds the new order");
+        check(page.catalog().find("latch") && page.catalog().find("latch")->cycle.size() == 2 && page.catalog().find("latch")->warnings.empty(),
+              "the file stays valid");
+        // the name edit keeps the list; a joystick mode that is not loaded stays as "missing"
+        check(page.editCurrent(QStringLiteral("Edited 2"), QStringLiteral("Changed"), QStringLiteral("mode:next")) &&
+                  fileText().contains("CYCLE = normal, timeline\n"),
+              "an edit of the name keeps the CYCLE list");
+        ce->setOnlySelected(false);
+        page.flush();
+        check(!fileText().contains("\nCYCLE") && page.catalog().find("latch")->cycle.empty(), "back to all: no CYCLE line");
+        check(ce->setChecked(QStringLiteral("timeline"), true), "ticking switches to only these");
+        page.flush();
+        check(fileText().contains("CYCLE = timeline\n"), "one mode written");
+        check(page.editCurrent(QStringLiteral("Edited"), QStringLiteral("Changed"), QStringLiteral("key:space")) &&
+                  !fileText().contains("\nCYCLE") && !ce->isVisibleTo(&page),
+              "another action drops the CYCLE line and hides the section");
+        // built-in button modes: read-only, with the explanation; the editable copy can be edited
+        check(page.selectButtonMode(QStringLiteral("cycle-favorites")) && ce->isVisibleTo(&page) &&
+                  ce->model().cycle() == std::vector<std::string>({"timeline", "normal"}) &&
+                  !ce->setChecked(QStringLiteral("video"), true) && !page.pending(),
+              "the built-in cycle-favorites shows its list read-only");
+        check(page.createEditableCopy(QStringLiteral("cycle-favorites")) && page.currentId() == QStringLiteral("cycle-favorites"), "editable copy");
+        ce = page.cycleEditor();
+        check(ce->setChecked(QStringLiteral("normal"), false), "the copy can be edited");
+        page.flush();
+        QFile cp(tmpPath + QStringLiteral("/buttons/cycle-favorites.conf"));
+        check(cp.open(QIODevice::ReadOnly) && cp.readAll().contains("CYCLE = timeline\n"), "the copy holds the changed CYCLE line");
+        cp.close();
+    }
     // a file that appears in the folder shows up (the page polls the folder stamp)
     QFile second(tmpPath + QStringLiteral("/buttons/second.conf"));
     check(second.open(QIODevice::WriteOnly) && second.write("ACTION = click\n") > 0, "write a second file");
@@ -1177,7 +1226,9 @@ static bool selectionContrastSelfTest(const UiContext &ctx) {
 static bool fontScaleSelfTest(MainWindow &w) {
     bool ok = true;
     const QFont base = QApplication::font();
-    const QSize baseSize = w.size();
+    // The default window of a normal screen (first start), not the window clamped to 90 % of the small virtual screen of a
+    // CI machine: "at the normal font size in the normal window no page needs a horizontal scroll bar".
+    const QSize baseSize(spn::ui::tokens::kDefaultWindowWidth, spn::ui::tokens::kDefaultWindowHeight);
     w.show();
     struct Case {
         double scale;
@@ -2649,6 +2700,20 @@ int main(int argc, char **argv) {
             bpage.selectButtonMode(QStringLiteral("latch-nav"));
             settle();
             if (bpage.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-wide-button-modes-selected.png").arg(QString::fromLatin1(th)))) ++written;
+            // "Cycle through": the built-in cycle-favorites (read-only, with the note), then its editable copy
+            bpage.resize(1000, 900);
+            bpage.selectButtonMode(QStringLiteral("cycle-favorites"));
+            settle();
+            if (bpage.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-wide-button-modes-cycle-builtin.png").arg(QString::fromLatin1(th)))) ++written;
+            if (bpage.catalog().find("cycle-favorites") && bpage.catalog().find("cycle-favorites")->builtin) {
+                bpage.createEditableCopy(QStringLiteral("cycle-favorites"));
+                bpage.cycleEditor()->setChecked(QStringLiteral("video"), true);
+                bpage.flush();
+            }
+            {
+                settle();
+                if (bpage.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-wide-button-modes-cycle.png").arg(QString::fromLatin1(th)))) ++written;
+            }
         }
         applyTheme(spn::ui::themeFromId("light"));
         {   // the dialogs (minimum-ish size and the default one)
