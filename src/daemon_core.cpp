@@ -468,8 +468,9 @@ void DaemonCore::syncLanes() {
         }
         std::cerr << LOG << "Device removed: lane for \"" << sanitizeForLog(lanes_[i]->device) << "\" ended" << std::endl;
         releaseLane(*lanes_[i], true);
-        mux_->removeView(lanes_[i]->out);
-        lanes_.erase(lanes_.begin() + static_cast<std::ptrdiff_t>(i));
+        Output *view = lanes_[i]->out;
+        lanes_.erase(lanes_.begin() + static_cast<std::ptrdiff_t>(i));  // the runner goes first, then its view
+        mux_->removeView(view);
         lane_used.erase(lane_used.begin() + static_cast<std::ptrdiff_t>(i));
     }
     // 4. new device, new lane

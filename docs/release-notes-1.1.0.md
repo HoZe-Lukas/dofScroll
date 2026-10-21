@@ -1,18 +1,53 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
-# dofscroll 1.0.1
+# dofscroll 1.1.0
 
 > **Tested extensively only on RHEL 9** (X11, KDE Plasma, SpaceMouse Pro and Compact). Other Linux
 > distributions were install-tested in CI containers (Rocky Linux 9, Debian 12 and 13, Ubuntu 24.04,
 > Fedora 42). The **Windows and macOS builds are built and unit-tested by CI but have never been run with a
 > real device.**
 
-Fix release for [1.0.0](release-notes-1.0.0.md), mainly for the Linux packages (they bring their own Qt),
-plus changes for Windows and macOS (the daemon can now read the device through the official 3Dconnexion driver),
-and improvements to the Qt interface. The Linux daemon, the command line and all existing configuration keys
-behave as before; one new key, `INPUT`, is read on Windows and macOS only.
+Feature release after [1.0.0](release-notes-1.0.0.md). A version 1.0.1 was prepared but never published; its
+changes are part of this release. Highlights: the Linux packages bring their own Qt, Windows and macOS can read the
+device through the official 3Dconnexion driver, several SpaceMice can run side by side with their own profile and
+joystick mode (Windows and macOS, direct HID), five new joystick modes, and the interface now stays in the tray
+after login. The Linux daemon, the command line and all existing configuration keys behave as before; one new key,
+`INPUT`, is read on Windows and macOS only.
 
 ## What changed
+
+### Several SpaceMice (#93)
+
+- **One lane per device.** Where the devices arrive separately (Windows and macOS, direct HID) the daemon keeps a
+  lane for each attached SpaceMouse: its own profile (`[device:*]` applies to the right device), joystick mode,
+  hold, toggle and navigation latch, DSP state and safety net. A button on one device switches the joystick mode
+  of that device only. Details: [multi-device.md](multi-device.md).
+- **Shared keys are counted.** Ctrl for zoom stays pressed until the last device stops zooming; unplugging a
+  device, a joystick mode change or `ENABLED = 0` for one device never releases a key another device still holds.
+- **Identical models** are addressed as `[device:<name> #2]` (`#<serial>` where the source knows it). Hotplug keeps
+  the state of the other devices.
+- The status line shows all devices with their joystick mode ("Devices: A (Joystick mode: normal), B (...)");
+  the status file gets `lanes=`, `active_device=` and `device<k>=`, `mode<k>=` and more for k = 2..n.
+- **Not done:** on Linux `spacenavd` still merges all devices into one stream, so Linux has one lane and
+  `[device:*]` applies to all devices; a per-device path next to `spacenavd` was not built (see
+  [multi-device.md](multi-device.md)). The Axes page lists all device names and shows the device that moved last;
+  it has no device selector. The Windows and macOS sources do not report serial numbers yet, so `#<n>` counts in
+  the order the devices were found. Everything is covered by tests with a fake two-device source; it has **not**
+  been run with two real devices (issue #93 stays open for that).
+
+### New joystick modes (#86 to #90)
+
+`sheet` (arrow keys for spreadsheet cells, twist pages up and down), `photo` (sideways = previous/next image, up/down
+zooms), `zoom-pan` (up/down zooms, twist scrolls sideways), `vertical-only` (vertical scroll only) and `fast` (the
+counterpart of `precision`: high sensitivities). They are built in on every system like the others
+([modes.md](modes.md)); none was tried in the programs they are meant for.
+
+### Interface stays in the tray after login (#135)
+
+On KDE the interface could open with a large window after every login: the desktop's session restore started a
+second `dofscroll-ui` next to the systemd unit, and the second start asked the first to show its window. The
+interface now opts out of session restore and a start with `-session` never raises the window
+([troubleshooting.md](troubleshooting.md)). Only a real login shows whether this fixes it on your desktop.
 
 ### Linux packages
 
@@ -82,13 +117,14 @@ behave as before; one new key, `INPUT`, is read on Windows and macOS only.
 
 ## Upgrading
 
-`sudo dnf install ./dofscroll-1.0.1-1.x86_64.rpm` (EPEL enabled for `spacenavd`, see
-[installation.md](installation.md)); `sudo apt install ./dofscroll_1.0.1_amd64.deb`. An older Qt that the
+`sudo dnf install ./dofscroll-1.1.0-1.x86_64.rpm` (EPEL enabled for `spacenavd`, see
+[installation.md](installation.md)); `sudo apt install ./dofscroll_1.1.0_amd64.deb`. An older Qt that the
 1.0.0 RPM pulled in stays installed and is simply no longer used by dofscroll.
 
 ## Tested on and known limitations
 
-As for 1.0.0. **The driver path (`INPUT`) has never run against the real 3Dconnexion driver on Windows or
+As for 1.0.0. **Several SpaceMice have never been run with two real devices**, and the autostart fix and the new
+joystick modes have not been checked on a real desktop or in the target programs. **The driver path (`INPUT`) has never run against the real 3Dconnexion driver on Windows or
 macOS; the defaults of `auto` are unverified guesses**, and so is everything about the new hidprobe backends and
 the coexistence test (checklists in [port-windows-checklist.md](port-windows-checklist.md) and
 [port-macos-checklist.md](port-macos-checklist.md)). The new Qt interface features were tested offscreen and in
