@@ -2144,7 +2144,7 @@ msgid "Each joystick mode says what the six motions of the cap and the buttons d
 msgstr ""
 
 #: src/ui/qt/pages/modes_page.cpp
-msgid "Chips, in this order: vertical push, vertical tilt, horizontal push, horizontal tilt, twist, lift / press. A dashed chip is off or not used."
+msgid "Symbols in this order: vertical push, vertical tilt, horizontal push, horizontal tilt, twist, lift / press. ↕ scroll, ↔ scroll sideways, ⊕ zoom, ⌨ keys, ⇥ one tap per push, ⊘ off, – not used (dashed)."
 msgstr ""
 
 #: src/ui/qt/pages/modes_page.cpp

@@ -136,7 +136,10 @@ private:
         const QString mask = index.data(kRoleMuted).toString();
         for (int i = 0; i < texts.size(); ++i) {
             motionview::Chip c;
-            c.text = texts[i];
+            // the list shows the symbol only (the words are in the detail view and the tooltip, the position
+            // says which motion it is); a word would be cut off in a narrow row
+            const int space = texts[i].indexOf(QLatin1Char(' '));
+            c.text = space > 0 ? texts[i].left(space) : texts[i];
             c.muted = i < mask.size() && mask[i] == QLatin1Char('1');
             out.append(c);
         }
@@ -185,9 +188,12 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     list_->setWordWrap(true);
     list_->setResizeMode(QListView::Adjust);
     list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // wide enough for the name, the badge and the six symbol chips in one row (the width follows the font size)
+    list_->setMinimumWidth(list_->fontMetrics().horizontalAdvance(QLatin1Char('x')) * 41);
     leftLayout->addWidget(list_, 1);
-    auto *legend = new QLabel(T("Chips, in this order: vertical push, vertical tilt, horizontal push, horizontal tilt, twist, "
-                                "lift / press. A dashed chip is off or not used."), left);
+    auto *legend = new QLabel(T("Symbols in this order: vertical push, vertical tilt, horizontal push, horizontal tilt, twist, "
+                                "lift / press. \u2195 scroll, \u2194 scroll sideways, \u2295 zoom, \u2328 keys, \u21E5 one tap per "
+                                "push, \u2298 off, \u2013 not used (dashed)."), left);
     legend->setWordWrap(true);
     legend->setTextFormat(Qt::PlainText);
     legend->setForegroundRole(QPalette::PlaceholderText);
@@ -205,6 +211,8 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     });
     split->setStretchFactor(0, 1);
     split->setStretchFactor(1, 2);
+    split->setChildrenCollapsible(false);
+    connect(split, &QSplitter::splitterMoved, this, [this] { list_->doItemsLayout(); });
     row->addWidget(split, 1);
 
     auto *buttons = new QVBoxLayout;
@@ -386,8 +394,9 @@ void ModesPage::buildDetail() {
     detailBadge_ = label(true);
     detailBadge_->setFrameShape(QFrame::StyledPanel);
     detailBadge_->setMargin(2);
-    head->addWidget(detailBadge_, 0, Qt::AlignTop);
     v->addLayout(head);
+    detailBadge_->setFrameShape(QFrame::NoFrame);  // a line of text under the title, not a boxed block at the side
+    v->addWidget(detailBadge_);
     detailDesc_ = label(false);
     v->addWidget(detailDesc_);
     detailMeta_ = label(true);

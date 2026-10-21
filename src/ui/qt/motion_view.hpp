@@ -221,6 +221,8 @@ public:
             c.frame->setProperty("card", true);  // rounded inset card (theme.cpp)
             c.frame->setFrameShape(QFrame::StyledPanel);
             auto *cl = new QVBoxLayout(c.frame);
+            cl->setContentsMargins(spn::ui::tokens::kSpaceMd, spn::ui::tokens::kSpaceSm, spn::ui::tokens::kSpaceMd,
+                                   spn::ui::tokens::kSpaceSm);  // three cards in a row: a small inset keeps the panel narrow
             cl->setSpacing(spn::ui::tokens::kSpaceXs);
             c.name = label(c.frame, true);
             c.action = label(c.frame, false);
