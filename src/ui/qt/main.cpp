@@ -1226,7 +1226,9 @@ static bool selectionContrastSelfTest(const UiContext &ctx) {
 static bool fontScaleSelfTest(MainWindow &w) {
     bool ok = true;
     const QFont base = QApplication::font();
-    const QSize baseSize = w.size();
+    // The default window of a normal screen (first start), not the window clamped to 90 % of the small virtual screen of a
+    // CI machine: "at the normal font size in the normal window no page needs a horizontal scroll bar".
+    const QSize baseSize(spn::ui::tokens::kDefaultWindowWidth, spn::ui::tokens::kDefaultWindowHeight);
     w.show();
     struct Case {
         double scale;

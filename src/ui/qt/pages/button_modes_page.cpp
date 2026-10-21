@@ -117,8 +117,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     // The width of the page must not follow the longest action text (platform fonts differ a lot):
     // a fixed number of characters, the list opens wide enough for every entry.
     kind_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    kind_->setMinimumContentsLength(8);
-    kind_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);  // may shrink with the column (default window, wide fonts)  // the editor column scrolls but must fit the default window without a horizontal bar
+    kind_->setMinimumContentsLength(8);  // the editor column scrolls but must fit the default window without a horizontal bar
     argHost_ = new QWidget(right);
     auto *ah = new QHBoxLayout(argHost_);
     ah->setContentsMargins(0, 0, 0, 0);
@@ -138,7 +137,6 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     fileLabel_ = new QLabel(right);
     fileLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     fileLabel_->setWordWrap(true);
-    fileLabel_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);  // a long path must not set the width of the column
     form->addRow(T("File:"), fileLabel_);
     rl->addLayout(form);
     cycle_ = new CycleEditorWidget(right);
@@ -152,9 +150,6 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     rl->addWidget(problem_);
     textEditorBtn_ = new QPushButton(T("Open in text editor"), right);
     textEditorBtn_->setToolTip(T("Open the file in your default editor"));
-    // its minimum width (text plus the padding of the theme) was 283 px on Windows and alone made the editor column
-    // wider than the column of the default window; it takes the width the column has
-    textEditorBtn_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
     rl->addWidget(textEditorBtn_, 0, Qt::AlignLeft);
     warnings_ = new QPlainTextEdit(right);
     warnings_->setReadOnly(true);  // plain text only: button mode files are foreign content
