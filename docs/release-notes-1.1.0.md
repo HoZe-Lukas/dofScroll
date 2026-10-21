@@ -49,6 +49,11 @@ second `dofscroll-ui` next to the systemd unit, and the second start asked the f
 interface now opts out of session restore and a start with `-session` never raises the window
 ([troubleshooting.md](troubleshooting.md)). Only a real login shows whether this fixes it on your desktop.
 
+### Extensions page (#129)
+
+The interface has one page for extensions: joystick mode files, device descriptions and examples, each with a switch
+([ui.md](ui.md)).
+
 ### Linux packages
 
 - **The Linux packages bring their own Qt (#116).** The 1.0.0 RPM was built against Qt 6.10.3 from EPEL, so it
