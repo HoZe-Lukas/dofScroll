@@ -95,6 +95,10 @@ Global and for every other profile. No setting appears in two places: the output
 Settings page (not in the Global profile), the daemon settings (tick rate, backend) are on the
 Settings page too (they do not belong to a profile).
 
+## Several devices
+
+With one lane per device (Windows and macOS, direct HID; [multi-device.md](multi-device.md)) the status line lists every device with its joystick mode ("Devices: A (Joystick mode: normal), B (Joystick mode: timeline)") and the warning "N SpaceMice connected, only 'A' is reported" does not appear. The Axes page shows the device that moved last; the names of all devices are listed, a device selector is planned (issue #139). The first device's values stay in the plain `profile=`, `mode=` keys of the status file, the others are `device2=`, `mode2=` and so on.
+
 ## Overview quick actions
 
 - **What do you want to do?** Three buttons that open the page for a task: "Tune scroll and zoom"
