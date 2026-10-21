@@ -252,7 +252,7 @@ The package then does a best-effort restart on its own: for every logged-in user
 `systemctl --user daemon-reload` and `try-restart` of `dofscroll.service` and
 `dofscroll-ui.service` (only units that are running are restarted; a fresh install does
 nothing; the step never fails the upgrade and never touches your config). If nobody was logged in
-through logind, or you run the program from a terminal, restart by hand:
+through logind, or you run the program from a terminal, restart by hand (user names with an `@`, such as domain accounts, are handled; an interface that was not started by its unit, for example by the desktop's session restore, is stopped and started through the unit when its binary was replaced):
 
     systemctl --user daemon-reload
     systemctl --user restart dofscroll.service dofscroll-ui.service
