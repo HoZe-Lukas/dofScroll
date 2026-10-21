@@ -358,8 +358,20 @@ Import; files are only read, never run.
 The **Button modes** page (category Modes, next to Joystick modes) manages the button mode files:
 list, editor for name, description and action (saved by itself, see "Saving"; a drop-down is written
 at once), New, New from example, Duplicate, Import, Delete (it names the profiles and joystick mode
-files that still use the button mode) and "Open button modes folder". A `CYCLE` list of a
-`mode:next` / `mode:prev` button mode stays in the file when the name or description changes.
+files that still use the button mode) and "Open button modes folder". With the action
+"Next joystick mode" or "Previous joystick mode" the editor shows the section **Cycle through**: the
+choice "All joystick modes (alphabetical)" or "Only these joystick modes", a check list of every
+loaded joystick mode (built in and yours; the ticked ones come first, numbered in cycle order), "Move
+up" / "Move down" for the selected ticked one, and the result in words ("Order: 1 timeline, 2
+normal"). Ticking a mode switches to "Only these"; no tick or "All" writes no `CYCLE` line (all
+joystick modes). An id in the file that matches no loaded joystick mode is shown as "missing: <id>"
+and kept (the daemon only warns and skips it); unticking removes it. It is saved by itself like the
+other fields. A built-in button mode has no file, so its section is read-only and says that
+and prev-mode go through all joystick modes while cycle-favorites uses timeline, then normal; "Create
+editable copy" makes it editable. The tooltip of a button mode in the list shows "Cycles: timeline,
+normal". The `CYCLE` list is kept when the name or description changes. The logic is in
+`src/ui/model/cycle_editor_model.hpp` (tests: `tests/test_ui_cycle_editor.cpp`), the view in
+`src/ui/qt/pages/cycle_editor_widget.cpp`.
 
 ## Profiles
 

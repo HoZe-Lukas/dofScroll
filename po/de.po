@@ -3439,3 +3439,75 @@ msgstr "Geerbt: %1"
 #: src/ui/qt/pages/profiles_page.cpp
 msgid "The motions come from the joystick mode file and are read-only here."
 msgstr "Die Bewegungen stammen aus der Joystick-Modus-Datei und sind hier schreibgeschützt."
+
+#: src/ui
+msgid "Cycle through"
+msgstr "Durchlaufen"
+
+#: src/ui
+msgid "Which joystick modes the button goes through, in this order, wrapping around."
+msgstr "Durch welche Joystick-Modi die Taste schaltet, in dieser Reihenfolge, nach dem letzten wieder zum ersten."
+
+#: src/ui
+msgid "All joystick modes (alphabetical)"
+msgstr "Alle Joystick-Modi (alphabetisch)"
+
+#: src/ui
+msgid "Only these joystick modes"
+msgstr "Nur diese Joystick-Modi"
+
+#: src/ui
+msgid "Joystick modes to cycle through"
+msgstr "Joystick-Modi zum Durchlaufen"
+
+#: src/ui
+msgid "Tick the joystick modes the button goes through; the numbers show the order"
+msgstr "Haken Sie die Joystick-Modi an, durch die die Taste schaltet; die Nummern zeigen die Reihenfolge"
+
+#: src/ui
+msgid "Move up"
+msgstr "Nach oben"
+
+#: src/ui
+msgid "Move down"
+msgstr "Nach unten"
+
+#: src/ui
+msgid "Move the selected ticked joystick mode earlier in the cycle"
+msgstr "Den ausgewählten, angehakten Joystick-Modus früher im Durchlauf einordnen"
+
+#: src/ui
+msgid "Move the selected ticked joystick mode later in the cycle"
+msgstr "Den ausgewählten, angehakten Joystick-Modus später im Durchlauf einordnen"
+
+#: src/ui
+msgid "Order of the cycle"
+msgstr "Reihenfolge des Durchlaufs"
+
+#: src/ui
+msgid "The button goes through all joystick modes, alphabetically."
+msgstr "Die Taste schaltet durch alle Joystick-Modi, alphabetisch."
+
+#: src/ui
+msgid "Nothing ticked yet: the button goes through all joystick modes, alphabetically."
+msgstr "Noch nichts angehakt: Die Taste schaltet durch alle Joystick-Modi, alphabetisch."
+
+#: src/ui
+msgid "Order: %1"
+msgstr "Reihenfolge: %1"
+
+#: src/ui
+msgid "The list is full (at most 32 joystick modes)."
+msgstr "Die Liste ist voll (höchstens 32 Joystick-Modi)."
+
+#: src/ui
+msgid "A joystick mode that is missing stays in the file and is skipped; untick it to remove it."
+msgstr "Ein fehlender Joystick-Modus bleibt in der Datei und wird übersprungen; entfernen Sie den Haken, um ihn zu löschen."
+
+#: src/ui
+msgid "The built-in button modes for the next and the previous joystick mode go through all joystick modes; the built-in cycle-favorites goes through timeline, then normal. Create an editable copy to choose the joystick modes yourself."
+msgstr "Die eingebauten Tasten-Modi für den nächsten und den vorherigen Joystick-Modus schalten durch alle Joystick-Modi; der eingebaute cycle-favorites schaltet durch timeline, dann normal. Erstellen Sie eine bearbeitbare Kopie, um die Joystick-Modi selbst zu wählen."
+
+#: src/ui
+msgid "Cycles: %1"
+msgstr "Schaltet durch: %1"

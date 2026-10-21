@@ -179,7 +179,7 @@ public:
         if (!src) return fail(r, "no such button mode");
         if (!src->builtin) return fail(r, "this button mode already has a file");
         if (fs::pathExists(filePath(id))) return fail(r, "file already exists");
-        return write(r, id, newTemplate(id, src->label, src->description, src->action));
+        return write(r, id, newTemplate(id, src->label, src->description, src->action, src->cycle));
     }
 
     // Copies the file of the button mode to `dest` (a file path chosen by the user; a built-in button

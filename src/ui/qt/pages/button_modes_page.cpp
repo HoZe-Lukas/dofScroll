@@ -26,9 +26,11 @@
 #include <QVBoxLayout>
 
 #include "described_item_delegate.hpp"
+#include "pages/cycle_editor_widget.hpp"
 #include "key_combo.hpp"
 #include "motion_view.hpp"
 #include "ui/model/button_chip_model.hpp"
+#include "ui/model/cycle_editor_model.hpp"
 #include "ui/model/mode_info_model.hpp"
 #include "platform/fs.hpp"
 #include "qt_action_runner.hpp"
@@ -128,6 +130,9 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     fileLabel_->setWordWrap(true);
     form->addRow(T("File:"), fileLabel_);
     rl->addLayout(form);
+    cycle_ = new CycleEditorWidget(right);
+    cycle_->setVisible(false);
+    rl->addWidget(cycle_);
     problem_ = new QLabel(right);
     problem_->setWordWrap(true);
     problem_->setProperty("error", true);
@@ -170,7 +175,8 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     setTabOrder(list_, name_);
     setTabOrder(name_, description_);
     setTabOrder(description_, kind_);
-    setTabOrder(kind_, textEditorBtn_);
+    setTabOrder(kind_, cycle_);
+    setTabOrder(cycle_, textEditorBtn_);
     setTabOrder(textEditorBtn_, newBtn_);
     setTabOrder(newBtn_, exampleBtn_);
     setTabOrder(exampleBtn_, dupBtn_);
@@ -191,6 +197,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
         rebuildActionArg();
         markDirty(false);
     });
+    connect(cycle_, &CycleEditorWidget::edited, this, [this] { markDirty(false); });
     connect(textEditorBtn_, &QPushButton::clicked, this, [this] { onOpenInEditor(); });
     connect(newBtn_, &QPushButton::clicked, this, [this] { onNew(); });
     connect(exampleBtn_, &QPushButton::clicked, this, [this] { onNewFromExample(); });
@@ -274,7 +281,9 @@ void ButtonModesPage::populate(const QString &selectId) {
             it->setData(kRoleOrigin, qs8(spn::ui::buttonModeOriginText(b.builtin, b.overridesBuiltin, QtStrings())));
             it->setData(kRoleDescription, b.description.empty() ? qs8(spn::ui::noDescriptionText(QtStrings())) : qs(b.description));
             if (!b.warnings.empty()) it->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
-            it->setToolTip(b.description.empty() ? qs8(spn::ui::noDescriptionText(QtStrings())) : qs(b.description));
+            QString tip = b.description.empty() ? qs8(spn::ui::noDescriptionText(QtStrings())) : qs(b.description);
+            if (!b.cycle.empty()) tip += QLatin1Char('\n') + qs8(spn::ui::CycleEditorModel::cyclesText(b.cycle, QtStrings()));
+            it->setToolTip(tip);
             list_->addItem(it);
             if (id == selectId) select = n;
             ++n;
@@ -301,6 +310,7 @@ void ButtonModesPage::loadForm() {
         if (kind_->itemData(i).toInt() == int(binding_.kind)) idx = i;
     kind_->setCurrentIndex(idx);
     rebuildActionArg();
+    cycle_->setState(spn::loadModes(ctx_.modesDir, nullptr), e ? e->cycle : std::vector<std::string>(), e && !e->builtin);
     fileLabel_->setText(e ? (e->builtin ? T("Built in (no file)") : qs(e->path)) : QString());
     shownId_ = e ? qs(e->id) : QString();
     updateWarnings();
@@ -361,6 +371,7 @@ void ButtonModesPage::rebuildActionArg() {
         argWidget_ = mc;
     }
     if (argWidget_) lay->addWidget(argWidget_);
+    cycle_->setVisible(binding_.kind == BindingKind::ModeNext || binding_.kind == BindingKind::ModePrev);
     refreshActionChip();
 }
 
@@ -454,9 +465,10 @@ spn::ui::Autosave::Outcome ButtonModesPage::writeForm() {
         std::fprintf(stderr, "button modes: the form composes no action\n");
         return {false, true, "choose a key or a joystick mode first"};
     }
-    // a CYCLE list of the file (see button-modes.md) stays while the action still is mode:next / mode:prev
-    const ButtonModeCatalog::Entry *entry = catalog_.find(id);
-    const std::vector<std::string> cycle = entry && (action == "mode:next" || action == "mode:prev") ? entry->cycle : std::vector<std::string>();
+    // the CYCLE list of the "Cycle through" section (see button-modes.md); only with mode:next / mode:prev,
+    // an empty list writes no CYCLE key (all joystick modes)
+    const std::vector<std::string> cycle =
+        action == "mode:next" || action == "mode:prev" ? cycle_->cycle() : std::vector<std::string>();
     const ButtonModeCatalog::Result r =
         catalog_.save(id, name_->text().toUtf8().toStdString(), description_->text().toUtf8().toStdString(), action, cycle);
     if (!r.ok) {
@@ -508,11 +520,19 @@ void ButtonModesPage::onEditableCopy() {
             .arg(qs(id)),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     if (a != QMessageBox::Yes) return;
+    createEditableCopy(qs(id));
+}
+
+bool ButtonModesPage::createEditableCopy(const QString &id) {
     flush();
-    const ButtonModeCatalog::Result r = catalog_.makeEditableCopy(id);
-    if (!r.ok) return showError(T("Could not create the file."), r.error);
+    const ButtonModeCatalog::Result r = catalog_.makeEditableCopy(id.toStdString());
+    if (!r.ok) {
+        showError(T("Could not create the file."), r.error);
+        return false;
+    }
     dirty_ = false;
-    populate(qs(id));
+    populate(id);
+    return true;
 }
 
 void ButtonModesPage::onImport() {
