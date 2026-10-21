@@ -57,11 +57,11 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
 // precision, tabs, browse) is parsed from the embedded example files, see builtin_library.hpp.
 std::vector<ModeDef> builtinModes(std::vector<std::string> *warnings, const BuiltinFile *library) {
     std::vector<ModeDef> v;
-    v.push_back(builtinMode("normal", "Normal", "Scroll, zoom and navigation as configured"));
-    ModeDef off = builtinMode("off", "Off", "Sends nothing");
+    v.push_back(builtinMode("normal", "Normal", "The everyday setting. Push the cap to scroll the window under the pointer (forward/back = up/down, sideways = left/right) and twist it to zoom (Ctrl + mouse wheel). Speed and feel come from your profile."));
+    ModeDef off = builtinMode("off", "Off", "Sends nothing: moving the cap does nothing. The buttons of your profile keep working. Use it for a program that reads the SpaceMouse itself (such as Blender) or to pause the axes while keeping the buttons.");
     off.v.type = off.h.type = off.twist.type = ChannelActionType::Off;
     v.push_back(off);
-    ModeDef tl = builtinMode("timeline", "Timeline", "Sideways = scrub, twist = single frames");
+    ModeDef tl = builtinMode("timeline", "Timeline", "For video editors. Push or tilt sideways to scrub through the clip (Left/Right arrow keys; the further you push, the faster). Twist to step single frames. Forward/back does nothing.");
     tl.v.type = ChannelActionType::Off;
     tl.h.type = tl.twist.type = ChannelActionType::Keys;
     tl.h.neg = tl.twist.neg = Key::Left;
