@@ -36,7 +36,7 @@ Invalid lines or files are skipped with a warning in the log.
 
 ## Built-in joystick modes
 
-Nine joystick modes ship inside the program on every system. They need no file, no examples folder
+Fourteen joystick modes ship inside the program on every system. They need no file, no examples folder
 and no install path, and nothing is copied into your configuration directory. They appear
 everywhere a joystick mode can be chosen (profile drop-downs, tray menu, Overview, `MODE = <id>`,
 `mode:<id>` buttons) with the origin "Built in".
@@ -52,11 +52,16 @@ everywhere a joystick mode can be chosen (profile drop-downs, tray menu, Overvie
 | `precision` | Default channels with low sensitivities (`SCROLL_V_SENS = 2`, `SCROLL_H_SENS = 1`, `ZOOM_SENS = 2`). |
 | `tabs` | Sideways = `ctrl+pageup` / `ctrl+pagedown` (previous / next tab in browsers and terminals; not verified in every program). |
 | `browse` | Up/down = page up/down, sideways = left/right, twist = zoom. |
+| `sheet` | Up/down and sideways = arrow keys, twist = `pageup`/`pagedown` (spreadsheet cells). |
+| `photo` | Sideways = previous/next image (`left`/`right`), up/down = zoom, twist off. |
+| `zoom-pan` | Up/down = zoom, twist = horizontal wheel, sideways default (audio and video timelines). |
+| `vertical-only` | Vertical scroll only; sideways and twist off. |
+| `fast` | Default channels with high sensitivities (`SCROLL_V_SENS = 12`, `SCROLL_H_SENS = 10`, `ZOOM_SENS = 12`). |
 
 Their behavior in real programs is not verified. The built-in joystick modes contain no button-to-key
 bindings, see [Buttons and the vendor driver](#buttons-and-the-vendor-driver).
 
-The text of `slides`, `media`, `map`, `precision`, `tabs` and `browse` is the single source
+The text of `slides`, `media`, `map`, `precision`, `tabs`, `browse`, `sheet`, `photo`, `zoom-pan`, `vertical-only` and `fast` is the single source
 `examples/modes/<id>.conf`; the build embeds it into the program, and the program parses it with the
 same parser as a user file. `timeline`, `normal` and `off` are defined in code. The embedded set is
 never written to disk.
@@ -74,8 +79,8 @@ There is no built-in `cycle-modes` mode: it only bound `mode:next` to button 2 i
 joystick mode, which the button mode `next-mode` does better and in every joystick mode.
 
 **`mode:next` / `mode:prev` with the built-in library.** They cycle through *all* loaded joystick modes in
-alphabetical order of the id, built-ins included: `browse`, `map`, `media`, `normal`, `off`,
-`precision`, `slides`, `tabs`, `timeline` plus your own, so the cycle is long. Use `mode:<id>` or
+alphabetical order of the id, built-ins included: `browse`, `fast`, `map`, `media`, `normal`, `off`,
+`photo`, `precision`, `sheet`, `slides`, `tabs`, `timeline`, `vertical-only`, `zoom-pan` plus your own, so the cycle is long. Use `mode:<id>` or
 `toggle:mode:<id>` for a short fixed set. Built-in joystick modes have no bindings of their own, so a cycle
 started from a joystick mode of yours stops at the next built-in unless you give that joystick mode a binding too
 (create an editable copy, or switch back through the tray menu).
