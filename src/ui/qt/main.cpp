@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // dofscroll-ui: Qt6 Widgets tray icon and settings window (see docs/ui-options.md).
 #include <QApplication>
+#include <QSessionManager>
 #include <QDir>
 #include <QCheckBox>
 #include <QImage>
@@ -2337,6 +2338,7 @@ int main(int argc, char **argv) {
     bool selfTest = false;
     const char *screenshotDir = nullptr;
     bool restarted = false;  // started by "Restart interface": wait for the old instance's lock
+    bool sessionRestore = false;  // started by the desktop's session restore (-session <id>), not by the user
     // Before any output and before QApplication: X11 thread support, and on Windows the parent
     // console for the command line flags (the executable has no console of its own).
     dofscroll_ui::earlyPlatformInit();
@@ -2359,6 +2361,7 @@ int main(int argc, char **argv) {
         if (!std::strcmp(argv[i], "--self-test")) selfTest = true;
         if (!std::strcmp(argv[i], "--screenshots") && i + 1 < argc) screenshotDir = argv[i + 1];
         if (!std::strcmp(argv[i], spn::ui::restartFlag())) restarted = true;
+        if (!std::strcmp(argv[i], "-session")) sessionRestore = true;
     }
 
 #if defined(DOFSCROLL_BUNDLED_QT)
@@ -2640,8 +2643,11 @@ int main(int argc, char **argv) {
     if (!lock.tryLock(spn::ui::lockWaitMs(restarted))) {
         if (spn::ui::classifyLockFailure(lock.error() == QLockFile::LockFailedError) ==
             spn::ui::LockOutcome::AlreadyRunning) {
-            QFile m(raiseMarker);
-            if (m.open(QIODevice::WriteOnly)) m.close();
+            // A session restore at login races with the systemd unit: it must not pop the window up.
+            if (!sessionRestore) {
+                QFile m(raiseMarker);
+                if (m.open(QIODevice::WriteOnly)) m.close();
+            }
             dofscroll_ui::attachParentConsole();
             std::fprintf(stderr, "dofscroll-ui is already running\n");
             return spn::ui::kExitAlreadyRunning;
@@ -2658,6 +2664,13 @@ int main(int argc, char **argv) {
 
     // The theme of the user (before any window exists, so the whole interface starts in it).
     applyTheme(spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).theme);
+
+    // The interface is started by its systemd unit, never by the desktop's session restore (a second
+    // start at login would show the window instead of staying in the tray).
+    QObject::connect(&app, &QGuiApplication::saveStateRequest,
+                     [](QSessionManager &mgr) { mgr.setRestartHint(QSessionManager::RestartNever); });
+    QObject::connect(&app, &QGuiApplication::commitDataRequest,
+                     [](QSessionManager &mgr) { mgr.setRestartHint(QSessionManager::RestartNever); });
 
     MainWindow window(ctx);
     window.setWindowIcon(QIcon(QStringLiteral(":/dofscroll-app.svg")));  // taskbar and window: the colourful app icon

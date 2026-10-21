@@ -93,6 +93,14 @@ Without an active-window query only `[global]` and `[device:*]` apply. To force 
 `BACKEND = x11` or `uinput` in `[global]` and restart the daemon. The log says which backend
 was chosen and why.
 
+### The window opens large after every login
+
+Older builds were also restarted by the desktop's session restore (KDE), which raced with the
+`dofscroll-ui.service` unit: the second start asked the first to show its window. The interface now opts out
+of session restore (`RestartNever`) and a start with `-session` never raises the window. If it still happens,
+remove a `dofscroll` entry from the desktop's saved session (KDE: System Settings, Session, Desktop Session,
+"Start with an empty session") and check `~/.config/autostart` for a second start of `dofscroll-ui`.
+
 ### Tray icon is missing
 
 The tray icon of `dofscroll-ui` uses the StatusNotifierItem (AppIndicator) protocol.
