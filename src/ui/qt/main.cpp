@@ -59,6 +59,7 @@
 
 #include "driver_platform.hpp"
 #include "main_window.hpp"
+#include "motion_view.hpp"
 #include "vertical_tabs.hpp"
 #include "pages/add_app_dialog.hpp"
 #include "pages/add_device_dialog.hpp"
@@ -349,6 +350,22 @@ static bool modeLibrarySelfTest(UiContext ctx, const QString &tmpPath) {
     check(uses.size() == 1 && uses[0].startsWith(QStringLiteral("[app:blender]")) && uses[0].contains(QLatin1Char('2')),
           "the profile that uses the mode is listed");
     check(page.usedByLines(QStringLiteral("normal")).isEmpty(), "an unused mode has no profile");
+    // every row of the list carries six chips (one per motion of the cap) and a muted flag per chip; the detail
+    // panel of the selected joystick mode shows six motions, "Lift / press" last
+    for (const spn::ui::ModeCatalog::ModeEntry &e : page.catalog().modes())
+        check(page.rowChips(QString::fromStdString(e.id)).size() == 6, "every list row shows six motion chips");
+    check(page.rowChips(QStringLiteral("normal")).value(0).contains(QStringLiteral("Scroll")) &&
+              page.rowChips(QStringLiteral("off")).value(0).contains(QStringLiteral("Off")) &&
+              page.rowChips(QStringLiteral("normal")).value(5).contains(QStringLiteral("Unused")),
+          "the chips say what the motion does in words (English test run)");
+    for (const char *id : {"normal", "off", "timeline", "mine"}) {
+        check(page.selectMode(QString::fromLatin1(id)), "select a joystick mode");
+        settle();
+        const QStringList cards = page.motionCardTexts();
+        check(cards.size() == 6 && cards.value(0).startsWith(QStringLiteral("Vertical push")) &&
+                  cards.value(5).startsWith(QStringLiteral("Lift / press")),
+              "the detail panel shows the six motions");
+    }
     const QString out = tmpPath + QStringLiteral("/exported-mine.conf");
     check(page.exportModeTo(QStringLiteral("mine"), out) && QFile::exists(out), "export writes a copy");
     // a dropped file goes through the same loader as Import; the id comes from the file name
@@ -884,6 +901,15 @@ static bool quickActionsSelfTest(const UiContext &base, const QString &tmpPath) 
 
 // Overview: it is the first page, shows one card per profile of the configuration, and a card opens
 // its profile on the Profiles page.
+// The widgets of a class without Q_OBJECT (motion_view.hpp) below a page: qobject_cast does not work for them.
+template <class T>
+static QList<T *> findAllOf(QWidget *root) {
+    QList<T *> out;
+    for (QWidget *c : root->findChildren<QWidget *>())
+        if (T *t = dynamic_cast<T *>(c)) out.append(t);
+    return out;
+}
+
 static bool overviewSelfTest(MainWindow &w) {
     bool ok = true;
     auto check = [&ok](bool cond, const char *what) {
@@ -894,6 +920,12 @@ static bool overviewSelfTest(MainWindow &w) {
     settle();
     check(w.currentPageId() == QStringLiteral("overview"), "the Overview is the first page");
     check(w.overviewCardCount() == 3, "one card per profile (device, two programs)");
+    {
+        const QList<motionview::MotionStrip *> strips = findAllOf<motionview::MotionStrip>(w.currentPage());
+        bool six = strips.size() == 3;
+        for (const motionview::MotionStrip *st : strips) six = six && st->chips().size() == 6;
+        check(six, "every Overview card shows the six motion chips");
+    }
     check(w.showPage(QStringLiteral("profiles")) && w.currentPageId() == QStringLiteral("profiles"), "showPage");
     check(w.showPage(QStringLiteral("overview")), "back to the Overview");
     // the cards wrap and keep their height when the window is made narrower or wider
@@ -1371,6 +1403,10 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
     // the same tabs for every profile; the header says which profile is edited
     for (size_t s : {size_t(0), size_t(1), size_t(2), size_t(3)}) {
         check(page->selectSection(s) && page->tabIds() == allTabs, "General, Channels, Buttons and Overrides for every profile");
+        // the General tab shows what the profile does with the same six-motion panel as the Joystick modes page
+        const QList<motionview::MotionGrid *> grids = findAllOf<motionview::MotionGrid>(page);
+        check(!grids.isEmpty() && grids.last()->cardTexts().size() == 6 && grids.last()->cardTexts().value(0).startsWith(QStringLiteral("Vertical push")),
+              "the General tab of every profile shows the six motions");
     }
     check(page->selectSection(0) && page->headerName() == QStringLiteral("Global") &&
               page->headerKind() == QStringLiteral("Global profile") && page->headerHasIcon() &&

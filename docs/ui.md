@@ -52,6 +52,24 @@ desktop portal; `--self-test` checks on Linux that the base style is Fusion. The
 | `kRowHeight` | 32 | rows of lists and trees |
 | `kRadius`, `kRadiusCard` | 8, 10 | corners |
 
+**One component, used everywhere (what a joystick mode or a profile does).** The six motions of the
+SpaceMouse cap always appear in the same order with the same symbol and the same chip style, on every
+page that shows what a joystick mode or a profile does: vertical push (axis z, symbol shows the action),
+vertical tilt (rx), horizontal push (x), horizontal tilt (rz), twist (ry) and lift / press (y, normally
+"Not used"). The shared view components are in `src/ui/qt/motion_view.hpp` (`MotionStrip` six small chips,
+`MotionGrid` the 3x2 panel with name, symbol, action, how the cap moves and where the value comes from,
+`ButtonChips` the buttons as numbered chips such as "1 Space", "2 Right click", "15 Navigation"), the
+models behind them are toolkit-free (`motion_summary_model.hpp`, `button_chip_model.hpp`,
+`profile_assignment_model.hpp`) and unit-tested. They are used by the Joystick modes list and detail view,
+the General tab of a profile (the effective assignment: joystick mode, the profile's own `BUTTON_<n>` and
+inherited ones, each with "from the joystick mode", "from this profile" or "inherited"), the Overview cards
+(compact strip), the "i" popover (text) and the Button modes page (the chip of the chosen action). A chip never
+relies on colour: an off or unused motion and an unassigned button have a dashed outline, a muted colour and
+the word ("Off", "Not used", "Unassigned"). Chip text stays short, the rest is the tooltip. All lengths come
+from the font metrics and the chips wrap, so no page needs a horizontal scroll bar at the default size
+(`--self-test` checks it). A new place that shows what a mode or profile does must use these components
+instead of drawing its own text.
+
 New pages should use plain layouts and group boxes and set no margins of their own; mark a primary
 button with `setProperty("primary", true)`, a check box that is one of several choices with
 `setProperty("look", "box")`, a heading label with `setProperty("heading", "page")` or `"section"`.
@@ -82,7 +100,7 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 |---|---|---|
 | Overview | Overview | Only summarizes and links: the state of the daemon, task buttons, quick actions (see "Overview quick actions" below) and one card per device or program profile with its joystick mode, a one-line summary of what it overrides and how many settings that are; "Open" shows the profile on the Profiles page. Every profile of the configuration has a card, a filter box narrows the list |
 | Profiles | Profiles | The list of profiles (Global first, then devices, then programs) and the editor of the selected one with the tabs General, Channels, Buttons and Overrides, see "Profiles" below |
-| Modes | Joystick modes | The available joystick modes (built-in and files in the joystick modes folder) with their origin and description: new, new from example, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every joystick mode the profiles that use it; a reminder that joystick mode files can press any key |
+| Modes | Joystick modes | The available joystick modes (built-in and files in the joystick modes folder), one row each with name, origin badge, one description line and six motion chips; the detail view shows the six motions as a panel, the buttons as chips and the profiles that use it. Actions: new, new from example, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every joystick mode the profiles that use it; a reminder that joystick mode files can press any key |
 | Modes | Button modes | The button mode files (`buttons/`): create, new from example, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
 | Modes | User modes | Your joystick mode files and button mode files in one list, each with a switch (on / off), where it is used and Remove; "Open folder" for both folders, see "User modes" below |
 | Device | Device | The connected devices and their button count (the number of button rows a profile offers), the daemon state |
@@ -293,11 +311,10 @@ navigation, a joystick mode switch). Config keys and file names do not change wi
 picked or listed: as tooltip of every entry of the joystick mode drop-downs (profile General tab,
 the joystick mode of a button, the Overview's Active joystick mode, the tray's Joystick mode menu)
 and of the button mode entries of the button drop-downs; as a second line (muted, wrapped) under the
-name in the lists of the Joystick modes and Button modes pages; and in the detail view. Next to
+name in the lists of the Joystick modes and Button modes pages (on the Joystick modes page the row is one description line, an origin badge and six motion chips; the full description is the tooltip); and in the detail view. Next to
 the joystick mode drop-down of a profile is an **i** button: it opens a popover with the name, where
-the joystick mode comes from (Built in / Your file), the description and what it does per channel in
-plain words ("Vertical push: scrolls vertically", "Horizontal push: taps Left or Right once per
-push", ...). The description field of both editors is always available.
+the joystick mode comes from (Built in / Your file), the description, what each of the six motions does
+("Vertical push: Scroll", "Horizontal push: Keys: Left / Right", "Lift / press: Not used", ...) and the bound buttons. The description field of both editors is always available.
 
 **Origin hints.** Every entry of the lists says where it comes from: "Built in", "Your file", "Your
 file, replaces the built-in joystick mode" (button modes: "Built in", "Your file", "Your file, replaces the

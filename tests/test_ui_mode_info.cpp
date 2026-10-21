@@ -63,7 +63,7 @@ int main() {
         assert(sl[0] == "Vertical, push part: scrolls vertically" && sl[1] == "Vertical, tilt part: does nothing");
         assert(sl[2].rfind("Horizontal, push part: taps ", 0) == 0 && sl[3] == "Horizontal, tilt part: zooms (Ctrl + wheel)");
         assert(sl[4].rfind("Twist: ", 0) == 0);
-        assert(joystickModeInfo(sp, "", id).find("Vertical, tilt part: does nothing") != std::string::npos);
+        assert(joystickModeInfo(sp, "", id).find("Vertical tilt: Off") != std::string::npos);
     }
     // live view of the parts (Axes page): push = x/y/z terms, tilt = rx/rz terms of the channel mix
     {
@@ -109,12 +109,12 @@ int main() {
     const std::string info = joystickModeInfo(*timeline, "Built in", id);
     assert(info.find("Timeline (timeline)") == 0 && info.find("\nBuilt in\n") != std::string::npos);
     assert(info.find(timeline->description) != std::string::npos && info.find("Vertical push:") != std::string::npos);
-    assert(info.find("Twist:") != std::string::npos);
+    assert(info.find("Twist:") != std::string::npos && info.find("Lift / press: Not used") != std::string::npos);
     ModeDef two = plain;
     two.buttons.push_back({1, ButtonActionType::Key, Key::Space, "", {}});
     two.buttons.push_back({2, ButtonActionType::Nav, Key::Space, "", {}});
     const std::string info2 = joystickModeInfo(two, "", id);
-    assert(info2.find("Mine (mine)") == 0 && info2.find("No description") != std::string::npos && info2.find("Binds 2 buttons") != std::string::npos);
+    assert(info2.find("Mine (mine)") == 0 && info2.find("No description") != std::string::npos && info2.find("Buttons: 1 Space, 2 Navigation") != std::string::npos);
     assert(info2.find("Built in") == std::string::npos);
     assert(buttonModeInfo(bm, "Your file", id).find("Action: toggle:nav") != std::string::npos);
 

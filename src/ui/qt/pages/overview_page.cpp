@@ -19,7 +19,9 @@
 
 #include "ui/model/design_tokens.hpp"
 #include "log_dialog.hpp"
+#include "motion_view.hpp"
 #include "ui/model/mode_info_model.hpp"
+#include "ui/model/profile_assignment_model.hpp"
 #include "ui/model/overview_model.hpp"
 #include "ui/model/ui_links.hpp"
 #include "ui/model/ui_progress.hpp"
@@ -195,7 +197,10 @@ void OverviewPage::showMessage(const std::string &err) {
 
 void OverviewPage::refresh() {
     if (!ctx_.settings || !ctx_.status || !ctx_.strings) return;
-    if (ctx_.modes) ctx_.modes->refreshIfChanged();
+    if (ctx_.modes) {
+        ctx_.modes->refreshIfChanged();
+        ctx_.settings->setModes(ctx_.modes->modeSet(), ctx_.modesDir);  // the cards show what the joystick mode does
+    }
     const spn::ui::OverviewData d =
         spn::ui::buildOverview(*ctx_.settings, *ctx_.status, *ctx_.strings, ctx_.modes ? &ctx_.modes->modeSet() : nullptr);
     statusLine_->setText(qs8(d.statusLine));
@@ -311,6 +316,11 @@ void OverviewPage::rebuildCards(const spn::ui::OverviewData &d, const std::vecto
         cl->addWidget(kind);
         cl->addWidget(name);
         cl->addWidget(summary);
+        // the same six chips as everywhere (motion_view.hpp): what the profile's joystick mode does with each motion
+        auto *strip = new motionview::MotionStrip(card);
+        strip->setObjectName(QStringLiteral("motionStrip"));
+        strip->setMotions(spn::ui::profileAssignment(*ctx_.settings, p.section, *ctx_.strings).motions);
+        cl->addWidget(strip);
         cl->addWidget(overrides);
         cl->addStretch(1);
         cl->addWidget(open, 0, Qt::AlignLeft);

@@ -3271,3 +3271,159 @@ msgstr "Dieses Gerät hat schon ein Profil."
 #: src/ui/qt/pages/profiles_page.cpp
 msgid "Output is off for this profile: it sends nothing, so the joystick mode, the buttons and the channel settings do not apply and are hidden. Switch the output on to edit them."
 msgstr "Die Ausgabe ist für dieses Profil aus: Es sendet nichts, daher gelten Joystick-Modus, Tasten und Kanaleinstellungen nicht und sind ausgeblendet. Schalte die Ausgabe ein, um sie zu bearbeiten."
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Unassigned"
+msgstr "Nicht belegt"
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Click"
+msgstr "Klick"
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Right click"
+msgstr "Rechtsklick"
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Middle click"
+msgstr "Mittelklick"
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Navigation"
+msgstr "Navigation"
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Toggle navigation"
+msgstr "Navigation umschalten"
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Switch to %1"
+msgstr "Wechseln zu %1"
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Toggle: %1"
+msgstr "Umschalten: %1"
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Hold: %1"
+msgstr "Halten: %1"
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Button mode: %1"
+msgstr "Tastenmodus: %1"
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Button %1: %2"
+msgstr "Taste %1: %2"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Scroll"
+msgstr "Scrollen"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Scroll sideways"
+msgstr "Seitlich scrollen"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Sideways"
+msgstr "Seitlich"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Keys: %1 / %2"
+msgstr "Tasten: %1 / %2"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Keys"
+msgstr "Tasten"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "One tap per push: %1 / %2"
+msgstr "Ein Tastendruck pro Schub: %1 / %2"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Taps"
+msgstr "Tipp"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Not used"
+msgstr "Nicht genutzt"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Unused"
+msgstr "Ungenutzt"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Push forward / back"
+msgstr "Vor / zurück schieben"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Tilt forward / back"
+msgstr "Vor / zurück kippen"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Lift / press"
+msgstr "Heben / Drücken"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Push down / pull up"
+msgstr "Nach unten drücken / nach oben ziehen"
+
+#: src/ui/model/profile_assignment_model.hpp
+msgid "from the joystick mode"
+msgstr "aus dem Joystick-Modus"
+
+#: src/ui/model/profile_assignment_model.hpp
+msgid "inherited"
+msgstr "geerbt"
+
+#: src/ui/model/profile_assignment_model.hpp
+msgid "from this profile"
+msgstr "aus diesem Profil"
+
+#: src/ui/qt/motion_view.hpp
+msgid "What each motion does"
+msgstr "Was jede Bewegung bewirkt"
+
+#: src/ui/model/mode_info_model.hpp
+msgid "What each motion does:"
+msgstr "Was jede Bewegung bewirkt:"
+
+#: src/ui/model/mode_info_model.hpp
+msgid "Buttons: %1"
+msgstr "Tasten: %1"
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Each joystick mode says what the six motions of the cap and the buttons do. Pick one for a profile on the Profiles page."
+msgstr "Jeder Joystick-Modus legt fest, was die sechs Bewegungen der Kappe und die Tasten bewirken. Wählen Sie auf der Seite Profile einen für ein Profil aus."
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Chips, in this order: vertical push, vertical tilt, horizontal push, horizontal tilt, twist, lift / press. A dashed chip is off or not used."
+msgstr "Chips in dieser Reihenfolge: vertikal schieben, vertikal kippen, horizontal schieben, horizontal kippen, Drehen, Heben / Drücken. Ein gestrichelter Chip ist aus oder ungenutzt."
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "No buttons bound"
+msgstr "Keine Tasten belegt"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "What this profile does"
+msgstr "Was dieses Profil bewirkt"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "No buttons assigned"
+msgstr "Keine Tasten zugewiesen"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "From this profile: %1"
+msgstr "Aus diesem Profil: %1"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "From the joystick mode: %1"
+msgstr "Aus dem Joystick-Modus: %1"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Inherited: %1"
+msgstr "Geerbt: %1"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "The motions come from the joystick mode file and are read-only here."
+msgstr "Die Bewegungen stammen aus der Joystick-Modus-Datei und sind hier schreibgeschützt."

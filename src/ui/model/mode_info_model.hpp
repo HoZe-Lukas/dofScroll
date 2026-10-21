@@ -17,6 +17,8 @@
 #include "button_modes.hpp"
 #include "mode_list.hpp"
 #include "modes.hpp"
+#include "ui/model/button_chip_model.hpp"
+#include "ui/model/motion_summary_model.hpp"
 #include "ui/model/strings.hpp"
 
 namespace spn::ui {
@@ -73,17 +75,15 @@ inline std::vector<std::string> joystickModeChannelLines(const ModeDef &m, const
 }
 
 // The text of the "i" popover: name (and id), where it comes from, the description, what the channels
-// do and how many buttons the joystick mode binds. originText: "Built in" / "Your file" ("" = left out).
+// do (the six motions of the cap, see motion_summary_model.hpp) and how many buttons the joystick mode binds. originText: "Built in" / "Your file" ("" = left out).
 inline std::string joystickModeInfo(const ModeDef &m, const std::string &originText, const StringProvider &s) {
     const std::string name = m.label.empty() ? m.id : m.label;
     std::string t = name == m.id ? name : name + " (" + m.id + ")";
     if (!originText.empty()) t += "\n" + originText;
-    t += "\n\n" + joystickModeTooltip(m, s) + "\n";
-    for (const std::string &line : joystickModeChannelLines(m, s)) t += "\n" + line;
-    size_t bound = 0;
-    for (const ButtonBinding &b : m.buttons)
-        if (b.type != ButtonActionType::Unbound) ++bound;
-    if (bound) t += "\n" + format(s.tr("Binds %1 buttons"), {std::to_string(bound)});
+    t += "\n\n" + joystickModeTooltip(m, s) + "\n\n" + s.tr("What each motion does:") + "\n" +
+         motionSummaryText(motionSummary(m, s));
+    const std::vector<ButtonChip> bound = modeButtonChips(m, s);
+    if (!bound.empty()) t += "\n\n" + format(s.tr("Buttons: %1"), {buttonChipsText(bound)});
     return t;
 }
 
