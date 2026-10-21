@@ -349,7 +349,7 @@ configuration and the documented defaults and fails when `y` appears there.
 ## Switching a file off
 
 A joystick mode file is only read when its name ends in `.conf`. To keep a file without using it, rename
-`<id>.conf` to `<id>.conf.disabled` (or use the switch on the Extensions page of the interface, which does exactly
+`<id>.conf` to `<id>.conf.disabled` (or use the switch on the User modes page of the interface, which does exactly
 that). The daemon then ignores the file; if its id is that of a built-in joystick mode, the built-in one applies
 again. Button mode files in `buttons/` work the same way.
 

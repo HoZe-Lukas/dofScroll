@@ -1655,8 +1655,8 @@ msgid "The file changed on disk while you were editing. Overwrite it with your c
 msgstr "Die Datei wurde auf der Platte geändert, während Sie sie bearbeitet haben. Mit Ihren Änderungen überschreiben?"
 
 #: src/ui/qt/pages/extensions_page.cpp
-msgid "Extensions"
-msgstr "Erweiterungen"
+msgid "User modes"
+msgstr "Eigene Modi"
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "dofscroll is extended with plain files: joystick modes and button modes. Nothing executable. Here you see where each one comes from, add the examples that ship with dofscroll and remove your own files. Edit them on the Modes and Button modes pages."
@@ -1683,8 +1683,8 @@ msgid "Delete the selected file of yours"
 msgstr "Die gewählte eigene Datei löschen"
 
 #: src/ui/qt/pages/extensions_page.cpp
-msgid "Details of the selected extension"
-msgstr "Details der gewählten Erweiterung"
+msgid "Details of the selected user mode"
+msgstr "Details des gewählten eigenen Modus"
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Delete \"%1\"?"
@@ -3141,8 +3141,8 @@ msgstr "Über"
 msgid "Devices: %1"
 msgstr "Geräte: %1"
 #: src/ui/qt/pages/extensions_page.cpp
-msgid "Extensions are plain files in your configuration folders. dofscroll reads them with its own checks and never runs them. Switch a file off to keep it without using it; a switched-off file with the id of a built-in joystick mode or button mode lets the built-in one apply again."
-msgstr "Erweiterungen sind einfache Dateien in deinen Konfigurationsordnern. dofscroll liest sie mit eigenen Prüfungen und führt sie nie aus. Schalte eine Datei aus, um sie zu behalten, ohne sie zu benutzen; eine ausgeschaltete Datei mit der Kennung eines eingebauten Joystick-Modus oder Tasten-Modus lässt den eingebauten wieder gelten."
+msgid "User modes are plain files in your configuration folders. dofscroll reads them with its own checks and never runs them. Switch a file off to keep it without using it; a switched-off file with the id of a built-in joystick mode or button mode lets the built-in one apply again."
+msgstr "Eigene Modi sind einfache Dateien in deinen Konfigurationsordnern. dofscroll liest sie mit eigenen Prüfungen und führt sie nie aus. Schalte eine Datei aus, um sie zu behalten, ohne sie zu benutzen; eine ausgeschaltete Datei mit der Kennung eines eingebauten Joystick-Modus oder Tasten-Modus lässt den eingebauten wieder gelten."
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "No files of yours yet. Create or import one on the Joystick modes and Button modes pages."

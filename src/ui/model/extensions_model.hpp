@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// The Extensions page (issue #129): the files that extend dofscroll, in one list. These are the joystick
+// The User modes page (issue #129, called Extensions in the code): your mode files in one list. These are the joystick
 // mode files of the user (`modes/*.conf`) and the button mode files (`buttons/*.conf`). Nothing here is
 // executed: an extension is a plain file that the daemon's own loaders read, with their checks and
 // warnings. A file can be switched off without losing it: "<id>.conf" becomes "<id>.conf.disabled" (the
