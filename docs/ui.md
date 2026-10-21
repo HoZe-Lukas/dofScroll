@@ -386,6 +386,9 @@ The tabs are the same for every profile and the selected tab stays when you sele
   it comes from, and the drop-down described above. Global may assign buttons like any other
   profile. A profile whose joystick mode has its own bindings shows a note instead (the bindings
   are listed on the General tab).
+  Next to every drop-down sits the same button chip as on the other pages (the number and the action in
+  a few words, "1 Space"; muted with the word "Unassigned" when nothing is bound); it follows the
+  drop-down at once and wraps under it with the font size.
 - **Overrides** (advanced): the channel values this profile sets itself as raw text, with Remove
   (inherit again) and Add override. Global has nothing to override (it holds the base values).
 

@@ -1670,6 +1670,17 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         check(click >= 0, "the click action is offered");
         if (act && click >= 0) QMetaObject::invokeMethod(act, "activated", Q_ARG(int, click));
         check(rig.waitSaved(), "button written");
+        settle();
+        {   // every row shows the shared button chip; a change of the action changes its text
+            int chips = 0;
+            QString first;
+            for (auto *c : findAllOf<motionview::ButtonChips>(page))
+                if (c->objectName() == QLatin1String("buttonChip") && c->isVisibleTo(page)) {
+                    ++chips;
+                    if (c->accessibleName() == QStringLiteral("Chip of button 1")) first = c->chipTexts().value(0);
+                }
+            check(chips > 0 && first == QStringLiteral("1 Click"), "every button row shows its chip, and it follows the drop-down");
+        }
         std::optional<std::string> v = diskKey(rig, Section::DEVICE, "SpaceMouse Pro", "BUTTON_1");
         check(v && *v == "click", "the button action is written");
         settle();

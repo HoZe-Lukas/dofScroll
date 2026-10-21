@@ -2174,3 +2174,7 @@ msgstr ""
 #: src/ui/qt/pages/profiles_page.cpp
 msgid "The motions come from the joystick mode file and are read-only here."
 msgstr ""
+
+#: src/ui
+msgid "Chip of button"
+msgstr ""

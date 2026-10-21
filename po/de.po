@@ -2290,6 +2290,10 @@ msgid "Origin of button"
 msgstr "Herkunft der Taste"
 
 #: src/ui
+msgid "Chip of button"
+msgstr "Kurzbeschreibung der Taste"
+
+#: src/ui
 msgid "Moved the old navigation/click button settings to the Buttons tab"
 msgstr ""
 "Die alten Einstellungen für Navigations- und Klicktaste wurden auf den "

@@ -9,10 +9,13 @@
 #include <QStandardItem>
 #include <QStandardItemModel>
 #include <QToolButton>
+#include <QVBoxLayout>
 
 #include <algorithm>
 
 #include "key_combo.hpp"
+#include "motion_view.hpp"
+#include "ui/model/button_chip_model.hpp"
 #include "ui_i18n.hpp"
 
 using namespace spn;
@@ -55,7 +58,20 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
         if (int(i) == selected) kind->setCurrentIndex(kind->count() - 1);
     }
     if (selected < 0) kind->setCurrentIndex(-1);
-    grid->addWidget(kind, r, 1);
+    // The drop-down with the shared button chip under it ("1 Space", muted "N Unassigned"): the same chip as on
+    // the other pages. Under the drop-down, so the row does not get wider and the chip wraps with the font size.
+    // The page rebuilds after every change, so the chip always shows the effective action.
+    auto *cell = new QWidget(parent);
+    auto *cellLayout = new QVBoxLayout(cell);
+    cellLayout->setContentsMargins(0, 0, 0, 0);
+    cellLayout->setSpacing(2);
+    cellLayout->addWidget(kind);
+    auto *chip = new motionview::ButtonChips(cell);
+    chip->setObjectName(QStringLiteral("buttonChip"));
+    chip->setButtons({spn::ui::buttonChip(row.number, row.text, std::string(), *env.strings)}, QString());
+    chip->setAccessibleName(T("Chip of button") + QStringLiteral(" %1").arg(row.number));
+    cellLayout->addWidget(chip);
+    grid->addWidget(cell, r, 1);
 
     QWidget *arg = nullptr;
     const BindingKind bk = row.binding.kind;
