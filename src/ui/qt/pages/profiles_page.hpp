@@ -51,6 +51,7 @@ public:
     QString currentTabId() const;
     bool selectTab(const QString &id);
     // The header of the editor: which profile is edited.
+    bool tabVisible(const QString &id) const;  // self-test: is the tab shown (hidden while the output is off)
     QString headerName() const;  // "Global", the device name or the program name
     QString headerKind() const;  // "Global profile", "Device profile" or "Program profile"
     QString headerNote() const;  // the one line about inheritance below the name

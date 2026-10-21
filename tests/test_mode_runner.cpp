@@ -410,6 +410,20 @@ static void testCustomChannels() {
         run(r, sc, axis(AX_RY, 300), 0, 0.5);
         CHECK(o.ev.empty(), "off mode sends nothing");
     }
+    {  // "off" switches the axes off, not the buttons: BUTTON_<n> of the profile keeps working (independent of the
+       // joystick mode); only ENABLED = 0 silences the buttons too
+        RunnerRec o;
+        ModeRunner r(&o);
+        ModeDef m = mode("off");
+        m.v = m.h = m.twist = act(ChannelActionType::Off);
+        r.setMode(m);
+        Settings sb;
+        sb.buttons[1] = "key:space";
+        sb.buttons[2] = "rightclick";
+        run(r, sb, axis(AX_Z, 300), (1u << 0) | (1u << 1), 0.5);
+        CHECK(o.count("+space") == 1 && o.count("+m3") == 1, "off keeps the profile's buttons");
+        CHECK(o.wv == 0 && o.wh == 0, "off still sends no scrolling");
+    }
     {  // twist default in a custom mode keeps the dominance zoom
         RunnerRec o;
         ModeRunner r(&o);

@@ -351,11 +351,14 @@ the device)."
 
 The tabs are the same for every profile and the selected tab stays when you select another profile:
 
-- **General**: the joystick mode (drop-down with the **i** info button) and, for device and program
-  profiles, the output switch of the profile ("Send scroll, zoom and key events while this profile
-  is active", `ENABLED`). A profile with another joystick mode also shows what that joystick mode
-  does, read-only, with "Edit joystick mode file". Global has no output switch here: it is on the
-  Settings page.
+- **General**: for device and program profiles first the output switch of the profile ("Send scroll,
+  zoom and key events while this profile is active", `ENABLED`), then the joystick mode (drop-down with
+  the **i** info button). **With the output off the profile sends nothing, so the joystick mode, the buttons
+  and the channel settings do not apply: the joystick mode and its information are hidden, and so are the
+  Channels, Buttons and Overrides tabs**; a note says so, and switching the output on brings them back. (To
+  switch only the axes off and keep the buttons, choose the joystick mode "off" and leave the output on.) A
+  profile with another joystick mode also shows what that joystick mode does, read-only, with "Edit
+  joystick mode file". Global has no output switch here: it is on the Settings page, and nothing is hidden for it.
 - **Channels**: sensitivity, dead zone, direction, smoothing, axis mix, curve (exponent or points,
   with a live preview), zoom detection (the axes the twist must dominate, entry time, exit ratio) and
   the step trigger, in groups per channel. A filter box (the search box above the tabs) hides the

@@ -32,7 +32,7 @@ A **sidebar** on the left picks a category (Overview, Profiles, Modes, Device, S
 
 The list on the left holds **Global** first, then **device profiles**, then **program profiles**; each shows how many settings it overrides. The editor on the right always names the profile it edits. Tabs:
 
-- **General:** the joystick mode (drop-down with an **i** button that explains in words what it does per channel) and, for device and program profiles, an output switch for the profile.
+- **General:** for device and program profiles first an output switch, then the joystick mode (drop-down with an **i** button that explains in words what it does per channel). **With the output off the profile sends nothing, so the joystick mode, the buttons and the channel settings are hidden** (the Channels, Buttons and Overrides tabs too) until you switch it on again. To switch only the axes off and keep the buttons, choose the joystick mode "off" and leave the output on.
 - **Channels:** sensitivity, dead zone, direction, smoothing, axis mix, curve (with a live preview), zoom detection and the step trigger, grouped per channel. A filter box hides rows that do not match. "Reset" per row or group and "Restore defaults" remove the profile's own values so the inherited ones apply again.
 - **Buttons:** one row per button of the device. Each row has a drop-down: nothing, a button mode, navigation, a joystick mode switch (`mode:<id>`, next, previous), toggles, and in device and program profiles "Default (inherit from Global)".
 - **Overrides:** the raw values this profile sets itself, with Add override and Remove.

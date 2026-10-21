@@ -1384,7 +1384,8 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
     // the tab stays when another profile is selected
     for (const QString &tab : allTabs) {
         check(page->selectTab(tab), "select a tab");
-        for (size_t s : {size_t(0), size_t(2), size_t(1), size_t(3)})
+        // (not the blender profile: its output is off, which hides every tab but General)
+        for (size_t s : {size_t(0), size_t(2), size_t(1)})
             check(page->selectSection(s) && page->currentTabId() == tab, "the tab stays for every profile");
     }
     page->selectTab(QStringLiteral("general"));
@@ -1579,12 +1580,24 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         settle();
         auto *en = findNamed<QCheckBox>(page, QStringLiteral("Send events"));
         check(en && !en->isChecked(), "blender is switched off");
+        check(findNamed<QComboBox>(page, QStringLiteral("Joystick mode")) == nullptr && !page->tabVisible(QStringLiteral("buttons")),
+              "with output off the joystick mode and the Buttons tab are hidden");
         if (en) en->setChecked(true);
         check(rig.waitSaved(), "enabled written");
+        settle();  // the page is rebuilt: the joystick mode and the tabs come back
         std::optional<std::string> v = diskKey(rig, Section::APP, "blender", "ENABLED");
         check(v && *v == "1", "switching on is written");
+        check(findNamed<QComboBox>(page, QStringLiteral("Joystick mode")) != nullptr && page->tabVisible(QStringLiteral("buttons")),
+              "with output on the joystick mode and the Buttons tab are shown");
+        en = findNamed<QCheckBox>(page, QStringLiteral("Send events"));
+        {
+            auto *modeBox = findNamed<QComboBox>(page, QStringLiteral("Joystick mode"));
+            check(en && modeBox && en->mapTo(page, QPoint(0, 0)).y() < modeBox->mapTo(page, QPoint(0, 0)).y(),
+                  "the output switch is above the joystick mode");
+        }
         if (en) en->setChecked(false);
         check(rig.waitSaved(), "disabled written");
+        settle();
         v = diskKey(rig, Section::APP, "blender", "ENABLED");
         check(v && *v == "0", "switching off is written");
         QToolButton *reset = nullptr;
@@ -2089,7 +2102,7 @@ static bool autosaveAuditSelfTest(const std::function<bool(MainWindow &)> &) {
             ok = false;
         }
     };
-    EditorRig rig("[global]\nSCROLL_V_SENS = 5\nZOOM_LATERAL = x y\n\n[device:Dev]\n\n[app:audit-app]\nSCROLL_V_SIGN = -1\nENABLED = 0\n");
+    EditorRig rig("[global]\nSCROLL_V_SENS = 5\nZOOM_LATERAL = x y\n\n[device:Dev]\n\n[app:audit-app]\nSCROLL_V_SIGN = -1\n");
     MainWindow &w = *rig.win;
     w.showPage(QStringLiteral("profiles"));
     ProfilesPage *page = w.profilesPage();
@@ -2227,10 +2240,12 @@ static bool autosaveAuditSelfTest(const std::function<bool(MainWindow &)> &) {
         QMetaObject::invokeMethod(findNamed<QComboBox>(page, QStringLiteral("Joystick mode")), "activated", Q_ARG(int, 0));
     });
     settle();
-    expect(QStringLiteral("program profile: Output switched on (was off)"), kApp, "ENABLED", "1",
-           [&] { findNamed<QCheckBox>(page, QStringLiteral("Send events"))->setChecked(true); });
     expect(QStringLiteral("program profile: Output switched off"), kApp, "ENABLED", "0",
            [&] { findNamed<QCheckBox>(page, QStringLiteral("Send events"))->setChecked(false); });
+    settle();  // the page is rebuilt (the joystick mode and the tabs are hidden)
+    expect(QStringLiteral("program profile: Output switched on again"), kApp, "ENABLED", "1",
+           [&] { findNamed<QCheckBox>(page, QStringLiteral("Send events"))->setChecked(true); });
+    settle();
     go(kGlobal, "general");
     expect(QStringLiteral("Global: Joystick mode"), kGlobal, "MODE", "off", [&] {
         auto *mode = findNamed<QComboBox>(page, QStringLiteral("Joystick mode"));
