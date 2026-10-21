@@ -34,6 +34,7 @@ CycleEditorWidget::CycleEditorWidget(QWidget *parent) : QGroupBox(T("Cycle throu
     // column wider than the window on Windows
     choice_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     choice_->setMinimumContentsLength(8);
+    choice_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);  // may shrink with the column; the text is elided
     lay->addWidget(choice_);
     list_ = new QListWidget(this);
     list_->setAccessibleName(T("Joystick modes to cycle through"));

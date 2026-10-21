@@ -117,7 +117,8 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     // The width of the page must not follow the longest action text (platform fonts differ a lot):
     // a fixed number of characters, the list opens wide enough for every entry.
     kind_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    kind_->setMinimumContentsLength(8);  // the editor column scrolls but must fit the default window without a horizontal bar
+    kind_->setMinimumContentsLength(8);
+    kind_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);  // may shrink with the column (default window, wide fonts)  // the editor column scrolls but must fit the default window without a horizontal bar
     argHost_ = new QWidget(right);
     auto *ah = new QHBoxLayout(argHost_);
     ah->setContentsMargins(0, 0, 0, 0);
@@ -137,6 +138,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     fileLabel_ = new QLabel(right);
     fileLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     fileLabel_->setWordWrap(true);
+    fileLabel_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);  // a long path must not set the width of the column
     form->addRow(T("File:"), fileLabel_);
     rl->addLayout(form);
     cycle_ = new CycleEditorWidget(right);
