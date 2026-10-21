@@ -11,6 +11,7 @@
 #include <string>
 
 #include "autosaver.hpp"
+#include "motion_view.hpp"
 #include "qt_action_runner.hpp"
 
 #include "ui/model/binding_editor_model.hpp"
@@ -55,6 +56,7 @@ protected:
 private:
     void populate(const QString &selectId);
     void loadForm();           // fills the editor from the selected entry
+    void refreshActionChip();  // the chip of the chosen action
     void rebuildActionArg();   // argument widget that fits the chosen action kind
     void updateWarnings();
     void markDirty(bool typed);
@@ -86,6 +88,7 @@ private:
     QWidget *argHost_ = nullptr;
     QWidget *argWidget_ = nullptr;
     QLabel *fileLabel_ = nullptr;
+    motionview::ButtonChips *actionChip_ = nullptr;
     QPlainTextEdit *warnings_ = nullptr;
     QLabel *problem_ = nullptr;
     QPushButton *newBtn_ = nullptr, *exampleBtn_ = nullptr, *exportBtn_ = nullptr, *copyBtn_ = nullptr, *dupBtn_ = nullptr, *importBtn_ = nullptr, *delBtn_ = nullptr,

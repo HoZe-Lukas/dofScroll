@@ -15,7 +15,11 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QMessageBox>
-#include <QPlainTextEdit>
+#include <QFrame>
+#include <QGridLayout>
+#include <QPainter>
+#include <QScrollArea>
+#include <QStyledItemDelegate>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSplitter>
@@ -28,6 +32,10 @@
 #include "described_item_delegate.hpp"
 #include "pages/mode_editor_widget.hpp"
 #include "ui/model/mode_info_model.hpp"
+#include "motion_view.hpp"
+#include "ui/model/motion_summary_model.hpp"
+#include "theme.hpp"
+#include "ui/model/design_tokens.hpp"
 #include "platform/fs.hpp"
 #include "qt_action_runner.hpp"
 #include "ui_i18n.hpp"
@@ -45,6 +53,105 @@ QString originText(Origin o) {
     QtStrings strings;
     return qs8(spn::ui::modeOriginText(o, strings));
 }
+
+// Item roles of a row of the list (kRoleDescription and kRoleOrigin come from described_item_delegate.hpp).
+enum { kRoleChips = Qt::UserRole + 3, kRoleMuted = Qt::UserRole + 4 };
+
+// One row of the list: the name (bold) with the origin badge at the right end, one short description line (muted,
+// cut to the width) and the six motion chips below, wrapped to the width of the list. All lengths follow the font
+// (metrics of the item's font), so a larger font gives larger chips and rows, never a horizontal scroll bar.
+// A muted chip (motion off or not used) has a dashed outline and keeps its word ("Off", "Unused"): never colour alone.
+class ModeRowDelegate : public QStyledItemDelegate {
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override {
+        QStyleOptionViewItem opt = option;
+        initStyleOption(&opt, index);
+        const QFontMetrics fm(opt.font);
+        const int pad = spn::ui::tokens::kSpaceSm;
+        const motionview::ChipLayout chips = motionview::layoutChips(fm, chipsOf(index), textWidth(opt));
+        int h = fm.height() + 2 * pad;
+        if (!index.data(kRoleDescription).toString().isEmpty()) h += fm.height();
+        h += chips.height + (chips.height ? motionview::chipGap(fm) : 0);
+        return QSize(opt.rect.width(), std::max(spn::ui::tokens::kRowHeight, h));
+    }
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override {
+        QStyleOptionViewItem opt = option;
+        initStyleOption(&opt, index);
+        const QString title = opt.text;
+        opt.text.clear();
+        const QWidget *w = opt.widget;
+        QStyle *style = w ? w->style() : QApplication::style();
+        style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, w);  // background, selection, icon
+        const QRect textRect = style->subElementRect(QStyle::SE_ItemViewItemText, &opt, w);
+        const int pad = spn::ui::tokens::kSpaceSm;
+        const int width = std::min(textRect.width(), textWidth(opt));
+        const QFontMetrics fm(opt.font);
+        const bool selected = opt.state & QStyle::State_Selected;
+        const QColor nameColor = selected ? selectedTextColor(false) : opt.palette.color(QPalette::Text);
+        const QColor mutedColor = selected ? selectedTextColor(true) : opt.palette.color(QPalette::PlaceholderText);
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing, true);
+        painter->setFont(opt.font);
+        int y = textRect.top() + pad;
+        // origin badge at the right end of the name line (cut to a third of the row)
+        const QString origin = fm.elidedText(index.data(kRoleOrigin).toString(), Qt::ElideRight, width / 3);
+        int badgeWidth = 0;
+        if (!origin.isEmpty()) {
+            badgeWidth = fm.horizontalAdvance(origin) + fm.height();
+            const QRectF badge(textRect.left() + width - badgeWidth, y, badgeWidth, fm.height());
+            painter->setPen(QPen(mutedColor, 1));
+            painter->drawRoundedRect(badge.adjusted(0.5, 0.5, -0.5, -0.5), fm.height() / 3.0, fm.height() / 3.0);
+            painter->drawText(badge, Qt::AlignCenter, origin);
+        }
+        QFont bold = opt.font;
+        bold.setBold(true);
+        painter->setFont(bold);
+        painter->setPen(nameColor);
+        const int nameWidth = width - (badgeWidth ? badgeWidth + motionview::chipGap(fm) : 0);
+        painter->drawText(QRect(textRect.left(), y, nameWidth, fm.height()), Qt::AlignLeft | Qt::AlignVCenter,
+                          QFontMetrics(bold).elidedText(title, Qt::ElideRight, nameWidth));
+        painter->setFont(opt.font);
+        y += fm.height();
+        const QString desc = index.data(kRoleDescription).toString();
+        if (!desc.isEmpty()) {
+            painter->setPen(mutedColor);
+            painter->drawText(QRect(textRect.left(), y, width, fm.height()), Qt::AlignLeft | Qt::AlignVCenter,
+                              fm.elidedText(desc, Qt::ElideRight, width));
+            y += fm.height();
+        }
+        y += motionview::chipGap(fm);
+        const QList<motionview::Chip> chips = chipsOf(index);
+        motionview::paintChips(painter, fm, chips, motionview::layoutChips(fm, chips, width), QPoint(textRect.left(), y), nameColor, mutedColor);
+        painter->restore();
+    }
+
+private:
+    // the six motion chips of the row (text in kRoleChips, '1' in kRoleMuted for a muted one)
+    static QList<motionview::Chip> chipsOf(const QModelIndex &index) {
+        QList<motionview::Chip> out;
+        const QStringList texts = index.data(kRoleChips).toStringList();
+        const QString mask = index.data(kRoleMuted).toString();
+        for (int i = 0; i < texts.size(); ++i) {
+            motionview::Chip c;
+            // the list shows the symbol only (the words are in the detail view and the tooltip, the position
+            // says which motion it is); a word would be cut off in a narrow row
+            const int space = texts[i].indexOf(QLatin1Char(' '));
+            c.text = space > 0 ? texts[i].left(space) : texts[i];
+            c.muted = i < mask.size() && mask[i] == QLatin1Char('1');
+            out.append(c);
+        }
+        return out;
+    }
+    static int textWidth(const QStyleOptionViewItem &opt) {
+        const QWidget *w = opt.widget;
+        int width = w ? w->width() : opt.rect.width();
+        if (const auto *view = qobject_cast<const QAbstractItemView *>(w)) width = view->viewport()->width();
+        return std::max(120, width - 2 * spn::ui::tokens::kSpaceMd - (opt.icon.isNull() ? 0 : 28));
+    }
+};
 }  // namespace
 
 QWidget *makeModesPage(const UiContext &ctx) { return new ModesPage(ctx); }
@@ -57,7 +164,7 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     auto *root = new QVBoxLayout(this);
     auto *title = new QLabel(QStringLiteral("<b>") + T(spn::ui::terms::kJoystickModes) + QStringLiteral("</b>"), this);
     root->addWidget(title);
-    auto *intro = new QLabel(T("A joystick mode says what the axes and buttons do: scroll, zoom, press keys. Pick one for a "
+    auto *intro = new QLabel(T("Each joystick mode says what the six motions of the cap and the buttons do. Pick one for a "
                                "profile on the Profiles page."), this);
     intro->setWordWrap(true);
     intro->setForegroundRole(QPalette::PlaceholderText);
@@ -71,16 +178,28 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
 
     auto *row = new QHBoxLayout;
     auto *split = new QSplitter(Qt::Horizontal, this);
-    list_ = new QListWidget(split);
+    auto *left = new QWidget(split);
+    auto *leftLayout = new QVBoxLayout(left);
+    leftLayout->setContentsMargins(0, 0, 0, 0);
+    list_ = new QListWidget(left);
     list_->setAccessibleName(T(spn::ui::terms::kJoystickModes));
     list_->setToolTip(T("All joystick modes: the built-in ones and the files in the joystick modes folder"));
-    list_->setItemDelegate(new DescribedItemDelegate(list_));  // the name and, below it, the description
+    list_->setItemDelegate(new ModeRowDelegate(list_));  // name, origin badge, short description, six motion chips
     list_->setWordWrap(true);
     list_->setResizeMode(QListView::Adjust);
+    list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // no minimum width: it grows with the font (the page would not fit the default window with the wider Windows
+    // fonts); the splitter starts the list wide enough for the six symbol chips in one row, a narrower list wraps them
+    leftLayout->addWidget(list_, 1);
+    auto *legend = new QLabel(T("Symbols in this order: vertical push, vertical tilt, horizontal push, horizontal tilt, twist, "
+                                "lift / press. \u2195 scroll, \u2194 scroll sideways, \u2295 zoom, \u2328 keys, \u21E5 one tap per "
+                                "push, \u2298 off, \u2013 not used (dashed)."), left);
+    legend->setWordWrap(true);
+    legend->setTextFormat(Qt::PlainText);
+    legend->setForegroundRole(QPalette::PlaceholderText);
+    leftLayout->addWidget(legend);
     right_ = new QStackedWidget(split);
-    detail_ = new QPlainTextEdit(right_);
-    detail_->setReadOnly(true);  // plain text only: mode files are foreign content
-    detail_->setAccessibleName(T("Details of the selected joystick mode"));
+    buildDetail();
     right_->addWidget(detail_);
     editor_ = new ModeEditorWidget(ctx_, right_);
     right_->addWidget(editor_);
@@ -92,6 +211,9 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     });
     split->setStretchFactor(0, 1);
     split->setStretchFactor(1, 2);
+    split->setChildrenCollapsible(false);
+    split->setSizes({380, 560});
+    connect(split, &QSplitter::splitterMoved, this, [this] { list_->doItemsLayout(); });
     row->addWidget(split, 1);
 
     auto *buttons = new QVBoxLayout;
@@ -204,12 +326,26 @@ void ModesPage::populate(const QString &selectId) {
     for (const ModeCatalog::ModeEntry &m : catalog_.modes()) {
         const QString id = QString::fromStdString(m.id), label = QString::fromStdString(m.label);
         auto *it = new QListWidgetItem(label == id ? id : label + QStringLiteral(" (") + id + QStringLiteral(")"));
+        const QString desc = qs8(m.description.empty() ? spn::ui::noDescriptionText(QtStrings()) : m.description);
+        QStringList chips;
+        QString mask, motionText;
+        if (const spn::ModeDef *def = catalog_.modeSet().find(m.id)) {
+            const std::vector<spn::ui::MotionRow> rows = spn::ui::motionSummary(*def, QtStrings());
+            for (const std::string &c : spn::ui::motionChipTexts(rows)) chips << qs8(c);
+            for (const spn::ui::MotionRow &r : rows) mask += r.muted() ? QLatin1Char('1') : QLatin1Char('0');
+            motionText = qs8(spn::ui::motionSummaryText(rows, "; "));
+        }
         it->setData(kRoleId, id);
         it->setData(kRoleOrigin, originText(m.origin));
-        it->setData(kRoleDescription, qs8(m.description.empty() ? spn::ui::noDescriptionText(QtStrings()) : m.description));
+        it->setData(kRoleDescription, desc);
+        it->setData(kRoleChips, chips);
+        it->setData(kRoleMuted, mask);
+        it->setData(Qt::AccessibleTextRole, it->text() + QStringLiteral(", ") + originText(m.origin));
+        it->setData(Qt::AccessibleDescriptionRole, desc + QStringLiteral(". ") + motionText);
         if (!m.warnings.empty()) it->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
-        it->setToolTip(qs8(m.description.empty() ? spn::ui::noDescriptionText(QtStrings()) : m.description) + QLatin1Char('\n') +
-                       originText(m.origin));
+        QString motionLines = motionText;
+        motionLines.replace(QStringLiteral("; "), QStringLiteral("\n"));
+        it->setToolTip(desc + QLatin1Char('\n') + originText(m.origin) + QStringLiteral("\n\n") + motionLines);
         list_->addItem(it);
         if (id == selectId) select = n;
         ++n;
@@ -221,38 +357,114 @@ void ModesPage::populate(const QString &selectId) {
     updateDetail();
 }
 
+// The detail panel is built once (buildDetail) and filled by updateDetail for the selected joystick mode. Mode
+// files are foreign content: every label shows plain text. The six motions and the buttons use the shared
+// components of motion_view.hpp, the same look as the profile page and the Overview.
+void ModesPage::buildDetail() {
+    detail_ = new QScrollArea(right_);
+    detail_->setWidgetResizable(true);
+    detail_->setFrameShape(QFrame::NoFrame);
+    detail_->setFocusPolicy(Qt::StrongFocus);  // scrolls with the keyboard
+    detail_->setAccessibleName(T("Details of the selected joystick mode"));
+    auto *content = new QWidget;
+    auto *v = new QVBoxLayout(content);
+    auto label = [content](bool muted) {
+        auto *l = new QLabel(content);
+        l->setWordWrap(true);
+        l->setTextFormat(Qt::PlainText);
+        l->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        if (muted) l->setForegroundRole(QPalette::PlaceholderText);
+        return l;
+    };
+    auto heading = [&label](const QString &text) {
+        QLabel *l = label(false);
+        QFont f = l->font();
+        f.setBold(true);
+        l->setFont(f);
+        l->setText(text);
+        return l;
+    };
+    // name and origin badge
+    auto *head = new QHBoxLayout;
+    detailTitle_ = label(false);
+    QFont tf = detailTitle_->font();
+    tf.setBold(true);
+    tf.setPointSizeF(tf.pointSizeF() * 1.25);
+    detailTitle_->setFont(tf);
+    head->addWidget(detailTitle_, 1);
+    detailBadge_ = label(true);
+    detailBadge_->setFrameShape(QFrame::StyledPanel);
+    detailBadge_->setMargin(2);
+    v->addLayout(head);
+    detailBadge_->setFrameShape(QFrame::NoFrame);  // a line of text under the title, not a boxed block at the side
+    v->addWidget(detailBadge_);
+    detailDesc_ = label(false);
+    v->addWidget(detailDesc_);
+    detailMeta_ = label(true);
+    v->addWidget(detailMeta_);
+
+    v->addWidget(heading(T("What each motion does")));
+    grid_ = new motionview::MotionGrid(content);
+    v->addWidget(grid_);
+
+    v->addWidget(heading(T("Buttons")));
+    buttonChips_ = new motionview::ButtonChips(content);
+    v->addWidget(buttonChips_);
+    usedByLabel_ = label(false);
+    v->addWidget(usedByLabel_);
+    warningsLabel_ = label(false);
+    v->addWidget(warningsLabel_);
+    v->addStretch(1);
+    detail_->setWidget(content);
+}
+
+QStringList ModesPage::rowChips(const QString &id) const {
+    for (int i = 0; i < list_->count(); ++i)
+        if (list_->item(i)->data(kRoleId).toString() == id) return list_->item(i)->data(kRoleChips).toStringList();
+    return QStringList();
+}
+
+QStringList ModesPage::motionCardTexts() const { return grid_->cardTexts(); }
+
 void ModesPage::updateDetail() {
     const ModeCatalog::ModeEntry *m = current();
-    QString t;
+    const spn::ModeDef *def = m ? catalog_.modeSet().find(m->id) : nullptr;
+    QtStrings strings;
+    detailTitle_->setVisible(m != nullptr);
+    detailBadge_->setVisible(m != nullptr);
+    detailDesc_->setVisible(m != nullptr);
+    detailMeta_->setVisible(m != nullptr);
+    grid_->setVisible(def != nullptr);
+    buttonChips_->setVisible(def != nullptr);
+    usedByLabel_->setVisible(m != nullptr);
     if (m) {
-        t += T("Name: %1").arg(QString::fromStdString(m->label)) + QLatin1Char('\n');
-        t += T("Id: %1").arg(QString::fromStdString(m->id)) + QLatin1Char('\n');
-        t += T("Origin: %1").arg(originText(m->origin)) + QLatin1Char('\n');
-        if (!m->path.empty()) t += T("File: %1").arg(QString::fromStdString(m->path)) + QLatin1Char('\n');
-        t += QLatin1Char('\n') + qs8(m->description.empty() ? spn::ui::noDescriptionText(QtStrings()) : m->description) + QLatin1Char('\n');
-        if (const spn::ModeDef *def = catalog_.modeSet().find(m->id)) {
-            t += QLatin1Char('\n') + T("What it does:") + QLatin1Char('\n');
-            for (const std::string &line : spn::ui::joystickModeChannelLines(*def, QtStrings())) t += QStringLiteral(" - ") + qs8(line) + QLatin1Char('\n');
-        }
+        detailTitle_->setText(QString::fromStdString(m->label));
+        detailBadge_->setText(originText(m->origin));
+        detailDesc_->setText(qs8(m->description.empty() ? spn::ui::noDescriptionText(strings) : m->description));
+        QString meta = T("Id: %1").arg(QString::fromStdString(m->id));
+        if (!m->path.empty()) meta += QStringLiteral("    ") + T("File: %1").arg(QString::fromStdString(m->path));
+        detailMeta_->setText(meta);
+    }
+    if (def) {
+        grid_->setMotions(spn::ui::motionSummary(*def, strings));
+        buttonChips_->setButtons(spn::ui::modeButtonChips(*def, strings), T("No buttons bound"));
+    }
+    if (m) {
         const QStringList uses = usedByLines(QString::fromStdString(m->id));
-        t += QLatin1Char('\n');
-        if (uses.isEmpty()) {
-            t += T("Used by: no profile") + QLatin1Char('\n');
-        } else {
-            t += T("Used by:") + QLatin1Char('\n');
-            for (const QString &u : uses) t += QStringLiteral(" - ") + u + QLatin1Char('\n');
-        }
-        if (!m->warnings.empty()) {
-            t += QLatin1Char('\n') + T("Warnings:") + QLatin1Char('\n');
-            for (const std::string &w : m->warnings) t += QStringLiteral(" - ") + QString::fromStdString(w) + QLatin1Char('\n');
-        }
+        usedByLabel_->setText(uses.isEmpty() ? T("Used by: no profile") : T("Used by:") + QLatin1Char('\n') + uses.join(QLatin1Char('\n')));
+    }
+    QString warn;
+    if (m && !m->warnings.empty()) {
+        warn += T("Warnings:") + QLatin1Char('\n');
+        for (const std::string &w : m->warnings) warn += QStringLiteral(" - ") + QString::fromStdString(w) + QLatin1Char('\n');
     }
     if (!catalog_.generalWarnings().empty()) {
-        t += QLatin1Char('\n') + T("Warnings for the joystick modes folder:") + QLatin1Char('\n');
-        for (const std::string &w : catalog_.generalWarnings())
-            t += QStringLiteral(" - ") + QString::fromStdString(w) + QLatin1Char('\n');
+        if (!warn.isEmpty()) warn += QLatin1Char('\n');
+        warn += T("Warnings for the joystick modes folder:") + QLatin1Char('\n');
+        for (const std::string &w : catalog_.generalWarnings()) warn += QStringLiteral(" - ") + QString::fromStdString(w) + QLatin1Char('\n');
     }
-    detail_->setPlainText(t);
+    warningsLabel_->setText(warn.trimmed());
+    warningsLabel_->setVisible(!warn.isEmpty());
     dupBtn_->setEnabled(m != nullptr);
     editBtn_->setEnabled(m != nullptr);
     delBtn_->setEnabled(m && m->origin != Origin::BuiltIn);

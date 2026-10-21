@@ -2011,6 +2011,173 @@ msgstr ""
 #: src/ui/qt/pages/profiles_page.cpp
 msgid "Output is off for this profile: it sends nothing, so the joystick mode, the buttons and the channel settings do not apply and are hidden. Switch the output on to edit them."
 
+#: src/ui/model/button_chip_model.hpp
+msgid "Unassigned"
+msgstr ""
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Click"
+msgstr ""
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Right click"
+msgstr ""
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Middle click"
+msgstr ""
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Navigation"
+msgstr ""
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Toggle navigation"
+msgstr ""
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Next joystick mode"
+msgstr ""
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Previous joystick mode"
+msgstr ""
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Switch to %1"
+msgstr ""
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Toggle: %1"
+msgstr ""
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Hold: %1"
+msgstr ""
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Button mode: %1"
+msgstr ""
+
+#: src/ui/model/button_chip_model.hpp
+msgid "Button %1: %2"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Scroll"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Scroll sideways"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Sideways"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Keys: %1 / %2"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Keys"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "One tap per push: %1 / %2"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Taps"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Not used"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Unused"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Push forward / back"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Tilt forward / back"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Lift / press"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Push down / pull up"
+msgstr ""
+
+#: src/ui/model/profile_assignment_model.hpp
+msgid "from the joystick mode"
+msgstr ""
+
+#: src/ui/model/profile_assignment_model.hpp
+msgid "inherited"
+msgstr ""
+
+#: src/ui/model/profile_assignment_model.hpp
+msgid "from this profile"
+msgstr ""
+
+#: src/ui/qt/motion_view.hpp
+msgid "What each motion does"
+msgstr ""
+
+#: src/ui/model/mode_info_model.hpp
+msgid "What each motion does:"
+msgstr ""
+
+#: src/ui/model/mode_info_model.hpp
+msgid "Buttons: %1"
+msgstr ""
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Each joystick mode says what the six motions of the cap and the buttons do. Pick one for a profile on the Profiles page."
+msgstr ""
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Symbols in this order: vertical push, vertical tilt, horizontal push, horizontal tilt, twist, lift / press. ↕ scroll, ↔ scroll sideways, ⊕ zoom, ⌨ keys, ⇥ one tap per push, ⊘ off, – not used (dashed)."
+msgstr ""
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "No buttons bound"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "What this profile does"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "No buttons assigned"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "From this profile: %1"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "From the joystick mode: %1"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Inherited: %1"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "The motions come from the joystick mode file and are read-only here."
+msgstr ""
+
+#: src/ui
+msgid "Chip of button"
+
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Copy of a shipped example, not used: the built-in one applies. You can remove this file."
 msgstr ""

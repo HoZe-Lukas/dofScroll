@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // "Joystick modes" page: a thin view on spn::ui::ModeCatalog. List of all joystick modes (built-in, file,
-// built-in overridden by a file) with the origin of each, detail pane with description and loader
-// warnings, and the actions New, New from example, Duplicate, Import, Edit, Delete, Open folder. The
+// built-in overridden by a file): one row per mode with its name, an origin badge, one short description
+// line and six chips, one per motion of the cap in a fixed order (motion_summary_model.hpp). The detail pane
+// shows the selected joystick mode as a panel of six motion cards, its buttons as chips, the profiles that use
+// it and the loader warnings. The actions New, New from example, Duplicate, Import, Edit, Delete, Open folder. The
 // editor saves by itself (see mode_editor_widget.hpp); nothing asks about unsaved changes. The folder is watched by polling the catalog's
 // stamp once a second while the page is visible (no file-system watcher dependency).
 #pragma once
@@ -10,12 +12,17 @@
 #include <QStringList>
 #include <memory>
 #include <string>
+#include <vector>
 
+#include "motion_view.hpp"
 #include "ui/model/mode_catalog.hpp"
 #include "ui_context.hpp"
 
 class QListWidget;
-class QPlainTextEdit;
+class QFrame;
+class QLabel;
+class QScrollArea;
+class QVBoxLayout;
 class QPushButton;
 class QStackedWidget;
 class ModeEditorWidget;
@@ -50,6 +57,10 @@ public:
     QStringList exampleIds() const;
     bool installExample(const QString &id);
     QString originOf(const QString &id) const;  // "Built in", "Your file", ... of a listed joystick mode
+    // The six chips of a list row ("↕ Scroll", ...; empty list for an unknown id) and the six cards of the detail
+    // panel of the selected joystick mode ("Vertical push: Scroll", ...), for the self-test and accessibility checks.
+    QStringList rowChips(const QString &id) const;
+    QStringList motionCardTexts() const;
 
 public slots:
     void refreshIfChanged();  // timer; also callable directly
@@ -83,7 +94,12 @@ private:
     std::unique_ptr<spn::ui::ModeCatalog> ownCatalog_;  // only when the context has no shared one
     spn::ui::ModeCatalog &catalog_;
     QListWidget *list_ = nullptr;
-    QPlainTextEdit *detail_ = nullptr;
+    QScrollArea *detail_ = nullptr;     // the detail panel of the selected joystick mode
+    motionview::MotionGrid *grid_ = nullptr;        // the six motions of the selected joystick mode
+    motionview::ButtonChips *buttonChips_ = nullptr;  // its buttons
+    QLabel *detailTitle_ = nullptr, *detailBadge_ = nullptr, *detailDesc_ = nullptr, *detailMeta_ = nullptr,
+           *usedByLabel_ = nullptr, *warningsLabel_ = nullptr;
+    void buildDetail();
     QStackedWidget *right_ = nullptr;  // details | editor
     ModeEditorWidget *editor_ = nullptr;
     QPushButton *newBtn_ = nullptr, *exampleBtn_ = nullptr, *dupBtn_ = nullptr, *importBtn_ = nullptr, *editBtn_ = nullptr,

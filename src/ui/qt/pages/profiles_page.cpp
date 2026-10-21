@@ -45,7 +45,9 @@
 #include "ui/model/effective_model.hpp"
 #include "ui/model/inheritance_model.hpp"
 #include "ui/model/examples_model.hpp"
+#include "motion_view.hpp"
 #include "ui/model/mode_info_model.hpp"
+#include "ui/model/profile_assignment_model.hpp"
 #include "ui/model/key_list.hpp"
 #include "ui/model/profile_export.hpp"
 #include "ui/model/profile_tree_model.hpp"
@@ -514,7 +516,7 @@ void ProfilesPage::rebuildContent() {
         if (layout.unknownMode)
             general << noteLabel(T("This profile names a joystick mode that is not installed; it behaves like the "
                                    "Global joystick mode until you choose another one."));
-        if (layout.modeInfo) general << buildModeInfo(section);
+        general << buildModeInfo(section);  // what the profile really does: the same six-motion look on every page
     } else {
         general << noteLabel(T("Output is off for this profile: it sends nothing, so the joystick mode, the buttons and "
                                "the channel settings do not apply and are hidden. Switch the output on to edit them."));
@@ -857,33 +859,57 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
     return box;
 }
 
+// What the profile really does: the six motions of its joystick mode and its buttons (the mode's bindings, the
+// profile's own, the inherited ones), each with a short word where the value comes from. The same components
+// as the Joystick modes page and the Overview (motion_view.hpp). The channel actions belong to the joystick mode and are
+// read-only here; the buttons are edited on the Buttons tab.
 QWidget *ProfilesPage::buildModeInfo(size_t section) {
     const SettingsModel::Visible v = ctx_.settings->visibleSettings(section);
-    auto *box = new QGroupBox(qs8(v.mode.label));
+    const spn::ui::IdentityStrings fallbackStrings;
+    const spn::ui::StringProvider &strs = ctx_.strings ? *ctx_.strings : fallbackStrings;
+    const spn::ui::ProfileAssignment a = spn::ui::profileAssignment(*ctx_.settings, section, strs);
+    auto *box = new QGroupBox(T("What this profile does"));
+    box->setObjectName(QStringLiteral("profileAssignment"));
     auto *l = new QVBoxLayout(box);
     l->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
-    if (!v.mode.description.empty()) l->addWidget(wrapLabel(qs8(v.mode.description)));
-    auto *form = new QFormLayout;
-    auto plain = [](const std::string &t) {  // text of a joystick mode file: never rich text
-        auto *l = new QLabel(qs8(t));
-        l->setTextFormat(Qt::PlainText);
-        return l;
-    };
-    form->addRow(T("Vertical scroll:"), plain(v.mode.v));
-    form->addRow(T("Horizontal scroll:"), plain(v.mode.h));
-    form->addRow(T("Twist:"), plain(v.mode.twist));
-    l->addLayout(form);
-    // The mode's own bindings (including key and click actions) are shown as they are.
-    if (v.mode.buttons.empty()) {
-        l->addWidget(new QLabel(T("This joystick mode binds no buttons.")));
-    } else {
-        l->addWidget(new QLabel(T("Button bindings of this joystick mode:")));
-        auto *bf = new QFormLayout;
-        for (const auto &b : v.mode.buttons)
-            bf->addRow(T("Button") + QStringLiteral(" %1:").arg(b.first), plain(b.second));
-        l->addLayout(bf);
+    auto *modeLine = wrapLabel(T("Joystick mode: %1").arg(qs8(a.modeLabel)));
+    modeLine->setTextFormat(Qt::PlainText);  // the name comes from a joystick mode file
+    l->addWidget(modeLine);
+    if (const ModeDef *def = ctx_.settings->modeDef(a.modeId))
+        if (!def->description.empty()) {
+            auto *desc = noteLabel(qs8(def->description));
+            desc->setTextFormat(Qt::PlainText);
+            l->addWidget(desc);
+        }
+    auto *grid = new motionview::MotionGrid(box, 2);  // narrow tab: two columns
+    grid->setObjectName(QStringLiteral("profileMotions"));
+    grid->setMotions(a.motions);
+    l->addWidget(grid);
+    auto *buttonsTitle = new QLabel(T("Buttons"), box);
+    QFont bf = buttonsTitle->font();
+    bf.setBold(true);
+    buttonsTitle->setFont(bf);
+    l->addWidget(buttonsTitle);
+    auto *chips = new motionview::ButtonChips(box);
+    chips->setObjectName(QStringLiteral("profileButtons"));
+    chips->setButtons(a.buttons, T("No buttons assigned"));
+    l->addWidget(chips);
+    // the same chips with their source in words (the chips themselves are short): one line per source
+    QStringList own, fromMode, inherited;
+    for (const spn::ui::ButtonChip &c : a.buttons)
+        (c.source == strs.tr("from this profile") ? own : c.source == strs.tr("from the joystick mode") ? fromMode : inherited)
+            << qs8(c.text);
+    QString where;
+    if (!own.isEmpty()) where += T("From this profile: %1").arg(own.join(QStringLiteral(", "))) + QLatin1Char('\n');
+    if (!fromMode.isEmpty()) where += T("From the joystick mode: %1").arg(fromMode.join(QStringLiteral(", "))) + QLatin1Char('\n');
+    if (!inherited.isEmpty()) where += T("Inherited: %1").arg(inherited.join(QStringLiteral(", "))) + QLatin1Char('\n');
+    if (!where.isEmpty()) {
+        auto *w = noteLabel(where.trimmed());
+        w->setTextFormat(Qt::PlainText);
+        l->addWidget(w);
     }
-    l->addWidget(wrapLabel(T("These settings come from the joystick mode file and are read-only here.")));
+    if (v.mode.id.empty()) return box;  // the default joystick mode: nothing to edit
+    l->addWidget(wrapLabel(T("The motions come from the joystick mode file and are read-only here.")));
     auto *edit = new QPushButton(T("Edit joystick mode file"), box);
     edit->setEnabled(v.mode.hasFile);
     edit->setToolTip(v.mode.hasFile ? T("Open the joystick mode file in your default editor")

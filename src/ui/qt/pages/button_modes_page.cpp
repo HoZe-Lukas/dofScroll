@@ -27,6 +27,8 @@
 
 #include "described_item_delegate.hpp"
 #include "key_combo.hpp"
+#include "motion_view.hpp"
+#include "ui/model/button_chip_model.hpp"
 #include "ui/model/mode_info_model.hpp"
 #include "platform/fs.hpp"
 #include "qt_action_runner.hpp"
@@ -112,6 +114,10 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     auto *arl = new QVBoxLayout(actionRow);  // the argument (key combination, mode, ...) below the action:
     arl->setContentsMargins(0, 0, 0, 0);     // side by side it makes the page wider than a window
     arl->setSpacing(spn::ui::tokens::kRowGap);
+    // what a press does, as the same chip as on the other pages (button_chip_model.hpp)
+    actionChip_ = new motionview::ButtonChips(right);
+    actionChip_->setObjectName(QStringLiteral("actionChip"));
+    arl->addWidget(actionChip_);
     arl->addWidget(kind_);
     arl->addWidget(argHost_);
     form->addRow(T("Name:"), name_);
@@ -355,11 +361,20 @@ void ButtonModesPage::rebuildActionArg() {
         argWidget_ = mc;
     }
     if (argWidget_) lay->addWidget(argWidget_);
+    refreshActionChip();
 }
 
 // An edit: an incomplete action (no key chosen) is said, not written; otherwise the write follows (a typed
 // text after a pause, a drop-down at once).
+// The chip above the action: the action in a few words (muted and "Unassigned" while it is incomplete).
+void ButtonModesPage::refreshActionChip() {
+    spn::ui::ButtonChip c = spn::ui::buttonChip(1, composedAction(), std::string(), QtStrings());
+    c.text = c.action;  // a button mode has no button number
+    actionChip_->setButtons({c}, QString());
+}
+
 void ButtonModesPage::markDirty(bool typed) {
+    refreshActionChip();
     if (loading_) return;
     dirty_ = true;
     if (composedAction().empty()) {
