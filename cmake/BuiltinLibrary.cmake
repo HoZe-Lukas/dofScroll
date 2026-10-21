@@ -8,25 +8,30 @@
 #
 #   dofscroll_generate_builtin_library(<output .cpp>)
 #
-# The file name without ".conf" is the id. The output is only rewritten when its content changes,
+# The file name without ".conf" is the id; for the legacy list the id is the part before the first dot,
+# so "timeline.2.conf" is a second text of the id "timeline" (the symbols carry a running number). The output is only rewritten when its content changes,
 # and CMake re-runs when one of the sources changes (CMAKE_CONFIGURE_DEPENDS).
 
 function(dofscroll_embed_dir kind dir outVar)
   file(GLOB confs CONFIGURE_DEPENDS ${dir}/*.conf)
   list(SORT confs)
   set(entries "")
+  set(n 0)
   foreach(f ${confs})
     get_filename_component(id ${f} NAME_WE)
     file(READ ${f} hex HEX)
     string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," bytes "${hex}")
-    string(MAKE_C_IDENTIFIER "${kind}_${id}" sym)
+    math(EXPR n "${n} + 1")
+    string(MAKE_C_IDENTIFIER "${kind}_${id}_${n}" sym)
     string(APPEND entries "const unsigned char ${sym}[] = {${bytes}0x00};\n")
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${f})
   endforeach()
   string(APPEND entries "const BuiltinFile ${kind}_files[] = {\n")
+  set(n 0)
   foreach(f ${confs})
     get_filename_component(id ${f} NAME_WE)
-    string(MAKE_C_IDENTIFIER "${kind}_${id}" sym)
+    math(EXPR n "${n} + 1")
+    string(MAKE_C_IDENTIFIER "${kind}_${id}_${n}" sym)
     string(APPEND entries "    {\"${id}\", reinterpret_cast<const char *>(${sym})},\n")
   endforeach()
   string(APPEND entries "    {nullptr, nullptr}};\n")

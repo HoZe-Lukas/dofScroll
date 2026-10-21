@@ -152,6 +152,7 @@ void ExtensionsPage::rebuild() {
         QStringList lines;
         if (!e.description.empty()) lines << qs8(e.description);
         lines << (e.enabled ? T("Switched on") : T("Switched off: the file is kept, but not used"));
+        if (e.copyOfShipped) lines << T("Copy of a shipped example, not used: the built-in one applies. You can remove this file.");
         if (!e.usedBy.empty()) {
             QStringList uses;
             for (const std::string &u : e.usedBy) uses << qs8(u);
@@ -165,7 +166,7 @@ void ExtensionsPage::rebuild() {
         g->addWidget(detail, 1, 1);
         auto *rm = new QToolButton;
         rm->setText(T("Remove"));
-        rm->setToolTip(T("Delete this file"));
+        rm->setToolTip(e.copyOfShipped ? T("Delete this copy of a shipped example (nothing changes, the built-in one applies)") : T("Delete this file"));
         rm->setAccessibleName(T("Remove") + QLatin1Char(' ') + label);
         connect(rm, &QToolButton::clicked, this, [this, kind, id] { removeEntry(kind, id, true); });
         g->addWidget(rm, 0, 2, 2, 1, Qt::AlignTop);
@@ -194,6 +195,11 @@ bool ExtensionsPage::exists(const QString &kind, const QString &id) const { retu
 bool ExtensionsPage::isEnabled(const QString &kind, const QString &id) const {
     const ExtensionEntry *e = find(kind, id);
     return e && e->enabled;
+}
+
+bool ExtensionsPage::isCopyOfShipped(const QString &kind, const QString &id) const {
+    const ExtensionEntry *e = find(kind, id);
+    return e && e->copyOfShipped;
 }
 
 QCheckBox *ExtensionsPage::switchOf(const QString &kind, const QString &id) const {

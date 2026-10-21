@@ -26,6 +26,7 @@ public:
     // kind: "joystick" or "button". For the self-test and the switches: the same code path as a click.
     bool exists(const QString &kind, const QString &id) const;
     bool isEnabled(const QString &kind, const QString &id) const;
+    bool isCopyOfShipped(const QString &kind, const QString &id) const;
     bool setEnabled(const QString &kind, const QString &id, bool on);  // false + message() on a problem
     bool removeEntry(const QString &kind, const QString &id, bool ask);
     QCheckBox *switchOf(const QString &kind, const QString &id) const;

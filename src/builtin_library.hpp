@@ -19,14 +19,16 @@ struct BuiltinFile {
 const BuiltinFile *builtinModeFiles();
 const BuiltinFile *builtinButtonModeFiles();
 // Joystick mode files that earlier versions copied into the user's modes folder on first start
-// (examples/legacy/modes, ids as the file names then). A user file with exactly this text is the
-// shipped example, so the loaders do not list it as the user's own file.
+// (examples/legacy/modes: "<id>.conf", and "<id>.<n>.conf" for every further text of the same id; the id
+// is the part before the first dot). A user file with exactly one of these texts is the shipped example,
+// so the loaders do not list it as the user's own file. These are only for matching, never modes.
 const BuiltinFile *legacyModeFiles();
 
-// True if text is byte-identical to the embedded text with this id in the list.
+// True if text is byte-identical to the embedded text of ANY entry with this id in the list (the legacy
+// list holds several texts per id: the file the seeding copied changed between versions).
 inline bool matchesBuiltinText(const BuiltinFile *list, const std::string &id, const std::string &text) {
     for (; list && list->id; ++list)
-        if (id == list->id) return text == list->text;
+        if (id == list->id && text == list->text) return true;
     return false;
 }
 

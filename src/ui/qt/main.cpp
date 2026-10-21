@@ -325,6 +325,15 @@ static bool extensionsSelfTest(const UiContext &ctx, const QString &tmpPath) {
               !QFile::exists(tmpPath + QStringLiteral("/modes/ext-test.conf")),
           "Remove deletes the other file too");
     check(!page.setEnabled(QStringLiteral("joystick"), QStringLiteral("nothing-here"), true), "an unknown file is refused");
+    // a file with exactly the text of a built-in joystick mode is a copy of a shipped example: flagged, and the loader ignores it
+    if (const spn::BuiltinFile *shipped = spn::builtinModeFiles(); shipped && shipped->id) {
+        const QString shippedId = QString::fromUtf8(shipped->id);
+        check(write(QStringLiteral("/modes/") + shippedId + QStringLiteral(".conf"), shipped->text), "write a copy of a shipped example");
+        page.refresh();
+        check(page.isCopyOfShipped(QStringLiteral("joystick"), shippedId), "a copy of a shipped example is flagged");
+        check(QFile::remove(tmpPath + QStringLiteral("/modes/") + shippedId + QStringLiteral(".conf")), "remove the copy");
+        page.refresh();
+    }
     std::printf("extensions self-test: %s\n", ok ? "ok" : "failed");
     return ok;
 }
