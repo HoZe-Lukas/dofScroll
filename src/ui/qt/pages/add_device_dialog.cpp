@@ -19,15 +19,19 @@ namespace {
 enum { kRoleName = Qt::UserRole };
 }  // namespace
 
-AddDeviceDialog::AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent)
+AddDeviceDialog::AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent,
+                                 const QString &current)
     : QDialog(parent), ctx_(ctx) {
-    setWindowTitle(T("Add device"));
+    const bool change = !current.isEmpty();
+    setWindowTitle(change ? T("Change device") : T("Add device"));
     resize(640, 500);
     model_.setConfigured(configured);
 
     auto *l = new QVBoxLayout(this);
-    auto *intro = new QLabel(T("Pick a connected device or type its name. The profile applies while that "
-                              "device is used."));
+    auto *intro = new QLabel(change ? T("Pick the device this profile should apply to now, or type its name. The "
+                                        "settings of the profile stay.")
+                                    : T("Pick a connected device or type its name. The profile applies while that "
+                                        "device is used."));
     intro->setWordWrap(true);
     l->addWidget(intro);
     auto *top = new QHBoxLayout;
@@ -62,7 +66,7 @@ AddDeviceDialog::AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::
     l->addWidget(validation_);
 
     buttons_ = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    buttons_->button(QDialogButtonBox::Ok)->setText(T("Add"));
+    buttons_->button(QDialogButtonBox::Ok)->setText(change ? T("Change") : T("Add"));
     buttons_->button(QDialogButtonBox::Cancel)->setText(T("Cancel"));
     l->addWidget(buttons_);
 
@@ -83,6 +87,7 @@ AddDeviceDialog::AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::
     setTabOrder(refreshBtn, list_);
     setTabOrder(list_, manual_);
 
+    if (change) manual_->setText(current);
     validate();
     refresh();
 }

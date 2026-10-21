@@ -13,7 +13,6 @@
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
-#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -144,13 +143,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     add_app_->setToolTip(T("Create a profile for a program, matched by its window class or name"));
     add_dev_ = new QPushButton(T("Add device..."), left);
     add_dev_->setToolTip(T("Create a profile for a connected device"));
-    rename_ = new QPushButton(T("Rename..."), left);
-    rename_->setToolTip(T("Change the match string of this profile"));
-    remove_ = new QPushButton(T("Remove"), left);
-    remove_->setToolTip(T("Delete this profile and its settings"));
-    export_ = new QPushButton(T("Export..."), left);
-    export_->setToolTip(T("Save this profile (its section) as a .conf file"));
-    for (QPushButton *b : {add_app_, add_dev_, rename_, remove_, export_}) ll->addWidget(b);
+    for (QPushButton *b : {add_app_, add_dev_}) ll->addWidget(b);
 
     // Right: who is edited, the search box of the settings and the tabs.
     auto *right = new QWidget(split);
@@ -226,10 +219,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     setTabOrder(profileFilter_, tree_);
     setTabOrder(tree_, add_app_);
     setTabOrder(add_app_, add_dev_);
-    setTabOrder(add_dev_, rename_);
-    setTabOrder(rename_, remove_);
-    setTabOrder(remove_, export_);
-    setTabOrder(export_, settingsFilter_);
+    setTabOrder(add_dev_, settingsFilter_);
     setTabOrder(settingsFilter_, tabs_);
 
     connect(tree_, &QTreeWidget::currentItemChanged, this,
@@ -242,9 +232,6 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     connect(tabs_, &QTabWidget::currentChanged, this, [this] { ctx_.saveNow(); });
     connect(add_app_, &QPushButton::clicked, this, &ProfilesPage::addApplication);
     connect(add_dev_, &QPushButton::clicked, this, &ProfilesPage::addDevice);
-    connect(rename_, &QPushButton::clicked, this, &ProfilesPage::renameProfile);
-    connect(remove_, &QPushButton::clicked, this, &ProfilesPage::removeProfile);
-    connect(export_, &QPushButton::clicked, this, &ProfilesPage::exportProfile);
 
     // the numbers of overrides in the list follow the edits
     if (ctx_.autosave) connect(ctx_.autosave, &Autosaver::written, this, [this] { refreshTreeLabels(); });
@@ -273,12 +260,6 @@ size_t ProfilesPage::currentSection() const {
 }
 
 void ProfilesPage::problem(const QString &text) { ctx_.report(text, true); }
-
-void ProfilesPage::updateButtons() {
-    const size_t s = currentSection();
-    rename_->setEnabled(s != 0);
-    remove_->setEnabled(s != 0);
-}
 
 void ProfilesPage::rebuildTree(size_t selectSection) {
     QSignalBlocker block(tree_);
@@ -489,7 +470,6 @@ void ProfilesPage::rebuildContent() {
     const size_t section = currentSection();
     shown_ = section;
     if (ctx_.modes) ctx_.settings->setModes(ctx_.modes->modeSet(), ctx_.modesDir);
-    updateButtons();
     refreshDeviceLimit(section);
     rebuildHeader();
     settingRows_ = 0;
@@ -519,6 +499,7 @@ void ProfilesPage::rebuildContent() {
                                "Global joystick mode until you choose another one."));
     general << buildEnabled(section);
     if (layout.modeInfo) general << buildModeInfo(section);
+    if (!filtering) general << buildProfileActions(section);  // not a setting: hidden while searching
     setTabContent(general_, noMatch(general));
 
     // Buttons: the bindings of the profile, or a hint when the joystick mode brings its own.
@@ -652,6 +633,35 @@ QWidget *ProfilesPage::buildModeSelector(size_t section) {
 
 // Device and program profiles: whether the profile sends anything. [global]: the master switch is
 // on the Settings page, not here (no setting appears in two places).
+// What belongs to the selected profile as a whole: another program or device for it, export, removal.
+// Global has no program or device and cannot be removed; it can be exported.
+QWidget *ProfilesPage::buildProfileActions(size_t section) {
+    auto *box = new QGroupBox(T("This profile"));
+    auto *l = new QHBoxLayout(box);
+    l->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
+    if (section != 0) {
+        const bool app = ctx_.settings->sections()[section].kind == Section::APP;
+        auto *change = new QPushButton(app ? T("Change application...") : T("Change device..."));
+        change->setToolTip(app ? T("Choose another program for this profile, for example when its name changed; the "
+                                   "settings stay")
+                               : T("Choose another device for this profile; the settings stay"));
+        connect(change, &QPushButton::clicked, this, &ProfilesPage::renameProfile);
+        l->addWidget(change);
+    }
+    auto *exp = new QPushButton(T("Export..."));
+    exp->setToolTip(T("Save this profile (its section) as a .conf file"));
+    connect(exp, &QPushButton::clicked, this, &ProfilesPage::exportProfile);
+    l->addWidget(exp);
+    if (section != 0) {
+        auto *remove = new QPushButton(T("Remove"));
+        remove->setToolTip(T("Delete this profile and its settings"));
+        connect(remove, &QPushButton::clicked, this, &ProfilesPage::removeProfile);
+        l->addWidget(remove);
+    }
+    l->addStretch(1);
+    return box;
+}
+
 QWidget *ProfilesPage::buildEnabled(size_t section) {
     if (section == 0) return nullptr;
     if (!settingMatches(T("Send events"), "ENABLED")) return nullptr;
@@ -964,16 +974,28 @@ void ProfilesPage::addDevice() {
     rebuildTree(idx);
 }
 
+// "Change application..." / "Change device...": the same pickers as for a new profile (running programs, capture
+// the next focused one, device list, manual entry) choose the new match string; the settings stay.
 void ProfilesPage::renameProfile() {
     const size_t s = currentSection();
     if (s == 0) return;
+    const Section::Kind kind = ctx_.settings->sections()[s].kind;
     const std::string cur = ctx_.settings->sections()[s].pattern;
-    bool ok = false;
-    const QString text = QInputDialog::getText(this, T("Rename profile"), T("Match string:"), QLineEdit::Normal,
-                                               qs8(cur), &ok);
-    if (!ok) return;
+    std::vector<std::string> others = ProfileTreeModel::patterns(*ctx_.settings, kind);
+    others.erase(std::remove(others.begin(), others.end(), cur), others.end());  // keeping the current one is fine
+    QString chosen;
+    if (kind == Section::APP) {
+        AddAppDialog dlg(env_, others, this, qs8(cur));
+        if (dlg.exec() != QDialog::Accepted) return;
+        chosen = dlg.matchString();
+    } else {
+        AddDeviceDialog dlg(env_, others, this, qs8(cur));
+        if (dlg.exec() != QDialog::Accepted) return;
+        chosen = dlg.deviceName();
+    }
+    if (chosen.toUtf8().toStdString() == cur) return;
     std::string err;
-    if (!ProfileTreeModel::rename(*ctx_.settings, s, text.toUtf8().toStdString(), &err)) {
+    if (!ProfileTreeModel::rename(*ctx_.settings, s, chosen.toUtf8().toStdString(), &err)) {
         problem(qs8(err));
         return;
     }

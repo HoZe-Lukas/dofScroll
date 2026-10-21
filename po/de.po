@@ -1074,9 +1074,6 @@ msgstr "Ein Profil für ein angeschlossenes Gerät erstellen"
 msgid "Rename..."
 msgstr "Umbenennen..."
 
-#: src/ui/qt/pages/profiles_page.cpp:102
-msgid "Change the match string of this profile"
-msgstr "Den Suchbegriff dieses Profils ändern"
 
 #: src/ui/qt/pages/profiles_page.cpp:103 src/ui/qt/pages/profiles_page.cpp:511
 msgid "Remove"
@@ -1204,9 +1201,6 @@ msgstr "Zu überschreibende Einstellung"
 msgid "Add override"
 msgstr "Überschreibung hinzufügen"
 
-#: src/ui/qt/pages/profiles_page.cpp:592
-msgid "Rename profile"
-msgstr "Profil umbenennen"
 
 #: src/ui/qt/pages/profiles_page.cpp:608
 msgid "Remove profile"
@@ -3225,3 +3219,43 @@ msgstr "Entfernt: %1"
 #: src/ui/qt/pages/general_page.cpp
 msgid "Language and appearance"
 msgstr "Sprache und Darstellung"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "This profile"
+msgstr "Dieses Profil"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Change application..."
+msgstr "Anwendung ändern..."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Change device..."
+msgstr "Gerät ändern..."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Choose another program for this profile, for example when its name changed; the settings stay"
+msgstr "Anderes Programm für dieses Profil wählen, zum Beispiel wenn sich sein Name geändert hat; die Einstellungen bleiben"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Choose another device for this profile; the settings stay"
+msgstr "Anderes Gerät für dieses Profil wählen; die Einstellungen bleiben"
+
+#: src/ui/qt/pages/add_app_dialog.cpp
+msgid "Change application"
+msgstr "Anwendung ändern"
+
+#: src/ui/qt/pages/add_app_dialog.cpp
+msgid "Change device"
+msgstr "Gerät ändern"
+
+#: src/ui/qt/pages/add_app_dialog.cpp
+msgid "Change"
+msgstr "Ändern"
+
+#: src/ui/qt/pages/add_app_dialog.cpp
+msgid "Pick the program this profile should apply to now: a running program, the next one you focus, or its match string. The settings of the profile stay."
+msgstr "Wähle das Programm, für das dieses Profil jetzt gelten soll: ein laufendes Programm, das nächste, das du in den Vordergrund holst, oder seinen Suchbegriff. Die Einstellungen des Profils bleiben."
+
+#: src/ui/qt/pages/add_app_dialog.cpp
+msgid "Pick the device this profile should apply to now, or type its name. The settings of the profile stay."
+msgstr "Wähle das Gerät, für das dieses Profil jetzt gelten soll, oder tippe seinen Namen. Die Einstellungen des Profils bleiben."

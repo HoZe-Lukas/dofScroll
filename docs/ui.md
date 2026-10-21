@@ -369,11 +369,16 @@ The tabs are the same for every profile and the selected tab stays when you sele
 - **Overrides** (advanced): the channel values this profile sets itself as raw text, with Remove
   (inherit again) and Add override. Global has nothing to override (it holds the base values).
 
-Profile actions below the list: **Add application...** (running-program picker), **Add device...**,
-**Rename...**, **Remove** and **Export...**, which writes the selected profile (its section, for
-Global the `[global]` keys the file holds) as a `.conf` file that can be copied into another
-configuration. Import of a whole profile is not offered; joystick modes and button modes have
-Import.
+Below the list: **Add application...** (running-program picker) and **Add device...**. What belongs to the
+selected profile as a whole is the box **This profile** at the bottom of its General tab (hidden while the settings
+search is in use): **Change application...** (program profiles) or **Change device...** (device profiles) opens
+the same picker as "Add application..." / "Add device..." (running programs, capture the next focused program,
+device list, manual entry) with the current match string filled in, and changes the program or device the
+profile applies to while all its settings stay, for example when a program's name changed; **Export...**
+writes the selected profile (its section, for Global the `[global]` keys the file holds) as a `.conf` file that
+can be copied into another configuration; **Remove** deletes the profile after asking. Global has no program or
+device and cannot be removed, it has only Export. Import of a whole profile is not offered; joystick modes and
+button modes have Import.
 
 ### Inheritance
 

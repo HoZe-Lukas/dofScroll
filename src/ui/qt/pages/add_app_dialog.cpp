@@ -22,15 +22,19 @@ namespace {
 enum { kRoleMatch = Qt::UserRole, kRoleHasProfile };
 }  // namespace
 
-AddAppDialog::AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent)
+AddAppDialog::AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent,
+                           const QString &current)
     : QDialog(parent), ctx_(ctx) {
-    setWindowTitle(T("Add application"));
+    const bool change = !current.isEmpty();
+    setWindowTitle(change ? T("Change application") : T("Add application"));
     resize(720, 560);
     model_.setConfigured(configured);
 
     auto *l = new QVBoxLayout(this);
-    auto *intro = new QLabel(T("Pick a running program, capture the next one you focus, or type its match "
-                              "string. The profile applies while that program has the focus."));
+    auto *intro = new QLabel(change ? T("Pick the program this profile should apply to now: a running program, the "
+                                        "next one you focus, or its match string. The settings of the profile stay.")
+                                    : T("Pick a running program, capture the next one you focus, or type its match "
+                                        "string. The profile applies while that program has the focus."));
     intro->setWordWrap(true);
     l->addWidget(intro);
 
@@ -88,7 +92,7 @@ AddAppDialog::AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string
     l->addWidget(validation_);
 
     buttons_ = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    buttons_->button(QDialogButtonBox::Ok)->setText(T("Add"));
+    buttons_->button(QDialogButtonBox::Ok)->setText(change ? T("Change") : T("Add"));
     buttons_->button(QDialogButtonBox::Cancel)->setText(T("Cancel"));
     l->addWidget(buttons_);
 
@@ -116,6 +120,7 @@ AddAppDialog::AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string
     setTabOrder(list_, capture_btn_);
     setTabOrder(capture_btn_, manual_);
 
+    if (change) manual_->setText(current);
     validate();
     refresh();
 }

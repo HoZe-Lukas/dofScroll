@@ -1136,9 +1136,6 @@ msgstr ""
 msgid "Rename..."
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:102
-msgid "Change the match string of this profile"
-msgstr ""
 
 #: src/ui/qt/pages/profiles_page.cpp:103 src/ui/qt/pages/profiles_page.cpp:511
 msgid "Remove"
@@ -1314,9 +1311,6 @@ msgstr ""
 msgid "Add override"
 msgstr ""
 
-#: src/ui/qt/pages/profiles_page.cpp:592
-msgid "Rename profile"
-msgstr ""
 
 #: src/ui/qt/pages/profiles_page.cpp:608
 msgid "Remove profile"
@@ -1964,4 +1958,44 @@ msgstr ""
 
 #: src/ui/model/status_model.hpp
 msgid "Devices: %1"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "This profile"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Change application..."
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Change device..."
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Choose another program for this profile, for example when its name changed; the settings stay"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Choose another device for this profile; the settings stay"
+msgstr ""
+
+#: src/ui/qt/pages/add_app_dialog.cpp
+msgid "Change application"
+msgstr ""
+
+#: src/ui/qt/pages/add_app_dialog.cpp
+msgid "Change device"
+msgstr ""
+
+#: src/ui/qt/pages/add_app_dialog.cpp
+msgid "Change"
+msgstr ""
+
+#: src/ui/qt/pages/add_app_dialog.cpp
+msgid "Pick the program this profile should apply to now: a running program, the next one you focus, or its match string. The settings of the profile stay."
+msgstr ""
+
+#: src/ui/qt/pages/add_app_dialog.cpp
+msgid "Pick the device this profile should apply to now, or type its name. The settings of the profile stay."
 msgstr ""
