@@ -16,7 +16,7 @@ A **sidebar** on the left picks a category (Overview, Profiles, Modes, Device, S
 | Profiles | Profiles | Everything that depends on the device or the program: joystick mode, scroll and zoom feel, button assignment |
 | Modes | Joystick modes | Built-in and your own joystick modes, with an editor |
 | Modes | Button modes | Reusable behaviors for one button, with an editor |
-| Modes | Extensions | Your joystick mode and button mode files in one list, each with an on/off switch |
+| Modes | User modes | Your joystick mode and button mode files in one list, each with an on/off switch |
 | Device | Device | The connected devices and their button counts |
 | Device | Axes | Live view of the six axes and the axis assistant |
 | Settings | Settings | Output on/off, start at login, language and theme, tick rate, output backend, input path, log, About |
@@ -58,7 +58,7 @@ Problems are listed below the form ("Not saved until this is fixed: ..."); an in
 
 A **button mode** is one named behavior of a button (a key, a click, navigation, switching the joystick mode, a cycle through chosen joystick modes). The page lists them (Built in, Your file, replaces the built-in), with New, New from example, Duplicate, Import, Delete (it names what still uses it), "Create editable copy" for built-in ones and the editor for name, description and action. Choose a button mode in the drop-down of any button.
 
-### Extensions
+### User modes
 
 Your files in `modes/` and `buttons/` in one list. The **switch** turns a file off (it is renamed to `<id>.conf.disabled`, nothing is deleted; a built-in with the same id applies again) and on. Each row shows where the file is used, so you see what a switch changes. **Remove** asks first. "Open folder" opens either folder.
 
@@ -87,7 +87,7 @@ Output on/off, **Start at login** (see below), language and theme, the daemon se
 | Change a built-in joystick mode | Joystick modes > Edit (creates a file with the same id); Delete brings the built-in back |
 | Push and tilt do different things | Joystick mode editor > Settings > Split push and tilt |
 | Share a joystick mode or button mode | Export, send the file; Import or drop a `.conf` file onto the page |
-| Switch a downloaded file off without deleting it | Modes > Extensions switch |
+| Switch a downloaded file off without deleting it | Modes > User modes switch |
 | See what the device sends / find out which axis is which | Device > Axes, axis assistant |
 | Stop a program from getting doubled input (Blender, CAD) | Profiles > Add application... and switch its output off |
 | Turn dofscroll off for a moment | Tray "Enabled", or Settings > Output |

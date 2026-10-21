@@ -1809,7 +1809,7 @@ msgid "Edit the mode here: name, channels, buttons and overrides"
 msgstr ""
 
 #: src/ui/qt/pages/extensions_page.cpp
-msgid "Extensions"
+msgid "User modes"
 msgstr ""
 
 #: src/ui/qt/pages/extensions_page.cpp
@@ -1837,7 +1837,7 @@ msgid "Delete the selected file of yours"
 msgstr ""
 
 #: src/ui/qt/pages/extensions_page.cpp
-msgid "Details of the selected extension"
+msgid "Details of the selected user mode"
 msgstr ""
 
 #: src/ui/qt/pages/extensions_page.cpp

@@ -24,7 +24,7 @@ const std::vector<PageFactory> &pageFactories() {
         {"profiles", "Profiles", "profiles", createProfilesPage},
         {"modes", terms::kJoystickModes, "modes", makeModesPage},
         {"buttonmodes", terms::kButtonModes, "modes", createButtonModesPage},
-        {"extensions", "Extensions", "modes", createExtensionsPage},
+        {"extensions", "User modes", "modes", createExtensionsPage},
         {"device", "Device", "device", createDevicePage},
         {"axes", "Axes", "device", createAxesPage},
         {"settings", "Settings", "settings", createGeneralPage},

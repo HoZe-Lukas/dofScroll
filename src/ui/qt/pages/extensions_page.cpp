@@ -42,7 +42,7 @@ ExtensionsPage::ExtensionsPage(const UiContext &ctx, QWidget *parent) : QWidget(
     col->setSpacing(tk::kSectionGap);
     scroll->setWidget(content);
 
-    auto *intro = new QLabel(T("Extensions are plain files in your configuration folders. dofscroll reads them with its own "
+    auto *intro = new QLabel(T("Your joystick mode files and button mode files are plain files in your configuration folders. dofscroll reads them with its own "
                                "checks and never runs them. Switch a file off to keep it without using it; a switched-off file "
                                "with the id of a built-in joystick mode or button mode lets the built-in one apply again."));
     intro->setWordWrap(true);
