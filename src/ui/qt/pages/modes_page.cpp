@@ -70,7 +70,7 @@ public:
         initStyleOption(&opt, index);
         const QFontMetrics fm(opt.font);
         const int pad = spn::ui::tokens::kSpaceSm;
-        const motionview::ChipLayout chips = motionview::layoutChips(fm, chipsOf(index), textWidth(opt));
+        const motionview::ChipLayout chips = motionview::layoutChips(fm, chipsOf(index), textWidth(opt), compactPad(fm));
         int h = fm.height() + 2 * pad;
         if (!index.data(kRoleDescription).toString().isEmpty()) h += fm.height();
         h += chips.height + (chips.height ? motionview::chipGap(fm) : 0);
@@ -124,11 +124,14 @@ public:
         }
         y += motionview::chipGap(fm);
         const QList<motionview::Chip> chips = chipsOf(index);
-        motionview::paintChips(painter, fm, chips, motionview::layoutChips(fm, chips, width), QPoint(textRect.left(), y), nameColor, mutedColor);
+        motionview::paintChips(painter, fm, chips, motionview::layoutChips(fm, chips, width, compactPad(fm)), QPoint(textRect.left(), y), nameColor,
+                               mutedColor, compactPad(fm));
         painter->restore();
     }
 
 private:
+    // symbol-only chips: a small inset, so that the six of them fit one row of a narrow list
+    static int compactPad(const QFontMetrics &fm) { return std::max(3, fm.height() / 4); }
     // the six motion chips of the row (text in kRoleChips, '1' in kRoleMuted for a muted one)
     static QList<motionview::Chip> chipsOf(const QModelIndex &index) {
         QList<motionview::Chip> out;

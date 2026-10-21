@@ -53,8 +53,9 @@ inline int chipPadX(const QFontMetrics &fm) { return fm.height() / 2; }
 inline int chipHeight(const QFontMetrics &fm) { return fm.height() + 2 * std::max(2, fm.height() / 6); }
 
 // Flows the chips left to right and wraps to the next row at `width`; a chip never gets wider than `width`.
-inline ChipLayout layoutChips(const QFontMetrics &fm, const QList<Chip> &chips, int width) {
-    const int px = chipPadX(fm), gap = chipGap(fm), ch = chipHeight(fm);
+// padX < 0: the normal inset; a smaller one (a symbol-only chip in a list row) keeps six chips in one row.
+inline ChipLayout layoutChips(const QFontMetrics &fm, const QList<Chip> &chips, int width, int padX = -1) {
+    const int px = padX >= 0 ? padX : chipPadX(fm), gap = chipGap(fm), ch = chipHeight(fm);
     ChipLayout l;
     int x = 0, y = 0;
     for (const Chip &c : chips) {
@@ -72,10 +73,10 @@ inline ChipLayout layoutChips(const QFontMetrics &fm, const QList<Chip> &chips, 
 
 // Draws the chips laid out by layoutChips at `origin`. `textColor` for active chips, `mutedColor` for muted ones.
 inline void paintChips(QPainter *p, const QFontMetrics &fm, const QList<Chip> &chips, const ChipLayout &layout, const QPoint &origin,
-                       const QColor &textColor, const QColor &mutedColor) {
+                       const QColor &textColor, const QColor &mutedColor, int padX = -1) {
     p->save();
     p->setRenderHint(QPainter::Antialiasing, true);
-    const int px = chipPadX(fm);
+    const int px = padX >= 0 ? padX : chipPadX(fm);
     for (int i = 0; i < chips.size() && i < layout.rects.size(); ++i) {
         const bool muted = chips[i].muted;
         const QRect r = layout.rects[i].translated(origin);
