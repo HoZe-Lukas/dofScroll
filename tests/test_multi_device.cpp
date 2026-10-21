@@ -23,15 +23,15 @@ static int failures = 0;
     std::fprintf(stderr, "FAIL %s:%d: %s -- ", __FILE__, __LINE__, #cond); \
     std::fprintf(stderr, __VA_ARGS__); std::fprintf(stderr, "\n"); } } while (0)
 
-struct Rec {
+struct MdRec {
     int wv = 0, wh = 0, ctrl_down = 0, ctrl_up = 0;
     bool ctrl = false;
     std::vector<std::string> taps;
 };
 
-struct RecOut : Output {
-    Rec *r;
-    explicit RecOut(Rec *rec) : r(rec) {}
+struct MdOut : Output {
+    MdRec *r;
+    explicit MdOut(MdRec *rec) : r(rec) {}
     const char *name() const override { return "rec"; }
     bool init(std::string *) override { return true; }
     void wheelV(int n) override { r->wv += n; }
@@ -48,15 +48,15 @@ struct RecOut : Output {
     void flush() override {}
 };
 
-struct NoWindow : ActiveWindowProvider {
+struct MdWindow : ActiveWindowProvider {
     bool init() override { return true; }
     std::string poll() override { return std::string(); }
 };
-struct NoReload : ReloadListener {
+struct MdReload : ReloadListener {
     bool init(std::string *) override { return true; }
     bool pollReload() override { return false; }
 };
-struct TestSource : FakeInputSource {
+struct MdSource : FakeInputSource {
     std::vector<DeviceInfo> list;
     std::vector<DeviceInfo> devices() const override { return list; }
 };
@@ -74,17 +74,17 @@ static DeviceInfo dev(int id, const char *name) {
     return d;
 }
 
-struct Rig {
+struct MdRig {
     std::string dir;
-    Rec rec;
-    TestSource src;
-    NoWindow win;
-    NoReload reload;
+    MdRec rec;
+    MdSource src;
+    MdWindow win;
+    MdReload reload;
     int64_t now = 10'000'000'000;
     std::unique_ptr<DaemonCore> core;
     std::vector<std::string> status;
 
-    Rig(const std::string &conf, std::vector<DeviceInfo> devs) : dir(tu::makeTempDir("dofscroll-multi-test")) {
+    MdRig(const std::string &conf, std::vector<DeviceInfo> devs) : dir(tu::makeTempDir("dofscroll-multi-test")) {
         writeFile(dir + "/dofscroll.conf", conf);
         src.list = std::move(devs);
         DaemonDeps deps;
@@ -93,15 +93,15 @@ struct Rig {
         deps.reload = &reload;
         deps.paths.configDir = dir;
         deps.paths.runtimeDir = dir;
-        Rec *rp = &rec;
-        deps.makeOutput = [rp](const std::string &, std::string *) { return std::unique_ptr<Output>(new RecOut(rp)); };
+        MdRec *rp = &rec;
+        deps.makeOutput = [rp](const std::string &, std::string *) { return std::unique_ptr<Output>(new MdOut(rp)); };
         deps.clock = [this] { return now; };
         deps.writeStatus = [this](const std::string &body, int64_t) { status.push_back(body); };
         core = std::make_unique<DaemonCore>(std::move(deps));
         assert(core->initialize());
         assert(core->reader().connect());
     }
-    ~Rig() { tu::removeAll(dir); }
+    ~MdRig() { tu::removeAll(dir); }
     void pump() {
         InputEvent e;
         while (src.wait(&e, 0) == WaitResult::Event) core->reader().handle(e);
@@ -129,12 +129,12 @@ struct Rig {
 
 static const char *const BASE = "[global]\nTICK_HZ = 250\nCLICK_BUTTON_ENABLED = 0\n";
 // Same peak vectors as test_daemon_core: a vertical push scrolls, a twist zooms (Ctrl + wheel).
-static void push(Rig &r, int dev) { r.src.pushMotion(dev, 69, 286, 350, 145, 56, 155); }
-static void twist(Rig &r, int dev) { r.src.pushMotion(dev, 82, 144, 90, 35, 350, 111); }
-static void idle(Rig &r, int dev) { r.src.pushMotion(dev, 0, 0, 0, 0, 0, 0); }
+static void push(MdRig &r, int dev) { r.src.pushMotion(dev, 69, 286, 350, 145, 56, 155); }
+static void twist(MdRig &r, int dev) { r.src.pushMotion(dev, 82, 144, 90, 35, 350, 111); }
+static void idle(MdRig &r, int dev) { r.src.pushMotion(dev, 0, 0, 0, 0, 0, 0); }
 // The deflection counts as stale after 250 ms without an event: repeat it like a real device does.
 // dev1 / dev2: 'p' push, 't' twist, '0' idle, ' ' no event.
-static void hold(Rig &r, double secs, char dev1, char dev2 = ' ') {
+static void hold(MdRig &r, double secs, char dev1, char dev2 = ' ') {
     for (int i = 0; i < static_cast<int>(secs / 0.05); ++i) {
         for (int d = 1; d <= 2; ++d) {
             const char c = d == 1 ? dev1 : dev2;
@@ -148,8 +148,8 @@ static void hold(Rig &r, double secs, char dev1, char dev2 = ' ') {
 
 // The mux alone: shared keys are released when the last holder lets go; a view's releaseAll leaves the others.
 static void testMux() {
-    Rec rec;
-    RecOut real(&rec);
+    MdRec rec;
+    MdOut real(&rec);
     OutputMux mux(&real);
     Output *a = mux.addView();
     Output *b = mux.addView();
@@ -175,25 +175,25 @@ static void testMux() {
 }
 
 static void testTwoLanesAndNames() {
-    Rig r(BASE, {dev(1, "Mouse A"), dev(2, "Mouse B")});
+    MdRig r(BASE, {dev(1, "Mouse A"), dev(2, "Mouse B")});
     r.run(0.1);
     CHECK(r.core->laneCount() == 2 && r.core->lane(0).device == "Mouse A" && r.core->lane(1).device == "Mouse B", "two lanes, plain names");
     // Two of the same model: only the first gets a lane.
-    Rig r3(BASE, {dev(1, "Same"), dev(2, "Same")});
+    MdRig r3(BASE, {dev(1, "Same"), dev(2, "Same")});
     r3.run(0.1);
     CHECK(r3.core->laneCount() == 1 && r3.core->deviceName() == "Same", "second identical model ignored (%zu lanes)", r3.core->laneCount());
     // A Pro and a Compact next to a second Compact: two lanes.
-    Rig r5(BASE, {dev(1, "Pro"), dev(2, "Compact"), dev(3, "Compact")});
+    MdRig r5(BASE, {dev(1, "Pro"), dev(2, "Compact"), dev(3, "Compact")});
     r5.run(0.1);
     CHECK(r5.core->laneCount() == 2 && r5.core->lane(1).device == "Compact", "one lane per model (%zu)", r5.core->laneCount());
-    Rig r4(BASE, {dev(1, "Only")});
+    MdRig r4(BASE, {dev(1, "Only")});
     r4.run(0.1);
     CHECK(r4.core->laneCount() == 1 && r4.core->deviceName() == "Only", "single device: plain name, one lane");
 }
 
 static void testIndependentProfilesAndModes() {
     // Device 2 gets the media mode (keys) by its device profile, device 1 stays normal.
-    Rig r(std::string(BASE) + "\n[device:Mouse B]\nMODE = media\n", {dev(1, "Mouse A"), dev(2, "Mouse B")});
+    MdRig r(std::string(BASE) + "\n[device:Mouse B]\nMODE = media\n", {dev(1, "Mouse A"), dev(2, "Mouse B")});
     r.run(0.1);
     CHECK(r.core->lane(0).runner->mode().id == "normal", "lane 1 mode %s", r.core->lane(0).runner->mode().id.c_str());
     CHECK(r.core->lane(1).runner->mode().id == "media", "lane 2 mode %s", r.core->lane(1).runner->mode().id.c_str());
@@ -210,7 +210,7 @@ static void testIndependentProfilesAndModes() {
 }
 
 static void testButtonSwitchesOnlyOwnLane() {
-    Rig r(std::string(BASE) + "\nBUTTON_1 = mode:timeline\n", {dev(1, "Mouse A"), dev(2, "Mouse B")});
+    MdRig r(std::string(BASE) + "\nBUTTON_1 = mode:timeline\n", {dev(1, "Mouse A"), dev(2, "Mouse B")});
     r.run(0.1);
     r.src.pushButton(2, 0, true);
     r.run(0.1);
@@ -221,7 +221,7 @@ static void testButtonSwitchesOnlyOwnLane() {
 }
 
 static void testSharedCtrlAndUnplug() {
-    Rig r(BASE, {dev(1, "Mouse A"), dev(2, "Mouse B")});
+    MdRig r(BASE, {dev(1, "Mouse A"), dev(2, "Mouse B")});
     r.run(0.1);
     hold(r, 0.8, 't', 't');
     CHECK(r.rec.ctrl && r.rec.ctrl_down == 1, "both zoom with one Ctrl press (down=%d)", r.rec.ctrl_down);
@@ -237,7 +237,7 @@ static void testSharedCtrlAndUnplug() {
 }
 
 static void testUnplugKeepsOtherDeviceState() {
-    Rig r(std::string(BASE) + "\nBUTTON_1 = mode:timeline\n", {dev(1, "Mouse A"), dev(2, "Mouse B")});
+    MdRig r(std::string(BASE) + "\nBUTTON_1 = mode:timeline\n", {dev(1, "Mouse A"), dev(2, "Mouse B")});
     r.run(0.1);
     r.src.pushButton(1, 0, true);
     r.run(0.1);
@@ -258,7 +258,7 @@ static void testUnplugKeepsOtherDeviceState() {
 }
 
 static void testReplugKeepsLane() {
-    Rig r(std::string(BASE) + "\nBUTTON_1 = mode:timeline\n", {dev(1, "Mouse A")});
+    MdRig r(std::string(BASE) + "\nBUTTON_1 = mode:timeline\n", {dev(1, "Mouse A")});
     r.run(0.1);
     r.src.pushButton(1, 0, true);
     r.run(0.1);
@@ -276,7 +276,7 @@ static void testReplugKeepsLane() {
 
 static void testMergedSourceSingleLane() {
     // spacenavd: one merged device (id 0), events with device 0. Behaves as before.
-    Rig r(BASE, {dev(0, "Merged")});
+    MdRig r(BASE, {dev(0, "Merged")});
     for (int i = 0; i < 12; ++i) {
         push(r, 0);
         r.run(0.05);
