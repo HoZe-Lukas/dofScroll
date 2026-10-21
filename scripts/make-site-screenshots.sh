@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #
-# Rebuilds the website screenshots in site/img/ (settings window and Overview, light and dark, English
+# Rebuilds the website screenshots in site/img/ (settings window = the Joystick modes page, and Overview, light and dark, English
 # in site/img/ and German in site/img/de/). Run it after changes to the user interface.
 #
 # The pictures are rendered by `dofscroll-ui --screenshots` without hardware: a demo configuration
@@ -36,7 +36,7 @@ for lang in en de; do
     if [ "$lang" = en ]; then dest=$root/site/img; else dest=$root/site/img/de; fi
     mkdir -p "$dest"
     for theme in light dark; do
-        cp "$tmp/shots-$lang/site-profiles-$theme.png" "$dest/ui-window-$theme.png"
+        cp "$tmp/shots-$lang/site-modes-$theme.png" "$dest/ui-window-$theme.png"  # the Joystick modes page is the main picture
         cp "$tmp/shots-$lang/site-overview-$theme.png" "$dest/ui-overview-$theme.png"
     done
     "$py" "$here/optimize-png.py" "$dest"/ui-window-*.png "$dest"/ui-overview-*.png

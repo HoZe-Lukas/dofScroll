@@ -2736,6 +2736,11 @@ int main(int argc, char **argv) {
             if (ProfilesPage *pp = w.profilesPage()) pp->selectTab(QStringLiteral("general"));
             settle();
             if (w.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/site-profiles-%1.png").arg(QString::fromLatin1(th)))) ++written;
+            w.resize(1040, 680);  // the Joystick modes page: six motions per mode at a glance
+            w.showPage(QStringLiteral("modes"));
+            if (auto *mp = qobject_cast<ModesPage *>(w.currentPage())) mp->selectMode(QStringLiteral("browse"));
+            settle();
+            if (w.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/site-modes-%1.png").arg(QString::fromLatin1(th)))) ++written;
             w.resize(720, 470);
             w.showPage(QStringLiteral("overview"));
             refreshDemoStatus("okular");

@@ -6,6 +6,10 @@ Design principle: dofscroll complements the vendor driver instead of duplicating
 
 Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
 
+## 1.1.2
+
+Interface release. A joystick mode shows what each of the six motions of the cap does (vertical push, vertical tilt, horizontal push, horizontal tilt, twist, lift / press) as six symbols in the list and six cards in the detail view, and the same look is used on the Joystick modes page, in the profile's General tab, on the Overview cards, on the Button modes page and on the Buttons tab. The built-in joystick modes and button modes explain themselves in plain words, you can choose which joystick modes Next and Previous joystick mode go through, the output switch is the first box of a profile, and the "Extensions" page is called "User modes" (and recognises files that older versions copied). Full notes: [docs/release-notes-1.1.2.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.1.2.md).
+
 ## 1.1.1
 
 Fix release for 1.1.0: upgrading the RPM or DEB now restarts the daemon and the interface also for domain accounts (user names with an `@`) and for an interface that the desktop's session restore started; in 1.1.0 both kept running the old program after `dnf install` for such users. Full notes: [docs/release-notes-1.1.1.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.1.1.md).
