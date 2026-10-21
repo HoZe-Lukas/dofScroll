@@ -63,6 +63,7 @@ namespace tk = spn::ui::tokens;
 
 QLabel *wrapLabel(const QString &text, QWidget *parent = nullptr) {
     auto *l = new QLabel(text, parent);
+    l->setTextFormat(Qt::PlainText);  // the text can contain names from files, programs and devices
     l->setWordWrap(true);
     l->setTextInteractionFlags(Qt::TextSelectableByMouse);
     return l;
@@ -160,6 +161,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     headerIcon_->setScaledContents(true);
     headerIcon_->setAccessibleName(T("Icon of the edited profile"));
     headerName_ = new QLabel(header);
+    headerName_->setTextFormat(Qt::PlainText);  // the match string of the profile
     headerName_->setProperty("heading", QStringLiteral("section"));
     headerName_->setAccessibleName(T("Edited profile"));
     headerName_->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -646,17 +648,18 @@ QWidget *ProfilesPage::buildProfileActions(size_t section) {
         change->setToolTip(app ? T("Choose another program for this profile, for example when its name changed; the "
                                    "settings stay")
                                : T("Choose another device for this profile; the settings stay"));
-        connect(change, &QPushButton::clicked, this, &ProfilesPage::renameProfile);
+        // queued: the slots rebuild this tab, which deletes the button that is still emitting the signal
+        connect(change, &QPushButton::clicked, this, &ProfilesPage::renameProfile, Qt::QueuedConnection);
         l->addWidget(change, 0, Qt::AlignLeft);
     }
     auto *exp = new QPushButton(T("Export..."));
     exp->setToolTip(T("Save this profile (its section) as a .conf file"));
-    connect(exp, &QPushButton::clicked, this, &ProfilesPage::exportProfile);
+    connect(exp, &QPushButton::clicked, this, &ProfilesPage::exportProfile, Qt::QueuedConnection);
     l->addWidget(exp, 0, Qt::AlignLeft);
     if (section != 0) {
         auto *remove = new QPushButton(T("Remove"));
         remove->setToolTip(T("Delete this profile and its settings"));
-        connect(remove, &QPushButton::clicked, this, &ProfilesPage::removeProfile);
+        connect(remove, &QPushButton::clicked, this, &ProfilesPage::removeProfile, Qt::QueuedConnection);
         l->addWidget(remove, 0, Qt::AlignLeft);
     }
     return box;
@@ -839,9 +842,14 @@ QWidget *ProfilesPage::buildModeInfo(size_t section) {
     l->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
     if (!v.mode.description.empty()) l->addWidget(wrapLabel(qs8(v.mode.description)));
     auto *form = new QFormLayout;
-    form->addRow(T("Vertical scroll:"), new QLabel(qs8(v.mode.v)));
-    form->addRow(T("Horizontal scroll:"), new QLabel(qs8(v.mode.h)));
-    form->addRow(T("Twist:"), new QLabel(qs8(v.mode.twist)));
+    auto plain = [](const std::string &t) {  // text of a joystick mode file: never rich text
+        auto *l = new QLabel(qs8(t));
+        l->setTextFormat(Qt::PlainText);
+        return l;
+    };
+    form->addRow(T("Vertical scroll:"), plain(v.mode.v));
+    form->addRow(T("Horizontal scroll:"), plain(v.mode.h));
+    form->addRow(T("Twist:"), plain(v.mode.twist));
     l->addLayout(form);
     // The mode's own bindings (including key and click actions) are shown as they are.
     if (v.mode.buttons.empty()) {
@@ -850,7 +858,7 @@ QWidget *ProfilesPage::buildModeInfo(size_t section) {
         l->addWidget(new QLabel(T("Button bindings of this joystick mode:")));
         auto *bf = new QFormLayout;
         for (const auto &b : v.mode.buttons)
-            bf->addRow(T("Button") + QStringLiteral(" %1:").arg(b.first), new QLabel(qs8(b.second)));
+            bf->addRow(T("Button") + QStringLiteral(" %1:").arg(b.first), plain(b.second));
         l->addLayout(bf);
     }
     l->addWidget(wrapLabel(T("These settings come from the joystick mode file and are read-only here.")));

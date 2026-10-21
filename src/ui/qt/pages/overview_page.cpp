@@ -294,11 +294,13 @@ void OverviewPage::rebuildCards(const spn::ui::OverviewData &d, const std::vecto
         cl->setSpacing(kSpaceSm);
         auto *kind = note(p.kind == spn::Section::DEVICE ? T("Device") : T("Program"));
         auto *name = new QLabel(qs8(p.name));
+        name->setTextFormat(Qt::PlainText);  // the profile name comes from the configuration file
         QFont f = name->font();
         f.setBold(true);
         name->setFont(f);
         name->setWordWrap(true);
         auto *summary = new QLabel(qs8(p.summary));
+        summary->setTextFormat(Qt::PlainText);
         summary->setWordWrap(true);
         auto *overrides = note(qs8(p.overrideText));  // how much of the profile is its own, the rest is inherited
         overrides->setObjectName(QStringLiteral("overrideCount"));

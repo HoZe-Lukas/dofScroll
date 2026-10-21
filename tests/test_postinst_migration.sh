@@ -42,7 +42,7 @@ EOF
 cat > "$T/bin/systemctl" <<EOF
 #!/bin/sh
 echo "systemctl \$*" >> "$T/log"
-case "\$*" in *is-active*) exit \${FAKE_ACTIVE:-0} ;; esac
+case "\$*" in *is-active*) exit \${FAKE_ACTIVE:-0} ;; *is-enabled*) exit \${FAKE_ENABLED:-0} ;; esac
 exit 0
 EOF
 cat > "$T/bin/timeout" <<EOF
@@ -123,6 +123,7 @@ grep -q "^systemctl --user --machine=bob@corp.example@.host try-restart dofscrol
 # 8. An interface that the unit did not start and that runs a replaced binary is stopped and started via the unit.
 setup 0 1
 mkdir -p "$T/proc/4242"
+printf "Name:\tdofscroll-ui\nUid:\t1000\t1000\t1000\t1000\n" > "$T/proc/4242/status"
 ln -s "/usr/bin/dofscroll-ui (deleted)" "$T/proc/4242/exe"
 FAKE_ACTIVE=3 FAKE_UI_PID=4242 run 2
 grep -q "^kill -TERM 4242" "$T/log" || fail "case 8: stale interface not stopped"
@@ -131,6 +132,7 @@ grep -q "^$M start dofscroll-ui.service" "$T/log" || fail "case 8: unit not star
 # 9. The same process with an intact binary is left alone.
 setup 0 1
 mkdir -p "$T/proc/4243"
+printf "Name:\tdofscroll-ui\nUid:\t1000\t1000\t1000\t1000\n" > "$T/proc/4243/status"
 ln -s "/usr/bin/dofscroll-ui" "$T/proc/4243/exe"
 FAKE_ACTIVE=3 FAKE_UI_PID=4243 run 2
 grep -q "^kill" "$T/log" && fail "case 9: a current interface was stopped"
@@ -138,8 +140,38 @@ grep -q "^kill" "$T/log" && fail "case 9: a current interface was stopped"
 # 10. The unit is active (try-restart did its job): nothing is killed.
 setup 0 1
 mkdir -p "$T/proc/4244"
+printf "Name:\tdofscroll-ui\nUid:\t1000\t1000\t1000\t1000\n" > "$T/proc/4244/status"
 ln -s "/usr/bin/dofscroll-ui (deleted)" "$T/proc/4244/exe"
 FAKE_ACTIVE=0 FAKE_UI_PID=4244 run 2
 grep -q "^kill" "$T/log" && fail "case 10: killed although the unit is active"
+
+# 11. The unit is not enabled: a stale interface is left alone (stopping it would remove the tray icon for good).
+setup 0 1
+mkdir -p "$T/proc/4245"
+printf "Name:\tdofscroll-ui\nUid:\t1000\t1000\t1000\t1000\n" > "$T/proc/4245/status"
+ln -s "/usr/bin/dofscroll-ui (deleted)" "$T/proc/4245/exe"
+FAKE_ACTIVE=3 FAKE_ENABLED=1 FAKE_UI_PID=4245 run 2
+grep -q "^kill" "$T/log" && fail "case 11: killed an interface although the unit is not enabled"
+grep -q "^$M start dofscroll-ui.service" "$T/log" && fail "case 11: unit started although it is not enabled"
+
+# 12. The process number now belongs to somebody else (reuse): not signalled.
+setup 0 1
+mkdir -p "$T/proc/4246"
+printf "Name:\tdofscroll-ui\nUid:\t0\t0\t0\t0\n" > "$T/proc/4246/status"
+ln -s "/usr/bin/dofscroll-ui (deleted)" "$T/proc/4246/exe"
+FAKE_ACTIVE=3 FAKE_UI_PID=4246 run 2
+grep -q "^kill" "$T/log" && fail "case 12: signalled a process of another user"
+
+# 13. A name that starts with a dash is not used (it would be read as an option).
+setup 0 1
+FAKE_USER="-evil" run 2
+[ ! -s "$T/log" ] || fail "case 13: systemctl called for a name starting with a dash"
+
+# 14. Without timeout nothing is done (the promise: every call is time-limited).
+setup 0 1
+sed 's/command -v timeout >/command -v no-such-timeout-tool >/' "$T/postinst" > "$T/postinst14"
+grep -q no-such-timeout-tool "$T/postinst14" || fail "case 14: timeout check not found in the script"
+PATH="$T/bin:$PATH" sh "$T/postinst14" 2 || fail "case 14: postinst exited non-zero"
+[ ! -s "$T/log" ] || fail "case 14: systemctl called although timeout is missing"
 
 echo "test_postinst_migration: ok"

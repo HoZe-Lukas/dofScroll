@@ -534,7 +534,7 @@ void ButtonModesPage::onImport() {
     box.exec();
     if (box.clickedButton() != yes) return;
     flush();
-    const ButtonModeCatalog::Result r = catalog_.importFile(path, name);
+    const ButtonModeCatalog::Result r = catalog_.importInspected(chk);  // what the user saw, not a second read
     if (!r.ok) return showError(T("Could not import the button mode."), r.error);
     dirty_ = false;
     populate(qs(r.id));

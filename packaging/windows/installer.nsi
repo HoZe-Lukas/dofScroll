@@ -21,6 +21,8 @@ SetCompressor /SOLID lzma
 !endif
 
 !define APP "dofscroll"
+; Windows PowerShell by its full path: a "powershell.exe" planted next to setup.exe would otherwise run.
+!define PS_EXE "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}"
 ; Same Run value as packaging/windows/install-autostart.ps1 (value name "dofscroll").
 !define RUN_KEY "Software\Microsoft\Windows\CurrentVersion\Run"
@@ -72,6 +74,25 @@ Function StartDaemonFromFinish
     Exec '"$INSTDIR\dofscroll.exe"'
 FunctionEnd
 
+; The uninstaller removes the whole install folder: refuse a folder that is not empty and not a dofscroll
+; install (no uninstall.exe), such as Documents, so the folder picker cannot lead to data loss.
+Function .onVerifyInstDir
+  IfFileExists "$INSTDIR\uninstall.exe" verifyOk
+  FindFirst $0 $1 "$INSTDIR\*.*"
+  verifyLoop:
+    StrCmp $1 "" verifyDone
+    StrCmp $1 "." verifyNext
+    StrCmp $1 ".." verifyNext
+    FindClose $0
+    Abort
+  verifyNext:
+    FindNext $0 $1
+    Goto verifyLoop
+  verifyDone:
+    FindClose $0
+  verifyOk:
+FunctionEnd
+
 Function .onInit
   ; Silent installs: /AUTOSTART=1 selects the autostart section (default: off).
   ${GetParameters} $0
@@ -88,7 +109,7 @@ Section "dofscroll (required)" SecMain
   ; stops the interface too.
   InitPluginsDir
   File "/oname=$PLUGINSDIR\stop-ui.ps1" "${STAGE}\scripts\stop-ui.ps1"
-  nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-ui.ps1" -ExePath "$INSTDIR\dofscroll-ui.exe"'
+  nsExec::Exec '"${PS_EXE}" -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-ui.ps1" -ExePath "$INSTDIR\dofscroll-ui.exe"'
   Pop $0
   StrCmp $0 "10" 0 +2
     StrCpy $UiWasRunning "1"
@@ -97,7 +118,7 @@ Section "dofscroll (required)" SecMain
   ; The script comes from this installer, like stop-ui.ps1: an update of an older install uses the new one.
   StrCpy $DaemonWasRunning "0"
   File "/oname=$PLUGINSDIR\stop-daemon.ps1" "${STAGE}\scripts\stop-daemon.ps1"
-  nsExec::ExecToStack 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-daemon.ps1" -ExePath "$INSTDIR\dofscroll.exe"'
+  nsExec::ExecToStack '"${PS_EXE}" -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-daemon.ps1" -ExePath "$INSTDIR\dofscroll.exe"'
   Pop $0
   Pop $1
   ; the output of the stop script goes to a small log, for support and for the CI check
@@ -174,9 +195,9 @@ LangString DESC_Auto ${LANG_ENGLISH} "Start dofscroll.exe at every logon of the 
 
 Section "Uninstall"
   IfFileExists "$INSTDIR\scripts\stop-ui.ps1" 0 +2
-    nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\scripts\stop-ui.ps1" -ExePath "$INSTDIR\dofscroll-ui.exe"'
+    nsExec::Exec '"${PS_EXE}" -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\scripts\stop-ui.ps1" -ExePath "$INSTDIR\dofscroll-ui.exe"'
   IfFileExists "$INSTDIR\scripts\stop-daemon.ps1" 0 +2
-    nsExec::Exec 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\scripts\stop-daemon.ps1" -ExePath "$INSTDIR\dofscroll.exe"'
+    nsExec::Exec '"${PS_EXE}" -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\scripts\stop-daemon.ps1" -ExePath "$INSTDIR\dofscroll.exe"'
   ; autostart: the Run value (and a Startup shortcut of the autostart script, if any)
   DeleteRegValue HKCU "${RUN_KEY}" "${RUN_NAME}"
   DeleteRegValue HKCU "${RUN_KEY}" "${RUN_UI_NAME}"
@@ -185,6 +206,9 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\dofscroll\Uninstall dofscroll.lnk"
   RMDir "$SMPROGRAMS\dofscroll"
   DeleteRegKey HKCU "${UNINST_KEY}"
-  ; the program folder only; the user's configuration in %APPDATA%\dofscroll stays
-  RMDir /r "$INSTDIR"
+  ; the program folder only; the user's configuration in %APPDATA%\dofscroll stays. Only when it is an
+  ; install of dofscroll (dofscroll.exe is there): a copy of uninstall.exe in another folder, for example
+  ; Downloads, must not delete that folder.
+  IfFileExists "$INSTDIR\dofscroll.exe" 0 +2
+    RMDir /r "$INSTDIR"
 SectionEnd

@@ -24,11 +24,11 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
     if (env.deviceButtons > 0) numberLabel->setToolTip(T("This device has %1 buttons").arg(env.deviceButtons));
     grid->addWidget(numberLabel, r, 0);
     if (row.beyondLimit || !row.valid) {
-        grid->addWidget(new QLabel(qs8(row.text) + QStringLiteral("  ") +
-                                       (row.beyondLimit ? T("(above this device's button count)")
-                                                        : T("(not a valid action)")),
-                                   parent),
-                        r, 1, 1, 3);
+        auto *bad = new QLabel(qs8(row.text) + QStringLiteral("  ") +
+                                   (row.beyondLimit ? T("(above this device's button count)") : T("(not a valid action)")),
+                               parent);
+        bad->setTextFormat(Qt::PlainText);  // the action text comes from the configuration file
+        grid->addWidget(bad, r, 1, 1, 3);
         return;
     }
     const ButtonModeSet none;
@@ -104,6 +104,7 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
     // the profiles that override it. Written out, never only a colour.
     if (!row.origin.empty()) {
         auto *origin = new QLabel(qs8(row.origin), parent);
+        origin->setTextFormat(Qt::PlainText);  // names profiles and joystick modes
         origin->setForegroundRole(QPalette::PlaceholderText);
         origin->setWordWrap(true);
         origin->setMinimumWidth(180);

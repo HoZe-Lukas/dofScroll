@@ -472,9 +472,25 @@ void DaemonCore::syncLanes() {
         mux_->removeView(view);
         lane_used.erase(lane_used.begin() + static_cast<std::ptrdiff_t>(i));
     }
-    // 4. new device, new lane
+    // 4. a device without lane: the lane that waits for a device takes it (the last lane never ends, so
+    //    after a swap to another model there would otherwise be an empty lane next to the new one);
+    //    otherwise a new lane
     for (size_t d = 0; d < devs.size(); ++d) {
         if (dev_used[d]) continue;
+        bool taken = false;
+        for (size_t i = 0; i < lanes_.size() && !taken; ++i) {
+            Lane &l = *lanes_[i];
+            if (lane_used[i] || l.bound) continue;
+            l.mode_override.clear();  // state of the device that went away
+            l.toggled_mode.clear();
+            l.hold_active = false;
+            l.runner->clearToggles();
+            l.dev_id = devs[d].id;
+            l.bound = true;
+            l.dirty = true;
+            lane_used[i] = dev_used[d] = taken = true;
+        }
+        if (taken) continue;
         std::unique_ptr<Lane> nl = makeLane(devs[d].id);
         if (!nl) {
             std::cerr << LOG << "WARNING: too many devices, '" << sanitizeForLog(devs[d].name) << "' is ignored" << std::endl;

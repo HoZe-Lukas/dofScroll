@@ -3259,3 +3259,11 @@ msgstr "Wähle das Programm, für das dieses Profil jetzt gelten soll: ein laufe
 #: src/ui/qt/pages/add_app_dialog.cpp
 msgid "Pick the device this profile should apply to now, or type its name. The settings of the profile stay."
 msgstr "Wähle das Gerät, für das dieses Profil jetzt gelten soll, oder tippe seinen Namen. Die Einstellungen des Profils bleiben."
+
+#: src/ui/qt/pages/add_app_dialog.cpp
+msgid "Programs marked \"Already has a profile\" cannot be chosen: each program has one profile."
+msgstr "Programme mit der Markierung „Hat bereits ein Profil“ lassen sich nicht wählen: Jedes Programm hat ein Profil."
+
+#: src/ui/qt/pages/add_device_dialog.cpp
+msgid "This device already has a profile."
+msgstr "Dieses Gerät hat schon ein Profil."

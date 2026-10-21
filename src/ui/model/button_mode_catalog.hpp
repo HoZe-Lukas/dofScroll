@@ -41,6 +41,7 @@ public:
         bool ok = false;
         std::string id, path, error;
         std::vector<std::string> warnings;  // import: loader warnings of the checked file
+        std::string text;                   // import: the content that was inspected (importInspected() writes exactly this)
     };
 
     static constexpr size_t kMaxImportBytes = ModeCatalog::kMaxImportBytes;
@@ -294,17 +295,23 @@ public:
         if (!wrote) return fail(r, "cannot stage the file");
         for (const std::string &w : warn) r.warnings.push_back(relocate(w, staging, dir_));
         if (!probe.find(id)) return fail(r, "the file is not a valid button mode file (it needs a valid ACTION)");
+        r.text = text;
         r.ok = true;
         return r;
     }
     Result importFile(const std::string &path, const std::string &name = std::string()) {
-        Result r = inspectImport(path, name);
-        if (!r.ok) return r;
-        std::string text, e;
-        if (!fs::readFileBounded(path, kMaxImportBytes, fs::ReadOptions(), &text).ok()) return fail(r, "cannot read the file");
+        const Result chk = inspectImport(path, name);
+        if (!chk.ok) return chk;
+        return importInspected(chk);
+    }
+    // Publishes the content that inspectImport() checked, not the file read again.
+    Result importInspected(const Result &chk) {
+        Result r = chk;
+        std::string e;
+        if (!r.ok || r.id.empty()) return fail(r, "nothing was checked");
         if (!fs::mkdirsPrivate(dir_, &e)) return fail(r, "mkdir: " + e);
         const std::string dest = filePath(r.id);
-        if (fs::pathExists(dest) || !fs::createFileExclusive(dest, text)) return fail(r, "cannot create " + dest);
+        if (fs::pathExists(dest) || !fs::createFileExclusive(dest, r.text)) return fail(r, "cannot create " + dest);
         r.path = dest;
         refresh();
         return r;

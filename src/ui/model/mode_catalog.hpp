@@ -50,6 +50,7 @@ public:
         std::string id, path;  // of the created/imported mode file
         std::string error;
         std::vector<std::string> warnings;  // import: loader warnings of the checked file
+        std::string text;                   // import: the content that was inspected (importInspected() writes exactly this)
     };
 
     static constexpr size_t kMaxImportBytes = 64 * 1024;  // as the loader accepts
@@ -277,6 +278,7 @@ public:
             return fail(r, "the file is not a valid joystick mode file");
         }
         for (const std::string &w : warn) r.warnings.push_back(relocate(w, staging, dir_));
+        r.text = text;
         r.ok = true;
         return r;
     }
@@ -284,13 +286,19 @@ public:
     // never overwriting). The result carries the warnings for the view; the user may remove() the
     // mode again afterwards.
     Result importFile(const std::string &path, const std::string &name = std::string()) {
-        Result r = inspectImport(path, name);
-        if (!r.ok) return r;
-        std::string text, e;
-        if (!fs::readFileBounded(path, kMaxImportBytes, fs::ReadOptions(), &text).ok()) return fail(r, "cannot read the file");
+        const Result chk = inspectImport(path, name);
+        if (!chk.ok) return chk;
+        return importInspected(chk);
+    }
+    // Publishes the content that inspectImport() checked and the user saw the warnings of, not the file read
+    // again (a file that changes between the check and the click cannot sneak other content in).
+    Result importInspected(const Result &chk) {
+        Result r = chk;
+        std::string e;
+        if (!r.ok || r.id.empty()) return fail(r, "nothing was checked");
         if (!fs::mkdirsPrivate(dir_, &e)) return fail(r, "mkdir: " + e);
         const std::string dest = modelist::modeFilePath(dir_, r.id);
-        if (fs::pathExists(dest) || !fs::createFileExclusive(dest, text)) return fail(r, "cannot create " + dest);
+        if (fs::pathExists(dest) || !fs::createFileExclusive(dest, r.text)) return fail(r, "cannot create " + dest);
         r.path = dest;
         refresh();
         return r;

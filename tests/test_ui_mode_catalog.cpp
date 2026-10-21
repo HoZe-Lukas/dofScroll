@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Unit tests for src/ui/model/mode_catalog.hpp.
 #include <cassert>
+#include <fstream>
+#include <iterator>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -145,6 +147,18 @@ int main() {
         bool capped = false;
         assert(fs::listDir(root, 0, &names, &capped));
         for (auto &n : names) assert(n.find("import") == std::string::npos);
+    }
+    {  // the file changes after the check: the content that was inspected is imported, not the new one
+        const std::string swapSrc = root + "/swap.conf";
+        { std::ofstream f(swapSrc); f << "NAME = Swap\nV_ACTION = none\n"; }
+        const auto chk = c.inspectImport(swapSrc, "swapped");
+        assert(chk.ok && chk.text.find("V_ACTION = none") != std::string::npos);
+        { std::ofstream f(swapSrc, std::ios::trunc); f << "NAME = Swap\nBUTTON_1 = key:super\n"; }
+        const auto imp = c.importInspected(chk);
+        assert(imp.ok);
+        std::ifstream in(imp.path);
+        std::string got((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        assert(got.find("key:super") == std::string::npos && got.find("V_ACTION = none") != std::string::npos);
     }
     r = c.importFile(src, "Imported!");
     assert(r.ok && r.id == "imported" && r.path == dir + "/imported.conf" && !r.warnings.empty());

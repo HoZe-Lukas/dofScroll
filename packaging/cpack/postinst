@@ -19,14 +19,13 @@ esac
 
 command -v loginctl >/dev/null 2>&1 || exit 0
 command -v systemctl >/dev/null 2>&1 || exit 0
+# Every call below is time-limited; without `timeout` a hung user manager could stall the package
+# transaction, so nothing is done then (restart by hand, docs/installation.md).
+command -v timeout >/dev/null 2>&1 || exit 0
 
-# Runs a command with a time limit when `timeout` exists; callers ignore failures.
+# Runs a command with a time limit; callers ignore failures.
 limited() {
-    if command -v timeout >/dev/null 2>&1; then
-        timeout 20 "$@"
-    else
-        "$@"
-    fi
+    timeout 20 "$@"
 }
 
 users=$(limited loginctl list-users --no-legend 2>/dev/null | while read -r _uid name _rest; do
@@ -89,14 +88,20 @@ restart_stale_ui() {
     uid=$(id -u "$1" 2>/dev/null) || return 0
     [ -n "$uid" ] || return 0
     limited systemctl --user --machine="$m" is-active --quiet dofscroll-ui.service >/dev/null 2>&1 && return 0
+    # Only a user who has the unit enabled gets the interface back; for anyone else a stopped interface
+    # would stay gone, so it is left running (old program) instead.
+    limited systemctl --user --machine="$m" is-enabled --quiet dofscroll-ui.service >/dev/null 2>&1 || return 0
     found=0
     for pid in $(limited pgrep -u "$uid" -x dofscroll-ui 2>/dev/null); do
         case "$(readlink "/proc/$pid/exe" 2>/dev/null)" in
-            *"(deleted)") kill -TERM "$pid" 2>/dev/null && found=1 ;;
+            *"(deleted)")
+                # the process may have exited and its number been reused since the list was taken: it must
+                # still belong to that user right before the signal
+                [ "$(awk '/^Uid:/ { print $2; exit }' "/proc/$pid/status" 2>/dev/null)" = "$uid" ] || continue
+                kill -TERM "$pid" 2>/dev/null && found=1 ;;
         esac
     done
     [ "$found" = 1 ] || return 0
-    limited systemctl --user --machine="$m" is-enabled --quiet dofscroll-ui.service >/dev/null 2>&1 || return 0
     sleep 1
     limited systemctl --user --machine="$m" start dofscroll-ui.service >/dev/null 2>&1 || true
     return 0
@@ -104,7 +109,7 @@ restart_stale_ui() {
 
 for name in $users; do
     case "$name" in
-        '' | *[!A-Za-z0-9._@-]*) continue ;;
+        '' | -* | *[!A-Za-z0-9._@-]*) continue ;;
     esac
     limited systemctl --user --machine="$name@.host" daemon-reload >/dev/null 2>&1 || true
     if [ -f "$ui_unit" ]; then migrate_user "$name" || true; fi
