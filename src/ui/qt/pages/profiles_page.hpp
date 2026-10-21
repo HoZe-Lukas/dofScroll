@@ -90,13 +90,14 @@ private:
     void rebuildHeader();
     void refreshTreeLabels();  // the numbers of overrides in the list
     void setTabContent(QScrollArea *area, const QList<QWidget *> &parts);
-    void updateButtons();
     size_t currentSection() const;
     void refreshDeviceLimit(size_t section);
     void queueRebuild();
     void pollDeviceFeed();
     QWidget *buildModeSelector(size_t section);
     QWidget *buildEnabled(size_t section);
+    // Change application / device, Export and Remove of the selected profile (General tab).
+    QWidget *buildProfileActions(size_t section);
     QWidget *buildBindings(size_t section);
     QWidget *buildModeInfo(size_t section);
     QWidget *buildOverrides(size_t section);
@@ -116,7 +117,7 @@ private:
     QTabWidget *tabs_;
     QScrollArea *general_ = nullptr, *buttons_ = nullptr, *overrides_ = nullptr;
     ChannelsEditor *channels_ = nullptr;
-    QPushButton *add_app_, *add_dev_, *rename_, *remove_, *export_;
+    QPushButton *add_app_, *add_dev_;
     size_t shown_ = 0;  // section the tabs show
     int settingRows_ = 0;
     bool advancedOpen_ = false;

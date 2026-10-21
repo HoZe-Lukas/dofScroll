@@ -17,7 +17,10 @@ class QTreeWidget;
 class AddDeviceDialog : public QDialog {
     Q_OBJECT
 public:
-    AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent = nullptr);
+    // current (not empty): "Change device" for an existing profile; the name starts as `current` and `configured`
+    // must not contain it.
+    AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent = nullptr,
+                    const QString &current = QString());
     QString deviceName() const;  // validated, trimmed
 
 private:

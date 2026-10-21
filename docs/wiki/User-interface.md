@@ -39,7 +39,9 @@ The list on the left holds **Global** first, then **device profiles**, then **pr
 
 **Inheritance is always written out in words:** "Inherited from Global: 5", "Set in this profile (inherited: 5)", `From joystick mode "timeline": 21`. In Global a value that other profiles override says "N profiles override this". Precedence: Global < device < joystick mode overrides < program ([Profiles](Profiles)).
 
-Below the list: **Add application...** (a picker of the programs running now, search, "Capture next focused program", shows the exact match string that will be stored), **Add device...** (from the connected devices), Rename, Remove and **Export...** (the profile as a `.conf` file).
+Below the list: **Add application...** (a picker of the programs running now, search, "Capture next focused program", shows the exact match string that will be stored) and **Add device...** (from the connected devices).
+
+What belongs to the selected profile is the box **This profile** at the bottom of its **General** tab: **Change application...** (or **Change device...**) picks another program or device for the profile with the same picker, so you can follow a program whose name changed and keep all settings; **Export...** (the profile as a `.conf` file) and **Remove**. Global can only be exported.
 
 ### Joystick modes
 
@@ -75,6 +77,7 @@ Output on/off, **Start at login** (see below), language and theme, the daemon se
 |---|---|
 | Make scrolling faster, slower or finer | Profiles > Global (or a profile) > Channels: sensitivity, dead zone, curve |
 | Change what the cap does in one program | Profiles > Add application... (pick the running program) > General: joystick mode, Channels: values |
+| A program changed its name, keep the profile | Profiles > the profile > General > This profile > Change application... |
 | Use another setup for one device (Pro and Compact) | Profiles > Add device... and set the joystick mode and values there |
 | Switch the joystick mode quickly | Tray menu "Joystick mode", or Overview "Active joystick mode" |
 | Switch the joystick mode with a button | Profiles > Buttons: "Switch to joystick mode", or a button mode like "Next joystick mode" |

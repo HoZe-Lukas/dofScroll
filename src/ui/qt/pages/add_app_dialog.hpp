@@ -24,7 +24,10 @@ class QDialogButtonBox;
 class AddAppDialog : public QDialog {
     Q_OBJECT
 public:
-    AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent = nullptr);
+    // current (not empty): "Change application" for an existing profile; the match string starts as `current` and
+    // `configured` must not contain it.
+    AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string> &configured, QWidget *parent = nullptr,
+                 const QString &current = QString());
     ~AddAppDialog() override;
     QString matchString() const;  // validated, trimmed (valid after exec() == Accepted)
 
