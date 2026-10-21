@@ -11,7 +11,7 @@ A **joystick mode** decides what the three channels (vertical, horizontal, twist
 - **Override:** a file with the same id in `~/.config/dofscroll/modes/` or `~/.config/dofscroll/buttons/` replaces the built-in ("Create editable copy" in the interface writes one for you).
 - **Cycling:** `mode:next` and `mode:prev` (and the button modes `next-mode` and `prev-mode`) walk through all loaded joystick modes in alphabetical order of id, built-ins included, wrapping around. A button mode with a `CYCLE` list (`cycle-favorites`, or your own) cycles through exactly the listed joystick modes in your order instead.
 
-Several joystick modes below press keys. Key meaning depends on the program and none of them has been verified in every program; see the safety note on the [Joystick modes](Modes) page.
+The one-line DESCRIPTION of every built-in joystick mode and button mode says in plain words what it does and for which program it is meant; the interface shows it as a tooltip and in the detail view. Several joystick modes below press keys. Key meaning depends on the program and none of them has been verified in every program; see the safety note on the [Joystick modes](Modes) page.
 
 ## Joystick modes
 
@@ -162,30 +162,30 @@ A button mode has one `ACTION` (one button action as in `BUTTON_<n>`, see [Butto
 
 ### `latch-nav`
 
-ACTION `toggle:nav`. DESCRIPTION: "Press once to switch navigation on, press again to switch it off". One press switches navigation on (the axes press arrow keys instead of scrolling), the next press switches it off.
+ACTION `toggle:nav`. DESCRIPTION: "Navigation makes the cap work like arrow keys: push or tilt presses Up, Down, Left or Right instead of scrolling (to move a cursor or a selection). Press once to switch it on, press again to switch it off.". One press switches navigation on (the axes press arrow keys instead of scrolling), the next press switches it off.
 
 Good for: a latched navigation mode instead of holding the `nav` button.
 
 ### `next-mode`
 
-ACTION `mode:next`, no `CYCLE`. DESCRIPTION: "Switches to the next joystick mode". Each press switches to the next joystick mode in alphabetical order of id, wrapping around.
+ACTION `mode:next`, no `CYCLE`. DESCRIPTION: "Each press switches to the next joystick mode in alphabetical order of their ids (built-in and your own) and starts over after the last. To choose which modes it visits, use 'Next favorite mode'.". Each press switches to the next joystick mode in alphabetical order of id, wrapping around.
 
 Good for: trying all joystick modes, or a quick switch when you have only a few joystick modes. Add a `CYCLE` list in a copy to restrict it.
 
 ### `prev-mode`
 
-ACTION `mode:prev`, no `CYCLE`. DESCRIPTION: "Switches to the previous joystick mode". The mirror of `next-mode`: the previous joystick mode in alphabetical order, wrapping around.
+ACTION `mode:prev`, no `CYCLE`. DESCRIPTION: "Each press switches to the previous joystick mode in alphabetical order of their ids (built-in and your own) and wraps around at the first. To choose which modes it visits, copy it and set a cycle list.". The mirror of `next-mode`: the previous joystick mode in alphabetical order, wrapping around.
 
 Good for: the second button of a pair with `next-mode`.
 
 ### `cycle-favorites`
 
-ACTION `mode:next`, `CYCLE = timeline, normal`. DESCRIPTION: "Cycles through a chosen list of joystick modes". Each press goes to the next entry of the list, in that order, wrapping around; if the current joystick mode is not in the list the first entry is used. Unknown ids are skipped. For the opposite direction use a copy with `ACTION = mode:prev` and the same list.
+ACTION `mode:next`, `CYCLE = timeline, normal`. DESCRIPTION: "Each press switches to the next joystick mode of a short list you choose (by default timeline, then normal) instead of walking through all of them. Make an editable copy to change the list.". Each press goes to the next entry of the list, in that order, wrapping around; if the current joystick mode is not in the list the first entry is used. Unknown ids are skipped. For the opposite direction use a copy with `ACTION = mode:prev` and the same list.
 
 Good for: a short list of your own favorite joystick modes. Edit the list in an editable copy (the built-in list is only a starting point).
 
 ### `reset-zoom`
 
-ACTION `key:ctrl+0`. DESCRIPTION: "Sends Ctrl+0: resets the zoom in most programs (browsers, editors, image viewers)". Each press taps Ctrl+0 once; holding the button does not repeat it.
+ACTION `key:ctrl+0`. DESCRIPTION: "Press to send Ctrl+0, which sets the zoom back to 100 % in most programs (browsers, editors, image viewers). One tap per press.". Each press taps Ctrl+0 once; holding the button does not repeat it.
 
 Good for: a button that puts the zoom of the current program back to 100%. It is a named behavior that a profile or a joystick mode picks per button; if you want Ctrl+0 on a button everywhere and always, the vendor driver can do that too. Whether Ctrl+0 resets the zoom depends on the program.
