@@ -6,6 +6,33 @@ A joystick mode decides what the three channels and the device buttons do. Joyst
 
 Exactly one joystick mode is active: the one named by `MODE` in the resolved profile, otherwise `normal`. Select it in `[global]`, `[device:*]` or `[app:*]` (see [Profiles](Profiles)), from the tray "Joystick mode" menu (sets the global `MODE`), or with a button action.
 
+## The six motions
+
+A SpaceMouse cap moves in six ways. Every joystick mode says what each of them does:
+
+```
+ push forward/back  z  <->  tilt forward/back  rx     (vertical channel)
+ push sideways      x  <->  tilt sideways      rz     (horizontal channel)
+ twist              ry                                 (zoom channel)
+ lift / press       y                                  (in no default mix)
+```
+
+| Motion | Axis | Direction | File key (split) | File key (whole channel) |
+|---|---|---|---|---|
+| 1. Vertical push | `z` | push forward / back | `V_PUSH_ACTION` | `V_ACTION` |
+| 2. Vertical tilt | `rx` | tilt forward / back | `V_TILT_ACTION` | `V_ACTION` |
+| 3. Horizontal push | `x` | push sideways | `H_PUSH_ACTION` | `H_ACTION` |
+| 4. Horizontal tilt | `rz` | tilt sideways | `H_TILT_ACTION` | `H_ACTION` |
+| 5. Twist | `ry` | twist the cap | `TWIST_ACTION` | `TWIST_ACTION` |
+| 6. Lift / press | `y` | pull up / push down | none (only through a `y` term in a channel mix) | none |
+
+- A key that is not split gives push and tilt of its channel the same action: `V_ACTION` covers motions 1 and 2, `H_ACTION` motions 3 and 4. Set a split key to give push and tilt different jobs (see [Split push and tilt](#split-push-and-tilt) below).
+- `default` is the channel's normal behavior: vertical = scroll, horizontal = scroll sideways, twist = zoom (Ctrl plus the wheel).
+- Lift / press is not used by any built-in joystick mode.
+- A joystick mode that sets none of these keys behaves like `normal`: every motion does its default.
+
+[Built-in joystick modes](Built-in-modes) has a table with the six motions of every built-in joystick mode.
+
 ## Built-in joystick modes
 
 Fourteen joystick modes (`normal`, `off`, `timeline`, `slides`, `media`, `map`, `precision`, `tabs`, `browse`, `sheet`, `photo`, `zoom-pan`, `vertical-only`, `fast`) and five button modes (`latch-nav`, `next-mode`, `prev-mode`, `cycle-favorites`, `reset-zoom`) are built into the program on every system. Nothing has to be copied into your folder to use them. Each one, with its channel actions, overrides and use, is described on [Built-in joystick modes](Built-in-modes). To propose or send a new one, see [Joystick mode requests and contributions](Contributing-modes).

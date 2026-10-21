@@ -43,7 +43,7 @@ A joystick mode is one plain text file. The **file name without `.conf` is the j
 
 ## 2. The three channels and what drives them
 
-The device has six axes. dofscroll mixes them into three **channels**:
+The cap has six motions (vertical push, vertical tilt, horizontal push, horizontal tilt, twist, lift / press; the table is on [Modes](Modes#the-six-motions)). dofscroll mixes the axes into three **channels**; a channel's action covers its push and its tilt unless you split it (see [split push and tilt](#split-push-and-tilt)). Lift / press (`y`) is in no default mix. The channels:
 
 | Channel | Joystick mode key | Tuning prefix | Default mix | In words |
 |---|---|---|---|---|

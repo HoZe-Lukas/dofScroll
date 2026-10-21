@@ -342,6 +342,10 @@ if(BUILD_TESTING)
     add_test(NAME postinst_migration
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_postinst_migration.sh ${CMAKE_SOURCE_DIR})
   endif()
+  if(SH_EXECUTABLE)  # the six-motion table of the built-in joystick modes must match the definitions
+    add_test(NAME docs_motions
+             COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_docs_motions.sh ${CMAKE_SOURCE_DIR})
+  endif()
   find_program(BASH_EXECUTABLE bash)
   if(BASH_EXECUTABLE AND NOT WIN32)  # guided driver coexistence test (macOS script), fake hidprobe
     add_test(NAME coexistence_script

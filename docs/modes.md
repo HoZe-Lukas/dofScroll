@@ -10,6 +10,33 @@ Exactly one joystick mode is active (per device when several devices arrive sepa
 [configuration.md](configuration.md)). The tray also has a quick "Joystick mode" menu that sets the global
 `MODE`.
 
+## The six motions
+
+A SpaceMouse cap moves in six ways. Every joystick mode says what each of them does:
+
+```
+ push forward/back  z  <->  tilt forward/back  rx     (vertical channel)
+ push sideways      x  <->  tilt sideways      rz     (horizontal channel)
+ twist              ry                                 (zoom channel)
+ lift / press       y                                  (in no default mix)
+```
+
+| Motion | Axis | Direction | File key (split) | File key (whole channel) |
+|---|---|---|---|---|
+| 1. Vertical push | `z` | push forward / back | `V_PUSH_ACTION` | `V_ACTION` |
+| 2. Vertical tilt | `rx` | tilt forward / back | `V_TILT_ACTION` | `V_ACTION` |
+| 3. Horizontal push | `x` | push sideways | `H_PUSH_ACTION` | `H_ACTION` |
+| 4. Horizontal tilt | `rz` | tilt sideways | `H_TILT_ACTION` | `H_ACTION` |
+| 5. Twist | `ry` | twist the cap | `TWIST_ACTION` | `TWIST_ACTION` |
+| 6. Lift / press | `y` | pull up / push down | none (only through a `y` term in a channel mix) | none |
+
+- A key that is not split gives push and tilt of its channel the same action: `V_ACTION` covers motions 1 and 2, `H_ACTION` motions 3 and 4. Set a split key to give push and tilt different jobs ([Split push and tilt](#split-push-and-tilt)).
+- `default` is the channel's normal behavior: vertical = scroll, horizontal = scroll sideways, twist = zoom (Ctrl plus the wheel).
+- Lift / press is not used by any built-in joystick mode ([Lift/press is unused](#liftpress-is-unused)).
+- A joystick mode that sets none of these keys behaves like `normal`: every motion does its default.
+
+The [table of the built-in joystick modes](#built-in-joystick-modes) lists what each of the six motions does in each of them.
+
 ## Joystick mode files
 
 Location: `~/.config/dofscroll/modes/<id>.conf`. The file name without `.conf` is the joystick mode id
@@ -41,22 +68,24 @@ and no install path, and nothing is copied into your configuration directory. Th
 everywhere a joystick mode can be chosen (profile drop-downs, tray menu, Overview, `MODE = <id>`,
 `mode:<id>` buttons) with the origin "Built in".
 
-| Joystick mode | Behavior |
-|---|---|
-| `normal` | All channels `default`, no bindings. Scroll, Ctrl+scroll zoom and the buttons you bind in the profile (the deprecated `NAV_BUTTON` and `CLICK_BUTTON` also still work). |
-| `off` | All channels `none`. Switches control off without `ENABLED = 0`. |
-| `timeline` | Vertical `none`, horizontal and twist `keys:left,right`. Scrubbing and single frames for video editing. |
-| `slides` | Up/down = `pageup`/`pagedown` (gentle rate, `SCROLL_V_SENS = 2`), sideways and twist off. |
-| `media` | Up/down = arrow up/down (volume), sideways = left/right (seek), twist = `j`/`l`. The keys are program-specific. |
-| `map` | Arrow keys for panning, `minus`/`plus` on twist for zoom (see Key names). |
-| `precision` | Default channels with low sensitivities (`SCROLL_V_SENS = 2`, `SCROLL_H_SENS = 1`, `ZOOM_SENS = 2`). |
-| `tabs` | Sideways = `ctrl+pageup` / `ctrl+pagedown` (previous / next tab in browsers and terminals; not verified in every program). |
-| `browse` | Up/down = page up/down, sideways = left/right, twist = zoom. |
-| `sheet` | Up/down and sideways = arrow keys, twist = `pageup`/`pagedown` (spreadsheet cells). |
-| `photo` | Sideways = previous/next image (`left`/`right`), up/down = zoom, twist off. |
-| `zoom-pan` | Up/down = zoom, twist = horizontal wheel, sideways default (audio and video timelines). |
-| `vertical-only` | Vertical scroll only; sideways and twist off. |
-| `fast` | Default channels with high sensitivities (`SCROLL_V_SENS = 12`, `SCROLL_H_SENS = 10`, `ZOOM_SENS = 12`). |
+| Joystick mode | Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press | Sensitivity overrides |
+|---|---|---|---|---|---|---|---|
+| `normal` | Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used | none |
+| `off` | Off | Off | Off | Off | Off | Not used | none |
+| `timeline` | Off | Off | Keys: Left / Right | Keys: Left / Right | Keys: Left / Right | Not used | none |
+| `slides` | Keys: Page Up / Page Down | Keys: Page Up / Page Down | Off | Off | Off | Not used | SCROLL_V_SENS = 2 |
+| `media` | Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: J / L | Not used | none |
+| `map` | Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: Minus / Plus | Not used | none |
+| `precision` | Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used | SCROLL_V_SENS = 2, SCROLL_H_SENS = 1, ZOOM_SENS = 2 |
+| `tabs` | Scroll | Scroll | Keys: Ctrl+Page Up / Ctrl+Page Down | Keys: Ctrl+Page Up / Ctrl+Page Down | Zoom | Not used | none |
+| `browse` | Keys: Page Up / Page Down | Keys: Page Up / Page Down | Keys: Left / Right | Keys: Left / Right | Zoom | Not used | none |
+| `sheet` | Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: Page Up / Page Down | Not used | none |
+| `photo` | Zoom | Zoom | Keys: Left / Right | Keys: Left / Right | Off | Not used | none |
+| `zoom-pan` | Zoom | Zoom | Scroll sideways | Scroll sideways | Scroll sideways | Not used | none |
+| `vertical-only` | Scroll | Scroll | Off | Off | Off | Not used | none |
+| `fast` | Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used | SCROLL_V_SENS = 12, SCROLL_H_SENS = 10, ZOOM_SENS = 12 |
+
+In the table, `Scroll` is the vertical mouse wheel, `Scroll sideways` the horizontal one and `Zoom` is Ctrl plus the wheel; `Keys: A / B` is `keys:A,B` in the file. Push and tilt of a channel do the same in every built-in joystick mode, and `normal` sends scroll and zoom plus the buttons you bind in the profile (the deprecated `NAV_BUTTON` and `CLICK_BUTTON` still work). `off` switches control off without `ENABLED = 0`.
 
 Their behavior in real programs is not verified. The built-in joystick modes contain no button-to-key
 bindings, see [Buttons and the vendor driver](#buttons-and-the-vendor-driver).

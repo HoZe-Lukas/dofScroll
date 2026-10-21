@@ -29,9 +29,9 @@ On first start the tray writes `~/.config/dofscroll/dofscroll.conf` from [exampl
 | `zoom-pan` | Up/down zooms, twist scrolls sideways |
 | `vertical-only` | Vertical scroll only, no sideways scroll or zoom |
 | `fast` | Normal behavior with high sensitivities |
-| `timeline` | Sideways and twist press the left/right arrow keys; button 1 is Space, button 2 is Home (only in this joystick mode) |
+| `timeline` | Sideways push, sideways tilt and twist press the left/right arrow keys; up/down is off. No button bindings. |
 
-Also built in: `normal` and `off`. Switch the joystick mode from the tray "Joystick mode" menu, or set `MODE = browse` in a profile. Read a joystick mode file before you use it, see [Joystick modes](Modes).
+The full table, by the six motions of the cap, is on [Built-in joystick modes](Built-in-modes). Also built in: `normal` and `off`. Switch the joystick mode from the tray "Joystick mode" menu, or set `MODE = browse` in a profile. Read a joystick mode file before you use it, see [Joystick modes](Modes).
 
 ## Next steps
 
