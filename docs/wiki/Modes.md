@@ -8,7 +8,7 @@ Exactly one joystick mode is active: the one named by `MODE` in the resolved pro
 
 ## Built-in joystick modes
 
-Nine joystick modes (`normal`, `off`, `timeline`, `slides`, `media`, `map`, `precision`, `tabs`, `browse`) and five button modes (`latch-nav`, `next-mode`, `prev-mode`, `cycle-favorites`, `reset-zoom`) are built into the program on every system. Nothing has to be copied into your folder to use them. Each one, with its channel actions, overrides and use, is described on [Built-in joystick modes](Built-in-modes). To propose or send a new one, see [Joystick mode requests and contributions](Contributing-modes).
+Fourteen joystick modes (`normal`, `off`, `timeline`, `slides`, `media`, `map`, `precision`, `tabs`, `browse`, `sheet`, `photo`, `zoom-pan`, `vertical-only`, `fast`) and five button modes (`latch-nav`, `next-mode`, `prev-mode`, `cycle-favorites`, `reset-zoom`) are built into the program on every system. Nothing has to be copied into your folder to use them. Each one, with its channel actions, overrides and use, is described on [Built-in joystick modes](Built-in-modes). To propose or send a new one, see [Joystick mode requests and contributions](Contributing-modes).
 
 A file in the joystick modes folder with the id of a built-in joystick mode replaces it.
 

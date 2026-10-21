@@ -328,7 +328,7 @@ section.alt .card, section.alt ol.steps li { background: var(--bg); border: 1px 
 .dl .card { display: flex; flex-direction: column; align-items: stretch; }
 .dl .card h3 { font-size: 1.25rem; }
 .dl .card p { margin-bottom: var(--space-5); flex: 0 1 auto; }
-.dl .card .btn { width: 100%; margin-top: auto; padding-left: var(--space-2); padding-right: var(--space-2); font-size: 0.95rem; white-space: nowrap; }
+#download .cta { justify-content: center; margin: var(--space-6) 0 0; }
 .status { text-align: center; color: var(--muted); font-size: 0.95rem; margin: var(--space-6) auto 0; max-width: 44rem; }
 details.more { max-width: 44rem; margin: var(--space-4) auto 0; color: var(--muted); font-size: 0.95rem; }
 details.more > summary { text-align: center; }

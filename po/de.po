@@ -3143,6 +3143,9 @@ msgstr "Der offizielle 3Dconnexion-Treiber, seine Schnittstelle und die Namen 3D
 msgid "About"
 msgstr "Über"
 
+#: src/ui/model/status_model.hpp
+msgid "Devices: %1"
+msgstr "Geräte: %1"
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Extensions are plain files in your configuration folders. dofscroll reads them with its own checks and never runs them. Switch a file off to keep it without using it; a switched-off file with the id of a built-in joystick mode or button mode lets the built-in one apply again."
 msgstr "Erweiterungen sind einfache Dateien in deinen Konfigurationsordnern. dofscroll liest sie mit eigenen Prüfungen und führt sie nie aus. Schalte eine Datei aus, um sie zu behalten, ohne sie zu benutzen; eine ausgeschaltete Datei mit der Kennung eines eingebauten Joystick-Modus oder Tasten-Modus lässt den eingebauten wieder gelten."

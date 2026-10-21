@@ -125,7 +125,10 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     auto *modeLabel = new QLabel(T("Active joystick mode:"));
     mode_ = new QComboBox;
     mode_->setAccessibleName(T("Active joystick mode"));
-    mode_->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    // The longest entry decides AdjustToContents: with the five new joystick modes the page no longer fit at
+    // the default font size. A fixed number of characters, the list pop-up still shows the full names.
+    mode_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    mode_->setMinimumContentsLength(20);
     modeLabel->setBuddy(mode_);
     connect(mode_, QOverload<int>::of(&QComboBox::activated), this, [this](int i) { switchMode(mode_->itemData(i).toString()); });
     modeRow->addWidget(modeLabel);

@@ -28,6 +28,11 @@ Overview:
 | `precision` | default | default | default | fine control (low sensitivity) |
 | `tabs` | default | `ctrl+pageup` / `ctrl+pagedown` keys | default | switching tabs |
 | `browse` | `pageup` / `pagedown` keys | `left` / `right` keys | zoom | documents, slides |
+| `sheet` | `up` / `down` keys | `left` / `right` keys | `pageup` / `pagedown` keys | spreadsheets |
+| `photo` | zoom | `left` / `right` keys | none | photo viewers and editors |
+| `zoom-pan` | zoom | default | horizontal wheel | audio and video timelines |
+| `vertical-only` | default | none | none | reading documents |
+| `fast` | default | default | default | fast scrolling (high sensitivity) |
 
 Key actions (`keys:`) press the negative and the positive key as the axis is pushed, at a rate that follows the deflection. `default` is the channel's normal behavior (scroll wheel, Ctrl+wheel for the twist). None of the built-in joystick modes binds buttons, so every button keeps what the main config gives it (use a button mode or `BUTTON_<n>` in the config).
 
@@ -128,6 +133,60 @@ Good for: switching to the previous / next tab in browsers and terminals while u
 No overrides. DESCRIPTION: "Up/down = page up/down, sideways = left/right, twist = zoom". No button bindings.
 
 Good for: paging through documents and slides: push up/down pages through the document, sideways moves between pages, twisting zooms with Ctrl + mouse wheel.
+
+### `sheet`
+
+| Channel | Action |
+|---|---|
+| V | `keys:up,down` |
+| H | `keys:left,right` |
+| Twist | `keys:pageup,pagedown` |
+
+No overrides. DESCRIPTION: "Up/down and sideways = arrow keys, twist = page up/down". No button bindings. Not verified in a spreadsheet program.
+
+Good for: moving the cell cursor in spreadsheets.
+
+### `photo`
+
+| Channel | Action |
+|---|---|
+| V | `zoom` |
+| H | `keys:left,right` |
+| Twist | `none` |
+
+No overrides. DESCRIPTION: "Sideways = previous/next image, up/down = zoom". No button bindings. Not verified in a photo program.
+
+Good for: stepping through images and zooming in photo viewers and editors.
+
+### `zoom-pan`
+
+| Channel | Action |
+|---|---|
+| V | `zoom` |
+| H | `default` |
+| Twist | `wheel_h` |
+
+No overrides. DESCRIPTION: "Up/down = zoom, twist = horizontal scroll". No button bindings. Not verified in a DAW or video editor.
+
+Good for: audio and video timelines: zoom with the vertical push, pan sideways by twisting.
+
+### `vertical-only`
+
+| Channel | Action |
+|---|---|
+| V | `default` |
+| H | `none` |
+| Twist | `none` |
+
+No overrides. DESCRIPTION: "Vertical scroll only, sideways and twist off". No button bindings.
+
+Good for: reading documents without accidental sideways scroll or zoom, for example as `[app:evince]` with `MODE = vertical-only`.
+
+### `fast`
+
+All channels `default`, with the overrides `SCROLL_V_SENS = 12`, `SCROLL_H_SENS = 10` and `ZOOM_SENS = 12`. DESCRIPTION: "Normal scroll and zoom with high sensitivity". The counterpart of `precision`. No button bindings.
+
+Good for: quickly scrolling long documents, logs and timelines.
 
 ## Button modes
 

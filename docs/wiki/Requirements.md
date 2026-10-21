@@ -43,7 +43,7 @@ The daemon reads the device through `spacenavd` (the open-source SpaceMouse daem
 - Enable it: `sudo systemctl enable --now spacenavd`.
 - Check it: `systemctl status spacenavd` must say active; the dofscroll log (`journalctl --user -u dofscroll.service -f`) shows the device name and button count when the device connects.
 - Button mappings that are the same everywhere (for example a button that sends Esc) belong in spacenavd's `spnavrc`, see [Buttons](Buttons).
-- `spacenavd` reports only one device when several are attached; dofscroll counts attached devices through `/proc`.
+- `spacenavd` reports only one device when several are attached; dofscroll counts attached devices through `/proc` and works as with one device. On Windows and macOS (direct HID) every device gets its own lane, one device per model ([docs/multi-device.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/multi-device.md)).
 
 ### Session type and output backend
 
@@ -80,7 +80,7 @@ The shipped units (`dofscroll.service`, `dofscroll-ui.service`) are systemd user
 
 ### Qt runtime
 
-`dofscroll-ui` is a Qt 6 program, and **the Linux packages (RPM, DEB, TGZ) contain their own Qt 6.9.3** and the libraries it needs, in `/usr/lib/dofscroll` (since 1.0.1; the 1.0.0 RPM required Qt 6.10 from the system). Nothing to install for Qt, no EPEL for Qt, and the Qt of your distribution is not used. It works on RHEL 9 with any Qt 6 or none, and the same on Debian 12 and Ubuntu 24.04. Required from the system: glibc and `libstdc++` (always there), `spacenavd` (the device service, EPEL on the RHEL family) and the daemon's `libspnav`, `libX11`, `libXtst` (the package manager installs them). The TGZ runs the interface from any folder with nothing but the C library. Qt is LGPL-3.0, dynamically linked and replaceable; license texts and the list of bundled libraries are in `/usr/share/doc/dofscroll/third-party/`. Qt 6.4 or newer is needed only to build from source. The package build is not verified on a real desktop (tray, KDE look and Wayland need a real desktop).
+`dofscroll-ui` is a Qt 6 program, and **the Linux packages (RPM, DEB, TGZ) contain their own Qt 6.9.3** and the libraries it needs, in `/usr/lib/dofscroll` (since 1.1.0; the 1.0.0 RPM required Qt 6.10 from the system). Nothing to install for Qt, no EPEL for Qt, and the Qt of your distribution is not used. It works on RHEL 9 with any Qt 6 or none, and the same on Debian 12 and Ubuntu 24.04. Required from the system: glibc and `libstdc++` (always there), `spacenavd` (the device service, EPEL on the RHEL family) and the daemon's `libspnav`, `libX11`, `libXtst` (the package manager installs them). The TGZ runs the interface from any folder with nothing but the C library. Qt is LGPL-3.0, dynamically linked and replaceable; license texts and the list of bundled libraries are in `/usr/share/doc/dofscroll/third-party/`. Qt 6.4 or newer is needed only to build from source. The package build is not verified on a real desktop (tray, KDE look and Wayland need a real desktop).
 
 ### Optional: kdotool
 

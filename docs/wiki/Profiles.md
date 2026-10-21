@@ -55,7 +55,7 @@ On X11, run `xprop WM_CLASS` and click the window. The daemon logs every profile
 ## Limits
 
 - Program profiles need an active-window query: always on X11, on Wayland only with `kdotool` (KDE). Otherwise only `[global]` and `[device:*]` apply.
-- With two SpaceMice connected, `spacenavd` reports only one device, so `[device:*]` applies to both. Direct HID access (Windows, macOS ports) lifts this, but is unverified on hardware.
+- With two SpaceMice connected, `spacenavd` reports only one device, so `[device:*]` applies to both. With direct HID access (Windows, macOS) every device has its own profile and joystick mode, one device per model, so a Pro next to a Compact but not two Compacts (see [docs/multi-device.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/multi-device.md)); this is covered by tests but unverified on hardware.
 - 3D programs that read the device directly get doubled input; switch dofscroll off for them with `ENABLED = 0` or `MODE = off`.
 
 See also [Configuration reference](Configuration-reference), [Joystick modes](Modes).

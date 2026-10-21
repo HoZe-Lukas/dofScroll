@@ -44,6 +44,9 @@ constexpr long SUSPEND_MAX_AGE_MS = 600;
 //                          profile=<match_desc>  device=<name>  app=<WM_CLASS>
 //                          mode=<id of the active mode, e.g. normal, off, timeline>
 //                          enabled=0|1  paused=0|1  devices_seen=<number of USB 3Dconnexion devices>
+//                          lanes=<n> active_device=<name> (only with several devices, see docs/multi-device.md) and
+//                          device<k>= profile<k>= mode<k>= toggle<k>= enabled<k>= for the devices k = 2..n; the
+//                          plain keys above describe the first device
 //                          input=driver|hid (Windows/macOS: where the device data comes from; absent on Linux)
 //                          input_issue=blocked|silent (only when set: the device cannot be read or
 //                          sent nothing yet, see platform/input_diag.hpp)

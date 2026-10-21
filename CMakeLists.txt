@@ -20,7 +20,7 @@
 # produced by this build (see docs/windows-mac.md).
 
 cmake_minimum_required(VERSION 3.16)
-project(dofscroll VERSION 1.0.1 LANGUAGES CXX
+project(dofscroll VERSION 1.1.0 LANGUAGES CXX
         DESCRIPTION "SpaceMouse to scroll/zoom/key bridge for X11")
 
 set(CMAKE_CXX_STANDARD 17)

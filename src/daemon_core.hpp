@@ -19,6 +19,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "common.hpp"
 #include "live_feed/live_feed_protocol.hpp"
@@ -27,6 +28,7 @@
 #include "button_modes.hpp"
 #include "modes.hpp"
 #include "output.hpp"
+#include "output_mux.hpp"
 #include "platform/input_diag.hpp"
 #include "platform/platform.hpp"
 #include "platform/session_monitor.hpp"
@@ -82,6 +84,24 @@ struct DaemonDeps {
 // Reader side: SpaceMouse state, lock-free towards the main thread.
 class DeviceReader {
 public:
+    // State of one device (events carry InputEvent::device). A merged source (spacenavd) only ever
+    // fills the slot of device 0; HID sources one slot per device. The reader thread writes, the main
+    // thread reads; the slots are cleared when the device list changes.
+    static constexpr int kMaxSlots = 4;
+    struct Slot {
+        std::atomic<int> id{-1};  // device id, -1 = free
+        std::array<std::atomic<int>, AX_COUNT> axes{};
+        std::atomic<uint32_t> button_mask{0};
+        std::atomic<int64_t> last_motion_ns{0};
+    };
+    // The slot of a device, nullptr as long as it has not sent anything.
+    const Slot *slotFor(int device_id) const {
+        for (const Slot &s : slots_)
+            if (s.id.load(std::memory_order_acquire) == device_id) return &s;
+        return nullptr;
+    }
+
+    // Aggregate over all devices (the last event of any device): kept for the single-device view.
     std::array<std::atomic<int>, AX_COUNT> axes{};
     // Bitmask of pressed buttons (bit n = button index n, same numbering as ButtonBinding::button).
     std::atomic<uint32_t> button_mask{0};
@@ -124,10 +144,36 @@ private:
     int delay_ms_ = 500;
     std::string last_open_err_;
 
+    std::array<Slot, kMaxSlots> slots_;
+    Slot *claimSlot(int device_id);
     void publishDeviceInfo();
     void backoffSleep(const char *why);
     void clearState();
     void loop();
+};
+
+// Everything that belongs to one physical device: its profile, joystick mode (button switches, hold,
+// toggle), runner with the DSP state and the safety net. One lane per attached SpaceMouse; a merged
+// source (spacenavd) gives one lane. The output is shared and counts what each lane holds (OutputMux).
+struct Lane {
+    int dev_id = 0;       // DeviceInfo::id this lane reads (InputEvent::device)
+    bool bound = false;   // a device of the list is assigned (the first lane exists before any device)
+    bool dirty = false;   // device name changed: resolve the profile again
+    std::string device;   // name matched by [device:*] profiles
+    Settings settings;
+    std::string match_desc;
+    std::string toggled_mode;   // the part of mode_override that came from toggle:mode:<id>
+    std::string mode_override;  // runtime mode switch by a button; cleared on reload
+    bool hold_active = false;   // a hold:mode: button is held and its mode is the override
+    std::string hold_id, hold_prev_override, hold_prev_toggled;
+    bool mode_applied = false;  // selectMode activated a mode at least once
+    bool warn_buttons = false;
+    bool prev_enabled = true, prev_idle = false;
+    int64_t quiet_since = 0, last_safety_log = 0;
+    bool safety_done = true;  // the net already ran for the current quiet period
+    bool safety_logged = false;
+    Output *out = nullptr;    // this lane's view of the shared output
+    std::unique_ptr<ModeRunner> runner;
 };
 
 class DaemonCore {
@@ -150,10 +196,14 @@ public:
     void tickOnce(int64_t now_ns, double dt);
 
     DeviceReader &reader() { return reader_; }
-    const Settings &settings() const { return settings_; }
-    const std::string &matchDesc() const { return match_desc_; }
-    const std::string &deviceName() const { return device_; }
-    const ModeRunner &runner() const { return *runner_; }
+    // The first lane: the only one with a merged source or one device.
+    const Settings &settings() const { return lanes_.front()->settings; }
+    const std::string &matchDesc() const { return lanes_.front()->match_desc; }
+    const std::string &deviceName() const { return lanes_.front()->device; }
+    const ModeRunner &runner() const { return *lanes_.front()->runner; }
+    // One lane per attached device (at least one).
+    size_t laneCount() const { return lanes_.size(); }
+    const Lane &lane(size_t i) const { return *lanes_[i]; }
 
 private:
     DaemonDeps d_;
@@ -174,49 +224,48 @@ private:
     ButtonModeSet button_modes_;
     std::string button_modes_dir_, button_modes_stamp_;
     std::set<std::string> warned_button_modes_;  // unknown button mode ids already warned about
-    Settings settings_;
-    std::string match_desc_, backend_cfg_, device_, wm_class_;
-    std::string toggled_mode_;   // the part of mode_override_ that came from toggle:mode:<id>
-    std::string mode_override_;  // runtime mode switch by a button; cleared on reload
-    bool hold_active_ = false;   // a hold:mode: button is held and its mode is the override
-    std::string hold_id_, hold_prev_override_, hold_prev_toggled_;  // the held mode, the state to restore
-    bool mode_applied_ = false;  // selectMode activated a mode at least once
+    std::string backend_cfg_, wm_class_;
+    std::vector<std::unique_ptr<Lane>> lanes_;
+    std::unique_ptr<OutputMux> mux_;
     std::set<std::string> warned_cycle_;  // unknown ids of a mode cycle list already warned about (per load)
     std::string warned_mode_;  // unknown mode id already warned about
-    bool warn_buttons_ = false;
 
     // Loop state (formerly locals of run())
     int64_t next_win_poll_ = 0, next_cfg_poll_ = 0, next_debug_ = 0, next_susp_poll_ = 0;
     int64_t next_devcount_ = 0;
     int64_t next_session_poll_ = 0;
     bool session_active_ = true;
-    bool suspended_ = false, prev_enabled_ = true, prev_idle_ = false;
+    bool suspended_ = false;
     uint64_t seen_generation_ = 0;
     int devices_seen_ = 0;
     InputIssue input_issue_ = InputIssue::Clear;
-    int64_t quiet_since_ = 0, last_safety_log_ = 0;
-    bool safety_done_ = true;  // the net already ran for the current quiet period
-    bool safety_logged_ = false;
     std::string hint_key_;  // multi-device hint: once per change
     std::chrono::steady_clock::duration tick_period_;
 
     LiveSample live_;
     DeviceReader reader_;
     std::unique_ptr<Output> output_;
-    std::unique_ptr<ModeRunner> runner_;
 
     static FileStamp statFile(const std::string &path);
     void loadConfig();
     void loadModeSet();
-    bool selectMode(Settings &next, bool force);
-    void applyProfile(bool modes_changed);
+    bool selectMode(Lane &l, Settings &next, bool force);
+    void applyProfile(Lane &l, bool modes_changed);
     void loadButtonModeSet();
-    void endHold(bool restore);
-    void checkButtons();
-    void switchMode(const std::string &target);
+    void endHold(Lane &l, bool restore);
+    void checkButtons(Lane &l);
+    void switchMode(Lane &l, const std::string &target);
+    void updateTickPeriod();
+    // Binds lanes to the devices of the list (new lane per new device, lanes of removed devices end).
+    void syncLanes();
+    std::unique_ptr<Lane> makeLane(int dev_id);
+    // The devices that get a lane: one per model, at most DeviceReader::kMaxSlots.
+    std::vector<DeviceInfo> usableDevices(const std::vector<DeviceInfo> &all);
+    std::set<int> warned_ignored_;  // ids of ignored devices already logged
+    void releaseLane(Lane &l, bool clearToggles);
     // Status "toggle=": what button toggles hold at the moment, e.g. "nav" or "nav mode:timeline"; empty if none.
-    std::string toggleState() const;
-    void safetyNet(int64_t now_ns, uint32_t buttons);
+    std::string toggleState(const Lane &l) const;
+    void safetyNet(Lane &l, int64_t now_ns, uint32_t buttons);
 };
 
 }  // namespace spn

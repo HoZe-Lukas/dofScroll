@@ -46,7 +46,7 @@ service again afterwards.
    backoff of up to 5 s, so you need no restart.
 2. Does `spacenavd` see the device? Check `journalctl -u spacenavd` and that the device is
    plugged in. `lsusb` should list a 3Dconnexion device. With two SpaceMice, `spacenavd` reports
-   only one.
+   only one (see [multi-device.md](multi-device.md)).
 3. Is the user unit running? `systemctl --user status dofscroll.service`. If it is
    "not found", run `systemctl --user daemon-reload` and check step 3 of the setup in
    [installation.md](installation.md#2-first-time-setup).
@@ -92,6 +92,14 @@ Do not add yourself to the `input` group. It gives access to all keyboards (reas
 Without an active-window query only `[global]` and `[device:*]` apply. To force a backend, set
 `BACKEND = x11` or `uinput` in `[global]` and restart the daemon. The log says which backend
 was chosen and why.
+
+### The window opens large after every login
+
+Older builds were also restarted by the desktop's session restore (KDE), which raced with the
+`dofscroll-ui.service` unit: the second start asked the first to show its window. The interface now opts out
+of session restore (`RestartNever`) and a start with `-session` never raises the window. If it still happens,
+remove a `dofscroll` entry from the desktop's saved session (KDE: System Settings, Session, Desktop Session,
+"Start with an empty session") and check `~/.config/autostart` for a second start of `dofscroll-ui`.
 
 ### Tray icon is missing
 

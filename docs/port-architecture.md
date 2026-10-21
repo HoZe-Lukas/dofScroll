@@ -72,7 +72,9 @@ device produced an event; per-device profiles and per-device button counts are t
 impossible on Linux through that path. With direct HID access each device is an individual
 handle with its own vendor/product ID, name and report stream: the daemon can keep one state
 (DSP, mode, buttons) per device and look up its factory button count by name. This is the main
-functional advantage of the ports, not only a licensing workaround.
+functional advantage of the ports, not only a licensing workaround. The daemon core now does this: one lane per
+device id (profile, joystick mode, holds, DSP) over one output that counts held keys per lane;
+design and limits in [multi-device.md](multi-device.md).
 
 The vendor SDK is not shipped, linked or used at build time on any OS: its license is proprietary
 and revocable, which is incompatible with distributing a GPL-3.0-or-later program (see
