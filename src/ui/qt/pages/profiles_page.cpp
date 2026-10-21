@@ -379,6 +379,12 @@ bool ProfilesPage::selectTab(const QString &id) {
     return false;
 }
 
+bool ProfilesPage::tabVisible(const QString &id) const {
+    for (int i = 0; i < tabs_->count(); ++i)
+        if (tabs_->widget(i)->property("tabId").toString() == id) return tabs_->isTabVisible(i);
+    return false;
+}
+
 QString ProfilesPage::headerName() const { return headerName_->text(); }
 QString ProfilesPage::headerKind() const { return headerKind_->text(); }
 QString ProfilesPage::headerNote() const { return headerNote_->text(); }
@@ -495,12 +501,26 @@ void ProfilesPage::rebuildContent() {
     if (section == 0)
         general << noteLabel(T("The Global profile is the base of every other profile. A device or program profile "
                                "inherits its settings unless it chooses another joystick mode or overrides a value."));
-    general << buildModeSelector(section);
-    if (layout.unknownMode)
-        general << noteLabel(T("This profile names a joystick mode that is not installed; it behaves like the "
-                               "Global joystick mode until you choose another one."));
+    // The output switch comes first: with output off the profile sends nothing, so the joystick mode, the buttons
+    // and the channel settings do not apply and are hidden (the Channels, Buttons and Overrides tabs too).
+    bool outputOn = true;
+    if (section != 0) {
+        SettingsModel::Value ev;
+        if (ctx_.settings->value(section, "ENABLED", &ev)) outputOn = ev.text == "1";
+    }
     general << buildEnabled(section);
-    if (layout.modeInfo) general << buildModeInfo(section);
+    if (outputOn) {
+        general << buildModeSelector(section);
+        if (layout.unknownMode)
+            general << noteLabel(T("This profile names a joystick mode that is not installed; it behaves like the "
+                                   "Global joystick mode until you choose another one."));
+        if (layout.modeInfo) general << buildModeInfo(section);
+    } else {
+        general << noteLabel(T("Output is off for this profile: it sends nothing, so the joystick mode, the buttons and "
+                               "the channel settings do not apply and are hidden. Switch the output on to edit them."));
+    }
+    for (int i = 1; i < tabs_->count(); ++i) tabs_->setTabVisible(i, outputOn);
+    if (!outputOn && tabs_->currentIndex() != 0) tabs_->setCurrentIndex(0);
     if (!filtering) general << buildProfileActions(section);  // not a setting: hidden while searching
     setTabContent(general_, noMatch(general));
 
@@ -715,6 +735,7 @@ QWidget *ProfilesPage::buildEnabled(size_t section) {
         }
         refresh();
         ctx_.saveSoon();
+        queueRebuild();  // the joystick mode and the tabs that depend on the switch appear or disappear
     });
     connect(reset, &QToolButton::clicked, this, [this, section, check, refresh] {
         ctx_.settings->clearOverride(section, "ENABLED");
@@ -725,6 +746,7 @@ QWidget *ProfilesPage::buildEnabled(size_t section) {
         }
         refresh();
         ctx_.saveSoon();
+        queueRebuild();
     });
     return box;
 }

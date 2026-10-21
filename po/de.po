@@ -3267,3 +3267,7 @@ msgstr "Programme mit der Markierung „Hat bereits ein Profil“ lassen sich ni
 #: src/ui/qt/pages/add_device_dialog.cpp
 msgid "This device already has a profile."
 msgstr "Dieses Gerät hat schon ein Profil."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Output is off for this profile: it sends nothing, so the joystick mode, the buttons and the channel settings do not apply and are hidden. Switch the output on to edit them."
+msgstr "Die Ausgabe ist für dieses Profil aus: Es sendet nichts, daher gelten Joystick-Modus, Tasten und Kanaleinstellungen nicht und sind ausgeblendet. Schalte die Ausgabe ein, um sie zu bearbeiten."
