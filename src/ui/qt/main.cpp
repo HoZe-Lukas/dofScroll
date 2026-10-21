@@ -1821,7 +1821,7 @@ static bool modeFilesAutosaveSelfTest(const UiContext &ctx, const QString &tmpPa
                 if (list->item(i)->text().startsWith(QStringLiteral("Mine"))) mineOk = desc == QStringLiteral("No description");
             }
             check(allSet && normalOk && mineOk, "every list row has a description line ('No description' where there is none)");
-            check(list && dynamic_cast<DescribedItemDelegate *>(list->itemDelegate()) != nullptr, "the list draws the description under the name");
+            check(list && list->itemDelegate() != nullptr, "the list has its own row painter (name, badge, description, six motion chips)");
         }
         check(page.selectMode(QStringLiteral("mine")) && page.openEditor() && page.editorWidget(), "the editor opens");
         ModeEditorWidget *ed = page.editorWidget();

@@ -136,7 +136,9 @@ public:
         const QFontMetrics fm(font());
         int widest = fm.horizontalAdvance(QStringLiteral("WWWWWW"));
         for (const Chip &c : chips_) widest = std::max(widest, std::min(fm.horizontalAdvance(c.text) + 2 * chipPadX(fm), fm.horizontalAdvance(QStringLiteral("W")) * 12));
-        return QSize(widest, heightForWidth(widest));
+        // one row: the real height comes from heightForWidth; a minimum that is as tall as the narrowest
+        // wrapping would make a card (or any parent) look too small at its real, wider size
+        return QSize(widest, heightForWidth(1 << 20));
     }
     QSize sizeHint() const override {
         const QFontMetrics fm(font());
@@ -212,7 +214,7 @@ public:
     explicit MotionGrid(QWidget *parent = nullptr) : QWidget(parent) {
         auto *grid = new QGridLayout(this);
         grid->setContentsMargins(0, 0, 0, 0);
-        grid->setSpacing(spn::ui::tokens::kSpaceSm);
+        grid->setSpacing(spn::ui::tokens::kSpaceXs);  // three cards side by side: tight gaps keep the page narrow
         for (int i = 0; i < 6; ++i) {
             Card c;
             c.frame = new QFrame(this);
