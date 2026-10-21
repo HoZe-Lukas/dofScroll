@@ -2010,4 +2010,11 @@ msgstr ""
 
 #: src/ui/qt/pages/profiles_page.cpp
 msgid "Output is off for this profile: it sends nothing, so the joystick mode, the buttons and the channel settings do not apply and are hidden. Switch the output on to edit them."
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Copy of a shipped example, not used: the built-in one applies. You can remove this file."
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Delete this copy of a shipped example (nothing changes, the built-in one applies)"
 msgstr ""

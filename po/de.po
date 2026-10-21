@@ -3169,6 +3169,14 @@ msgid "Switched off: the file is kept, but not used"
 msgstr "Ausgeschaltet: die Datei bleibt erhalten, wird aber nicht benutzt"
 
 #: src/ui/qt/pages/extensions_page.cpp
+msgid "Copy of a shipped example, not used: the built-in one applies. You can remove this file."
+msgstr "Kopie eines mitgelieferten Beispiels, nicht benutzt: das eingebaute gilt. Sie können diese Datei entfernen."
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Delete this copy of a shipped example (nothing changes, the built-in one applies)"
+msgstr "Diese Kopie eines mitgelieferten Beispiels löschen (es ändert sich nichts, das eingebaute gilt)"
+
+#: src/ui/qt/pages/extensions_page.cpp
 msgid "Used by: %1"
 msgstr "Verwendet von: %1"
 

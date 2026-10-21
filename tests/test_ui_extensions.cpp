@@ -129,6 +129,48 @@ int main() {
     assert(gone && !gone->enabled && removeExtension(*gone).ok && !fs::pathExists(buttons + "/latch.conf.disabled"));
     assert(!removeExtension(*gone).ok);  // already gone
 
+    // copyOfShipped: a file identical to a built-in text, or to any legacy text, is flagged (the loaders ignore it);
+    // an edited copy, a switched-off copy and a file of the user are not
+    {
+        const std::string m2 = root + "/modes2", b2 = root + "/buttons2";
+        assert(fs::mkdirsPrivate(m2, &err) && fs::mkdirsPrivate(b2, &err));
+        const BuiltinFile *bi = builtinModeFiles();
+        assert(bi && bi->id);
+        put(m2 + "/" + bi->id + ".conf", bi->text);
+        std::string legacyId;
+        for (const BuiltinFile *l = legacyModeFiles(); l && l->id; ++l) {
+            // every legacy text of the first id is recognised, the first and the later ones alike
+            if (legacyId.empty() || legacyId == l->id) {
+                legacyId = l->id;
+                put(m2 + "/" + legacyId + ".conf", l->text);
+                std::vector<ExtensionEntry> one = listExtensions(m2, b2);
+                const ExtensionEntry *e = find(one, ExtensionKind::JoystickMode, legacyId);
+                assert(e && e->copyOfShipped);
+                const ModeDef *loaded = loadModes(m2, nullptr).find(legacyId);
+                assert(!loaded || loaded->builtin);  // ignored: never the user's own mode
+            }
+        }
+        put(m2 + "/edited.conf", std::string(bi->text) + "# mine\n");
+        put(m2 + "/mine.conf", "NAME = Mine\n");
+        const BuiltinFile *bb = builtinButtonModeFiles();
+        assert(bb && bb->id);
+        put(b2 + "/" + bb->id + ".conf", bb->text);
+        put(b2 + "/" + bb->id + "-x.conf", bb->text);  // another id: a user file
+        std::vector<ExtensionEntry> l2 = listExtensions(m2, b2);
+        const ExtensionEntry *c1 = find(l2, ExtensionKind::JoystickMode, bi->id);
+        assert(c1 && c1->copyOfShipped && c1->enabled);
+        assert(find(l2, ExtensionKind::JoystickMode, legacyId)->copyOfShipped);
+        assert(!find(l2, ExtensionKind::JoystickMode, "edited")->copyOfShipped);
+        assert(!find(l2, ExtensionKind::JoystickMode, "mine")->copyOfShipped);
+        assert(find(l2, ExtensionKind::ButtonMode, bb->id)->copyOfShipped);
+        assert(!find(l2, ExtensionKind::ButtonMode, std::string(bb->id) + "-x")->copyOfShipped);
+        // switched off: it is then nothing the loader sees, and not flagged
+        assert(setExtensionEnabled(*c1, false).ok);
+        l2 = listExtensions(m2, b2);
+        const ExtensionEntry *off2 = find(l2, ExtensionKind::JoystickMode, bi->id);
+        assert(off2 && !off2->enabled && !off2->copyOfShipped);
+    }
+
     std::puts("test_ui_extensions: ok");
     return 0;
 }

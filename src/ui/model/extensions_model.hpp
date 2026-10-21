@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "builtin_library.hpp"
 #include "modes.hpp"
 #include "platform/fs.hpp"
 #include "utf8.hpp"
@@ -33,6 +34,10 @@ struct ExtensionEntry {
     std::string path;         // the file as it is now
     std::string dir;          // the folder it lives in
     bool enabled = true;
+    // The file is byte-identical to a shipped example (a built-in text, or for a joystick mode a text that
+    // an earlier version copied on first start): the loader ignores it and the built-in applies, so it
+    // changes nothing. Only set for a switched-on file ("<id>.conf"); the page says so in words.
+    bool copyOfShipped = false;
     // Where it is used now (profile sections, buttons): the page says so before it is switched off.
     std::vector<std::string> usedBy;
 };
@@ -63,6 +68,15 @@ inline void readLabels(const std::string &path, std::string *name, std::string *
     }
 }
 
+// True if the file has exactly the text of a shipped example with this id, the same rule the loaders
+// use (loadModes, loadButtonModes) to leave the file out.
+inline bool isShippedCopy(ExtensionKind kind, const std::string &id, const std::string &path) {
+    std::string text;
+    if (!fs::readFileBounded(path, 64 * 1024, fs::ReadOptions(), &text).ok()) return false;
+    if (kind == ExtensionKind::ButtonMode) return matchesBuiltinText(builtinButtonModeFiles(), id, text);
+    return matchesBuiltinText(builtinModeFiles(), id, text) || matchesBuiltinText(legacyModeFiles(), id, text);
+}
+
 }  // namespace ext_detail
 
 using UsedByFn = std::function<std::vector<std::string>(ExtensionKind, const std::string &id)>;
@@ -90,6 +104,7 @@ inline void listExtensionDir(ExtensionKind kind, const std::string &dir, const U
         e.path = dir + "/" + n;
         e.enabled = on;
         ext_detail::readLabels(e.path, &e.label, &e.description);
+        if (on) e.copyOfShipped = ext_detail::isShippedCopy(kind, id, e.path);
         if (e.label.empty()) e.label = id;
         if (usedBy) e.usedBy = usedBy(kind, id);
         out->push_back(e);

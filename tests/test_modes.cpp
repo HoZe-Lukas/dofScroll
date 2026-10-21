@@ -241,6 +241,40 @@ static void testBuiltins() {
         assert(ms1.find("timeline") && !ms1.find("timeline")->builtin);
     }
 
+    // every recovered legacy text (examples/legacy/modes/<id>[.<n>].conf: all texts the first-start seeding ever
+    // copied) is ignored by the loader, and a changed copy is the user's own file. The oldest timeline text
+    // had button bindings: it must not replace the built-in timeline.
+    {
+        const std::filesystem::path legacyDir = std::filesystem::path(__FILE__).parent_path() / ".." / "examples" / "legacy" / "modes";
+        int seen = 0;
+        bool sawOldTimeline = false;
+        for (const auto &de : std::filesystem::directory_iterator(legacyDir)) {
+            const std::string name = de.path().filename().string();
+            if (name.size() < 6 || name.compare(name.size() - 5, 5, ".conf") != 0) continue;
+            const std::string id = name.substr(0, name.find('.'));
+            std::ifstream in(de.path(), std::ios::binary);
+            const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            assert(!text.empty());
+            clearDir();
+            writeFile(id + ".conf", text);
+            std::vector<std::string> lw;
+            const ModeSet ls = loadModes(g_dir, &lw);
+            assert(lw.empty() && ls.modes.size() == kBuiltinModes);
+            for (const ModeDef &m : ls.modes) assert(m.builtin);
+            if (id == "timeline") {
+                assert(ls.find("timeline") && ls.find("timeline")->buttons.empty());
+                if (text.find("BUTTON_") != std::string::npos) sawOldTimeline = true;
+            }
+            // same id, changed content: the user's own file
+            writeFile(id + ".conf", text + "# edited\n");
+            const ModeSet ch = loadModes(g_dir, nullptr);
+            assert(ch.find(id) && !ch.find(id)->builtin);
+            ++seen;
+        }
+        assert(seen >= 16);
+        assert(sawOldTimeline);
+    }
+
     // a file with the id of an embedded mode replaces it, the other built-ins stay
     {
         clearDir();
