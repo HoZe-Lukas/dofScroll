@@ -78,7 +78,8 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
   unit-tested with fake probes only; no second user session was available. The Windows and macOS
   probes are compile-checked only.
 - On Linux `spacenavd` reports one merged device, so two mice with different joystick modes at once are
-  not possible.
+  not possible there. On Windows and macOS (direct HID) every device has its own profile and joystick mode, one
+  device per model; tested with a fake source only ([docs/multi-device.md](docs/multi-device.md)).
 - Wayland: not tested; the uinput udev rule is opt-in; active-window profiles need `kdotool`.
 - Supported devices: models that `spacenavd` supports (Linux) or that report a known HID layout
   (Windows, macOS); the factory button count is known for SpaceMouse Pro, Pro Wireless, Compact,
