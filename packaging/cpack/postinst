@@ -79,13 +79,37 @@ if [ -f "$ui_unit" ]; then
     done
 fi
 
+# A dofscroll-ui that the unit did not start (the desktop's session restore did) is not touched by
+# try-restart: the unit is inactive and the old process would keep running the replaced binary. Stop
+# such a process of that user (only one whose executable was replaced) and start the unit again.
+restart_stale_ui() {
+    m="$1@.host"
+    [ -f "$ui_unit" ] || return 0
+    command -v pgrep >/dev/null 2>&1 || return 0
+    uid=$(id -u "$1" 2>/dev/null) || return 0
+    [ -n "$uid" ] || return 0
+    limited systemctl --user --machine="$m" is-active --quiet dofscroll-ui.service >/dev/null 2>&1 && return 0
+    found=0
+    for pid in $(limited pgrep -u "$uid" -x dofscroll-ui 2>/dev/null); do
+        case "$(readlink "/proc/$pid/exe" 2>/dev/null)" in
+            *"(deleted)") kill -TERM "$pid" 2>/dev/null && found=1 ;;
+        esac
+    done
+    [ "$found" = 1 ] || return 0
+    limited systemctl --user --machine="$m" is-enabled --quiet dofscroll-ui.service >/dev/null 2>&1 || return 0
+    sleep 1
+    limited systemctl --user --machine="$m" start dofscroll-ui.service >/dev/null 2>&1 || true
+    return 0
+}
+
 for name in $users; do
     case "$name" in
-        '' | *[!A-Za-z0-9._-]*) continue ;;
+        '' | *[!A-Za-z0-9._@-]*) continue ;;
     esac
     limited systemctl --user --machine="$name@.host" daemon-reload >/dev/null 2>&1 || true
     if [ -f "$ui_unit" ]; then migrate_user "$name" || true; fi
     limited systemctl --user --machine="$name@.host" try-restart \
         dofscroll.service dofscroll-ui.service >/dev/null 2>&1 || true
+    restart_stale_ui "$name" || true
 done
 exit 0

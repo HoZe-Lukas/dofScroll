@@ -14,7 +14,26 @@ fail() { echo "test_postinst_migration: FAIL: $*" >&2; cat "$T/log" 2>/dev/null 
 mkdir -p "$T/bin" "$T/etc/systemd/user"
 cat > "$T/bin/loginctl" <<EOF
 #!/bin/sh
-echo "1000 alice 1 no"
+echo "1000 \${FAKE_USER:-alice} 1 no"
+EOF
+# the uid lookup, the process list, sleep and kill of the script (nothing real is touched)
+cat > "$T/bin/id" <<EOF
+#!/bin/sh
+echo 1000
+EOF
+cat > "$T/bin/pgrep" <<EOF
+#!/bin/sh
+[ -n "\${FAKE_UI_PID:-}" ] && echo "\$FAKE_UI_PID"
+exit 0
+EOF
+cat > "$T/bin/sleep" <<EOF
+#!/bin/sh
+exit 0
+EOF
+cat > "$T/bin/kill" <<EOF
+#!/bin/sh
+echo "kill \$*" >> "$T/log"
+exit 0
 EOF
 cat > "$T/bin/getent" <<EOF
 #!/bin/sh
@@ -34,6 +53,7 @@ EOF
 chmod +x "$T/bin"/*
 # The script under test, with the two absolute system paths redirected into the sandbox.
 sed -e "s#/usr/lib/systemd/user/dofscroll-ui.service#$T/ui.service#" \
+    -e "s#/proc/#$T/proc/#" -e "s#kill -TERM#$T/bin/kill -TERM#" \
     -e "s#/etc/systemd/user/#$T/etc/systemd/user/#" "$SRC/packaging/cpack/postinst" > "$T/postinst"
 grep -q "$T/ui.service" "$T/postinst" || fail "path substitution did not apply"
 
@@ -94,5 +114,32 @@ setup 1 0
 run 2
 [ -L "$link" ] || fail "case 6: link removed although there is no UI to replace the tray"
 grep -q "enable dofscroll-ui.service" "$T/log" && fail "case 6: ui enabled without a ui unit"
+
+# 7. A domain account (user@domain) is restarted too.
+setup 0 1
+FAKE_USER="bob@corp.example" run 2
+grep -q "^systemctl --user --machine=bob@corp.example@.host try-restart dofscroll.service dofscroll-ui.service" "$T/log" || fail "case 7: no restart for a user name with @"
+
+# 8. An interface that the unit did not start and that runs a replaced binary is stopped and started via the unit.
+setup 0 1
+mkdir -p "$T/proc/4242"
+ln -s "/usr/bin/dofscroll-ui (deleted)" "$T/proc/4242/exe"
+FAKE_ACTIVE=3 FAKE_UI_PID=4242 run 2
+grep -q "^kill -TERM 4242" "$T/log" || fail "case 8: stale interface not stopped"
+grep -q "^$M start dofscroll-ui.service" "$T/log" || fail "case 8: unit not started after stopping the stale interface"
+
+# 9. The same process with an intact binary is left alone.
+setup 0 1
+mkdir -p "$T/proc/4243"
+ln -s "/usr/bin/dofscroll-ui" "$T/proc/4243/exe"
+FAKE_ACTIVE=3 FAKE_UI_PID=4243 run 2
+grep -q "^kill" "$T/log" && fail "case 9: a current interface was stopped"
+
+# 10. The unit is active (try-restart did its job): nothing is killed.
+setup 0 1
+mkdir -p "$T/proc/4244"
+ln -s "/usr/bin/dofscroll-ui (deleted)" "$T/proc/4244/exe"
+FAKE_ACTIVE=0 FAKE_UI_PID=4244 run 2
+grep -q "^kill" "$T/log" && fail "case 10: killed although the unit is active"
 
 echo "test_postinst_migration: ok"

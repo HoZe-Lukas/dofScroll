@@ -6,6 +6,10 @@ Design principle: dofscroll complements the vendor driver instead of duplicating
 
 Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
 
+## 1.1.1
+
+Fix release for 1.1.0: upgrading the RPM or DEB now restarts the daemon and the interface also for domain accounts (user names with an `@`) and for an interface that the desktop's session restore started; in 1.1.0 both kept running the old program after `dnf install` for such users. Full notes: [docs/release-notes-1.1.1.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.1.1.md).
+
 ## 1.1.0
 
 Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact); other Linux distributions
