@@ -103,6 +103,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     auto *rl = new QVBoxLayout(right);
     rl->setContentsMargins(spn::ui::tokens::kRowGap, 0, 0, 0);  // a gap to the list
     auto *form = new QFormLayout;
+    form->setRowWrapPolicy(QFormLayout::WrapAllRows);  // the labels above the fields: a label column would widen the narrow editor column
     name_ = new QLineEdit(right);
     name_->setAccessibleName(T("Name"));
     name_->setToolTip(T("Shown in the button drop-downs"));
@@ -116,7 +117,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     // The width of the page must not follow the longest action text (platform fonts differ a lot):
     // a fixed number of characters, the list opens wide enough for every entry.
     kind_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    kind_->setMinimumContentsLength(16);  // the editor column scrolls but must fit the default window without a horizontal bar
+    kind_->setMinimumContentsLength(12);  // the editor column scrolls but must fit the default window without a horizontal bar
     argHost_ = new QWidget(right);
     auto *ah = new QHBoxLayout(argHost_);
     ah->setContentsMargins(0, 0, 0, 0);
