@@ -434,6 +434,8 @@ static bool keyboardSelfTest(MainWindow &w) {
     constexpr int kRowTolerance = 16;  // controls whose tops differ by less are one row
     constexpr int kColumnGap = 160;    // controls whose left edges differ by more are in different columns
     int infoButtons = 0;
+    // Global: a profile whose output is off hides the joystick mode and its info button
+    if (ProfilesPage *pp = w.profilesPage()) pp->selectSection(0);
     for (const std::string &id : w.pageIds()) {
         w.showPage(QString::fromStdString(id));
         settle();
@@ -480,6 +482,7 @@ static bool keyboardSelfTest(MainWindow &w) {
     check(infoButtons > 0, "there are info buttons to test");
     // an info popover: opens by the keyboard (click() is what Space and Enter do), has a name, Esc closes it
     w.showPage(QStringLiteral("profiles"));
+    if (ProfilesPage *pp = w.profilesPage()) pp->selectSection(0);
     settle();
     QToolButton *info = nullptr;
     for (QToolButton *b : w.currentPage()->findChildren<QToolButton *>())
