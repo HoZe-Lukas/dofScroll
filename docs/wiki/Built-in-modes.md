@@ -15,178 +15,138 @@ Several joystick modes below press keys. Key meaning depends on the program and 
 
 ## Joystick modes
 
-Overview:
+Every joystick mode is described by what each of the six motions of the cap does (see [The six motions](Modes#the-six-motions)). Push and tilt of a channel do the same in every built-in joystick mode (none of them splits a channel), and lift / press is not used by any of them.
 
-| Joystick mode | V (up/down) | H (sideways) | Twist | Good for |
-|---|---|---|---|---|
-| `normal` | default | default | default | everyday scroll and zoom |
-| `off` | none | none | none | switching the device off |
-| `timeline` | none | `left` / `right` keys | `left` / `right` keys | video editing |
-| `slides` | `pageup` / `pagedown` keys | none | none | presentations |
-| `media` | `up` / `down` keys | `left` / `right` keys | `j` / `l` keys | video players, web video |
-| `map` | `up` / `down` keys | `left` / `right` keys | `minus` / `plus` keys | maps |
-| `precision` | default | default | default | fine control (low sensitivity) |
-| `tabs` | default | `ctrl+pageup` / `ctrl+pagedown` keys | default | switching tabs |
-| `browse` | `pageup` / `pagedown` keys | `left` / `right` keys | zoom | documents, slides |
-| `sheet` | `up` / `down` keys | `left` / `right` keys | `pageup` / `pagedown` keys | spreadsheets |
-| `photo` | zoom | `left` / `right` keys | none | photo viewers and editors |
-| `zoom-pan` | zoom | default | horizontal wheel | audio and video timelines |
-| `vertical-only` | default | none | none | reading documents |
-| `fast` | default | default | default | fast scrolling (high sensitivity) |
+| Joystick mode | Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press | Sensitivity overrides |
+|---|---|---|---|---|---|---|---|
+| `normal` | Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used | none |
+| `off` | Off | Off | Off | Off | Off | Not used | none |
+| `timeline` | Off | Off | Keys: Left / Right | Keys: Left / Right | Keys: Left / Right | Not used | none |
+| `slides` | Keys: Page Up / Page Down | Keys: Page Up / Page Down | Off | Off | Off | Not used | SCROLL_V_SENS = 2 |
+| `media` | Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: J / L | Not used | none |
+| `map` | Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: Minus / Plus | Not used | none |
+| `precision` | Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used | SCROLL_V_SENS = 2, SCROLL_H_SENS = 1, ZOOM_SENS = 2 |
+| `tabs` | Scroll | Scroll | Keys: Ctrl+Page Up / Ctrl+Page Down | Keys: Ctrl+Page Up / Ctrl+Page Down | Zoom | Not used | none |
+| `browse` | Keys: Page Up / Page Down | Keys: Page Up / Page Down | Keys: Left / Right | Keys: Left / Right | Zoom | Not used | none |
+| `sheet` | Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: Page Up / Page Down | Not used | none |
+| `photo` | Zoom | Zoom | Keys: Left / Right | Keys: Left / Right | Off | Not used | none |
+| `zoom-pan` | Zoom | Zoom | Scroll sideways | Scroll sideways | Scroll sideways | Not used | none |
+| `vertical-only` | Scroll | Scroll | Off | Off | Off | Not used | none |
+| `fast` | Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used | SCROLL_V_SENS = 12, SCROLL_H_SENS = 10, ZOOM_SENS = 12 |
 
-Key actions (`keys:`) press the negative and the positive key as the axis is pushed, at a rate that follows the deflection. `default` is the channel's normal behavior (scroll wheel, Ctrl+wheel for the twist). None of the built-in joystick modes binds buttons, so every button keeps what the main config gives it (use a button mode or `BUTTON_<n>` in the config).
+In the table, `Scroll` is the vertical mouse wheel, `Scroll sideways` the horizontal one and `Zoom` is Ctrl plus the wheel. Key actions (`Keys: A / B`, `keys:` in the file) press the negative and the positive key as the axis is pushed, at a rate that follows the deflection. `default` is the channel's normal behavior (scroll wheel, Ctrl+wheel for the twist). None of the built-in joystick modes binds buttons, so every button keeps what the main config gives it (use a button mode or `BUTTON_<n>` in the config).
 
 ### `normal`
 
-All channels `default`, no overrides. DESCRIPTION: "Scroll, zoom and navigation as configured". It is the joystick mode that is active when nothing else is selected; `NAV_BUTTON` still works.
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used |
 
-Good for: general use. No button bindings.
+It is the joystick mode that is active when nothing else is selected; `NAV_BUTTON` still works. Good for general use. No overrides. No button bindings.
 
 ### `off`
 
-All three channels `none`. DESCRIPTION: "Sends nothing". Switches the device off without `ENABLED = 0`; leave it through the tray "Joystick mode" menu, a `mode:next` or `mode:<id>` binding in the main config, or by editing `MODE`.
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Off | Off | Off | Off | Off | Not used |
 
-Good for: a program or device profile where the device must stay quiet. No button bindings.
+Switches the device off without `ENABLED = 0`; leave it through the tray "Joystick mode" menu, a `mode:next` or `mode:<id>` binding in the main config, or by editing `MODE`. Good for a program or device profile where the device must stay quiet. No button bindings.
 
 ### `timeline`
 
-| Channel | Action |
-|---|---|
-| V | `none` |
-| H | `keys:left,right` |
-| Twist | `keys:left,right` |
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Off | Off | Keys: Left / Right | Keys: Left / Right | Keys: Left / Right | Not used |
 
-No overrides. DESCRIPTION: "Sideways = scrub, twist = single frames". Defined in code. It has no button bindings of its own (a key that is always the same belongs in the vendor driver; a joystick-mode-dependent one can go into a joystick mode file of your own).
-
-Good for: stepping and scrubbing in video editors and similar timelines, for example `[app:resolve]` with `MODE = timeline` (DaVinci Resolve's behavior is not verified here).
+Good for stepping and scrubbing in video editors and similar timelines, for example `[app:resolve]` with `MODE = timeline` (DaVinci Resolve's behavior is not verified here). Defined in code; no overrides. No button bindings.
 
 ### `slides`
 
-| Channel | Action |
-|---|---|
-| V | `keys:pageup,pagedown` |
-| H | `none` |
-| Twist | `none` |
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Keys: Page Up / Page Down | Keys: Page Up / Page Down | Off | Off | Off | Not used |
 
-Override: `SCROLL_V_SENS = 2` (gentler than the default of 5, so a push does not race through the deck). DESCRIPTION: "Up/down = page up/down, other channels off". No button bindings.
-
-Good for: presentations (LibreOffice Impress, PDF viewers in presentation mode); assign it to the program with `[app:impress]` and `MODE = slides`.
+Override `SCROLL_V_SENS = 2` (gentler than the default of 5, so a push does not race through the deck). Good for presentations (LibreOffice Impress, PDF viewers in presentation mode), for example `[app:impress]` with `MODE = slides`. No button bindings.
 
 ### `media`
 
-| Channel | Action |
-|---|---|
-| V | `keys:up,down` |
-| H | `keys:left,right` |
-| Twist | `keys:j,l` |
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: J / L | Not used |
 
-No overrides. DESCRIPTION: "Up/down = volume, sideways = seek, twist = j/l". No button bindings.
-
-Good for: video players and web video; up/down is volume in most players, sideways seeks, `j` / `l` go back / forward 10 seconds on YouTube. The keys are program-specific.
+Good for video players and web video: up/down is volume in most players, sideways seeks, `j` / `l` go back / forward 10 seconds on YouTube. The keys are program-specific. No button bindings.
 
 ### `map`
 
-| Channel | Action |
-|---|---|
-| V | `keys:up,down` |
-| H | `keys:left,right` |
-| Twist | `keys:minus,plus` |
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: Minus / Plus | Not used |
 
-No overrides. DESCRIPTION: "Up/down and sideways = arrow keys, twist = minus/plus". No button bindings.
-
-Good for: maps and anything that understands arrow keys and plus/minus. `plus` and `minus` are the main-keyboard keys and depend on the keyboard layout (see the key names on the [Joystick modes](Modes) page).
+Good for maps and anything that understands arrow keys and plus/minus. `plus` and `minus` are the main-keyboard keys and depend on the keyboard layout. No button bindings.
 
 ### `precision`
 
-| Channel | Action |
-|---|---|
-| V | `default` |
-| H | `default` |
-| Twist | `default` |
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used |
 
-Overrides: `SCROLL_V_SENS = 2`, `SCROLL_H_SENS = 1`, `ZOOM_SENS = 2` (defaults are 5, 3 and 5). DESCRIPTION: "Normal scroll and zoom with low sensitivity". No button bindings.
-
-Good for: fine control, per program or device with `MODE = precision`, or only while a button is held with `BUTTON_<n> = hold:mode:precision`.
-
-About a "fast" counterpart: `precision` is built in. A matching `fast` joystick mode (the same behavior with high sensitivity) is only an idea so far, see [issue #90](https://github.com/HoZe-Lukas/dofScroll/issues/90). Until then raise the sensitivities in a joystick mode file of your own.
+Overrides `SCROLL_V_SENS = 2`, `SCROLL_H_SENS = 1`, `ZOOM_SENS = 2` (the defaults are 5, 3 and 5). Good for fine control, per program or device with `MODE = precision`, or only while a button is held with `BUTTON_<n> = hold:mode:precision`. Counterpart: `fast`. No button bindings.
 
 ### `tabs`
 
-| Channel | Action |
-|---|---|
-| V | `default` |
-| H | `keys:ctrl+pageup,ctrl+pagedown` |
-| Twist | `default` |
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Scroll | Scroll | Keys: Ctrl+Page Up / Ctrl+Page Down | Keys: Ctrl+Page Up / Ctrl+Page Down | Zoom | Not used |
 
-No overrides. DESCRIPTION: "Sideways = Ctrl+Page Up / Ctrl+Page Down". No button bindings.
-
-Good for: switching to the previous / next tab in browsers and terminals while up/down still scrolls and the twist still zooms. It presses a Ctrl chord (not verified in every program).
+Good for switching to the previous / next tab in browsers and terminals while up/down still scrolls and the twist still zooms. It presses a Ctrl chord (not verified in every program). No button bindings.
 
 ### `browse`
 
-| Channel | Action |
-|---|---|
-| V | `keys:pageup,pagedown` |
-| H | `keys:left,right` |
-| Twist | `zoom` |
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Keys: Page Up / Page Down | Keys: Page Up / Page Down | Keys: Left / Right | Keys: Left / Right | Zoom | Not used |
 
-No overrides. DESCRIPTION: "Up/down = page up/down, sideways = left/right, twist = zoom". No button bindings.
-
-Good for: paging through documents and slides: push up/down pages through the document, sideways moves between pages, twisting zooms with Ctrl + mouse wheel.
+Good for paging through documents and slides: up/down pages through the document, sideways moves between pages, twisting zooms with Ctrl plus the mouse wheel. No button bindings.
 
 ### `sheet`
 
-| Channel | Action |
-|---|---|
-| V | `keys:up,down` |
-| H | `keys:left,right` |
-| Twist | `keys:pageup,pagedown` |
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: Page Up / Page Down | Not used |
 
-No overrides. DESCRIPTION: "Up/down and sideways = arrow keys, twist = page up/down". No button bindings. Not verified in a spreadsheet program.
-
-Good for: moving the cell cursor in spreadsheets.
+Good for moving the cell cursor in spreadsheets. Not verified in a spreadsheet program. No button bindings.
 
 ### `photo`
 
-| Channel | Action |
-|---|---|
-| V | `zoom` |
-| H | `keys:left,right` |
-| Twist | `none` |
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Zoom | Zoom | Keys: Left / Right | Keys: Left / Right | Off | Not used |
 
-No overrides. DESCRIPTION: "Sideways = previous/next image, up/down = zoom". No button bindings. Not verified in a photo program.
-
-Good for: stepping through images and zooming in photo viewers and editors.
+Good for stepping through images and zooming in photo viewers and editors. Not verified in a photo program. No button bindings.
 
 ### `zoom-pan`
 
-| Channel | Action |
-|---|---|
-| V | `zoom` |
-| H | `default` |
-| Twist | `wheel_h` |
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Zoom | Zoom | Scroll sideways | Scroll sideways | Scroll sideways | Not used |
 
-No overrides. DESCRIPTION: "Up/down = zoom, twist = horizontal scroll". No button bindings. Not verified in a DAW or video editor.
-
-Good for: audio and video timelines: zoom with the vertical push, pan sideways by twisting.
+Good for audio and video timelines: zoom with the vertical push or tilt, pan sideways by twisting. Not verified in a DAW or video editor. No button bindings.
 
 ### `vertical-only`
 
-| Channel | Action |
-|---|---|
-| V | `default` |
-| H | `none` |
-| Twist | `none` |
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Scroll | Scroll | Off | Off | Off | Not used |
 
-No overrides. DESCRIPTION: "Vertical scroll only, sideways and twist off". No button bindings.
-
-Good for: reading documents without accidental sideways scroll or zoom, for example as `[app:evince]` with `MODE = vertical-only`.
+Good for reading documents without accidental sideways scroll or zoom, for example `[app:evince]` with `MODE = vertical-only`. No button bindings.
 
 ### `fast`
 
-All channels `default`, with the overrides `SCROLL_V_SENS = 12`, `SCROLL_H_SENS = 10` and `ZOOM_SENS = 12`. DESCRIPTION: "Normal scroll and zoom with high sensitivity". The counterpart of `precision`. No button bindings.
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used |
 
-Good for: quickly scrolling long documents, logs and timelines.
+Overrides `SCROLL_V_SENS = 12`, `SCROLL_H_SENS = 10`, `ZOOM_SENS = 12`. The counterpart of `precision`. Good for quickly scrolling long documents, logs and timelines. No button bindings.
 
 ## Button modes
 
