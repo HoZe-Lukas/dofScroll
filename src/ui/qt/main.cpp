@@ -1405,8 +1405,12 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         check(page->selectSection(s) && page->tabIds() == allTabs, "General, Channels, Buttons and Overrides for every profile");
         // the General tab shows what the profile does with the same six-motion panel as the Joystick modes page
         const QList<motionview::MotionGrid *> grids = findAllOf<motionview::MotionGrid>(page);
-        check(!grids.isEmpty() && grids.last()->cardTexts().size() == 6 && grids.last()->cardTexts().value(0).startsWith(QStringLiteral("Vertical push")),
-              "the General tab of every profile shows the six motions");
+        if (s == 3) {  // blender has its output off: nothing is sent, so the panel is hidden with the joystick mode
+            check(grids.isEmpty(), "with the output off the General tab shows no motions");
+        } else {
+            check(!grids.isEmpty() && grids.last()->cardTexts().size() == 6 && grids.last()->cardTexts().value(0).startsWith(QStringLiteral("Vertical push")),
+                  "the General tab of every profile with output on shows the six motions");
+        }
     }
     check(page->selectSection(0) && page->headerName() == QStringLiteral("Global") &&
               page->headerKind() == QStringLiteral("Global profile") && page->headerHasIcon() &&
