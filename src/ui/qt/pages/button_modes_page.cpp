@@ -152,6 +152,9 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     rl->addWidget(problem_);
     textEditorBtn_ = new QPushButton(T("Open in text editor"), right);
     textEditorBtn_->setToolTip(T("Open the file in your default editor"));
+    // its minimum width (text plus the padding of the theme) was 283 px on Windows and alone made the editor column
+    // wider than the column of the default window; it takes the width the column has
+    textEditorBtn_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
     rl->addWidget(textEditorBtn_, 0, Qt::AlignLeft);
     warnings_ = new QPlainTextEdit(right);
     warnings_->setReadOnly(true);  // plain text only: button mode files are foreign content
