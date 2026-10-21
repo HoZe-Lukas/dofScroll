@@ -80,6 +80,8 @@ int64_t steadyNowNs() {
 DeviceReader::DeviceReader(InputSource *src, std::function<int64_t()> clock, bool debug)
     : src_(src), clock_(std::move(clock)), debug_(debug) {
     for (auto &a : axes) a.store(0, std::memory_order_relaxed);
+    for (Slot &sl : slots_)
+        for (auto &a : sl.axes) a.store(0, std::memory_order_relaxed);
 }
 
 std::string DeviceReader::deviceName() const {
@@ -142,9 +144,30 @@ bool DeviceReader::connect() {
     return true;
 }
 
+// The slot of a device; a free one is claimed on the first event (reader thread only).
+DeviceReader::Slot *DeviceReader::claimSlot(int device_id) {
+    for (Slot &s : slots_)
+        if (s.id.load(std::memory_order_relaxed) == device_id) return &s;
+    for (Slot &s : slots_)
+        if (s.id.load(std::memory_order_relaxed) == -1) {
+            for (auto &a : s.axes) a.store(0, std::memory_order_relaxed);
+            s.button_mask.store(0, std::memory_order_relaxed);
+            s.last_motion_ns.store(0, std::memory_order_relaxed);
+            s.id.store(device_id, std::memory_order_release);
+            return &s;
+        }
+    return nullptr;
+}
+
+// Clears everything: the aggregate and every slot.
 void DeviceReader::clearState() {
     for (auto &a : axes) a.store(0, std::memory_order_relaxed);
     button_mask.store(0, std::memory_order_relaxed);
+    for (Slot &s : slots_) {
+        s.id.store(-1, std::memory_order_release);
+        for (auto &a : s.axes) a.store(0, std::memory_order_relaxed);
+        s.button_mask.store(0, std::memory_order_relaxed);
+    }
 }
 
 void DeviceReader::disconnect() {
@@ -157,16 +180,26 @@ void DeviceReader::disconnect() {
 void DeviceReader::handle(const InputEvent &e) {
     if (e.type != InputEventType::DevicesChanged) events_since_connect.fetch_add(1, std::memory_order_relaxed);
     switch (e.type) {
-    case InputEventType::Motion:
+    case InputEventType::Motion: {
         for (int i = 0; i < AX_COUNT; ++i) axes[i].store(e.axes[i], std::memory_order_relaxed);
-        last_motion_ns.store(clock_(), std::memory_order_release);
+        const int64_t now = clock_();
+        last_motion_ns.store(now, std::memory_order_release);
+        if (Slot *sl = claimSlot(e.device)) {
+            for (int i = 0; i < AX_COUNT; ++i) sl->axes[i].store(e.axes[i], std::memory_order_relaxed);
+            sl->last_motion_ns.store(now, std::memory_order_release);
+        }
         break;
+    }
     case InputEventType::Button:
         if (e.down && debug_) std::cerr << LOG << "Button " << e.button << " pressed" << std::endl;
         if (e.button >= 0 && e.button < 32) {
             uint32_t bit = 1u << e.button;
             if (e.down) button_mask.fetch_or(bit, std::memory_order_relaxed);
             else button_mask.fetch_and(~bit, std::memory_order_relaxed);
+            if (Slot *sl = claimSlot(e.device)) {
+                if (e.down) sl->button_mask.fetch_or(bit, std::memory_order_relaxed);
+                else sl->button_mask.fetch_and(~bit, std::memory_order_relaxed);
+            }
         }
         break;
     case InputEventType::DevicesChanged:
@@ -174,7 +207,25 @@ void DeviceReader::handle(const InputEvent &e) {
         // hang (a click would stay pressed). Deliberately no heuristic timeout: a held
         // button without motion is legitimate (click-and-hold).
         std::cerr << LOG << "Device list changed" << std::endl;
-        clearState();
+        {
+            // Several devices (one id each): only what belonged to a removed device is cleared, the
+            // others keep what they hold. A merged source cannot say which device went: clear all.
+            const std::vector<DeviceInfo> devs = src_->devices();
+            if (devs.size() < 2) {
+                clearState();
+            } else {
+                for (Slot &sl : slots_) {
+                    const int id = sl.id.load(std::memory_order_relaxed);
+                    if (id == -1) continue;
+                    bool stays = false;
+                    for (const DeviceInfo &di : devs) stays = stays || di.id == id;
+                    if (stays) continue;
+                    sl.id.store(-1, std::memory_order_release);
+                    for (auto &a : sl.axes) a.store(0, std::memory_order_relaxed);
+                    sl.button_mask.store(0, std::memory_order_relaxed);
+                }
+            }
+        }
         publishDeviceInfo();
         break;
     }
@@ -230,10 +281,12 @@ DaemonCore::FileStamp DaemonCore::statFile(const std::string &path) {
 }
 
 void DaemonCore::loadConfig() {
-    mode_override_.clear();  // a reload drops the button-selected mode
-    toggled_mode_.clear();
-    hold_active_ = false;
-    if (runner_) runner_->clearToggles();  // ... and the toggled navigation mode
+    for (auto &lp : lanes_) {
+        lp->mode_override.clear();  // a reload drops the button-selected mode
+        lp->toggled_mode.clear();
+        lp->hold_active = false;
+        if (lp->runner) lp->runner->clearToggles();  // ... and the toggled navigation mode
+    }
     // Take the stamp before reading: if the file changes while reading, it is
     // noticed at the next check.
     stamp_ = statFile(config_path_);
@@ -258,10 +311,12 @@ void DaemonCore::loadConfig() {
 }
 
 void DaemonCore::loadModeSet() {
-    mode_override_.clear();
-    toggled_mode_.clear();
-    hold_active_ = false;
-    if (runner_) runner_->clearToggles();
+    for (auto &lp : lanes_) {
+        lp->mode_override.clear();
+        lp->toggled_mode.clear();
+        lp->hold_active = false;
+        if (lp->runner) lp->runner->clearToggles();
+    }
     modes_stamp_ = modesStamp(modes_dir_);  // before reading, like the config stamp
     std::vector<std::string> warnings;
     modes_ = loadModes(modes_dir_, &warnings);
@@ -290,29 +345,32 @@ bool DaemonCore::initialize() {
     clearModeRequest(d_.paths.runtimeDir);  // a request left over from before this start is stale
     // First resolution without device/program, so BACKEND/TICK_HZ from [global] are
     // known at startup.
-    settings_ = profiles_.resolve("", "");
-    match_desc_ = describeMatches(profiles_, "", "");
+    const Settings first = profiles_.resolve("", "");
 
     std::string log;
-    if (d_.makeOutput) output_ = d_.makeOutput(settings_.backend, &log);
+    if (d_.makeOutput) output_ = d_.makeOutput(first.backend, &log);
     if (!log.empty()) {
         std::cerr << LOG << log;
         if (log.back() != '\n') std::cerr << std::endl;
     }
     if (!output_) {
-        std::cerr << LOG << "ERROR: no output possible (BACKEND=" << settings_.backend
+        std::cerr << LOG << "ERROR: no output possible (BACKEND=" << first.backend
                   << ")" << std::endl;
         return false;
     }
-    backend_cfg_ = settings_.backend;
+    backend_cfg_ = first.backend;
     std::cerr << LOG << "Output via " << output_->name() << std::endl;
     // Clean starting point: a previous process (crash, SIGKILL) may have left Ctrl
     // or the mouse button pressed via XTest.
     output_->forceReleaseAll();
     output_->flush();
 
-    runner_ = std::make_unique<ModeRunner>(output_.get());
-    selectMode(settings_, false);
+    mux_ = std::make_unique<OutputMux>(output_.get());
+    lanes_.push_back(makeLane(0));
+    Lane &l0 = *lanes_.front();
+    l0.settings = first;
+    l0.match_desc = describeMatches(profiles_, "", "");
+    selectMode(l0, l0.settings, false);
 
     if (!d_.activeWindow || !d_.activeWindow->init())
         std::cerr << LOG << "Active window not available - [app:*] profiles inactive"
@@ -325,16 +383,137 @@ bool DaemonCore::initialize() {
                       << (err.empty() ? std::string() : " (" + sanitizeForLog(err) + ")")
                       << " - changes are still picked up automatically" << std::endl;
     }
-    tick_period_ = periodFor(settings_.tick_hz);
+    updateTickPeriod();
     return true;
+}
+
+void DaemonCore::updateTickPeriod() {
+    if (!lanes_.empty()) tick_period_ = periodFor(lanes_.front()->settings.tick_hz);
+}
+
+std::unique_ptr<Lane> DaemonCore::makeLane(int dev_id) {
+    auto l = std::make_unique<Lane>();
+    l->dev_id = dev_id;
+    l->out = mux_->addView();
+    if (!l->out) return nullptr;
+    l->runner = std::make_unique<ModeRunner>(l->out);
+    return l;
+}
+
+// Name each device is matched with by [device:*] sections: the device name; when several attached
+// devices have the same name, "<name> #<serial>" (or "<name> #<n>", n counting from 1 in device order,
+// if the source knows no serial number), so that [device:Compact #2] addresses one of two identical mice.
+std::vector<std::string> DaemonCore::laneDeviceNames(const std::vector<DeviceInfo> &devs) const {
+    std::vector<std::string> out;
+    for (const DeviceInfo &di : devs) {
+        int same = 0, ordinal = 0;
+        for (const DeviceInfo &o : devs)
+            if (o.name == di.name) {
+                ++same;
+                if (&o <= &di) ++ordinal;
+            }
+        if (same < 2) out.push_back(di.name);
+        else out.push_back(di.name + " #" + (di.serial.empty() ? std::to_string(ordinal) : di.serial));
+    }
+    return out;
+}
+
+// Releases everything one lane holds. Other lanes keep what they hold; with a single lane the whole
+// output is cleared as before.
+void DaemonCore::releaseLane(Lane &l, bool clear_toggles) {
+    l.runner->releaseAll();
+    if (clear_toggles) l.runner->clearToggles();
+    if (lanes_.size() == 1) mux_->releaseEverything();
+    else l.out->releaseAll();
+}
+
+// Binds the lanes to the attached devices. A lane keeps its state (mode, hold, toggle) as long as its
+// device stays; a device that comes back under a new id (replug) takes over the lane of the same name.
+void DaemonCore::syncLanes() {
+    const std::vector<DeviceInfo> all = reader_.deviceList();
+    std::vector<DeviceInfo> devs(all.begin(), all.begin() + std::min<size_t>(all.size(), DeviceReader::kMaxSlots));
+    const std::vector<std::string> names = laneDeviceNames(devs);
+    std::vector<bool> lane_used(lanes_.size(), false), dev_used(devs.size(), false);
+    // 1. same id
+    for (size_t d = 0; d < devs.size(); ++d)
+        for (size_t i = 0; i < lanes_.size(); ++i)
+            if (!lane_used[i] && lanes_[i]->bound && lanes_[i]->dev_id == devs[d].id) {
+                lane_used[i] = dev_used[d] = true;
+                break;
+            }
+    // 2. a lane without device (never bound, or its device went away) takes over a device without lane
+    for (size_t d = 0; d < devs.size(); ++d) {
+        if (dev_used[d]) continue;
+        for (size_t i = 0; i < lanes_.size(); ++i) {
+            if (lane_used[i]) continue;
+            Lane &l = *lanes_[i];
+            const bool same_model = l.bound && l.model == devs[d].name;
+            if (l.bound && !same_model) continue;
+            if (l.bound) releaseLane(l, true);  // the old device is gone: nothing of it may stay held
+            l.dev_id = devs[d].id;
+            l.bound = true;
+            l.dirty = true;
+            lane_used[i] = dev_used[d] = true;
+            break;
+        }
+    }
+    // 3. lanes of removed devices end (the first lane stays: it is the one that always exists)
+    for (size_t i = lanes_.size(); i-- > 0;) {
+        if (lane_used[i]) continue;
+        if (lanes_.size() == 1) {  // the last lane always exists, it waits for a device
+            Lane &l = *lanes_[0];
+            if (l.bound) releaseLane(l, true);
+            l.bound = false;
+            continue;
+        }
+        std::cerr << LOG << "Device removed: lane for \"" << sanitizeForLog(lanes_[i]->device) << "\" ended" << std::endl;
+        releaseLane(*lanes_[i], true);
+        mux_->removeView(lanes_[i]->out);
+        lanes_.erase(lanes_.begin() + static_cast<std::ptrdiff_t>(i));
+        lane_used.erase(lane_used.begin() + static_cast<std::ptrdiff_t>(i));
+    }
+    // 4. new device, new lane
+    for (size_t d = 0; d < devs.size(); ++d) {
+        if (dev_used[d]) continue;
+        std::unique_ptr<Lane> nl = makeLane(devs[d].id);
+        if (!nl) {
+            std::cerr << LOG << "WARNING: too many devices, '" << sanitizeForLog(devs[d].name) << "' is ignored" << std::endl;
+            continue;
+        }
+        nl->bound = true;
+        nl->dirty = true;
+        nl->settings = profiles_.resolve("", "");
+        nl->match_desc = describeMatches(profiles_, "", "");
+        lanes_.push_back(std::move(nl));
+        selectMode(*lanes_.back(), lanes_.back()->settings, false);
+        lane_used.push_back(true);
+        std::cerr << LOG << "New device: lane " << lanes_.size() << " for \"" << sanitizeForLog(devs[d].name) << "\"" << std::endl;
+    }
+    // names (the lane order does not follow the device order, so look the device up by id)
+    for (auto &lp : lanes_) {
+        Lane &l = *lp;
+        if (!l.bound) {
+            if (!l.device.empty()) { l.device.clear(); l.model.clear(); l.dirty = true; }
+            continue;
+        }
+        for (size_t d = 0; d < devs.size(); ++d)
+            if (devs[d].id == l.dev_id) {
+                if (l.device != names[d]) {
+                    l.device = names[d];
+                    l.dirty = true;
+                }
+                l.model = devs[d].name;
+            }
+        l.warn_buttons = true;
+    }
 }
 
 // Picks the mode named by next.mode (unknown -> "normal", warned once), applies its
 // setting overrides to next and activates it in the runner. force: also re-activate
 // when the id is unchanged (the mode files were reloaded). Returns true if the
 // runner got a (new) mode.
-bool DaemonCore::selectMode(Settings &next, bool force) {
-    const ModeDef *m = modes_.find(mode_override_.empty() ? next.mode : mode_override_);
+bool DaemonCore::selectMode(Lane &l, Settings &next, bool force) {
+    const ModeDef *m = modes_.find(l.mode_override.empty() ? next.mode : l.mode_override);
     if (!m) {
         if (warned_mode_ != next.mode) {
             warned_mode_ = next.mode;
@@ -350,7 +529,7 @@ bool DaemonCore::selectMode(Settings &next, bool force) {
         if (!applyKey(probe, kv.first, kv.second, &err))
             std::cerr << LOG << "Mode " << sanitizeForLog(m->id) << ": " << sanitizeForLog(err) << std::endl;
     }
-    next = profiles_.resolve(device_, wm_class_, &m->overrides);
+    next = profiles_.resolve(l.device, wm_class_, &m->overrides);
     // buttonmode:<id> references are replaced by the action of that button mode; at runtime only,
     // the config and the mode files keep the reference.
     std::set<std::string> missing;
@@ -361,11 +540,11 @@ bool DaemonCore::selectMode(Settings &next, bool force) {
             std::cerr << LOG << "WARNING: unknown button mode '" << sanitizeForLog(id)
                       << "', the button does nothing" << std::endl;
     // The very first activation also applies "normal" (a file mode may override the built-in).
-    if (!force && mode_applied_ && runner_->mode().id == m->id) return false;
-    mode_applied_ = true;
-    runner_->setMode(active);
+    if (!force && l.mode_applied && l.runner->mode().id == m->id) return false;
+    l.mode_applied = true;
+    l.runner->setMode(active);
     std::cerr << LOG << "Mode: " << sanitizeForLog(m->id)
-              << (runner_->legacyPath() ? " (default channels)" : "") << std::endl;
+              << (l.runner->legacyPath() ? " (default channels)" : "") << std::endl;
     return true;
 }
 
@@ -374,51 +553,54 @@ bool DaemonCore::selectMode(Settings &next, bool force) {
 // - in particular held keys (click drag, Ctrl) are kept. Otherwise the filter state is
 // reset and Ctrl is released; mouse buttons are not touched (the tick logic reconciles
 // them with the new settings). A mode change releases everything held.
-void DaemonCore::applyProfile(bool modes_changed) {
-    std::string desc = describeMatches(profiles_, device_, wm_class_);
-    Settings next = profiles_.resolve(device_, wm_class_);
-    const bool mode_switched = selectMode(next, modes_changed);
-    if (!mode_switched && desc == match_desc_ && allKeys(next) == allKeys(settings_)) return;
+void DaemonCore::applyProfile(Lane &l, bool modes_changed) {
+    std::string desc = describeMatches(profiles_, l.device, wm_class_);
+    Settings next = profiles_.resolve(l.device, wm_class_);
+    const bool mode_switched = selectMode(l, next, modes_changed);
+    if (!mode_switched && desc == l.match_desc && allKeys(next) == allKeys(l.settings)) return;
 
-    settings_ = std::move(next);
-    match_desc_ = desc;
+    l.settings = std::move(next);
+    l.match_desc = desc;
 
-    runner_->resetDsp();
+    l.runner->resetDsp();
     output_->flush();
 
-    std::cerr << LOG << "Profile: " << sanitizeForLog(match_desc_) << " (device \""
-              << (device_.empty() ? "?" : sanitizeForLog(device_)) << "\", program \""
+    std::cerr << LOG << "Profile: " << sanitizeForLog(l.match_desc) << " (device \""
+              << (l.device.empty() ? "?" : sanitizeForLog(l.device)) << "\", program \""
               << (wm_class_.empty() ? "?" : sanitizeForLog(wm_class_)) << "\")" << std::endl;
 
-    if (settings_.backend != backend_cfg_) {
-        std::cerr << LOG << "Note: BACKEND=" << settings_.backend
+    if (l.settings.backend != backend_cfg_) {
+        std::cerr << LOG << "Note: BACKEND=" << l.settings.backend
                   << " only takes effect after a restart (active: " << output_->name() << ")"
                   << std::endl;
-        backend_cfg_ = settings_.backend;
+        backend_cfg_ = l.settings.backend;
     }
-    warn_buttons_ = true;
-    checkButtons();
+    l.warn_buttons = true;
+    checkButtons(l);
 }
 
 // Warns if a configured button does not exist on the device (only once per
 // device/profile change).
-void DaemonCore::checkButtons() {
-    if (!warn_buttons_) return;
-    warn_buttons_ = false;
-    int buttons = reader_.dev_buttons.load(std::memory_order_relaxed);
+void DaemonCore::checkButtons(Lane &l) {
+    if (!l.warn_buttons) return;
+    l.warn_buttons = false;
+    int buttons = 0;
+    for (const DeviceInfo &di : reader_.deviceList())
+        if (di.id == l.dev_id) buttons = di.reportedButtons;
+    if (buttons <= 0) buttons = reader_.dev_buttons.load(std::memory_order_relaxed);
     if (buttons <= 0) return;
-    if (settings_.nav_button_enabled && settings_.nav_button >= buttons)
-        std::cerr << LOG << "WARNING: NAV_BUTTON " << settings_.nav_button
+    if (l.settings.nav_button_enabled && l.settings.nav_button >= buttons)
+        std::cerr << LOG << "WARNING: NAV_BUTTON " << l.settings.nav_button
                   << " does not exist on this device" << std::endl;
-    if (settings_.click_button_enabled && settings_.click_button >= buttons)
-        std::cerr << LOG << "WARNING: CLICK_BUTTON " << settings_.click_button
+    if (l.settings.click_button_enabled && l.settings.click_button >= buttons)
+        std::cerr << LOG << "WARNING: CLICK_BUTTON " << l.settings.click_button
                   << " does not exist on this device" << std::endl;
 }
 
 // Button-triggered mode switch: "next" / "prev" cycle through all modes in alphabetical id order, "next:<ids>" / "prev:<ids>" through the list.
-void DaemonCore::switchMode(const std::string &target) {
+void DaemonCore::switchMode(Lane &l, const std::string &target) {
     if (target == ModeRunner::kHoldReleaseRequest) {  // the button of a hold:mode: was released
-        endHold(true);
+        endHold(l, true);
         return;
     }
     if (target.compare(0, 5, "hold:") == 0) {
@@ -426,18 +608,18 @@ void DaemonCore::switchMode(const std::string &target) {
         // runtime override, or none = the profile's mode) is restored on release.
         const std::string hid = target.substr(5);
         if (!modes_.find(hid)) return;
-        hold_prev_override_ = mode_override_;
-        hold_prev_toggled_ = toggled_mode_;
-        hold_active_ = true;
-        hold_id_ = hid;
-        mode_override_ = hid;
-        toggled_mode_.clear();
+        l.hold_prev_override = l.mode_override;
+        l.hold_prev_toggled = l.toggled_mode;
+        l.hold_active = true;
+        l.hold_id = hid;
+        l.mode_override = hid;
+        l.toggled_mode.clear();
         std::cerr << LOG << "Mode held: " << sanitizeForLog(hid) << std::endl;
-        applyProfile(true);
-        tick_period_ = periodFor(settings_.tick_hz);
+        applyProfile(l, true);
+        updateTickPeriod();
         return;
     }
-    hold_active_ = false;  // any other switch ends a hold without restoring anything
+    l.hold_active = false;  // any other switch ends a hold without restoring anything
     std::string id = target;
     bool fwd = true;
     std::vector<std::string> list;
@@ -446,16 +628,16 @@ void DaemonCore::switchMode(const std::string &target) {
         // mode) drops the switch and returns to the mode that profile resolution gives.
         id = target.substr(7);
         if (!modes_.find(id)) return;
-        if (mode_override_ == id && runner_->mode().id == id) {
-            mode_override_.clear();
-            toggled_mode_.clear();
+        if (l.mode_override == id && l.runner->mode().id == id) {
+            l.mode_override.clear();
+            l.toggled_mode.clear();
             std::cerr << LOG << "Mode toggled off, back to the profile's mode" << std::endl;
-            applyProfile(true);
-            tick_period_ = periodFor(settings_.tick_hz);
+            applyProfile(l, true);
+            updateTickPeriod();
             return;
         }
     } else if (splitCycleTarget(target, &fwd, &list)) {
-        const std::string &cur = runner_->mode().id;
+        const std::string &cur = l.runner->mode().id;
         if (list.empty()) {
             for (const ModeDef &m : modes_.modes) list.push_back(m.id);
             std::sort(list.begin(), list.end());
@@ -485,32 +667,32 @@ void DaemonCore::switchMode(const std::string &target) {
         }
     }
     if (!modes_.find(id)) return;
-    mode_override_ = id;
-    toggled_mode_ = target.compare(0, 7, "toggle:") == 0 ? id : std::string();
+    l.mode_override = id;
+    l.toggled_mode = target.compare(0, 7, "toggle:") == 0 ? id : std::string();
     std::cerr << LOG << "Mode switched to " << sanitizeForLog(id) << std::endl;
-    applyProfile(true);  // force: releases everything held, applies the mode's overrides
-    tick_period_ = periodFor(settings_.tick_hz);
+    applyProfile(l, true);  // force: releases everything held, applies the mode's overrides
+    updateTickPeriod();
 }
 
 // Ends a hold:mode:. restore: go back to the state from before the press (release of the button,
 // suspend, ...). Does nothing when no hold is active or another switch already took over.
-void DaemonCore::endHold(bool restore) {
-    if (!hold_active_) return;
-    hold_active_ = false;
-    if (!restore || mode_override_ != hold_id_) return;
-    mode_override_ = hold_prev_override_;
-    toggled_mode_ = hold_prev_toggled_;
+void DaemonCore::endHold(Lane &l, bool restore) {
+    if (!l.hold_active) return;
+    l.hold_active = false;
+    if (!restore || l.mode_override != l.hold_id) return;
+    l.mode_override = l.hold_prev_override;
+    l.toggled_mode = l.hold_prev_toggled;
     std::cerr << LOG << "Mode hold released" << std::endl;
-    applyProfile(true);
-    tick_period_ = periodFor(settings_.tick_hz);
+    applyProfile(l, true);
+    updateTickPeriod();
 }
 
-std::string DaemonCore::toggleState() const {
+std::string DaemonCore::toggleState(const Lane &l) const {
     std::string t;
-    if (runner_->navLatched()) t = "nav";
-    if (!mode_override_.empty() && mode_override_ == toggled_mode_)
-        t += (t.empty() ? "" : " ") + std::string("mode:") + mode_override_;
-    if (hold_active_ && mode_override_ == hold_id_) t += (t.empty() ? "" : " ") + std::string("hold:") + hold_id_;
+    if (l.runner->navLatched()) t = "nav";
+    if (!l.mode_override.empty() && l.mode_override == l.toggled_mode)
+        t += (t.empty() ? "" : " ") + std::string("mode:") + l.mode_override;
+    if (l.hold_active && l.mode_override == l.hold_id) t += (t.empty() ? "" : " ") + std::string("hold:") + l.hold_id;
     return t;
 }
 
@@ -528,8 +710,10 @@ void DaemonCore::updateProfile(int64_t now_ns) {
         const std::string req = takeModeRequest(d_.paths.runtimeDir);
         if (!req.empty()) {
             if (modes_.find(req)) {
-                mode_override_ = req;
-                hold_active_ = false;
+                for (auto &lp : lanes_) {
+                    lp->mode_override = req;
+                    lp->hold_active = false;
+                }
                 std::cerr << LOG << "Mode requested: " << sanitizeForLog(req) << std::endl;
             } else {
                 std::cerr << LOG << "WARNING: requested mode '" << sanitizeForLog(req)
@@ -573,11 +757,12 @@ void DaemonCore::updateProfile(int64_t now_ns) {
     if (gen != seen_generation_) {
         seen_generation_ = gen;
         next_devcount_ = 0;  // recount right after a (re)connect
-        std::string name = reader_.deviceName();
-        warn_buttons_ = true;
         if (d_.liveFeed) {
             live_.devices.clear();
-            for (const DeviceInfo &di : reader_.deviceList()) {
+            const std::vector<DeviceInfo> dl = reader_.deviceList();
+            const std::vector<std::string> shown = laneDeviceNames(dl);  // "<name> #n" for identical models
+            for (size_t di_i = 0; di_i < dl.size(); ++di_i) {
+                const DeviceInfo &di = dl[di_i];
                 if (live_.devices.size() >= kLiveMaxDevices) break;
                 LiveDevice ld;
                 ld.id = static_cast<uint8_t>(di.id);
@@ -586,17 +771,14 @@ void DaemonCore::updateProfile(int64_t now_ns) {
                 ld.reportedButtons = di.reportedButtons;
                 ld.factoryButtons = factoryButtonCount(di.name, di.reportedButtons);
                 ld.axes = di.axes;
-                ld.name = di.name;
+                ld.name = shown[di_i];
                 live_.devices.push_back(std::move(ld));
             }
             live_.devicesRev++;
         }
-        if (name != device_) {
-            device_ = name;
-            need_resolve = true;
-        } else {
-            checkButtons();
-        }
+        syncLanes();
+        for (auto &lp : lanes_)
+            if (!lp->dirty) checkButtons(*lp);
     }
 
     if (d_.activeWindow && now_ns >= next_win_poll_) {
@@ -608,10 +790,14 @@ void DaemonCore::updateProfile(int64_t now_ns) {
         }
     }
 
-    if (need_resolve) {
-        applyProfile(modes_changed);
-        tick_period_ = periodFor(settings_.tick_hz);
+    for (size_t i = 0; i < lanes_.size(); ++i) {
+        Lane &l = *lanes_[i];
+        if (need_resolve || l.dirty) {
+            l.dirty = false;
+            applyProfile(l, modes_changed);
+        }
     }
+    if (need_resolve) updateTickPeriod();
 
     // Count attached 3Dconnexion devices (cheap: every ~10 s or after connect).
     // A merged source (spacenavd) reports only one if there are several -> one-time hint
@@ -620,16 +806,18 @@ void DaemonCore::updateProfile(int64_t now_ns) {
         next_devcount_ = now_ns + DEVCOUNT_POLL_NS;
         int c = d_.countDevices ? d_.countDevices() : (int)d_.input->devices().size();
         devices_seen_ = c < 0 ? 0 : c;
-        std::string key = std::to_string(devices_seen_) + "|" + device_;
-        if (devices_seen_ >= 2 && key != hint_key_) {
-            std::string dn = device_.empty() ? "?" : sanitizeForLog(device_);
+        const std::string &dev0 = lanes_.front()->device;
+        // Only a merged source can hide devices: with one lane per device nothing is hidden.
+        std::string key = std::to_string(devices_seen_) + "|" + dev0;
+        if (devices_seen_ >= 2 && lanes_.size() < 2 && key != hint_key_) {
+            std::string dn = dev0.empty() ? "?" : sanitizeForLog(dev0);
             std::cerr << LOG << "Note: " << devices_seen_
                       << " SpaceMice attached, " << d_.input->name() << " reports only '" << dn
                       << "' - profile [device:" << dn
-                      << "] applies to all; buttons of both devices share the indices"
+                      << "] applies to all; buttons of both devices share the indices (docs/multi-device.md)"
                       << std::endl;
         }
-        hint_key_ = devices_seen_ >= 2 ? key : std::string();
+        hint_key_ = devices_seen_ >= 2 && lanes_.size() < 2 ? key : std::string();
     }
 
     // A device that is found but cannot be read (platform/input_diag.hpp): logged once per change,
@@ -647,39 +835,29 @@ void DaemonCore::updateProfile(int64_t now_ns) {
 
 // Safety net: see SAFETY_QUIET_NS. Runs after the runner's tick, so the activity it looks at
 // already went through the stale watchdog, the suspend/ENABLED gating and the dead zones.
-void DaemonCore::safetyNet(int64_t now_ns, uint32_t buttons) {
-    if (buttons != 0 || runner_->axesActive()) {
-        quiet_since_ = now_ns;
-        safety_done_ = false;
+void DaemonCore::safetyNet(Lane &l, int64_t now_ns, uint32_t buttons) {
+    if (buttons != 0 || l.runner->axesActive()) {
+        l.quiet_since = now_ns;
+        l.safety_done = false;
         return;
     }
-    if (safety_done_ || now_ns - quiet_since_ < SAFETY_QUIET_NS) return;
-    safety_done_ = true;
-    const bool held = runner_->holdsAnything();
-    runner_->releaseAll();
-    output_->releaseAll();  // also clears what the output holds if the runner lost track
+    if (l.safety_done || now_ns - l.quiet_since < SAFETY_QUIET_NS) return;
+    l.safety_done = true;
+    const bool held = l.runner->holdsAnything();
+    l.runner->releaseAll();
+    // also clears what the output holds if the runner lost track (one lane: the whole output)
+    if (lanes_.size() == 1) mux_->releaseEverything();
+    else l.out->releaseAll();
     output_->flush();
-    if (held && (!safety_logged_ || now_ns - last_safety_log_ >= SAFETY_LOG_INTERVAL_NS)) {
-        safety_logged_ = true;
-        last_safety_log_ = now_ns;
+    if (held && (!l.safety_logged || now_ns - l.last_safety_log >= SAFETY_LOG_INTERVAL_NS)) {
+        l.safety_logged = true;
+        l.last_safety_log = now_ns;
         std::cerr << LOG << "safety release: keys/buttons were still held without any input, released"
                   << std::endl;
     }
 }
 
 void DaemonCore::tickOnce(int64_t now_ns, double dt) {
-    // --- Read inputs ------------------------------------------------------
-    bool fresh = (clock_() - reader_.last_motion_ns.load(std::memory_order_acquire)) <= STALE_NS;
-    RawAxes raw{};
-    if (fresh) {
-        for (int i = 0; i < AX_COUNT; ++i)
-            raw[i] = reader_.axes[i].load(std::memory_order_relaxed);
-    }
-    uint32_t buttons = reader_.button_mask.load(std::memory_order_relaxed);
-    const RawAxes live_raw = raw;  // the live feed shows the device even while output is idle
-    const uint32_t live_buttons = buttons;
-    const bool live_fresh = fresh;
-
     // The tray evaluates the mouse itself (tab "Axes"/wizard): treat inputs as
     // "no deflection, no button" - held keys (click, Ctrl) are then released cleanly.
     if (now_ns >= next_susp_poll_) {
@@ -703,54 +881,110 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
             if (d_.debug) std::cerr << LOG << "session: " << sanitizeForLog(detail) << std::endl;
         }
     }
-    // Profile with ENABLED=0 (e.g. [app:blender]): same treatment, no output.
-    const bool enabled = settings_.enabled;
-    if (enabled != prev_enabled_) {
-        prev_enabled_ = enabled;
-        if (enabled) std::cerr << LOG << "Control active again" << std::endl;
-        else std::cerr << LOG << "Control disabled (profile " << sanitizeForLog(match_desc_)
-                       << ")" << std::endl;
-    }
-    const bool idle = suspended_ || !enabled || !session_active_;
-    if (idle) {
-        fresh = false;
-        raw = RawAxes{};
-        buttons = 0;
-        if (!prev_idle_) {  // release everything held on entering suspend/disabled
-            endHold(true);  // a held mode must not stay in effect without the button
-            runner_->releaseAll();
-            runner_->clearToggles();
-            output_->releaseAll();
-            output_->flush();
+    const bool multi = lanes_.size() > 1;
+    const int64_t clk = clock_();
+    Lane *live_lane = lanes_.front().get();  // the live feed shows the device that moved last
+    int64_t live_last = -1;
+    RawAxes live_raw{};
+    uint32_t live_buttons = 0;
+    bool live_fresh = false, live_enabled = true, live_idle = false;
+    std::string status_extra;
+
+    for (size_t li = 0; li < lanes_.size(); ++li) {
+        Lane &l = *lanes_[li];
+        // --- Read inputs ----------------------------------------------------
+        const DeviceReader::Slot *slot = reader_.slotFor(l.dev_id);
+        const int64_t last_motion = slot ? slot->last_motion_ns.load(std::memory_order_acquire) : 0;
+        bool fresh = slot && (clk - last_motion) <= STALE_NS;
+        RawAxes raw{};
+        if (fresh)
+            for (int i = 0; i < AX_COUNT; ++i) raw[i] = slot->axes[i].load(std::memory_order_relaxed);
+        uint32_t buttons = slot ? slot->button_mask.load(std::memory_order_relaxed) : 0;
+        const RawAxes lane_live_raw = raw;  // the live feed shows the device even while output is idle
+        const uint32_t lane_live_buttons = buttons;
+        const bool lane_live_fresh = fresh;
+
+        // Profile with ENABLED=0 (e.g. [app:blender]): same treatment, no output.
+        const bool enabled = l.settings.enabled;
+        if (enabled != l.prev_enabled) {
+            l.prev_enabled = enabled;
+            if (enabled) std::cerr << LOG << "Control active again" << std::endl;
+            else std::cerr << LOG << "Control disabled (profile " << sanitizeForLog(l.match_desc) << ")" << std::endl;
+        }
+        const bool idle = suspended_ || !enabled || !session_active_;
+        if (idle) {
+            fresh = false;
+            raw = RawAxes{};
+            buttons = 0;
+            if (!l.prev_idle) {  // release everything held on entering suspend/disabled
+                endHold(l, true);  // a held mode must not stay in effect without the button
+                releaseLane(l, true);
+                output_->flush();
+            }
+        }
+        l.prev_idle = idle;
+
+        // --- Channels, buttons, output (see mode_runner.hpp) ----------------
+        l.runner->tick(l.settings, raw, buttons, fresh, dt);
+        safetyNet(l, now_ns, buttons);
+        {
+            const std::string req = l.runner->takeSwitchRequest();
+            if (!req.empty()) switchMode(l, req);
+        }
+
+        if (last_motion > live_last || li == 0) {
+            if (last_motion > live_last) live_last = last_motion;
+            live_lane = &l;
+            live_raw = lane_live_raw;
+            live_buttons = lane_live_buttons;
+            live_fresh = lane_live_fresh;
+            live_enabled = enabled;
+            live_idle = idle;
+        }
+        if (li > 0) {
+            const std::string n = std::to_string(li + 1);
+            status_extra += "device" + n + "=" + sanitizeForLog(l.device) + "\nprofile" + n + "=" + sanitizeForLog(l.match_desc) +
+                            "\nmode" + n + "=" + sanitizeForLog(l.runner->mode().id) + "\ntoggle" + n + "=" + toggleState(l) +
+                            "\nenabled" + n + "=" + (enabled ? "1" : "0") + "\n";
+        }
+
+        if (d_.debug && now_ns >= next_debug_ &&
+            (raw[AX_X] || raw[AX_Y] || raw[AX_Z] || raw[AX_RX] || raw[AX_RY] || raw[AX_RZ])) {
+            const ModeRunner::Info &i = l.runner->info();
+            std::cerr << (multi ? "[" + sanitizeForLog(l.device) + "] " : std::string()) << "h=" << i.rate_h << " v=" << i.rate_v
+                      << " twist=" << i.twist << " lateral=" << i.lateral << " zoom=" << i.zooming << (i.nav ? " nav" : "")
+                      << (l.runner->mode().vSplit.active() ? " v_push=" + std::to_string(i.rate_part[PART_V_PUSH]) +
+                                                                 " v_tilt=" + std::to_string(i.rate_part[PART_V_TILT])
+                                                           : std::string())
+                      << (l.runner->mode().hSplit.active() ? " h_push=" + std::to_string(i.rate_part[PART_H_PUSH]) +
+                                                                 " h_tilt=" + std::to_string(i.rate_part[PART_H_TILT])
+                                                           : std::string())
+                      << " mode=" << sanitizeForLog(l.runner->mode().id) << " profile=[" << sanitizeForLog(l.match_desc) << "]"
+                      << std::endl;
         }
     }
-    prev_idle_ = idle;
+    if (d_.debug && now_ns >= next_debug_) next_debug_ = now_ns + DEBUG_PERIOD_NS;
 
+    Lane &first = *lanes_.front();
     if (d_.writeStatus)
-        d_.writeStatus("profile=" + sanitizeForLog(match_desc_) + "\ndevice=" + sanitizeForLog(device_) +
-                           "\napp=" + sanitizeForLog(wm_class_) + "\nmode=" + sanitizeForLog(runner_->mode().id) +
-                           "\ntoggle=" + toggleState() +
-                           "\nenabled=" + (enabled ? "1" : "0") +
+        d_.writeStatus("profile=" + sanitizeForLog(first.match_desc) + "\ndevice=" + sanitizeForLog(first.device) +
+                           "\napp=" + sanitizeForLog(wm_class_) + "\nmode=" + sanitizeForLog(first.runner->mode().id) +
+                           "\ntoggle=" + toggleState(first) +
+                           "\nenabled=" + (first.settings.enabled ? "1" : "0") +
                            "\npaused=" + (suspended_ ? "1" : "0") +
                            "\ndevices_seen=" + std::to_string(devices_seen_) +
+                           (multi ? "\nlanes=" + std::to_string(lanes_.size()) : std::string()) +
+                           (multi ? "\nactive_device=" + sanitizeForLog(live_lane->device) : std::string()) +
                            (d_.input && !d_.input->pathLabel().empty() ? "\ninput=" + d_.input->pathLabel() : std::string()) +
                            (input_issue_ == InputIssue::Clear ? std::string()
                                                              : std::string("\ninput_issue=") + inputIssueKey(input_issue_)) +
-                           "\nsession=" + (session_active_ ? "active" : "inactive") + "\n",
+                           "\nsession=" + (session_active_ ? "active" : "inactive") + "\n" + status_extra,
                        now_ns);
 
-    // --- Channels, buttons, output (see mode_runner.hpp) ------------------
-    runner_->tick(settings_, raw, buttons, fresh, dt);
-    safetyNet(now_ns, buttons);
-    {
-        const std::string req = runner_->takeSwitchRequest();
-        if (!req.empty()) switchMode(req);
-    }
-
     if (d_.liveFeed) {
-        live_.active = settings_.live_feed;
+        live_.active = live_lane->settings.live_feed;
         if (live_.active) {
-            const ModeRunner::Info &i = runner_->info();
+            const ModeRunner::Info &i = live_lane->runner->info();
             live_.axes = live_raw;
             live_.buttons = live_buttons;
             live_.fresh = live_fresh;
@@ -759,29 +993,13 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
             live_.zoom = static_cast<float>(i.twist);
             live_.zooming = i.zooming;
             live_.nav = i.nav;
-            live_.enabled = enabled;
-            live_.idle = idle;
-            live_.mode = runner_->mode().id;
+            live_.enabled = live_enabled;
+            live_.idle = live_idle;
+            live_.mode = live_lane->runner->mode().id;
         }
         d_.liveFeed(live_, now_ns);
     }
 
-    if (d_.debug && now_ns >= next_debug_ &&
-        (raw[AX_X] || raw[AX_Y] || raw[AX_Z] || raw[AX_RX] || raw[AX_RY] || raw[AX_RZ])) {
-        next_debug_ = now_ns + DEBUG_PERIOD_NS;
-        const ModeRunner::Info &i = runner_->info();
-        std::cerr << "h=" << i.rate_h << " v=" << i.rate_v << " twist=" << i.twist
-                  << " lateral=" << i.lateral << " zoom=" << i.zooming
-                  << (i.nav ? " nav" : "")
-                  << (runner_->mode().vSplit.active() ? " v_push=" + std::to_string(i.rate_part[PART_V_PUSH]) +
-                                                            " v_tilt=" + std::to_string(i.rate_part[PART_V_TILT])
-                                                      : std::string())
-                  << (runner_->mode().hSplit.active() ? " h_push=" + std::to_string(i.rate_part[PART_H_PUSH]) +
-                                                            " h_tilt=" + std::to_string(i.rate_part[PART_H_TILT])
-                                                      : std::string())
-                  << " mode=" << sanitizeForLog(runner_->mode().id)
-                  << " profile=[" << sanitizeForLog(match_desc_) << "]" << std::endl;
-    }
     output_->flush();
 }
 
@@ -791,8 +1009,9 @@ void DaemonCore::run() {
     auto next_tick = std::chrono::steady_clock::now();
     auto last_tick = next_tick;
 
-    std::cerr << LOG << "Profile: " << sanitizeForLog(match_desc_) << " (tick rate " << settings_.tick_hz
-              << " Hz, mode " << sanitizeForLog(runner_->mode().id) << ")" << std::endl;
+    std::cerr << LOG << "Profile: " << sanitizeForLog(lanes_.front()->match_desc) << " (tick rate "
+              << lanes_.front()->settings.tick_hz << " Hz, mode " << sanitizeForLog(lanes_.front()->runner->mode().id)
+              << ")" << std::endl;
 
     while (!quit_.load(std::memory_order_relaxed)) {
         next_tick += tick_period_;
@@ -813,8 +1032,8 @@ void DaemonCore::run() {
         tickOnce(now_ns, dt);
     }
 
-    runner_->releaseAll();
-    output_->releaseAll();
+    for (auto &lp : lanes_) lp->runner->releaseAll();
+    mux_->releaseEverything();
     output_->flush();
     if (d_.removeStatus) d_.removeStatus();
     std::cerr << LOG << "terminated" << std::endl;

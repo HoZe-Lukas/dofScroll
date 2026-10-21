@@ -13,8 +13,11 @@
 // Texts from the file are untrusted: control characters are replaced and long values truncated.
 #pragma once
 #include <cstdint>
+#include <algorithm>
 #include <cstdlib>
+#include <cstring>
 #include <string>
+#include <vector>
 
 #include "log_sanitize.hpp"
 #include "platform/input_diag.hpp"
@@ -28,10 +31,40 @@ struct DaemonStatus {
     std::string toggle;  // what button toggles hold: "nav", "mode:<id>", both separated by a space, or empty
     bool enabled = true, paused = false;
     int devices_seen = 0;
+    // Several devices, one lane each (docs/multi-device.md): the daemon writes lanes=N, active_device=<the one
+    // that moved last> and device<n>/profile<n>/mode<n>/toggle<n>/enabled<n> for the lanes 2..N. The plain keys
+    // above describe the first lane. Absent with one device.
+    int lanes = 1;
+    std::string active_device;
+    struct Lane {
+        std::string device, profile, mode, toggle;
+        bool enabled = true;
+    };
+    std::vector<Lane> more;  // lane 2, 3, ...
     InputIssue input_issue = InputIssue::Clear;  // device found but cannot be read / sends nothing
     bool has_updated = false;
     int64_t updated = 0;  // unix seconds
 };
+
+// "device2", "mode3", ...: stores the value of a lane key (n >= 2); false if k is not one.
+inline bool laneKeyValue(const std::string &k, const std::string &v, DaemonStatus *d) {
+    static const char *const names[] = {"device", "profile", "mode", "toggle", "enabled"};
+    for (const char *name : names) {
+        const size_t n = std::char_traits<char>::length(name);
+        if (k.compare(0, n, name) != 0 || k.size() == n || k.size() > n + 1) continue;
+        const int lane = k[n] - '0';  // lanes 2..8 have one digit
+        if (lane < 2 || lane > 8) continue;
+        if (d->more.size() < static_cast<size_t>(lane - 1)) d->more.resize(static_cast<size_t>(lane - 1));
+        DaemonStatus::Lane &l = d->more[static_cast<size_t>(lane - 2)];
+        if (!std::strcmp(name, "device")) l.device = v;
+        else if (!std::strcmp(name, "profile")) l.profile = v;
+        else if (!std::strcmp(name, "mode")) l.mode = v;
+        else if (!std::strcmp(name, "toggle")) l.toggle = v;
+        else l.enabled = v != "0";
+        return true;
+    }
+    return false;
+}
 
 // Parses the file content; unknown keys and lines without '=' are ignored, the last value of a
 // key wins. Never fails (missing keys keep their defaults, has_updated tells about "updated").
@@ -55,6 +88,9 @@ inline DaemonStatus parseStatus(const std::string &text) {
         else if (k == "enabled") d.enabled = v != "0";
         else if (k == "paused") d.paused = v == "1";
         else if (k == "devices_seen") d.devices_seen = int(std::strtol(v.c_str(), nullptr, 10));
+        else if (k == "lanes") d.lanes = std::max(1, std::min(int(std::strtol(v.c_str(), nullptr, 10)), 8));
+        else if (k == "active_device") d.active_device = v;
+        else if (laneKeyValue(k, v, &d)) {}
         else if (k == "input_issue") d.input_issue = inputIssueFromKey(v);
         else if (k == "updated") {
             d.updated = std::strtoll(v.c_str(), nullptr, 10);
@@ -111,11 +147,27 @@ public:
         if (!daemonRunning()) return "";
         std::string t;
         if (!status_.app.empty()) t = format(s.tr("Program: %1"), {clean(status_.app, 60)});
-        if (!status_.device.empty())
+        if (status_.lanes > 1 && !status_.more.empty()) {
+            const std::string dl = devicesLine(s);
+            if (!dl.empty()) t += std::string(t.empty() ? "" : "  |  ") + dl;
+        } else if (!status_.device.empty()) {
             t += std::string(t.empty() ? "" : "  |  ") + format(s.tr("Device: %1"), {clean(status_.device, 60)});
+        }
         const std::string in = inputLine(s);
         if (!in.empty()) t += std::string(t.empty() ? "" : "  |  ") + in;
         return t;
+    }
+    // Several devices: "Devices: A (Joystick mode: normal), B (Joystick mode: timeline)"; empty with one device.
+    std::string devicesLine(const StringProvider &s) const {
+        if (!daemonRunning() || status_.lanes < 2 || status_.more.empty()) return "";
+        auto one = [&](const std::string &dev, const std::string &mode) {
+            std::string t = clean(dev.empty() ? "?" : dev, 60);
+            if (!mode.empty()) t += " (" + format(s.tr("Joystick mode: %1"), {clean(mode, 40)}) + ")";
+            return t;
+        };
+        std::string list = one(status_.device, status_.mode);
+        for (const DaemonStatus::Lane &l : status_.more) list += ", " + one(l.device, l.mode);
+        return format(s.tr("Devices: %1"), {list});
     }
     // "Input: 3Dconnexion driver" / "Input: direct (HID)" (Windows and macOS); empty when the daemon reports none.
     std::string inputLine(const StringProvider &s) const {
@@ -136,7 +188,7 @@ public:
             return s.tr("No input from the SpaceMouse yet. Move the cap. If nothing arrives, another program, possibly the "
                         "3Dconnexion driver, may be holding the device. See docs/troubleshooting.md, section \"The official "
                         "3Dconnexion driver and dofscroll\"");
-        if (status_.devices_seen < 2) return "";
+        if (status_.devices_seen < 2 || status_.lanes > 1) return "";  // one lane per device: nothing hidden
         return format(s.tr("%1 SpaceMice connected, only '%2' is reported"),
                       {std::to_string(status_.devices_seen), clean(status_.device, 60)});
     }

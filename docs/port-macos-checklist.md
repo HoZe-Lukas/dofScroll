@@ -44,6 +44,7 @@ permission for `dofscroll-hidprobe`).
       log matches `devices/*.conf`, vendor/product ids are right, button count equals the factory
       count (2 / 2 / 15 / 15 / 31 / 2).
 - [ ] Two devices at once: two `Device:` lines, separate profiles apply (`[device:NAME]`).
+- [ ] Two SpaceMice, one lane each (docs/multi-device.md): a button on device B switches only B's joystick mode; zoom on both keeps Ctrl until the last one stops; unplugging one leaves the other working; identical models are addressed as `[device:<name> #2]`; the status line lists both devices.
 - [ ] Wireless models: via the receiver and via cable.
 
 ## 3. Motion and buttons

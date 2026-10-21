@@ -1961,3 +1961,7 @@ msgstr ""
 #: src/ui/qt/pages/general_page.cpp
 msgid "About"
 msgstr ""
+
+#: src/ui/model/status_model.hpp
+msgid "Devices: %1"
+msgstr ""

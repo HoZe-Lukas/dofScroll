@@ -3142,3 +3142,7 @@ msgstr "Der offizielle 3Dconnexion-Treiber, seine Schnittstelle und die Namen 3D
 #: src/ui/qt/pages/general_page.cpp
 msgid "About"
 msgstr "Über"
+
+#: src/ui/model/status_model.hpp
+msgid "Devices: %1"
+msgstr "Geräte: %1"

@@ -46,7 +46,7 @@ service again afterwards.
    backoff of up to 5 s, so you need no restart.
 2. Does `spacenavd` see the device? Check `journalctl -u spacenavd` and that the device is
    plugged in. `lsusb` should list a 3Dconnexion device. With two SpaceMice, `spacenavd` reports
-   only one.
+   only one (see [multi-device.md](multi-device.md)).
 3. Is the user unit running? `systemctl --user status dofscroll.service`. If it is
    "not found", run `systemctl --user daemon-reload` and check step 3 of the setup in
    [installation.md](installation.md#2-first-time-setup).

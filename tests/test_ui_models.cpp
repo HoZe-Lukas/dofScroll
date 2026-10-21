@@ -62,6 +62,14 @@ static void testStatus() {
     assert(m.state() == StatusModel::State::Paused);
     assert(m.mainLine(id) == "Profile: global (paused) (disabled)");
     assert(m.warningLine(id) == "2 SpaceMice connected, only 'A' is reported");
+    // One lane per device: no "only A is reported" warning, a device list instead.
+    m.update("profile=global\ndevice=A\nmode=normal\ndevices_seen=2\nlanes=2\ndevice2=B\nmode2=timeline\nupdated=5\n", true, 5);
+    assert(m.warningLine(id).empty());
+    assert(m.status().more.size() == 1 && m.status().more[0].device == "B" && m.status().more[0].mode == "timeline");
+    assert(m.devicesLine(id) == "Devices: A (Joystick mode: normal), B (Joystick mode: timeline)");
+    assert(m.infoLine(id).find("Devices: A") != std::string::npos);
+    m.update("device2=B\nlanes=1\nupdated=5\n", true, 5);
+    assert(m.devicesLine(id).empty());
     m.update("enabled=0\nupdated=5\r\n", true, 5);
     assert(m.state() == StatusModel::State::Disabled);
     m.update("profile=a\x1b[31mb\nupdated=5\n", true, 5);

@@ -5,7 +5,7 @@
 A joystick mode decides what the three channels and the device buttons do. Joystick modes are plain files, no
 recompiling needed. Parser: `src/modes.hpp`, `src/modes.cpp`. Key names: `src/keys.hpp`.
 
-Exactly one joystick mode is active. It is the one named by `MODE` in the resolved profile, otherwise
+Exactly one joystick mode is active (per device when several devices arrive separately, see [multi-device.md](multi-device.md)). It is the one named by `MODE` in the resolved profile, otherwise
 `normal`. Select it in `[global]`, `[device:*]` or `[app:*]` (see
 [configuration.md](configuration.md)). The tray also has a quick "Joystick mode" menu that sets the global
 `MODE`.
