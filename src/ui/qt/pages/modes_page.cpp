@@ -188,8 +188,8 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     list_->setWordWrap(true);
     list_->setResizeMode(QListView::Adjust);
     list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    // wide enough for the name, the badge and the six symbol chips in one row (the width follows the font size)
-    list_->setMinimumWidth(list_->fontMetrics().horizontalAdvance(QLatin1Char('x')) * 41);
+    // no minimum width: it grows with the font (the page would not fit the default window with the wider Windows
+    // fonts); the splitter starts the list wide enough for the six symbol chips in one row, a narrower list wraps them
     leftLayout->addWidget(list_, 1);
     auto *legend = new QLabel(T("Symbols in this order: vertical push, vertical tilt, horizontal push, horizontal tilt, twist, "
                                 "lift / press. \u2195 scroll, \u2194 scroll sideways, \u2295 zoom, \u2328 keys, \u21E5 one tap per "
@@ -212,6 +212,7 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     split->setStretchFactor(0, 1);
     split->setStretchFactor(1, 2);
     split->setChildrenCollapsible(false);
+    split->setSizes({380, 560});
     connect(split, &QSplitter::splitterMoved, this, [this] { list_->doItemsLayout(); });
     row->addWidget(split, 1);
 
