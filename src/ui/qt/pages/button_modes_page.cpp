@@ -20,6 +20,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QScrollArea>
 #include <QSplitter>
 #include <QStyle>
 #include <QTimer>
@@ -91,7 +92,14 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     list_->setWordWrap(true);
     list_->setResizeMode(QListView::Adjust);
 
-    auto *right = new QWidget(split);
+    // The editor column scrolls: with the cycle section it is taller than the default window on platforms with
+    // larger fonts, and the page must fit the default window (the default size self-test).
+    auto *rightScroll = new QScrollArea(split);
+    rightScroll->setWidgetResizable(true);
+    rightScroll->setFrameShape(QFrame::NoFrame);
+    rightScroll->setFocusPolicy(Qt::NoFocus);  // the controls inside take the focus, not the area (keyboard self-test: Tab order)
+    auto *right = new QWidget;
+    rightScroll->setWidget(right);
     auto *rl = new QVBoxLayout(right);
     rl->setContentsMargins(spn::ui::tokens::kRowGap, 0, 0, 0);  // a gap to the list
     auto *form = new QFormLayout;
@@ -108,7 +116,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     // The width of the page must not follow the longest action text (platform fonts differ a lot):
     // a fixed number of characters, the list opens wide enough for every entry.
     kind_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    kind_->setMinimumContentsLength(22);
+    kind_->setMinimumContentsLength(16);  // the editor column scrolls but must fit the default window without a horizontal bar
     argHost_ = new QWidget(right);
     auto *ah = new QHBoxLayout(argHost_);
     ah->setContentsMargins(0, 0, 0, 0);

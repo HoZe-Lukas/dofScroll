@@ -25,24 +25,21 @@ CycleEditorWidget::CycleEditorWidget(QWidget *parent) : QGroupBox(T("Cycle throu
     auto *lay = new QVBoxLayout(this);
     lay->setSpacing(spn::ui::tokens::kRowGap);
     setToolTip(T("Which joystick modes the button goes through, in this order, wrapping around."));
-    all_ = new QRadioButton(T("All joystick modes (alphabetical)"), this);
+    all_ = new QRadioButton(T("All joystick modes"), this);
+    all_->setToolTip(T("All joystick modes, in alphabetical order of their ids"));
     only_ = new QRadioButton(T("Only these joystick modes"), this);
-    all_->setAccessibleName(T("All joystick modes (alphabetical)"));
+    all_->setAccessibleName(T("All joystick modes, in alphabetical order of their ids"));
     only_->setAccessibleName(T("Only these joystick modes"));
-    auto *choice = new QHBoxLayout;  // side by side: the page has little height
-    choice->addWidget(all_);
-    choice->addWidget(only_);
-    choice->addStretch(1);
-    lay->addLayout(choice);
+    lay->addWidget(all_);  // one below the other: side by side they make the page wider than a window
+    lay->addWidget(only_);
     list_ = new QListWidget(this);
     list_->setAccessibleName(T("Joystick modes to cycle through"));
     list_->setToolTip(T("Tick the joystick modes the button goes through; the numbers show the order"));
     list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);  // long names wrap instead of scrolling
     list_->setWordWrap(true);
     list_->setMinimumHeight(110);
-    auto *row = new QHBoxLayout;
-    row->addWidget(list_, 1);
-    auto *col = new QVBoxLayout;
+    lay->addWidget(list_, 1);
+    auto *col = new QHBoxLayout;  // the move buttons below the list (beside it the widget would be too wide)
     up_ = new QPushButton(T("Move up"), this);
     down_ = new QPushButton(T("Move down"), this);
     up_->setToolTip(T("Move the selected ticked joystick mode earlier in the cycle"));
@@ -50,8 +47,7 @@ CycleEditorWidget::CycleEditorWidget(QWidget *parent) : QGroupBox(T("Cycle throu
     col->addWidget(up_);
     col->addWidget(down_);
     col->addStretch(1);
-    row->addLayout(col);
-    lay->addLayout(row);
+    lay->addLayout(col);
     summary_ = new QLabel(this);
     summary_->setWordWrap(true);
     summary_->setAccessibleName(T("Order of the cycle"));

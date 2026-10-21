@@ -3448,9 +3448,13 @@ msgstr "Durchlaufen"
 msgid "Which joystick modes the button goes through, in this order, wrapping around."
 msgstr "Durch welche Joystick-Modi die Taste schaltet, in dieser Reihenfolge, nach dem letzten wieder zum ersten."
 
-#: src/ui
-msgid "All joystick modes (alphabetical)"
-msgstr "Alle Joystick-Modi (alphabetisch)"
+#: src/ui/qt/pages/cycle_editor_widget.cpp
+msgid "All joystick modes"
+msgstr "Alle Joystick-Modi"
+
+#: src/ui/qt/pages/cycle_editor_widget.cpp
+msgid "All joystick modes, in alphabetical order of their ids"
+msgstr "Alle Joystick-Modi, alphabetisch nach ihrer Kennung"
 
 #: src/ui
 msgid "Only these joystick modes"

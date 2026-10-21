@@ -360,7 +360,7 @@ list, editor for name, description and action (saved by itself, see "Saving"; a 
 at once), New, New from example, Duplicate, Import, Delete (it names the profiles and joystick mode
 files that still use the button mode) and "Open button modes folder". With the action
 "Next joystick mode" or "Previous joystick mode" the editor shows the section **Cycle through**: the
-choice "All joystick modes (alphabetical)" or "Only these joystick modes", a check list of every
+choice "All joystick modes" (alphabetical order of their ids) or "Only these joystick modes", a check list of every
 loaded joystick mode (built in and yours; the ticked ones come first, numbered in cycle order), "Move
 up" / "Move down" for the selected ticked one, and the result in words ("Order: 1 timeline, 2
 normal"). Ticking a mode switches to "Only these"; no tick or "All" writes no `CYCLE` line (all

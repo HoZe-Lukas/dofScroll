@@ -2194,8 +2194,12 @@ msgstr ""
 msgid "Which joystick modes the button goes through, in this order, wrapping around."
 msgstr ""
 
-#: src/ui
-msgid "All joystick modes (alphabetical)"
+#: src/ui/qt/pages/cycle_editor_widget.cpp
+msgid "All joystick modes"
+msgstr ""
+
+#: src/ui/qt/pages/cycle_editor_widget.cpp
+msgid "All joystick modes, in alphabetical order of their ids"
 msgstr ""
 
 #: src/ui
