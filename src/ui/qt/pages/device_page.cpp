@@ -91,10 +91,12 @@ void DevicePage::refresh() {
         }
         for (int i = 0; i < lines.size(); ++i) {
             auto *name = new QLabel(lines[i]);
+            name->setTextFormat(Qt::PlainText);  // built from the name a USB device reports
             name->setProperty("heading", QStringLiteral("section"));
             name->setWordWrap(true);
             name->setTextInteractionFlags(Qt::TextSelectableByMouse);
             auto *note = new QLabel(notes[i]);
+            note->setTextFormat(Qt::PlainText);
             note->setWordWrap(true);
             note->setForegroundRole(QPalette::PlaceholderText);
             list_->addWidget(name);

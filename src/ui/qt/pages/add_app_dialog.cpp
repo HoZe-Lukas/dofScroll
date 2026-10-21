@@ -26,6 +26,7 @@ AddAppDialog::AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string
                            const QString &current)
     : QDialog(parent), ctx_(ctx) {
     const bool change = !current.isEmpty();
+    change_ = change;
     setWindowTitle(change ? T("Change application") : T("Add application"));
     resize(720, 560);
     model_.setConfigured(configured);
@@ -178,8 +179,10 @@ void AddAppDialog::applyResult(bool ok, const QString &err, std::vector<RunningA
         note_->setText(T("The list of running programs is not available:") + QLatin1Char(' ') + err + QLatin1Char(' ') +
                        T("You can still capture a program or type its match string."));
     else
-        note_->setText(T("Programs marked \"Already has a profile\" can be selected again; the existing "
-                         "profile is then opened."));
+        note_->setText(change_ ? T("Programs marked \"Already has a profile\" cannot be chosen: each program has one "
+                                   "profile.")
+                               : T("Programs marked \"Already has a profile\" can be selected again; the existing "
+                                   "profile is then opened."));
 }
 
 void AddAppDialog::refill() {
@@ -227,10 +230,12 @@ void AddAppDialog::tickCapture() {
 
 void AddAppDialog::validate() {
     std::string norm, err;
-    const bool ok = validateProfilePattern(manual_->text().toUtf8().toStdString(), &norm, &err);
+    const bool valid = validateProfilePattern(manual_->text().toUtf8().toStdString(), &norm, &err);
+    const bool taken = valid && model_.alreadyConfigured(norm);
+    const bool ok = valid && !(change_ && taken);  // changing to a program that has a profile would fail
     buttons_->button(QDialogButtonBox::Ok)->setEnabled(ok);
-    if (ok) {
-        validation_->setText(model_.alreadyConfigured(norm) ? T("This program already has a profile.") : QString());
+    if (valid) {
+        validation_->setText(taken ? T("This program already has a profile.") : QString());
     } else {
         validation_->setText(manual_->text().isEmpty() ? QString() : T(err.c_str()));
     }

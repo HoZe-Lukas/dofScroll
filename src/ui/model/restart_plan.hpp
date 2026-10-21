@@ -12,6 +12,7 @@
 // process) or `relaunch`: start the same executable detached with `--restart`, then quit. The new
 // instance waits for the single-instance lock of the old one (instance_paths.hpp).
 #pragma once
+#include <cstdlib>
 #include <functional>
 #include <string>
 #include <vector>
@@ -22,6 +23,14 @@
 namespace spn::ui {
 
 enum class Os { Linux, Windows, MacOS };
+
+// Windows PowerShell by its full path, so a "powershell.exe" next to the program (or in the current folder) is
+// never started. SystemRoot is always set on Windows; elsewhere (the tests) the plain name stays.
+inline std::string windowsPowerShell() {
+    const char *root = std::getenv("SystemRoot");
+    if (!root || !*root) return "powershell.exe";
+    return std::string(root) + "\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+}
 
 inline Os hostOs() {
 #if defined(_WIN32)
@@ -70,7 +79,7 @@ inline DaemonRestartPlan daemonRestartPlan(Os os, const std::string &exeDir,
             // Same stop logic as the installer: quit event, then end the process, then release keys.
             // The UI is a GUI process: no profile, no prompt, hidden window (the runner also sets
             // CREATE_NO_WINDOW, so no console flashes up).
-            p.stop = {"powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
+            p.stop = {windowsPowerShell(), "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
                       "-ExecutionPolicy", "Bypass", "-File",
                       joinPath(joinPath(exeDir, "scripts"), "stop-daemon.ps1"), "-ExePath", p.spawn[0]};
             break;

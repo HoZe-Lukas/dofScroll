@@ -366,7 +366,7 @@ bool ModesPage::importPath(const QString &file, bool interactive) {
     }
 
     flushEditor();
-    const ModeCatalog::Result r = catalog_.importFile(path, name);
+    const ModeCatalog::Result r = catalog_.importInspected(chk);  // what the user saw, not a second read
     if (!r.ok) {
         lastError_ = QString::fromStdString(r.error);
         if (interactive) showError(T("Could not import the joystick mode."), r.error);

@@ -274,6 +274,27 @@ static void testReplugKeepsLane() {
     CHECK(r.core->laneCount() == 1, "one lane (%zu)", r.core->laneCount());
 }
 
+// One devices() change swaps the only device for another model: one lane for the new one, not an empty lane
+// next to it (the status file would then describe the empty lane and the output would not be cleared as a whole).
+static void testSwapToOtherModel() {
+    MdRig r(std::string(BASE) + "\nBUTTON_1 = mode:timeline\n", {dev(1, "Mouse A")});
+    r.run(0.1);
+    r.src.pushButton(1, 0, true);
+    r.run(0.1);
+    r.src.pushButton(1, 0, false);
+    r.run(0.1);
+    CHECK(r.core->lane(0).runner->mode().id == "timeline", "device A in timeline");
+    r.src.list = {dev(2, "Mouse B")};
+    InputEvent ev;
+    ev.type = InputEventType::DevicesChanged;
+    r.src.push(ev);
+    r.run(0.2);
+    CHECK(r.core->laneCount() == 1, "one lane after the swap (%zu)", r.core->laneCount());
+    CHECK(r.core->deviceName() == "Mouse B", "the lane belongs to the new device ('%s')", r.core->deviceName().c_str());
+    CHECK(r.core->lane(0).runner->mode().id == "normal", "the joystick mode of the removed device does not carry over");
+    hold(r, 0.6, ' ', ' ');
+}
+
 static void testMergedSourceSingleLane() {
     // spacenavd: one merged device (id 0), events with device 0. Behaves as before.
     MdRig r(BASE, {dev(0, "Merged")});
@@ -292,6 +313,7 @@ int main() {
     testSharedCtrlAndUnplug();
     testUnplugKeepsOtherDeviceState();
     testReplugKeepsLane();
+    testSwapToOtherModel();
     testMergedSourceSingleLane();
     if (failures) {
         std::fprintf(stderr, "%d failure(s)\n", failures);

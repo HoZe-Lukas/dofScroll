@@ -34,4 +34,6 @@ private:
     QTreeWidget *list_;
     QLabel *note_, *validation_;
     QDialogButtonBox *buttons_;
+    std::vector<std::string> configured_;
+    bool change_ = false;  // "Change device": a name that already has a profile is refused
 };

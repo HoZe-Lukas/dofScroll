@@ -23,6 +23,8 @@ AddDeviceDialog::AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::
                                  const QString &current)
     : QDialog(parent), ctx_(ctx) {
     const bool change = !current.isEmpty();
+    change_ = change;
+    configured_ = configured;
     setWindowTitle(change ? T("Change device") : T("Add device"));
     resize(640, 500);
     model_.setConfigured(configured);
@@ -121,7 +123,10 @@ void AddDeviceDialog::refill() {
 
 void AddDeviceDialog::validate() {
     std::string norm, err;
-    const bool ok = validateProfilePattern(manual_->text().toUtf8().toStdString(), &norm, &err);
+    const bool valid = validateProfilePattern(manual_->text().toUtf8().toStdString(), &norm, &err);
+    const bool taken = valid && hasProfileFor(configured_, norm);
+    const bool ok = valid && !(change_ && taken);  // changing to a device that has a profile would fail
     buttons_->button(QDialogButtonBox::Ok)->setEnabled(ok);
-    validation_->setText(ok ? QString() : (manual_->text().isEmpty() ? QString() : T(err.c_str())));
+    if (valid) validation_->setText(change_ && taken ? T("This device already has a profile.") : QString());
+    else validation_->setText(manual_->text().isEmpty() ? QString() : T(err.c_str()));
 }

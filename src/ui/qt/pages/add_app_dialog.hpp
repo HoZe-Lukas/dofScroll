@@ -52,5 +52,6 @@ private:
     QPushButton *refresh_, *capture_btn_;
     QDialogButtonBox *buttons_;
     bool listing_ = false;
+    bool change_ = false;  // "Change application": a match string that already has a profile is refused
     int generation_ = 0;  // ignores results of superseded listings
 };

@@ -225,6 +225,7 @@ public:
         auto *cfgBox = new QGroupBox(T("Configuration file"));
         auto *cl = new QVBoxLayout(cfgBox);
         auto *path = new QLabel(qs8(ctx.configPath));
+        path->setTextFormat(Qt::PlainText);
         path->setTextInteractionFlags(Qt::TextSelectableByMouse);
         path->setWordWrap(true);
         cl->addWidget(path);

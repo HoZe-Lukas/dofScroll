@@ -816,8 +816,11 @@ Nothing here is hidden by the rest of this document; the review has the details.
   sandbox is an accident-containment measure, not a security boundary.
 - **Seeding source (F12).** Examples are copied from a directory chosen by environment or by the
   executable's location, not necessarily root-owned.
-- **HID descriptor loader (F13).** `src/hid_descriptor.cpp` is not wired into the daemon yet and has
-  weaker limits than the other loaders; harden it before use.
+- **HID descriptor loader (F13).** `src/hid_descriptor.cpp` is used by the Windows and macOS input
+  (`win_hid_input.cpp`, `mac_hid_input.cpp`, `mac_driver_input.cpp`). The file loader refuses links, but
+  `loadHidDescriptorDir` lists the directory without an entry cap and no owner check is made. The directory comes from
+  `DOFSCROLL_DEVICES` (macOS) or the folder of the executable, so exploiting it needs control of the environment
+  or of the installation folder.
 - **Runtime files (F14).** Temporary file names in the runtime directory are predictable; exploiting
   that needs write access to the user's own runtime directory.
 
@@ -899,3 +902,28 @@ is restricted, fixed and logged. Background and the legal side: [legal-notes.md]
   run loop; they only write into a bounded queue. Windows polls on one thread of its own.
 - Everything else about the device stream is as in section 12: the driver's interface is shared by
   all sessions of the machine.
+
+## 14. Third review (2026-10-21, before 1.1.1)
+
+A code review and a security audit of everything since 1.0.0 (multi-device code, upgrade script, interface, installers,
+workflows). Nothing high or critical, no local privilege escalation. Fixed in 1.1.1:
+
+- **Import of a joystick mode or button mode file** now writes the content that was checked and shown (with its warnings)
+  to the user, not the file read a second time (`importInspected()`); a file that changes between the check and the
+  click cannot bring other content in.
+- **Display text from files, programs and devices** (profile names and match strings, device names, mode texts,
+  configuration path, action texts) is shown as plain text in the labels that carry it. Before, a name such as
+  `<img src=...>` could be rendered as rich text.
+- **Upgrade script (`packaging/cpack/postinst`, runs as root):** a user name must not start with `-`; every
+  call is time-limited, and when `timeout` is missing nothing is done; a process is signalled only after its owner is
+  checked again right before the signal (process numbers can be reused); an interface is stopped only for a user who
+  has the unit enabled.
+- **Windows:** the installer and the interface start Windows PowerShell by its full path (`$WINDIR\System32\...`,
+  `%SystemRoot%`), not by name; the uninstaller removes the folder only when `dofscroll.exe` is in it, and the folder
+  picker refuses a folder that is not empty and not a dofscroll install (a silent install with `/D=` is not checked).
+
+Open, tracked as issues: release builds use unpinned CI images and an unhashed Qt download (a checksum file made in the same
+pipeline is no provenance); the UI starts `systemctl` and `launchctl` by name through `PATH`; root removes a dangling
+tray link through a glob in a directory the user controls (only that fixed name, no practical harm); look-alike texts
+(see section 11). Plain `key:ctrl`, `key:super`, `key:enter` and `keys:` pairs get no warning on load, only chords do
+(known, F2).
