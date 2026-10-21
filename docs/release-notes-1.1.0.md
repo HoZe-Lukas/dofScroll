@@ -24,15 +24,14 @@ after login. The Linux daemon, the command line and all existing configuration k
   of that device only. Details: [multi-device.md](multi-device.md).
 - **Shared keys are counted.** Ctrl for zoom stays pressed until the last device stops zooming; unplugging a
   device, a joystick mode change or `ENABLED = 0` for one device never releases a key another device still holds.
-- **Identical models** are addressed as `[device:<name> #2]` (`#<serial>` where the source knows it). Hotplug keeps
-  the state of the other devices.
+- **One device per model:** a Pro next to a Compact works; a second device of the same model is ignored with a log
+  line. Hotplug keeps the state of the other devices.
 - The status line shows all devices with their joystick mode ("Devices: A (Joystick mode: normal), B (...)");
   the status file gets `lanes=`, `active_device=` and `device<k>=`, `mode<k>=` and more for k = 2..n.
 - **Not done:** on Linux `spacenavd` still merges all devices into one stream, so Linux has one lane and
   `[device:*]` applies to all devices; a per-device path next to `spacenavd` was not built (see
   [multi-device.md](multi-device.md)). The Axes page lists all device names and shows the device that moved last;
-  it has no device selector. The Windows and macOS sources do not report serial numbers yet, so `#<n>` counts in
-  the order the devices were found. Everything is covered by tests with a fake two-device source; it has **not**
+  it has no device selector. Everything is covered by tests with a fake two-device source; it has **not**
   been run with two real devices (issue #93 stays open for that).
 
 ### New joystick modes (#86 to #90)

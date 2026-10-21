@@ -180,8 +180,8 @@ profile switch. Program profiles need an active-window query: always on X11, on 
 so a `kdotool` in `~/.local/bin` is not used). Otherwise only `[global]` and `[device:*]` apply.
 
 With two SpaceMice connected, `spacenavd` reports only one, so `[device:*]` applies to both. Where each device
-arrives separately (Windows and macOS, direct HID) every device has its own profile and joystick mode; identical
-models are addressed as `[device:<name> #2]`. See [multi-device.md](multi-device.md).
+arrives separately (Windows and macOS, direct HID) every device has its own profile and joystick mode; only one device per model
+(a Pro next to a Compact, not two Compacts). See [multi-device.md](multi-device.md).
 
 ## Example files
 

@@ -44,27 +44,18 @@ A joystick mode requested through the tray applies to every lane.
 devices with different names, nothing changes: `[device:SpaceMouse Pro]` and
 `[device:SpaceMouse Compact]` address one device each.
 
-When **identical models** are attached, their names would be the same, so the daemon appends a suffix to
-the name each of them is matched with: `SpaceMouse Compact #1`, `SpaceMouse Compact #2`. The number counts
-in the order the devices were found. If the platform source knows a serial number, it is used instead of the
-number (`SpaceMouse Compact #<serial>`). `[device:SpaceMouse Compact]` still matches both;
-`[device:SpaceMouse Compact #2]` only the second. The suffixed names are what the interface lists (Axes page,
-Add device dialog, status line).
-
-The serial number is currently not filled in by the Windows and macOS sources, so the number counts
-in the order the devices were found: after a reboot or another USB port the numbers can swap. Use the
-name suffix only when you can live with that; for two different models use the model names.
+**One device per model.** A Pro next to a Compact works; two of the same model do not: the second device with the
+same name is ignored (one log line, `only one device per model is supported`), because `[device:*]` could not tell
+them apart and the numbering would change with the order the devices are found. At most 4 devices are used.
 
 ## Hotplug
 
 - Plugging in a device creates its lane (starts in the joystick mode its profile gives).
 - Unplugging a device ends its lane and releases only what that lane held. The other lanes keep their joystick
   mode, holds and toggles.
-- A device that comes back under a new id (replug) takes over the lane of the same model if its old
-  lane was waiting, so a joystick mode selected by a button survives a replug of a single device.
+- A device that comes back under a new id (replug) takes over the lane of the same model, so a joystick mode selected by a button survives a replug of a single device.
 - The last lane always exists. With a merged source (Linux) an unplug clears the state of the merged
   stream, because the source cannot say which physical device went away.
-- At most 4 devices are used; more are ignored with a log line.
 
 ## Status and interface
 

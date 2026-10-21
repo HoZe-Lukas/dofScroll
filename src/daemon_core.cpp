@@ -400,20 +400,21 @@ std::unique_ptr<Lane> DaemonCore::makeLane(int dev_id) {
     return l;
 }
 
-// Name each device is matched with by [device:*] sections: the device name; when several attached
-// devices have the same name, "<name> #<serial>" (or "<name> #<n>", n counting from 1 in device order,
-// if the source knows no serial number), so that [device:Compact #2] addresses one of two identical mice.
-std::vector<std::string> DaemonCore::laneDeviceNames(const std::vector<DeviceInfo> &devs) const {
-    std::vector<std::string> out;
-    for (const DeviceInfo &di : devs) {
-        int same = 0, ordinal = 0;
-        for (const DeviceInfo &o : devs)
-            if (o.name == di.name) {
-                ++same;
-                if (&o <= &di) ++ordinal;
-            }
-        if (same < 2) out.push_back(di.name);
-        else out.push_back(di.name + " #" + (di.serial.empty() ? std::to_string(ordinal) : di.serial));
+// The devices that get a lane: at most kMaxSlots, and one per model. A second device with the name of an
+// earlier one (two SpaceMouse Compact) is ignored, because [device:*] could not tell them apart; it is logged
+// once per device id.
+std::vector<DeviceInfo> DaemonCore::usableDevices(const std::vector<DeviceInfo> &all) {
+    std::vector<DeviceInfo> out;
+    for (const DeviceInfo &di : all) {
+        bool dup = false;
+        for (const DeviceInfo &o : out) dup = dup || o.name == di.name;
+        if (dup || out.size() >= static_cast<size_t>(DeviceReader::kMaxSlots)) {
+            if (warned_ignored_.insert(di.id).second)
+                std::cerr << LOG << "WARNING: device '" << sanitizeForLog(di.name) << "' ignored: "
+                          << (dup ? "only one device per model is supported" : "too many devices") << std::endl;
+            continue;
+        }
+        out.push_back(di);
     }
     return out;
 }
@@ -430,9 +431,7 @@ void DaemonCore::releaseLane(Lane &l, bool clear_toggles) {
 // Binds the lanes to the attached devices. A lane keeps its state (mode, hold, toggle) as long as its
 // device stays; a device that comes back under a new id (replug) takes over the lane of the same name.
 void DaemonCore::syncLanes() {
-    const std::vector<DeviceInfo> all = reader_.deviceList();
-    std::vector<DeviceInfo> devs(all.begin(), all.begin() + std::min<size_t>(all.size(), DeviceReader::kMaxSlots));
-    const std::vector<std::string> names = laneDeviceNames(devs);
+    const std::vector<DeviceInfo> devs = usableDevices(reader_.deviceList());
     std::vector<bool> lane_used(lanes_.size(), false), dev_used(devs.size(), false);
     // 1. same id
     for (size_t d = 0; d < devs.size(); ++d)
@@ -447,7 +446,7 @@ void DaemonCore::syncLanes() {
         for (size_t i = 0; i < lanes_.size(); ++i) {
             if (lane_used[i]) continue;
             Lane &l = *lanes_[i];
-            const bool same_model = l.bound && l.model == devs[d].name;
+            const bool same_model = l.bound && l.device == devs[d].name;
             if (l.bound && !same_model) continue;
             if (l.bound) releaseLane(l, true);  // the old device is gone: nothing of it may stay held
             l.dev_id = devs[d].id;
@@ -494,16 +493,15 @@ void DaemonCore::syncLanes() {
     for (auto &lp : lanes_) {
         Lane &l = *lp;
         if (!l.bound) {
-            if (!l.device.empty()) { l.device.clear(); l.model.clear(); l.dirty = true; }
+            if (!l.device.empty()) { l.device.clear(); l.dirty = true; }
             continue;
         }
         for (size_t d = 0; d < devs.size(); ++d)
             if (devs[d].id == l.dev_id) {
-                if (l.device != names[d]) {
-                    l.device = names[d];
+                if (l.device != devs[d].name) {
+                    l.device = devs[d].name;
                     l.dirty = true;
                 }
-                l.model = devs[d].name;
             }
         l.warn_buttons = true;
     }
@@ -760,8 +758,7 @@ void DaemonCore::updateProfile(int64_t now_ns) {
         next_devcount_ = 0;  // recount right after a (re)connect
         if (d_.liveFeed) {
             live_.devices.clear();
-            const std::vector<DeviceInfo> dl = reader_.deviceList();
-            const std::vector<std::string> shown = laneDeviceNames(dl);  // "<name> #n" for identical models
+            const std::vector<DeviceInfo> dl = usableDevices(reader_.deviceList());
             for (size_t di_i = 0; di_i < dl.size(); ++di_i) {
                 const DeviceInfo &di = dl[di_i];
                 if (live_.devices.size() >= kLiveMaxDevices) break;
@@ -772,7 +769,7 @@ void DaemonCore::updateProfile(int64_t now_ns) {
                 ld.reportedButtons = di.reportedButtons;
                 ld.factoryButtons = factoryButtonCount(di.name, di.reportedButtons);
                 ld.axes = di.axes;
-                ld.name = shown[di_i];
+                ld.name = di.name;
                 live_.devices.push_back(std::move(ld));
             }
             live_.devicesRev++;

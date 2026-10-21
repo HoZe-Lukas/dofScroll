@@ -66,11 +66,10 @@ static void writeFile(const std::string &p, const std::string &text) {
     f << text;
 }
 
-static DeviceInfo dev(int id, const char *name, const char *serial = "") {
+static DeviceInfo dev(int id, const char *name) {
     DeviceInfo d;
     d.id = id;
     d.name = name;
-    d.serial = serial;
     d.reportedButtons = 2;
     return d;
 }
@@ -176,25 +175,25 @@ static void testMux() {
 }
 
 static void testTwoLanesAndNames() {
-    Rig r(BASE, {dev(1, "Test Mouse", "A1"), dev(2, "Test Mouse", "B2")});
+    Rig r(BASE, {dev(1, "Mouse A"), dev(2, "Mouse B")});
     r.run(0.1);
-    CHECK(r.core->laneCount() == 2, "two lanes (%zu)", r.core->laneCount());
-    CHECK(r.core->lane(0).device == "Test Mouse #A1" && r.core->lane(1).device == "Test Mouse #B2", "names: '%s', '%s'",
-          r.core->lane(0).device.c_str(), r.core->lane(1).device.c_str());
-    Rig r2(BASE, {dev(1, "Mouse A"), dev(2, "Mouse B")});
-    r2.run(0.1);
-    CHECK(r2.core->laneCount() == 2 && r2.core->lane(0).device == "Mouse A" && r2.core->lane(1).device == "Mouse B", "different names stay plain");
+    CHECK(r.core->laneCount() == 2 && r.core->lane(0).device == "Mouse A" && r.core->lane(1).device == "Mouse B", "two lanes, plain names");
+    // Two of the same model: only the first gets a lane.
     Rig r3(BASE, {dev(1, "Same"), dev(2, "Same")});
     r3.run(0.1);
-    CHECK(r3.core->lane(0).device == "Same #1" && r3.core->lane(1).device == "Same #2", "ordinal without serial");
+    CHECK(r3.core->laneCount() == 1 && r3.core->deviceName() == "Same", "second identical model ignored (%zu lanes)", r3.core->laneCount());
+    // A Pro and a Compact next to a second Compact: two lanes.
+    Rig r5(BASE, {dev(1, "Pro"), dev(2, "Compact"), dev(3, "Compact")});
+    r5.run(0.1);
+    CHECK(r5.core->laneCount() == 2 && r5.core->lane(1).device == "Compact", "one lane per model (%zu)", r5.core->laneCount());
     Rig r4(BASE, {dev(1, "Only")});
     r4.run(0.1);
     CHECK(r4.core->laneCount() == 1 && r4.core->deviceName() == "Only", "single device: plain name, one lane");
 }
 
 static void testIndependentProfilesAndModes() {
-    // Device 2 addressed by its serial gets the media mode (keys), device 1 stays normal.
-    Rig r(std::string(BASE) + "\n[device:Test Mouse #B2]\nMODE = media\n", {dev(1, "Test Mouse", "A1"), dev(2, "Test Mouse", "B2")});
+    // Device 2 gets the media mode (keys) by its device profile, device 1 stays normal.
+    Rig r(std::string(BASE) + "\n[device:Mouse B]\nMODE = media\n", {dev(1, "Mouse A"), dev(2, "Mouse B")});
     r.run(0.1);
     CHECK(r.core->lane(0).runner->mode().id == "normal", "lane 1 mode %s", r.core->lane(0).runner->mode().id.c_str());
     CHECK(r.core->lane(1).runner->mode().id == "media", "lane 2 mode %s", r.core->lane(1).runner->mode().id.c_str());
@@ -205,7 +204,7 @@ static void testIndependentProfilesAndModes() {
     const int wv = r.rec.wv;
     hold(r, 0.6, ' ', 'p');
     CHECK(r.rec.wv == wv && !r.rec.taps.empty(), "device 2 presses keys only (wv=%d, taps=%zu)", r.rec.wv, r.rec.taps.size());
-    CHECK(r.status.back().find("device2=Test Mouse #B2") != std::string::npos && r.status.back().find("mode2=media") != std::string::npos &&
+    CHECK(r.status.back().find("device2=Mouse B") != std::string::npos && r.status.back().find("mode2=media") != std::string::npos &&
               r.status.back().find("lanes=2") != std::string::npos,
           "status lists the second device: %s", r.status.back().c_str());
 }

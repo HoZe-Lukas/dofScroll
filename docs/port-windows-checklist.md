@@ -44,7 +44,7 @@ the driver:
 - [ ] Unplug and replug: log shows removal and re-detection; no stuck scrolling or stuck keys afterwards.
 - [ ] Start the daemon with the device already plugged in, and with the device plugged in later.
 - [ ] Two SpaceMice at once: two devices in the log with different ids; a `[device:NAME]` profile applies to the right one.
-- [ ] Two SpaceMice, one lane each (docs/multi-device.md): a button on device B switches only B's joystick mode; zoom on both keeps Ctrl until the last one stops; unplugging one leaves the other working; identical models are addressed as `[device:<name> #2]`; the status line lists both devices.
+- [ ] Two SpaceMice, one lane each (docs/multi-device.md): a button on device B switches only B's joystick mode; zoom on both keeps Ctrl until the last one stops; unplugging one leaves the other working; a second device of the same model is ignored with a log line; the status line lists both devices.
 - [ ] Wireless models: switching on/off and sleep of the mouse does not stop the daemon.
 
 ## 3. Motion (per axis)

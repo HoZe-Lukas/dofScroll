@@ -18,7 +18,6 @@ namespace spn {
 
 struct DeviceInfo {
     int id = 0;               // stable for the lifetime of the process; 0 when the source merges devices
-    std::string serial;       // serial number if the source knows it (tells identical mice apart), else empty
     std::string name;         // e.g. "3Dconnexion SpaceMouse Pro" (matched by [device:*] profiles)
     unsigned vendor = 0;      // USB vendor id, 0 if unknown (spacenavd does not report it)
     unsigned product = 0;     // USB product id, 0 if unknown

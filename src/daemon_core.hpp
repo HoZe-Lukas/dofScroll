@@ -159,8 +159,7 @@ struct Lane {
     int dev_id = 0;       // DeviceInfo::id this lane reads (InputEvent::device)
     bool bound = false;   // a device of the list is assigned (the first lane exists before any device)
     bool dirty = false;   // device name changed: resolve the profile again
-    std::string model;    // the device's own name (device may carry a " #n" suffix)
-    std::string device;   // name matched by [device:*] profiles (see DaemonCore::laneDeviceName)
+    std::string device;   // name matched by [device:*] profiles
     Settings settings;
     std::string match_desc;
     std::string toggled_mode;   // the part of mode_override that came from toggle:mode:<id>
@@ -260,8 +259,9 @@ private:
     // Binds lanes to the devices of the list (new lane per new device, lanes of removed devices end).
     void syncLanes();
     std::unique_ptr<Lane> makeLane(int dev_id);
-    // Profile name of every device: the device name; with several devices of one name "<name> #<n>".
-    std::vector<std::string> laneDeviceNames(const std::vector<DeviceInfo> &devs) const;
+    // The devices that get a lane: one per model, at most DeviceReader::kMaxSlots.
+    std::vector<DeviceInfo> usableDevices(const std::vector<DeviceInfo> &all);
+    std::set<int> warned_ignored_;  // ids of ignored devices already logged
     void releaseLane(Lane &l, bool clearToggles);
     // Status "toggle=": what button toggles hold at the moment, e.g. "nav" or "nav mode:timeline"; empty if none.
     std::string toggleState(const Lane &l) const;
