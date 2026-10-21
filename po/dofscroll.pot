@@ -2177,4 +2177,11 @@ msgstr ""
 
 #: src/ui
 msgid "Chip of button"
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Copy of a shipped example, not used: the built-in one applies. You can remove this file."
+msgstr ""
+
+#: src/ui/qt/pages/extensions_page.cpp
+msgid "Delete this copy of a shipped example (nothing changes, the built-in one applies)"
 msgstr ""

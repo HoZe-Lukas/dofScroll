@@ -290,6 +290,11 @@ loaders read with their checks and warnings; nothing is executed. Each row has
   built-in one apply again. The change is written at once, there is no Save button;
 - the name and description of the file, and **where it is used** (profiles that select it, buttons that switch to
   it) so you see what a switch changes;
+- a note **"Copy of a shipped example, not used: the built-in one applies"** when a switched-on file is
+  byte-identical to a shipped example (a built-in text, or one of the texts that earlier versions copied into
+  `modes/` on first start, including the very first release candidates). The loader ignores such a file, so it
+  changes nothing; it is listed so you can see it and delete it. Change a single byte and it is your own file
+  again;
 - **Remove**, which asks first and deletes the file, switched on or off.
 
 "Open folder" opens `modes/` or `buttons/`. Device description files (`devices/*.conf`) are not on this page:

@@ -98,7 +98,10 @@ never written to disk.
 **Changing a built-in.** In the interface, "Create editable copy" writes `~/.config/dofscroll/modes/<id>.conf`
 with the same id. A user file with the id of a built-in replaces it until you delete the file (the
 built-in comes back). A user file that is byte-identical to a shipped example (for example the copy
-that older versions made on first start) is the built-in itself and is not listed as your file.
+that older versions made on first start, in any of the texts they ever shipped: `examples/legacy/modes`
+holds several per id) is the built-in itself: the loader ignores it, and the User modes page labels it
+"Copy of a shipped example, not used" so you can remove it. A copy made by a very early version, for
+example an old `timeline.conf` with button bindings, therefore no longer replaces the built-in `timeline`.
 Older versions also copied `browse-keys.conf` (now the built-in `browse`) and `cycle-modes.conf`;
 if you still use them, edit your profiles to `MODE = browse` or bind the `next-mode` button mode instead. An
 unchanged `browse-keys.conf` or `cycle-modes.conf` is ignored by the loader, so remove the file
