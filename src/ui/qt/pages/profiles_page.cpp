@@ -637,7 +637,8 @@ QWidget *ProfilesPage::buildModeSelector(size_t section) {
 // Global has no program or device and cannot be removed; it can be exported.
 QWidget *ProfilesPage::buildProfileActions(size_t section) {
     auto *box = new QGroupBox(T("This profile"));
-    auto *l = new QHBoxLayout(box);
+    // One column: three buttons in a row do not fit the narrow tab at the default size (font scale self-test).
+    auto *l = new QVBoxLayout(box);
     l->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
     if (section != 0) {
         const bool app = ctx_.settings->sections()[section].kind == Section::APP;
@@ -646,19 +647,18 @@ QWidget *ProfilesPage::buildProfileActions(size_t section) {
                                    "settings stay")
                                : T("Choose another device for this profile; the settings stay"));
         connect(change, &QPushButton::clicked, this, &ProfilesPage::renameProfile);
-        l->addWidget(change);
+        l->addWidget(change, 0, Qt::AlignLeft);
     }
     auto *exp = new QPushButton(T("Export..."));
     exp->setToolTip(T("Save this profile (its section) as a .conf file"));
     connect(exp, &QPushButton::clicked, this, &ProfilesPage::exportProfile);
-    l->addWidget(exp);
+    l->addWidget(exp, 0, Qt::AlignLeft);
     if (section != 0) {
         auto *remove = new QPushButton(T("Remove"));
         remove->setToolTip(T("Delete this profile and its settings"));
         connect(remove, &QPushButton::clicked, this, &ProfilesPage::removeProfile);
-        l->addWidget(remove);
+        l->addWidget(remove, 0, Qt::AlignLeft);
     }
-    l->addStretch(1);
     return box;
 }
 
