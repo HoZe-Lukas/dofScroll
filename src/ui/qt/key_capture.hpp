@@ -66,6 +66,7 @@ inline spn::ui::HeldMods captureMods(const QKeyEvent *e) {
 }
 
 class KeyCaptureButton : public QPushButton {
+    Q_OBJECT  // Qt 6.9 insists on it for connections of this class; the header is in the sources of the target for moc
 public:
     // `accessible` names the direction ("Negative"); `taken` gets the chord, `refused` the words when the key cannot be sent.
     KeyCaptureButton(const QString &accessible, std::function<void(const std::string &)> taken,
@@ -75,8 +76,7 @@ public:
         setToolTip(T("Click, then press the key or key combination. Esc cancels."));
         setCheckable(false);
         idle();
-        // no context object: this class has no Q_OBJECT (Qt 6.9 refuses `this` as the receiver then); the sender is this button
-        QObject::connect(this, &QPushButton::clicked, [this] {
+        connect(this, &QPushButton::clicked, this, [this] {
             capturing_ = true;
             setText(T("Press the key or combination..."));
             grabKeyboard();
