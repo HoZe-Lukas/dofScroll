@@ -84,7 +84,7 @@ jobs:
         run: |
           retry() { for i in 1 2 3; do "$@" && return 0; echo "::warning::attempt $i/3 failed: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
           python3 -m venv "$RUNNER_TEMP/aqt-venv"
-          retry "$RUNNER_TEMP/aqt-venv/bin/pip" install "aqtinstall==${AQT_VERSION}"
+          retry "$RUNNER_TEMP/aqt-venv/bin/pip" install --require-hashes --no-deps -r packaging/ci/aqt-requirements.txt
           retry "$RUNNER_TEMP/aqt-venv/bin/aqt" install-qt linux desktop "$QT_VERSION" linux_gcc_64 -O "$RUNNER_TEMP/Qt"
       - name: Configure and build the UI target
         run: |

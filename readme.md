@@ -92,7 +92,9 @@ Release notes: [docs/release-notes-1.1.2.md](docs/release-notes-1.1.2.md) (and [
 1. Open the [Releases page](https://github.com/HoZe-Lukas/dofScroll/releases)
    (newest stable: [/releases/latest](https://github.com/HoZe-Lukas/dofScroll/releases/latest)).
 2. Download the package for your system plus `SHA256SUMS.txt`.
-3. Verify: `sha256sum -c --ignore-missing SHA256SUMS.txt`
+3. Verify: `sha256sum -c --ignore-missing SHA256SUMS.txt` (detects a damaged download), and the
+   origin with the GitHub CLI: `gh attestation verify <file> -R HoZe-Lukas/dofScroll` (proves the file was
+   built by this repository's release workflow; see [docs/releasing.md](docs/releasing.md))
 4. Install: `sudo dnf install ./dofscroll-*.rpm` (RHEL family, needs EPEL) or
    `sudo apt install ./dofscroll_*.deb` (Debian family). The Linux packages contain the Qt interface
    (`dofscroll-ui`) with its own Qt 6.9.3 (no Qt from the system, none from EPEL); only

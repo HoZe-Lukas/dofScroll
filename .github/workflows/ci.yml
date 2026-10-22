@@ -23,6 +23,7 @@ concurrency:
 #   actions/checkout        = v4.2.2
 #   actions/upload-artifact = v4.6.2
 #   actions/download-artifact = v4.3.0
+#   actions/attest-build-provenance = v4.2.2
 
 jobs:
   build-test:
@@ -113,7 +114,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write   # create the release and upload assets; only this job gets write access
+      contents: write       # create the release and upload assets; only this job gets write access
+      id-token: write       # sign the build provenance attestation (Sigstore); only this job
+      attestations: write   # store the attestation with the repository; only this job
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -139,6 +142,13 @@ jobs:
             | xargs -d '\n' sha256sum -- > ../SHA256SUMS.tmp
           mv ../SHA256SUMS.tmp SHA256SUMS.txt
           cat SHA256SUMS.txt
+      # Signed SLSA build provenance for every release file (and SHA256SUMS.txt): which workflow, which
+      # commit and which tag produced it. Verify a download with `gh attestation verify <file> -R
+      # HoZe-Lukas/dofScroll` (docs/security.md, readme.md). Pinned like the other actions.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+        with:
+          subject-path: dist/*
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}

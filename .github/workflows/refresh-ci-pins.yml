@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#
+# Weekly refresh of the pinned build inputs (docs/releasing.md, "Pinned build inputs"): the image
+# digests (scripts/pin-ci-images.sh) and the hash-pinned aqtinstall requirements
+# (scripts/update-aqt-requirements.sh). Pins give stability, the newest versions are wanted: when
+# anything changed, this job opens (or updates) the pull request "Refresh CI pins", so that CI
+# proves the newest versions work. It never merges: a person reviews and merges the PR, before a
+# release, so that the release uses the newest tested versions. The GitHub Actions SHAs are
+# refreshed by Dependabot (.github/dependabot.yml).
+#
+# A pull request opened with the default GITHUB_TOKEN does not start other workflows. To have CI run
+# on it, store a fine-grained token (contents and pull requests: write) as the secret REFRESH_PINS_TOKEN;
+# without it, close and reopen the PR once to start the checks. The repository setting "Allow GitHub
+# Actions to create and approve pull requests" must be on.
+name: refresh-ci-pins
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"   # weekly, Monday 04:17 UTC (after the Monday 03:41 ci-image run)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh-ci-pins
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: refresh pinned images and aqtinstall hashes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write        # push the branch ci/refresh-pins; only this job
+      pull-requests: write   # open or update the pull request; only this job
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Refresh image digests and aqtinstall hashes
+        run: |
+          sh scripts/pin-ci-images.sh
+          # Python 3.10: the oldest Python of the builds decides which versions can be resolved
+          docker run --rm -v "$PWD":/w -w /w python:3.10-slim sh scripts/update-aqt-requirements.sh
+          sh scripts/check-ci-pins.sh
+      - name: Open or update the pull request
+        env:
+          GH_TOKEN: ${{ secrets.REFRESH_PINS_TOKEN || github.token }}
+        run: |
+          if git diff --quiet; then
+            echo "Pins are current, nothing to do." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git diff --stat | tee -a "$GITHUB_STEP_SUMMARY"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B ci/refresh-pins
+          git add -A packaging/ci .github/workflows
+          git commit -m "Refresh CI pins: image digests and aqtinstall hashes"
+          git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci/refresh-pins
+          if [ -n "$(gh pr list --head ci/refresh-pins --state open --json number --jq '.[].number')" ]; then
+            echo "Updated the open pull request." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            gh pr create --base main --head ci/refresh-pins --title "Refresh CI pins" \
+              --body "Weekly refresh of the pinned image digests and the hash-pinned aqtinstall requirements (scripts/pin-ci-images.sh, scripts/update-aqt-requirements.sh). Review the diff, let CI prove the new versions work, then merge. Merge this before a release so the release uses the newest tested versions. Opened by .github/workflows/refresh-ci-pins.yml."
+          fi

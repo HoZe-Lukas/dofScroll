@@ -14,6 +14,7 @@ Decision for version 0.1: **all Windows and macOS packages are unsigned**.
 | Windows | `dofscroll-<v>-windows-x64-setup.exe` (per-user installer) and `dofscroll-<v>-windows-x64-portable.zip` | job `package-windows` in `installers.yml` |
 | macOS | `dofscroll-<v>-macos-arm64.dmg` | job `package-macos` in `installers.yml` |
 | all | `SHA256SUMS.txt` over every file above | job `release` in `ci.yml` |
+| all | build provenance attestation for every file above (`gh attestation verify`, see [security.md](security.md) section 14) | job `release` in `ci.yml` (`actions/attest-build-provenance`) |
 
 Install smoke test: after packaging, `linux-smoke.yml` (called by `ci.yml` as job `linux-smoke` and
 by `linux-packages-dry-run.yml`) downloads `packages-rpm-tgz` and `packages-deb` and installs them
@@ -95,6 +96,11 @@ Windows installer and the macOS disk image bundle Qt 6.9.3 instead of using the 
 version, and the aqtinstall version that downloads it, are in ONE file, `packaging/qt.env`; the CI
 image (`packaging/ci/rocky9.Dockerfile`, `packaging/ci/debian12-qt.sh`), `ui.yml`, `installers.yml`,
 `linux-packages.yml`, `linux-smoke.yml` and `qt-update-check.yml` read it.
+
+When you change `AQT_VERSION`, also run `scripts/update-aqt-requirements.sh` and commit
+`packaging/ci/aqt-requirements.txt`: aqtinstall and its dependencies are installed from that file with
+`pip install --require-hashes`, and `scripts/check-ci-pins.sh` (a test) fails when the two disagree.
+aqtinstall itself checks every Qt archive against the SHA-256 that download.qt.io publishes next to it.
 
 Why bundle on Linux (#116): a program built against Qt 6.N requires `libQt6Core.so.6(Qt_6.N)`, so the 1.0.0
 RPM, built against the newest EPEL Qt (6.10.3), could not be installed on RHEL 9 systems with the older

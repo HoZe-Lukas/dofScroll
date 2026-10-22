@@ -27,11 +27,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: Are the pinned CI image digests current?
+        run: |
+          if sh scripts/pin-ci-images.sh --check > pins.txt 2>&1; then
+            echo "CI image digests are current" >> "$GITHUB_STEP_SUMMARY"
+          else
+            cat pins.txt
+            echo "::warning::a pinned CI image has a newer digest: run scripts/pin-ci-images.sh and commit (docs/releasing.md)"
+            echo "Pinned CI image digests are out of date: scripts/pin-ci-images.sh" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Newer patch release of the pinned Qt?
         run: |
           . packaging/qt.env
           python3 -m venv "$RUNNER_TEMP/aqt-venv"
-          "$RUNNER_TEMP/aqt-venv/bin/pip" install --quiet "aqtinstall==${AQT_VERSION}"
+          "$RUNNER_TEMP/aqt-venv/bin/pip" install --quiet --require-hashes --no-deps -r packaging/ci/aqt-requirements.txt
           minor="${QT_VERSION%.*}"
           latest="$("$RUNNER_TEMP/aqt-venv/bin/aqt" list-qt linux desktop --spec "$minor" --latest-version | tail -1)"
           echo "pinned: $QT_VERSION, newest $minor.x on download.qt.io: $latest"
