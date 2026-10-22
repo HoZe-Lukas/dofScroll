@@ -375,7 +375,10 @@ for vertical scroll, both sideways movements (`x`, `rz`) for horizontal scroll a
 for zoom; `ZOOM_LATERAL` lists `x z rx rz`. A joystick mode file must not put `y` into a
 `*_MIX` or `ZOOM_LATERAL` override unless its `DESCRIPTION` says so (mention "lift/press").
 You can still choose `y` for a channel in your own configuration; it stays prone to false
-triggers, and the Channels page shows a warning next to an axis mix that uses `y`. `tests/test_no_lift_press.cpp` scans the built-in joystick modes, the seeded default
+triggers, and the Channels page shows a warning next to an axis mix that uses `y`. In the joystick mode editor's
+"Motions and buttons" tab lift/press can be added to a channel mix as a term (with a weight and the same warning); it
+writes `SCROLL_V_MIX = z + rx + y` (or `SCROLL_H_MIX`, `ZOOM_MIX`) as an override of that joystick mode, nothing else.
+`tests/test_no_lift_press.cpp` scans the built-in joystick modes, the seeded default
 configuration and the documented defaults and fails when `y` appears there.
 
 ## Switching a file off
@@ -430,8 +433,11 @@ device inactive. To get out of it, use the tray menu "Joystick mode", a `mode:ne
 In the interface the "Split push and tilt" switch of a channel in the in-page editor does the same (see `docs/ui.md`).
 
 The interface can do the same without a text editor: on the Joystick modes page, "Edit" opens an in-page
-editor for name, channels, buttons and overrides (see [ui.md](ui.md#editing-a-joystick-mode)). The file
-stays plain text; the editor keeps comments and lines it does not know.
+editor for name, channels, buttons and overrides (see [ui.md](ui.md#editing-a-joystick-mode)); its first tab shows
+the cap with the six motions and the device buttons and lets you assign an action by clicking one (push and tilt
+with the same action are written as `V_ACTION` / `H_ACTION`, different actions as the split keys; reversing a
+direction writes the sign, for example `SCROLL_V_SIGN = -1`). The file stays plain text; the editor keeps
+comments and lines it does not know.
 
 ## Editing joystick modes from the tray
 
