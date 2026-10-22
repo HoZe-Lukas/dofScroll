@@ -9,7 +9,8 @@ A release is built and published by GitHub Actions when a tag `v<version>` is pu
 2. Tag and push: `git tag v<x.y.z> && git push origin v<x.y.z>`
    (a suffix such as `v0.2.0-rc1` is allowed; the tag must start with the CMake version).
 3. The workflow `.github/workflows/ci.yml` runs all checks, builds RPM, DEB and TGZ packages,
-   writes `SHA256SUMS.txt` and creates the GitHub Release with generated notes. Versions `0.x` and
+   writes `SHA256SUMS.txt`, attests the build provenance of every file (signed with Sigstore, needs
+   no secret) and creates the GitHub Release with generated notes. Versions `0.x` and
    tags with a suffix are marked as pre-release.
 4. Users download the files from the repository's **Releases** page
    (`https://github.com/HoZe-Lukas/dofScroll/releases`); the newest stable one is also reachable
@@ -20,3 +21,33 @@ Windows and macOS installers (unsigned) are built by the same workflow; see
 
 If the tag does not match the CMake version the release job fails before publishing anything.
 A failed release can be repeated by deleting the tag and the draft release and tagging again.
+
+## Verifying a release
+
+`SHA256SUMS.txt` is made in the same pipeline as the files, so it only detects a damaged download. The
+proof of origin is the build provenance attestation: it says which workflow, in which repository and
+for which tag and commit, built a file. With the GitHub CLI:
+
+    gh attestation verify dofscroll-<version>-Linux.rpm -R HoZe-Lukas/dofScroll
+
+(any release file; add `--signer-workflow HoZe-Lukas/dofScroll/.github/workflows/ci.yml` to insist on
+the release workflow). It works offline against a bundle too (`gh attestation download`, then
+`--bundle`). A failure means the file was not built by this repository's release job: do not install it.
+
+## Pinned build inputs
+
+The release builds do not take their inputs from moving tags:
+
+- The container images of the release builds (`linux-packages.yml`, the `FROM` of
+  `packaging/ci/rocky9.Dockerfile`) are pinned by digest. The weekly `ci-image` run publishes a new
+  `dofscroll-ci-rocky9(-qt):latest`, but the release builds keep the pinned digest until you refresh it:
+  run `scripts/pin-ci-images.sh` (needs `skopeo` or `crane`), review and commit the diff, and let
+  CI run. Do this before tagging a release, and after every change to `packaging/ci/` that
+  `ci-image` has published. `scripts/pin-ci-images.sh --check` only reports; the weekly
+  `qt-update-check` workflow warns when a digest is out of date.
+- aqtinstall and its dependencies come from `packaging/ci/aqt-requirements.txt` (versions and SHA-256,
+  `pip install --require-hashes`). After a change of `AQT_VERSION` in `packaging/qt.env`:
+  `scripts/update-aqt-requirements.sh`, commit the result.
+- `scripts/check-ci-pins.sh` (a unit test, so also `check-fast`) fails when an image or aqtinstall pin is
+  missing, when `aqt-requirements.txt` does not match `qt.env`, or when the release job loses its
+  attestation step.

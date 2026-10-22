@@ -23,7 +23,7 @@ retry apt-get install -y --no-install-recommends python3-venv python3-pip patche
     libegl1 libgl1 libopengl0 libglx0 libwayland-client0 libwayland-cursor0 libwayland-egl1 zlib1g
 
 python3 -m venv /opt/aqt-venv
-retry /opt/aqt-venv/bin/pip install --no-cache-dir "aqtinstall==${AQT_VERSION}"
+retry /opt/aqt-venv/bin/pip install --no-cache-dir --require-hashes --no-deps -r "$root/packaging/ci/aqt-requirements.txt"
 retry /opt/aqt-venv/bin/aqt install-qt linux desktop "${QT_VERSION}" linux_gcc_64 -O /opt/qt
 ln -sfn "/opt/qt/${QT_VERSION}/gcc_64" /opt/qt/current
 echo "Qt ${QT_VERSION} in /opt/qt/current"

@@ -930,8 +930,26 @@ files); a helper that is not there is an error, never a `PATH` fallback. The arg
 the start. Windows PowerShell is started by its full path in the installer, in the interface and in
 `scripts/test-driver-coexistence.ps1`.
 
-Open, tracked as issues: release builds use unpinned CI images and an unhashed Qt download (a checksum file made in the same
-pipeline is no provenance); root removes a dangling
+CI supply chain (issue #149), status after the fix:
+
+- Fixed: the container images of the release builds (Rocky 9 Qt image, Debian 12, and the `FROM` of the Rocky Dockerfile)
+  are pinned by digest; `scripts/pin-ci-images.sh` refreshes them and the weekly `qt-update-check` run warns when they
+  are out of date. aqtinstall and all its dependencies are installed with `pip install --require-hashes` from
+  `packaging/ci/aqt-requirements.txt` (every Qt install: CI image, Debian 12, Windows, macOS, `ui.yml`).
+  `scripts/check-ci-pins.sh` keeps these pins from being removed. Every release file, including `SHA256SUMS.txt`,
+  carries a signed build provenance attestation (`actions/attest-build-provenance`, commit-pinned, `id-token` and
+  `attestations` write permissions only on the release job); verify with `gh attestation verify <file> -R
+  HoZe-Lukas/dofScroll` (readme, `docs/releasing.md`). A checksum file made in the same pipeline is still no
+  provenance by itself: the attestation is.
+- Remains: aqtinstall verifies each Qt archive against a SHA-256 that it fetches from download.qt.io too, so a
+  compromised Qt server could serve both; there is no independent per-archive hash of our own. The one source
+  distribution in the aqtinstall closure (`patch`) is built by pip with an unpinned build backend (setuptools),
+  which `--require-hashes` does not cover. The pinned digests are refreshed by hand (a tampered image published
+  before a refresh is pinned as it is: review the weekly image build). Other jobs (`ci.yml` build and test,
+  CodeQL) and the install smoke test still use the images by tag; they produce no release file. Windows and macOS
+  runner images are GitHub's own and not pinned.
+
+Open, tracked as issues: root removes a dangling
 tray link through a glob in a directory the user controls (only that fixed name, no practical harm); look-alike texts
 (see section 11). Plain `key:ctrl`, `key:super`, `key:enter` and `keys:` pairs get no warning on load, only chords do
 (known, F2).
