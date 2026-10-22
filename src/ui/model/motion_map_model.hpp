@@ -256,6 +256,31 @@ inline AssignResult assign(ModeForm &form, const Settings &base, Motion m, const
 
 // "Reverse direction": the sign of the motion (SCROLL_V_SIGN, SCROLL_H_SIGN, ZOOM_SIGN, or the sign of the
 // part while the channel is split). Lift has no sign of its own: false.
+// Drag and drop and the "Same as" / "Swap with" lists: the action of `from` goes to `to` (copy), or both swap
+// (the default of a drop). All or nothing: when one of the two cannot take an action (lift / press, a motion
+// outside the channel mixes) the form stays as it was. Dropping a motion on itself changes nothing.
+inline AssignResult dropMotion(ModeForm &form, const Settings &base, Motion from, Motion to, bool copy) {
+    AssignResult r;
+    if (from == Motion::Lift || to == Motion::Lift) {
+        r.error = "lift / press has no action of its own; it can only be added to another motion";
+        return r;
+    }
+    if (!placeOf(form, base, from).found || !placeOf(form, base, to).found) {
+        r.error = "this motion is not used by any channel of this joystick mode (custom channel mix)";
+        return r;
+    }
+    if (from == to) {
+        r.ok = true;
+        return r;
+    }
+    ModeForm work = form;
+    const ChannelForm mine = actionOf(work, base, from), theirs = actionOf(work, base, to);
+    r = assign(work, base, to, mine);
+    if (r.ok && !copy) r = assign(work, base, from, theirs);
+    if (r.ok) form = work;
+    return r;
+}
+
 inline bool isReversed(const ModeForm &form, const Settings &base, Motion m) {
     using namespace motion_map_detail;
     if (m == Motion::Lift) return false;

@@ -3,6 +3,9 @@
 #include "pages/motion_editor.hpp"
 
 #include <QAccessible>
+#include <QApplication>
+#include <QDrag>
+#include <QMimeData>
 #include <QBoxLayout>
 #include <QButtonGroup>
 #include <QCheckBox>
@@ -65,6 +68,7 @@ QFont glyphFont(const QFont &f) {
 MotionPicture::MotionPicture(QWidget *parent) : QWidget(parent) {
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(false);
+    setAcceptDrops(true);
     setAccessibleName(T("Picture of the cap: its motions and the buttons"));
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::MinimumExpanding);
 }
@@ -294,6 +298,11 @@ void MotionPicture::paintEvent(QPaintEvent *) {
         }
         p.setBrush(fill);
         p.drawRoundedRect(QRectF(it.rect).adjusted(1.5, 1.5, -1.5, -1.5), em / 3.0, em / 3.0);
+        if (it.id == dropTarget_) {  // the item a drop would land on: a thick dashed frame
+            p.setBrush(Qt::NoBrush);
+            p.setPen(QPen(hi, 3, Qt::DashLine));
+            p.drawRoundedRect(QRectF(it.rect).adjusted(-2, -2, 2, 2), em / 3.0 + 2, em / 3.0 + 2);
+        }
         if (cur && hasFocus()) {
             p.setBrush(Qt::NoBrush);
             p.setPen(QPen(palette().color(QPalette::WindowText), 2, Qt::DotLine));
@@ -345,9 +354,93 @@ void MotionPicture::mousePressEvent(QMouseEvent *e) {
     for (const Item &it : items_)
         if (it.rect.contains(e->pos())) {
             setCurrent(it.id);
+            pressPos_ = e->pos();
+            pressId_ = canDrag(it.id) ? it.id : QString();
             return;
         }
+    pressId_.clear();
     QWidget::mousePressEvent(e);
+}
+
+void MotionPicture::mouseReleaseEvent(QMouseEvent *e) {
+    pressId_.clear();
+    QWidget::mouseReleaseEvent(e);
+}
+
+// The item of a motion under `pos` that can take a drop from `from` (never the dragged one itself).
+QString MotionPicture::dropItemAt(const QPoint &pos, const QString &from) const {
+    for (const Item &it : items_)
+        if (it.rect.contains(pos)) return canDrag(it.id) && it.id != from ? it.id : QString();
+    return QString();
+}
+
+void MotionPicture::mouseMoveEvent(QMouseEvent *e) {
+    if (pressId_.isEmpty() || !(e->buttons() & Qt::LeftButton) || (e->pos() - pressPos_).manhattanLength() < QApplication::startDragDistance()) {
+        QWidget::mouseMoveEvent(e);
+        return;
+    }
+    const QString from = pressId_;
+    pressId_.clear();
+    auto *mime = new QMimeData;
+    mime->setData(QStringLiteral("application/x-dofscroll-motion"), from.toUtf8());
+    auto *drag = new QDrag(this);
+    drag->setMimeData(mime);
+    const QRect r = itemRect(from);
+    QPixmap pm(r.size() * devicePixelRatioF());
+    pm.setDevicePixelRatio(devicePixelRatioF());
+    pm.fill(Qt::transparent);
+    render(&pm, QPoint(), QRegion(r));
+    drag->setPixmap(pm);
+    drag->setHotSpot(pressPos_ - r.topLeft());
+    drag->exec(Qt::MoveAction | Qt::CopyAction, Qt::MoveAction);
+    dropTarget_.clear();
+    update();
+}
+
+static bool motionDrag(const QMimeData *m) { return m && m->hasFormat(QStringLiteral("application/x-dofscroll-motion")); }
+
+void MotionPicture::dragEnterEvent(QDragEnterEvent *e) {
+    if (motionDrag(e->mimeData())) e->acceptProposedAction();
+}
+
+void MotionPicture::dragMoveEvent(QDragMoveEvent *e) {
+    if (!motionDrag(e->mimeData())) return;
+    const QString from = QString::fromUtf8(e->mimeData()->data(QStringLiteral("application/x-dofscroll-motion")));
+    const QString target = dropItemAt(e->position().toPoint(), from);
+    if (target != dropTarget_) {
+        dropTarget_ = target;
+        update();
+    }
+    if (target.isEmpty()) {
+        e->ignore();
+        return;
+    }
+    // Ctrl (Cmd on macOS) copies, otherwise the two swap; Qt maps the modifier to the proposed action
+    e->setDropAction(e->modifiers() & Qt::ControlModifier ? Qt::CopyAction : Qt::MoveAction);
+    e->accept();
+}
+
+void MotionPicture::dragLeaveEvent(QDragLeaveEvent *e) {
+    dropTarget_.clear();
+    update();
+    QWidget::dragLeaveEvent(e);
+}
+
+void MotionPicture::dropEvent(QDropEvent *e) {
+    dropTarget_.clear();
+    update();
+    if (!motionDrag(e->mimeData())) return;
+    const QString from = QString::fromUtf8(e->mimeData()->data(QStringLiteral("application/x-dofscroll-motion")));
+    const QString to = dropItemAt(e->position().toPoint(), from);
+    if (to.isEmpty()) return;
+    e->setDropAction(e->dropAction() == Qt::CopyAction ? Qt::CopyAction : Qt::MoveAction);
+    e->accept();
+    dropOn(from, to, e->dropAction() == Qt::CopyAction);
+}
+
+void MotionPicture::dropOn(const QString &from, const QString &to, bool copy) {
+    if (!canDrag(from) || !canDrag(to) || from == to) return;
+    emit dropped(from, to, copy);
 }
 
 void MotionPicture::focusInEvent(QFocusEvent *e) {
@@ -504,6 +597,11 @@ MotionEditor::MotionEditor(const MotionEditorEnv &env, const QString &selected, 
         if (!fromDetect_) tourEvent(id.startsWith(QLatin1String("b:")) ? TourEvent::ButtonClicked : TourEvent::MotionClicked);
         emit selectionChanged(id);
     });
+    connect(picture_, &MotionPicture::dropped, this, [this](const QString &from, const QString &to, bool copy) {
+        Motion a, b;
+        if (!motionFromId(from.mid(2).toStdString(), &a) || !motionFromId(to.mid(2).toStdString(), &b)) return;
+        if (dropMotion(*env_.form, env_.base, a, b, copy).ok && env_.changed) env_.changed();
+    });
     connect(picture_, &MotionPicture::activated, this, [this] {
         for (QWidget *w : inspectorBox_->findChildren<QWidget *>())
             if (w->isVisibleTo(inspectorBox_) && w->focusPolicy() != Qt::NoFocus && w->isEnabled()) {
@@ -552,6 +650,7 @@ void MotionEditor::rebuildPicture() {
         it.muted = l.kind != MotionKind::Active;
         it.tooltip = qs8(l.name) + QStringLiteral(" (") + qs8(l.how) + QStringLiteral("): ") + it.text +
                      (l.badge.empty() ? QString() : QStringLiteral(". ") + qs8(l.badge));
+        if (l.motion != Motion::Lift) it.tooltip += QStringLiteral("\n") + T("Drag onto another motion to swap them, with Ctrl to copy.");
         items << it;
     }
     // Buttons: the device's layout, plus bound buttons the layout does not have.
@@ -747,13 +846,12 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
     connect(same, &QComboBox::activated, this, [this, m, same](int i) {
         Motion o;
         if (i <= 0 || !motionFromId(same->itemData(i).toString().toStdString(), &o)) return;
-        if (assign(*env_.form, env_.base, m, actionOf(*env_.form, env_.base, o)).ok && env_.changed) env_.changed();
+        if (dropMotion(*env_.form, env_.base, o, m, true).ok && env_.changed) env_.changed();
     });
     connect(swap, &QComboBox::activated, this, [this, m, swap](int i) {
         Motion o;
         if (i <= 0 || !motionFromId(swap->itemData(i).toString().toStdString(), &o)) return;
-        const ChannelForm mine = actionOf(*env_.form, env_.base, m), theirs = actionOf(*env_.form, env_.base, o);
-        if (assign(*env_.form, env_.base, m, theirs).ok && assign(*env_.form, env_.base, o, mine).ok && env_.changed) env_.changed();
+        if (dropMotion(*env_.form, env_.base, m, o, false).ok && env_.changed) env_.changed();
     });
     buildTuning(ml, m);
     for (QWidget *w : more->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly)) w->setVisible(anyTuning);

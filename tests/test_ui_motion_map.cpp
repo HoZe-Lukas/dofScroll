@@ -36,6 +36,32 @@ static std::string get(const std::string &p) {
 }
 static void put(const std::string &p, const std::string &c) { std::ofstream(p, std::ios::binary) << c; }
 
+static void testDrop() {
+    Settings base;
+    ModeForm f;
+    assert(assign(f, base, Motion::VPush, keys("pageup", "pagedown")).ok);
+    assert(assign(f, base, Motion::VTilt, keys("left", "right")).ok);
+    ModeForm swapped = f;
+    assert(dropMotion(swapped, base, Motion::VPush, Motion::VTilt, false).ok);
+    assert(actionOf(swapped, base, Motion::VPush) == keys("left", "right"));
+    assert(actionOf(swapped, base, Motion::VTilt) == keys("pageup", "pagedown"));
+    ModeForm copied = f;
+    assert(dropMotion(copied, base, Motion::VPush, Motion::VTilt, true).ok);
+    assert(actionOf(copied, base, Motion::VTilt) == keys("pageup", "pagedown"));
+    assert(actionOf(copied, base, Motion::VPush) == keys("pageup", "pagedown"));
+    ModeForm same = f;
+    assert(dropMotion(same, base, Motion::VPush, Motion::VPush, false).ok && same == f);
+    ModeForm lift = f;
+    assert(!dropMotion(lift, base, Motion::Lift, Motion::VPush, false).ok && lift == f);
+    assert(!dropMotion(lift, base, Motion::VPush, Motion::Lift, true).ok && lift == f);
+    // across channels: twist and vertical push swap
+    assert(assign(f, base, Motion::Twist, of(ChannelActionType::WheelV)).ok);
+    ModeForm across = f;
+    assert(dropMotion(across, base, Motion::Twist, Motion::VPush, false).ok);
+    assert(actionOf(across, base, Motion::VPush).type == ChannelActionType::WheelV);
+    assert(actionOf(across, base, Motion::Twist) == keys("pageup", "pagedown"));
+}
+
 static void testIds() {
     assert(allMotions().size() == 6);
     for (Motion m : allMotions()) {
@@ -217,6 +243,7 @@ static void testFileResult() {
 
 int main() {
     testIds();
+    testDrop();
     testSplitAndCollapse();
     testCustomMix();
     testReverse();

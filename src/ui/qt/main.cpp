@@ -927,6 +927,22 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
         if (arrows) arrows->click();
         check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")) && !fileText(rel).contains(QStringLiteral("V_PUSH_ACTION")), "back to the arrow keys");
     }
+    {   // drag and drop: a drop on another motion swaps, with Ctrl it copies; lift / press and buttons take no part
+        MotionPicture *pic = me()->picture();
+        check(pic->canDrag(QStringLiteral("m:v_push")) && !pic->canDrag(QStringLiteral("m:lift")) && !pic->canDrag(QStringLiteral("b:1")),
+              "only motions with an action can be dragged");
+        pic->dropOn(QStringLiteral("m:v_push"), QStringLiteral("m:twist"), true);
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("TWIST_ACTION = keys:up,down")), "a copy drop gives the target the action");
+        check(fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")), "and the source keeps it");
+        const QString before = fileText(rel);
+        pic->dropOn(QStringLiteral("m:twist"), QStringLiteral("m:h_push"), false);
+        check(settleWrite() && fileText(rel) != before, "a swap drop changes both motions");
+        pic->dropOn(QStringLiteral("m:twist"), QStringLiteral("m:h_push"), false);
+        check(settleWrite() && fileText(rel) == before, "and dropping again swaps them back");
+        pic->dropOn(QStringLiteral("m:lift"), QStringLiteral("m:v_push"), false);
+        pic->dropOn(QStringLiteral("m:v_push"), QStringLiteral("m:v_push"), false);
+        check(settleWrite() && fileText(rel) == before, "lift / press and a drop on itself change nothing");
+    }
     // the live sentence names the keys and a rate; every element has a "?" popover
     sel(QStringLiteral("m:v_tilt"));
     check(me()->liveSentence().contains(QStringLiteral("Vertical tilt: presses Up or Down, about")), "the sentence under the picture says what the motion does");
