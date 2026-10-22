@@ -109,7 +109,7 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Category | Page (tab) | Content |
 |---|---|---|
 | Overview | Overview | Only summarizes and links: the state of the daemon, task buttons, quick actions (see "Overview quick actions" below) and one card per device or program profile with its joystick mode, a one-line summary of what it overrides and how many settings that are; "Open" shows the profile on the Profiles page. Every profile of the configuration has a card, a filter box narrows the list |
-| Profiles | Profiles | The list of profiles (Global first, then devices, then programs) and the editor of the selected one with the tabs General, Channels, Buttons and Overrides, see "Profiles" below |
+| Profiles | Profiles | The list of profiles (Global first, then devices, then programs) and the editor of the selected one with the tabs General, Channels, Buttons, Motions and buttons and Overrides, see "Profiles" below |
 | Modes | Joystick modes | The available joystick modes (built-in and files in the joystick modes folder), one row each with name, origin badge, one description line and six motion chips; the detail view shows the six motions as a panel, the buttons as chips and the profiles that use it. Actions: new, new from example, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every joystick mode the profiles that use it; a reminder that joystick mode files can press any key |
 | Modes | Button modes | The button mode files (`buttons/`): create, new from example, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
 | Modes | User modes | Your joystick mode files and button mode files in one list, each with a switch (on / off), where it is used and Remove; "Open folder" for both folders, see "User modes" below |
@@ -243,6 +243,23 @@ shortcut chords", are shown below the form. If the file changed on disk while yo
 editor asks before overwriting it (the one question that remains: "Overwrite it with your changes?").
 Switching to another joystick mode, "Close editor", leaving the page, closing the window and Quit
 write the last change first.
+
+### The picture in a profile and on the Button modes page
+
+The **Motions and buttons** tab of a profile (Global, device or program; between Buttons and Overrides) shows the
+same picture for that profile. The six motions say what the profile's joystick mode does with them, in words;
+that action belongs to the joystick mode, so the inspector points to the Joystick modes page. What the profile
+sets itself is edited here: for a motion the **tuning of its channel** (sensitivity, dead zone, direction,
+curve, smoothing) as overrides of the profile, each with where its value comes from ("Inherited from Global: 5",
+"Set in this profile (inherited: 5)") and an Inherit or Reset button; for a button the same button row as on
+the Buttons tab. A profile whose joystick mode brings its own button bindings shows the buttons read-only, as
+the Buttons tab does.
+
+The **Button modes** page has "Use it on a button": the buttons of the device with what the Global profile binds
+to each of them, no motions. Choose a button and **Use "<button mode>" on button n** binds the selected button
+mode to it in the Global profile (the same binding the Profiles page writes, saved by itself), **Unbind** removes
+the binding. A line says in words which buttons use the button mode now. Without an attached device the picture
+shows a numbered grid of eight buttons.
 
 ## Saving
 

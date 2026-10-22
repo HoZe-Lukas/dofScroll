@@ -18,6 +18,7 @@
 #include "ui/model/button_mode_catalog.hpp"
 #include "ui_context.hpp"
 
+class ButtonUseWidget;
 class CycleEditorWidget;
 class QComboBox;
 class QLabel;
@@ -42,6 +43,7 @@ public:
     bool createEditableCopy(const QString &id);  // no question; the file of a built-in button mode, selected
     bool exportButtonModeTo(const QString &id, const QString &dest);  // no dialog; false + lastError()
     const QString &lastError() const { return lastError_; }
+    ButtonUseWidget *useWidget() const { return use_; }
     CycleEditorWidget *cycleEditor() const { return cycle_; }  // the "Cycle through" section (self-test)
     QString currentId() const;  // id of the selected list row
     bool selectButtonMode(const QString &id);  // self-test: select a row as a click would
@@ -91,6 +93,7 @@ private:
     QWidget *argHost_ = nullptr;
     QWidget *argWidget_ = nullptr;
     QLabel *fileLabel_ = nullptr;
+    ButtonUseWidget *use_ = nullptr;      // "Use it on a button": the device buttons of the Global profile
     CycleEditorWidget *cycle_ = nullptr;  // only for the actions Next / Previous joystick mode
     motionview::ButtonChips *actionChip_ = nullptr;
     QPlainTextEdit *warnings_ = nullptr;

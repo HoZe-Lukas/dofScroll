@@ -306,7 +306,7 @@ void ModeEditorWidget::rebuild() {
         menv.base = ctx_.settings ? ctx_.settings->effective(0) : Settings();
         menv.strings = ctx_.strings ? ctx_.strings : &ownStrings_;
         if (ctx_.status) menv.deviceName = ctx_.status->status().device;
-        menv.reportedButtons = ctx_.settings ? ctx_.settings->buttonLimit() : 0;
+        menv.reportedButtons = ctx_.settings ? reportedOrDefaultButtons(ctx_.settings->buttonLimit()) : kUnknownDeviceButtons;
         menv.changed = [this] {
             rebuild();
             edited(false);

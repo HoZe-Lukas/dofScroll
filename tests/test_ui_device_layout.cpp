@@ -54,6 +54,9 @@ int main() {
     // Compact: one button left of the cap, one right
     const DeviceLayout c = deviceLayout("SpaceMouse Compact", 2);
     assert(c.buttons[0].x < 0.5 && c.buttons[1].x > 0.5);
+    // the count to draw when the device is unknown: the reported one, or a short grid
+    assert(reportedOrDefaultButtons(6) == 6 && reportedOrDefaultButtons(0) == kUnknownDeviceButtons);
+    assert(reportedOrDefaultButtons(32) == kUnknownDeviceButtons && reportedOrDefaultButtons(-1) == kUnknownDeviceButtons);
     std::puts("test_ui_device_layout OK");
     return 0;
 }

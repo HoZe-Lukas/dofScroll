@@ -3606,7 +3606,7 @@ msgstr "Geerbt"
 
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "Button %1: not bound in this joystick mode, the profile's binding applies"
-msgstr "Taste %1: in diesem Joystick-Mode nicht belegt, die Belegung des Profils gilt"
+msgstr "Taste %1: in diesem Joystick-Modus nicht belegt, die Belegung des Profils gilt"
 
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "not bound here, the profile's binding applies"
@@ -3638,7 +3638,7 @@ msgstr "Nichts tun"
 
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "This motion has no effect in this joystick mode"
-msgstr "Diese Bewegung hat in diesem Joystick-Mode keine Wirkung"
+msgstr "Diese Bewegung hat in diesem Joystick-Modus keine Wirkung"
 
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "Scroll up and down"
@@ -3694,7 +3694,7 @@ msgstr "Diese Bewegung einstellen"
 
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "Optional: values that apply while this joystick mode is active"
-msgstr "Optional: Werte, die gelten, solange dieser Joystick-Mode aktiv ist"
+msgstr "Optional: Werte, die gelten, solange dieser Joystick-Modus aktiv ist"
 
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "As the profile"
@@ -3702,7 +3702,7 @@ msgstr "Wie im Profil"
 
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "Lift / press is prone to false triggers when the cap is grabbed or released. No built-in joystick mode uses it."
-msgstr "Heben/Drücken löst leicht versehentlich aus, wenn die Kappe angefasst oder losgelassen wird. Kein eingebauter Joystick-Mode nutzt es."
+msgstr "Heben/Drücken löst leicht versehentlich aus, wenn die Kappe angefasst oder losgelassen wird. Kein eingebauter Joystick-Modus nutzt es."
 
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "Lift / press has no action of its own: it can be added to another motion."
@@ -4103,3 +4103,67 @@ msgstr "Drücke \"Diesen Joystick-Modus ausprobieren\" und bewege die Kappe in e
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "That is all. \"Show me how\" runs this tour again."
 msgstr "Das war's. Mit \"Zeig mir, wie\" startest du diese Tour erneut."
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Button %1: not assigned"
+msgstr "Taste %1: nicht belegt"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "What this motion does belongs to the joystick mode %1. Change it on the Joystick modes page."
+msgstr "Was diese Bewegung tut, gehört zum Joystick-Modus %1. Ändere es auf der Seite Joystick-Modi."
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Lift / press has no settings of its own."
+msgstr "Heben/Drücken hat keine eigenen Einstellungen."
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Tuning in this profile"
+msgstr "Feineinstellung in diesem Profil"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "The joystick mode of this profile has its own button bindings. Choose \"Same as Global\" or the normal joystick mode to assign buttons here."
+msgstr "Der Joystick-Modus dieses Profils bringt eigene Tastenbelegungen mit. Wähle \"Wie Global\" oder den normalen Joystick-Modus, um hier Tasten zu belegen."
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Picture of the device buttons"
+msgstr "Bild der Gerätetasten"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Remove the binding of this button in the Global profile"
+msgstr "Die Belegung dieser Taste im globalen Profil entfernen"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Where this button mode is used"
+msgstr "Wo dieser Tastenmodus verwendet wird"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "This button mode"
+msgstr "Dieser Tastenmodus"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Choose a button mode to see where it is used."
+msgstr "Wähle einen Tastenmodus, um zu sehen, wo er verwendet wird."
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Not used on a button of the Global profile."
+msgstr "Auf keiner Taste des globalen Profils verwendet."
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Used on buttons: %1 (Global profile)"
+msgstr "Verwendet auf den Tasten: %1 (globales Profil)"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Button %1 in the Global profile: %2"
+msgstr "Taste %1 im globalen Profil: %2"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Choose a button in the picture."
+msgstr "Wähle im Bild eine Taste."
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Use on this button"
+msgstr "Auf dieser Taste verwenden"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Use \"%1\" on button %2"
+msgstr "\"%1\" auf Taste %2 verwenden"

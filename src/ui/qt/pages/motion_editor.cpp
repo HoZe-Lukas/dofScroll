@@ -91,6 +91,13 @@ QRect MotionPicture::itemRect(const QString &id) const {
 int MotionPicture::minimumWidth() const {
     const QFontMetrics fm(font());
     const int pad = itemPad(fm), gap = std::max(6, fm.height() / 2);
+    bool anyMotion = false;
+    for (const Item &it : items_) anyMotion = anyMotion || it.id.startsWith(QLatin1String("m:"));
+    if (!anyMotion) {  // only buttons (the Button modes page): two columns of buttons are enough
+        int bw = kMinTarget;
+        for (const Item &it : items_) bw = std::max(bw, std::min(fm.horizontalAdvance(it.text) + 2 * pad, 9 * fm.height()));
+        return 2 * bw + gap;
+    }
     int cw = 0;
     for (const Item &it : items_)
         if (it.id.startsWith(QLatin1String("m:")))
@@ -112,14 +119,16 @@ MotionPicture::Plan MotionPicture::plan(int width) const {
     const int ch = std::max(kMinTarget, 2 * em + 2 * pad);
     static const char *const left[3] = {"m:v_push", "m:h_push", "m:twist"};
     static const char *const right[3] = {"m:v_tilt", "m:h_tilt", "m:lift"};
-    const int w = std::max(width, 2 * cw + 2 * gap + 5 * em);
+    const int w = std::max(width, minimumWidth());
     for (int r = 0; r < 3; ++r) {
         const int li = indexOf(QLatin1String(left[r])), ri = indexOf(QLatin1String(right[r]));
         if (li >= 0) p.rects[li] = QRect(0, r * (ch + gap), cw, ch);
         if (ri >= 0) p.rects[ri] = QRect(w - cw, r * (ch + gap), cw, ch);
     }
-    p.cap = QRect(cw + gap, 0, w - 2 * cw - 2 * gap, 3 * ch + 2 * gap);
-    int y = 3 * ch + 2 * gap + 2 * gap;
+    bool anyMotion = false;
+    for (const Item &it : items_) anyMotion = anyMotion || it.id.startsWith(QLatin1String("m:"));
+    if (anyMotion) p.cap = QRect(cw + gap, 0, w - 2 * cw - 2 * gap, 3 * ch + 2 * gap);
+    int y = anyMotion ? 3 * ch + 2 * gap + 2 * gap : 0;
     // The buttons below, with a heading line.
     QList<int> btn;
     for (int i = 0; i < items_.size(); ++i)
@@ -164,7 +173,7 @@ MotionPicture::Plan MotionPicture::plan(int width) const {
             flow(btn, (w - rowW) / 2, w, &y);
         }
     }
-    p.height = std::max(y - (btn.isEmpty() ? 2 * gap : 0), 3 * ch + 2 * gap);
+    p.height = anyMotion ? std::max(y - (btn.isEmpty() ? 2 * gap : 0), 3 * ch + 2 * gap) : std::max(0, y - gap);
     return p;
 }
 
@@ -219,23 +228,25 @@ void MotionPicture::paintEvent(QPaintEvent *) {
     const QColor line = palette().color(QPalette::Mid), base = palette().color(QPalette::Base), hi = palette().color(QPalette::Highlight);
 
     // The schematic cap: a disc with a smaller top, and a thin line from every motion to it.
+    const bool drawCap = !capRect_.isNull();
     const QPoint c = capRect_.center();
     const int radius = std::max(2 * em, std::min(capRect_.width(), capRect_.height()) / 2 - em / 2);
     p.setPen(QPen(line, 1));
     for (const Item &it : items_) {
-        if (!it.id.startsWith(QLatin1String("m:"))) continue;
+        if (!drawCap || !it.id.startsWith(QLatin1String("m:"))) continue;
         const bool leftSide = it.rect.center().x() < c.x();
         const QPoint from(leftSide ? it.rect.right() : it.rect.left(), it.rect.center().y());
         p.drawLine(from, QPoint(c.x() + (leftSide ? -radius / 2 : radius / 2), c.y() + (it.rect.center().y() - c.y()) / 3));
     }
-    p.setBrush(base);
-    p.setPen(QPen(line, 2));
-    p.drawEllipse(c, radius, radius);
-    p.setBrush(Qt::NoBrush);
-    p.drawEllipse(c, radius * 3 / 5, radius * 3 / 5);
-    p.setPen(mutedText);
-    const QString capText = T("Cap");
-    p.drawText(QRect(c.x() - radius, c.y() - em / 2, 2 * radius, em), Qt::AlignCenter, capText);
+    if (drawCap) {
+        p.setBrush(base);
+        p.setPen(QPen(line, 2));
+        p.drawEllipse(c, radius, radius);
+        p.setBrush(Qt::NoBrush);
+        p.drawEllipse(c, radius * 3 / 5, radius * 3 / 5);
+        p.setPen(mutedText);
+        p.drawText(QRect(c.x() - radius, c.y() - em / 2, 2 * radius, em), Qt::AlignCenter, T("Cap"));
+    }
 
     if (buttonsTop_ > 0) {
         bool any = false;
@@ -311,22 +322,31 @@ void MotionPicture::focusOutEvent(QFocusEvent *e) {
 // The nearest item in a direction (dx, dy in {-1, 0, 1}), or -1.
 int MotionPicture::neighbour(int from, int dx, int dy) const {
     if (from < 0 || from >= items_.size()) return -1;
-    const QPoint c = items_[from].rect.center();
-    int best = -1;
-    double bestScore = 0;
-    for (int i = 0; i < items_.size(); ++i) {
-        if (i == from) continue;
-        const QPoint d = items_[i].rect.center() - c;
-        const int along = d.x() * dx + d.y() * dy;
-        if (along <= 0) continue;
-        const int across = std::abs(dx ? d.y() : d.x());
-        const double score = along + 2.0 * across;  // prefer the item straight ahead
-        if (best < 0 || score < bestScore) {
-            best = i;
-            bestScore = score;
+    const QRect fr = items_[from].rect;
+    const QPoint c = fr.center();
+    // First the nearest item in the same row (left, right) or column (up, down); only if there is none, the
+    // nearest in that direction with a penalty for being off to the side.
+    for (int pass = 0; pass < 2; ++pass) {
+        int best = -1;
+        double bestScore = 0;
+        for (int i = 0; i < items_.size(); ++i) {
+            if (i == from) continue;
+            const QRect r = items_[i].rect;
+            const QPoint d = r.center() - c;
+            const int along = d.x() * dx + d.y() * dy;
+            if (along <= 0) continue;
+            const bool sameLine = dx ? (r.top() <= fr.bottom() && r.bottom() >= fr.top()) : (r.left() <= fr.right() && r.right() >= fr.left());
+            if (pass == 0 && !sameLine) continue;
+            const int across = std::abs(dx ? d.y() : d.x());
+            const double score = pass == 0 ? along : along + 2.0 * across;
+            if (best < 0 || score < bestScore) {
+                best = i;
+                bestScore = score;
+            }
         }
+        if (best >= 0) return best;
     }
-    return best;
+    return -1;
 }
 
 void MotionPicture::keyPressEvent(QKeyEvent *e) {

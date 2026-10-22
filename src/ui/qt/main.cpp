@@ -72,6 +72,8 @@
 #include "pages/button_modes_page.hpp"
 #include "pages/cycle_editor_widget.hpp"
 #include "pages/motion_editor.hpp"
+#include "pages/profile_motions_view.hpp"
+#include "pages/button_use_widget.hpp"
 #include "autosaver.hpp"
 #include "described_item_delegate.hpp"
 #include "info_popup.hpp"
@@ -1702,7 +1704,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
     if (!page) return false;
     ChannelsEditor *ch = page->channelsEditor();
     const QStringList allTabs = {QStringLiteral("general"), QStringLiteral("channels"), QStringLiteral("buttons"),
-                                 QStringLiteral("overrides")};
+                                 QStringLiteral("motions"), QStringLiteral("overrides")};
 
     // the list: Global first, then the devices, then the programs, always next to the tabs
     const QStringList labels = page->profileListLabels();
@@ -1714,7 +1716,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
 
     // the same tabs for every profile; the header says which profile is edited
     for (size_t s : {size_t(0), size_t(1), size_t(2), size_t(3)}) {
-        check(page->selectSection(s) && page->tabIds() == allTabs, "General, Channels, Buttons and Overrides for every profile");
+        check(page->selectSection(s) && page->tabIds() == allTabs, "General, Channels, Buttons, Motions and buttons and Overrides for every profile");
         // the General tab shows what the profile does with the same six-motion panel as the Joystick modes page
         const QList<motionview::MotionGrid *> grids = findAllOf<motionview::MotionGrid>(page);
         if (s == 3) {  // blender has its output off: nothing is sent, so the panel is hidden with the joystick mode
@@ -1722,6 +1724,88 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         } else {
             check(!grids.isEmpty() && grids.last()->cardTexts().size() == 6 && grids.last()->cardTexts().value(0).startsWith(QStringLiteral("Vertical push")),
                   "the General tab of every profile with output on shows the six motions");
+        }
+    }
+    // Motions and buttons (issue #143, phase 4): the picture of the selected profile, tuning as overrides of the profile,
+    // buttons through the shared row, inheritance in words
+    {
+        check(page->selectSection(2) && page->selectTab(QStringLiteral("motions")), "program profile, Motions and buttons tab");
+        settle();
+        ProfileMotionsView *mv = page->motionsView();
+        check(mv != nullptr && mv->picture() != nullptr, "the tab has the picture");
+        if (mv) {
+            int motions = 0;
+            for (const MotionPicture::Item &it : mv->picture()->items()) motions += it.id.startsWith(QLatin1String("m:"));
+            check(motions == 6, "six motions are drawn");
+            check(mv->select(QStringLiteral("m:v_push")), "select the vertical push");
+            settle();
+            check(mv->inspectorTitle().contains(QStringLiteral("Vertical push")), "the inspector names the motion");
+            QLineEdit *sens = nullptr;
+            for (QLineEdit *e : mv->inspector()->findChildren<QLineEdit *>())
+                if (e->accessibleName() == QStringLiteral("Sensitivity")) sens = e;
+            check(sens != nullptr, "the inspector has the sensitivity of the channel");
+            bool inheritance = false;
+            for (QLabel *l : mv->inspector()->findChildren<QLabel *>())
+                inheritance = inheritance || l->text().startsWith(QStringLiteral("Inherited")) || l->text().startsWith(QStringLiteral("Set in this profile"));
+            check(inheritance, "where the value comes from is said in words");
+            auto originOf = [&](const QString &prefix) {
+                for (QLabel *l : mv->inspector()->findChildren<QLabel *>())
+                    if (l->text().startsWith(prefix)) return true;
+                return false;
+            };
+            if (sens) {
+                sens->setText(QStringLiteral("7"));
+                emit sens->textEdited(QStringLiteral("7"));
+                check(originOf(QStringLiteral("Set in this profile")), "typing writes an override of the profile and says so");
+                mv->setSection(2, true);  // as after the autosave: rebuilt from the model
+                settle();
+                QPushButton *inherit = nullptr;
+                for (QPushButton *b : mv->inspector()->findChildren<QPushButton *>())
+                    if (b->accessibleName() == QStringLiteral("Sensitivity: Inherit")) inherit = b;
+                check(inherit != nullptr && inherit->isEnabled(), "an override has an Inherit button");
+                if (inherit) inherit->click();
+                settle();
+                check(originOf(QStringLiteral("Inherited")), "Inherit removes the override");
+            }
+            // a button: the shared row (the Global profile always has the binding editor)
+            check(page->selectSection(0) && page->selectTab(QStringLiteral("motions")), "Global, Motions and buttons tab");
+            settle();
+            QString firstButton;
+            for (const MotionPicture::Item &it : mv->picture()->items())
+                if (it.id.startsWith(QLatin1String("b:")) && firstButton.isEmpty()) firstButton = it.id;
+            if (!firstButton.isEmpty()) {
+                check(mv->select(firstButton), "select a button");
+                settle();
+                check(mv->inspectorTitle().contains(QStringLiteral("Button")) && !mv->inspector()->findChildren<QComboBox *>().isEmpty(), "a button shows the shared row");
+            }
+            check(mv->select(QStringLiteral("m:lift")), "select lift / press");
+            settle();
+            bool noSettings = false;
+            for (QLabel *l : mv->inspector()->findChildren<QLabel *>()) noSettings = noSettings || l->text().contains(QStringLiteral("no settings of its own"));
+            check(noSettings, "lift / press has no tuning");
+        }
+    }
+    // Button modes page: the device buttons of the Global profile, bind the selected button mode to one of them
+    {
+        ButtonModesPage *bp = w.findChild<ButtonModesPage *>();
+        check(bp != nullptr && bp->useWidget() != nullptr, "the Button modes page has the buttons picture");
+        if (bp && bp->useWidget()) {
+            ButtonUseWidget *uw = bp->useWidget();
+            check(!bp->currentId().isEmpty() || bp->buttonModeCount() == 0 || bp->selectButtonMode(QStringLiteral("next-mode")), "a button mode is selected");
+            QString button;
+            for (const MotionPicture::Item &it : uw->picture()->items())
+                if (it.id.startsWith(QLatin1String("b:")) && button.isEmpty()) button = it.id;
+            check(!button.isEmpty() && uw->select(button), "a button can be selected in the picture");
+            for (const MotionPicture::Item &it : uw->picture()->items()) check(!it.id.startsWith(QLatin1String("m:")), "no motions on the Button modes page");
+            settle();
+            check(uw->useButton()->isEnabled() && uw->useButton()->text().startsWith(QStringLiteral("Use \"")), "Use <button mode> on button n is offered");
+            uw->useButton()->click();
+            settle();
+            check(uw->status().startsWith(QStringLiteral("Used on buttons: ")) && uw->status().endsWith(QStringLiteral("(Global profile)")), "binding it is said in words");
+            check(uw->unbindButton()->isEnabled(), "and can be undone");
+            uw->unbindButton()->click();
+            settle();
+            check(uw->status().startsWith(QStringLiteral("Not used on a button")), "Unbind removes it");
         }
     }
     check(page->selectSection(0) && page->headerName() == QStringLiteral("Global") &&

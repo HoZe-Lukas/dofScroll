@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "pages/button_modes_page.hpp"
+#include "pages/button_use_widget.hpp"
 
 #include <memory>
 #include <QComboBox>
@@ -142,6 +143,13 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     cycle_ = new CycleEditorWidget(right);
     cycle_->setVisible(false);
     rl->addWidget(cycle_);
+    {   // the device buttons of the Global profile: bind the selected button mode to one of them
+        auto *useBox = new QGroupBox(T("Use it on a button"), right);
+        auto *ul = new QVBoxLayout(useBox);
+        use_ = new ButtonUseWidget(ctx_, useBox);
+        ul->addWidget(use_);
+        rl->addWidget(useBox);
+    }
     problem_ = new QLabel(right);
     problem_->setWordWrap(true);
     problem_->setProperty("error", true);
@@ -321,6 +329,7 @@ void ButtonModesPage::loadForm() {
     kind_->setCurrentIndex(idx);
     rebuildActionArg();
     cycle_->setState(spn::loadModes(ctx_.modesDir, nullptr), e ? e->cycle : std::vector<std::string>(), e && !e->builtin);
+    if (use_) use_->setButtonMode(e ? qs(e->id) : QString(), e ? qs(e->label.empty() ? e->id : e->label) : QString());
     fileLabel_->setText(e ? (e->builtin ? T("Built in (no file)") : qs(e->path)) : QString());
     shownId_ = e ? qs(e->id) : QString();
     updateWarnings();

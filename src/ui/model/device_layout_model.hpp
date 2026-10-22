@@ -45,6 +45,11 @@ inline bool knownDeviceModel(const std::string &deviceName) {
     return factoryButtonCount(deviceName, probe) != probe;
 }
 
+// The button count to draw for a device that is not in the table when the driver reports none (or the
+// configuration only knows the 32 button limit): a short numbered grid.
+constexpr int kUnknownDeviceButtons = 8;
+inline int reportedOrDefaultButtons(int reported, int limit = 32) { return reported > 0 && reported < limit ? reported : kUnknownDeviceButtons; }
+
 inline DeviceLayout deviceLayout(const std::string &deviceName, int reportedButtons) {
     DeviceLayout l;
     l.knownModel = knownDeviceModel(deviceName);
