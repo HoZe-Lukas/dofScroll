@@ -434,7 +434,7 @@ QGroupBox *ChannelsEditor::buildGroup(const SettingsModel::Group &g) {
     grid->setHorizontalSpacing(tk::kRowGap);
     grid->setContentsMargins(tk::kSpaceMd, tk::kCardPadding, tk::kSpaceMd, tk::kCardPadding);
     int row = 0;
-    const bool isChannel = g.id != "steps";
+    const bool isChannel = g.id != "steps" && g.id != "axes";
     const std::string pre = g.id == "scroll_v" ? "SCROLL_V_" : g.id == "scroll_h" ? "SCROLL_H_" : "ZOOM_";
 
     if (isChannel) {
@@ -473,6 +473,8 @@ QGroupBox *ChannelsEditor::buildGroup(const SettingsModel::Group &g) {
         addSign(grid, &row, pre + "SIGN");
         addCurve(grid, &row, pre + "CURVE", g.id);
         if (g.id == "zoom") addZoomDetection(grid, &row);
+    } else if (g.id == "axes") {
+        addInvertAxes(grid, &row);
     } else {
         const QString stepHelp = T("Push strength at which a step: channel action taps its key once "
                                    "(steps per second after sensitivity)");
@@ -601,7 +603,71 @@ void ChannelsEditor::addCurve(QGridLayout *grid, int *row, const std::string &ke
     previews_.emplace_back(groupId, preview);
 }
 
+// INVERT_AXES: one check box per axis, named by how the cap moves; the same in every mode.
+void ChannelsEditor::addInvertAxes(QGridLayout *grid, int *row) {
+    const QString help = T("Flips the direction of the checked motions in every joystick mode, for example when pushing "
+                           "scrolls the wrong way but tilting is right");
+    auto *hl = new QLabel(help);
+    auto *box = new QWidget;
+    auto *bl = new QGridLayout(box);
+    bl->setContentsMargins(0, 0, 0, 0);
+    const QString names[spn::AX_COUNT] = {T("Push sideways"), T("Push down / pull up"), T("Push forward / back"),
+                                          T("Tilt forward / back"), T("Twist the cap"), T("Tilt sideways")};
+    auto boxes = std::make_shared<std::vector<QCheckBox *>>();
+    for (int a = 0; a < spn::AX_COUNT; ++a) {
+        auto *cb = new QCheckBox(QString::fromLatin1(spn::axisName(spn::Axis(a))) + QStringLiteral(": ") + names[a]);
+        cb->setProperty("look", QStringLiteral("box"));
+        cb->setToolTip(help);
+        boxes->push_back(cb);
+        bl->addWidget(cb, a / 2, a % 2);
+        connect(cb, &QCheckBox::toggled, this, [this, boxes, hl, help, box](bool) {
+            unsigned mask = 0;
+            for (size_t i = 0; i < boxes->size(); ++i)
+                if ((*boxes)[i]->isChecked()) mask |= 1u << unsigned(i);
+            apply("INVERT_AXES", mask ? spn::ui::lateralText(mask) : std::string("none"), box, hl, help, false);
+        });
+    }
+    bl->setColumnStretch(2, 1);
+    auto *l = new QLabel(T("Invert direction of"));
+    grid->addWidget(l, *row, 0, Qt::AlignTop);
+    grid->addWidget(box, *row, 1);
+    hl->setWordWrap(true);
+    hl->setForegroundRole(QPalette::PlaceholderText);
+    grid->addWidget(hl, *row + 2, 1, 1, 2);
+    std::vector<QWidget *> widgets = {l, box, hl};
+    for (QCheckBox *cb : *boxes) widgets.push_back(cb);
+    registerRow("INVERT_AXES", T("Invert direction of"), help, widgets);
+    addMeta(grid, *row, "INVERT_AXES", &rows_.back());
+    editors_.emplace_back("INVERT_AXES", box);
+    *row += 3;
+    refreshers_.push_back([this, boxes] {
+        const std::string text = displayText("INVERT_AXES");
+        spn::Settings s;
+        spn::applyKey(s, "INVERT_AXES", text, nullptr);
+        for (size_t i = 0; i < boxes->size(); ++i) {
+            QSignalBlocker b((*boxes)[i]);
+            (*boxes)[i]->setChecked((s.invert_axes >> unsigned(i)) & 1u);
+        }
+    });
+}
+
 void ChannelsEditor::addZoomDetection(QGridLayout *grid, int *row) {
+    const QString modHelp = T("Keys held while zooming (the mouse wheel is sent with them): ctrl, shift, alt, super "
+                              "(Cmd on macOS), a combination such as ctrl+shift, or none");
+    spinRow(grid, row, "ZOOM_MODIFIER", T("Zoom key"), modHelp, [&](QLabel *hl) -> QWidget * {
+        auto *e = new QLineEdit;
+        connect(e, &QLineEdit::textEdited, this, [this, e, hl, modHelp](const QString &t) {
+            apply("ZOOM_MODIFIER", t.toUtf8().toStdString(), e, hl, modHelp, true);
+        });
+        connect(e, &QLineEdit::editingFinished, this, [this] { ctx_.saveSoon(); });
+        refreshers_.push_back([this, e] {
+            QSignalBlocker b(e);
+            e->setText(qs8(displayText("ZOOM_MODIFIER")));
+            setFlag(e, "invalid", false);
+        });
+        editors_.emplace_back("ZOOM_MODIFIER", e);
+        return e;
+    });
     const QString latHelp = T("Zoom only starts if the twist is stronger than the strongest of these axes");
     auto *lat = new QLabel(latHelp);
     auto *box = new QWidget;

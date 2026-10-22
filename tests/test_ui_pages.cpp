@@ -76,8 +76,8 @@ int main() {
 
     // ---- channels page ----
     const auto groups = channelPageGroups();
-    assert(groups.size() == 4 && groups[0].id == "scroll_v" && groups[1].id == "scroll_h");
-    assert(groups[2].id == "zoom" && groups[2].keys.size() == 9 && groups[3].id == "steps");
+    assert(groups.size() == 5 && groups[0].id == "scroll_v" && groups[1].id == "scroll_h");
+    assert(groups[2].id == "zoom" && groups[2].keys.size() == 10 && groups[3].id == "axes" && groups[3].keys.size() == 1 && groups[4].id == "steps");
     for (const auto &g : groups)
         for (const auto &k : g.keys)
             assert(k != "ENABLED" && k != "MODE" && k != "TICK_HZ" && k != "BACKEND" && k.find("NAV_") != 0 && k.find("CLICK_") != 0);

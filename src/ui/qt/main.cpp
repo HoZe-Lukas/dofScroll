@@ -409,19 +409,19 @@ static bool modeLibrarySelfTest(UiContext ctx, const QString &tmpPath) {
           "the profile that uses the mode is listed");
     check(page.usedByLines(QStringLiteral("normal")).isEmpty(), "an unused mode has no profile");
     // every row of the list carries six chips (one per motion of the cap) and a muted flag per chip; the detail
-    // panel of the selected joystick mode shows six motions, "Lift / press" last
+    // panel of the selected joystick mode shows six motions, "Lift / press" fifth, the twist last
     for (const spn::ui::ModeCatalog::ModeEntry &e : page.catalog().modes())
         check(page.rowChips(QString::fromStdString(e.id)).size() == 6, "every list row shows six motion chips");
     check(page.rowChips(QStringLiteral("normal")).value(0).contains(QStringLiteral("Scroll")) &&
               page.rowChips(QStringLiteral("off")).value(0).contains(QStringLiteral("Off")) &&
-              page.rowChips(QStringLiteral("normal")).value(5).contains(QStringLiteral("Unused")),
+              page.rowChips(QStringLiteral("normal")).value(4).contains(QStringLiteral("Unused")),
           "the chips say what the motion does in words (English test run)");
     for (const char *id : {"normal", "off", "timeline", "mine"}) {
         check(page.selectMode(QString::fromLatin1(id)), "select a joystick mode");
         settle();
         const QStringList cards = page.motionCardTexts();
         check(cards.size() == 6 && cards.value(0).startsWith(QStringLiteral("Vertical push")) &&
-                  cards.value(5).startsWith(QStringLiteral("Lift / press")),
+                  cards.value(4).startsWith(QStringLiteral("Lift / press")),
               "the detail panel shows the six motions");
     }
     const QString out = tmpPath + QStringLiteral("/exported-mine.conf");
@@ -2525,7 +2525,7 @@ static constexpr int kOkularProfile = 6;  // the program profile shown on the we
 int main(int argc, char **argv) {
     bool selfTest = false;
     const char *screenshotDir = nullptr;
-    bool restarted = false;  // started by "Restart interface": wait for the old instance's lock
+    bool restarted = false;  // started by "Restart": wait for the old instance's lock
     bool sessionRestore = false;  // started by the desktop's session restore (-session <id>), not by the user
     // Before any output and before QApplication: X11 thread support, and on Windows the parent
     // console for the command line flags (the executable has no console of its own).
@@ -2847,7 +2847,7 @@ int main(int argc, char **argv) {
     // A second start asks the running instance (marker file, polled below) to show its window.
     const QString raiseMarker = QString::fromStdString(spn::ui::instanceRaisePath(idir));
     // A short timeout lets Qt's stale-lock detection run (dead owner process after SIGTERM/kill);
-    // after "Restart interface" the old instance is still shutting down, so wait longer.
+    // after "Restart" the old instance is still shutting down, so wait longer.
     if (!lock.tryLock(spn::ui::lockWaitMs(restarted))) {
         if (spn::ui::classifyLockFailure(lock.error() == QLockFile::LockFailedError) ==
             spn::ui::LockOutcome::AlreadyRunning) {

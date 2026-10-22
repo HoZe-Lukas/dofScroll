@@ -120,7 +120,7 @@ The editor of a profile (also Global) has the tabs General, Channels, Buttons an
 
 ## Tray
 
-Status, "Joystick mode" submenu, "Enabled", "Settings...", "Open config file", "Show log...", "Open joystick modes folder", "Release all keys" (runs `dofscroll --release-keys`), "Restart daemon" (releases held keys, then restarts the daemon: systemd on Linux, launchd on macOS, stop and start on Windows), "Restart interface" (restarts the interface itself), "Quit".
+Status, "Joystick mode" submenu, "Enabled", "Settings...", "Open config file", "Show log...", "Open joystick modes folder", "Release all keys" (runs `dofscroll --release-keys`), "Restart" (releases held keys, restarts the daemon: systemd on Linux, launchd on macOS, stop and start on Windows, then restarts the interface itself), "Quit".
 
 ## Saving and the daemon
 

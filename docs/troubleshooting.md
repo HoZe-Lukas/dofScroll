@@ -196,7 +196,7 @@ If a key still hangs, recover in this order:
 
 1. Tray menu: **Release all keys**. It runs `dofscroll --release-keys`.
 2. In a terminal: `dofscroll --release-keys`.
-3. Tray menu **Restart daemon** (releases the keys, then restarts), or
+3. Tray menu **Restart** (releases the keys, then restarts the daemon and the interface), or
    `systemctl --user restart dofscroll.service` (the unit also runs `--release-keys` when the
    daemon stops).
 

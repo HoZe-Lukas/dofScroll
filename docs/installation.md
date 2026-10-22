@@ -257,8 +257,8 @@ through logind, or you run the program from a terminal, restart by hand (user na
     systemctl --user daemon-reload
     systemctl --user restart dofscroll.service dofscroll-ui.service
 
-You can also use the tray menu: **Restart daemon** (releases held keys first) and **Restart
-interface**. `dofscroll-ui.service` has `Wants=dofscroll.service`, so starting only the interface
+You can also use the tray menu item **Restart** (releases held keys, restarts the daemon, then the
+interface). `dofscroll-ui.service` has `Wants=dofscroll.service`, so starting only the interface
 also starts the daemon.
 
 **Upgrading from a version with the GTK tray (before 0.1.1).** The GTK tray
@@ -410,8 +410,8 @@ keys) and a running `dofscroll-ui.exe` of that install before replacing the file
 running, the installer starts it again afterwards, also for a silent `/S` install, then the
 interface if that was running too (interactive installs only). The finish-page box "Start the
 dofscroll daemon now" does not start a second daemon. A fresh install, or an update with the daemon
-stopped before, starts nothing on its own. The tray items **Restart daemon** and **Restart
-interface** restart the programs without the installer.
+stopped before, starts nothing on its own. The tray item **Restart** restarts the daemon and the
+interface without the installer.
 
 **Uninstall:** Settings > Apps > dofscroll, or the Start menu entry "Uninstall dofscroll". It stops
 the daemon and removes the program folder, the Start menu entries and the autostart value; your
@@ -443,8 +443,8 @@ this; [port-windows-checklist.md](port-windows-checklist.md) lists what a tester
    one in Applications, grant the permissions again if macOS asks, then start the app (and the
    daemon: log in again or `launchctl bootstrap` / run `install-launchagent.sh`; if the LaunchAgent
    is still loaded, `launchctl kickstart -k gui/$(id -u)/io.github.dofscroll.daemon` starts the new
-   binary). Your configuration stays. The tray items **Restart daemon** (`launchctl kickstart -k`) and **Restart
-   interface** are for restarts without an upgrade; the app does not detect a newer app on disk.
+   binary). Your configuration stays. The tray item **Restart** (daemon through `launchctl kickstart -k`, then the
+   interface) is for restarts without an upgrade; the app does not detect a newer app on disk.
 6. The menu bar icon is a template icon. macOS does not deliver a click on a tray icon that has a
    menu, so open the window with **Settings...** in the menu. The German catalog is inside the app
    (`Contents/MacOS/dofscroll_de.qm`). Neither is verified on real hardware.

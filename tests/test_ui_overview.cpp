@@ -88,11 +88,10 @@ static void testStatusAndActions() {
     assert(d.infoLine == "Program: firefox  |  Device: SpaceMouse Pro" && d.warningLine.empty());
 
     const std::vector<OverviewAction> a = overviewActions();
-    assert(a.size() == 4);
+    assert(a.size() == 3);
     assert(a[0].id == "open_log" && a[0].action == TrayAction::OpenLog);
     assert(a[1].id == "release_keys" && a[1].action == TrayAction::ReleaseAllKeys);
-    assert(a[2].id == "restart_daemon" && a[2].action == TrayAction::RestartDaemon);
-    assert(a[3].id == "restart_interface" && a[3].action == TrayAction::RestartInterface);
+    assert(a[2].id == "restart" && a[2].action == TrayAction::Restart);
     for (const OverviewAction &x : a) assert(!x.label.empty());
     // the open_log action runs the log hook of the view
     int shown = 0;

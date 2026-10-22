@@ -58,7 +58,7 @@ static bool chanEq(const ChannelCfg &a, const ChannelCfg &b) {
 static bool settingsEq(const Settings &a, const Settings &b) {
     return chanEq(a.scroll_v, b.scroll_v) && chanEq(a.scroll_h, b.scroll_h) &&
            chanEq(a.zoom, b.zoom) && a.zoom_lateral == b.zoom_lateral &&
-           a.zoom_enter_ms == b.zoom_enter_ms && near(a.zoom_exit_ratio, b.zoom_exit_ratio) &&
+           a.zoom_modifier == b.zoom_modifier && a.invert_axes == b.invert_axes && a.zoom_enter_ms == b.zoom_enter_ms && near(a.zoom_exit_ratio, b.zoom_exit_ratio) &&
            a.backend == b.backend && a.input == b.input && a.tick_hz == b.tick_hz && a.nav_button == b.nav_button &&
            a.nav_button_enabled == b.nav_button_enabled && a.click_button == b.click_button &&
            a.click_button_enabled == b.click_button_enabled && a.enabled == b.enabled && a.mode == b.mode;
@@ -161,6 +161,16 @@ static void testDefaultsAndApplyKey() {
     assert(applyKey(s, "ZOOM_LATERAL", "x, rz  y", &err));
     assert(s.zoom_lateral == (std::vector<Axis>{AX_X, AX_RZ, AX_Y}));
     assert(!applyKey(s, "ZOOM_LATERAL", "x foo", &err));
+    assert(s.invert_axes == 0 && applyKey(s, "INVERT_AXES", "Z, ry", &err) && s.invert_axes == ((1u << AX_Z) | (1u << AX_RY)));
+    assert(invertAxesToString(s.invert_axes) == "z ry" && applyKey(s, "INVERT_AXES", "none", &err) && s.invert_axes == 0);
+    assert(!applyKey(s, "INVERT_AXES", "z foo", &err) && s.invert_axes == 0);
+    assert(s.zoom_modifier == kZoomModCtrl);  // default
+    assert(applyKey(s, "ZOOM_MODIFIER", " Cmd ", &err) && s.zoom_modifier == kZoomModSuper);
+    assert(applyKey(s, "ZOOM_MODIFIER", "shift+Ctrl", &err) && s.zoom_modifier == (kZoomModCtrl | kZoomModShift));
+    assert(zoomModifierToString(s.zoom_modifier) == "ctrl+shift");
+    assert(applyKey(s, "ZOOM_MODIFIER", "none", &err) && s.zoom_modifier == 0 && zoomModifierToString(0) == "none");
+    assert(!applyKey(s, "ZOOM_MODIFIER", "none ctrl", &err) && s.zoom_modifier == 0);
+    assert(!applyKey(s, "ZOOM_MODIFIER", "ctrl+foo", &err) && s.zoom_modifier == 0 && !err.empty());
     assert(applyKey(s, "NAV_BUTTON_ENABLED", "1", &err) && s.nav_button_enabled);
     assert(s.mode == "normal" && applyKey(s, "MODE", "Timeline", &err) && s.mode == "timeline");
     assert(!applyKey(s, "MODE", "Bad Mode!", &err) && s.mode == "timeline");

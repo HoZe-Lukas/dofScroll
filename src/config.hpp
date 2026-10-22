@@ -14,7 +14,10 @@
 //   SCROLL_V_CURVE = 1.5           # exponent  OR  points "0:0 50:0.1 200:1 350:3"
 //   SCROLL_V_SMOOTH_MS = 20        # smoothing (time constant), 0 = off
 //   (likewise SCROLL_H_*, ZOOM_*)
+//   INVERT_AXES = z ry             # axes whose direction is flipped before anything else (all modes); none = off
 //   ZOOM_LATERAL = x z rx rz       # axes the zoom twist has to dominate
+//   ZOOM_MODIFIER = ctrl           # key held while zooming (with the mouse wheel): ctrl, shift, alt, super, a
+//                                  # combination such as ctrl+shift, or none (Cmd on macOS is super)
 //   ZOOM_ENTER_MS = 40
 //   ZOOM_EXIT_RATIO = 1.5
 //   STEP_TRIGGER = 20              # level at which a step: channel action fires (steps/s)
@@ -118,11 +121,26 @@ std::vector<std::string> partTuningKeys();
 // The sub-channel config of a part: `parent` with the part's mix and the tuned fields.
 ChannelCfg partConfig(const ChannelCfg &parent, const PartTuning &t, const Mix &partMix);
 
+// Keys held while a zoom action sends the mouse wheel (ZOOM_MODIFIER), as a bit mask. The bit values are the
+// ones of the chord modifiers in modes.hpp.
+constexpr unsigned kZoomModCtrl = 1, kZoomModShift = 2, kZoomModAlt = 4, kZoomModSuper = 8;
+// "ctrl+shift" -> mask; "none" or an empty text -> 0. false + *err on an unknown name.
+bool parseZoomModifier(const std::string &text, unsigned *out, std::string *err);
+// The canonical text of a mask ("ctrl", "ctrl+shift", "none"), the inverse of parseZoomModifier.
+std::string zoomModifierToString(unsigned mask);
+
+// "z, ry" -> bit mask (bit = Axis); "none" or an empty text -> 0. false + *err on an unknown axis.
+bool parseInvertAxes(const std::string &text, unsigned *out, std::string *err);
+// "z ry" (axis order), "none" for 0.
+std::string invertAxesToString(unsigned mask);
+
 struct Settings {
     ChannelCfg scroll_v;
     ChannelCfg scroll_h;
     ChannelCfg zoom;
+    unsigned invert_axes = 0;         // INVERT_AXES: bit mask (bit = Axis) of the axes whose direction is flipped
     std::vector<Axis> zoom_lateral;   // default: x z rx rz
+    unsigned zoom_modifier = kZoomModCtrl;  // ZOOM_MODIFIER: keys held while zooming
     int zoom_enter_ms = 40;
     double zoom_exit_ratio = 1.5;
     double step_trigger = 20.0;       // step: channel actions fire at this rate (steps/s after the channel processing)

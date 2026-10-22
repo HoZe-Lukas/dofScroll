@@ -138,6 +138,81 @@ bool parseLateral(const std::string &text, std::vector<Axis> *out, std::string *
     return true;
 }
 
+}  // namespace
+
+bool parseZoomModifier(const std::string &text, unsigned *out, std::string *err) {
+    unsigned mask = 0;
+    bool none = false;
+    std::string cur;
+    auto flush = [&]() -> bool {
+        const std::string t = lower(trim(cur));
+        cur.clear();
+        if (t.empty()) return true;
+        if (t == "none") {
+            none = true;
+            return true;
+        }
+        if (t == "ctrl" || t == "control") mask |= kZoomModCtrl;
+        else if (t == "shift") mask |= kZoomModShift;
+        else if (t == "alt" || t == "option") mask |= kZoomModAlt;
+        else if (t == "super" || t == "cmd" || t == "command" || t == "win" || t == "meta") mask |= kZoomModSuper;
+        else return setErr(err, "unknown key '" + t + "' (ctrl, shift, alt, super or none expected)");
+        return true;
+    };
+    for (char c : text) {
+        if (c == '+' || c == ',' || utf8::isSpace(c)) {
+            if (!flush()) return false;
+        } else {
+            cur += c;
+        }
+    }
+    if (!flush()) return false;
+    if (none && mask != 0) return setErr(err, "'none' cannot be combined with keys");
+    *out = mask;
+    return true;
+}
+
+bool parseInvertAxes(const std::string &text, unsigned *out, std::string *err) {
+    bool over;
+    const std::vector<std::string> toks = splitList(text, 4 * AX_COUNT, &over);
+    if (over) return setErr(err, "too many axes");
+    unsigned mask = 0;
+    for (const std::string &tok : toks) {
+        if (lower(tok) == "none") continue;
+        Axis a;
+        if (!axisFromName(tok, &a)) return setErr(err, "unknown axis '" + tok + "'");
+        mask |= 1u << unsigned(a);
+    }
+    *out = mask;
+    return true;
+}
+
+std::string invertAxesToString(unsigned mask) {
+    std::string s;
+    for (int a = 0; a < AX_COUNT; ++a) {
+        if (!(mask & (1u << a))) continue;
+        if (!s.empty()) s += ' ';
+        s += axisName(Axis(a));
+    }
+    return s.empty() ? "none" : s;
+}
+
+std::string zoomModifierToString(unsigned mask) {
+    std::string s;
+    auto add = [&](unsigned bit, const char *name) {
+        if (!(mask & bit)) return;
+        if (!s.empty()) s += '+';
+        s += name;
+    };
+    add(kZoomModCtrl, "ctrl");
+    add(kZoomModShift, "shift");
+    add(kZoomModAlt, "alt");
+    add(kZoomModSuper, "super");
+    return s.empty() ? "none" : s;
+}
+
+namespace {
+
 std::string lateralToString(const std::vector<Axis> &v) {
     std::string s;
     for (Axis a : v) {
@@ -234,6 +309,8 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
 
     // --- global keys
     if (key == "ZOOM_LATERAL") return parseLateral(value, &s.zoom_lateral, err);
+    if (key == "INVERT_AXES") return parseInvertAxes(value, &s.invert_axes, err);
+    if (key == "ZOOM_MODIFIER") return parseZoomModifier(value, &s.zoom_modifier, err);
     if (key == "ZOOM_ENTER_MS") {
         if (!parseInt(value, &n)) return setErr(err, "integer expected");
         s.zoom_enter_ms = static_cast<int>(std::max(n, 0L));
@@ -527,6 +604,8 @@ std::vector<KV> allKeys(const Settings &s) {
         kv.emplace_back(pre + "SMOOTH_MS", fmtNum(p.c->smooth_ms));
     }
     kv.emplace_back("ZOOM_LATERAL", lateralToString(s.zoom_lateral));
+    kv.emplace_back("INVERT_AXES", invertAxesToString(s.invert_axes));
+    kv.emplace_back("ZOOM_MODIFIER", zoomModifierToString(s.zoom_modifier));
     kv.emplace_back("ZOOM_ENTER_MS", std::to_string(s.zoom_enter_ms));
     kv.emplace_back("ZOOM_EXIT_RATIO", fmtNum(s.zoom_exit_ratio));
     kv.emplace_back("STEP_TRIGGER", fmtNum(s.step_trigger));

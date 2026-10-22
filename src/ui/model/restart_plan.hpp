@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Command lines of the tray items "Restart daemon" and "Restart interface", per OS, as plain argv
+// Command lines of the two steps of the tray item "Restart" (daemon, then interface), per OS, as plain argv
 // lists (no shell string anywhere). The Qt runner only executes them; everything that decides
 // WHAT runs is here and unit-tested.
 //
-// Restart daemon (the keys are released first by the caller, see performTrayAction):
+// Restart, daemon step (the keys are released first by the caller, see performTrayAction):
 //   1. run `probe` (exit 0 = the daemon is managed by the service manager); if it succeeds, run
 //      `managed` (restart through the service manager) and stop;
 //   2. otherwise run `stop` (if any; waits), then start `spawn` detached.
-// Restart interface: `managed` (Linux, running under dofscroll-ui.service: systemd restarts this
+// Restart, interface step: `managed` (Linux, running under dofscroll-ui.service: systemd restarts this
 // process) or `relaunch`: start the same executable detached with `--restart`, then quit. The new
 // instance waits for the single-instance lock of the old one (instance_paths.hpp).
 #pragma once

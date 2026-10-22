@@ -208,7 +208,7 @@ msgstr ""
 msgid "How many times per second the daemon generates events (30..1000)"
 msgstr ""
 
-msgid "Restart daemon"
+msgid "Restart"
 msgstr ""
 
 msgid "General"
@@ -1340,10 +1340,6 @@ msgstr ""
 msgid "Cannot run %1"
 msgstr ""
 
-#: src/ui/model/tray_menu_model.hpp
-msgid "Restart interface"
-msgstr ""
-
 #: src/ui/qt/qt_action_runner.cpp
 msgid "Cannot restart the daemon through the service manager"
 msgstr ""
@@ -2072,6 +2068,18 @@ msgid "Scroll sideways"
 msgstr ""
 
 #: src/ui/model/motion_summary_model.hpp
+msgid "Zoom: mouse wheel"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Wheel"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Zoom: %1 + mouse wheel"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
 msgid "Sideways"
 msgstr ""
 
@@ -2264,4 +2272,24 @@ msgstr ""
 
 #: src/ui/qt/pages/cycle_editor_widget.cpp
 msgid "Which joystick modes the button goes through"
+msgstr ""
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "Axis directions"
+msgstr ""
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "Invert direction of"
+msgstr ""
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "Zoom key"
+msgstr ""
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "Flips the direction of the checked motions in every joystick mode, for example when pushing scrolls the wrong way but tilting is right"
+msgstr ""
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "Keys held while zooming (the mouse wheel is sent with them): ctrl, shift, alt, super (Cmd on macOS), a combination such as ctrl+shift, or none"
 msgstr ""

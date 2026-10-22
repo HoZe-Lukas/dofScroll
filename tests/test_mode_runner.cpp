@@ -230,6 +230,40 @@ static void testChordChannels() {
         run(r, s, both, 0, 0.5);
         CHECK(o.count("tap:pagedown") > 0 && o.count("+ctrl") == 1 && o.count("-ctrl") == 0, "zoom Ctrl stays");
     }
+    {  // INVERT_AXES: the direction of a pushed axis flips for every mode, tilt stays
+        RunnerRec o;
+        ModeRunner r(&o);
+        r.setMode(mode("t"));
+        run(r, s, axis(AX_Z, 300), 0, 0.5);
+        const int normal = o.wv;
+        CHECK(normal != 0, "push scrolls");
+        o.clear();
+        Settings si = s;
+        si.invert_axes = 1u << AX_Z;
+        run(r, si, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o.wv == -normal, "inverted push scrolls the other way");
+        o.clear();
+        run(r, si, axis(AX_RX, 300), 0, 0.5);
+        CHECK(o.wv == normal, "tilt unchanged");
+    }
+    {  // ZOOM_MODIFIER: the keys held while zooming come from the settings
+        RunnerRec o;
+        ModeRunner r(&o);
+        ModeDef m = mode("t");
+        m.v = act(ChannelActionType::Zoom);
+        r.setMode(m);
+        Settings sm = s;
+        sm.zoom_modifier = kZoomModSuper | kZoomModShift;
+        run(r, sm, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o.count("+super") == 1 && o.count("+shift") == 1 && o.count("+ctrl") == 0 && o.count("wv1") + o.count("wv-1") > 0,
+              "zoom holds the configured keys");
+        run(r, sm, RawAxes{}, 0, 0.5);
+        CHECK(o.count("-super") == 1 && o.count("-shift") == 1, "released again");
+        o.clear();
+        sm.zoom_modifier = 0;  // none: the wheel alone
+        run(r, sm, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o.count("+ctrl") == 0 && o.count("+super") == 0 && o.wv != 0, "no key held");
+    }
     {  // plain keys behave as before: no modifier events
         RunnerRec o;
         ModeRunner r(&o);
