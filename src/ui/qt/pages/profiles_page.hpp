@@ -19,7 +19,10 @@
 #include <QPointer>
 #include <QStringList>
 
+#include "button_row.hpp"
+#include "button_modes.hpp"
 #include "config.hpp"
+#include "modes.hpp"
 #include "live_feed/live_feed.hpp"
 #include "profiles_env.hpp"
 #include "ui/model/device_source_model.hpp"
@@ -27,7 +30,9 @@
 #include "ui_context.hpp"
 
 class ChannelsEditor;
+class ProfileMotionsView;
 class QEvent;
+class QGridLayout;
 class QHideEvent;
 class QLabel;
 class QLineEdit;
@@ -58,6 +63,7 @@ public:
     bool headerHasIcon() const;
     QStringList profileListLabels() const;  // the list as shown: Global, group headers and profiles in order
     QString treeLabel(size_t section) const;  // the label of a profile in the list (name and number of overrides)
+    ProfileMotionsView *motionsView() const { return motions_; }
     ChannelsEditor *channelsEditor() const { return channels_; }
     // Search boxes: the profile list (names) and the settings rows of the selected profile.
     void setProfileFilter(const QString &text);
@@ -100,6 +106,15 @@ private:
     // Change application / device, Export and Remove of the selected profile (General tab).
     QWidget *buildProfileActions(size_t section);
     QWidget *buildBindings(size_t section);
+    struct BindingKit {  // what a button row needs while it is built
+        spn::ModeSet modes;
+        spn::ButtonModeSet buttonModes;
+        std::vector<std::string> offered;
+    };
+    ButtonRowEnv makeBindingEnv(size_t section, BindingKit *kit);
+    void addBindingRow(QWidget *parent, QGridLayout *grid, int gridRow, size_t section, const spn::ui::BindingRow &row,
+                       const ButtonRowEnv &env, const std::vector<std::string> &offered);
+    void addBindingRowFor(QWidget *parent, QGridLayout *grid, int gridRow, size_t section, int n);
     QWidget *buildModeInfo(size_t section);
     QWidget *buildOverrides(size_t section);
     void problem(const QString &text);  // a message for the status bar
@@ -117,6 +132,7 @@ private:
     QLabel *headerIcon_ = nullptr, *headerName_ = nullptr, *headerKind_ = nullptr, *headerNote_ = nullptr;
     QTabWidget *tabs_;
     QScrollArea *general_ = nullptr, *buttons_ = nullptr, *overrides_ = nullptr;
+    ProfileMotionsView *motions_ = nullptr;
     ChannelsEditor *channels_ = nullptr;
     QPushButton *add_app_, *add_dev_;
     size_t shown_ = 0;  // section the tabs show

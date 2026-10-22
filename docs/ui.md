@@ -109,7 +109,8 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Category | Page (tab) | Content |
 |---|---|---|
 | Overview | Overview | Only summarizes and links: the state of the daemon, task buttons, quick actions (see "Overview quick actions" below) and one card per device or program profile with its joystick mode, a one-line summary of what it overrides and how many settings that are; "Open" shows the profile on the Profiles page. Every profile of the configuration has a card, a filter box narrows the list |
-| Profiles | Profiles | The list of profiles (Global first, then devices, then programs) and the editor of the selected one with the tabs General, Channels, Buttons and Overrides, see "Profiles" below |
+| Profiles | Profiles | The list of profiles (Global first, then devices, then programs) and the editor of the selected one with the tabs General, Channels, Buttons, Motions and buttons and Overrides, see "Profiles" below |
+| Modes | Editor | The visual editor at full width: choose a joystick mode, click a motion of the cap or a button and choose what it does from big action tiles; see "The Editor page" below. A built-in joystick mode is copied first ("Make my own copy") |
 | Modes | Joystick modes | The available joystick modes (built-in and files in the joystick modes folder), one row each with name, origin badge, one description line and six motion chips; the detail view shows the six motions as a panel, the buttons as chips and the profiles that use it. Actions: new, new from example, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every joystick mode the profiles that use it; a reminder that joystick mode files can press any key |
 | Modes | Button modes | The button mode files (`buttons/`): create, new from example, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
 | Modes | User modes | Your joystick mode files and button mode files in one list, each with a switch (on / off), where it is used and Remove; "Open folder" for both folders, see "User modes" below |
@@ -174,10 +175,72 @@ The switch writes `V_PUSH_ACTION` / `V_TILT_ACTION` (`H_...`) and the per-part k
 Overrides tab, where they have no effect while the channel is not split). The information popover of
 a joystick mode lists one line per part for a split channel.
 
-The editor has three tabs: Settings (name, description, the three channels), Buttons and
-Overrides. Each tab scrolls on its own; the problem list and the buttons "Open in text editor" and
+The editor has four tabs: Motions and buttons (the picture, below), Settings (name, description, the
+three channels), Buttons and Overrides. Each tab scrolls on its own; the problem list and the buttons "Open in text editor" and
 "Close editor" stay visible below the tabs. The selected tab is kept while you edit and when you
 open another joystick mode.
+
+### The Editor page
+
+The **Editor** page (category Modes, first tab) is the visual editor at full width, so the picture has room. At
+the top you choose the joystick mode; a built-in joystick mode is not a file, so the page says so and offers
+**Make my own copy** (a new file with its own name, chosen at once). Below, the "Motions and buttons" tab of the
+joystick mode editor (next section) and its Settings, Buttons and Overrides tabs for everything else. There is
+one scroll bar, the window's: the tabs do not scroll on their own here. When the window is too narrow for the
+picture and the inspector side by side, the inspector goes below the picture.
+
+### Motions and buttons (the picture)
+
+The first tab shows the cap and its six motions (push forward/back, push sideways, tilt forward/back,
+tilt sideways, twist, lift/press) and the numbered buttons of the device. Every motion and button is a
+box with its name and what it does in words ("Scroll", "Keys: Up / Down", "Off", "Not used",
+"Unassigned"); a muted item has a dashed outline and keeps its word, so nothing is shown by colour
+alone. Click an item, or move to it with the arrow keys (Enter goes to the inspector); the inspector next
+to the picture shows the selected item:
+
+- **A motion:** "What it does" is a grid of big tiles, one glance each: scroll up and down, scroll sideways,
+  zoom, Page up / Page down, arrow keys (up and down on the vertical motions, left and right on the others),
+  other keys (any key or chord per direction, set in the Keys box that appears: modifier check boxes and a key list, or **Press a key...**: click it and press the key or combination, which is taken over; Esc cancels, a modifier alone waits for its key, and a key dofscroll cannot send is refused in words), one key tap per push, do
+  nothing and as in the profile. The tile of the motion's action now is lit (thick border, bold text). The editor hides "channel" and "split": push and tilt of one channel with the same
+  action are written as `V_ACTION` / `H_ACTION`, different actions as `V_PUSH_ACTION` / `V_TILT_ACTION`
+  (`H_...`), the same keys the Settings tab writes. **Reverse direction** writes the existing sign
+  (`SCROLL_V_SIGN`, `SCROLL_H_SIGN`, `ZOOM_SIGN`, or `SCROLL_<V|H>_<PUSH|TILT>_SIGN` while the channel is
+  split) as `-1` and removes the line again. "Same as ..." copies the action of another motion, "Swap
+  with ..." exchanges two. "Tune this motion" (closed until used) edits sensitivity, dead zone, curve and
+  smoothing of that motion as overrides of the joystick mode.
+- **A channel mix written by hand** (an override such as `SCROLL_V_MIX = z`) is never changed by the
+  picture: a motion it does not use says "Not used: custom channel mix" and offers "Show in Settings tab".
+- **Lift / press** has no key of its own. The inspector adds it as a term to the mix of one channel
+  (`SCROLL_V_MIX = z + rx + y`, with a weight) and says in words that it is prone to false triggers when
+  the cap is grabbed or released. No built-in joystick mode uses it (`tests/test_no_lift_press.cpp`).
+- **A button:** the same button row as on the Buttons tab (the actions, the button modes, "Unbind").
+
+**Help where you work.** The line under the picture says in plain words what the selected item does, with
+the real rate from the channel processing at full deflection ("Vertical tilt: presses Page up or Page
+down, about 3 times a second at full deflection"); while Detect is on it follows the real deflection ("...,
+now: Page down, 2 a second"). Every element (motion, action, reverse, tuning, button, the picture) has a
+**?** button with a popover: what it is, the axis, an example and the file key (Esc closes it). **Start
+from a template** fills the three channels (Scroll and zoom, Page up and down, Arrow keys, Timeline, Zoom
+and pan); name, buttons and overrides stay. **Hints** name the cause of a likely mistake and have the fix as a
+button: a motion that does nothing ("Assign it"), two motions that press the same key, a channel mix of the
+joystick mode that differs from the profile's, a bound button the device does not have ("Unbind"). A
+guided tour (four steps: move the cap, pick an action, press a button, try the joystick mode) runs the
+first time the tab opens and from **Show me how**; with a device and a running daemon each step waits for
+the real movement or button press, otherwise (or with "Click it instead") you click. It is kept in
+`ui-progress.conf` (`motion_tour_seen`) and not shown again once finished or skipped. All of this works
+without hardware and without the daemon; only the "wait for your real movement" steps need them.
+
+**Detect by moving** selects the motion you move (the strongest axis wins, crosstalk and ties are ignored,
+the rules of the axis assistant) and the button you press. It needs the running daemon with the live feed and
+pauses the daemon's output only while it is on, with the state in words; switching it off or leaving the tab
+resumes the output at once. **Try this joystick mode** switches the running daemon to this joystick mode
+now, on all profiles (like the tray's menu; the saved file is applied), says "Trying: <name> on all
+profiles" and offers "Back to <previous joystick mode>".
+
+The buttons follow the device: the attached device if the daemon reports one, otherwise choose a model
+under "Device:" (SpaceMouse Compact 2 buttons, Pro 15, Enterprise 31) or get a plain numbered grid. The
+button positions are a schematic arrangement, not a copy of the device. The picture and the Settings tab
+edit the same form, so a change in one shows in the other at once.
 
 There is no Save or Revert button: a change is written by itself, a drop-down or switch at once,
 typed text about 600 ms after you stopped typing or when you leave the field. Only a valid file is
@@ -191,6 +254,23 @@ shortcut chords", are shown below the form. If the file changed on disk while yo
 editor asks before overwriting it (the one question that remains: "Overwrite it with your changes?").
 Switching to another joystick mode, "Close editor", leaving the page, closing the window and Quit
 write the last change first.
+
+### The picture in a profile and on the Button modes page
+
+The **Motions and buttons** tab of a profile (Global, device or program; between Buttons and Overrides) shows the
+same picture for that profile. The six motions say what the profile's joystick mode does with them, in words;
+that action belongs to the joystick mode, so the inspector points to the Joystick modes page. What the profile
+sets itself is edited here: for a motion the **tuning of its channel** (sensitivity, dead zone, direction,
+curve, smoothing) as overrides of the profile, each with where its value comes from ("Inherited from Global: 5",
+"Set in this profile (inherited: 5)") and an Inherit or Reset button; for a button the same button row as on
+the Buttons tab. A profile whose joystick mode brings its own button bindings shows the buttons read-only, as
+the Buttons tab does.
+
+The **Button modes** page has "Use it on a button": the buttons of the device with what the Global profile binds
+to each of them, no motions. Choose a button and **Use on this button** (its tooltip says which button mode and which button) binds the
+selected button mode to it in the Global profile (the same binding the Profiles page writes, saved by itself), **Unbind** removes
+the binding. A line says in words which buttons use the button mode now. Without an attached device the picture
+shows a numbered grid of eight buttons.
 
 ## Saving
 
@@ -290,7 +370,7 @@ device (see below), or the highest button it has seen when no device information
 
 ## User modes
 
-The User modes page (category Modes, third tab) lists the mode files of yours: the joystick mode files
+The User modes page (category Modes, fourth tab) lists the mode files of yours: the joystick mode files
 (`modes/*.conf`) and the button mode files (`buttons/*.conf`). A user mode is a plain file that the daemon's own
 loaders read with their checks and warnings; nothing is executed. Each row has
 

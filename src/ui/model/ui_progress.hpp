@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // What the user has already done in the interface, for the "Getting started" list of the Overview:
-// at the moment whether the axis assistant was applied once. Kept in its own small file next to
+// whether the axis assistant was applied once and whether the guided tour of the joystick mode editor was
+// shown (done or skipped). Kept in its own small file next to
 // the configuration (<config dir>/ui-progress.conf, "key = value" lines, written atomically with
 // user-only permissions), apart from the interface settings of ui_settings.hpp. No toolkit.
 #pragma once
@@ -13,7 +14,10 @@ namespace spn::ui {
 
 struct UiProgress {
     bool axisAssistantApplied = false;
-    bool operator==(const UiProgress &o) const { return axisAssistantApplied == o.axisAssistantApplied; }
+    bool motionTourSeen = false;  // the tour of the Motions and buttons tab ran to its end or was dismissed
+    bool operator==(const UiProgress &o) const {
+        return axisAssistantApplied == o.axisAssistantApplied && motionTourSeen == o.motionTourSeen;
+    }
 };
 
 // Same directory as the configuration file.
@@ -36,14 +40,16 @@ inline UiProgress parseUiProgress(const std::string &text) {
         pos = nl == std::string::npos ? text.size() : nl + 1;
         const size_t eq = line.find('=');
         if (eq == std::string::npos || line.empty() || line[0] == '#') continue;
-        if (trim(line.substr(0, eq)) == "axis_assistant_applied") p.axisAssistantApplied = trim(line.substr(eq + 1)) == "1";
+        const std::string key = trim(line.substr(0, eq)), value = trim(line.substr(eq + 1));
+        if (key == "axis_assistant_applied") p.axisAssistantApplied = value == "1";
+        if (key == "motion_tour_seen") p.motionTourSeen = value == "1";
     }
     return p;
 }
 
 inline std::string serializeUiProgress(const UiProgress &p) {
     return std::string("# dofscroll user interface progress\naxis_assistant_applied = ") +
-           (p.axisAssistantApplied ? "1" : "0") + "\n";
+           (p.axisAssistantApplied ? "1" : "0") + "\nmotion_tour_seen = " + (p.motionTourSeen ? "1" : "0") + "\n";
 }
 
 // Missing, unreadable, foreign-owned or oversized file: nothing done yet.
@@ -65,6 +71,14 @@ inline bool markAxisAssistantApplied(const std::string &path, std::string *err) 
     UiProgress p = loadUiProgress(path);
     if (p.axisAssistantApplied) return true;
     p.axisAssistantApplied = true;
+    return saveUiProgress(path, p, err);
+}
+
+// The guided tour of the Motions and buttons tab was finished or dismissed: it is not shown again.
+inline bool markMotionTourSeen(const std::string &path, std::string *err) {
+    UiProgress p = loadUiProgress(path);
+    if (p.motionTourSeen) return true;
+    p.motionTourSeen = true;
     return saveUiProgress(path, p, err);
 }
 

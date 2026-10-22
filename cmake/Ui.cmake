@@ -56,21 +56,30 @@ if(DOFSCROLL_UI)
     src/ui/qt/pages/log_dialog.hpp
     src/ui/qt/button_row.cpp
     src/ui/qt/button_row.hpp
+    src/ui/qt/key_capture.hpp
     src/ui/qt/key_combo.hpp
     src/ui/qt/pages/button_modes_page.cpp
+    src/ui/qt/pages/button_use_widget.cpp
+    src/ui/qt/pages/button_use_widget.hpp
     src/ui/qt/pages/button_modes_page.hpp
     src/ui/qt/pages/cycle_editor_widget.cpp
     src/ui/qt/pages/cycle_editor_widget.hpp
     src/ui/qt/pages/device_page.cpp
+    src/ui/qt/pages/editor_page.cpp
+    src/ui/qt/pages/editor_page.hpp
     src/ui/qt/pages/extensions_page.cpp
     src/ui/qt/pages/extensions_page.hpp
     src/ui/qt/pages/device_page.hpp
     src/ui/qt/pages/mode_editor_widget.cpp
+    src/ui/qt/pages/motion_editor.cpp
+    src/ui/qt/pages/motion_editor.hpp
     src/ui/qt/pages/mode_editor_widget.hpp
     src/ui/qt/pages/modes_page.cpp
     src/ui/qt/pages/overview_page.cpp
     src/ui/qt/pages/overview_page.hpp
     src/ui/qt/pages/modes_page.hpp
+    src/ui/qt/pages/profile_motions_view.cpp
+    src/ui/qt/pages/profile_motions_view.hpp
     src/ui/qt/pages/profiles_page.cpp
     src/ui/qt/pages/profiles_page.hpp
     src/ui/qt/pages/profiles_env.hpp

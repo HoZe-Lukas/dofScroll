@@ -651,7 +651,7 @@ by a file). Assessment and limits:
   list; each output backend must map every entry) and the three mouse buttons. A mode file
   cannot send arbitrary key codes. Keys such as Ctrl, Alt or Super are on the list, so a
   malicious mode file (A2/A4: written by the same user or taken over from a stranger) can make
-  a device button type shortcuts. Treat mode files like any script you run: only take over mode
+  a device button type shortcuts. The list also holds the media keys and `print` (on Linux the same key code as SysRq; the kernel's magic SysRq functions need Alt and a second key and are usually disabled). Treat mode files like any script you run: only take over mode
   files you have read. For A2 under X11 this adds nothing beyond XTest, but it does for A4 (a
   file from a stranger has no XTest access) and for the uinput backend. Chords are reachable too:
   Ctrl is held while a channel zooms, so a `keys:` action on another channel can send Ctrl+W or

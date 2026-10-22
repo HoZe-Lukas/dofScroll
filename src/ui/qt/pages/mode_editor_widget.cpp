@@ -26,6 +26,9 @@
 
 #include "button_row.hpp"
 #include "key_combo.hpp"
+#include "pages/motion_editor.hpp"
+#include "ui/model/overview_model.hpp"
+#include "ui/model/ui_progress.hpp"
 #include "ui_i18n.hpp"
 
 using namespace spn;
@@ -221,6 +224,58 @@ int ModeEditorWidget::addSplitChannel(QGridLayout *g, int row, const QString &la
     return used;
 }
 
+ButtonRowEnv ModeEditorWidget::buttonRowEnv(const ButtonModeSet &buttonModes) const {
+    ButtonRowEnv env;
+    env.context = BindingContext::Specific;  // mode bindings are mode-specific: every action is first-class
+    env.advancedOpen = true;
+    env.buttonModes = &buttonModes;
+    env.modeIds = bindingModeIds(loadModes(dir_, nullptr));
+    env.strings = ctx_.strings ? ctx_.strings : &ownStrings_;
+    env.showInherited = false;
+    env.resetText = T("Unbind");
+    env.resetTip = T("Remove this binding; the profile's binding for the button applies again");
+    return env;
+}
+
+// One button row of the shared editor for button n (the Buttons tab and the Motions and buttons tab).
+void ModeEditorWidget::addBindingRow(QWidget *parent, QGridLayout *grid, int gridRow, int n, const ButtonRowEnv &env) {
+    ModeForm &f = editor_.form();
+    BindingRow row;
+    row.number = n;
+    const std::string *act = f.button(n);
+    row.text = act ? *act : std::string("none");
+    row.valid = parseBinding(row.text, &row.binding);
+    row.overridden = act != nullptr;
+    const std::vector<std::string> modeIds = env.modeIds;
+    ButtonRowHandlers h;
+    h.choose = [this, n, row, modeIds](const ButtonChoice &c) {
+        ModeForm &mf = editor_.form();
+        if (c.type == ButtonChoice::Type::Inherit) {
+            mf.setButton(n, "none");
+        } else {
+            Binding b;
+            if (c.type == ButtonChoice::Type::ButtonMode) b = Binding{BindingKind::ButtonMode, c.id};
+            else b = withKind(row.binding, c.kind, modeIds);
+            const std::string text = composeBinding(b);
+            if (!text.empty()) mf.setButton(n, text);
+        }
+        rebuild();
+        edited(false);
+    };
+    h.setArgument = [this, n](const Binding &b) {
+        const std::string text = composeBinding(b);
+        if (!text.empty()) editor_.form().setButton(n, text);
+        rebuild();
+        edited(false);
+    };
+    h.reset = [this, n] {
+        editor_.form().setButton(n, "none");
+        rebuild();
+        edited(false);
+    };
+    addButtonRow(this, parent, grid, gridRow, row, env, h);
+}
+
 void ModeEditorWidget::rebuild() {
     ModeForm &f = editor_.form();
     title_->setText(QStringLiteral("<b>") + T("Edit joystick mode: %1").arg(qs8(f.id)).toHtmlEscaped() + QStringLiteral("</b>"));
@@ -234,6 +289,14 @@ void ModeEditorWidget::rebuild() {
         w->deleteLater();
     }
     auto newTab = [this](const char *id, const QString &label, QWidget **content) {
+        if (compact_) {
+            // on the Editor page the window scrolls, not every tab (one scroll bar, not two)
+            auto *page = new QWidget;
+            page->setProperty("tabId", QString::fromLatin1(id));
+            *content = page;
+            tabs_->addTab(page, label);
+            return new QVBoxLayout(page);
+        }
         auto *scroll = new QScrollArea;
         scroll->setWidgetResizable(true);
         scroll->setFrameShape(QFrame::NoFrame);
@@ -243,7 +306,50 @@ void ModeEditorWidget::rebuild() {
         tabs_->addTab(scroll, label);
         return new QVBoxLayout(*content);
     };
-    QWidget *content = nullptr, *buttonsPage = nullptr, *overridesPage = nullptr;
+    QWidget *motionsPage = nullptr, *content = nullptr, *buttonsPage = nullptr, *overridesPage = nullptr;
+    auto *mcol = newTab("motions", T("Motions and buttons"), &motionsPage);
+    {
+        MotionEditorEnv menv;
+        menv.form = &f;
+        menv.base = ctx_.settings ? ctx_.settings->effective(0) : Settings();
+        menv.strings = ctx_.strings ? ctx_.strings : &ownStrings_;
+        if (ctx_.status) menv.deviceName = ctx_.status->status().device;
+        menv.reportedButtons = ctx_.settings ? reportedOrDefaultButtons(ctx_.settings->buttonLimit()) : kUnknownDeviceButtons;
+        menv.changed = [this] {
+            rebuild();
+            edited(false);
+        };
+        menv.committed = [this] { edited(false); };
+        menv.typed = [this] { edited(true); };
+        menv.flush = [this] { flush(); };
+        menv.showTab = [this](const QString &id) { selectTab(id); };
+        // live parts: detect by moving, try, the guided tour
+        menv.runtimeDir = ctx_.runtimeDir;
+        menv.daemonRunning = [this] { return ctx_.status && ctx_.status->daemonRunning(); };
+        menv.activeMode = [this] { return ctx_.status ? ctx_.status->modeId() : std::string(); };
+        if (ctx_.runner)
+            menv.tryMode = [this](const std::string &id, std::string *err) { return requestActiveMode(ctx_.runtimeDir, *ctx_.runner, id, err); };
+        menv.uiProgressFile = ctx_.configPath.empty() ? std::string() : uiProgressPath(ctx_.configPath);
+        if (!motionTour_) {
+            motionTour_ = std::make_unique<TourModel>(false);
+            // shown the first time the tab opens; not again once it ran to its end or was dismissed
+            if (!menv.uiProgressFile.empty() && loadUiProgress(menv.uiProgressFile).motionTourSeen) motionTour_->dismiss();
+        }
+        menv.tour = motionTour_.get();
+        menv.detect = motionDetect_;
+        menv.detectChanged = [this](bool on) { motionDetect_ = on; };
+        menv.tryingFrom = motionTrying_;
+        menv.tryingChanged = [this](const std::string &from) { motionTrying_ = from; };
+        menv.addButtonRow = [this](QWidget *parent, QGridLayout *grid, int gridRow, int n) {
+            static thread_local ButtonModeSet keep;
+            keep = loadButtonModes(ctx_.buttonModesDir, nullptr);
+            addBindingRow(parent, grid, gridRow, n, buttonRowEnv(keep));
+        };
+        motionEditor_ = new MotionEditor(menv, motionSel_, motionsPage);
+        connect(motionEditor_, &MotionEditor::selectionChanged, this, [this](const QString &id) { motionSel_ = id; });
+        mcol->addWidget(motionEditor_);
+        mcol->addStretch(1);
+    }
     auto *col = newTab("settings", T("Settings"), &content);
 
     // Name and description
@@ -286,54 +392,11 @@ void ModeEditorWidget::rebuild() {
     bg->setColumnStretch(2, 1);
     bl->addLayout(bg);
     const ButtonModeSet buttonModes = loadButtonModes(ctx_.buttonModesDir, nullptr);
-    ButtonRowEnv env;
-    env.context = BindingContext::Specific;  // mode bindings are mode-specific: every action is first-class
-    env.advancedOpen = true;
-    env.buttonModes = &buttonModes;
-    env.modeIds = bindingModeIds(loadModes(dir_, nullptr));
-    env.strings = ctx_.strings ? ctx_.strings : &ownStrings_;
-    env.showInherited = false;
-    env.resetText = T("Unbind");
-    env.resetTip = T("Remove this binding; the profile's binding for the button applies again");
+    const ButtonRowEnv env = buttonRowEnv(buttonModes);
     int limit = ctx_.settings ? ctx_.settings->buttonLimit() : 8;
     for (const auto &b : f.buttons) limit = std::max(limit, b.first);
     limit = std::min(limit, 32);
-    const std::vector<std::string> modeIds = env.modeIds;
-    for (int n = 1; n <= limit; ++n) {
-        BindingRow row;
-        row.number = n;
-        const std::string *act = f.button(n);
-        row.text = act ? *act : std::string("none");
-        row.valid = parseBinding(row.text, &row.binding);
-        row.overridden = act != nullptr;
-        ButtonRowHandlers h;
-        h.choose = [this, n, row, modeIds](const ButtonChoice &c) {
-            ModeForm &mf = editor_.form();
-            if (c.type == ButtonChoice::Type::Inherit) {
-                mf.setButton(n, "none");
-            } else {
-                Binding b;
-                if (c.type == ButtonChoice::Type::ButtonMode) b = Binding{BindingKind::ButtonMode, c.id};
-                else b = withKind(row.binding, c.kind, modeIds);
-                const std::string text = composeBinding(b);
-                if (!text.empty()) mf.setButton(n, text);
-            }
-            rebuild();
-            edited(false);
-        };
-        h.setArgument = [this, n](const Binding &b) {
-            const std::string text = composeBinding(b);
-            if (!text.empty()) editor_.form().setButton(n, text);
-            rebuild();
-            edited(false);
-        };
-        h.reset = [this, n] {
-            editor_.form().setButton(n, "none");
-            rebuild();
-            edited(false);
-        };
-        addButtonRow(this, btBox, bg, n - 1, row, env, h);
-    }
+    for (int n = 1; n <= limit; ++n) addBindingRow(btBox, bg, n - 1, n, env);
     bcol->addWidget(btBox);
     bcol->addStretch(1);
 
@@ -422,6 +485,12 @@ QString ModeEditorWidget::problemText() const {
         t += where + QStringLiteral(": ") + qs8(x.message) + QLatin1Char('\n');
     }
     return t.trimmed();
+}
+
+void ModeEditorWidget::setCompact(bool on) {
+    compact_ = on;
+    title_->setVisible(!on);
+    closeBtn_->setVisible(!on);
 }
 
 void ModeEditorWidget::showProblems() {

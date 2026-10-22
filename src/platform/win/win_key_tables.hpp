@@ -60,6 +60,18 @@ inline WinKeySpec keyToWin(Key k) {
     case Key::F10: return {0x79, false, false};
     case Key::F11: return {0x7A, false, false};
     case Key::F12: return {0x7B, false, false};  // VK_F12
+    case Key::F13: return {0x7C, false, false};  // VK_F13..VK_F24
+    case Key::F14: return {0x7D, false, false};
+    case Key::F15: return {0x7E, false, false};
+    case Key::F16: return {0x7F, false, false};
+    case Key::F17: return {0x80, false, false};
+    case Key::F18: return {0x81, false, false};
+    case Key::F19: return {0x82, false, false};
+    case Key::F20: return {0x83, false, false};
+    case Key::F21: return {0x84, false, false};
+    case Key::F22: return {0x85, false, false};
+    case Key::F23: return {0x86, false, false};
+    case Key::F24: return {0x87, false, false};
     // Letters: VK_A..VK_Z are the ASCII upper-case codes.
     case Key::A: return {0x41, false, false};
     case Key::B: return {0x42, false, false};
@@ -98,6 +110,43 @@ inline WinKeySpec keyToWin(Key k) {
     case Key::N7: return {0x37, false, false};
     case Key::N8: return {0x38, false, false};
     case Key::N9: return {0x39, false, false};
+    case Key::Kp0: return {0x60, false, false};
+    case Key::Kp1: return {0x61, false, false};
+    case Key::Kp2: return {0x62, false, false};
+    case Key::Kp3: return {0x63, false, false};
+    case Key::Kp4: return {0x64, false, false};
+    case Key::Kp5: return {0x65, false, false};
+    case Key::Kp6: return {0x66, false, false};
+    case Key::Kp7: return {0x67, false, false};
+    case Key::Kp8: return {0x68, false, false};
+    case Key::Kp9: return {0x69, false, false};
+    case Key::KpEnter: return {0x0D, true, false};
+    case Key::KpMultiply: return {0x6A, false, false};
+    case Key::KpDivide: return {0x6F, true, false};
+    case Key::KpDecimal: return {0x6E, false, false};
+    case Key::Comma: return {0xBC, false, false};
+    case Key::Period: return {0xBE, false, false};
+    case Key::Slash: return {0xBF, false, false};
+    case Key::Backslash: return {0xDC, false, false};
+    case Key::Semicolon: return {0xBA, false, false};
+    case Key::Apostrophe: return {0xDE, false, false};
+    case Key::BracketLeft: return {0xDB, false, false};
+    case Key::BracketRight: return {0xDD, false, false};
+    case Key::Grave: return {0xC0, false, false};
+    case Key::Equal: return {0xBB, false, false};
+    case Key::CapsLock: return {0x14, false, false};
+    case Key::Print: return {0x2C, true, false};
+    case Key::ScrollLock: return {0x91, false, false};
+    case Key::Pause: return {0x13, false, false};
+    case Key::Menu: return {0x5D, true, false};
+    case Key::NumLock: return {0x90, true, false};
+    case Key::PlayPause: return {0xB3, false, false};
+    case Key::MediaNext: return {0xB0, false, false};
+    case Key::MediaPrev: return {0xB1, false, false};
+    case Key::MediaStop: return {0xB2, false, false};
+    case Key::VolumeUp: return {0xAF, false, false};
+    case Key::VolumeDown: return {0xAE, false, false};
+    case Key::VolumeMute: return {0xAD, false, false};
     case Key::Count_: break;
     }
     return {};

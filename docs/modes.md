@@ -251,9 +251,15 @@ Names are lower case.
 | Modifiers | `ctrl`, `shift`, `alt`, `super` |
 | Arrows and navigation | `up`, `down`, `left`, `right`, `home`, `end`, `pageup`, `pagedown`, `insert`, `delete` |
 | Editing | `space`, `enter`, `esc`, `tab`, `backspace` |
-| Function keys | `f1` to `f12` |
+| Function keys | `f1` to `f24` (on macOS only `f1` to `f20`) |
 | Letters and digits | `a` to `z`, `0` to `9` |
 | Plus and minus | `plus`, `minus` (main keyboard), `kp_plus`, `kp_minus` (keypad) |
+| Keypad | `kp_0` to `kp_9`, `kp_enter`, `kp_plus`, `kp_minus`, `kp_multiply`, `kp_divide`, `kp_decimal` |
+| Punctuation | `comma`, `period`, `slash`, `backslash`, `semicolon`, `apostrophe`, `bracket_left`, `bracket_right`, `grave`, `equal` (the key at its US-layout place) |
+| System keys | `caps_lock`, `print`, `scroll_lock`, `pause`, `menu`, `num_lock` |
+| Media keys | `play_pause`, `media_next`, `media_prev`, `media_stop`, `volume_up`, `volume_down`, `volume_mute` |
+
+On macOS Apple has no key codes for `f21` to `f24`, `print`, `scroll_lock`, `pause`, `num_lock` and the media keys, so these are not sent there (the other keys are).
 
 `plus` is the main-keyboard plus. On X11 it is resolved from the keyboard layout. On uinput it
 is sent as Shift and `=` (a US-style layout is assumed). `kp_plus` and `kp_minus` are the keypad keys and
@@ -375,7 +381,10 @@ for vertical scroll, both sideways movements (`x`, `rz`) for horizontal scroll a
 for zoom; `ZOOM_LATERAL` lists `x z rx rz`. A joystick mode file must not put `y` into a
 `*_MIX` or `ZOOM_LATERAL` override unless its `DESCRIPTION` says so (mention "lift/press").
 You can still choose `y` for a channel in your own configuration; it stays prone to false
-triggers, and the Channels page shows a warning next to an axis mix that uses `y`. `tests/test_no_lift_press.cpp` scans the built-in joystick modes, the seeded default
+triggers, and the Channels page shows a warning next to an axis mix that uses `y`. In the joystick mode editor's
+"Motions and buttons" tab lift/press can be added to a channel mix as a term (with a weight and the same warning); it
+writes `SCROLL_V_MIX = z + rx + y` (or `SCROLL_H_MIX`, `ZOOM_MIX`) as an override of that joystick mode, nothing else.
+`tests/test_no_lift_press.cpp` scans the built-in joystick modes, the seeded default
 configuration and the documented defaults and fails when `y` appears there.
 
 ## Switching a file off
@@ -404,7 +413,7 @@ program (examples/buttons) are not checked: only files in your folders.
 Only use joystick mode files from sources you trust, and read a file before you copy it into
 `~/.config/dofscroll/modes/`. When you review one, look for:
 
-- `key:` bindings, especially `ctrl`, `alt`, `super`, `shift`, `delete`, `esc`, `enter` and `f1` to `f12`.
+- `key:` bindings, especially `ctrl`, `alt`, `super`, `shift`, `delete`, `esc`, `enter` and `f1` to `f24`.
 - `keys:<negative>,<positive>` actions on `V_ACTION`, `H_ACTION` or `TWIST_ACTION`, especially
   letters and digits, or in combination with a `zoom` channel (Ctrl is held then).
 - `zoom` on any channel, because it holds Ctrl.
@@ -430,8 +439,11 @@ device inactive. To get out of it, use the tray menu "Joystick mode", a `mode:ne
 In the interface the "Split push and tilt" switch of a channel in the in-page editor does the same (see `docs/ui.md`).
 
 The interface can do the same without a text editor: on the Joystick modes page, "Edit" opens an in-page
-editor for name, channels, buttons and overrides (see [ui.md](ui.md#editing-a-joystick-mode)). The file
-stays plain text; the editor keeps comments and lines it does not know.
+editor for name, channels, buttons and overrides (see [ui.md](ui.md#editing-a-joystick-mode)); its first tab shows
+the cap with the six motions and the device buttons and lets you assign an action by clicking one (push and tilt
+with the same action are written as `V_ACTION` / `H_ACTION`, different actions as the split keys; reversing a
+direction writes the sign, for example `SCROLL_V_SIGN = -1`). The file stays plain text; the editor keeps
+comments and lines it does not know.
 
 ## Editing joystick modes from the tray
 

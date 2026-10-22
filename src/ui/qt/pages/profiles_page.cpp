@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "profiles_page.hpp"
 
+#include "pages/profile_motions_view.hpp"
+
 #include <algorithm>
 #include <cstdlib>
 
@@ -210,8 +212,16 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     tabs_->addTab(general_, T("General"));
     tabs_->addTab(channels_, T("Channels"));
     tabs_->addTab(buttons_, T("Buttons"));
+    motions_ = new ProfileMotionsView(
+        ctx_, [this](QWidget *host, QGridLayout *grid, int gridRow, size_t sec, int n) { addBindingRowFor(host, grid, gridRow, sec, n); }, tabs_);
+    motions_->changed = [this] { queueRebuild(); };
+    {   // scrolls on its own like the other tabs: the page must fit the default window
+        QScrollArea *motionsArea = makeArea("motions");
+        motionsArea->setWidget(motions_);
+        tabs_->addTab(motionsArea, T("Motions and buttons"));
+    }
     tabs_->addTab(overrides_, T("Overrides"));
-    tabs_->setTabToolTip(3, T("Advanced: every value this profile sets itself"));
+    tabs_->setTabToolTip(tabs_->count() - 1, T("Advanced: every value this profile sets itself"));
 
     split->addWidget(left);
     split->addWidget(right);
@@ -486,6 +496,9 @@ void ProfilesPage::rebuildContent() {
     const bool filtering = !settingsFilter_->text().isEmpty();
     const ProfilePageLayout layout = profilePageLayout(*ctx_.settings, section);
 
+    // Motions and buttons: the picture of this profile.
+    motions_->setSection(section, profilePageLayout(*ctx_.settings, section).bindingEditor);
+
     // Channels: the persistent editor shows this profile.
     channels_->setSection(section);
     channels_->setFilter(settingsFilter_->text());
@@ -753,6 +766,76 @@ QWidget *ProfilesPage::buildEnabled(size_t section) {
     return box;
 }
 
+// The modes a button row offers and the env of the shared row for a profile section.
+ButtonRowEnv ProfilesPage::makeBindingEnv(size_t section, BindingKit *kit) {
+    const BindingContext ctxKind = bindingContextOf(section);
+    // Joystick modes offered by "Switch to mode": every installed one (built-in and files).
+    kit->modes = loadModes(ctx_.modesDir, nullptr);
+    kit->offered = bindingModeIds(kit->modes);
+    kit->buttonModes = loadButtonModes(ctx_.buttonModesDir, nullptr);
+    ButtonRowEnv env;
+    env.context = ctxKind;
+    env.advancedOpen = !hasAdvancedSection(ctxKind) || advancedOpen_;
+    env.buttonModes = &kit->buttonModes;
+    env.modeIds = kit->offered;
+    env.strings = ctx_.strings;
+    {   // the description of every joystick mode is the tooltip of its entry
+        const spn::ui::IdentityStrings fallback;
+        const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
+        for (const ModeDef &m : kit->modes.modes) env.modeTips[m.id] = spn::ui::joystickModeTooltip(m, strings);
+    }
+    // kMaxButtons: the device is not known, so there is no real count to name
+    env.deviceButtons = ctx_.settings->buttonLimit() < int(spn::kMaxButtons) ? ctx_.settings->buttonLimit() : 0;
+    env.resetText = section == 0 ? T("Unbind") : T("Inherit");
+    env.resetTip = section == 0 ? T("Remove this binding")
+                                : T("Reset to inherited: remove this profile's own binding");
+    return env;
+}
+
+// One button row of the profile `section` (the Buttons tab and the Motions and buttons tab).
+void ProfilesPage::addBindingRow(QWidget *parent, QGridLayout *grid, int gridRow, size_t section, const BindingRow &row,
+                                 const ButtonRowEnv &env, const std::vector<std::string> &offered) {
+    auto changed = [this](bool ok, const std::string &err) {
+        if (ok) ctx_.saveSoon();
+        else if (!err.empty()) problem(qs8(err));
+        queueRebuild();
+    };
+    ButtonRowHandlers h;
+    h.choose = [this, section, row, offered, changed](const ButtonChoice &c) {
+        std::string err;
+        const bool ok = applyButtonChoice(*ctx_.settings, section, row, c, offered, &err);
+        changed(ok, err);
+    };
+    h.setArgument = [this, section, row, changed](const Binding &b) {
+        std::string err;
+        const bool ok = applyBinding(*ctx_.settings, section, row.number, b, &err);
+        changed(ok, err);
+    };
+    h.reset = [this, section, row, changed] {
+        ctx_.settings->clearButton(section, row.number);
+        changed(true, std::string());
+    };
+    addButtonRow(this, parent, grid, gridRow, row, env, h);
+}
+
+// The row of button n with its origin words, for the Motions and buttons tab.
+void ProfilesPage::addBindingRowFor(QWidget *parent, QGridLayout *grid, int gridRow, size_t section, int n) {
+    BindingRow row;
+    bool found = false;
+    for (const BindingRow &r : bindingRows(*ctx_.settings, section))
+        if (r.number == n) {
+            row = r;
+            found = true;
+        }
+    if (!found) return;
+    const spn::ui::IdentityStrings fallback;
+    const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
+    row.origin = spn::ui::originBadgeText(spn::ui::buttonOrigin(*ctx_.settings, section, n), strings);
+    BindingKit kit;
+    const ButtonRowEnv env = makeBindingEnv(section, &kit);
+    addBindingRow(parent, grid, gridRow, section, row, env, kit.offered);
+}
+
 QWidget *ProfilesPage::buildBindings(size_t section) {
     const BindingContext ctxKind = bindingContextOf(section);
     const std::vector<BindingRow> allRows = bindingRows(*ctx_.settings, section);
@@ -791,52 +874,10 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
     grid->setColumnStretch(2, 1);
     outer->addLayout(grid);
 
-    // Joystick modes offered by "Switch to mode": every installed one (built-in and files).
-    const ModeSet installedModes = loadModes(ctx_.modesDir, nullptr);
-    const std::vector<std::string> offered = bindingModeIds(installedModes);
-    const ButtonModeSet buttonModes = loadButtonModes(ctx_.buttonModesDir, nullptr);
-
-    ButtonRowEnv env;
-    env.context = ctxKind;
-    env.advancedOpen = !hasAdvancedSection(ctxKind) || advancedOpen_;
-    env.buttonModes = &buttonModes;
-    env.modeIds = offered;
-    env.strings = ctx_.strings;
-    {   // the description of every joystick mode is the tooltip of its entry
-        const spn::ui::IdentityStrings fallback;
-        const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
-        for (const ModeDef &m : installedModes.modes) env.modeTips[m.id] = spn::ui::joystickModeTooltip(m, strings);
-    }
-    // kMaxButtons: the device is not known, so there is no real count to name
-    env.deviceButtons = ctx_.settings->buttonLimit() < int(spn::kMaxButtons) ? ctx_.settings->buttonLimit() : 0;
-    env.resetText = section == 0 ? T("Unbind") : T("Inherit");
-    env.resetTip = section == 0 ? T("Remove this binding")
-                                : T("Reset to inherited: remove this profile's own binding");
-    auto changed = [this](bool ok, const std::string &err) {
-        if (ok) ctx_.saveSoon();
-        else if (!err.empty()) problem(qs8(err));
-        queueRebuild();
-    };
+    BindingKit kit;
+    const ButtonRowEnv env = makeBindingEnv(section, &kit);
     int r = 0;
-    for (const BindingRow &row : rows) {
-        ButtonRowHandlers h;
-        h.choose = [this, section, row, offered, changed](const ButtonChoice &c) {
-            std::string err;
-            const bool ok = applyButtonChoice(*ctx_.settings, section, row, c, offered, &err);
-            changed(ok, err);
-        };
-        h.setArgument = [this, section, row, changed](const Binding &b) {
-            std::string err;
-            const bool ok = applyBinding(*ctx_.settings, section, row.number, b, &err);
-            changed(ok, err);
-        };
-        h.reset = [this, section, row, changed] {
-            ctx_.settings->clearButton(section, row.number);
-            changed(true, std::string());
-        };
-        addButtonRow(this, box, grid, r, row, env, h);
-        ++r;
-    }
+    for (const BindingRow &row : rows) addBindingRow(box, grid, r++, section, row, env, kit.offered);
 
     // Global only: plain key/click bindings behind a collapsed section with a short hint.
     if (hasAdvancedSection(ctxKind)) {

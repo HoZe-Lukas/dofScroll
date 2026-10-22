@@ -7,6 +7,7 @@
 #include "pages/axes_page.hpp"
 #include "pages/button_modes_page.hpp"
 #include "pages/device_page.hpp"
+#include "pages/editor_page.hpp"
 #include "pages/extensions_page.hpp"
 #include "pages/general_page.hpp"
 #include "pages/modes_page.hpp"
@@ -22,6 +23,7 @@ const std::vector<PageFactory> &pageFactories() {
     static const std::vector<PageFactory> factories = {
         {"overview", "Overview", "overview", createOverviewPage},
         {"profiles", "Profiles", "profiles", createProfilesPage},
+        {"editor", "Editor", "modes", createEditorPage},
         {"modes", terms::kJoystickModes, "modes", makeModesPage},
         {"buttonmodes", terms::kButtonModes, "modes", createButtonModesPage},
         {"extensions", "User modes", "modes", createExtensionsPage},

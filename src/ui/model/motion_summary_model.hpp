@@ -54,6 +54,7 @@ inline std::string motionGlyph(const std::string &symbol) {
     if (symbol == "keys") return "\xE2\x8C\xA8";      // keyboard
     if (symbol == "step") return "\xE2\x87\xA5";      // arrow to bar (one tap)
     if (symbol == "off") return "\xE2\x8A\x98";       // circled slash
+    if (symbol == "lift_in") return "+";              // lift / press added to another motion
     return "\xE2\x80\x93";                            // en dash: not used
 }
 

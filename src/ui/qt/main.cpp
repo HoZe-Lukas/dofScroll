@@ -5,6 +5,8 @@
 #include <QSessionManager>
 #include <QDir>
 #include <QCheckBox>
+#include <QMouseEvent>
+#include <QRadioButton>
 #include <QImage>
 #include <QKeyEvent>
 #include <QPainter>
@@ -69,6 +71,11 @@
 #include "pages/profiles_env.hpp"
 #include "pages/button_modes_page.hpp"
 #include "pages/cycle_editor_widget.hpp"
+#include "pages/editor_page.hpp"
+#include "pages/motion_editor.hpp"
+#include "key_capture.hpp"
+#include "pages/profile_motions_view.hpp"
+#include "pages/button_use_widget.hpp"
 #include "autosaver.hpp"
 #include "described_item_delegate.hpp"
 #include "info_popup.hpp"
@@ -658,9 +665,9 @@ static bool modeEditorTabsSelfTest(const UiContext &ctx) {
     settle();
     check(page.selectMode(QStringLiteral("mine")) && page.openEditor() && page.editorWidget(), "the editor opens");
     ModeEditorWidget *ed = page.editorWidget();
-    check(ed->tabIds() == QStringList({QStringLiteral("settings"), QStringLiteral("buttons"), QStringLiteral("overrides")}),
-          "Settings, Buttons and Overrides");
-    check(ed->currentTabId() == QStringLiteral("settings"), "the first tab is Settings");
+    check(ed->tabIds() == QStringList({QStringLiteral("motions"), QStringLiteral("settings"), QStringLiteral("buttons"), QStringLiteral("overrides")}),
+          "Motions and buttons, Settings, Buttons and Overrides");
+    check(ed->currentTabId() == QStringLiteral("motions"), "the first tab is Motions and buttons");
     for (const QString &name : {QStringLiteral("Save"), QStringLiteral("Revert")})
         for (QPushButton *c : ed->findChildren<QPushButton *>()) check(c->text() != name, "no Save or Revert button");
     check(!ed->pending(), "an unchanged joystick mode has nothing to write");
@@ -676,6 +683,392 @@ static bool modeEditorTabsSelfTest(const UiContext &ctx) {
     ed->selectTab(QStringLiteral("overrides"));
     QLineEdit *ov = lineEditNamed(ed, QStringLiteral("SCROLL_V_SENS"));
     check(ov && ov->text() == QStringLiteral("2"), "the Overrides tab shows the saved override");
+    return ok;
+}
+
+// Motions and buttons tab (issue #143): the picture, selection by click and by keyboard, assigning through the
+// inspector (split and collapse of push and tilt), reverse direction, lift/press, a button, and that every
+// edit is written by the autosave.
+static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "motion editor self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    auto fileText = [&](const QString &rel) {
+        QFile f(tmpPath + rel);
+        return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+    };
+    auto waitFor = [](const std::function<bool()> &done, int ms) {
+        QElapsedTimer t;
+        t.start();
+        while (!done() && t.elapsed() < ms) QApplication::processEvents(QEventLoop::AllEvents, 20);
+        return done();
+    };
+    const QString rel = QStringLiteral("/modes/motionsdemo.conf");
+    {
+        QFile f(tmpPath + rel);
+        if (!f.open(QIODevice::WriteOnly)) return false;
+        f.write("# demo\nNAME = Motions demo\nV_ACTION = wheel_v\nBUTTON_1 = key:space\n");
+    }
+    ModesPage page(ctx);
+    page.show();
+    settle();
+    page.refreshIfChanged();
+    check(page.selectMode(QStringLiteral("motionsdemo")) && page.openEditor() && page.editorWidget(), "the editor opens");
+    ModeEditorWidget *ed = page.editorWidget();
+    if (!ed) return false;
+    auto me = [&]() { return ed->motionEditor(); };
+    auto radio = [&](const QString &label) -> QToolButton * {  // an action tile of the inspector
+        for (QToolButton *r : me()->inspector()->findChildren<QToolButton *>())
+            if (r->accessibleName() == label && r->isCheckable()) return r;
+        return nullptr;
+    };
+    auto sel = [&](const QString &id) {
+        const bool r = me()->select(id);
+        settle();  // widgets added to a shown layout are shown by a queued call
+        return r;
+    };
+    auto settleWrite = [&] { settle(); return waitFor([&] { return !ed->pending(); }, 3000); };
+    check(ed->currentTabId() == QStringLiteral("motions") && me() && me()->picture(), "the picture is the first tab");
+    // six motions and the buttons of the device (no device attached: a generic grid from the settings)
+    int motions = 0, buttons = 0;
+    for (const MotionPicture::Item &it : me()->picture()->items()) (it.id.startsWith(QLatin1String("m:")) ? motions : buttons)++;
+    check(motions == 6 && buttons >= 1, "six motions and the buttons are drawn");
+    for (const MotionPicture::Item &it : me()->picture()->items()) check(!it.text.isEmpty() && it.rect.width() >= 24 && it.rect.height() >= 24, "every item has words and a 24 px target");
+    for (int i = 0; i < me()->picture()->items().size(); ++i)
+        for (int j = 0; j < i; ++j)
+            check(!me()->picture()->items()[i].rect.intersects(me()->picture()->items()[j].rect), "no two items overlap");
+
+    check(me()->tourText().startsWith(QStringLiteral("Step 1 of 4")), "the guided tour starts the first time the tab opens");
+    // select by click
+    {
+        MotionPicture *pic = me()->picture();
+        const QPoint at = pic->itemRect(QStringLiteral("m:h_tilt")).center();
+        QMouseEvent press(QEvent::MouseButtonPress, QPointF(at), QPointF(pic->mapToGlobal(at)), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(pic, &press);
+        check(me()->selectedId() == QStringLiteral("m:h_tilt") && me()->inspectorTitle().contains(QStringLiteral("Horizontal tilt")), "a click selects a motion");
+        check(me()->tourText().startsWith(QStringLiteral("Step 2 of 4")), "without a device a click completes step 1 of the tour");
+    }
+    // select by keyboard: arrows move between the items, Enter goes to the inspector
+    {
+        MotionPicture *pic = me()->picture();
+        pic->setCurrent(QStringLiteral("m:v_push"));
+        pic->setFocus();
+        auto key = [&](int k) {
+            QKeyEvent e(QEvent::KeyPress, k, Qt::NoModifier);
+            QApplication::sendEvent(pic, &e);
+        };
+        key(Qt::Key_Right);
+        check(me()->selectedId() == QStringLiteral("m:v_tilt"), "the right arrow goes to the tilt");
+        key(Qt::Key_Down);
+        check(me()->selectedId() == QStringLiteral("m:h_tilt"), "the down arrow goes down");
+        key(Qt::Key_Left);
+        key(Qt::Key_Up);
+        check(me()->selectedId() == QStringLiteral("m:v_push"), "and back");
+        key(Qt::Key_Return);
+        settle();
+    }
+
+    // assign: tilt keys -> the channel splits; push the same -> back to the unsplit key
+    sel(QStringLiteral("m:v_tilt"));
+    QToolButton *keys = radio(QStringLiteral("Other keys"));
+    check(keys != nullptr, "the inspector offers the action cards");
+    if (keys) keys->click();
+    check(settleWrite() && fileText(rel).contains(QStringLiteral("V_TILT_ACTION = keys:up,down")) && fileText(rel).contains(QStringLiteral("V_PUSH_ACTION = wheel_v")),
+          "assigning keys to the tilt splits the channel and keeps the push");
+    check(me()->tourText().startsWith(QStringLiteral("Step 3 of 4")), "assigning an action completes step 2 of the tour");
+    check(fileText(rel).contains(QStringLiteral("# demo")), "comments stay");
+    check(me()->selectedId() == QStringLiteral("m:v_tilt"), "the selection survives the rebuild");
+    sel(QStringLiteral("m:v_push"));
+    keys = radio(QStringLiteral("Other keys"));
+    if (keys) keys->click();
+    check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")) && !fileText(rel).contains(QStringLiteral("V_TILT_ACTION")) &&
+              !fileText(rel).contains(QStringLiteral("V_PUSH_ACTION")),
+          "the same action on push and tilt is the unsplit key");
+    // the Settings tab shows the same
+    {
+        ed->selectTab(QStringLiteral("settings"));
+        settle();
+        QComboBox *vk = nullptr;
+        for (QComboBox *cb : ed->findChildren<QComboBox *>())
+            if (cb->accessibleName() == QStringLiteral("Vertical push") && cb->isVisibleTo(ed)) vk = cb;
+        check(vk && vk->currentData().toInt() == int(spn::ChannelActionType::Keys), "the Settings tab shows the same action");
+        ed->selectTab(QStringLiteral("motions"));
+        settle();
+    }
+    // reverse direction
+    sel(QStringLiteral("m:v_push"));
+    QCheckBox *rev = nullptr;
+    for (QCheckBox *cb : me()->inspector()->findChildren<QCheckBox *>())
+        if (cb->accessibleName() == QStringLiteral("Vertical push: Reverse direction")) rev = cb;
+    check(rev != nullptr, "the inspector has a reverse switch");
+    if (rev) rev->click();
+    check(settleWrite() && fileText(rel).contains(QStringLiteral("SCROLL_V_SIGN = -1")), "reverse writes the sign");
+    sel(QStringLiteral("m:v_push"));
+    for (QCheckBox *cb : me()->inspector()->findChildren<QCheckBox *>())
+        if (cb->accessibleName() == QStringLiteral("Vertical push: Reverse direction")) rev = cb;
+    check(rev && rev->isChecked(), "and the switch shows it");
+    if (rev) rev->click();
+    check(settleWrite() && !fileText(rel).contains(QStringLiteral("SCROLL_V_SIGN")), "switching it off removes the line");
+    // lift / press: a warning in words, and it joins a channel mix
+    sel(QStringLiteral("m:lift"));
+    {
+        bool warned = false;
+        for (QLabel *l : me()->inspector()->findChildren<QLabel *>()) warned = warned || l->text().contains(QStringLiteral("false triggers"));
+        check(warned, "lift / press says in words that it is prone to false triggers");
+        QComboBox *where = nullptr;
+        for (QComboBox *cb : me()->inspector()->findChildren<QComboBox *>())
+            if (cb->accessibleName() == QStringLiteral("Add lift / press to")) where = cb;
+        check(where != nullptr, "lift / press can be added to a motion");
+        if (where) {
+            where->setCurrentIndex(1);
+            emit where->activated(1);
+        }
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("SCROLL_V_MIX = z + rx + y")), "it is written as a term of the channel mix");
+        check(!ed->problemText().isEmpty() == false, "the result is valid");
+    }
+    // back to not used
+    sel(QStringLiteral("m:lift"));
+    {
+        QComboBox *where = nullptr;
+        for (QComboBox *cb : me()->inspector()->findChildren<QComboBox *>())
+            if (cb->accessibleName() == QStringLiteral("Add lift / press to")) where = cb;
+        if (where) {
+            where->setCurrentIndex(0);
+            emit where->activated(0);
+        }
+        check(settleWrite() && !fileText(rel).contains(QStringLiteral("SCROLL_V_MIX")), "not used removes the mix again");
+    }
+    // the tiles: the lit one is what the motion does, and a ready choice writes its keys
+    sel(QStringLiteral("m:v_push"));
+    {
+        QToolButton *lit = radio(QStringLiteral("Arrow keys"));
+        check(lit && lit->isChecked(), "the tile of the motion's action is lit (up / down on a vertical motion: the arrow keys)");
+        QToolButton *pages = radio(QStringLiteral("Page up / Page down"));
+        check(pages != nullptr && !pages->isChecked(), "a ready choice for page up and down");
+        if (pages) pages->click();
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_PUSH_ACTION = keys:pageup,pagedown")) && fileText(rel).contains(QStringLiteral("V_TILT_ACTION = keys:up,down")),
+              "it writes the keys for the push; the tilt keeps its arrow keys");
+        sel(QStringLiteral("m:v_push"));
+        pages = radio(QStringLiteral("Page up / Page down"));
+        check(pages && pages->isChecked(), "and is lit afterwards");
+        QToolButton *arrows = radio(QStringLiteral("Arrow keys"));
+        if (arrows) arrows->click();
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")) && !fileText(rel).contains(QStringLiteral("V_PUSH_ACTION")),
+              "arrow keys on a vertical motion are up and down, and push and tilt are one again");
+    }
+    // press a key instead of choosing it: "Press a key..." takes the key and the modifiers
+    {
+        sel(QStringLiteral("m:v_push"));
+        auto captureButton = [&](const QString &dir) -> KeyCaptureButton * {
+            for (KeyCaptureButton *b : me()->inspector()->findChildren<KeyCaptureButton *>())
+                if (b->accessibleName().contains(dir + QStringLiteral(": Press a key"))) return b;
+            return nullptr;
+        };
+        KeyCaptureButton *neg = captureButton(QStringLiteral("negative"));
+        check(neg != nullptr && captureButton(QStringLiteral("positive")) != nullptr, "each direction has a Press a key button");
+        if (neg) {
+            neg->click();
+            check(neg->capturing() && neg->text().contains(QStringLiteral("Press the key")), "clicking it waits for the key, in words");
+            QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+            neg->press(&esc);
+            check(!neg->capturing(), "Esc cancels");
+            neg->click();
+            QKeyEvent ctrlOnly(QEvent::KeyPress, Qt::Key_Control, Qt::ControlModifier);
+            neg->press(&ctrlOnly);
+            check(neg->capturing(), "a modifier alone keeps waiting");
+#ifdef Q_OS_MACOS
+            const Qt::KeyboardModifier ctrlKey = Qt::MetaModifier;  // Qt swaps Ctrl and Cmd on macOS; the field swaps them back
+#else
+            const Qt::KeyboardModifier ctrlKey = Qt::ControlModifier;
+#endif
+            QKeyEvent combo(QEvent::KeyPress, Qt::Key_PageUp, ctrlKey);
+            neg->press(&combo);
+        }
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:ctrl+pageup,down")), "the pressed combination is written");
+        {   // the function keys up to F24 are known (F13 to F24 for macros)
+            for (int n : {1, 12, 13, 24}) {
+                QKeyEvent fk(QEvent::KeyPress, Qt::Key_F1 + n - 1, Qt::NoModifier);
+                check(captureKeyName(&fk) == "f" + std::to_string(n), "the key F1 to F24 is known");
+            }
+        }
+        {   // the complete list: keypad, punctuation, system and media keys are known
+            struct K { int qt; Qt::KeyboardModifiers m; const char *name; };
+            const K listed[] = {{Qt::Key_5, Qt::KeypadModifier, "kp_5"}, {Qt::Key_Enter, Qt::KeypadModifier, "kp_enter"},
+                              {Qt::Key_Comma, Qt::NoModifier, "comma"}, {Qt::Key_QuoteLeft, Qt::NoModifier, "grave"},
+                              {Qt::Key_CapsLock, Qt::NoModifier, "caps_lock"}, {Qt::Key_VolumeUp, Qt::NoModifier, "volume_up"},
+                              {Qt::Key_MediaNext, Qt::NoModifier, "media_next"}};
+            for (const K &k : listed) {
+                QKeyEvent ev(QEvent::KeyPress, k.qt, k.m);
+                check(captureKeyName(&ev) == k.name, "the key from the complete list is known");
+            }
+        }
+        sel(QStringLiteral("m:v_push"));
+        neg = captureButton(QStringLiteral("negative"));
+        if (neg) {
+            neg->click();
+            QKeyEvent caps(QEvent::KeyPress, Qt::Key_Help, Qt::NoModifier);
+            neg->press(&caps);
+            check(!neg->capturing(), "a key that cannot be sent ends the capture");
+            bool said = false;
+            for (QLabel *l : me()->inspector()->findChildren<QLabel *>()) said = said || (l->text().contains(QStringLiteral("cannot send this key")) && l->isVisibleTo(me()));
+            settle();
+            for (QLabel *l : me()->inspector()->findChildren<QLabel *>()) said = said || (l->text().contains(QStringLiteral("cannot send this key")) && !l->isHidden());
+            check(said, "and says so in words");
+        }
+        check(fileText(rel).contains(QStringLiteral("V_ACTION = keys:ctrl+pageup,down")), "the chord stays as it was");
+        // back to up / down for the steps that follow: push and tilt both get the arrow keys, which is one action again
+        QToolButton *arrows = radio(QStringLiteral("Arrow keys"));
+        if (arrows) arrows->click();
+        settleWrite();
+        sel(QStringLiteral("m:v_tilt"));
+        arrows = radio(QStringLiteral("Arrow keys"));
+        if (arrows) arrows->click();
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")) && !fileText(rel).contains(QStringLiteral("V_PUSH_ACTION")), "back to the arrow keys");
+    }
+    // the live sentence names the keys and a rate; every element has a "?" popover
+    sel(QStringLiteral("m:v_tilt"));
+    check(me()->liveSentence().contains(QStringLiteral("Vertical tilt: presses Up or Down, about")), "the sentence under the picture says what the motion does");
+    {
+        QToolButton *help = nullptr;
+        for (QToolButton *tb : me()->inspector()->findChildren<QToolButton *>())
+            if (tb->text() == QStringLiteral("?") && tb->accessibleName().contains(QStringLiteral("Vertical tilt"))) help = tb;
+        check(help != nullptr, "the motion has a ? button");
+        if (help) {
+            help->click();
+            check(InfoPopup::openText().contains(QStringLiteral("axis rx")) && InfoPopup::openText().contains(QStringLiteral("V_TILT_ACTION")),
+                  "the popover says what it is, the axis and the file key");
+            for (QWidget *w : QApplication::topLevelWidgets())
+                if (w->objectName() == QLatin1String("infoPopup")) w->close();
+        }
+        int helps = 0;
+        for (QToolButton *tb : me()->inspector()->findChildren<QToolButton *>()) helps += tb->text() == QStringLiteral("?");
+        check(helps >= 1, "the motion has a ? button");
+    }
+    // a template fills the picture; a motion that does nothing gets a hint with its fix
+    {
+        QComboBox *tpl = nullptr;
+        for (QComboBox *cb : me()->findChildren<QComboBox *>())
+            if (cb->accessibleName() == QStringLiteral("Start from a template")) tpl = cb;
+        check(tpl != nullptr && tpl->count() == 6, "the template gallery lists five templates");
+        if (tpl) {
+            const int i = tpl->findText(QStringLiteral("Timeline"));
+            check(i >= 0, "a Timeline template");
+            emit tpl->activated(i);
+        }
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = none")) && fileText(rel).contains(QStringLiteral("TWIST_ACTION = step:left,right")) &&
+                  !fileText(rel).contains(QStringLiteral("V_TILT_ACTION")),
+              "the template writes the channels and leaves the split");
+        bool hint = false;
+        for (const QString &h : me()->hintTexts()) hint = hint || h == QStringLiteral("Vertical push does nothing in this joystick mode");
+        check(hint, "a motion that does nothing is named in a hint");
+        QPushButton *fix = nullptr;
+        for (QPushButton *b : me()->findChildren<QPushButton *>())
+            if (b->text() == QStringLiteral("Assign it") && b->accessibleName().contains(QStringLiteral("Vertical push"))) fix = b;
+        check(fix != nullptr, "the hint offers the fix as a button");
+        if (fix) fix->click();
+        check(me()->selectedId() == QStringLiteral("m:v_push"), "the fix selects the motion");
+        // back to the wheel for the following steps
+        QToolButton *wheel = radio(QStringLiteral("Scroll up and down"));
+        settle();
+        wheel = radio(QStringLiteral("Scroll up and down"));
+        if (wheel) wheel->click();
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_PUSH_ACTION = wheel_v")) && fileText(rel).contains(QStringLiteral("V_TILT_ACTION = none")),
+              "scroll on the push splits it from the tilt, which is still off");
+    }
+    // Detect by moving: the state in words, the motion you move and the button you press are selected
+    {
+        me()->setDetect(true);
+        check(me()->detecting() && me()->detectText().contains(QStringLiteral("Start the daemon to detect by moving")), "Detect says in words that the daemon is needed");
+        spn::RawAxes rest{};
+        spn::RawAxes tilt{};
+        tilt[spn::AX_RZ] = 300;
+        me()->injectSample(rest, 0);
+        for (int i = 0; i < 6; ++i) me()->injectSample(tilt, 0);
+        check(me()->selectedId() == QStringLiteral("m:h_tilt"), "moving the cap selects the motion");
+        sel(me()->selectedId());
+        for (int i = 0; i < 6; ++i) me()->injectSample(rest, 0);
+        me()->injectSample(rest, 0x1);
+        check(me()->selectedId() == QStringLiteral("b:1"), "pressing a button selects it");
+        me()->setDetect(false);
+        check(!me()->detecting() && me()->detectText().isEmpty(), "switching it off clears the state");
+        me()->injectSample(tilt, 0);  // ignored while off
+        check(me()->selectedId() == QStringLiteral("b:1"), "an off Detect selects nothing");
+    }
+    // Try this joystick mode: global, with the way back
+    {
+        QPushButton *tryBtn = nullptr;
+        for (QPushButton *b : me()->findChildren<QPushButton *>())
+            if (b->text() == QStringLiteral("Try this joystick mode")) tryBtn = b;
+        check(tryBtn != nullptr, "Try this joystick mode exists");
+        if (tryBtn) tryBtn->click();
+        settle();
+        check(me()->tryText().contains(QStringLiteral("Trying: Motions demo on all profiles")), "Trying says it in words, on all profiles");
+        QPushButton *back = nullptr;
+        for (QPushButton *b : me()->findChildren<QPushButton *>())
+            if (b->text().startsWith(QStringLiteral("Back to ")) && !b->isHidden()) back = b;
+        check(back != nullptr, "and offers the way back");
+        check(me()->tourText().contains(QStringLiteral("That is all")), "trying completes the tour");
+        check(spn::ui::loadUiProgress(spn::ui::uiProgressPath(ctx.configPath)).motionTourSeen, "a finished tour is not shown again");
+    }
+    // a button: the inspector is the shared button row
+    sel(QStringLiteral("b:1"));
+    check(me()->inspectorTitle().contains(QStringLiteral("Button 1")), "a button is selected");
+    check(!me()->inspector()->findChildren<QComboBox *>().isEmpty(), "the inspector has the shared button editor");
+    QFile::remove(tmpPath + rel);
+    page.refreshIfChanged();
+    std::printf("motion editor self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
+// Editor page (issue #143): the visual editor at full width with a joystick mode chooser; a built-in joystick mode is
+// copied before it is edited.
+static bool editorPageSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "editor page self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    auto waitFor = [](const std::function<bool()> &done, int ms) {
+        QElapsedTimer t;
+        t.start();
+        while (!done() && t.elapsed() < ms) QApplication::processEvents(QEventLoop::AllEvents, 20);
+        return done();
+    };
+    EditorPage page(ctx);
+    page.resize(1300, 800);
+    page.show();
+    settle();
+    check(page.chooser() && page.chooser()->count() >= 5, "the chooser lists the joystick modes");
+    check(page.selectMode(QStringLiteral("timeline")) && !page.canEdit(), "a built-in joystick mode is not a file");
+    check(page.copyButton()->isVisibleTo(&page) && !page.editorWidget()->isVisibleTo(&page), "it offers a copy and shows no editor");
+    check(page.note().contains(QStringLiteral("built-in")), "and says why");
+    check(page.makeCopy() && page.canEdit() && page.currentId() != QStringLiteral("timeline"), "Make my own copy chooses a new file");
+    settle();
+    const QString id = page.currentId();
+    check(QFile::exists(tmpPath + QStringLiteral("/modes/") + id + QStringLiteral(".conf")), "the copy is a file");
+    ModeEditorWidget *ed = page.editorWidget();
+    check(ed->isVisibleTo(&page) && ed->currentTabId() == QStringLiteral("motions") && ed->motionEditor() != nullptr, "the picture is shown at once");
+    check(!page.copyButton()->isVisibleTo(&page), "the copy button is gone for a file");
+    // an edit is written by itself
+    ed->motionEditor()->select(QStringLiteral("m:twist"));
+    settle();
+    QToolButton *off = nullptr;
+    for (QToolButton *b : ed->motionEditor()->inspector()->findChildren<QToolButton *>())
+        if (b->accessibleName() == QStringLiteral("Do nothing") && b->isCheckable()) off = b;
+    check(off != nullptr, "the action tiles are there");
+    if (off) off->click();
+    settle();
+    check(waitFor([&] { return !ed->pending(); }, 3000), "written by itself");
+    {
+        QFile f(tmpPath + QStringLiteral("/modes/") + id + QStringLiteral(".conf"));
+        check(f.open(QIODevice::ReadOnly) && QString::fromUtf8(f.readAll()).contains(QStringLiteral("TWIST_ACTION = none")), "the file holds the choice");
+    }  // closed here: Windows cannot remove an open file
+    // the other joystick modes of the chooser
+    check(page.selectMode(QStringLiteral("normal")) && !page.canEdit(), "choosing a built-in joystick mode again");
+    check(QFile::remove(tmpPath + QStringLiteral("/modes/") + id + QStringLiteral(".conf")), "the copy is removed again");
+    std::printf("editor page self-test: %s\n", ok ? "ok" : "failed");
     return ok;
 }
 
@@ -1450,7 +1843,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
     if (!page) return false;
     ChannelsEditor *ch = page->channelsEditor();
     const QStringList allTabs = {QStringLiteral("general"), QStringLiteral("channels"), QStringLiteral("buttons"),
-                                 QStringLiteral("overrides")};
+                                 QStringLiteral("motions"), QStringLiteral("overrides")};
 
     // the list: Global first, then the devices, then the programs, always next to the tabs
     const QStringList labels = page->profileListLabels();
@@ -1462,7 +1855,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
 
     // the same tabs for every profile; the header says which profile is edited
     for (size_t s : {size_t(0), size_t(1), size_t(2), size_t(3)}) {
-        check(page->selectSection(s) && page->tabIds() == allTabs, "General, Channels, Buttons and Overrides for every profile");
+        check(page->selectSection(s) && page->tabIds() == allTabs, "General, Channels, Buttons, Motions and buttons and Overrides for every profile");
         // the General tab shows what the profile does with the same six-motion panel as the Joystick modes page
         const QList<motionview::MotionGrid *> grids = findAllOf<motionview::MotionGrid>(page);
         if (s == 3) {  // blender has its output off: nothing is sent, so the panel is hidden with the joystick mode
@@ -1470,6 +1863,88 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         } else {
             check(!grids.isEmpty() && grids.last()->cardTexts().size() == 6 && grids.last()->cardTexts().value(0).startsWith(QStringLiteral("Vertical push")),
                   "the General tab of every profile with output on shows the six motions");
+        }
+    }
+    // Motions and buttons (issue #143, phase 4): the picture of the selected profile, tuning as overrides of the profile,
+    // buttons through the shared row, inheritance in words
+    {
+        check(page->selectSection(2) && page->selectTab(QStringLiteral("motions")), "program profile, Motions and buttons tab");
+        settle();
+        ProfileMotionsView *mv = page->motionsView();
+        check(mv != nullptr && mv->picture() != nullptr, "the tab has the picture");
+        if (mv) {
+            int motions = 0;
+            for (const MotionPicture::Item &it : mv->picture()->items()) motions += it.id.startsWith(QLatin1String("m:"));
+            check(motions == 6, "six motions are drawn");
+            check(mv->select(QStringLiteral("m:v_push")), "select the vertical push");
+            settle();
+            check(mv->inspectorTitle().contains(QStringLiteral("Vertical push")), "the inspector names the motion");
+            QLineEdit *sens = nullptr;
+            for (QLineEdit *e : mv->inspector()->findChildren<QLineEdit *>())
+                if (e->accessibleName() == QStringLiteral("Sensitivity")) sens = e;
+            check(sens != nullptr, "the inspector has the sensitivity of the channel");
+            bool inheritance = false;
+            for (QLabel *l : mv->inspector()->findChildren<QLabel *>())
+                inheritance = inheritance || l->text().startsWith(QStringLiteral("Inherited")) || l->text().startsWith(QStringLiteral("Set in this profile"));
+            check(inheritance, "where the value comes from is said in words");
+            auto originOf = [&](const QString &prefix) {
+                for (QLabel *l : mv->inspector()->findChildren<QLabel *>())
+                    if (l->text().startsWith(prefix)) return true;
+                return false;
+            };
+            if (sens) {
+                sens->setText(QStringLiteral("7"));
+                emit sens->textEdited(QStringLiteral("7"));
+                check(originOf(QStringLiteral("Set in this profile")), "typing writes an override of the profile and says so");
+                mv->setSection(2, true);  // as after the autosave: rebuilt from the model
+                settle();
+                QPushButton *inherit = nullptr;
+                for (QPushButton *b : mv->inspector()->findChildren<QPushButton *>())
+                    if (b->accessibleName() == QStringLiteral("Sensitivity: Inherit")) inherit = b;
+                check(inherit != nullptr && inherit->isEnabled(), "an override has an Inherit button");
+                if (inherit) inherit->click();
+                settle();
+                check(originOf(QStringLiteral("Inherited")), "Inherit removes the override");
+            }
+            // a button: the shared row (the Global profile always has the binding editor)
+            check(page->selectSection(0) && page->selectTab(QStringLiteral("motions")), "Global, Motions and buttons tab");
+            settle();
+            QString firstButton;
+            for (const MotionPicture::Item &it : mv->picture()->items())
+                if (it.id.startsWith(QLatin1String("b:")) && firstButton.isEmpty()) firstButton = it.id;
+            if (!firstButton.isEmpty()) {
+                check(mv->select(firstButton), "select a button");
+                settle();
+                check(mv->inspectorTitle().contains(QStringLiteral("Button")) && !mv->inspector()->findChildren<QComboBox *>().isEmpty(), "a button shows the shared row");
+            }
+            check(mv->select(QStringLiteral("m:lift")), "select lift / press");
+            settle();
+            bool noSettings = false;
+            for (QLabel *l : mv->inspector()->findChildren<QLabel *>()) noSettings = noSettings || l->text().contains(QStringLiteral("no settings of its own"));
+            check(noSettings, "lift / press has no tuning");
+        }
+    }
+    // Button modes page: the device buttons of the Global profile, bind the selected button mode to one of them
+    {
+        ButtonModesPage *bp = w.findChild<ButtonModesPage *>();
+        check(bp != nullptr && bp->useWidget() != nullptr, "the Button modes page has the buttons picture");
+        if (bp && bp->useWidget()) {
+            ButtonUseWidget *uw = bp->useWidget();
+            check(!bp->currentId().isEmpty() || bp->buttonModeCount() == 0 || bp->selectButtonMode(QStringLiteral("next-mode")), "a button mode is selected");
+            QString button;
+            for (const MotionPicture::Item &it : uw->picture()->items())
+                if (it.id.startsWith(QLatin1String("b:")) && button.isEmpty()) button = it.id;
+            check(!button.isEmpty() && uw->select(button), "a button can be selected in the picture");
+            for (const MotionPicture::Item &it : uw->picture()->items()) check(!it.id.startsWith(QLatin1String("m:")), "no motions on the Button modes page");
+            settle();
+            check(uw->useButton()->isEnabled() && uw->useButton()->toolTip().startsWith(QStringLiteral("Use \"")), "Use <button mode> on button n is offered");
+            uw->useButton()->click();
+            settle();
+            check(uw->status().startsWith(QStringLiteral("Used on buttons: ")) && uw->status().endsWith(QStringLiteral("(Global profile)")), "binding it is said in words");
+            check(uw->unbindButton()->isEnabled(), "and can be undone");
+            uw->unbindButton()->click();
+            settle();
+            check(uw->status().startsWith(QStringLiteral("Not used on a button")), "Unbind removes it");
         }
     }
     check(page->selectSection(0) && page->headerName() == QStringLiteral("Global") &&
@@ -1896,6 +2371,7 @@ static bool modeFilesAutosaveSelfTest(const UiContext &ctx, const QString &tmpPa
         }
         check(page.selectMode(QStringLiteral("mine")) && page.openEditor() && page.editorWidget(), "the editor opens");
         ModeEditorWidget *ed = page.editorWidget();
+        ed->selectTab(QStringLiteral("settings"));
         {
             QLineEdit *desc = lineEditNamed(ed, QStringLiteral("Description"));
             check(desc && desc->placeholderText() == QStringLiteral("No description"), "the description field is always there");
@@ -1975,6 +2451,7 @@ static bool modeFilesAutosaveSelfTest(const UiContext &ctx, const QString &tmpPa
         // split push and tilt (issue #100): the switch, the two action rows, the tuning fields, autosave
         {
             check(page.selectMode(QStringLiteral("mine")) && page.openEditor(), "reopen for the split test");
+            ed->selectTab(QStringLiteral("settings"));
             auto splitSwitch = [&](const QString &channel) -> QCheckBox * {
                 for (QCheckBox *cb : ed->findChildren<QCheckBox *>())
                     if (cb->accessibleName() == channel + QStringLiteral(": Split push and tilt")) return cb;
@@ -2686,6 +3163,41 @@ int main(int argc, char **argv) {
                 if (page.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-mode-editor.png"))) ++written;
             }
         }
+        {   // the Editor page: a joystick mode of the user, a motion selected, a button selected, a built-in one
+            for (const char *th : {"light", "dark"}) {
+                applyTheme(spn::ui::themeFromId(th));
+                EditorPage ep(ctx);
+                ep.resize(1500, 860);
+                ep.show();
+                settle();
+                if (ep.selectMode(QStringLiteral("slides")) && ep.editorWidget() && ep.editorWidget()->motionEditor()) {
+                    MotionEditor *me = ep.editorWidget()->motionEditor();
+                    me->select(QStringLiteral("m:v_push"));
+                    settle();
+                    if (ep.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-wide-editor-motion.png").arg(QString::fromLatin1(th)))) ++written;
+                    if (std::string(th) == "light") {
+                        ep.editorWidget()->motionEditor()->select(QStringLiteral("b:1"));
+                        settle();
+                        if (ep.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-editor-button.png"))) ++written;
+                        ep.editorWidget()->motionEditor()->select(QStringLiteral("m:lift"));
+                        settle();
+                        if (ep.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-editor-lift.png"))) ++written;
+                    }
+                }
+                if (std::string(th) == "light" && ep.selectMode(QStringLiteral("timeline"))) {
+                    settle();
+                    if (ep.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-editor-builtin.png"))) ++written;
+                }
+            }
+            applyTheme(spn::ui::themeFromId("light"));
+            EditorPage small(ctx);
+            small.resize(900, 640);
+            small.show();
+            settle();
+            small.selectMode(QStringLiteral("slides"));
+            settle();
+            if (small.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-medium-editor-motion.png"))) ++written;
+        }
         for (const char *th : {"light", "dark"}) {  // lists with a selected row, in both themes
             applyTheme(spn::ui::themeFromId(th));
             ModesPage page(ctx);
@@ -2785,6 +3297,8 @@ int main(int argc, char **argv) {
         w.show();
         if (!buttonModesSelfTest(ctx, tmp.path())) return 1;
         if (!modeEditorSelfTest(ctx, tmp.path())) return 1;
+        if (!motionEditorSelfTest(ctx, tmp.path())) return 1;
+        if (!editorPageSelfTest(ctx, tmp.path())) return 1;
         if (!modeFilesAutosaveSelfTest(ctx, tmp.path())) return 1;
         if (!examplesSelfTest(ctx, tmp.path())) return 1;
         if (!extensionsSelfTest(ctx, tmp.path())) return 1;
@@ -2816,7 +3330,7 @@ int main(int argc, char **argv) {
         bool tipsOk = static_cast<int>(tray.modeMenuToolTips().size()) == expectedModes;
         for (const QString &tip : tray.modeMenuToolTips()) tipsOk = tipsOk && !tip.isEmpty();
         if (!tipsOk) std::fprintf(stderr, "self-test failed: every entry of the tray's joystick mode menu carries the description as tooltip\n");
-        const bool ok = tipsOk && w.pageCount() == 8 && w.categoryCount() == 5 && w.profileCount() >= 0 &&
+        const bool ok = tipsOk && w.pageCount() == 9 && w.categoryCount() == 5 && w.profileCount() >= 0 &&
                         modes.modeCount() == expectedModes && tray.modeMenuCount() == expectedModes && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
         if (!overviewSelfTest(w)) return 1;

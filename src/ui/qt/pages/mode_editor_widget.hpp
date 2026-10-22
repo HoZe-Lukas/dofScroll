@@ -16,6 +16,7 @@
 
 #include "autosaver.hpp"
 #include "ui/model/mode_editor_model.hpp"
+#include "ui/model/tour_model.hpp"
 #include "qt_action_runner.hpp"
 #include "ui_context.hpp"
 
@@ -24,6 +25,9 @@ class QLabel;
 class QPlainTextEdit;
 class QPushButton;
 class QTabWidget;
+class MotionEditor;
+struct ButtonRowEnv;
+namespace spn { struct ButtonModeSet; }
 
 class ModeEditorWidget : public QWidget {
     Q_OBJECT
@@ -45,9 +49,12 @@ public:
     void setOverwriteAnswer(std::function<bool()> answer) { overwriteAnswer_ = std::move(answer); }
     Autosaver *autosaver() const { return saver_.get(); }
     QString problemText() const;  // what is wrong with the form now ("" = valid)
-    // Sub-tabs: settings (name, description, channels), buttons, overrides. The last one stays
+    // Sub-tabs: motions (the picture), settings (name, description, channels), buttons, overrides. The last one stays
     // selected while the form is rebuilt and when another mode is opened.
+    // The page that hosts the editor alone (Editor page): no title and no Close button.
+    void setCompact(bool on);
     QStringList tabIds() const;
+    MotionEditor *motionEditor() const { return motionEditor_; }
     QString currentTabId() const;
     bool selectTab(const QString &id);
 
@@ -63,6 +70,8 @@ private:
     int addSplitChannel(QGridLayout *g, int row, const QString &label, const QString &pushLabel, const QString &tiltLabel,
                         spn::ui::ChannelForm *channel, spn::ui::SplitForm *split, const char *prefix);
     void showProblems();
+    ButtonRowEnv buttonRowEnv(const spn::ButtonModeSet &buttonModes) const;
+    void addBindingRow(QWidget *parent, QGridLayout *grid, int gridRow, int n, const ButtonRowEnv &env);
     spn::ui::Autosave::Outcome finishWrite(const spn::ui::ModeEditor::SaveResult &r);
 
     UiContext ctx_;
@@ -70,7 +79,13 @@ private:
     spn::ui::ModeEditor editor_;
     std::string dir_;
     QTabWidget *tabs_ = nullptr;
-    QString lastTab_ = QStringLiteral("settings");
+    QString lastTab_ = QStringLiteral("motions");
+    QString motionSel_;  // the selected motion or button of the Motions and buttons tab, kept across rebuilds
+    bool compact_ = false;  // the Editor page: no scroll area per tab
+    MotionEditor *motionEditor_ = nullptr;
+    std::unique_ptr<spn::ui::TourModel> motionTour_;  // lives here so that it survives the rebuild after an edit
+    bool motionDetect_ = false;                      // Detect by moving was on
+    std::string motionTrying_;                       // the joystick mode before "Try this joystick mode" ("" = not trying)
     QLabel *title_ = nullptr, *problems_ = nullptr;
     QPlainTextEdit *warnings_ = nullptr;
     QPushButton *closeBtn_ = nullptr, *textBtn_ = nullptr;

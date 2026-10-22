@@ -23,7 +23,7 @@ namespace mac {
 constexpr int kMaxSteps = 200;
 inline int clampSteps(int n) { return n > kMaxSteps ? kMaxSteps : (n < -kMaxSteps ? -kMaxSteps : n); }
 
-// kVK_* code of a key (0xFFFF = unmapped, never the case for a valid Key).
+// kVK_* code of a key (0xFFFF = not available on macOS: F21 to F24, which Apple has no key codes for; the output skips them).
 inline uint16_t keyToKeycode(Key k) {
     switch (k) {
     case Key::Ctrl: return 0x3B;       // kVK_Control
@@ -61,6 +61,19 @@ inline uint16_t keyToKeycode(Key k) {
     case Key::F10: return 0x6D;        // kVK_F10
     case Key::F11: return 0x67;        // kVK_F11
     case Key::F12: return 0x6F;        // kVK_F12
+    case Key::F13: return 0x69;         // kVK_F13
+    case Key::F14: return 0x6B;         // kVK_F14
+    case Key::F15: return 0x71;         // kVK_F15
+    case Key::F16: return 0x6A;         // kVK_F16
+    case Key::F17: return 0x40;         // kVK_F17
+    case Key::F18: return 0x4F;         // kVK_F18
+    case Key::F19: return 0x50;         // kVK_F19
+    case Key::F20: return 0x5A;         // kVK_F20
+    // macOS has no virtual key codes above F20: these four are not sent there (0xFFFF, see below)
+    case Key::F21: return 0xFFFF;
+    case Key::F22: return 0xFFFF;
+    case Key::F23: return 0xFFFF;
+    case Key::F24: return 0xFFFF;
     case Key::A: return 0x00;          // kVK_ANSI_A
     case Key::B: return 0x0B;          // kVK_ANSI_B
     case Key::C: return 0x08;          // kVK_ANSI_C
@@ -97,6 +110,43 @@ inline uint16_t keyToKeycode(Key k) {
     case Key::N7: return 0x1A;         // kVK_ANSI_7
     case Key::N8: return 0x1C;         // kVK_ANSI_8
     case Key::N9: return 0x19;         // kVK_ANSI_9
+    case Key::Kp0: return 0x52;
+    case Key::Kp1: return 0x53;
+    case Key::Kp2: return 0x54;
+    case Key::Kp3: return 0x55;
+    case Key::Kp4: return 0x56;
+    case Key::Kp5: return 0x57;
+    case Key::Kp6: return 0x58;
+    case Key::Kp7: return 0x59;
+    case Key::Kp8: return 0x5B;
+    case Key::Kp9: return 0x5C;
+    case Key::KpEnter: return 0x4C;
+    case Key::KpMultiply: return 0x43;
+    case Key::KpDivide: return 0x4B;
+    case Key::KpDecimal: return 0x41;
+    case Key::Comma: return 0x2B;
+    case Key::Period: return 0x2F;
+    case Key::Slash: return 0x2C;
+    case Key::Backslash: return 0x2A;
+    case Key::Semicolon: return 0x29;
+    case Key::Apostrophe: return 0x27;
+    case Key::BracketLeft: return 0x21;
+    case Key::BracketRight: return 0x1E;
+    case Key::Grave: return 0x32;
+    case Key::Equal: return 0x18;
+    case Key::CapsLock: return 0x39;
+    case Key::Print: return 0xFFFF;  // no key code on macOS
+    case Key::ScrollLock: return 0xFFFF;  // no key code on macOS
+    case Key::Pause: return 0xFFFF;  // no key code on macOS
+    case Key::Menu: return 0x6E;
+    case Key::NumLock: return 0xFFFF;  // no key code on macOS
+    case Key::PlayPause: return 0xFFFF;  // no key code on macOS
+    case Key::MediaNext: return 0xFFFF;  // no key code on macOS
+    case Key::MediaPrev: return 0xFFFF;  // no key code on macOS
+    case Key::MediaStop: return 0xFFFF;  // no key code on macOS
+    case Key::VolumeUp: return 0xFFFF;  // no key code on macOS
+    case Key::VolumeDown: return 0xFFFF;  // no key code on macOS
+    case Key::VolumeMute: return 0xFFFF;  // no key code on macOS
     case Key::Count_: break;
     }
     return 0xFFFF;

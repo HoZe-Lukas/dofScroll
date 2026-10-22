@@ -15,13 +15,28 @@ using namespace spn::mac;
 
 int main() {
     std::set<uint16_t> codes;
+    size_t unavailable = 0;
     for (size_t i = 0; i < kKeyCount; ++i) {
         const Key k = static_cast<Key>(i);
         const uint16_t c = keyToKeycode(k);
-        assert(c != 0xFFFF && c < 0x80);  // virtual key codes are below 0x80
-        assert(codes.insert(c).second);   // no two keys share a code
+        if (c == 0xFFFF) {  // macOS has no key codes for F21 to F24, print, scroll lock, pause, num lock and the media keys
+            const bool none = (k >= Key::F21 && k <= Key::F24) || k == Key::Print || k == Key::ScrollLock || k == Key::Pause ||
+                              k == Key::NumLock || (k >= Key::PlayPause && k <= Key::VolumeMute);
+            assert(none);
+            ++unavailable;
+            continue;
+        }
+        if (k == Key::Equal) {  // "plus" is Shift + the code of "equal"
+            assert(c == keyToKeycode(Key::Plus));
+            continue;
+        }
+        assert(c < 0x80);                // virtual key codes are below 0x80
+        assert(codes.insert(c).second);  // no two keys share a code
     }
-    assert(codes.size() == kKeyCount);
+    assert(codes.size() == kKeyCount - unavailable - 1);  // minus "equal", which shares the code of "plus"
+    assert(unavailable == 4 + 4 + 7);
+    assert(keyToKeycode(Key::Kp0) == 0x52 && keyToKeycode(Key::KpEnter) == 0x4C && keyToKeycode(Key::Grave) == 0x32 && keyToKeycode(Key::CapsLock) == 0x39);
+    assert(keyToKeycode(Key::Equal) == 0x18 && !keyNeedsShift(Key::Equal));
 
     // spot checks against Carbon HIToolbox/Events.h
     assert(keyToKeycode(Key::A) == 0x00 && keyToKeycode(Key::Z) == 0x06 && keyToKeycode(Key::Space) == 0x31);
@@ -31,6 +46,8 @@ int main() {
     assert(keyToKeycode(Key::Ctrl) == 0x3B && keyToKeycode(Key::Shift) == 0x38);
     assert(keyToKeycode(Key::Alt) == 0x3A && keyToKeycode(Key::Super) == 0x37);
     assert(keyToKeycode(Key::F1) == 0x7A && keyToKeycode(Key::F12) == 0x6F);
+    assert(keyToKeycode(Key::F13) == 0x69 && keyToKeycode(Key::F20) == 0x5A);  // kVK_F13, kVK_F20
+    assert(keyToKeycode(Key::F21) == 0xFFFF && keyToKeycode(Key::F24) == 0xFFFF);
     assert(keyToKeycode(Key::Backspace) == 0x33 && keyToKeycode(Key::Delete) == 0x75);
 
     // plus / minus: main block vs keypad
