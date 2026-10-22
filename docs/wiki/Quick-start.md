@@ -9,7 +9,7 @@ The first five minutes on Linux (X11, the tested setup). This assumes you finish
 1. **Driver.** `systemctl status spacenavd` must be active. If not: `sudo systemctl enable --now spacenavd`. Plug in the SpaceMouse; `lsusb` should list a 3Dconnexion device.
 2. **Units.** `systemctl --user enable --now dofscroll.service dofscroll-ui.service`.
 3. **Check the log.** `journalctl --user -u dofscroll.service -f` shows the device name and button count when the device connects. You need the device name for `[device:*]` sections.
-4. **Try it.** Push the cap: the window under the pointer scrolls. Twist: zoom (Ctrl + scroll). Nothing happens? See [Troubleshooting](Troubleshooting).
+4. **Try it.** Push the cap: the window under the pointer scrolls. Twist: zoom (Ctrl + scroll; the key is `ZOOM_MODIFIER`). Scrolls the wrong way? See the [FAQ](FAQ). Nothing happens? See [Troubleshooting](Troubleshooting).
 5. **Tray.** Right-click the tray icon and open "Settings..." (the interface starts minimized, no window opens by itself): sensitivity, dead zone and direction per channel. Changes apply immediately. GNOME needs an AppIndicator extension to show the icon.
 
 ## What the seeded config gives you

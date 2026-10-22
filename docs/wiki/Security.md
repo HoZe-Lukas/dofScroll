@@ -15,6 +15,8 @@ dofscroll injects keyboard and mouse input into your session, so it protects the
 - **No root.** The daemon and the tray run as the user (systemd user units).
 - **systemd sandbox.** The user units are hardened (`NoNewPrivileges`, `ProtectSystem=strict`, syscall filter, address-family restriction and more). It is an accident-containment measure, not a security boundary.
 - **uinput is opt-in.** `/dev/uinput` acts below the display server, so anyone who can write to it can inject input into every session at the seat. The packages ship the udev rule only as an example. Do not use the `input` group, it exposes all keyboards. See [packaging/README-uinput.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/packaging/README-uinput.md).
+- **Helper programs from fixed directories.** The interface starts `systemctl` and `launchctl` (and PowerShell on Windows) only from fixed system directories, never through `PATH`; a helper that is not found is an error.
+- **Build and release pipeline.** The CI container images are pinned by digest, the Qt installer (aqtinstall) is installed with pinned hashes, and the release packages carry a build provenance attestation (`gh attestation verify`). A weekly job proposes a pull request that refreshes the pins. Details and what remains: section 14 of docs/security.md.
 - **Joystick mode files are code-like.** They can press any key from the key list, including modifier chords. Read them before use, see [Modes](Modes).
 - **Parser limits.** Config, joystick mode, button mode and device files have size and count limits and invalid values are rejected.
 - **Windows file layer.** The Windows file-system layer refuses reparse points and hazardous paths (documented in section 9 of docs/security.md; unverified on hardware).

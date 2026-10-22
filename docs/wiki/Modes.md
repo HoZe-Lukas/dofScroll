@@ -27,7 +27,7 @@ A SpaceMouse cap moves in six ways. Every joystick mode says what each of them d
 | 6. Lift / press | `y` | pull up / push down | none (only through a `y` term in a channel mix) | none |
 
 - A key that is not split gives push and tilt of its channel the same action: `V_ACTION` covers motions 1 and 2, `H_ACTION` motions 3 and 4. Set a split key to give push and tilt different jobs (see [Split push and tilt](#split-push-and-tilt) below).
-- `default` is the channel's normal behavior: vertical = scroll, horizontal = scroll sideways, twist = zoom (Ctrl plus the wheel).
+- `default` is the channel's normal behavior: vertical = scroll, horizontal = scroll sideways, twist = zoom (the zoom key plus the wheel: Ctrl unless `ZOOM_MODIFIER` says otherwise, for example `super` on macOS).
 - Lift / press is not used by any built-in joystick mode.
 - A joystick mode that sets none of these keys behaves like `normal`: every motion does its default.
 
@@ -69,7 +69,7 @@ The daemon reloads the directory when it changes (about a second), or run `syste
 | `default` | The channel's normal behavior (twist: zoom with dominance detection) |
 | `none` | Channel off |
 | `wheel_v`, `wheel_h` | Vertical or horizontal mouse wheel |
-| `zoom` | Hold Ctrl and send the mouse wheel |
+| `zoom` | Hold the zoom key (`ZOOM_MODIFIER`, default Ctrl) and send the mouse wheel |
 | `keys:<neg>,<pos>` | Key presses for negative and positive deflection; the rate follows the deflection. Each key can be a chord such as `ctrl+pageup` (up to four modifiers, then one key) |
 | `step:<neg>,<pos>` | One key tap per push (no repeat while held); fires at `STEP_TRIGGER` (steps per second after sensitivity, default 20) and re-arms at half of it. Same keys and chords as `keys:` |
 

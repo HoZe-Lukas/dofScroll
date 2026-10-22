@@ -93,7 +93,7 @@ Set per channel with `V_ACTION`, `H_ACTION` or `TWIST_ACTION`.
 | `none` | Channel off | `V_ACTION = none` |
 | `wheel_v` | Vertical mouse wheel | `H_ACTION = wheel_v` |
 | `wheel_h` | Horizontal mouse wheel | `V_ACTION = wheel_h` |
-| `zoom` | Holds Ctrl and sends the vertical wheel | `V_ACTION = zoom` |
+| `zoom` | Holds the zoom key (`ZOOM_MODIFIER`, default Ctrl) and sends the vertical wheel | `V_ACTION = zoom` |
 | `keys:<neg>,<pos>` | Key taps at the channel's rate, `<neg>` for negative, `<pos>` for positive deflection | `V_ACTION = keys:pageup,pagedown` |
 | `step:<neg>,<pos>` | One key tap per push (no repeat while held) | `V_ACTION = step:pageup,pagedown` |
 
