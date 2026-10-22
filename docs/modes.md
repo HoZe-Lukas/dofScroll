@@ -251,7 +251,7 @@ Names are lower case.
 | Modifiers | `ctrl`, `shift`, `alt`, `super` |
 | Arrows and navigation | `up`, `down`, `left`, `right`, `home`, `end`, `pageup`, `pagedown`, `insert`, `delete` |
 | Editing | `space`, `enter`, `esc`, `tab`, `backspace` |
-| Function keys | `f1` to `f12` |
+| Function keys | `f1` to `f24` (on macOS only `f1` to `f20`: Apple has no key codes above F20, so `f21` to `f24` are not sent there) |
 | Letters and digits | `a` to `z`, `0` to `9` |
 | Plus and minus | `plus`, `minus` (main keyboard), `kp_plus`, `kp_minus` (keypad) |
 
@@ -407,7 +407,7 @@ program (examples/buttons) are not checked: only files in your folders.
 Only use joystick mode files from sources you trust, and read a file before you copy it into
 `~/.config/dofscroll/modes/`. When you review one, look for:
 
-- `key:` bindings, especially `ctrl`, `alt`, `super`, `shift`, `delete`, `esc`, `enter` and `f1` to `f12`.
+- `key:` bindings, especially `ctrl`, `alt`, `super`, `shift`, `delete`, `esc`, `enter` and `f1` to `f24`.
 - `keys:<negative>,<positive>` actions on `V_ACTION`, `H_ACTION` or `TWIST_ACTION`, especially
   letters and digits, or in combination with a `zoom` channel (Ctrl is held then).
 - `zoom` on any channel, because it holds Ctrl.

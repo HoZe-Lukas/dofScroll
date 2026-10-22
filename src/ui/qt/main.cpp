@@ -882,6 +882,12 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
             neg->press(&combo);
         }
         check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:ctrl+pageup,down")), "the pressed combination is written");
+        {   // the function keys up to F24 are known (F13 to F24 for macros)
+            for (int n : {1, 12, 13, 24}) {
+                QKeyEvent fk(QEvent::KeyPress, Qt::Key_F1 + n - 1, Qt::NoModifier);
+                check(captureKeyName(&fk) == "f" + std::to_string(n), "the key F1 to F24 is known");
+            }
+        }
         sel(QStringLiteral("m:v_push"));
         neg = captureButton(QStringLiteral("negative"));
         if (neg) {

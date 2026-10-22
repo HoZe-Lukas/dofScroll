@@ -115,7 +115,7 @@ Keys are lower case. The full list (`src/keys.hpp`):
 | Modifiers | `ctrl`, `shift`, `alt`, `super` |
 | Arrows and navigation | `up`, `down`, `left`, `right`, `home`, `end`, `pageup`, `pagedown`, `insert`, `delete` |
 | Editing | `space`, `enter`, `esc`, `tab`, `backspace` |
-| Function keys | `f1` to `f12` |
+| Function keys | `f1` to `f24` (macOS: up to `f20`) |
 | Letters and digits | `a` to `z`, `0` to `9` |
 | Plus and minus | `plus`, `minus` (main keyboard), `kp_plus`, `kp_minus` (keypad) |
 

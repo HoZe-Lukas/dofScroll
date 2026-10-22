@@ -20,6 +20,8 @@ namespace spn {
     X(KpPlus, "kp_plus") X(KpMinus, "kp_minus")                                                \
     X(F1, "f1") X(F2, "f2") X(F3, "f3") X(F4, "f4") X(F5, "f5") X(F6, "f6") X(F7, "f7")        \
     X(F8, "f8") X(F9, "f9") X(F10, "f10") X(F11, "f11") X(F12, "f12")                          \
+    X(F13, "f13") X(F14, "f14") X(F15, "f15") X(F16, "f16") X(F17, "f17") X(F18, "f18")        \
+    X(F19, "f19") X(F20, "f20") X(F21, "f21") X(F22, "f22") X(F23, "f23") X(F24, "f24")        \
     X(A, "a") X(B, "b") X(C, "c") X(D, "d") X(E, "e") X(F, "f") X(G, "g") X(H, "h") X(I, "i")  \
     X(J, "j") X(K, "k") X(L, "l") X(M, "m") X(N, "n") X(O, "o") X(P, "p") X(Q, "q") X(R, "r")  \
     X(S, "s") X(T, "t") X(U, "u") X(V, "v") X(W, "w") X(X, "x") X(Y, "y") X(Z, "z")            \

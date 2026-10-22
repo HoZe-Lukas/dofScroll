@@ -213,7 +213,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     tabs_->addTab(channels_, T("Channels"));
     tabs_->addTab(buttons_, T("Buttons"));
     motions_ = new ProfileMotionsView(
-        ctx_, [this](QWidget *parent, QGridLayout *grid, int gridRow, size_t sec, int n) { addBindingRowFor(parent, grid, gridRow, sec, n); }, tabs_);
+        ctx_, [this](QWidget *host, QGridLayout *grid, int gridRow, size_t sec, int n) { addBindingRowFor(host, grid, gridRow, sec, n); }, tabs_);
     motions_->changed = [this] { queueRebuild(); };
     {   // scrolls on its own like the other tabs: the page must fit the default window
         QScrollArea *motionsArea = makeArea("motions");

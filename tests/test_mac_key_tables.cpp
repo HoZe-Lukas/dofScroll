@@ -18,10 +18,14 @@ int main() {
     for (size_t i = 0; i < kKeyCount; ++i) {
         const Key k = static_cast<Key>(i);
         const uint16_t c = keyToKeycode(k);
-        assert(c != 0xFFFF && c < 0x80);  // virtual key codes are below 0x80
-        assert(codes.insert(c).second);   // no two keys share a code
+        if (c == 0xFFFF) {  // only F21 to F24: macOS has no key codes for them
+            assert(k >= Key::F21 && k <= Key::F24);
+            continue;
+        }
+        assert(c < 0x80);                // virtual key codes are below 0x80
+        assert(codes.insert(c).second);  // no two keys share a code
     }
-    assert(codes.size() == kKeyCount);
+    assert(codes.size() == kKeyCount - 4);
 
     // spot checks against Carbon HIToolbox/Events.h
     assert(keyToKeycode(Key::A) == 0x00 && keyToKeycode(Key::Z) == 0x06 && keyToKeycode(Key::Space) == 0x31);
@@ -31,6 +35,8 @@ int main() {
     assert(keyToKeycode(Key::Ctrl) == 0x3B && keyToKeycode(Key::Shift) == 0x38);
     assert(keyToKeycode(Key::Alt) == 0x3A && keyToKeycode(Key::Super) == 0x37);
     assert(keyToKeycode(Key::F1) == 0x7A && keyToKeycode(Key::F12) == 0x6F);
+    assert(keyToKeycode(Key::F13) == 0x69 && keyToKeycode(Key::F20) == 0x5A);  // kVK_F13, kVK_F20
+    assert(keyToKeycode(Key::F21) == 0xFFFF && keyToKeycode(Key::F24) == 0xFFFF);
     assert(keyToKeycode(Key::Backspace) == 0x33 && keyToKeycode(Key::Delete) == 0x75);
 
     // plus / minus: main block vs keypad

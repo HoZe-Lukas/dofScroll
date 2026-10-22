@@ -21,7 +21,7 @@ inline std::string captureKeyName(const QKeyEvent *e) {
     const bool keypad = e->modifiers() & Qt::KeypadModifier;
     if (k >= Qt::Key_A && k <= Qt::Key_Z) return std::string(1, char('a' + (k - Qt::Key_A)));
     if (k >= Qt::Key_0 && k <= Qt::Key_9 && !keypad) return std::string(1, char('0' + (k - Qt::Key_0)));
-    if (k >= Qt::Key_F1 && k <= Qt::Key_F12) return "f" + std::to_string(k - Qt::Key_F1 + 1);
+    if (k >= Qt::Key_F1 && k <= Qt::Key_F24) return "f" + std::to_string(k - Qt::Key_F1 + 1);
     switch (k) {
         case Qt::Key_Up: return "up";
         case Qt::Key_Down: return "down";

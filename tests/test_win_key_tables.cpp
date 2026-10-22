@@ -33,7 +33,8 @@ int main() {
     assert(keyToWin(Key::A).vk == 'A' && keyToWin(Key::Z).vk == 'Z');
     assert(keyToWin(Key::N0).vk == '0' && keyToWin(Key::N9).vk == '9');
     assert(keyToWin(Key::F1).vk == 0x70 && keyToWin(Key::F12).vk == 0x7B);
-    for (int i = 0; i < 12; ++i) {
+    assert(keyToWin(Key::F13).vk == 0x7C && keyToWin(Key::F24).vk == 0x87);  // VK_F13 .. VK_F24
+    for (int i = 0; i < 24; ++i) {
         const Key k = static_cast<Key>(static_cast<int>(Key::F1) + i);
         assert(keyToWin(k).vk == 0x70 + i);
     }

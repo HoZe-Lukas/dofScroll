@@ -23,7 +23,7 @@ namespace mac {
 constexpr int kMaxSteps = 200;
 inline int clampSteps(int n) { return n > kMaxSteps ? kMaxSteps : (n < -kMaxSteps ? -kMaxSteps : n); }
 
-// kVK_* code of a key (0xFFFF = unmapped, never the case for a valid Key).
+// kVK_* code of a key (0xFFFF = not available on macOS: F21 to F24, which Apple has no key codes for; the output skips them).
 inline uint16_t keyToKeycode(Key k) {
     switch (k) {
     case Key::Ctrl: return 0x3B;       // kVK_Control
@@ -61,6 +61,19 @@ inline uint16_t keyToKeycode(Key k) {
     case Key::F10: return 0x6D;        // kVK_F10
     case Key::F11: return 0x67;        // kVK_F11
     case Key::F12: return 0x6F;        // kVK_F12
+    case Key::F13: return 0x69;         // kVK_F13
+    case Key::F14: return 0x6B;         // kVK_F14
+    case Key::F15: return 0x71;         // kVK_F15
+    case Key::F16: return 0x6A;         // kVK_F16
+    case Key::F17: return 0x40;         // kVK_F17
+    case Key::F18: return 0x4F;         // kVK_F18
+    case Key::F19: return 0x50;         // kVK_F19
+    case Key::F20: return 0x5A;         // kVK_F20
+    // macOS has no virtual key codes above F20: these four are not sent there (0xFFFF, see below)
+    case Key::F21: return 0xFFFF;
+    case Key::F22: return 0xFFFF;
+    case Key::F23: return 0xFFFF;
+    case Key::F24: return 0xFFFF;
     case Key::A: return 0x00;          // kVK_ANSI_A
     case Key::B: return 0x0B;          // kVK_ANSI_B
     case Key::C: return 0x08;          // kVK_ANSI_C

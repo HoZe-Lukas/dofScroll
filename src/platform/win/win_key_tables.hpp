@@ -60,6 +60,18 @@ inline WinKeySpec keyToWin(Key k) {
     case Key::F10: return {0x79, false, false};
     case Key::F11: return {0x7A, false, false};
     case Key::F12: return {0x7B, false, false};  // VK_F12
+    case Key::F13: return {0x7C, false, false};  // VK_F13..VK_F24
+    case Key::F14: return {0x7D, false, false};
+    case Key::F15: return {0x7E, false, false};
+    case Key::F16: return {0x7F, false, false};
+    case Key::F17: return {0x80, false, false};
+    case Key::F18: return {0x81, false, false};
+    case Key::F19: return {0x82, false, false};
+    case Key::F20: return {0x83, false, false};
+    case Key::F21: return {0x84, false, false};
+    case Key::F22: return {0x85, false, false};
+    case Key::F23: return {0x86, false, false};
+    case Key::F24: return {0x87, false, false};
     // Letters: VK_A..VK_Z are the ASCII upper-case codes.
     case Key::A: return {0x41, false, false};
     case Key::B: return {0x42, false, false};
