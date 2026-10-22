@@ -944,8 +944,8 @@ CI supply chain (issue #149), status after the fix:
 - Remains: aqtinstall verifies each Qt archive against a SHA-256 that it fetches from download.qt.io too, so a
   compromised Qt server could serve both; there is no independent per-archive hash of our own. The one source
   distribution in the aqtinstall closure (`patch`) is built by pip with an unpinned build backend (setuptools),
-  which `--require-hashes` does not cover. The pinned digests are refreshed by hand (a tampered image published
-  before a refresh is pinned as it is: review the weekly image build). Other jobs (`ci.yml` build and test,
+  which `--require-hashes` does not cover. The pins are refreshed weekly by a reviewed PR (`refresh-ci-pins.yml`, never auto-merged; a
+  tampered image published before a refresh would be pinned as it is, so review that PR and the weekly image build). Other jobs (`ci.yml` build and test,
   CodeQL) and the install smoke test still use the images by tag; they produce no release file. Windows and macOS
   runner images are GitHub's own and not pinned.
 

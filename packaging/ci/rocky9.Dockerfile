@@ -28,17 +28,17 @@ RUN dnf install -y epel-release \
 # packaging/qt.env, docs/release-process.md.
 FROM base AS qt
 COPY qt.env ci/aqt-requirements.txt /opt/
-RUN dnf install -y python3-pip patchelf file libglvnd-devel mesa-libGL-devel libxkbcommon-devel \
+RUN dnf install -y python3.11 python3.11-pip patchelf file libglvnd-devel mesa-libGL-devel libxkbcommon-devel \
       fontconfig-devel freetype-devel libX11-devel dbus-devel \
       fontconfig freetype harfbuzz libpng libxml2 dbus-libs glib2 libxkbcommon libxkbcommon-x11 \
       libxcb xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm xcb-util-cursor \
       libglvnd-glx libglvnd-egl libglvnd-opengl libwayland-client libwayland-cursor libwayland-egl \
       libXext \
  && . /opt/qt.env \
- && pip3 install --no-cache-dir --require-hashes --no-deps -r /opt/aqt-requirements.txt \
- && aqt install-qt linux desktop "${QT_VERSION}" linux_gcc_64 -O /opt/qt \
+ && python3.11 -m pip install --no-cache-dir --require-hashes --no-deps -r /opt/aqt-requirements.txt \
+ && python3.11 -m aqt install-qt linux desktop "${QT_VERSION}" linux_gcc_64 -O /opt/qt \
  && ln -s "/opt/qt/${QT_VERSION}/gcc_64" /opt/qt/current \
- && pip3 uninstall -y aqtinstall \
+ && python3.11 -m pip uninstall -y aqtinstall \
  && dnf clean all \
  && rm -rf /var/cache/dnf /root/.cache /root/aqtinstall.log
 ENV CMAKE_PREFIX_PATH=/opt/qt/current
