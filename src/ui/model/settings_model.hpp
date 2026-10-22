@@ -279,8 +279,12 @@ public:
             }
             if (!(m->v.type == ChannelActionType::Off && m->h.type == ChannelActionType::Off && m->twist.type == ChannelActionType::Off))
                 cand.push_back("INVERT_AXES");  // every mode that uses the axes (the preferred direction depends on the user and the program)
-            if (m->twist.type == ChannelActionType::Default || m->twist.type == ChannelActionType::Zoom || m->v.type == ChannelActionType::Zoom ||
-                m->h.type == ChannelActionType::Zoom)
+            auto zooms = [](const ChannelAction &a, const SplitChannel &sp) {
+                return a.type == ChannelActionType::Zoom ||
+                       (sp.active() && (sp.pushAction(a).type == ChannelActionType::Zoom || sp.tiltAction(a).type == ChannelActionType::Zoom));
+            };
+            if (m->twist.type == ChannelActionType::Default || m->twist.type == ChannelActionType::Zoom || zooms(m->v, m->vSplit) ||
+                zooms(m->h, m->hSplit))
                 cand.push_back("ZOOM_MODIFIER");  // the key differs per program (Cmd on macOS)
             if (m->twist.type == ChannelActionType::Default)
                 for (const char *k : {"ZOOM_LATERAL", "ZOOM_ENTER_MS", "ZOOM_EXIT_RATIO"}) cand.push_back(k);

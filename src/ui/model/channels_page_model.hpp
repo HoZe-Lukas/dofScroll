@@ -56,8 +56,7 @@ inline bool restoreAllDefaults(SettingsModel &m, size_t section) {
     return changed;
 }
 
-// INVERT_AXES as a bit set over the six axes (bit = Axis value), like ZOOM_LATERAL.
-// ZOOM_LATERAL as a bit set over the six axes (bit = Axis value).
+// ZOOM_LATERAL as a bit set over the six axes (bit = Axis value); lateralText also writes INVERT_AXES.
 inline unsigned lateralMask(const Settings &s) {
     unsigned m = 0;
     for (Axis a : s.zoom_lateral) m |= 1u << unsigned(a);

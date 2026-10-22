@@ -169,6 +169,7 @@ static void testDefaultsAndApplyKey() {
     assert(applyKey(s, "ZOOM_MODIFIER", "shift+Ctrl", &err) && s.zoom_modifier == (kZoomModCtrl | kZoomModShift));
     assert(zoomModifierToString(s.zoom_modifier) == "ctrl+shift");
     assert(applyKey(s, "ZOOM_MODIFIER", "none", &err) && s.zoom_modifier == 0 && zoomModifierToString(0) == "none");
+    assert(!applyKey(s, "ZOOM_MODIFIER", "none ctrl", &err) && s.zoom_modifier == 0);
     assert(!applyKey(s, "ZOOM_MODIFIER", "ctrl+foo", &err) && s.zoom_modifier == 0 && !err.empty());
     assert(applyKey(s, "NAV_BUTTON_ENABLED", "1", &err) && s.nav_button_enabled);
     assert(s.mode == "normal" && applyKey(s, "MODE", "Timeline", &err) && s.mode == "timeline");

@@ -221,16 +221,12 @@ void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, b
         }
     }
     prev_buttons_ = buttons;
-    if (s.invert_axes != 0) {  // INVERT_AXES: flip the chosen axes before any mix, split part or zoom detection sees them
-        RawAxes flipped = raw;
-        for (int a = 0; a < AX_COUNT; ++a)
-            if (s.invert_axes & (1u << a)) flipped[size_t(a)] = -flipped[size_t(a)];
-        if (legacy_) tickLegacy(s, flipped, buttons, fresh, dt);
-        else tickCustom(s, flipped, buttons, fresh, dt);
-        return;
-    }
-    if (legacy_) tickLegacy(s, raw, buttons, fresh, dt);
-    else tickCustom(s, raw, buttons, fresh, dt);
+    RawAxes axes = raw;
+    // INVERT_AXES: flip the chosen axes before any mix, split part or zoom detection sees them
+    for (int a = 0; a < AX_COUNT; ++a)
+        if (s.invert_axes & (1u << a)) axes[size_t(a)] = -axes[size_t(a)];
+    if (legacy_) tickLegacy(s, axes, buttons, fresh, dt);
+    else tickCustom(s, axes, buttons, fresh, dt);
 }
 
 // Legacy path: same logic as before modes existed, plus the mode's button bindings.

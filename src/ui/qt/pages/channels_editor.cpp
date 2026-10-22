@@ -624,7 +624,7 @@ void ChannelsEditor::addInvertAxes(QGridLayout *grid, int *row) {
             unsigned mask = 0;
             for (size_t i = 0; i < boxes->size(); ++i)
                 if ((*boxes)[i]->isChecked()) mask |= 1u << unsigned(i);
-            apply("INVERT_AXES", spn::ui::lateralText(mask), box, hl, help, false);
+            apply("INVERT_AXES", mask ? spn::ui::lateralText(mask) : std::string("none"), box, hl, help, false);
         });
     }
     bl->setColumnStretch(2, 1);

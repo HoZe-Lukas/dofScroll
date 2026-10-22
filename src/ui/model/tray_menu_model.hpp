@@ -160,7 +160,10 @@ inline bool performTrayAction(const TrayEntry &entry, ActionRunner &runner, cons
             // The daemon is restarted before the interface: restarting the interface may end this process.
             std::string ignored;
             runner.releaseKeys(&ignored);
-            if (!runner.restartDaemon(err)) return false;
+            // A failed daemon restart does not stop the interface restart (the new interface shows that the daemon
+            // is not running); only a failed interface restart is reported.
+            std::string daemonErr;
+            runner.restartDaemon(&daemonErr);
             if (!runner.restartInterface(err)) return false;
             if (h.quit) h.quit();
             return true;

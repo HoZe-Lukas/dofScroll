@@ -142,11 +142,16 @@ bool parseLateral(const std::string &text, std::vector<Axis> *out, std::string *
 
 bool parseZoomModifier(const std::string &text, unsigned *out, std::string *err) {
     unsigned mask = 0;
+    bool none = false;
     std::string cur;
     auto flush = [&]() -> bool {
         const std::string t = lower(trim(cur));
         cur.clear();
-        if (t.empty() || t == "none") return true;
+        if (t.empty()) return true;
+        if (t == "none") {
+            none = true;
+            return true;
+        }
         if (t == "ctrl" || t == "control") mask |= kZoomModCtrl;
         else if (t == "shift") mask |= kZoomModShift;
         else if (t == "alt" || t == "option") mask |= kZoomModAlt;
@@ -162,6 +167,7 @@ bool parseZoomModifier(const std::string &text, unsigned *out, std::string *err)
         }
     }
     if (!flush()) return false;
+    if (none && mask != 0) return setErr(err, "'none' cannot be combined with keys");
     *out = mask;
     return true;
 }

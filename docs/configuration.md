@@ -60,7 +60,7 @@ in the tray.
 | Key | Default | Meaning |
 |---|---|---|
 | `INVERT_AXES` | `none` | Axes whose direction is flipped before anything else sees them, in every joystick mode: a list of `x y z rx ry rz` (or `none`). Use it when pushing scrolls the wrong way but tilting is right (`INVERT_AXES = z`). Like every key it can be set per device and per program; the Channels tab has a check box per motion. The sign of a channel (`*_SIGN`) flips the whole channel instead. |
-| `ZOOM_MODIFIER` | `ctrl` | Keys held while a zoom action sends the mouse wheel: `ctrl`, `shift`, `alt`, `super` (the Command key on macOS; `cmd` is accepted), a combination such as `ctrl+shift`, or `none`. Set it per program or device where the zoom key differs, for example `super` on macOS. The joystick mode chips and cards show the keys of the profile they are shown for. |
+| `ZOOM_MODIFIER` | `ctrl` | Keys held while a zoom action sends the mouse wheel: `ctrl`, `shift`, `alt`, `super` (the Command key on macOS; `cmd` is accepted), a combination such as `ctrl+shift`, or `none`. Set it per program or device where the zoom key differs, for example `super` on macOS. `none` sends the plain wheel, so a twist scrolls instead of zooming. It affects only the mouse-wheel zoom action, not zoom done with `keys:`. The joystick mode chips and cards show the keys of the profile they are shown for. |
 | `ZOOM_LATERAL` | `x z rx rz` | Axes the twist must dominate to enter zoom. |
 | `ZOOM_ENTER_MS` | `40` | How long the twist must dominate before zoom latches. |
 | `ZOOM_EXIT_RATIO` | `1.5` | Zoom ends when another axis exceeds the twist by this factor (at least 1.0). |
