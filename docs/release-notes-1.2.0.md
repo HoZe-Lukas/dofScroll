@@ -63,6 +63,8 @@ it does in the inspector next to the picture.
 - **Big action tiles**: scroll, scroll sideways, zoom, Page up / Page down, arrow keys, other keys, nothing, as in the
   profile. For other keys, **Press a key...** takes the key or combination you press; the key list is complete now
   (keypad, punctuation, system and media keys, and F13 to F24 on every system, F13 to F20 on macOS).
+- **Drag and drop**: drag one motion in the picture onto another to swap the two, hold Ctrl (Cmd on macOS) while
+  dropping to copy; the lists in "More options" do the same from the keyboard.
 - **Reverse direction** per motion (writes the existing `*_SIGN` keys, also per part of a split channel), "Same as ..."
   and "Swap with ...", lift / press as a weighted mix term with a warning, tuning of a motion as overrides.
   Push and tilt of one channel with the same action are written as before (`V_ACTION`), different actions as the
