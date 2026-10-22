@@ -4291,3 +4291,7 @@ msgstr "Systemtasten"
 #: src/ui/model/key_list.hpp
 msgid "Media keys"
 msgstr "Medientasten"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Drag onto another motion to swap them, with Ctrl to copy."
+msgstr "Auf eine andere Bewegung ziehen, um beide zu tauschen; mit Strg kopieren."

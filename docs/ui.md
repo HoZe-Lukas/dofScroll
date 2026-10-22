@@ -206,7 +206,9 @@ to the picture shows the selected item:
   (`H_...`), the same keys the Settings tab writes. **Reverse direction** writes the existing sign
   (`SCROLL_V_SIGN`, `SCROLL_H_SIGN`, `ZOOM_SIGN`, or `SCROLL_<V|H>_<PUSH|TILT>_SIGN` while the channel is
   split) as `-1` and removes the line again. "Same as ..." copies the action of another motion, "Swap
-  with ..." exchanges two. "Tune this motion" (closed until used) edits sensitivity, dead zone, curve and
+  with ..." exchanges two. The same works with the mouse: drag one motion in the picture onto another to
+  swap them, hold Ctrl (Cmd on macOS) while dropping to copy (a dashed frame marks the motion the drop would
+  land on). Lift / press and the buttons cannot be dragged; the two lists are the way without a mouse. "Tune this motion" (closed until used) edits sensitivity, dead zone, curve and
   smoothing of that motion as overrides of the joystick mode.
 - **A channel mix written by hand** (an override such as `SCROLL_V_MIX = z`) is never changed by the
   picture: a motion it does not use says "Not used: custom channel mix" and offers "Show in Settings tab".

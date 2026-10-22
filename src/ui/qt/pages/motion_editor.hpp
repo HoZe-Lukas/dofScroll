@@ -10,6 +10,10 @@
 // inspector). Every state has a word (a muted, dashed item says "Not used" or "Unassigned"), never colour alone.
 // All lengths follow the font metrics, so the layout also holds at a large font size.
 #pragma once
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QElapsedTimer>
 #include <QLayout>
 #include <QLayoutItem>
@@ -79,7 +83,14 @@ public:
     bool hasHeightForWidth() const override { return true; }
     int heightForWidth(int w) const override;
 
+    // Drag and drop of one motion onto another (swap; Ctrl, on macOS Cmd, copies). `dropOn` is what a drop does and
+    // the test seam; the keyboard has "Same as" and "Swap with" in the inspector.
+    bool canDrag(const QString &id) const { return id.startsWith(QLatin1String("m:")) && id != QLatin1String("m:lift"); }
+    void dropOn(const QString &from, const QString &to, bool copy);
+    QString dropTarget() const { return dropTarget_; }
+
 signals:
+    void dropped(const QString &from, const QString &to, bool copy);
     void selected(const QString &id);   // clicked, or moved to with the arrow keys
     void activated(const QString &id);  // Enter or Space: go to the inspector
 
@@ -87,6 +98,12 @@ protected:
     void paintEvent(QPaintEvent *) override;
     void resizeEvent(QResizeEvent *) override;
     void mousePressEvent(QMouseEvent *) override;
+    void mouseMoveEvent(QMouseEvent *) override;
+    void mouseReleaseEvent(QMouseEvent *) override;
+    void dragEnterEvent(QDragEnterEvent *) override;
+    void dragMoveEvent(QDragMoveEvent *) override;
+    void dragLeaveEvent(QDragLeaveEvent *) override;
+    void dropEvent(QDropEvent *) override;
     void keyPressEvent(QKeyEvent *) override;
     void focusInEvent(QFocusEvent *) override;
     void focusOutEvent(QFocusEvent *) override;
@@ -112,6 +129,9 @@ private:
     QString current_;
     QRect capRect_;
     int buttonsTop_ = 0;
+    QPoint pressPos_;
+    QString pressId_, dropTarget_;
+    QString dropItemAt(const QPoint &pos, const QString &from) const;
 };
 
 struct MotionEditorEnv {
