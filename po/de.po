@@ -4243,3 +4243,19 @@ msgstr "In einem Mix"
 #: src/ui/qt/pages/editor_page.cpp
 msgid "More options"
 msgstr "Weitere Optionen"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Saved in the joystick mode \"%1\": every profile that uses it follows."
+msgstr "Gespeichert im Joystick-Modus \"%1\": Jedes Profil, das ihn verwendet, folgt ihm."
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Button %1 in this joystick mode"
+msgstr "Taste %1 in diesem Joystick-Modus"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Leave it unbound and the binding of the profile applies."
+msgstr "Lass sie unbelegt, dann gilt die Belegung des Profils."
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "The binding of this profile. Without one, the Global profile or the joystick mode applies."
+msgstr "Die Belegung dieses Profils. Ohne sie gilt das globale Profil oder der Joystick-Modus."

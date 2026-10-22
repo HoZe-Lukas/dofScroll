@@ -109,8 +109,11 @@ void EditorPage::openCurrent() {
         shown_.clear();
         return;
     }
-    note_->setText(e->origin == ModeCatalog::Origin::BuiltInOverridden ? T("Your file replaces the built-in joystick mode of this name.") : QString());
-    note_->setVisible(!note_->text().isEmpty());
+    // what is set where: this page edits the joystick mode, and every profile that uses it follows
+    QString text = T("Saved in the joystick mode \"%1\": every profile that uses it follows.").arg(qs8(e->label.empty() ? e->id : e->label));
+    if (e->origin == ModeCatalog::Origin::BuiltInOverridden) text += QLatin1Char(' ') + T("Your file replaces the built-in joystick mode of this name.");
+    note_->setText(text);
+    note_->show();
     if (editor_->open(path, *def)) shown_ = qs8(id);
 }
 

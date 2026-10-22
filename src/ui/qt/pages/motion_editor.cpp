@@ -832,12 +832,15 @@ void MotionEditor::buildLiftInspector(QVBoxLayout *col) {
 }
 
 void MotionEditor::buildButtonInspector(QVBoxLayout *col, int n) {
-    inspectorTitle_ = new QLabel(QStringLiteral("<b>") + T("Button %1").arg(n).toHtmlEscaped() + QStringLiteral("</b>"), inspectorBox_);
+    inspectorTitle_ = new QLabel(QStringLiteral("<b>") + T("Button %1 in this joystick mode").arg(n).toHtmlEscaped() + QStringLiteral("</b>"), inspectorBox_);
     inspectorTitle_->setTextFormat(Qt::RichText);
     auto *titleRow = new QHBoxLayout;
     titleRow->addWidget(inspectorTitle_, 1);
     titleRow->addWidget(helpButton(inspectorBox_, QStringLiteral("button")));
     col->addLayout(titleRow);
+    auto *scope = new QLabel(T("Leave it unbound and the binding of the profile applies."), inspectorBox_);
+    scope->setWordWrap(true);
+    col->addWidget(scope);
     auto *grid = new QGridLayout;
     grid->setColumnStretch(2, 1);
     col->addLayout(grid);

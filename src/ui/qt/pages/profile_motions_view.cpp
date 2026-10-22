@@ -205,6 +205,11 @@ void ProfileMotionsView::buildButton(QVBoxLayout *col, int n) {
     title_->setTextFormat(Qt::RichText);
     col->addWidget(title_);
     sentence_->setText(T("Button %1").arg(n));
+    {
+        auto *scope = new QLabel(T("The binding of this profile. Without one, the Global profile or the joystick mode applies."), inspector_);
+        scope->setWordWrap(true);
+        col->addWidget(scope);
+    }
     if (!bindingEditor_) {
         auto *note = new QLabel(T("The joystick mode of this profile has its own button bindings. Choose \"Same as Global\" or the normal joystick mode to assign buttons here."), inspector_);
         note->setWordWrap(true);
