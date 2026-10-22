@@ -6,6 +6,10 @@ Design principle: dofscroll complements the vendor driver instead of duplicating
 
 Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
 
+## 1.2.0
+
+Feature release. One **Restart** item in the tray and on the Overview restarts the daemon and the interface together; the motion chips tell push, tilt and twist apart and show the keys of a key action; the new settings `ZOOM_MODIFIER` (the keys held while zooming, per profile, for example Cmd on macOS) and `INVERT_AXES` (flip the direction of single axes in every joystick mode) can be set per profile; the interface starts `systemctl` and `launchctl` only from fixed directories; the CI images, the Qt installer and the release artifacts are pinned and attested. See [docs/release-notes-1.2.0.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.2.0.md) and [Configuration reference](Configuration-reference).
+
 ## 1.1.2
 
 Interface release. A joystick mode shows what each of the six motions of the cap does (vertical push, vertical tilt, horizontal push, horizontal tilt, twist, lift / press) as six symbols in the list and six cards in the detail view, and the same look is used on the Joystick modes page, in the profile's General tab, on the Overview cards, on the Button modes page and on the Buttons tab. The built-in joystick modes and button modes explain themselves in plain words, you can choose which joystick modes Next and Previous joystick mode go through, the output switch is the first box of a profile, and the "Extensions" page is called "User modes" (and recognises files that older versions copied). Full notes: [docs/release-notes-1.1.2.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.1.2.md).
