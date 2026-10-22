@@ -8,7 +8,8 @@
 
 Release after [1.1.2](release-notes-1.1.2.md). Two new settings let you adapt the direction of the axes and the
 zoom key to what you and your programs need, the tray has one Restart item, and the build and release pipeline is
-harder to tamper with. The configuration format only gains keys: existing files keep working unchanged.
+harder to tamper with. The configuration format only gains keys: existing files keep working unchanged. The
+biggest change is the visual joystick mode editor.
 
 ## What changed
 
@@ -53,7 +54,31 @@ The CI images are pinned by digest, the Qt installer (aqtinstall) is installed w
 artifacts carry a build provenance attestation (`gh attestation verify`, see [releasing.md](releasing.md)). A weekly
 job proposes a pull request that refreshes the pins.
 
-<!-- RELEASE BLOCKER: the visual joystick mode editor (#143) is added here when it is merged; delete this comment then. -->
+### Visual joystick mode editor: Motions and buttons (#143, #172, #174)
+
+A new first tab, **Motions and buttons**, in the joystick mode editor shows the cap with its six motions and the
+numbered buttons of your device, instead of channels and mixes. Click an item (or use the arrow keys) and choose what
+it does in the inspector next to the picture.
+
+- **Big action tiles**: scroll, scroll sideways, zoom, Page up / Page down, arrow keys, other keys, nothing, as in the
+  profile. For other keys, **Press a key...** takes the key or combination you press; the key list is complete now
+  (keypad, punctuation, system and media keys, and F13 to F24 on every system, F13 to F20 on macOS).
+- **Reverse direction** per motion (writes the existing `*_SIGN` keys, also per part of a split channel), "Same as ..."
+  and "Swap with ...", lift / press as a weighted mix term with a warning, tuning of a motion as overrides.
+  Push and tilt of one channel with the same action are written as before (`V_ACTION`), different actions as the
+  split keys; the picture hides "channel" and "split". A channel mix you wrote by hand is never changed.
+- **Help where you work**: a live sentence with the real rate ("presses Page up about 3 times a second at full
+  deflection"), a **?** popover on every element, templates, hints with a fix button, and a short guided tour on first
+  use.
+- **Detect by moving** selects the motion you move and the button you press (it pauses the daemon output only while
+  it is on); **Try this joystick mode** activates the mode now, with a way back.
+- **The same picture in a profile** (tab Motions and buttons, between Buttons and Overrides: what the profile's
+  joystick mode does, the profile's own tuning with where each value comes from) and on the Button modes page.
+- It writes the same `modes/<id>.conf` files and profile keys as before: nothing in the file format changed, and
+  hand-edited files keep working.
+
+`INVERT_AXES` (above) flips a physical axis for every joystick mode in a profile; **Reverse direction** in the editor
+reverses one motion of one joystick mode.
 
 ## Not verified
 
