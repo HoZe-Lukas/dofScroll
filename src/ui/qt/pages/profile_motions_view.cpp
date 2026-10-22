@@ -166,6 +166,10 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         auto *origin = new QLabel(qs8(originBadgeText(keyOrigin(*ctx_.settings, section_, key), strings)), box);
         origin->setWordWrap(true);
         origin->setTextFormat(Qt::PlainText);
+        {   // the layouts around do not size a wrapped label by its width: reserve the lines it needs at a narrow inspector
+            const QFontMetrics fm(origin->font());
+            origin->setMinimumHeight(fm.boundingRect(QRect(0, 0, 20 * fm.height(), 10000), Qt::TextWordWrap, origin->text()).height() + 4);
+        }
         auto *reset = new QPushButton(section_ == 0 ? T("Reset") : T("Inherit"), box);
         reset->setEnabled(v.overridden);
         reset->setAccessibleName(T(f[1]) + QStringLiteral(": ") + reset->text());

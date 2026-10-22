@@ -653,7 +653,7 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
             tile->setChecked(p.id == active);
             tile->setAutoRaise(false);
             tile->setMinimumHeight(3 * tile->fontMetrics().height() + 16);
-            tile->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+            tile->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
             grid->addWidget(tile, i / 2, i % 2);
             ++i;
             const std::string id = p.id;
