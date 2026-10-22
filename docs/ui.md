@@ -267,8 +267,8 @@ the Buttons tab. A profile whose joystick mode brings its own button bindings sh
 the Buttons tab does.
 
 The **Button modes** page has "Use it on a button": the buttons of the device with what the Global profile binds
-to each of them, no motions. Choose a button and **Use "<button mode>" on button n** binds the selected button
-mode to it in the Global profile (the same binding the Profiles page writes, saved by itself), **Unbind** removes
+to each of them, no motions. Choose a button and **Use on this button** (its tooltip says which button mode and which button) binds the
+selected button mode to it in the Global profile (the same binding the Profiles page writes, saved by itself), **Unbind** removes
 the binding. A line says in words which buttons use the button mode now. Without an attached device the picture
 shows a numbered grid of eight buttons.
 

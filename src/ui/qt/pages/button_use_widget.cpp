@@ -128,7 +128,10 @@ void ButtonUseWidget::updateButtons() {
             if (it.id == sel) return it.text;
         return QString();
     }()) : T("Choose a button in the picture."));
-    use_->setText(id_.isEmpty() ? T("Use on this button") : T("Use \"%1\" on button %2").arg(label_, isButton ? n : QStringLiteral("...")));
+    // a short, fixed text (the name of a button mode can be long and would widen the page); the whole sentence is the tooltip
+    use_->setText(T("Use on this button"));
+    use_->setToolTip(id_.isEmpty() ? QString() : T("Use \"%1\" on button %2").arg(label_, isButton ? n : QStringLiteral("...")));
+    use_->setAccessibleName(use_->toolTip().isEmpty() ? use_->text() : use_->toolTip());
     use_->setEnabled(isButton && !id_.isEmpty());
     unbind_->setEnabled(isButton);
 }

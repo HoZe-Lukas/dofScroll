@@ -991,11 +991,13 @@ static bool editorPageSelfTest(const UiContext &ctx, const QString &tmpPath) {
     if (off) off->click();
     settle();
     check(waitFor([&] { return !ed->pending(); }, 3000), "written by itself");
-    QFile f(tmpPath + QStringLiteral("/modes/") + id + QStringLiteral(".conf"));
-    check(f.open(QIODevice::ReadOnly) && QString::fromUtf8(f.readAll()).contains(QStringLiteral("TWIST_ACTION = none")), "the file holds the choice");
+    {
+        QFile f(tmpPath + QStringLiteral("/modes/") + id + QStringLiteral(".conf"));
+        check(f.open(QIODevice::ReadOnly) && QString::fromUtf8(f.readAll()).contains(QStringLiteral("TWIST_ACTION = none")), "the file holds the choice");
+    }  // closed here: Windows cannot remove an open file
     // the other joystick modes of the chooser
     check(page.selectMode(QStringLiteral("normal")) && !page.canEdit(), "choosing a built-in joystick mode again");
-    QFile::remove(tmpPath + QStringLiteral("/modes/") + id + QStringLiteral(".conf"));
+    check(QFile::remove(tmpPath + QStringLiteral("/modes/") + id + QStringLiteral(".conf")), "the copy is removed again");
     std::printf("editor page self-test: %s\n", ok ? "ok" : "failed");
     return ok;
 }
@@ -1865,7 +1867,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
             check(!button.isEmpty() && uw->select(button), "a button can be selected in the picture");
             for (const MotionPicture::Item &it : uw->picture()->items()) check(!it.id.startsWith(QLatin1String("m:")), "no motions on the Button modes page");
             settle();
-            check(uw->useButton()->isEnabled() && uw->useButton()->text().startsWith(QStringLiteral("Use \"")), "Use <button mode> on button n is offered");
+            check(uw->useButton()->isEnabled() && uw->useButton()->toolTip().startsWith(QStringLiteral("Use \"")), "Use <button mode> on button n is offered");
             uw->useButton()->click();
             settle();
             check(uw->status().startsWith(QStringLiteral("Used on buttons: ")) && uw->status().endsWith(QStringLiteral("(Global profile)")), "binding it is said in words");
