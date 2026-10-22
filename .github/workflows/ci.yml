@@ -147,7 +147,11 @@ jobs:
                    "dofscroll-$ver-macos-arm64.dmg"; do
             [ -s "$f" ] || { echo "::error::missing release file: $f"; missing=1; }
           done
-          if ls | grep -q -i 'daemon-only'; then echo "::error::a daemon-only package is in the release files"; ls; missing=1; fi
+          for f in *; do
+            case "$f" in
+              *daemon-only*) echo "::error::a daemon-only package is in the release files: $f"; missing=1 ;;
+            esac
+          done
           [ "$missing" -eq 0 ]
       - name: Checksums
         run: |
