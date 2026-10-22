@@ -331,7 +331,7 @@ int main(int argc, char **argv) {
     // ends): a second daemon must not run next to the first, it would double every event. The
     // interface starts a daemon when none seems to run; a LaunchAgent may race with it.
     static InstanceLock instance;
-    switch (instance.acquire(paths.runtimeDir)) {
+    switch (instance.acquire(MacRuntimeDir(paths.runtimeDir))) {
         case InstanceLock::Result::Acquired: break;
         case InstanceLock::Result::AlreadyRunning:
             std::cerr << LOG << "another dofscroll daemon is already running, exiting" << std::endl;

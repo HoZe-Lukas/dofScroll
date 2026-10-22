@@ -12,6 +12,7 @@
 #include <string>
 
 #include "platform/instance_lock.hpp"
+#include "platform/linux/runtime_files.hpp"
 #include "testutil.hpp"
 
 using namespace spn;
@@ -23,25 +24,25 @@ int main() {
 
     {
         InstanceLock a, b;
-        assert(a.acquire(dir) == R::Acquired);
+        assert(a.acquire(RuntimeDir(dir)) == R::Acquired);
         assert(tu::exists(dir + "/dofscroll.lock"));
         struct stat st;
         assert(::stat((dir + "/dofscroll.lock").c_str(), &st) == 0 && (st.st_mode & 077) == 0);
-        assert(b.acquire(dir) == R::AlreadyRunning);  // a second holder in the same process
+        assert(b.acquire(RuntimeDir(dir)) == R::AlreadyRunning);  // a second holder in the same process
         a.release();
-        assert(b.acquire(dir) == R::Acquired);        // free again after the release
+        assert(b.acquire(RuntimeDir(dir)) == R::Acquired);        // free again after the release
     }
 
     // another process: refused while the parent holds it, accepted once the parent let go; a holder
     // that dies without cleaning up frees the lock (the kernel drops it)
     {
         InstanceLock parent;
-        assert(parent.acquire(dir) == R::Acquired);
+        assert(parent.acquire(RuntimeDir(dir)) == R::Acquired);
         const pid_t pid = fork();
         assert(pid >= 0);
         if (pid == 0) {
             InstanceLock child;
-            _exit(child.acquire(dir) == R::AlreadyRunning ? 0 : 1);
+            _exit(child.acquire(RuntimeDir(dir)) == R::AlreadyRunning ? 0 : 1);
         }
         int status = 0;
         assert(waitpid(pid, &status, 0) == pid && WIFEXITED(status) && WEXITSTATUS(status) == 0);
@@ -53,7 +54,7 @@ int main() {
         assert(holder >= 0);
         if (holder == 0) {
             InstanceLock child;
-            const char c = child.acquire(dir) == R::Acquired ? 'y' : 'n';
+            const char c = child.acquire(RuntimeDir(dir)) == R::Acquired ? 'y' : 'n';
             (void)!::write(fds[1], &c, 1);
             ::pause();  // killed below, never releases by itself
             _exit(2);
@@ -61,10 +62,10 @@ int main() {
         char c = 0;
         assert(::read(fds[0], &c, 1) == 1 && c == 'y');
         InstanceLock second;
-        assert(second.acquire(dir) == R::AlreadyRunning);
+        assert(second.acquire(RuntimeDir(dir)) == R::AlreadyRunning);
         ::kill(holder, SIGKILL);
         assert(waitpid(holder, &status, 0) == holder);
-        assert(second.acquire(dir) == R::Acquired);
+        assert(second.acquire(RuntimeDir(dir)) == R::Acquired);
         ::close(fds[0]);
         ::close(fds[1]);
     }
@@ -72,16 +73,16 @@ int main() {
     // no usable directory: unavailable, never a false "already running"
     {
         InstanceLock l;
-        assert(l.acquire("") == R::Unavailable);
-        assert(l.acquire("relative") == R::Unavailable);
-        assert(l.acquire(dir + "/missing") == R::Unavailable);
+        assert(l.acquire(RuntimeDir("")) == R::Unavailable);
+        assert(l.acquire(RuntimeDir("relative")) == R::Unavailable);
+        assert(l.acquire(RuntimeDir(dir + "/missing")) == R::Unavailable);
         assert(::chmod(dir.c_str(), 0770) == 0);
-        assert(l.acquire(dir) == R::Unavailable);  // group-writable directory is not trusted
+        assert(l.acquire(RuntimeDir(dir)) == R::Unavailable);  // group-writable directory is not trusted
         ::chmod(dir.c_str(), 0700);
         // a link at the file name is refused (O_NOFOLLOW)
         ::unlink((dir + "/dofscroll.lock").c_str());
         assert(::symlink((dir + "/target").c_str(), (dir + "/dofscroll.lock").c_str()) == 0);
-        assert(l.acquire(dir) == R::Unavailable);
+        assert(l.acquire(RuntimeDir(dir)) == R::Unavailable);
         assert(!tu::exists(dir + "/target"));
     }
     std::puts("ok instance lock");

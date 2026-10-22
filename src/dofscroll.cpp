@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
     // the process ends (the kernel drops it); deliberately never destroyed.
     {
         static InstanceLock instance;
-        switch (instance.acquire(paths.runtimeDir)) {
+        switch (instance.acquire(RuntimeDir(paths.runtimeDir))) {
             case InstanceLock::Result::Acquired: break;
             case InstanceLock::Result::AlreadyRunning:
                 std::cerr << LOG << "another dofscroll daemon is already running (lock "
