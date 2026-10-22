@@ -878,7 +878,12 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
             QKeyEvent ctrlOnly(QEvent::KeyPress, Qt::Key_Control, Qt::ControlModifier);
             neg->press(&ctrlOnly);
             check(neg->capturing(), "a modifier alone keeps waiting");
-            QKeyEvent combo(QEvent::KeyPress, Qt::Key_PageUp, Qt::ControlModifier);
+#ifdef Q_OS_MACOS
+            const Qt::KeyboardModifier ctrlKey = Qt::MetaModifier;  // Qt swaps Ctrl and Cmd on macOS; the field swaps them back
+#else
+            const Qt::KeyboardModifier ctrlKey = Qt::ControlModifier;
+#endif
+            QKeyEvent combo(QEvent::KeyPress, Qt::Key_PageUp, ctrlKey);
             neg->press(&combo);
         }
         check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:ctrl+pageup,down")), "the pressed combination is written");
