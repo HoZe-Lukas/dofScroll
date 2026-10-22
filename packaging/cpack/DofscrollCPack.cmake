@@ -53,10 +53,14 @@ if(TARGET dofscroll-ui AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   endif()
 endif()
 
-# Upgrade step: after an UPGRADE (not a fresh install) restart the running user units of every
-# logged-in user and move users of the removed GTK tray unit to dofscroll-ui.service, best effort, never failing the transaction (packaging/cpack/postinst; the file
-# must be called postinst for DEB, RPM runs the same file as %post).
+# Upgrade steps, only for an UPGRADE (not a fresh install), best effort, never failing the transaction:
+# packaging/cpack/preinst stops the running user units (interface, then daemon) of every logged-in user before
+# the files are replaced, packaging/cpack/postinst starts the same ones again afterwards and moves users of the
+# removed GTK tray unit to dofscroll-ui.service. The files must be called preinst and postinst for DEB; RPM runs
+# them as %pre and %post.
+set(CPACK_RPM_PRE_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/packaging/cpack/preinst)
 set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/packaging/cpack/postinst)
-set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA ${CMAKE_SOURCE_DIR}/packaging/cpack/postinst)
+set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA ${CMAKE_SOURCE_DIR}/packaging/cpack/preinst
+                                       ${CMAKE_SOURCE_DIR}/packaging/cpack/postinst)
 
 include(CPack)

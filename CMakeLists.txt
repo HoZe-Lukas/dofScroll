@@ -344,6 +344,10 @@ if(BUILD_TESTING)
     add_test(NAME postinst_migration
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_postinst_migration.sh ${CMAKE_SOURCE_DIR})
   endif()
+  if(SH_EXECUTABLE)  # upgrade: stop before the files are replaced, start the same units again afterwards
+    add_test(NAME preinst_postinst_upgrade
+             COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_preinst_upgrade.sh ${CMAKE_SOURCE_DIR})
+  endif()
   if(SH_EXECUTABLE)  # the six-motion table of the built-in joystick modes must match the definitions
     add_test(NAME docs_motions
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_docs_motions.sh ${CMAKE_SOURCE_DIR})

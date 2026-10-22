@@ -248,11 +248,15 @@ Install the newer package over the old one:
     sudo dnf upgrade ./dofscroll-<new>.rpm       # or: sudo dnf install ./dofscroll-<new>.rpm
     sudo apt install ./dofscroll_<new>_amd64.deb # Debian family
 
-The package then does a best-effort restart on its own: for every logged-in user it runs
-`systemctl --user daemon-reload` and `try-restart` of `dofscroll.service` and
-`dofscroll-ui.service` (only units that are running are restarted; a fresh install does
-nothing; the step never fails the upgrade and never touches your config). If nobody was logged in
-through logind, or you run the program from a terminal, restart by hand (user names with an `@`, such as domain accounts, are handled; an interface that was not started by its unit, for example by the desktop's session restore, is stopped and started through the unit when its binary was replaced):
+The package stops and starts the programs on its own, in three steps (RPM `%pre`/`%post`, DEB
+`preinst`/`postinst`; best effort, the steps never fail the upgrade and never touch your config):
+**before** the files are replaced it stops `dofscroll-ui.service` and `dofscroll.service` of every
+logged-in user whose units are running (the daemon releases held keys when it stops) and notes which
+ones ran; **after** the files are in place it runs `systemctl --user daemon-reload` and starts exactly those
+units again, the daemon first. A user whose units were not running gets nothing started, and a fresh
+install does nothing. A user whose units were not noted (for example somebody who logged in during the
+upgrade) gets the older `try-restart` of both units. If nobody was logged in through logind, or you run
+the program from a terminal, restart by hand (user names with an `@`, such as domain accounts, are handled; an interface that was not started by its unit, for example by the desktop's session restore, is stopped and started through the unit when its binary was replaced):
 
     systemctl --user daemon-reload
     systemctl --user restart dofscroll.service dofscroll-ui.service

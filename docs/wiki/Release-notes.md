@@ -8,7 +8,7 @@ Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/rele
 
 ## 1.2.2
 
-Small release. The Joystick modes list shows its six chips in two lines of three (pushes above, tilts and the twist below), each with the marker of the kind of motion and the symbol of the action; the Windows and macOS installers can no longer be built without the interface (no daemon-only fallback), and the release job checks that all six files exist. New website screenshots. See [docs/release-notes-1.2.2.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.2.2.md).
+Release with a better upgrade on Linux: the RPM and DEB stop the running daemon and interface before installing and start them again afterwards, so no restart by hand is needed. The Joystick modes list shows its six chips in two lines of three (pushes above, tilts and the twist below), each with the marker of the kind of motion and the symbol of the action; the Windows and macOS installers can no longer be built without the interface (no daemon-only fallback), and the release job checks that all six files exist. New website screenshots. See [docs/release-notes-1.2.2.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.2.2.md).
 
 ## 1.2.1
 

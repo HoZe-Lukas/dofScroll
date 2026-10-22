@@ -6,7 +6,7 @@
 > distributions were install-tested in CI containers. The **Windows and macOS builds are built and
 > unit-tested by CI but have never been run with a real device.**
 
-Small release after [1.2.1](release-notes-1.2.1.md). The daemon, the command line and the configuration format do
+Release after [1.2.1](release-notes-1.2.1.md). The daemon, the command line and the configuration format do
 not change.
 
 ## What changed
@@ -17,6 +17,15 @@ In 1.2.0 and 1.2.1 the compact chips in the list of joystick modes showed only t
 hid the symbol of the action. Now every chip is the marker and the action symbol, and the six chips sit in two lines of
 three like the panel of the detail view: the pushes (vertical, horizontal, lift / press) above, the tilts and the
 twist below. The legend under the list says so. The symbols are no longer cut off ("..."), also with other fonts.
+
+### Linux: the package stops the programs before installing and starts them again afterwards
+
+An upgrade no longer needs a restart by hand. The RPM (`%pre`/`%post`) and the DEB (`preinst`/`postinst`) now stop
+`dofscroll-ui.service` and `dofscroll.service` of every logged-in user whose units are running **before** the files
+are replaced, and start exactly those units again **afterwards** (the daemon first). Before, the package only did a
+`try-restart` after the files were in place, which did not always replace a running interface or daemon. A user whose
+units were not running gets nothing started; a fresh install does nothing. The steps are best effort and never fail
+the upgrade. See [installation.md](installation.md#3-upgrade-uninstall-migration).
 
 ### Windows and macOS: never without the interface (#178)
 
