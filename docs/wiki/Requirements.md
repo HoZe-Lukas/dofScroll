@@ -129,7 +129,7 @@ The official 3Dconnexion driver can stay installed and running for your CAD prog
 
 - The tray icon is a standard Windows notification-area icon; Windows may hide it in the overflow area (the `^` arrow) until you drag it out. Unverified on hardware.
 - Without a tray the window opens minimized and closing it quits `dofscroll-ui.exe`.
-- The installer includes the Qt libraries; nothing else to install. If Qt was missing when the package was built, the file name contains `-daemon-only` and there is no settings window.
+- The installer includes the Qt libraries; nothing else to install. Every Windows and macOS package contains the settings window and the daemon; a build without Qt fails instead of producing a package without it.
 - The daemon `dofscroll.exe` has no window. Autostart is the optional installer component "Start the daemon at logon" (off by default) or the "Start at login" switch in the interface.
 
 ### Before you start (Windows)

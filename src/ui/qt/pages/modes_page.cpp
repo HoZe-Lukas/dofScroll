@@ -56,6 +56,9 @@ QString originText(Origin o) {
 
 // Item roles of a row of the list (kRoleDescription and kRoleOrigin come from described_item_delegate.hpp).
 enum { kRoleChips = Qt::UserRole + 3, kRoleMuted = Qt::UserRole + 4 };
+// The list shows the six motions as two lines of three, like the panel in the detail view: the pushes (vertical,
+// horizontal, lift / press) above, the tilts and the twist below. The data order is the fixed order of the model.
+constexpr int kChipsPerRow = 3;
 
 // One row of the list: the name (bold) with the origin badge at the right end, one short description line (muted,
 // cut to the width) and the six motion chips below, wrapped to the width of the list. All lengths follow the font
@@ -70,7 +73,7 @@ public:
         initStyleOption(&opt, index);
         const QFontMetrics fm(opt.font);
         const int pad = spn::ui::tokens::kSpaceSm;
-        const motionview::ChipLayout chips = motionview::layoutChips(fm, chipsOf(index), textWidth(opt), compactPad(fm));
+        const motionview::ChipLayout chips = motionview::layoutChips(fm, chipsOf(index), textWidth(opt), compactPad(fm), kChipsPerRow);
         int h = fm.height() + 2 * pad;
         if (!index.data(kRoleDescription).toString().isEmpty()) h += fm.height();
         h += chips.height + (chips.height ? motionview::chipGap(fm) : 0);
@@ -124,8 +127,8 @@ public:
         }
         y += motionview::chipGap(fm);
         const QList<motionview::Chip> chips = chipsOf(index);
-        motionview::paintChips(painter, fm, chips, motionview::layoutChips(fm, chips, width, compactPad(fm)), QPoint(textRect.left(), y), nameColor,
-                               mutedColor, compactPad(fm));
+        motionview::paintChips(painter, fm, chips, motionview::layoutChips(fm, chips, width, compactPad(fm), kChipsPerRow), QPoint(textRect.left(), y),
+                               nameColor, mutedColor, compactPad(fm));
         painter->restore();
     }
 
@@ -137,12 +140,15 @@ private:
         QList<motionview::Chip> out;
         const QStringList texts = index.data(kRoleChips).toStringList();
         const QString mask = index.data(kRoleMuted).toString();
-        for (int i = 0; i < texts.size(); ++i) {
+        static const int order[6] = {0, 2, 4, 1, 3, 5};  // v_push h_push lift / v_tilt h_tilt twist
+        for (int k = 0; k < texts.size(); ++k) {
+            const int i = texts.size() == 6 ? order[k] : k;
             motionview::Chip c;
-            // the list shows the symbol only (the words are in the detail view and the tooltip, the position
-            // says which motion it is); a word would be cut off in a narrow row
-            const int space = texts[i].indexOf(QLatin1Char(' '));
-            c.text = space > 0 ? texts[i].left(space) : texts[i];
+            // the list shows the two symbols only, the marker of the kind of motion (push, tilt, twist) and the
+            // symbol of the action (the words are in the detail view and the tooltip, the position says which
+            // motion it is); a word would be cut off in a narrow row
+            const QStringList parts = texts[i].split(QLatin1Char(' '));
+            c.text = parts.size() >= 2 ? parts[0] + parts[1] : texts[i];
             c.muted = i < mask.size() && mask[i] == QLatin1Char('1');
             out.append(c);
         }
@@ -192,10 +198,10 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     list_->setResizeMode(QListView::Adjust);
     list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     // no minimum width: it grows with the font (the page would not fit the default window with the wider Windows
-    // fonts); the splitter starts the list wide enough for the six symbol chips in one row, a narrower list wraps them
+    // fonts); the six symbol chips sit in two lines of three (pushes above, tilts and twist below)
     leftLayout->addWidget(list_, 1);
-    auto *legend = new QLabel(T("Symbols in this order: vertical push, vertical tilt, horizontal push, horizontal tilt, twist, "
-                                "lift / press. \u2195 scroll, \u2194 scroll sideways, \u2295 zoom, \u2328 keys, \u21E5 one tap per "
+    auto *legend = new QLabel(T("Top line: vertical push, horizontal push, lift / press. Bottom line: vertical tilt, horizontal tilt, "
+                                "twist. A bar \u25AC marks a push, a wedge \u25E2 a tilt, an arrow \u21BB the twist. \u2195 scroll, \u2194 scroll sideways, \u2295 zoom, \u2328 keys, \u21E5 one tap per "
                                 "push, \u2298 off, \u2013 not used (dashed)."), left);
     legend->setWordWrap(true);
     legend->setTextFormat(Qt::PlainText);

@@ -2152,7 +2152,7 @@ msgid "Each joystick mode says what the six motions of the cap and the buttons d
 msgstr ""
 
 #: src/ui/qt/pages/modes_page.cpp
-msgid "Symbols in this order: vertical push, vertical tilt, horizontal push, horizontal tilt, twist, lift / press. ↕ scroll, ↔ scroll sideways, ⊕ zoom, ⌨ keys, ⇥ one tap per push, ⊘ off, – not used (dashed)."
+msgid "Top line: vertical push, horizontal push, lift / press. Bottom line: vertical tilt, horizontal tilt, twist. A bar ▬ marks a push, a wedge ◢ a tilt, an arrow ↻ the twist. ↕ scroll, ↔ scroll sideways, ⊕ zoom, ⌨ keys, ⇥ one tap per push, ⊘ off, – not used (dashed)."
 msgstr ""
 
 #: src/ui/qt/pages/modes_page.cpp

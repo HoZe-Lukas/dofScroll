@@ -3417,8 +3417,8 @@ msgid "Each joystick mode says what the six motions of the cap and the buttons d
 msgstr "Jeder Joystick-Modus legt fest, was die sechs Bewegungen der Kappe und die Tasten bewirken. Wählen Sie auf der Seite Profile einen für ein Profil aus."
 
 #: src/ui/qt/pages/modes_page.cpp
-msgid "Symbols in this order: vertical push, vertical tilt, horizontal push, horizontal tilt, twist, lift / press. ↕ scroll, ↔ scroll sideways, ⊕ zoom, ⌨ keys, ⇥ one tap per push, ⊘ off, – not used (dashed)."
-msgstr "Symbole in dieser Reihenfolge: Schieben vor/zurück, Kippen vor/zurück, Schieben seitlich, Kippen seitlich, Drehen, Heben/Drücken. ↕ scrollen, ↔ seitlich scrollen, ⊕ zoomen, ⌨ Tasten, ⇥ ein Tastendruck pro Schub, ⊘ aus, – nicht verwendet (gestrichelt)."
+msgid "Top line: vertical push, horizontal push, lift / press. Bottom line: vertical tilt, horizontal tilt, twist. A bar ▬ marks a push, a wedge ◢ a tilt, an arrow ↻ the twist. ↕ scroll, ↔ scroll sideways, ⊕ zoom, ⌨ keys, ⇥ one tap per push, ⊘ off, – not used (dashed)."
+msgstr "Obere Zeile: Schieben vor/zurück, Schieben seitlich, Heben/Drücken. Untere Zeile: Kippen vor/zurück, Kippen seitlich, Drehen. Ein Balken ▬ steht für Schieben, ein Keil ◢ für Kippen, ein Pfeil ↻ für Drehen. ↕ scrollen, ↔ seitlich scrollen, ⊕ zoomen, ⌨ Tasten, ⇥ ein Tastendruck pro Schub, ⊘ aus, – nicht verwendet (gestrichelt)."
 
 #: src/ui/qt/pages/modes_page.cpp
 msgid "No buttons bound"

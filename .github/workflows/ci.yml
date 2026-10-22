@@ -134,6 +134,25 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      # Nothing is published unless every package is there and complete: Linux (RPM, DEB, TGZ), Windows (setup,
+      # ZIP) and macOS (DMG), each with the interface and the daemon. A "-daemon-only" file would mean that
+      # Qt was missing in a build job; the build jobs fail in that case, this is the second lock.
+      - name: Every package is there and none is daemon-only
+        run: |
+          ver="$(sed -n 's/^project(dofscroll VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt)"
+          cd dist
+          missing=0
+          for f in "dofscroll-$ver-1.x86_64.rpm" "dofscroll_${ver}_amd64.deb" "dofscroll-$ver-Linux.tar.gz" \
+                   "dofscroll-$ver-windows-x64-setup.exe" "dofscroll-$ver-windows-x64-portable.zip" \
+                   "dofscroll-$ver-macos-arm64.dmg"; do
+            [ -s "$f" ] || { echo "::error::missing release file: $f"; missing=1; }
+          done
+          for f in *; do
+            case "$f" in
+              *daemon-only*) echo "::error::a daemon-only package is in the release files: $f"; missing=1 ;;
+            esac
+          done
+          [ "$missing" -eq 0 ]
       - name: Checksums
         run: |
           cd dist
