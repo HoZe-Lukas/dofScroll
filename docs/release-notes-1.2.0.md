@@ -7,7 +7,7 @@
 > unit-tested by CI but have never been run with a real device.**
 
 Release after [1.1.2](release-notes-1.1.2.md). Two new settings let you adapt the direction of the axes and the
-zoom key to your taste and your programs, the tray has one Restart item, and the build and release pipeline is
+zoom key to what you and your programs need, the tray has one Restart item, and the build and release pipeline is
 harder to tamper with. The configuration format only gains keys: existing files keep working unchanged.
 
 ## What changed
