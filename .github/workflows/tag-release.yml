@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+name: tag-release
+
+# Creates the release tag v<version> on the current tip of main and starts the release build (ci.yml) for it,
+# for when the tag cannot be pushed by hand (for example from a phone). Run it from the Actions tab or the
+# GitHub app with branch "main" and the version number, for example 1.2.2. See docs/releasing.md.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, as in CMakeLists.txt (for example 1.2.2, or 1.3.0-rc1)"
+        required: true
+        type: string
+
+# A tag created with the repository token does not start the tag-push run of ci.yml (GitHub does not chain
+# workflows from that token), so the last step starts ci.yml on the tag with a dispatch, which is allowed.
+permissions:
+  contents: write   # create the tag
+  actions: write    # start ci.yml on the tag
+  checks: read      # refuse when the checks of the commit are not green
+
+concurrency:
+  group: tag-release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Create tag and start the release build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Only from main
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          [ "$REF" = "refs/heads/main" ] || { echo "::error::run this workflow on branch main (got $REF)"; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Version matches CMakeLists.txt
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          printf '%s' "$VERSION" | grep -E -q '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$' \
+            || { echo "::error::'$VERSION' is not a version like 1.2.3 or 1.3.0-rc1"; exit 1; }
+          ver="$(sed -n 's/^project(dofscroll VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt)"
+          [ -n "$ver" ] || { echo "::error::no project version found in CMakeLists.txt"; exit 1; }
+          case "$VERSION" in
+            "$ver"|"$ver"-*) ;;
+            *) echo "::error::version $VERSION does not match project version $ver in CMakeLists.txt"; exit 1 ;;
+          esac
+      - name: The checks of this commit are green
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          bad="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?per_page=100" \
+            --jq '[.check_runs[] | select(.name != "Create tag and start the release build") | select(.status != "completed" or (.conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral")) | .name] | join(", ")')"
+          [ -z "$bad" ] || { echo "::error::checks not green on $SHA: $bad"; exit 1; }
+      - name: Create the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "::error::tag v$VERSION already exists"; exit 1
+          fi
+          gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/v$VERSION" -f "sha=$SHA" >/dev/null
+          echo "Tag v$VERSION created on $SHA" >> "$GITHUB_STEP_SUMMARY"
+      - name: Start the release build on the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "v$VERSION"
+          echo "Release build (ci.yml) started for v$VERSION; watch the Actions tab." >> "$GITHUB_STEP_SUMMARY"
