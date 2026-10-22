@@ -167,6 +167,8 @@ public:
     MotionEditor(const MotionEditorEnv &env, const QString &selected, QWidget *parent = nullptr);
     QString selectedId() const { return picture_->current(); }
     bool select(const QString &id);
+    // Shows the buttons of another device of the list (the drop-down; screenshots and tests). 0 = the attached one.
+    void chooseDevice(int index);
     MotionPicture *picture() const { return picture_; }
     QWidget *inspector() const { return inspectorBox_; }
     QString inspectorTitle() const;  // the heading of the inspector (tests)
@@ -176,6 +178,7 @@ public:
     bool detecting() const { return detectOn_; }
     QString detectText() const;       // the sentence next to the switch ("" = none)
     QString liveSentence() const;     // the line under the picture
+    QString layoutNote() const;       // "" or the note that the button places are provisional
     QProgressBar *liveBar() const { return liveBar_; }
     QString tryText() const;          // "Trying: ..." ("" = not trying)
     QStringList hintTexts() const;    // the hints that name the cause
@@ -216,7 +219,7 @@ private:
     MotionPicture *picture_ = nullptr;
     QWidget *inspectorBox_ = nullptr;
     QVBoxLayout *inspectorCol_ = nullptr;
-    QLabel *sentence_ = nullptr, *inspectorTitle_ = nullptr;
+    QLabel *sentence_ = nullptr, *inspectorTitle_ = nullptr, *layoutNote_ = nullptr;
     QComboBox *deviceCombo_ = nullptr;
     int deviceChoice_ = 0;
     // live parts

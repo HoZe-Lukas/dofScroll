@@ -563,6 +563,13 @@ MotionEditor::MotionEditor(const MotionEditorEnv &env, const QString &selected, 
     left->addLayout(toolRow);
     picture_ = new MotionPicture(this);
     left->addWidget(picture_);
+    layoutNote_ = new QLabel(this);
+    layoutNote_->setWordWrap(true);
+    layoutNote_->setTextFormat(Qt::PlainText);
+    layoutNote_->setProperty("muted", true);
+    layoutNote_->setAccessibleName(T("About the places of the buttons"));
+    layoutNote_->hide();
+    left->addWidget(layoutNote_);
     sentence_ = new QLabel(this);
     sentence_->setWordWrap(true);
     sentence_->setTextFormat(Qt::PlainText);
@@ -617,6 +624,14 @@ MotionEditor::MotionEditor(const MotionEditorEnv &env, const QString &selected, 
     refreshTop();
     refreshTour();
     if (env_.detect) setDetect(true);
+}
+
+void MotionEditor::chooseDevice(int index) {
+    if (index < 0 || index >= deviceCombo_->count()) return;
+    deviceCombo_->setCurrentIndex(index);
+    deviceChoice_ = index;
+    rebuildPicture();
+    refreshHints();
 }
 
 bool MotionEditor::select(const QString &id) {
@@ -682,7 +697,14 @@ void MotionEditor::rebuildPicture() {
     for (int n = 1; n <= std::min(highest, 32); ++n)
         if (!have.count(n)) addButton(n, 0.5, 1.0);
     picture_->setItems(items, layout.kind);
+    const bool note = layout.provisional && layout.count > 0;
+    layoutNote_->setText(note ? T("The places of the buttons are an arrangement for this device; the button numbers have not been checked on a real device yet. "
+                                  "\"Detect by moving\" shows which number a key has.")
+                              : QString());
+    layoutNote_->setVisible(note);
 }
+
+QString MotionEditor::layoutNote() const { return layoutNote_ && !layoutNote_->isHidden() ? layoutNote_->text() : QString(); }
 
 void MotionEditor::rebuildInspector() {
     clearLayoutNow(inspectorCol_);

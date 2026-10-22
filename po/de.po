@@ -4295,3 +4295,11 @@ msgstr "Medientasten"
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "Drag onto another motion to swap them, with Ctrl to copy."
 msgstr "Auf eine andere Bewegung ziehen, um beide zu tauschen; mit Strg kopieren."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "The places of the buttons are an arrangement for this device; the button numbers have not been checked on a real device yet. \"Detect by moving\" shows which number a key has."
+msgstr "Die Plätze der Tasten sind für dieses Gerät eine Anordnung; die Tastennummern sind noch nicht an einem echten Gerät geprüft. \"Durch Bewegen erkennen\" zeigt, welche Nummer eine Taste hat."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "About the places of the buttons"
+msgstr "Zu den Plätzen der Tasten"

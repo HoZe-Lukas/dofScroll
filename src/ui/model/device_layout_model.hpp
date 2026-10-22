@@ -3,7 +3,8 @@
 // Where the numbered buttons are drawn around the schematic cap in the visual joystick mode editor (issue
 // #143, toolkit-free). One schematic cap is drawn for every model; only the button positions differ:
 //   two buttons (Compact, Wireless, SpaceNavigator)  one on each side of the cap
-//   Pro, Pro Wireless (15)                           two columns on each side
+//   Pro, Pro Wireless (15)                           as on the device: 1-4 on top, five keys left, six right
+//                                                    (places from photos, numbers a reading order: provisional)
 //   Enterprise (31)                                  a keypad under the cap
 //   any other model                                  a plain numbered grid (like the cells of the Axes page)
 // The positions are schematic: the numbers are right, the places are an arrangement, not a copy of the
@@ -37,6 +38,7 @@ struct DeviceLayout {
     std::vector<ButtonSlot> buttons;  // number order
     int columns = 0;                // Grid and Keypad
     bool knownModel = false;
+    bool provisional = false;  // the places or numbers are an arrangement that has not been checked on the device
 };
 
 // True when the model is in the table of factoryButtonCount().
@@ -79,7 +81,21 @@ inline DeviceLayout deviceLayout(const std::string &deviceName, int reportedButt
     }
     if (l.count <= 16) {
         l.kind = LayoutKind::Pro;
-        // the first half on the left, the rest on the right; two columns of buttons on each side
+        l.provisional = true;
+        if (l.count == 15) {
+            // The SpaceMouse Pro as on its top: 1 to 4 in an arc (1, 2 left, 3, 4 right), ESC / SHIFT / CTRL / ALT /
+            // MENU on the left, the four view keys, the centre key and FIT on the right. Rows are 0 to 1 top to
+            // bottom, columns count from the cap outwards on the right and inwards on the left. The PLACES follow the
+            // device (photos), the NUMBERS are a reading order that has not been checked on a real device: spacenavd
+            // remaps the raw bits of this model. Check with "Detect by moving", then fix the table here.
+            static const struct { double x, y; } pro[15] = {
+                {0.05, 0.00}, {0.17, 0.00}, {0.83, 0.00}, {0.95, 0.00},    // 1 2 3 4
+                {0.05, 0.25}, {0.05, 0.50}, {0.17, 0.50}, {0.17, 0.75}, {0.17, 1.00},  // ESC SHIFT CTRL ALT MENU
+                {0.83, 0.25}, {0.95, 0.25}, {0.83, 0.50}, {0.83, 0.75}, {0.95, 0.75}, {0.83, 1.00}};  // view keys, centre, FIT
+            for (int i = 0; i < 15; ++i) l.buttons.push_back({i + 1, pro[i].x, pro[i].y});
+            return l;
+        }
+        // any other count of a Pro-like model: the first half on the left, the rest on the right
         const int left = (l.count + 1) / 2, right = l.count - left;
         auto side = [&](int first, int n, double xa, double xb) {
             const int rows = (n + 1) / 2;
@@ -97,6 +113,7 @@ inline DeviceLayout deviceLayout(const std::string &deviceName, int reportedButt
         return l;
     }
     l.kind = LayoutKind::Keypad;
+    l.provisional = true;
     l.columns = 8;
     grid(0.1, 0.78, 0.9, 0.98, l.columns);
     return l;

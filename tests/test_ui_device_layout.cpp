@@ -54,6 +54,14 @@ int main() {
     // Compact: one button left of the cap, one right
     const DeviceLayout c = deviceLayout("SpaceMouse Compact", 2);
     assert(c.buttons[0].x < 0.5 && c.buttons[1].x > 0.5);
+    // Pro: 1 and 2 left, 3 and 4 right on top, five keys left and six right below; provisional numbers
+    const DeviceLayout pro = deviceLayout("SpaceMouse Pro", 15);
+    assert(pro.provisional && pro.buttons[0].x < 0.5 && pro.buttons[1].x < 0.5 && pro.buttons[2].x > 0.5 && pro.buttons[3].x > 0.5);
+    assert(pro.buttons[0].y == 0 && pro.buttons[3].y == 0);
+    int leftKeys = 0, rightKeys = 0;
+    for (const ButtonSlot &b : pro.buttons) (b.y > 0 ? (b.x < 0.5 ? leftKeys : rightKeys) : leftKeys) += b.y > 0;
+    assert(leftKeys == 5 && rightKeys == 6);
+    assert(!deviceLayout("SpaceMouse Compact", 2).provisional && deviceLayout("SpaceMouse Enterprise", 31).provisional);
     // the count to draw when the device is unknown: the reported one, or a short grid
     assert(reportedOrDefaultButtons(6) == 6 && reportedOrDefaultButtons(0) == kUnknownDeviceButtons);
     assert(reportedOrDefaultButtons(32) == kUnknownDeviceButtons && reportedOrDefaultButtons(-1) == kUnknownDeviceButtons);

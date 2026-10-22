@@ -943,6 +943,19 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
         pic->dropOn(QStringLiteral("m:v_push"), QStringLiteral("m:v_push"), false);
         check(settleWrite() && fileText(rel) == before, "lift / press and a drop on itself change nothing");
     }
+    {   // the picture of a device whose places are provisional says so; the Compact does not
+        me()->chooseDevice(2);
+        settle();
+        check(me()->picture()->items().size() == 6 + 15 && me()->layoutNote().contains(QStringLiteral("not been checked")), "the Pro picture has 15 buttons and the note");
+        check(me()->picture()->itemRect(QStringLiteral("b:1")).top() == me()->picture()->itemRect(QStringLiteral("b:4")).top() &&
+                  me()->picture()->itemRect(QStringLiteral("b:1")).left() < me()->picture()->itemRect(QStringLiteral("b:4")).left(),
+              "buttons 1 to 4 share the top row");
+        me()->chooseDevice(1);
+        settle();
+        check(me()->picture()->items().size() == 6 + 2 && me()->layoutNote().isEmpty(), "the Compact has two buttons and no note");
+        me()->chooseDevice(0);
+        settle();
+    }
     // the live sentence names the keys and a rate; every element has a "?" popover
     sel(QStringLiteral("m:v_tilt"));
     check(me()->liveSentence().contains(QStringLiteral("Vertical tilt: presses Up or Down, about")), "the sentence under the picture says what the motion does");
@@ -3198,6 +3211,9 @@ int main(int argc, char **argv) {
                         ep.editorWidget()->motionEditor()->select(QStringLiteral("m:lift"));
                         settle();
                         if (ep.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-editor-lift.png"))) ++written;
+                        me->chooseDevice(2);  // the SpaceMouse Pro of the device list
+                        settle();
+                        if (ep.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-editor-pro.png"))) ++written;
                     }
                 }
                 if (std::string(th) == "light" && ep.selectMode(QStringLiteral("timeline"))) {

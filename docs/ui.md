@@ -241,7 +241,11 @@ profiles" and offers "Back to <previous joystick mode>".
 
 The buttons follow the device: the attached device if the daemon reports one, otherwise choose a model
 under "Device:" (SpaceMouse Compact 2 buttons, Pro 15, Enterprise 31) or get a plain numbered grid. The
-button positions are a schematic arrangement, not a copy of the device. The picture and the Settings tab
+button positions are a schematic arrangement, not a copy of the device. The Compact has its two keys left
+and right of the cap (button 1 left, 2 right). The Pro is drawn as on the device (1 to 4 on top, five keys
+left, six right), but its button numbers are a guess that has not been checked on a real device, and the
+Enterprise keypad is an arrangement too; for both the picture says so under it. "Detect by moving" shows
+which number a key has. The picture and the Settings tab
 edit the same form, so a change in one shows in the other at once.
 
 There is no Save or Revert button: a change is written by itself, a drop-down or switch at once,
