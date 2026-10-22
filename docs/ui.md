@@ -174,10 +174,40 @@ The switch writes `V_PUSH_ACTION` / `V_TILT_ACTION` (`H_...`) and the per-part k
 Overrides tab, where they have no effect while the channel is not split). The information popover of
 a joystick mode lists one line per part for a split channel.
 
-The editor has three tabs: Settings (name, description, the three channels), Buttons and
-Overrides. Each tab scrolls on its own; the problem list and the buttons "Open in text editor" and
+The editor has four tabs: Motions and buttons (the picture, below), Settings (name, description, the
+three channels), Buttons and Overrides. Each tab scrolls on its own; the problem list and the buttons "Open in text editor" and
 "Close editor" stay visible below the tabs. The selected tab is kept while you edit and when you
 open another joystick mode.
+
+### Motions and buttons (the picture)
+
+The first tab shows the cap and its six motions (push forward/back, push sideways, tilt forward/back,
+tilt sideways, twist, lift/press) and the numbered buttons of the device. Every motion and button is a
+box with its name and what it does in words ("Scroll", "Keys: Up / Down", "Off", "Not used",
+"Unassigned"); a muted item has a dashed outline and keeps its word, so nothing is shown by colour
+alone. Click an item, or move to it with the arrow keys (Enter goes to the inspector); the inspector next
+to the picture shows the selected item:
+
+- **A motion:** "What it does" offers one choice per action: default behavior, do nothing, scroll up and
+  down, scroll sideways, zoom, keys (a rate of key presses, one key or chord per direction) and one key
+  tap per push. The editor hides "channel" and "split": push and tilt of one channel with the same
+  action are written as `V_ACTION` / `H_ACTION`, different actions as `V_PUSH_ACTION` / `V_TILT_ACTION`
+  (`H_...`), the same keys the Settings tab writes. **Reverse direction** writes the existing sign
+  (`SCROLL_V_SIGN`, `SCROLL_H_SIGN`, `ZOOM_SIGN`, or `SCROLL_<V|H>_<PUSH|TILT>_SIGN` while the channel is
+  split) as `-1` and removes the line again. "Same as ..." copies the action of another motion, "Swap
+  with ..." exchanges two. "Tune this motion" (closed until used) edits sensitivity, dead zone, curve and
+  smoothing of that motion as overrides of the joystick mode.
+- **A channel mix written by hand** (an override such as `SCROLL_V_MIX = z`) is never changed by the
+  picture: a motion it does not use says "Not used: custom channel mix" and offers "Show in Settings tab".
+- **Lift / press** has no key of its own. The inspector adds it as a term to the mix of one channel
+  (`SCROLL_V_MIX = z + rx + y`, with a weight) and says in words that it is prone to false triggers when
+  the cap is grabbed or released. No built-in joystick mode uses it (`tests/test_no_lift_press.cpp`).
+- **A button:** the same button row as on the Buttons tab (the actions, the button modes, "Unbind").
+
+The buttons follow the device: the attached device if the daemon reports one, otherwise choose a model
+under "Device:" (SpaceMouse Compact 2 buttons, Pro 15, Enterprise 31) or get a plain numbered grid. The
+button positions are a schematic arrangement, not a copy of the device. The picture and the Settings tab
+edit the same form, so a change in one shows in the other at once.
 
 There is no Save or Revert button: a change is written by itself, a drop-down or switch at once,
 typed text about 600 ms after you stopped typing or when you leave the field. Only a valid file is

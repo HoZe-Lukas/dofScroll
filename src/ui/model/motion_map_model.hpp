@@ -27,6 +27,8 @@
 #include "common.hpp"
 #include "config.hpp"
 #include "ui/model/mode_editor_model.hpp"
+#include "ui/model/motion_summary_model.hpp"
+#include "ui/model/strings.hpp"
 #include "utf8.hpp"
 
 namespace spn::ui {
@@ -187,6 +189,19 @@ inline ChannelForm actionOf(const ModeForm &form, const Settings &base, Motion m
     return sp->pushSet ? sp->push : ch;
 }
 
+// The ChannelForm inside the form that holds the motion's action (the channel's own, or a split part's), so a view
+// can edit its keys in place; nullptr when the motion is in no channel mix or is lift. A part that follows its
+// channel gives the channel's form.
+inline ChannelForm *actionRef(ModeForm &form, const Settings &base, Motion m) {
+    using namespace motion_map_detail;
+    const MotionPlace p = placeOf(form, base, m);
+    if (!p.found || m == Motion::Lift) return nullptr;
+    SplitForm *sp = splitForm(form, p.channel);
+    if (!p.split || !sp || !p.part) return &channelForm(form, p.channel);
+    if (isTilt(m)) return sp->tiltSet ? &sp->tilt : &channelForm(form, p.channel);
+    return sp->pushSet ? &sp->push : &channelForm(form, p.channel);
+}
+
 struct AssignResult {
     bool ok = false;
     std::string error;  // English source text
@@ -308,6 +323,74 @@ inline AssignResult setLift(ModeForm &form, const Settings &base, MotionChannel 
     }
     r.ok = true;
     return r;
+}
+
+// What the picture and the list say about a motion: the name, how to move, the action in words and a symbol
+// (the same words as motion_summary_model.hpp), computed from the form so it follows every edit.
+struct MotionLabel {
+    Motion motion = Motion::VPush;
+    std::string name, how;
+    std::string action;   // "Scroll", "Keys: Up / Down", "Off", "Not used"
+    std::string chip;     // "Scroll", "Keys", "Taps", ...
+    std::string symbol;   // icon key as in motion_summary_model.hpp
+    MotionKind kind = MotionKind::Active;
+    bool customMix = false;
+    bool lift = false;       // lift/press is part of a channel mix (only for Motion::Lift)
+    bool reversed = false;
+    std::string badge;       // "Custom channel mix", "Not used: custom channel mix", "" = none
+};
+
+inline MotionLabel motionLabel(const ModeForm &form, const Settings &base, Motion m, const StringProvider &s) {
+    // the names are literal so that the translation extraction finds them
+    struct Names { std::string name, how; };
+    Names n;
+    switch (m) {
+        case Motion::VPush: n = {s.tr("Vertical push"), s.tr("Push forward / back")}; break;
+        case Motion::VTilt: n = {s.tr("Vertical tilt"), s.tr("Tilt forward / back")}; break;
+        case Motion::HPush: n = {s.tr("Horizontal push"), s.tr("Push sideways")}; break;
+        case Motion::HTilt: n = {s.tr("Horizontal tilt"), s.tr("Tilt sideways")}; break;
+        case Motion::Twist: n = {s.tr("Twist"), s.tr("Twist the cap")}; break;
+        case Motion::Lift: n = {s.tr("Lift / press"), s.tr("Push down / pull up")}; break;
+    }
+    const MotionPlace p = placeOf(form, base, m);
+    MotionRow row;
+    if (!p.found) {
+        row = motion_detail::unusedRow(motionId(m), n.name, n.how, s);
+    } else {
+        ChannelAction a;
+        std::string err;
+        const ChannelForm cf = actionOf(form, base, m);
+        if (!parseChannelAction(cf.text(), &a, &err)) a = ChannelAction();
+        row = motion_detail::rowFor(motionId(m), n.name, n.how, a, p.channel == MotionChannel::V, p.channel == MotionChannel::Twist,
+                                    effectiveSettings(form, base).zoom_modifier, s);
+    }
+    MotionLabel l;
+    l.motion = m;
+    l.name = row.name;
+    l.how = row.how;
+    l.action = row.action;
+    l.chip = row.chip;
+    l.symbol = row.symbol;
+    l.kind = row.kind;
+    l.customMix = p.customMix;
+    l.lift = m == Motion::Lift && p.found;
+    l.reversed = isReversed(form, base, m);
+    if (m == Motion::Lift) {
+        if (p.found) {
+            l.action = s.tr("Added to another motion");
+            l.symbol = "lift_in";
+            l.kind = MotionKind::Active;
+        }
+    } else if (p.customMix) {
+        l.badge = p.found ? s.tr("Custom channel mix") : s.tr("Not used: custom channel mix");
+    }
+    return l;
+}
+
+inline std::vector<MotionLabel> motionLabels(const ModeForm &form, const Settings &base, const StringProvider &s) {
+    std::vector<MotionLabel> out;
+    for (Motion m : allMotions()) out.push_back(motionLabel(form, base, m, s));
+    return out;
 }
 
 }  // namespace spn::ui

@@ -3547,3 +3547,203 @@ msgstr "Kehrt die Richtung der angehakten Bewegungen in jedem Joystick-Mode um, 
 #: src/ui/qt/pages/channels_editor.cpp
 msgid "Keys held while zooming (the mouse wheel is sent with them): ctrl, shift, alt, super (Cmd on macOS), a combination such as ctrl+shift, or none"
 msgstr "Tasten, die beim Zoomen gehalten werden (dazu wird das Mausrad gesendet): ctrl, shift, alt, super (Cmd auf macOS), eine Kombination wie ctrl+shift oder none"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Motions and buttons"
+msgstr "Bewegungen und Tasten"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Picture of the cap: its motions and the buttons"
+msgstr "Bild der Kappe: ihre Bewegungen und die Tasten"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Selected: %1"
+msgstr "Gewählt: %1"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Cap"
+msgstr "Kappe"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Device:"
+msgstr "Gerät:"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Device whose buttons are shown"
+msgstr "Gerät, dessen Tasten gezeigt werden"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "What the selected item does"
+msgstr "Was das gewählte Element tut"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Selected"
+msgstr "Gewählt"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "No device attached: generic"
+msgstr "Kein Gerät angeschlossen: allgemein"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "SpaceMouse Compact (2 buttons)"
+msgstr "SpaceMouse Compact (2 Tasten)"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "SpaceMouse Pro (15 buttons)"
+msgstr "SpaceMouse Pro (15 Tasten)"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "SpaceMouse Enterprise (31 buttons)"
+msgstr "SpaceMouse Enterprise (31 Tasten)"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "reversed"
+msgstr "umgekehrt"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Inherited"
+msgstr "Geerbt"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Button %1: not bound in this joystick mode, the profile's binding applies"
+msgstr "Taste %1: in diesem Joystick-Mode nicht belegt, die Belegung des Profils gilt"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "not bound here, the profile's binding applies"
+msgstr "hier nicht belegt, die Belegung des Profils gilt"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "the channel mix of this motion is written by hand, so it is left as it is."
+msgstr "der Kanal-Mix dieser Bewegung ist von Hand geschrieben und bleibt deshalb, wie er ist."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Show in Settings tab"
+msgstr "Im Tab Einstellungen zeigen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "What it does"
+msgstr "Was sie tut"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Default behavior"
+msgstr "Standardverhalten"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "As in the profile"
+msgstr "Wie im Profil"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Do nothing"
+msgstr "Nichts tun"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "This motion has no effect in this joystick mode"
+msgstr "Diese Bewegung hat in diesem Joystick-Mode keine Wirkung"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Scroll up and down"
+msgstr "Hoch und runter scrollen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Vertical mouse wheel"
+msgstr "Vertikales Mausrad"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Horizontal mouse wheel"
+msgstr "Horizontales Mausrad"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Ctrl + wheel"
+msgstr "Strg + Mausrad"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Keys: a rate of key presses"
+msgstr "Tasten: eine Rate von Tastendrücken"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Press a key for each direction; the harder you push, the faster it repeats"
+msgstr "Eine Taste je Richtung; je stärker du drückst, desto schneller wiederholt sie sich"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "One key tap per push"
+msgstr "Ein Tastendruck pro Schub"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "One key press for each push or tilt"
+msgstr "Ein Tastendruck für jedes Schieben oder Kippen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Reverse direction"
+msgstr "Richtung umkehren"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Reverses scroll, zoom and keys alike (written as a sign of -1)"
+msgstr "Kehrt Scrollen, Zoom und Tasten gleichermaßen um (als Vorzeichen -1 geschrieben)"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Same as ..."
+msgstr "Wie ..."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Swap with ..."
+msgstr "Tauschen mit ..."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Tune this motion"
+msgstr "Diese Bewegung einstellen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Optional: values that apply while this joystick mode is active"
+msgstr "Optional: Werte, die gelten, solange dieser Joystick-Mode aktiv ist"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "As the profile"
+msgstr "Wie im Profil"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Lift / press is prone to false triggers when the cap is grabbed or released. No built-in joystick mode uses it."
+msgstr "Heben/Drücken löst leicht versehentlich aus, wenn die Kappe angefasst oder losgelassen wird. Kein eingebauter Joystick-Mode nutzt es."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Lift / press has no action of its own: it can be added to another motion."
+msgstr "Heben/Drücken hat keine eigene Aktion: Es kann einer anderen Bewegung zugerechnet werden."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Add lift / press to"
+msgstr "Heben/Drücken hinzufügen zu"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Push forward / back (vertical channel)"
+msgstr "Vorwärts/rückwärts schieben (vertikaler Kanal)"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Push sideways (horizontal channel)"
+msgstr "Seitwärts schieben (horizontaler Kanal)"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Weight of lift / press"
+msgstr "Gewicht von Heben/Drücken"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Adds to:"
+msgstr "Zählt zu:"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Weight:"
+msgstr "Gewicht:"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Button %1"
+msgstr "Taste %1"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Added to another motion"
+msgstr "Einer anderen Bewegung zugerechnet"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Custom channel mix"
+msgstr "Eigener Kanal-Mix"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Not used: custom channel mix"
+msgstr "Nicht genutzt: eigener Kanal-Mix"

@@ -14,13 +14,13 @@ using namespace spn;
 using namespace spn::ui;
 
 static void checkSlots(const DeviceLayout &l) {
-    assert(int(l.slots.size()) == l.count);
+    assert(int(l.buttons.size()) == l.count);
     std::set<int> numbers;
-    for (size_t i = 0; i < l.slots.size(); ++i) {
-        const ButtonSlot &s = l.slots[i];
+    for (size_t i = 0; i < l.buttons.size(); ++i) {
+        const ButtonSlot &s = l.buttons[i];
         assert(s.number == int(i) + 1 && numbers.insert(s.number).second);
         assert(s.x >= 0 && s.x <= 1 && s.y >= 0 && s.y <= 1);
-        for (size_t j = 0; j < i; ++j) assert(std::fabs(s.x - l.slots[j].x) > 1e-9 || std::fabs(s.y - l.slots[j].y) > 1e-9);
+        for (size_t j = 0; j < i; ++j) assert(std::fabs(s.x - l.buttons[j].x) > 1e-9 || std::fabs(s.y - l.buttons[j].y) > 1e-9);
     }
 }
 
@@ -49,11 +49,11 @@ int main() {
     assert(deviceLayout("Mystery Cap", 100).count == 32);
     // none
     const DeviceLayout none = deviceLayout("Mystery Cap", 0);
-    assert(none.kind == LayoutKind::None && none.slots.empty());
+    assert(none.kind == LayoutKind::None && none.buttons.empty());
     assert(deviceLayout("Mystery Cap", -3).count == 0);
     // Compact: one button left of the cap, one right
     const DeviceLayout c = deviceLayout("SpaceMouse Compact", 2);
-    assert(c.slots[0].x < 0.5 && c.slots[1].x > 0.5);
+    assert(c.buttons[0].x < 0.5 && c.buttons[1].x > 0.5);
     std::puts("test_ui_device_layout OK");
     return 0;
 }

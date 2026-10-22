@@ -47,7 +47,8 @@ What belongs to the selected profile is the box **This profile** at the bottom o
 
 The list shows every joystick mode with its origin (**Built in**, **Your file**, **Your file, replaces the built-in joystick mode**), its description and which profiles use it. Actions: **New**, **New from example...** (the ready-made examples that are not installed yet), **Duplicate**, **Import...** (also by dropping `.conf` files on the page, checked, never overwrites), **Export...**, **Rename...**, **Edit** and **Delete**. A built-in joystick mode first gets an editable copy with the same id.
 
-The **editor** has three tabs:
+The **editor** has four tabs:
+- **Motions and buttons:** a picture of the cap with its six motions and the buttons of the device. Click an item (or use the arrow keys) and choose what it does in the inspector next to it: an action for a motion (push and tilt with the same action write the unsplit key, different actions the split keys), **Reverse direction**, lift / press as a term of a channel mix (with a warning about false triggers), or the button row for a button. A hand-written channel mix is never changed.
 - **Settings:** name, description and the three channels (default, off, vertical or horizontal wheel, zoom, keys with a modifier chord per direction, or one key tap per push). Each scroll channel has a **Split push and tilt** switch that gives push and tilt their own action and tuning.
 - **Buttons:** what each button does in this joystick mode.
 - **Overrides:** settings this joystick mode changes while it is active.
@@ -114,7 +115,7 @@ Settings > Language and appearance: System default, Light or Dark. It applies at
 
 ## Profiles and the program picker
 
-The editor of a profile (also Global) has the tabs General, Channels, Buttons and Overrides; the header shows which profile is edited (icon, name, kind) with one line about inheritance, the tab stays when you select another profile, and the list stays visible. Every setting row and button row says where its value comes from ("Inherited from Global: 5", "Set in this profile (inherited: 5)") and has a Reset; in Global a value that profiles override says "N profiles override this". "Export..." writes the selected profile as a `.conf` file. A search box above the list filters the profiles by name, one above the tabs filters the settings by label or key. The joystick mode editor has the tabs Settings, Buttons and Overrides in the same way and saves by itself. See [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md).
+The editor of a profile (also Global) has the tabs General, Channels, Buttons and Overrides; the header shows which profile is edited (icon, name, kind) with one line about inheritance, the tab stays when you select another profile, and the list stays visible. Every setting row and button row says where its value comes from ("Inherited from Global: 5", "Set in this profile (inherited: 5)") and has a Reset; in Global a value that profiles override says "N profiles override this". "Export..." writes the selected profile as a `.conf` file. A search box above the list filters the profiles by name, one above the tabs filters the settings by label or key. The joystick mode editor has the tabs Motions and buttons, Settings, Buttons and Overrides in the same way and saves by itself. See [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md).
 
 "Add application..." lists the programs that are running now (search by name, match string or window title, refresh) and shows the exact match string that will be stored. "Capture next focused program" takes the program you switch to. Precedence: global < device < joystick mode overrides < application, see [Profiles](Profiles).
 

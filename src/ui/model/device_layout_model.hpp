@@ -13,7 +13,7 @@
 // room for the keypad below; the view scales them to its size and keeps the 24 px minimum target by spacing.
 //
 //   const DeviceLayout l = deviceLayout(deviceName, reportedButtons);
-//   for (const ButtonSlot &s : l.slots) place(s.number, s.x, s.y);
+//   for (const ButtonSlot &s : l.buttons) place(s.number, s.x, s.y);
 #pragma once
 #include <algorithm>
 #include <cmath>
@@ -34,7 +34,7 @@ enum class LayoutKind { None, TwoSides, Pro, Keypad, Grid };
 struct DeviceLayout {
     LayoutKind kind = LayoutKind::None;
     int count = 0;
-    std::vector<ButtonSlot> slots;  // number order
+    std::vector<ButtonSlot> buttons;  // number order
     int columns = 0;                // Grid and Keypad
     bool knownModel = false;
 };
@@ -58,7 +58,7 @@ inline DeviceLayout deviceLayout(const std::string &deviceName, int reportedButt
             s.number = i + 1;
             s.x = cols == 1 ? (x0 + x1) / 2 : x0 + (x1 - x0) * c / (cols - 1);
             s.y = rows == 1 ? (y0 + y1) / 2 : y0 + (y1 - y0) * r / (rows - 1);
-            l.slots.push_back(s);
+            l.buttons.push_back(s);
         }
     };
     if (!l.knownModel) {
@@ -69,7 +69,7 @@ inline DeviceLayout deviceLayout(const std::string &deviceName, int reportedButt
     }
     if (l.count <= 2) {
         l.kind = LayoutKind::TwoSides;
-        for (int i = 0; i < l.count; ++i) l.slots.push_back({i + 1, l.count == 1 ? 0.5 : (i == 0 ? 0.08 : 0.92), 0.45});
+        for (int i = 0; i < l.count; ++i) l.buttons.push_back({i + 1, l.count == 1 ? 0.5 : (i == 0 ? 0.08 : 0.92), 0.45});
         return l;
     }
     if (l.count <= 16) {
@@ -84,7 +84,7 @@ inline DeviceLayout deviceLayout(const std::string &deviceName, int reportedButt
                 s.number = first + i;
                 s.x = c == 0 ? xa : xb;
                 s.y = rows == 1 ? 0.45 : 0.1 + 0.7 * r / (rows - 1);
-                l.slots.push_back(s);
+                l.buttons.push_back(s);
             }
         };
         side(1, left, 0.05, 0.17);

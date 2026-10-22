@@ -5,6 +5,8 @@
 #include <QSessionManager>
 #include <QDir>
 #include <QCheckBox>
+#include <QMouseEvent>
+#include <QRadioButton>
 #include <QImage>
 #include <QKeyEvent>
 #include <QPainter>
@@ -69,6 +71,7 @@
 #include "pages/profiles_env.hpp"
 #include "pages/button_modes_page.hpp"
 #include "pages/cycle_editor_widget.hpp"
+#include "pages/motion_editor.hpp"
 #include "autosaver.hpp"
 #include "described_item_delegate.hpp"
 #include "info_popup.hpp"
@@ -658,9 +661,9 @@ static bool modeEditorTabsSelfTest(const UiContext &ctx) {
     settle();
     check(page.selectMode(QStringLiteral("mine")) && page.openEditor() && page.editorWidget(), "the editor opens");
     ModeEditorWidget *ed = page.editorWidget();
-    check(ed->tabIds() == QStringList({QStringLiteral("settings"), QStringLiteral("buttons"), QStringLiteral("overrides")}),
-          "Settings, Buttons and Overrides");
-    check(ed->currentTabId() == QStringLiteral("settings"), "the first tab is Settings");
+    check(ed->tabIds() == QStringList({QStringLiteral("motions"), QStringLiteral("settings"), QStringLiteral("buttons"), QStringLiteral("overrides")}),
+          "Motions and buttons, Settings, Buttons and Overrides");
+    check(ed->currentTabId() == QStringLiteral("motions"), "the first tab is Motions and buttons");
     for (const QString &name : {QStringLiteral("Save"), QStringLiteral("Revert")})
         for (QPushButton *c : ed->findChildren<QPushButton *>()) check(c->text() != name, "no Save or Revert button");
     check(!ed->pending(), "an unchanged joystick mode has nothing to write");
@@ -676,6 +679,167 @@ static bool modeEditorTabsSelfTest(const UiContext &ctx) {
     ed->selectTab(QStringLiteral("overrides"));
     QLineEdit *ov = lineEditNamed(ed, QStringLiteral("SCROLL_V_SENS"));
     check(ov && ov->text() == QStringLiteral("2"), "the Overrides tab shows the saved override");
+    return ok;
+}
+
+// Motions and buttons tab (issue #143): the picture, selection by click and by keyboard, assigning through the
+// inspector (split and collapse of push and tilt), reverse direction, lift/press, a button, and that every
+// edit is written by the autosave.
+static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "motion editor self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    auto fileText = [&](const QString &rel) {
+        QFile f(tmpPath + rel);
+        return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+    };
+    auto waitFor = [](const std::function<bool()> &done, int ms) {
+        QElapsedTimer t;
+        t.start();
+        while (!done() && t.elapsed() < ms) QApplication::processEvents(QEventLoop::AllEvents, 20);
+        return done();
+    };
+    const QString rel = QStringLiteral("/modes/motionsdemo.conf");
+    {
+        QFile f(tmpPath + rel);
+        if (!f.open(QIODevice::WriteOnly)) return false;
+        f.write("# demo\nNAME = Motions demo\nV_ACTION = wheel_v\nBUTTON_1 = key:space\n");
+    }
+    ModesPage page(ctx);
+    page.show();
+    settle();
+    page.refreshIfChanged();
+    check(page.selectMode(QStringLiteral("motionsdemo")) && page.openEditor() && page.editorWidget(), "the editor opens");
+    ModeEditorWidget *ed = page.editorWidget();
+    if (!ed) return false;
+    auto me = [&]() { return ed->motionEditor(); };
+    auto radio = [&](const QString &text) -> QRadioButton * {
+        for (QRadioButton *r : me()->inspector()->findChildren<QRadioButton *>())
+            if (r->text() == text) return r;
+        return nullptr;
+    };
+    auto sel = [&](const QString &id) {
+        const bool r = me()->select(id);
+        settle();  // widgets added to a shown layout are shown by a queued call
+        return r;
+    };
+    auto settleWrite = [&] { settle(); return waitFor([&] { return !ed->pending(); }, 3000); };
+    check(ed->currentTabId() == QStringLiteral("motions") && me() && me()->picture(), "the picture is the first tab");
+    // six motions and the buttons of the device (no device attached: a generic grid from the settings)
+    int motions = 0, buttons = 0;
+    for (const MotionPicture::Item &it : me()->picture()->items()) (it.id.startsWith(QLatin1String("m:")) ? motions : buttons)++;
+    check(motions == 6 && buttons >= 1, "six motions and the buttons are drawn");
+    for (const MotionPicture::Item &it : me()->picture()->items()) check(!it.text.isEmpty() && it.rect.width() >= 24 && it.rect.height() >= 24, "every item has words and a 24 px target");
+    for (int i = 0; i < me()->picture()->items().size(); ++i)
+        for (int j = 0; j < i; ++j)
+            check(!me()->picture()->items()[i].rect.intersects(me()->picture()->items()[j].rect), "no two items overlap");
+
+    // select by click
+    {
+        MotionPicture *pic = me()->picture();
+        const QPoint at = pic->itemRect(QStringLiteral("m:h_tilt")).center();
+        QMouseEvent press(QEvent::MouseButtonPress, QPointF(at), QPointF(pic->mapToGlobal(at)), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(pic, &press);
+        check(me()->selectedId() == QStringLiteral("m:h_tilt") && me()->inspectorTitle().contains(QStringLiteral("Horizontal tilt")), "a click selects a motion");
+    }
+    // select by keyboard: arrows move between the items, Enter goes to the inspector
+    {
+        MotionPicture *pic = me()->picture();
+        pic->setCurrent(QStringLiteral("m:v_push"));
+        pic->setFocus();
+        auto key = [&](int k) {
+            QKeyEvent e(QEvent::KeyPress, k, Qt::NoModifier);
+            QApplication::sendEvent(pic, &e);
+        };
+        key(Qt::Key_Right);
+        check(me()->selectedId() == QStringLiteral("m:v_tilt"), "the right arrow goes to the tilt");
+        key(Qt::Key_Down);
+        check(me()->selectedId() == QStringLiteral("m:h_tilt"), "the down arrow goes down");
+        key(Qt::Key_Left);
+        key(Qt::Key_Up);
+        check(me()->selectedId() == QStringLiteral("m:v_push"), "and back");
+        key(Qt::Key_Return);
+        settle();
+    }
+
+    // assign: tilt keys -> the channel splits; push the same -> back to the unsplit key
+    sel(QStringLiteral("m:v_tilt"));
+    QRadioButton *keys = radio(QStringLiteral("Keys: a rate of key presses"));
+    check(keys != nullptr, "the inspector offers the action cards");
+    if (keys) keys->click();
+    check(settleWrite() && fileText(rel).contains(QStringLiteral("V_TILT_ACTION = keys:up,down")) && fileText(rel).contains(QStringLiteral("V_PUSH_ACTION = wheel_v")),
+          "assigning keys to the tilt splits the channel and keeps the push");
+    check(fileText(rel).contains(QStringLiteral("# demo")), "comments stay");
+    check(me()->selectedId() == QStringLiteral("m:v_tilt"), "the selection survives the rebuild");
+    sel(QStringLiteral("m:v_push"));
+    keys = radio(QStringLiteral("Keys: a rate of key presses"));
+    if (keys) keys->click();
+    check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")) && !fileText(rel).contains(QStringLiteral("V_TILT_ACTION")) &&
+              !fileText(rel).contains(QStringLiteral("V_PUSH_ACTION")),
+          "the same action on push and tilt is the unsplit key");
+    // the Settings tab shows the same
+    {
+        ed->selectTab(QStringLiteral("settings"));
+        settle();
+        QComboBox *vk = nullptr;
+        for (QComboBox *cb : ed->findChildren<QComboBox *>())
+            if (cb->accessibleName() == QStringLiteral("Vertical push") && cb->isVisibleTo(ed)) vk = cb;
+        check(vk && vk->currentData().toInt() == int(spn::ChannelActionType::Keys), "the Settings tab shows the same action");
+        ed->selectTab(QStringLiteral("motions"));
+        settle();
+    }
+    // reverse direction
+    sel(QStringLiteral("m:v_push"));
+    QCheckBox *rev = nullptr;
+    for (QCheckBox *cb : me()->inspector()->findChildren<QCheckBox *>())
+        if (cb->accessibleName() == QStringLiteral("Vertical push: Reverse direction")) rev = cb;
+    check(rev != nullptr, "the inspector has a reverse switch");
+    if (rev) rev->click();
+    check(settleWrite() && fileText(rel).contains(QStringLiteral("SCROLL_V_SIGN = -1")), "reverse writes the sign");
+    sel(QStringLiteral("m:v_push"));
+    for (QCheckBox *cb : me()->inspector()->findChildren<QCheckBox *>())
+        if (cb->accessibleName() == QStringLiteral("Vertical push: Reverse direction")) rev = cb;
+    check(rev && rev->isChecked(), "and the switch shows it");
+    if (rev) rev->click();
+    check(settleWrite() && !fileText(rel).contains(QStringLiteral("SCROLL_V_SIGN")), "switching it off removes the line");
+    // lift / press: a warning in words, and it joins a channel mix
+    sel(QStringLiteral("m:lift"));
+    {
+        bool warned = false;
+        for (QLabel *l : me()->inspector()->findChildren<QLabel *>()) warned = warned || l->text().contains(QStringLiteral("false triggers"));
+        check(warned, "lift / press says in words that it is prone to false triggers");
+        QComboBox *where = nullptr;
+        for (QComboBox *cb : me()->inspector()->findChildren<QComboBox *>())
+            if (cb->accessibleName() == QStringLiteral("Add lift / press to")) where = cb;
+        check(where != nullptr, "lift / press can be added to a motion");
+        if (where) {
+            where->setCurrentIndex(1);
+            emit where->activated(1);
+        }
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("SCROLL_V_MIX = z + rx + y")), "it is written as a term of the channel mix");
+        check(!ed->problemText().isEmpty() == false, "the result is valid");
+    }
+    // back to not used
+    sel(QStringLiteral("m:lift"));
+    {
+        QComboBox *where = nullptr;
+        for (QComboBox *cb : me()->inspector()->findChildren<QComboBox *>())
+            if (cb->accessibleName() == QStringLiteral("Add lift / press to")) where = cb;
+        if (where) {
+            where->setCurrentIndex(0);
+            emit where->activated(0);
+        }
+        check(settleWrite() && !fileText(rel).contains(QStringLiteral("SCROLL_V_MIX")), "not used removes the mix again");
+    }
+    // a button: the inspector is the shared button row
+    sel(QStringLiteral("b:1"));
+    check(me()->inspectorTitle().contains(QStringLiteral("Button 1")), "a button is selected");
+    check(!me()->inspector()->findChildren<QComboBox *>().isEmpty(), "the inspector has the shared button editor");
+    QFile::remove(tmpPath + rel);
+    page.refreshIfChanged();
+    std::printf("motion editor self-test: %s\n", ok ? "ok" : "failed");
     return ok;
 }
 
@@ -1896,6 +2060,7 @@ static bool modeFilesAutosaveSelfTest(const UiContext &ctx, const QString &tmpPa
         }
         check(page.selectMode(QStringLiteral("mine")) && page.openEditor() && page.editorWidget(), "the editor opens");
         ModeEditorWidget *ed = page.editorWidget();
+        ed->selectTab(QStringLiteral("settings"));
         {
             QLineEdit *desc = lineEditNamed(ed, QStringLiteral("Description"));
             check(desc && desc->placeholderText() == QStringLiteral("No description"), "the description field is always there");
@@ -1975,6 +2140,7 @@ static bool modeFilesAutosaveSelfTest(const UiContext &ctx, const QString &tmpPa
         // split push and tilt (issue #100): the switch, the two action rows, the tuning fields, autosave
         {
             check(page.selectMode(QStringLiteral("mine")) && page.openEditor(), "reopen for the split test");
+            ed->selectTab(QStringLiteral("settings"));
             auto splitSwitch = [&](const QString &channel) -> QCheckBox * {
                 for (QCheckBox *cb : ed->findChildren<QCheckBox *>())
                     if (cb->accessibleName() == channel + QStringLiteral(": Split push and tilt")) return cb;
@@ -2785,6 +2951,7 @@ int main(int argc, char **argv) {
         w.show();
         if (!buttonModesSelfTest(ctx, tmp.path())) return 1;
         if (!modeEditorSelfTest(ctx, tmp.path())) return 1;
+        if (!motionEditorSelfTest(ctx, tmp.path())) return 1;
         if (!modeFilesAutosaveSelfTest(ctx, tmp.path())) return 1;
         if (!examplesSelfTest(ctx, tmp.path())) return 1;
         if (!extensionsSelfTest(ctx, tmp.path())) return 1;
