@@ -8,7 +8,7 @@
 
 **Use your 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program.** A SpaceMouse is made for 3D and CAD software; in a web browser, a PDF reader, a map or an office document it usually does nothing. dofscroll turns the six axes into smooth scrolling, zooming and keys for ordinary desktop programs, with per-program and per-device profiles, built-in joystick modes and button modes. Version 1.0.0. Free software for Linux (tested), Windows and macOS (built by CI, never run with a real device, see [Status and testing](#status-and-testing)). Website: <https://hoze-lukas.github.io/dofScroll/> (English, [Deutsch](https://hoze-lukas.github.io/dofScroll/de/)). Wiki: [Quick start](https://github.com/HoZe-Lukas/dofScroll/wiki/Quick-start), [Built-in modes](https://github.com/HoZe-Lukas/dofScroll/wiki/Built-in-modes), [Requirements](https://github.com/HoZe-Lukas/dofScroll/wiki/Requirements).
 
-![The dofscroll settings window: profile editor with a program profile for okular](site/img/ui-window-light.png)
+![The dofscroll settings window: the Joystick modes page with six symbols per joystick mode and what push, tilt and twist do](site/img/ui-window-light.png)
 
 Install in three lines (download the package from the [latest release](https://github.com/HoZe-Lukas/dofScroll/releases/latest) first; first-time setup in [docs/installation.md](docs/installation.md)):
 
@@ -36,7 +36,7 @@ It consists of two programs. The Qt interface is the only tray and settings wind
 | Program | Task |
 |---|---|
 | `dofscroll` | Background daemon. Reads the SpaceMouse, produces the input events. |
-| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Overview, Profiles with the Channels tab, Joystick modes, Button modes, Device and Axes, Settings). Writes the same config file and tells the daemon to reload. See [docs/ui.md](docs/ui.md). |
+| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Overview, Profiles with the Channels tab, Joystick modes with a visual editor (a picture of the cap: click a motion or button and choose what it does), Button modes, Device and Axes, Settings). Writes the same config file and tells the daemon to reload. See [docs/ui.md](docs/ui.md). |
 
 ## Design principle
 
@@ -111,7 +111,8 @@ Release notes: [docs/release-notes-1.2.1.md](docs/release-notes-1.2.1.md) (and [
    `systemctl --user enable --now dofscroll.service dofscroll-ui.service`
    "Start at login" in the interface switches autostart on and off.
 3. Plug in the SpaceMouse. Push the cap: the window under the pointer scrolls. Twist: it zooms
-   (Ctrl + scroll).
+   (Ctrl + scroll; the zoom key is `ZOOM_MODIFIER`, per profile). Scrolls the wrong way? Reverse a motion in the
+   Channels tab ("Invert direction of", `INVERT_AXES`) or in the joystick mode editor.
 4. Right-click the tray icon, open "Settings..." and adjust sensitivity, dead zone and direction.
    Changes apply immediately.
 

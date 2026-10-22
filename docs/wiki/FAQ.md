@@ -5,6 +5,9 @@
 **Which setup has actually been tested?**
 RHEL 9, X11, KDE Plasma, with a SpaceMouse Pro and a SpaceMouse Compact. Everything else is built in CI but not run on hardware, see [Home](Home).
 
+**Scrolling goes the wrong way. How do I reverse it?**
+Reverse a single motion: on the Channels tab of the profile, "Invert direction of" has a check box per motion (`INVERT_AXES`; push and tilt are separate, so you can flip only the one that feels wrong). It works for every joystick mode and can be set per program or device. In the joystick mode editor, "Reverse direction" of a motion writes the sign of that channel instead. See [Configuration reference](Configuration-reference).
+
 **Does it work on Wayland?**
 There is a uinput backend that `BACKEND = auto` picks under Wayland, but it is untested. It needs write access to `/dev/uinput` through a udev rule you install yourself, and program profiles work only with `kdotool` on KDE. See [Troubleshooting](Troubleshooting).
 

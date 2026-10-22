@@ -8,7 +8,7 @@ Before you install, check [Requirements](Requirements) (supported systems, drive
 
 1. Open the [Releases page](https://github.com/HoZe-Lukas/dofScroll/releases). Versions `0.x` and tags with a suffix are marked pre-release and do not appear under `/releases/latest`.
 2. Download the package for your system plus `SHA256SUMS.txt`.
-3. Verify: `sha256sum -c --ignore-missing SHA256SUMS.txt` (this protects against a damaged download only, not against a compromised release).
+3. Verify: `sha256sum -c --ignore-missing SHA256SUMS.txt` (this protects against a damaged download only, not against a compromised release). To check where a file was built: `gh attestation verify <file> -R HoZe-Lukas/dofScroll` proves that this repository's release workflow produced it.
 4. Install:
 
 | Format | Command | Notes |
