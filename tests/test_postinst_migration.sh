@@ -54,7 +54,8 @@ chmod +x "$T/bin"/*
 # The script under test, with the two absolute system paths redirected into the sandbox.
 sed -e "s#/usr/lib/systemd/user/dofscroll-ui.service#$T/ui.service#" \
     -e "s#/proc/#$T/proc/#" -e "s#kill -TERM#$T/bin/kill -TERM#" \
-    -e "s#/etc/systemd/user/#$T/etc/systemd/user/#" "$SRC/packaging/cpack/postinst" > "$T/postinst"
+    -e "s#/etc/systemd/user/#$T/etc/systemd/user/#" -e "s#/run/systemd/system#$T/run-systemd#" \
+    "$SRC/packaging/cpack/postinst" > "$T/postinst"
 grep -q "$T/ui.service" "$T/postinst" || fail "path substitution did not apply"
 
 setup() {  # $1 = with tray link (1/0), $2 = ui unit present (1/0)
