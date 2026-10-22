@@ -214,9 +214,12 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     tabs_->addTab(buttons_, T("Buttons"));
     motions_ = new ProfileMotionsView(
         ctx_, [this](QWidget *parent, QGridLayout *grid, int gridRow, size_t sec, int n) { addBindingRowFor(parent, grid, gridRow, sec, n); }, tabs_);
-    motions_->setProperty("tabId", QStringLiteral("motions"));
     motions_->changed = [this] { queueRebuild(); };
-    tabs_->addTab(motions_, T("Motions and buttons"));
+    {   // scrolls on its own like the other tabs: the page must fit the default window
+        QScrollArea *motionsArea = makeArea("motions");
+        motionsArea->setWidget(motions_);
+        tabs_->addTab(motionsArea, T("Motions and buttons"));
+    }
     tabs_->addTab(overrides_, T("Overrides"));
     tabs_->setTabToolTip(tabs_->count() - 1, T("Advanced: every value this profile sets itself"));
 
