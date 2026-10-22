@@ -52,8 +52,8 @@ the active joystick mode splits that channel.
 
 Axes (libspnav convention, measured on a SpaceMouse Pro): push forward or back is `z`, sideways is
 `x`, lift or press is `y`, tilt forward or back is `rx`, tilt sideways is `rz`, twist is `ry`. If you
-changed `spacenavd` settings (axis swap, inversion), adjust the mixes or run the "Learn axes" wizard
-in the tray.
+changed `spacenavd` settings (axis swap, inversion), adjust the mixes or run the axis assistant
+(Axes page of the interface, "Axis assistant...").
 
 ## Zoom, backend, buttons
 

@@ -2293,3 +2293,224 @@ msgstr ""
 #: src/ui/qt/pages/channels_editor.cpp
 msgid "Keys held while zooming (the mouse wheel is sent with them): ctrl, shift, alt, super (Cmd on macOS), a combination such as ctrl+shift, or none"
 msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Done"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "To do"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Needs attention"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "dofscroll is running"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "The background program (the daemon) is running."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"Starting the background program (the daemon)... This takes a few "
+"seconds."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"The background program (the daemon) could not be started. Try \"Start "
+"now\"; if it does not help, see Troubleshooting in the documentation."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "The background program (the daemon) is not running."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Start now"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "SpaceMouse found"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "The SpaceMouse is connected."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Found: %1"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"But another program, possibly the 3Dconnexion driver, holds it "
+"exclusively. See Troubleshooting in the documentation."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Checked as soon as dofscroll is running."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"The SpaceMouse driver service (spacenavd) is not running. It has to be "
+"switched on once, as administrator. If your system does not offer a way "
+"to do it, run this command in a terminal:"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"No SpaceMouse found yet. Plug it in (or its wireless receiver) and move "
+"the cap."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"No SpaceMouse found yet. Plug it in and move the cap. If another program"
+" holds it, close that program."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Cannot be switched on here: %1"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"dofscroll and its tray icon start when you log in. You can change this "
+"on the Settings page."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"Start dofscroll when you log in, so the SpaceMouse works without opening"
+" anything."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Permission: Input Monitoring"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Permission: Accessibility"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Open Input Monitoring settings"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Open Accessibility settings"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Not reported by the daemon yet."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Granted."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"Missing: macOS does not let dofscroll read the SpaceMouse, so no events "
+"arrive. Switch on dofscroll in the list that opens."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"Missing: macOS does not accept the scroll, zoom and key events that "
+"dofscroll sends. Switch on dofscroll in the list that opens."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "If it is not in the list, add this file with the + button: %1"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Try it"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"Push the cap: the window under the mouse pointer scrolls. Twist it: the "
+"window zooms."
+msgstr ""
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Set up dofscroll"
+msgstr ""
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Welcome to dofscroll"
+msgstr ""
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Setup guide title"
+msgstr ""
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Setup progress"
+msgstr ""
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Skip the guide"
+msgstr ""
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid ""
+"Close the guide without finishing it. \"Show setup guide\" on the "
+"Overview opens it again."
+msgstr ""
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Finish"
+msgstr ""
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Close the guide. \"Show setup guide\" on the Overview opens it again."
+msgstr ""
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "State"
+msgstr ""
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Command to copy"
+msgstr ""
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Copy the command"
+msgstr ""
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid ""
+"Everything is set up. You can close this guide; it can be opened again "
+"from the Overview."
+msgstr ""
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "%1 of %2 steps are done. The checks update by themselves."
+msgstr ""
+
+#: src/ui/qt/qt_action_runner.cpp
+msgid "This settings pane is not known"
+msgstr ""
+
+#: src/ui/qt/qt_action_runner.cpp
+msgid "The system settings could not be opened"
+msgstr ""
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Show setup guide"
+msgstr ""
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid ""
+"Open the first-run guide again: the daemon, the SpaceMouse, start at "
+"login and, on macOS, the permissions"
+msgstr ""

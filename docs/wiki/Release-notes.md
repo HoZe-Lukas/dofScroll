@@ -6,6 +6,10 @@ Design principle: dofscroll complements the vendor driver instead of duplicating
 
 Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
 
+## 1.2.2
+
+Release with a better upgrade and a simpler first start. On Linux the RPM and DEB stop the daemon and interface before installing and start them again afterwards, so no restart by hand is needed, and they enable `spacenavd.service`. The first start is just opening the program from the start menu, launcher or Applications folder: the interface starts the daemon after a short grace period (the daemon refuses to run twice on Linux and macOS), and a setup guide on the first start checks the daemon, the SpaceMouse, Start at login and, on macOS, the permissions. The Joystick modes list shows its six chips in two lines of three (pushes above, tilts and the twist below), each with the marker of the kind of motion and the symbol of the action; the Windows and macOS installers can no longer be built without the interface (no daemon-only fallback), and the release job checks that all six files exist. New website screenshots. See [docs/release-notes-1.2.2.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.2.2.md).
+
 ## 1.2.1
 
 Fix release for macOS: the macOS disk image of 1.2.0 was built without the interface (daemon only) because the pinned Qt installer did not install on the macOS build runner. 1.2.1 has the interface again; nothing else changed. Linux and Windows packages of 1.2.0 were complete. See [docs/release-notes-1.2.1.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.2.1.md).

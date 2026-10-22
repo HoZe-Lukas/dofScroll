@@ -26,7 +26,7 @@ jobs:
   package-rpm:
     name: package RPM + TGZ (Rocky 9)
     runs-on: ubuntu-latest
-    container: ghcr.io/hoze-lukas/dofscroll-ci-rocky9-qt@sha256:cb647a652c3e16d96f0abedaa821c8eab7668da74b779bf0f7d34a1ee613cfce  # pinned, scripts/pin-ci-images.sh
+    container: ghcr.io/hoze-lukas/dofscroll-ci-rocky9-qt@sha256:f534142ced555b21ca67047574bded29294e9684372875da4a670bf44dd9a580  # pinned, scripts/pin-ci-images.sh
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -54,6 +54,11 @@ jobs:
             echo "a packaged unit has an ExecStart outside /usr/bin" >&2; exit 1
           fi
           test -z "$(find /tmp/scan -path '*/usr/lib/udev/*' -type f)"
+          # the upgrade steps: %pre stops the user units, %post starts them again
+          rpm -qp --scripts build/dofscroll-*.rpm > /tmp/rpm-scripts.txt
+          grep -q 'preinstall scriptlet' /tmp/rpm-scripts.txt
+          grep -q 'stop dofscroll.service' /tmp/rpm-scripts.txt
+          grep -q 'start dofscroll.service' /tmp/rpm-scripts.txt
           echo "--- RPM requires:"; rpm -qp --requires build/dofscroll-*.rpm
           echo "--- RPM files:"; rpm -qlp build/dofscroll-*.rpm
           if [ -x /tmp/scan/rpm/usr/bin/dofscroll-ui ]; then
@@ -140,6 +145,9 @@ jobs:
             echo "a packaged unit has an ExecStart outside /usr/bin" >&2; exit 1
           fi
           test -z "$(find /tmp/scan -path '*/usr/lib/udev/*' -type f)"
+          # the upgrade steps: preinst stops the user units, postinst starts them again
+          dpkg-deb -I build/dofscroll*.deb preinst | grep -q 'stop dofscroll.service'
+          dpkg-deb -I build/dofscroll*.deb postinst | grep -q 'start dofscroll.service'
           . packaging/qt.env
           deps="$(dpkg-deb -f build/dofscroll*.deb Depends)"
           echo "--- DEB Depends: $deps"

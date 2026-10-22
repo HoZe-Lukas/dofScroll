@@ -3,7 +3,7 @@
 // The single entry point for runtime file paths of the daemon: the directory comes from the
 // environment (XDG_RUNTIME_DIR) or the OS rules, the file name only from this allow-list. Nothing
 // else reaches open()/unlink()/rename(): the directory must be absolute and free of ".." parts, "."
-// parts, empty parts and control characters, and the file component is one of three fixed names
+// parts, empty parts and control characters, and the file component is one of four fixed names
 // (no separator can occur in it). Ownership and permissions of the directory are checked by the
 // caller (runtimeDirTrusted); files are opened with O_NOFOLLOW.
 #pragma once
@@ -11,13 +11,14 @@
 
 namespace spn {
 
-enum class RuntimeFile { LogFile, StatusFile, SuspendFile };
+enum class RuntimeFile { LogFile, StatusFile, SuspendFile, LockFile };
 
 inline const char *runtimeFileName(RuntimeFile f) {
     switch (f) {
         case RuntimeFile::LogFile: return "dofscroll.log";
         case RuntimeFile::StatusFile: return "dofscroll-status";
         case RuntimeFile::SuspendFile: return "dofscroll-suspend";
+        case RuntimeFile::LockFile: return "dofscroll.lock";
     }
     return "";
 }

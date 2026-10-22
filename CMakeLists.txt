@@ -20,7 +20,7 @@
 # produced by this build (see docs/windows-mac.md).
 
 cmake_minimum_required(VERSION 3.16)
-project(dofscroll VERSION 1.2.1 LANGUAGES CXX
+project(dofscroll VERSION 1.2.2 LANGUAGES CXX
         DESCRIPTION "SpaceMouse to scroll/zoom/key bridge for X11")
 
 set(CMAKE_CXX_STANDARD 17)
@@ -206,6 +206,10 @@ if(BUILD_TESTING)
     if(name STREQUAL "test_win_driver_com" AND NOT WIN32)
       continue()
     endif()
+    # single-instance flock of the Linux and macOS daemons (fork, flock)
+    if(name STREQUAL "test_instance_lock" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+      continue()
+    endif()
     # POSIX helper lookup (stat/access)
     if(name STREQUAL "test_exec_lookup" AND WIN32)
       continue()
@@ -215,6 +219,9 @@ if(BUILD_TESTING)
       continue()
     endif()
     add_executable(${name} ${t})
+    if(name STREQUAL "test_instance_lock")
+      target_sources(${name} PRIVATE ${CMAKE_SOURCE_DIR}/src/platform/linux/runtime_files.cpp)
+    endif()
     if(name STREQUAL "test_runtime_dir")
       target_sources(${name} PRIVATE ${CMAKE_SOURCE_DIR}/src/platform/linux/runtime_files.cpp)
     endif()
@@ -343,6 +350,10 @@ if(BUILD_TESTING)
   if(SH_EXECUTABLE)  # upgrade step: GTK tray users move to dofscroll-ui.service (fake systemctl)
     add_test(NAME postinst_migration
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_postinst_migration.sh ${CMAKE_SOURCE_DIR})
+  endif()
+  if(SH_EXECUTABLE)  # upgrade: stop before the files are replaced, start the same units again afterwards
+    add_test(NAME preinst_postinst_upgrade
+             COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_preinst_upgrade.sh ${CMAKE_SOURCE_DIR})
   endif()
   if(SH_EXECUTABLE)  # the six-motion table of the built-in joystick modes must match the definitions
     add_test(NAME docs_motions

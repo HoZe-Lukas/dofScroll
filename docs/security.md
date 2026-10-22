@@ -704,6 +704,18 @@ The daemon writes two files into `$XDG_RUNTIME_DIR` (private, `0700`, owned by t
 - **Trust model:** the tray reads the files and treats their content as foreign data
   (size/permission/owner check, display only as text). Whoever can manipulate the files can
   already act as the user (A2); they contain no secrets except the name of the active program.
+- **Single-instance lock (Linux and macOS):** the daemon takes an exclusive, non-blocking `flock(2)` on
+  `dofscroll.lock` in the same runtime directory (`src/platform/instance_lock.hpp`) and a second daemon exits
+  at once with "another dofscroll daemon is already running" (exit code 75, `RestartPreventExitStatus=75` in the
+  unit, exit 0 under launchd, so the service manager does not start it again in a loop). The interface
+  starts a daemon when none runs, so this guard keeps a login autostart that races with it from producing
+  double events. The kernel drops the lock when the process ends, however it ends: there is no pid file to
+  trust and no stale lock to clean up. Same hardening as the other runtime files: the directory is opened with
+  `O_NOFOLLOW` and checked on the descriptor (owner, not group/other-writable), the file with
+  `openat(O_NOFOLLOW)` under a fixed name of the allow-list, `0600`, owner and type checked, `O_CLOEXEC` so no
+  helper program inherits it. Without a trustworthy runtime directory the guard is skipped with a warning (no
+  other place is used). Windows keeps its named mutex (`win_main.cpp`). Tested with two holders in one
+  process and with forked processes (`tests/test_instance_lock.cpp`).
 - On a clean exit the daemon removes the status file; the log file stays (tmpfs, gone at logout).
 - `devices_seen` reads `/proc/bus/input/devices` (read access only, no `/sys`).
 
@@ -914,7 +926,8 @@ workflows). Nothing high or critical, no local privilege escalation. Fixed in 1.
 - **Display text from files, programs and devices** (profile names and match strings, device names, mode texts,
   configuration path, action texts) is shown as plain text in the labels that carry it. Before, a name such as
   `<img src=...>` could be rendered as rich text.
-- **Upgrade script (`packaging/cpack/postinst`, runs as root):** a user name must not start with `-`; every
+- **Upgrade scripts (`packaging/cpack/preinst` and `postinst`, run as root):** `preinst` stops the user units
+  (interface, then daemon) and `postinst` starts them again, for every logged-in user; no file is written. A user name must not start with `-`; every
   call is time-limited, and when `timeout` is missing nothing is done; a process is signalled only after its owner is
   checked again right before the signal (process numbers can be reused); an interface is stopped only for a user who
   has the unit enabled.

@@ -14,6 +14,7 @@ A **sidebar** on the left picks a category (Overview, Profiles, Modes, Device, S
 |---|---|---|
 | Overview | Overview | Where to start: daemon state, "Getting started" steps, task buttons, quick actions and one card per profile |
 | Profiles | Profiles | Everything that depends on the device or the program: joystick mode, scroll and zoom feel, button assignment |
+| Modes | Editor | The visual editor at full width: pick a joystick mode, click a motion of the cap or a button and choose what it does |
 | Modes | Joystick modes | Built-in and your own joystick modes, with an editor. One row per joystick mode: name, origin badge, one line of description and six chips, one per motion of the cap in a fixed order (a dashed chip is off or not used, and says so in words). The detail view shows the six motions as a panel and the buttons as chips |
 | Modes | Button modes | Reusable behaviors for one button, with an editor |
 | Modes | User modes | Your joystick mode and button mode files in one list, each with an on/off switch |
@@ -21,11 +22,15 @@ A **sidebar** on the left picks a category (Overview, Profiles, Modes, Device, S
 | Device | Axes | Live view of the six axes and the axis assistant |
 | Settings | Settings | Output on/off, start at login, language and theme, tick rate, output backend, input path, log, About |
 
+### The setup guide (first start)
+
+The first start of a new installation shows the window with a short guide: **dofscroll is running** (the interface starts the daemon by itself when none runs), **SpaceMouse found** (on Linux, if the `spacenavd` service is off, the one command to copy), **Start at login** (a check box, on by default) and, on macOS only, the two permissions **Input Monitoring** and **Accessibility** with a button that opens the matching pane of System Settings. The last step, **Try it**, says to push the cap. Each step checks live and says "Done", "To do" or "Needs attention" in words. **Skip the guide** or **Finish** closes it; **Show setup guide** on the Overview opens it again. Details: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md#the-setup-guide).
+
 ### Overview
 
 - **Getting started** (until the daemon has seen a device and a profile exists): connect the SpaceMouse, check the axes with the assistant, add a profile for a program you use. Each step says "Done:" or "To do:" in words and opens the page that does it.
 - **What do you want to do?** Three buttons: tune scroll and zoom, check the axes, switch joystick modes.
-- **Quick actions:** add a profile, new profile for the running program, **Active joystick mode** (switches the running daemon until the next reload or restart, like the tray menu), open the log, open the documentation, release all keys, restart the daemon, restart the interface.
+- **Quick actions:** **Show setup guide**, add a profile, new profile for the running program, **Active joystick mode** (switches the running daemon until the next reload or restart, like the tray menu), open the log, open the documentation, release all keys, restart the daemon, restart the interface.
 - **One card per profile** with its joystick mode, six small chips that show what its joystick mode does with each motion of the cap, what it overrides and how many settings; the filter box narrows the list; "Open" jumps to the profile.
 
 ### Profiles
@@ -35,6 +40,7 @@ The list on the left holds **Global** first, then **device profiles**, then **pr
 - **General:** for device and program profiles first an output switch, then the joystick mode (drop-down with an **i** button that lists what each motion does) and a panel "What this profile does" with the six motions of the cap (vertical push, vertical tilt, horizontal push, horizontal tilt, twist, lift / press; the same look as on the Joystick modes page) and the buttons as chips such as "1 Space" or "15 Navigation", each saying whether it comes from the joystick mode, from this profile or is inherited. **With the output off the profile sends nothing, so the joystick mode, the buttons and the channel settings are hidden** (the Channels, Buttons and Overrides tabs too) until you switch it on again. To switch only the axes off and keep the buttons, choose the joystick mode "off" and leave the output on.
 - **Channels:** sensitivity, dead zone, direction, smoothing, axis mix, curve (with a live preview), zoom detection and the step trigger, grouped per channel. A filter box hides rows that do not match. "Reset" per row or group and "Restore defaults" remove the profile's own values so the inherited ones apply again.
 - **Buttons:** one row per button of the device. Each row has a drop-down: nothing, a button mode, navigation, a joystick mode switch (`mode:<id>`, next, previous), toggles, and in device and program profiles "Default (inherit from Global)".
+- **Motions and buttons:** the picture of the cap for this profile: what its joystick mode does with each motion, with the profile's own tuning and buttons and the inheritance in words.
 - **Overrides:** the raw values this profile sets itself, with Add override and Remove.
 
 **Inheritance is always written out in words:** "Inherited from Global: 5", "Set in this profile (inherited: 5)", `From joystick mode "timeline": 21`. In Global a value that other profiles override says "N profiles override this". Precedence: Global < device < joystick mode overrides < program ([Profiles](Profiles)).

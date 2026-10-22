@@ -4295,3 +4295,263 @@ msgstr "Medientasten"
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "Drag onto another motion to swap them, with Ctrl to copy."
 msgstr "Auf eine andere Bewegung ziehen, um beide zu tauschen; mit Strg kopieren."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Done"
+msgstr "Erledigt"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "To do"
+msgstr "Offen"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Needs attention"
+msgstr "Braucht Aufmerksamkeit"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "dofscroll is running"
+msgstr "dofscroll läuft"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "The background program (the daemon) is running."
+msgstr "Das Hintergrundprogramm (der Daemon) läuft."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"Starting the background program (the daemon)... This takes a few "
+"seconds."
+msgstr ""
+"Das Hintergrundprogramm (der Daemon) wird gestartet ... Das dauert ein "
+"paar Sekunden."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"The background program (the daemon) could not be started. Try \"Start "
+"now\"; if it does not help, see Troubleshooting in the documentation."
+msgstr ""
+"Das Hintergrundprogramm (der Daemon) konnte nicht gestartet werden. "
+"Versuchen Sie „Jetzt starten“; hilft das nicht, siehe Fehlersuche in der"
+" Dokumentation."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "The background program (the daemon) is not running."
+msgstr "Das Hintergrundprogramm (der Daemon) läuft nicht."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Start now"
+msgstr "Jetzt starten"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "SpaceMouse found"
+msgstr "SpaceMouse gefunden"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "The SpaceMouse is connected."
+msgstr "Die SpaceMouse ist angeschlossen."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Found: %1"
+msgstr "Gefunden: %1"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"But another program, possibly the 3Dconnexion driver, holds it "
+"exclusively. See Troubleshooting in the documentation."
+msgstr ""
+"Aber ein anderes Programm, möglicherweise der 3Dconnexion-Treiber, hält "
+"sie exklusiv. Siehe Fehlersuche in der Dokumentation."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Checked as soon as dofscroll is running."
+msgstr "Wird geprüft, sobald dofscroll läuft."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"The SpaceMouse driver service (spacenavd) is not running. It has to be "
+"switched on once, as administrator. If your system does not offer a way "
+"to do it, run this command in a terminal:"
+msgstr ""
+"Der Treiberdienst der SpaceMouse (spacenavd) läuft nicht. Er muss einmal"
+" als Administrator eingeschaltet werden. Bietet Ihr System dafür keinen "
+"Weg, führen Sie diesen Befehl in einem Terminal aus:"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"No SpaceMouse found yet. Plug it in (or its wireless receiver) and move "
+"the cap."
+msgstr ""
+"Noch keine SpaceMouse gefunden. Stecken Sie sie (oder ihren "
+"Funkempfänger) an und bewegen Sie die Kappe."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"No SpaceMouse found yet. Plug it in and move the cap. If another program"
+" holds it, close that program."
+msgstr ""
+"Noch keine SpaceMouse gefunden. Stecken Sie sie an und bewegen Sie die "
+"Kappe. Hält ein anderes Programm sie fest, schließen Sie dieses "
+"Programm."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Cannot be switched on here: %1"
+msgstr "Kann hier nicht eingeschaltet werden: %1"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"dofscroll and its tray icon start when you log in. You can change this "
+"on the Settings page."
+msgstr ""
+"dofscroll und sein Symbol im Infobereich starten bei der Anmeldung. Das "
+"lässt sich auf der Seite Einstellungen ändern."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"Start dofscroll when you log in, so the SpaceMouse works without opening"
+" anything."
+msgstr ""
+"dofscroll bei der Anmeldung starten, damit die SpaceMouse funktioniert, "
+"ohne dass Sie etwas öffnen müssen."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Permission: Input Monitoring"
+msgstr "Berechtigung: Eingabeüberwachung"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Permission: Accessibility"
+msgstr "Berechtigung: Bedienungshilfen"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Open Input Monitoring settings"
+msgstr "Einstellungen für Eingabeüberwachung öffnen"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Open Accessibility settings"
+msgstr "Einstellungen für Bedienungshilfen öffnen"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Not reported by the daemon yet."
+msgstr "Der Daemon hat sie noch nicht gemeldet."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Granted."
+msgstr "Erteilt."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"Missing: macOS does not let dofscroll read the SpaceMouse, so no events "
+"arrive. Switch on dofscroll in the list that opens."
+msgstr ""
+"Fehlt: macOS lässt dofscroll die SpaceMouse nicht lesen, deshalb kommen "
+"keine Ereignisse an. Schalten Sie dofscroll in der Liste ein, die sich "
+"öffnet."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"Missing: macOS does not accept the scroll, zoom and key events that "
+"dofscroll sends. Switch on dofscroll in the list that opens."
+msgstr ""
+"Fehlt: macOS nimmt die Scroll-, Zoom- und Tastenereignisse nicht an, die"
+" dofscroll sendet. Schalten Sie dofscroll in der Liste ein, die sich "
+"öffnet."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "If it is not in the list, add this file with the + button: %1"
+msgstr ""
+"Steht es nicht in der Liste, fügen Sie diese Datei mit der Schaltfläche "
+"+ hinzu: %1"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Try it"
+msgstr "Ausprobieren"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid ""
+"Push the cap: the window under the mouse pointer scrolls. Twist it: the "
+"window zooms."
+msgstr ""
+"Schieben Sie die Kappe: Das Fenster unter dem Mauszeiger scrollt. Drehen"
+" Sie sie: Das Fenster zoomt."
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Set up dofscroll"
+msgstr "dofscroll einrichten"
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Welcome to dofscroll"
+msgstr "Willkommen bei dofscroll"
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Setup guide title"
+msgstr "Titel der Einrichtungshilfe"
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Setup progress"
+msgstr "Fortschritt der Einrichtung"
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Skip the guide"
+msgstr "Einrichtungshilfe überspringen"
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid ""
+"Close the guide without finishing it. \"Show setup guide\" on the "
+"Overview opens it again."
+msgstr ""
+"Die Einrichtungshilfe schließen, ohne sie zu beenden. „Einrichtungshilfe"
+" anzeigen“ auf der Übersicht öffnet sie wieder."
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Finish"
+msgstr "Fertig"
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Close the guide. \"Show setup guide\" on the Overview opens it again."
+msgstr ""
+"Die Einrichtungshilfe schließen. „Einrichtungshilfe anzeigen“ auf der "
+"Übersicht öffnet sie wieder."
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "State"
+msgstr "Status"
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Command to copy"
+msgstr "Befehl zum Kopieren"
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Copy the command"
+msgstr "Befehl kopieren"
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid ""
+"Everything is set up. You can close this guide; it can be opened again "
+"from the Overview."
+msgstr ""
+"Alles ist eingerichtet. Sie können diese Hilfe schließen; auf der "
+"Übersicht lässt sie sich wieder öffnen."
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "%1 of %2 steps are done. The checks update by themselves."
+msgstr ""
+"%1 von %2 Schritten sind erledigt. Die Prüfungen aktualisieren sich von "
+"selbst."
+
+#: src/ui/qt/qt_action_runner.cpp
+msgid "This settings pane is not known"
+msgstr "Dieser Bereich der Systemeinstellungen ist nicht bekannt"
+
+#: src/ui/qt/qt_action_runner.cpp
+msgid "The system settings could not be opened"
+msgstr "Die Systemeinstellungen konnten nicht geöffnet werden"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid "Show setup guide"
+msgstr "Einrichtungshilfe anzeigen"
+
+#: src/ui/qt/pages/overview_page.cpp
+msgid ""
+"Open the first-run guide again: the daemon, the SpaceMouse, start at "
+"login and, on macOS, the permissions"
+msgstr ""
+"Die Einrichtungshilfe für den ersten Start noch einmal öffnen: Daemon, "
+"SpaceMouse, Start bei der Anmeldung und unter macOS die Berechtigungen"

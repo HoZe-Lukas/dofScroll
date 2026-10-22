@@ -6,8 +6,21 @@
 Windows and macOS. It edits the same config file as the daemon and asks the daemon to reload, so
 changes apply immediately. There is no Save button: every change is saved by itself (see "Saving"
 below). The daemon runs without it. The interface starts minimized to the
-tray (no window opens); "Open settings" or a click on the tray icon shows the window. Without a
-system tray the window is shown minimized instead.
+tray (no window opens); "Settings..." in the tray menu or a click on the tray icon shows the window. Without a
+system tray the window is shown minimized instead. Two exceptions: the very first start of a new
+installation shows the window with the [setup guide](#the-setup-guide), and **every start starts the
+daemon when none runs** (see below), so that the first start after installing is simply opening
+dofscroll from the start menu, the application launcher or the Applications folder.
+
+**The interface starts the daemon.** It decides from the status heartbeat (the same one the status
+line uses). A login autostart starts the daemon and the interface at the same moment, so the interface
+waits about 6 seconds from its own start and looks again; only when there is still no heartbeat it
+starts the daemon, once per run (Linux: `systemctl --user start dofscroll.service`, the daemon
+binary directly if that fails; macOS: `launchctl kickstart` if the LaunchAgent is loaded, otherwise the
+daemon inside the app; Windows: `dofscroll.exe` next to the interface). A daemon that is seen running
+is never started again by the interface, also not after it was stopped on purpose. The daemon refuses
+to run twice (single-instance lock, see [security.md](security.md)), so a race does no harm. Not run for
+`--self-test` and `--screenshots`.
 
 The window remembers its size, position and the page you last used (`window = x,y,w,h` and
 `page = <id>` in `ui.conf`, next to the language and theme) and restores them at the next start,
@@ -133,6 +146,7 @@ With one lane per device (Windows and macOS, direct HID; [multi-device.md](multi
 - **What do you want to do?** Three buttons that open the page for a task: "Tune scroll and zoom"
   (the Channels tab of the Global profile), "Check the axes" (Axes) and "Switch joystick modes"
   (Joystick modes).
+- **Show setup guide** opens the [setup guide](#the-setup-guide) again, at any time.
 - **Add a profile...** opens the Profiles page; **New profile for the running program...** opens the
   running-program picker of the Profiles page directly.
 - **Active joystick mode** lists the loaded joystick modes and marks the one the daemon runs now;
@@ -310,6 +324,35 @@ does it; the box disappears once the device is seen and a profile exists. The fi
 Axes page (it shows what the daemon sees of the device) and, while the daemon is not running, says
 so. The axes step is "Done:" after the axis assistant has been applied once; that is remembered in
 `ui-progress.conf` next to the configuration file (`axis_assistant_applied = 1`), not in `ui.conf`.
+
+## The setup guide
+
+The first start of a new installation (no configuration file existed and none was migrated) shows the
+settings window with a guide of a few steps. Each step checks the live state once per second and says
+in words whether it is done ("Done", "To do", "Needs attention"; a symbol before the words, never colour
+alone):
+
+1. **dofscroll is running**: the daemon heartbeat. The interface starts the daemon by itself (see
+   above); while that is under way the step says so, and if it did not work it offers **Start now** and
+   points to the Troubleshooting page.
+2. **SpaceMouse found**: `devices_seen` of the status file. If it is not found and, on Linux, the
+   `spacenavd` service is not active, the step says so in plain words and shows the fix as a command
+   you can copy (`sudo systemctl enable --now spacenavd.service`), as a fallback only: the Linux
+   packages enable that service themselves. If the device is held by another program the step says that.
+3. **Start at login**: a check box, **on by default** (applied at once through the same switch as the
+   Settings page: systemd user units, the Run key, LaunchAgents). Unticking it switches it off again.
+4. **macOS only, Input Monitoring and Accessibility**: one row for each permission with the state the
+   daemon reports (`permissions=` in the status file), a button that opens the matching pane of System
+   Settings, and a note while macOS does not accept the events, with the path of the daemon to add if
+   it is not in the list.
+5. **Try it**: push the cap, the window under the mouse pointer scrolls; twist it, the window zooms
+   (information only, there is nothing to tick).
+
+**Skip the guide** and **Finish** (and the close button) only close it; they are the only buttons that
+do, nothing needs saving. That the guide was seen is remembered in `ui-progress.conf`
+(`setup_guide_seen = 1`), so it does not come back by itself. An existing installation, one whose
+configuration existed before this start, never shows it by itself. **Show setup guide** on the
+Overview opens it again. The check box is only read when the guide is reopened.
 
 Every input control has an accessible name (screen readers): the `--self-test` checks all pages for
 controls without one. The whole interface works with the keyboard (tab order follows the layout;
@@ -625,7 +668,8 @@ paths are CI-verified only, not run on hardware.
 
 The Settings page has one switch for the daemon and the interface. It uses systemd user units on
 Linux (`dofscroll.service`, `dofscroll-ui.service`), the per-user Run key on Windows and a
-LaunchAgent on macOS. If the interface is not installed, only the daemon is switched. See
+LaunchAgent on macOS. If the interface is not installed, only the daemon is switched. The
+[setup guide](#the-setup-guide) switches it on at the first start (the user can untick it). See
 [installation.md](installation.md).
 
 ## Terms
@@ -638,7 +682,7 @@ constant there and the texts that carry the word (search the old word in `src/ui
 `docs`: the sentences in `src/ui/qt/pages/*.cpp`, the model texts in
 `src/ui/model/{mode_catalog,mode_info_model,binding_editor_model,settings_model,status_model,
 overview_model,tray_menu_model,examples_model}.hpp`, and the German catalog "Joystick-Modus" /
-"Tasten-Modus"). The GTK tray (`dofscroll-tray`) is separate and keeps its own words.
+"Tasten-Modus").
 
 ## Languages
 

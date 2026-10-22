@@ -62,7 +62,15 @@ std::string exeDir() {
 
 std::vector<AgentSpec> defaultSpecs() {
     const std::string dir = exeDir();
-    return {{kMacDaemonLabel, dir + "dofscroll", true, false}, {kMacUiLabel, dir + "dofscroll-ui", false, true}};
+    // In the app image the daemon is Contents/Resources/daemon/dofscroll, next to nothing of the
+    // interface (Contents/MacOS); a plain install has both in one folder.
+    std::string daemon = dir + "dofscroll";
+    fs::FileInfo fi;
+    if (!fs::statPath(daemon, &fi) || !fi.isFile) {
+        const std::string bundled = macBundleDaemonPath(dir);
+        if (!bundled.empty()) daemon = bundled;
+    }
+    return {{kMacDaemonLabel, daemon, true, false}, {kMacUiLabel, dir + "dofscroll-ui", false, true}};
 }
 
 }  // namespace

@@ -23,6 +23,7 @@
 #include "platform/platform.hpp"
 #include "ui/model/release_keys.hpp"
 #include "ui/model/restart_plan.hpp"
+#include "ui/model/setup_guide_model.hpp"
 #include "ui/model/ui_links.hpp"
 #include "ui_i18n.hpp"
 
@@ -46,6 +47,18 @@ bool QtActionRunner::openUrl(const std::string &url, std::string *err) {
     }
     if (!QDesktopServices::openUrl(QUrl(QString::fromStdString(url), QUrl::StrictMode))) {
         if (err) *err = T("No application could open %1").arg(QString::fromStdString(url)).toStdString();
+        return false;
+    }
+    return true;
+}
+
+bool QtActionRunner::openSystemSettings(const std::string &url, std::string *err) {
+    if (!spn::ui::isSystemSettingsUrl(url)) {
+        if (err) *err = T("This settings pane is not known").toStdString();
+        return false;
+    }
+    if (!QDesktopServices::openUrl(QUrl(QString::fromStdString(url)))) {
+        if (err) *err = T("The system settings could not be opened").toStdString();
         return false;
     }
     return true;
@@ -158,6 +171,31 @@ bool QtActionRunner::restartDaemon(std::string *err) {
         return false;
     }
     return true;
+}
+
+// Plan in restart_plan.hpp (daemonStartPlan): the service manager starts the daemon when it knows it,
+// otherwise (or when that fails) the binary is started detached. The daemon guards itself against a
+// second instance, so a start that races with another one does no harm.
+bool QtActionRunner::startDaemon(std::string *err) {
+    const std::string exeDir = QCoreApplication::applicationDirPath().toStdString();
+    const spn::ui::DaemonStartPlan plan = spn::ui::daemonStartPlan(
+        spn::ui::hostOs(), exeDir,
+        [](const std::string &p) { return QFileInfo(QString::fromStdString(p)).isExecutable(); }, currentUid());
+    const bool known = plan.probe.empty() || runWait(plan.probe, 10000) == 0;
+    if (known && !plan.managed.empty() && runWait(plan.managed, 30000) == 0) return true;
+    if (!startDetached(plan.spawn)) {
+        if (err) *err = T("Cannot run %1").arg(QString::fromStdString(plan.spawn[0])).toStdString();
+        return false;
+    }
+    return true;
+}
+
+// systemctl is-active: 0 active, 3 inactive or failed, 4 no such unit (spacenavd may run in another way).
+spn::ui::ServiceState QtActionRunner::spacenavdState() {
+    if (spn::ui::hostOs() != spn::ui::Os::Linux) return spn::ui::ServiceState::Unknown;
+    const int rc = runWait(spn::ui::spacenavdProbe(), 10000);
+    return rc == 0 ? spn::ui::ServiceState::Active
+                   : rc == 3 ? spn::ui::ServiceState::Inactive : spn::ui::ServiceState::Unknown;
 }
 
 // Under dofscroll-ui.service systemd restarts this process; otherwise a copy is started with

@@ -54,7 +54,8 @@ chmod +x "$T/bin"/*
 # The script under test, with the two absolute system paths redirected into the sandbox.
 sed -e "s#/usr/lib/systemd/user/dofscroll-ui.service#$T/ui.service#" \
     -e "s#/proc/#$T/proc/#" -e "s#kill -TERM#$T/bin/kill -TERM#" \
-    -e "s#/etc/systemd/user/#$T/etc/systemd/user/#" "$SRC/packaging/cpack/postinst" > "$T/postinst"
+    -e "s#/etc/systemd/user/#$T/etc/systemd/user/#" -e "s#/run/systemd/system#$T/run-systemd#" \
+    "$SRC/packaging/cpack/postinst" > "$T/postinst"
 grep -q "$T/ui.service" "$T/postinst" || fail "path substitution did not apply"
 
 setup() {  # $1 = with tray link (1/0), $2 = ui unit present (1/0)
@@ -80,15 +81,16 @@ grep -q "^$M stop dofscroll-tray.service" "$T/log" || fail "tray not stopped"
 grep -q "^$M disable dofscroll-tray.service" "$T/log" || fail "tray not disabled"
 grep -q "^$M enable dofscroll-ui.service" "$T/log" || fail "ui not enabled"
 grep -q "^$M start dofscroll-ui.service" "$T/log" || fail "ui not started although the tray was running"
-grep -q "^$M try-restart dofscroll.service dofscroll-ui.service" "$T/log" || fail "try-restart list wrong"
-grep -q 'try-restart.*dofscroll-tray' "$T/log" && fail "removed tray unit still in try-restart"
+grep -q "^$M start dofscroll.service" "$T/log" || fail "daemon not started after the upgrade"
+grep -q "^$M start dofscroll-ui.service" "$T/log" || fail "interface not started after the upgrade"
+grep -q 'dofscroll-tray.service' "$T/log" | grep -q "start dofscroll-tray" && fail "removed tray unit started"
 [ "$(cat "$T/home/alice/.config/dofscroll/dofscroll.conf")" = "SCROLL_V_SENS = 7" ] || fail "config changed"
 
-# 2. Tray enabled but not running: enabled for the next login, not started now.
+# 2. Tray enabled but not running: enabled for the next login, and started now like every upgrade starts it.
 setup 1 1
 FAKE_ACTIVE=3 run 2
 grep -q "^$M enable dofscroll-ui.service" "$T/log" || fail "case 2: ui not enabled"
-grep -q "^$M start dofscroll-ui.service" "$T/log" && fail "case 2: ui started although the tray was not running"
+grep -q "^$M start dofscroll-ui.service" "$T/log" || fail "case 2: ui not started after the upgrade"
 
 # 3. DEB upgrade form (configure <old version>) migrates too.
 setup 1 1
@@ -118,7 +120,7 @@ grep -q "enable dofscroll-ui.service" "$T/log" && fail "case 6: ui enabled witho
 # 7. A domain account (user@domain) is restarted too.
 setup 0 1
 FAKE_USER="bob@corp.example" run 2
-grep -q "^systemctl --user --machine=bob@corp.example@.host try-restart dofscroll.service dofscroll-ui.service" "$T/log" || fail "case 7: no restart for a user name with @"
+grep -q "^systemctl --user --machine=bob@corp.example@.host start dofscroll.service" "$T/log" || fail "case 7: no start for a user name with @"
 
 # 8. An interface that the unit did not start and that runs a replaced binary is stopped and started via the unit.
 setup 0 1
@@ -152,7 +154,7 @@ printf "Name:\tdofscroll-ui\nUid:\t1000\t1000\t1000\t1000\n" > "$T/proc/4245/sta
 ln -s "/usr/bin/dofscroll-ui (deleted)" "$T/proc/4245/exe"
 FAKE_ACTIVE=3 FAKE_ENABLED=1 FAKE_UI_PID=4245 run 2
 grep -q "^kill" "$T/log" && fail "case 11: killed an interface although the unit is not enabled"
-grep -q "^$M start dofscroll-ui.service" "$T/log" && fail "case 11: unit started although it is not enabled"
+# (the upgrade starts the unit anyway, see case 1; the old process is not killed)
 
 # 12. The process number now belongs to somebody else (reuse): not signalled.
 setup 0 1

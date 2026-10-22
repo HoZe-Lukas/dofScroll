@@ -2,7 +2,7 @@
 ; SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 ;
 ; Per-user installer (NSIS 3, no administrator rights). Built by packaging/windows/build-installer.ps1:
-;   makensis /DVERSION=1.2.1 /DSTAGE=<staged folder> /DOUTFILE=<setup.exe> /DHAS_UI [/DAPP_ICO=<ico>] installer.nsi
+;   makensis /DVERSION=1.2.2 /DSTAGE=<staged folder> /DOUTFILE=<setup.exe> /DHAS_UI [/DAPP_ICO=<ico>] installer.nsi
 ; Silent use:  setup.exe /S [/AUTOSTART=1] [/D=C:\target\folder]   (the /D= argument must come last)
 ; Uninstall:   <install dir>\uninstall.exe  (also from Settings > Apps); it removes the autostart value.
 !ifndef HAS_UI
@@ -54,8 +54,8 @@ VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
 !endif
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN
-!define MUI_FINISHPAGE_RUN_FUNCTION StartDaemonFromFinish
-!define MUI_FINISHPAGE_RUN_TEXT "Start the dofscroll daemon now"
+!define MUI_FINISHPAGE_RUN_FUNCTION OpenUiFromFinish
+!define MUI_FINISHPAGE_RUN_TEXT "Open dofscroll now (it starts the daemon and shows a short setup guide)"
 
 !insertmacro MUI_PAGE_LICENSE "${STAGE}\LICENSE"
 !insertmacro MUI_PAGE_COMPONENTS
@@ -71,10 +71,11 @@ Var UiWasRunning
 Var DaemonWasRunning
 Var DaemonStarted
 
-; Finish-page box "Start the dofscroll daemon now": not again when the update already restarted it.
-Function StartDaemonFromFinish
-  StrCmp $DaemonStarted "1" +2
-    Exec '"$INSTDIR\dofscroll.exe"'
+; Finish-page box "Open dofscroll now": the first start is simply opening the program (as from the Start
+; menu). The interface starts the daemon by itself when none runs and, on the first start, shows the setup
+; guide. A second start of an interface that is already open only brings its window to the front.
+Function OpenUiFromFinish
+  Exec '"$INSTDIR\dofscroll-ui.exe"'
 FunctionEnd
 
 ; The uninstaller removes the whole install folder: refuse a folder that is not empty and not a dofscroll
@@ -164,7 +165,8 @@ Section "-silent autostart"
 SectionEnd
 
 ; Update with the daemon running before (silent or interactive): start it again, daemon first, then
-; the interface. A fresh install starts nothing here (the finish-page box or the autostart entry does).
+; the interface. A fresh install starts nothing here (the finish-page box, the Start menu entry or the
+; autostart entry does: opening the interface starts the daemon).
 Section "-restart daemon"
   StrCpy $DaemonStarted "0"
   ${If} $DaemonWasRunning == "1"

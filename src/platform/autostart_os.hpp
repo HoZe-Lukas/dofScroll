@@ -113,6 +113,17 @@ inline std::string unquoteRunValue(const std::string &v) {
 constexpr const char *kMacDaemonLabel = "io.github.dofscroll.daemon";
 constexpr const char *kMacUiLabel = "io.github.dofscroll.ui";
 
+// App bundle: the interface is <app>/Contents/MacOS/dofscroll-ui, the daemon sits in
+// <app>/Contents/Resources/daemon/dofscroll (the file the permissions are granted to). exeDir is the
+// folder of the interface executable; "" when it is not the MacOS folder of a bundle.
+inline std::string macBundleDaemonPath(const std::string &exeDir) {
+    const std::string tail = "/Contents/MacOS";
+    std::string d = exeDir;
+    while (d.size() > 1 && d.back() == '/') d.pop_back();
+    if (d.size() <= tail.size() || d.compare(d.size() - tail.size(), tail.size(), tail) != 0) return std::string();
+    return d.substr(0, d.size() - std::string("/MacOS").size()) + "/Resources/daemon/dofscroll";
+}
+
 inline std::string xmlEscape(const std::string &s) {
     std::string r;
     for (char c : s) {

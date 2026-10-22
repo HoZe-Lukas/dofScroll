@@ -30,11 +30,13 @@ For button indices and live axis values, stop the service and run `dofscroll --d
 
 ## Nothing happens
 
+First open the **setup guide** (Overview, "Show setup guide"): it checks live whether the daemon runs, whether the SpaceMouse is found and, on macOS, the two permissions. A second daemon exits at once with "another dofscroll daemon is already running": that is the single-instance lock, not an error.
+
 1. `spacenavd` running? `sudo systemctl enable --now spacenavd`. The daemon reconnects by itself (backoff up to 5 s).
 2. Does `spacenavd` see the device? `journalctl -u spacenavd`; `lsusb` should list a 3Dconnexion device.
 3. User unit "not found": `systemctl --user daemon-reload`, then check the setup steps in [Installation](Installation).
 4. Status 203/EXEC: the program in `ExecStart` does not exist. Check `systemctl --user cat dofscroll.service`.
-5. Output paused or disabled? The status file shows `enabled=0` or `paused=1` (paused while the tray's "Axes" tab or the wizard is open). An `[app:*]` section with `ENABLED = 0` or `MODE = off` also switches it off.
+5. Output paused or disabled? The status file shows `enabled=0` or `paused=1` (paused while the interface's Axes page or the axis assistant is open). An `[app:*]` section with `ENABLED = 0` or `MODE = off` also switches it off.
 6. Another program grabs the device (Blender, CAD)? Use `[app:<name>]` with `ENABLED = 0`.
 7. Does the device send reports at all? `dofscroll-hidprobe --dump`, see [Devices](Devices).
 
@@ -59,7 +61,7 @@ Force a backend with `BACKEND = x11` or `uinput` in `[global]` and restart the d
 
 - **Tray icon missing:** KDE Plasma is supported; GNOME needs an AppIndicator extension. A build from source without Qt6 has no tray (the release packages bundle Qt). Without a tray the Qt interface opens its window minimized; it also starts minimized to the tray, so no window appears at start.
 - **UI in German:** the UI follows the locale; force English with `LANGUAGE=C`.
-- **Wrong direction or axis:** set `<CH>_SIGN = -1`, change `<CH>_MIX`, or run "Learn axes" in the tray. Changes in `/etc/spnavrc` change axis meaning too.
+- **Wrong direction or axis:** set `<CH>_SIGN = -1`, change `<CH>_MIX`, or run the axis assistant ("Axis assistant..." on the Axes page). Changes in `/etc/spnavrc` change axis meaning too.
 - **Keys stay pressed after a crash:** run `dofscroll --release-keys` or restart the service. After SIGKILL under X11 keys held through XTest are not released (known limitation, see [Security](Security)).
 - **Scrolling happens in another user's session:** the 3D mouse is shared, so every logged-in user's daemon sees it; each pauses while its own session is not the active one (`session=inactive` in the status file, `session inactive: output paused` in the log). If it still happens, check that `XDG_SESSION_ID` is set for the service, see [Security](Security).
 - **Config changes do not apply:** `systemctl --user kill -s HUP dofscroll.service` and check the journal for a rejected line; `BACKEND` needs a restart.

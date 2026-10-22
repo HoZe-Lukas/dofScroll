@@ -8,6 +8,7 @@
 #pragma once
 #include <QIcon>
 #include <QMainWindow>
+#include <QPointer>
 #include <QString>
 #include <string>
 #include <vector>
@@ -16,7 +17,9 @@
 #include "ui/model/mode_catalog.hpp"
 #include "ui/model/navigation_model.hpp"
 #include "ui/model/settings_model.hpp"
+#include "ui/model/setup_guide_model.hpp"
 #include "ui/model/status_model.hpp"
+#include "pages/setup_guide_dialog.hpp"
 #include "ui_context.hpp"
 
 class QCloseEvent;
@@ -28,6 +31,8 @@ class QProxyStyle;
 class QStackedWidget;
 class QTabBar;
 class QWidget;
+class DaemonStarter;
+
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -80,6 +85,15 @@ public:
     void refreshStatusNow() { updateStatus(); }  // re-reads the daemon's status file (screenshots, tests)
     QString trayNote() const;  // the status bar note about a missing tray ("" with a tray)
 
+    // First-run setup guide (src/ui/model/setup_guide_model.hpp). startSetupGuide is called once after the
+    // window exists: a new installation (freshInstall) shows the guide with the window, any other start
+    // marks it as seen. showSetupGuide opens it again ("Show setup guide" on the Overview).
+    void setDaemonStarter(const DaemonStarter *starter) { starter_ = starter; }
+    bool startSetupGuide(bool freshInstall);
+    void showSetupGuide(bool firstRun = false);
+    SetupGuideDialog *setupGuide() const { return guide_; }
+    bool setupGuideShown() const;
+
 signals:
     // The window was closed and the process stays in the tray. Emitted on the first such close of a
     // run only; the tray shows a short balloon for it.
@@ -125,4 +139,7 @@ private:
     QTimer *stateTimer_ = nullptr;       // single shot: saves the geometry after a resize or move
     bool trayAvailable_ = true;
     bool trayNoticeShown_ = false;
+    spn::ui::SetupGuideFlow guideFlow_;
+    QPointer<SetupGuideDialog> guide_;
+    const DaemonStarter *starter_ = nullptr;
 };

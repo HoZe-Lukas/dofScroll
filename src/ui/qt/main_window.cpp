@@ -31,6 +31,7 @@
 #include "pages/modes_page.hpp"
 #include "pages/overview_page.hpp"
 #include "pages/profiles_page.hpp"
+#include "pages/setup_guide_dialog.hpp"
 #include "platform/fs.hpp"
 #include "ui/model/runtime_files.hpp"
 #include "theme.hpp"
@@ -59,7 +60,8 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
                     return spn::ui::Autosave::Outcome{r.saved, r.reloaded, r.error};
                 },
                 strings_),
-      ctx_(base) {
+      ctx_(base),
+      guideFlow_(spn::ui::uiProgressPath(base.configPath)) {
     setWindowTitle(QStringLiteral("dofscroll"));
     resize(defaultWindowSize());  // the saved geometry (restoreWindowState) wins
     setMinimumSize(spn::ui::tokens::kMinWindowWidth, spn::ui::tokens::kMinWindowHeight);
@@ -154,6 +156,7 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
             if (id == QLatin1String("profile-channels")) openProfileTab(0, QStringLiteral("channels"));
             else showPage(id);
         });
+        connect(overview, &OverviewPage::showSetupGuide, this, [this] { showSetupGuide(false); });
         // "New profile for the running program": the Profiles page opens its running-program picker.
         connect(overview, &OverviewPage::newProgramProfile, this, [this] {
             if (!showPage(QStringLiteral("profiles")) || !profilesPage_) return;
@@ -215,6 +218,32 @@ bool MainWindow::event(QEvent *e) {
     if (e->type() == QEvent::ApplicationPaletteChange && categoryBar_) refreshAppearance();
     return handled;
 }
+
+bool MainWindow::startSetupGuide(bool freshInstall) {
+    if (!guideFlow_.start(freshInstall)) return false;
+    showSetupGuide(true);
+    return true;
+}
+
+void MainWindow::showSetupGuide(bool firstRun) {
+    guideFlow_.show();
+    if (!guide_) {
+        guide_ = new SetupGuideDialog(ctx_, starter_, firstRun, this);
+        guide_->setAttribute(Qt::WA_DeleteOnClose, false);
+        // "Skip", "Finish" and the close button only remember that the guide was seen; nothing else is written
+        auto remember = [this] {
+            std::string err;
+            if (!guideFlow_.skip(&err)) fprintf(stderr, "dofscroll-ui: cannot remember the setup guide: %s\n", err.c_str());
+        };
+        connect(guide_, &SetupGuideDialog::skipRequested, this, remember);
+        connect(guide_, &SetupGuideDialog::finishRequested, this, remember);
+    }
+    guide_->show();
+    guide_->raise();
+    guide_->activateWindow();
+}
+
+bool MainWindow::setupGuideShown() const { return guide_ && guide_->isVisible(); }
 
 QIcon MainWindow::categoryIcon(int index) const {
     return index >= 0 && index < categoryBar_->count() ? categoryBar_->tabIcon(index) : QIcon();

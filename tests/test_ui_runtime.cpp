@@ -373,7 +373,7 @@ static void testCheckedRuntimeFile() {
     assert(checkedRuntimeFile("/run/a\nb", RuntimeFile::LogFile).empty());
     assert(checkedRuntimeFile("/" + std::string(2000, 'a'), RuntimeFile::LogFile).empty());
     // the file component never contains a separator or a dot-dot
-    for (RuntimeFile f : {RuntimeFile::LogFile, RuntimeFile::StatusFile, RuntimeFile::SuspendFile}) {
+    for (RuntimeFile f : {RuntimeFile::LogFile, RuntimeFile::StatusFile, RuntimeFile::SuspendFile, RuntimeFile::LockFile}) {
         const std::string n = runtimeFileName(f);
         assert(n.find('/') == std::string::npos && n.find("..") == std::string::npos && n.rfind("dofscroll", 0) == 0);
     }

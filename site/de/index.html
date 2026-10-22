@@ -31,7 +31,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="stylesheet" href="../style.css">
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "dofscroll", "description": "Nutze eine 3Dconnexion SpaceMouse als Scrollrad und Zoomregler in jedem Programm: Browser, PDF-Reader, Karten. Frei und quelloffen für Linux, Windows und macOS.", "url": "https://hoze-lukas.github.io/dofScroll/de/", "inLanguage": "de", "operatingSystem": "Linux, Windows, macOS", "applicationCategory": "UtilitiesApplication", "license": "https://www.gnu.org/licenses/gpl-3.0.html", "softwareVersion": "1.2.1", "downloadUrl": "https://github.com/HoZe-Lukas/dofScroll/releases/latest", "screenshot": "https://hoze-lukas.github.io/dofScroll/img/de/ui-window-light.png", "image": "https://hoze-lukas.github.io/dofScroll/img/og-de.png", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "dofscroll", "description": "Nutze eine 3Dconnexion SpaceMouse als Scrollrad und Zoomregler in jedem Programm: Browser, PDF-Reader, Karten. Frei und quelloffen für Linux, Windows und macOS.", "url": "https://hoze-lukas.github.io/dofScroll/de/", "inLanguage": "de", "operatingSystem": "Linux, Windows, macOS", "applicationCategory": "UtilitiesApplication", "license": "https://www.gnu.org/licenses/gpl-3.0.html", "softwareVersion": "1.2.2", "downloadUrl": "https://github.com/HoZe-Lukas/dofScroll/releases/latest", "screenshot": "https://hoze-lukas.github.io/dofScroll/img/de/ui-window-light.png", "image": "https://hoze-lukas.github.io/dofScroll/img/og-de.png", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}}</script>
 </head>
 <body>
 <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -118,11 +118,16 @@
 <h2 id="h-quick">So geht’s</h2>
 <ol class="steps">
 <li><h3>Installieren</h3><p>Das Paket aus dem Download-Bereich holen.</p></li>
-<li><h3>Anstecken</h3><p>SpaceMouse anschließen. Unter Linux <code>spacenavd</code> starten.</p></li>
-<li><h3>Scrollen</h3><p>Kappe schieben zum Scrollen, drehen zum Zoomen.</p></li>
+<li><h3>dofScroll öffnen</h3><p>Aus dem Startmenü, dem Anwendungsstarter oder dem Ordner Programme öffnen. Es startet von selbst, und eine kurze Einrichtungshilfe prüft, ob alles funktioniert. Kein Terminal.</p></li>
+<li><h3>Scrollen</h3><p>SpaceMouse anschließen. Kappe schieben zum Scrollen, drehen zum Zoomen.</p></li>
 </ol>
-<details class="more"><summary>Linux-Befehle</summary>
-<pre><code>sudo dnf install ./dofscroll-*.rpm   # Debian, Ubuntu: sudo apt install ./dofscroll_*.deb
+<details class="more"><summary>Linux ohne Desktop</summary>
+<p>Der erste Start ist einfach das Öffnen des Programms. Nur auf einem Rechner ohne Desktop oder für das TGZ-Archiv gelten diese Befehle:</p>
+<pre><code># Fedora, RHEL-Familie (RHEL, Rocky, Alma: vorher sudo dnf install epel-release, wegen spacenavd)
+sudo dnf install ./dofscroll-*.rpm
+# Debian, Ubuntu
+sudo apt install ./dofscroll_*.deb
+# danach auf jeder Distribution
 sudo systemctl enable --now spacenavd
 systemctl --user enable --now dofscroll.service dofscroll-ui.service</code></pre>
 <p>Es passiert nichts? Siehe <a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Troubleshooting">Troubleshooting</a>. Mehr: <a href="https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md">Installationsanleitung</a>, <a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Quick-start">Quick start</a> (englisch).</p>

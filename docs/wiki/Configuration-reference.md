@@ -45,10 +45,13 @@ The seeded config uses different values than these built-in defaults; it is a st
 | `ZOOM_LATERAL` | `x z rx rz` | Axes the twist must dominate to enter zoom |
 | `ZOOM_ENTER_MS` | `40` | How long the twist must dominate before zoom latches |
 | `ZOOM_EXIT_RATIO` | `1.5` | Zoom ends when another axis exceeds the twist by this factor (at least 1.0) |
+| `STEP_TRIGGER` | `20` | Level at which a `step:` channel action fires one key tap (steps per second after the channel's processing, 0.5 to 10000) |
 | `BACKEND` | `auto` | `auto`, `x11` or `uinput`; `auto` picks uinput under Wayland, else X11; if the chosen backend fails the other is tried; needs a restart |
+| `INPUT` | `auto` | `auto`, `driver` or `hid`. Windows and macOS only (ignored on Linux): read the SpaceMouse through the installed 3Dconnexion driver's interface or directly as raw HID; read from `[global]` only |
 | `TICK_HZ` | `250` | Tick rate 30 to 1000 |
 | `ENABLED` | `1` | `0` switches all output off and releases held keys |
 | `MODE` | `normal` | Active joystick mode, see [Joystick modes](Modes) |
+| `LIVE_FEED` | `1` | `0` disables the live data feed to the interface (axes view, axis assistant) |
 | `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | Deprecated (use `BUTTON_<n> = nav`; the interface migrates them): raw 0-based button index that turns X/Y into arrow keys while held |
 | `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | Deprecated (use `BUTTON_<n> = click`; the interface migrates them): raw 0-based button index passed through as the left mouse button |
 | `BUTTON_<n>` | none | Action of button `n` (`nav`, `toggle:nav`, `mode:<id>`, `hold:mode:<id>`, `toggle:mode:<id>`, `buttonmode:<id>`, ...), see [Buttons](Buttons) |
@@ -81,4 +84,4 @@ All text is UTF-8. A leading BOM is accepted and never written; LF is written, C
 
 ## Vendor driver settings
 
-`spacenavd` applies its own sensitivity, dead zone, inversion and axis swap (`/etc/spnavrc`) before dofscroll sees any value. Keep it at the defaults and tune in dofscroll. If you changed it, adjust the mixes or run "Learn axes" in the tray. Programs that read the SpaceMouse themselves (Blender, CAD) get input twice unless you switch dofscroll off for them with `ENABLED = 0` or `MODE = off` in an `[app:*]` section.
+`spacenavd` applies its own sensitivity, dead zone, inversion and axis swap (`/etc/spnavrc`) before dofscroll sees any value. Keep it at the defaults and tune in dofscroll. If you changed it, adjust the mixes or run the axis assistant ("Axis assistant..." on the Axes page of the interface). Programs that read the SpaceMouse themselves (Blender, CAD) get input twice unless you switch dofscroll off for them with `ENABLED = 0` or `MODE = off` in an `[app:*]` section.

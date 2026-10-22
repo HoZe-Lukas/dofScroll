@@ -6,15 +6,17 @@
 [![Release](https://img.shields.io/github/v/release/HoZe-Lukas/dofScroll?include_prereleases)](https://github.com/HoZe-Lukas/dofScroll/releases/latest)
 [![License: GPL-3.0-or-later](https://img.shields.io/github/license/HoZe-Lukas/dofScroll)](LICENSE)
 
-**Use your 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program.** A SpaceMouse is made for 3D and CAD software; in a web browser, a PDF reader, a map or an office document it usually does nothing. dofscroll turns the six axes into smooth scrolling, zooming and keys for ordinary desktop programs, with per-program and per-device profiles, built-in joystick modes and button modes. Version 1.0.0. Free software for Linux (tested), Windows and macOS (built by CI, never run with a real device, see [Status and testing](#status-and-testing)). Website: <https://hoze-lukas.github.io/dofScroll/> (English, [Deutsch](https://hoze-lukas.github.io/dofScroll/de/)). Wiki: [Quick start](https://github.com/HoZe-Lukas/dofScroll/wiki/Quick-start), [Built-in modes](https://github.com/HoZe-Lukas/dofScroll/wiki/Built-in-modes), [Requirements](https://github.com/HoZe-Lukas/dofScroll/wiki/Requirements).
+**Use your 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program.** A SpaceMouse is made for 3D and CAD software; in a web browser, a PDF reader, a map or an office document it usually does nothing. dofscroll turns the six axes into smooth scrolling, zooming and keys for ordinary desktop programs, with per-program and per-device profiles, built-in joystick modes and button modes. Free software for Linux (tested), Windows and macOS (built by CI, never run with a real device, see [Status and testing](#status-and-testing)). Website: <https://hoze-lukas.github.io/dofScroll/> (English, [Deutsch](https://hoze-lukas.github.io/dofScroll/de/)). Wiki: [Quick start](https://github.com/HoZe-Lukas/dofScroll/wiki/Quick-start), [Built-in modes](https://github.com/HoZe-Lukas/dofScroll/wiki/Built-in-modes), [Requirements](https://github.com/HoZe-Lukas/dofScroll/wiki/Requirements).
 
 ![The dofscroll settings window: the Joystick modes page with six symbols per joystick mode and what push, tilt and twist do](site/img/ui-window-light.png)
 
 Install in three lines (download the package from the [latest release](https://github.com/HoZe-Lukas/dofScroll/releases/latest) first; first-time setup in [docs/installation.md](docs/installation.md)):
 
-- **Linux (Fedora, RHEL family; needs EPEL):** `sudo dnf install ./dofscroll-*.rpm`, then `sudo systemctl enable --now spacenavd` and `systemctl --user enable --now dofscroll.service dofscroll-ui.service`. Debian and Ubuntu: `sudo apt install ./dofscroll_*.deb`.
-- **Windows:** run the unsigned `dofscroll-*-setup.exe` (SmartScreen: More info, Run anyway) or unpack the portable ZIP.
-- **macOS (Apple silicon):** open the unsigned, not notarized DMG and drag the app to Applications (right-click, Open on first start).
+- **Linux (Fedora, RHEL family; RHEL, Rocky and Alma need EPEL first: `sudo dnf install epel-release`):** `sudo dnf install ./dofscroll-*.rpm`. Debian and Ubuntu: `sudo apt install ./dofscroll_*.deb`. Then open **dofScroll** from the application menu.
+- **Windows:** run the unsigned `dofscroll-*-setup.exe` (SmartScreen: More info, Run anyway) or unpack the portable ZIP. Then open **dofscroll** from the Start menu.
+- **macOS (Apple silicon):** open the unsigned, not notarized DMG and drag the app to Applications (right-click, Open on first start). Then open **dofscroll** from Applications.
+
+The first start is always just opening the program: it starts the daemon by itself and shows a short setup guide (daemon, SpaceMouse, start at login, on macOS the two permissions). No terminal commands. The Linux packages enable the `spacenavd` driver service themselves.
 
 dofscroll is not affiliated with or endorsed by 3Dconnexion.
 
@@ -36,7 +38,7 @@ It consists of two programs. The Qt interface is the only tray and settings wind
 | Program | Task |
 |---|---|
 | `dofscroll` | Background daemon. Reads the SpaceMouse, produces the input events. |
-| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Overview, Profiles with the Channels tab, Joystick modes with a visual editor (a picture of the cap: click a motion or button and choose what it does), Button modes, Device and Axes, Settings). Writes the same config file and tells the daemon to reload. See [docs/ui.md](docs/ui.md). |
+| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Overview, Profiles (tabs General, Channels, Buttons, Motions and buttons, Overrides), Editor and Joystick modes with a visual editor (a picture of the cap: click a motion or button and choose what it does), Button modes, User modes, Device, Axes, Settings). Writes the same config file and tells the daemon to reload. See [docs/ui.md](docs/ui.md). |
 
 ## Design principle
 
@@ -44,7 +46,7 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 
 ## Status and testing
 
-Current stable version: **1.2.1**. Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact).
+Current stable version: **1.2.2**. Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact).
 Other Linux distributions were install-tested in CI containers; the Windows and macOS builds are built and
 unit-tested by CI but have never been run with a real device.
 
@@ -85,7 +87,7 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
   (Windows, macOS); the factory button count is known for SpaceMouse Pro, Pro Wireless, Compact,
   Wireless, Enterprise and SpaceNavigator.
 
-Release notes: [docs/release-notes-1.2.1.md](docs/release-notes-1.2.1.md) (and [1.2.0](docs/release-notes-1.2.0.md), [1.1.2](docs/release-notes-1.1.2.md), [1.1.1](docs/release-notes-1.1.1.md), [1.1.0](docs/release-notes-1.1.0.md), [1.0.0](docs/release-notes-1.0.0.md), [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
+Release notes: [docs/release-notes-1.2.2.md](docs/release-notes-1.2.2.md) (and [1.2.1](docs/release-notes-1.2.1.md), [1.2.0](docs/release-notes-1.2.0.md), [1.1.2](docs/release-notes-1.1.2.md), [1.1.1](docs/release-notes-1.1.1.md), [1.1.0](docs/release-notes-1.1.0.md), [1.0.0](docs/release-notes-1.0.0.md), [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
 
 ## Download and install
 
@@ -95,26 +97,31 @@ Release notes: [docs/release-notes-1.2.1.md](docs/release-notes-1.2.1.md) (and [
 3. Verify: `sha256sum -c --ignore-missing SHA256SUMS.txt` (detects a damaged download), and the
    origin with the GitHub CLI: `gh attestation verify <file> -R HoZe-Lukas/dofScroll` (proves the file was
    built by this repository's release workflow; see [docs/releasing.md](docs/releasing.md))
-4. Install: `sudo dnf install ./dofscroll-*.rpm` (RHEL family, needs EPEL) or
+4. Install: `sudo dnf install ./dofscroll-*.rpm` (Fedora, or the RHEL family after `sudo dnf install epel-release`) or
    `sudo apt install ./dofscroll_*.deb` (Debian family). The Linux packages contain the Qt interface
    (`dofscroll-ui`) with its own Qt 6.9.3 (no Qt from the system, none from EPEL); only
    `spacenavd` is needed for the device (EPEL on the RHEL family).
    Windows: unsigned `-setup.exe` or portable ZIP (SmartScreen: More info, Run anyway). macOS:
    unsigned DMG (right-click > Open). Details per system: [docs/installation.md](docs/installation.md).
-5. Follow the first-time setup in [docs/installation.md](docs/installation.md). The user units
-   are not installed where systemd looks for them on every distribution, so do not skip it.
+5. Open dofscroll from the start menu, the application launcher or the Applications folder (first-time
+   setup in [docs/installation.md](docs/installation.md), the packages install the units where systemd looks for them; the commands that were needed before are only an
+   alternative for a machine without a desktop).
 
 ## First run
 
-1. `sudo systemctl enable --now spacenavd`
-2. Enable the user services (after the setup step in the installation guide):
-   `systemctl --user enable --now dofscroll.service dofscroll-ui.service`
-   "Start at login" in the interface switches autostart on and off.
-3. Plug in the SpaceMouse. Push the cap: the window under the pointer scrolls. Twist: it zooms
+1. Open dofscroll from the start menu, the application launcher or the Applications folder. The interface
+   starts the daemon by itself (about 6 seconds after it starts, if none runs) and the first start shows
+   the **setup guide** with live checks: "dofscroll is running", "SpaceMouse found", "Start at login" (a
+   check box, on by default), on macOS the two permissions with a button that opens System Settings, and
+   "Try it". Skip it or finish it any time; **Show setup guide** on the Overview opens it again.
+2. Plug in the SpaceMouse. Push the cap: the window under the pointer scrolls. Twist: it zooms
    (Ctrl + scroll; the zoom key is `ZOOM_MODIFIER`, per profile). Scrolls the wrong way? Reverse a motion in the
    Channels tab ("Invert direction of", `INVERT_AXES`) or in the joystick mode editor.
-4. Right-click the tray icon, open "Settings..." and adjust sensitivity, dead zone and direction.
+3. Right-click the tray icon, open "Settings..." and adjust sensitivity, dead zone and direction.
    Changes apply immediately.
+
+Without a desktop (or for a TGZ install) the old way still works: `sudo systemctl enable --now spacenavd`,
+then `systemctl --user enable --now dofscroll.service dofscroll-ui.service`.
 
 If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 
@@ -132,7 +139,7 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 | [docs/security.md](docs/security.md) | Threat model, systemd hardening, uinput permissions, loading the driver interface |
 | [docs/legal-notes.md](docs/legal-notes.md) | What dofscroll uses of the 3Dconnexion driver, what it does not ship, where the rights lie |
 | [docs/releasing.md](docs/releasing.md) | How a release is made |
-| [docs/release-notes-1.2.1.md](docs/release-notes-1.2.1.md) | Release notes of 1.2.1; 1.2.0 in [docs/release-notes-1.2.0.md](docs/release-notes-1.2.0.md), 1.1.2 in [docs/release-notes-1.1.2.md](docs/release-notes-1.1.2.md), 1.1.1 in [docs/release-notes-1.1.1.md](docs/release-notes-1.1.1.md), 1.1.0 in [docs/release-notes-1.1.0.md](docs/release-notes-1.1.0.md), 1.0.0 in [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md), 0.1.1 in [docs/release-notes-0.1.1.md](docs/release-notes-0.1.1.md), beta.2 in [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-beta.2.md), beta.1 notes in [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) |
+| [docs/release-notes-1.2.2.md](docs/release-notes-1.2.2.md) | Release notes of 1.2.2; 1.2.1 in [docs/release-notes-1.2.1.md](docs/release-notes-1.2.1.md), 1.2.0 in [docs/release-notes-1.2.0.md](docs/release-notes-1.2.0.md), 1.1.2 in [docs/release-notes-1.1.2.md](docs/release-notes-1.1.2.md), 1.1.1 in [docs/release-notes-1.1.1.md](docs/release-notes-1.1.1.md), 1.1.0 in [docs/release-notes-1.1.0.md](docs/release-notes-1.1.0.md), 1.0.0 in [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md), 0.1.1 in [docs/release-notes-0.1.1.md](docs/release-notes-0.1.1.md), beta.2 in [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-beta.2.md), beta.1 notes in [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) |
 | [docs/work-plan.md](docs/work-plan.md) | Roadmap and the Windows/macOS ports |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, pull requests, adding a joystick mode or language |
 

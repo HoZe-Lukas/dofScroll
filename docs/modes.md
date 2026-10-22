@@ -7,8 +7,8 @@ recompiling needed. Parser: `src/modes.hpp`, `src/modes.cpp`. Key names: `src/ke
 
 Exactly one joystick mode is active (per device when several devices arrive separately, see [multi-device.md](multi-device.md)). It is the one named by `MODE` in the resolved profile, otherwise
 `normal`. Select it in `[global]`, `[device:*]` or `[app:*]` (see
-[configuration.md](configuration.md)). The tray also has a quick "Joystick mode" menu that sets the global
-`MODE`.
+[configuration.md](configuration.md)). The tray also has a quick "Joystick mode" menu that switches the running daemon
+(it does not change `MODE` in the file, see [Button actions](#button-actions)).
 
 ## The six motions
 
@@ -31,7 +31,7 @@ A SpaceMouse cap moves in six ways. Every joystick mode says what each of them d
 | 6. Lift / press | `y` | pull up / push down | none (only through a `y` term in a channel mix) | none |
 
 - A key that is not split gives push and tilt of its channel the same action: `V_ACTION` covers motions 1 and 2, `H_ACTION` motions 3 and 4. Set a split key to give push and tilt different jobs ([Split push and tilt](#split-push-and-tilt)).
-- `default` is the channel's normal behavior: vertical = scroll, horizontal = scroll sideways, twist = zoom (Ctrl plus the wheel).
+- `default` is the channel's normal behavior: vertical = scroll, horizontal = scroll sideways, twist = zoom (the zoom modifier, by default Ctrl, plus the wheel).
 - Lift / press is not used by any built-in joystick mode ([Lift/press is unused](#liftpress-is-unused)).
 - A joystick mode that sets none of these keys behaves like `normal`: every motion does its default.
 
@@ -126,7 +126,7 @@ For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`) and `TWIST_ACTION` 
 | `default` | The channel's normal behavior: vertical wheel, horizontal wheel, twist = zoom with dominance detection. |
 | `none` | Channel off. |
 | `wheel_v`, `wheel_h` | Vertical or horizontal mouse wheel. |
-| `zoom` | Hold Ctrl and send the mouse wheel. |
+| `zoom` | Hold the zoom modifier (`ZOOM_MODIFIER`, default Ctrl) and send the mouse wheel. |
 | `keys:<neg>,<pos>` | Key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection. Dead zone, curve, smoothing and sensitivity of the channel apply. Each argument can be a chord, see below. |
 | `step:<neg>,<pos>` | One key tap per push instead of a rate, with hysteresis; see below. |
 
@@ -362,7 +362,7 @@ keys: valid in a joystick mode file (where they belong) and in a profile section
 the active joystick mode splits that channel. `STEP_TRIGGER` applies to every `step:` part and
 is measured after the part's sensitivity, as for a channel.
 
-Several parts can hold Ctrl at once for `zoom` (Ctrl is released when the last of them is back at
+Several parts can hold the zoom modifier (by default Ctrl) at once for `zoom` (it is released when the last of them is back at
 rest). Everything a part holds is released on a joystick mode switch, a reload, an unplugged device,
 suspend and the safety net, like the rest.
 
@@ -415,8 +415,8 @@ Only use joystick mode files from sources you trust, and read a file before you 
 
 - `key:` bindings, especially `ctrl`, `alt`, `super`, `shift`, `delete`, `esc`, `enter` and `f1` to `f24`.
 - `keys:<negative>,<positive>` actions on `V_ACTION`, `H_ACTION` or `TWIST_ACTION`, especially
-  letters and digits, or in combination with a `zoom` channel (Ctrl is held then).
-- `zoom` on any channel, because it holds Ctrl.
+  letters and digits, or in combination with a `zoom` channel (the zoom modifier, by default Ctrl, is held then).
+- `zoom` on any channel, because it holds the zoom modifier (by default Ctrl).
 - `mode:` bindings that switch to another joystick mode, and the other files such a joystick mode points to.
 - Settings overrides that change sensitivities, signs or button behavior.
 

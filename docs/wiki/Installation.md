@@ -13,15 +13,17 @@ Before you install, check [Requirements](Requirements) (supported systems, drive
 
 | Format | Command | Notes |
 |---|---|---|
-| RPM (built on Rocky Linux 9) | `sudo dnf install -y epel-release`, then `sudo dnf install ./dofscroll-*.rpm` | `spacenavd` comes from EPEL on RHEL 9 and its clones; Qt is inside the package, nothing else to install |
-| DEB (built on Debian 12) | `sudo apt install ./dofscroll_*.deb` | Whether `spacenavd` is in your release's repositories is unverified |
+| RPM (built on Rocky Linux 9) | `sudo dnf install -y epel-release`, then `sudo dnf install ./dofscroll-*.rpm` | `spacenavd` comes from EPEL on RHEL 9 and its clones (Fedora has it in its own repositories); Qt is inside the package, nothing else to install |
+| DEB (built on Debian 12) | `sudo apt install ./dofscroll_*.deb` | `spacenavd` is in Debian 12 and 13 and Ubuntu 24.04 (install-tested in CI); check other releases with `apt-cache policy spacenavd` |
 | TGZ | `tar xzf dofscroll-*-Linux.tar.gz`, then `sudo cp -a dofscroll-*-Linux/usr/. /usr/` | Self-contained interface (own Qt): `dofscroll-ui` runs from the unpacked folder; the daemon needs `libspnav` and the X11 libraries from your distribution |
 
-The RPM and DEB files have not been installed on a real machine yet. A package installs `/usr/bin/dofscroll` and `/usr/bin/dofscroll-ui` (with its own Qt 6.9.3 in `/usr/lib/dofscroll`, which is why the packages are 27 to 35 MB), a menu entry, the user units in `/usr/lib/systemd/user`, examples in `/usr/share/dofscroll/examples/`, and the uinput udev rule as an inactive example under `/usr/share/dofscroll/udev/`.
+The RPM and DEB files are install-tested in CI containers only (not on a real desktop). A package installs `/usr/bin/dofscroll` and `/usr/bin/dofscroll-ui` (with its own Qt 6.9.3 in `/usr/lib/dofscroll`, which is why the packages are 27 to 35 MB), `/usr/bin/dofscroll-hidprobe` (diagnostic), a menu entry, the user units in `/usr/lib/systemd/user`, example configs in `/usr/share/dofscroll/examples/` (the joystick modes and button modes are built into the program), and the uinput udev rule as an inactive example under `/usr/share/dofscroll/udev/`.
 
 ## First-time setup (Linux)
 
-1. `sudo systemctl enable --now spacenavd`
+**Install the package, then open dofScroll from the application menu.** That is the whole first start: the interface starts the daemon by itself and shows a short setup guide (daemon running, SpaceMouse found, "Start at login" on by default). The RPM and DEB enable the `spacenavd` service on every install and upgrade (best effort, as root; a fresh install does not start your dofscroll units, the interface does that). The steps below are the alternative: a TGZ install, a machine without a desktop, or when the automatic way did not work.
+
+1. `sudo systemctl enable --now spacenavd` (done by the RPM and DEB)
 2. `systemctl --user daemon-reload`, then check `systemctl --user list-unit-files 'dofscroll*'`
 3. `systemctl --user enable --now dofscroll.service dofscroll-ui.service`. The interface's "Start at login" switch does the same through one interface on all systems.
 4. Wayland only (or `BACKEND = uinput`): activate the udev rule yourself, it is not active by default.
@@ -50,7 +52,7 @@ CI builds an installer (`dofscroll-<version>-windows-x64-setup.exe`) and a porta
 
 1. Download, verify the checksum as above, run the installer. No administrator rights are needed (default folder `%LOCALAPPDATA%\Programs\dofscroll`).
 2. SmartScreen shows "Windows protected your PC": click **More info**, then **Run anyway**.
-3. Optional component "Start the daemon at logon" (off by default). The Start menu entry opens the settings window (`dofscroll-ui.exe`); `dofscroll.exe` is the daemon without a window.
+3. **Open dofscroll from the Start menu** (or tick "Open dofscroll now" on the finish page): the interface (`dofscroll-ui.exe`) starts the daemon (`dofscroll.exe`, no window) by itself and the first start shows the setup guide with "Start at login" on. The installer has the optional component "Start the daemon at logon" (off by default) too.
 4. Config: `%APPDATA%\dofscroll\dofscroll.conf` (same format as on Linux). Log: `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
 5. The official 3Dconnexion driver can stay installed and running; dofscroll works next to it and never asks you to stop it: with the driver installed it reads the device through the driver's interface (setting `INPUT`, default `auto`), otherwise directly (not verified on hardware yet). Please run the 5 minute test `powershell -ExecutionPolicy Bypass -File scripts\test-driver-coexistence.ps1` from the install folder and attach its file to issue #36, see [Requirements](Requirements). The diagnostic tool `dofscroll-hidprobe.exe` is next to `dofscroll.exe`.
 
@@ -62,8 +64,8 @@ CI builds `dofscroll-<version>-macos-arm64.dmg` (Apple silicon). It is signed ad
 
 1. Open the DMG and drag `dofscroll.app` to Applications.
 2. Gatekeeper blocks the first start: right-click the app > **Open** > **Open**. On macOS 15 and later use System Settings > Privacy & Security > **Open Anyway**. Alternative: `xattr -dr com.apple.quarantine /Applications/dofscroll.app`.
-3. Grant **Input Monitoring** and **Accessibility** to the daemon inside the app (`Contents/Resources/daemon/dofscroll`), then restart it.
-4. Autostart: the interface's "Start at login" switch, or the LaunchAgent script from the image (`README-first-run.txt`).
+3. **Open dofscroll from Applications.** The interface starts the daemon inside the app and shows the setup guide: "Start at login" is on by default, and each of the two permissions, **Input Monitoring** and **Accessibility**, has a button that opens the matching pane of System Settings and a live note while macOS does not accept the events. Switch on dofscroll in both lists (if it is not listed, add `Contents/Resources/daemon/dofscroll` with `+`).
+4. Alternative by hand: the LaunchAgent script from the image (`README-first-run.txt`).
 
 Details: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md), [port-macos.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-macos.md), [packaging/macos/README.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/packaging/macos/README.md).
 
@@ -71,7 +73,7 @@ Details: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/mai
 
 Upgrade per OS (A package or installer never touches your config):
 
-- Linux: install the newer package over the old one. The package restarts the running user units of logged-in users on upgrade (best effort, never fails the upgrade). Otherwise run `systemctl --user daemon-reload` and restart `dofscroll.service` and `dofscroll-ui.service` (or the tray unit), or use the tray item "Restart".
+- Linux: install the newer package over the old one. The package stops the running daemon and interface before installing and starts them again afterwards. If that did not happen (for example you started the program from a terminal), run `systemctl --user daemon-reload` and restart `dofscroll.service` and `dofscroll-ui.service`, or use the tray item "Restart".
 - Windows: run the new installer; it stops the daemon and a running `dofscroll-ui.exe` first, then starts the daemon again if it was running (also for silent `/S` installs) and the interface (interactive installs only).
 - macOS: quit the interface (tray, Quit), stop the daemon, replace `dofscroll.app`, start both again (a loaded LaunchAgent: `launchctl kickstart -k gui/$(id -u)/io.github.dofscroll.daemon`).
 

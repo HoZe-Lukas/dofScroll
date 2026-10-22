@@ -53,6 +53,10 @@ if(DOFSCROLL_UI)
     src/ui/qt/pages/general_page.cpp
     src/ui/qt/pages/general_page.hpp
     src/ui/qt/pages/log_dialog.cpp
+    src/ui/qt/pages/setup_guide_dialog.cpp
+    src/ui/qt/pages/setup_guide_dialog.hpp
+    src/ui/qt/daemon_starter.cpp
+    src/ui/qt/daemon_starter.hpp
     src/ui/qt/pages/log_dialog.hpp
     src/ui/qt/button_row.cpp
     src/ui/qt/button_row.hpp

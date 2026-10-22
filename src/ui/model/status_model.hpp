@@ -42,6 +42,9 @@ struct DaemonStatus {
     };
     std::vector<Lane> more;  // lane 2, 3, ...
     InputIssue input_issue = InputIssue::Clear;  // device found but cannot be read / sends nothing
+    // macOS: "permissions=ok" or "permissions=missing:accessibility,input_monitoring" (mac_paths.hpp).
+    bool permissions_known = false;
+    bool missing_accessibility = false, missing_input_monitoring = false;
     bool has_updated = false;
     int64_t updated = 0;  // unix seconds
 };
@@ -92,6 +95,11 @@ inline DaemonStatus parseStatus(const std::string &text) {
         else if (k == "active_device") d.active_device = v;
         else if (laneKeyValue(k, v, &d)) {}
         else if (k == "input_issue") d.input_issue = inputIssueFromKey(v);
+        else if (k == "permissions") {
+            d.permissions_known = true;
+            d.missing_accessibility = v.find("accessibility") != std::string::npos;
+            d.missing_input_monitoring = v.find("input_monitoring") != std::string::npos;
+        }
         else if (k == "updated") {
             d.updated = std::strtoll(v.c_str(), nullptr, 10);
             d.has_updated = true;
