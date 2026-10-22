@@ -42,7 +42,8 @@ jobs:
       - name: Refresh image digests and aqtinstall hashes
         run: |
           sh scripts/pin-ci-images.sh
-          sh scripts/update-aqt-requirements.sh
+          # Python 3.10: the oldest Python of the builds decides which versions can be resolved
+          docker run --rm -v "$PWD":/w -w /w python:3.10-slim sh scripts/update-aqt-requirements.sh
           sh scripts/check-ci-pins.sh
       - name: Open or update the pull request
         env:

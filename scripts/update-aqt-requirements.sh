@@ -7,6 +7,9 @@
 # downloads Qt, which the released packages bundle, so the tool itself must not be replaceable.
 # The hashes are those that PyPI lists for every file of each pinned version (wheels of all
 # platforms and the sdist), so the same file works on Linux, Windows and macOS and on any Python.
+# It must run on Python 3.10, the oldest Python of the builds (py7zr needs 3.10; Debian 12 has 3.11.2):
+# a newer Python would resolve versions that the older ones cannot install. Without a local 3.10:
+#   docker run --rm -v "$PWD":/w -w /w python:3.10-slim sh scripts/update-aqt-requirements.sh
 # Needs network access (PyPI) and python3 with venv. Run it whenever AQT_VERSION changes, review the
 # diff, commit it; scripts/check-ci-pins.sh fails when file and qt.env disagree.
 # Usage: scripts/update-aqt-requirements.sh
@@ -14,6 +17,8 @@ set -eu
 cd "$(dirname "$0")/.."
 . packaging/qt.env
 out=packaging/ci/aqt-requirements.txt
+python3 -c 'import sys; sys.exit(0 if sys.version_info[:2] == (3, 10) else 1)' \
+  || { echo "update-aqt-requirements: run it on Python 3.10 (see the header)" >&2; exit 2; }
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 

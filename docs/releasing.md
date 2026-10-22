@@ -56,8 +56,8 @@ The release builds do not take their inputs from moving tags:
   The workflow needs the repository setting that lets Actions create pull requests.
 - aqtinstall and its dependencies come from `packaging/ci/aqt-requirements.txt` (versions and SHA-256,
   `pip install --require-hashes`). After a change of `AQT_VERSION` in `packaging/qt.env`:
-  `scripts/update-aqt-requirements.sh`, commit the result (it needs Python 3.10 or newer, which py7zr 1.1
-  requires, and network access; the Rocky image therefore uses `python3.11`).
+  `scripts/update-aqt-requirements.sh`, commit the result (it must run on Python 3.10, the oldest Python of the builds, and needs
+  network access; see the header of the script for a Docker one-liner; py7zr 1.1 needs 3.10 or newer, so the Rocky image uses `python3.11`).
 - `scripts/check-ci-pins.sh` (a unit test, so also `check-fast`) fails when an image or aqtinstall pin is
   missing, when `aqt-requirements.txt` does not match `qt.env`, or when the release job loses its
   attestation step.
