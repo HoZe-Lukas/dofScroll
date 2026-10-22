@@ -2,7 +2,7 @@
 ; SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 ;
 ; Per-user installer (NSIS 3, no administrator rights). Built by packaging/windows/build-installer.ps1:
-;   makensis /DVERSION=1.2.0 /DSTAGE=<staged folder> /DOUTFILE=<setup.exe> [/DHAS_UI] [/DAPP_ICO=<ico>] installer.nsi
+;   makensis /DVERSION=1.2.1 /DSTAGE=<staged folder> /DOUTFILE=<setup.exe> [/DHAS_UI] [/DAPP_ICO=<ico>] installer.nsi
 ; Silent use:  setup.exe /S [/AUTOSTART=1] [/D=C:\target\folder]   (the /D= argument must come last)
 ; Uninstall:   <install dir>\uninstall.exe  (also from Settings > Apps); it removes the autostart value.
 Unicode true

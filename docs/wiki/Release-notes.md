@@ -6,6 +6,10 @@ Design principle: dofscroll complements the vendor driver instead of duplicating
 
 Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
 
+## 1.2.1
+
+Fix release for macOS: the macOS disk image of 1.2.0 was built without the interface (daemon only) because the pinned Qt installer did not install on the macOS build runner. 1.2.1 has the interface again; nothing else changed. Linux and Windows packages of 1.2.0 were complete. See [docs/release-notes-1.2.1.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.2.1.md).
+
 ## 1.2.0
 
 Feature release. The joystick mode editor has a new first tab, **Motions and buttons**: a picture of the cap with its six motions and the buttons of your device, action tiles, Press a key, Detect by moving and Try this joystick mode, and the same picture in the profile editor (see [User interface](User-interface)). One **Restart** item in the tray and on the Overview restarts the daemon and the interface together; the motion chips tell push, tilt and twist apart and show the keys of a key action; the new settings `ZOOM_MODIFIER` (the keys held while zooming, per profile, for example Cmd on macOS) and `INVERT_AXES` (flip the direction of single axes in every joystick mode) can be set per profile; the interface starts `systemctl` and `launchctl` only from fixed directories; the CI images, the Qt installer and the release artifacts are pinned and attested. See [docs/release-notes-1.2.0.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.2.0.md) and [Configuration reference](Configuration-reference).
