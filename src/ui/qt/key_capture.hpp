@@ -20,7 +20,7 @@ inline std::string captureKeyName(const QKeyEvent *e) {
     const int k = e->key();
     const bool keypad = e->modifiers() & Qt::KeypadModifier;
     if (k >= Qt::Key_A && k <= Qt::Key_Z) return std::string(1, char('a' + (k - Qt::Key_A)));
-    if (k >= Qt::Key_0 && k <= Qt::Key_9 && !keypad) return std::string(1, char('0' + (k - Qt::Key_0)));
+    if (k >= Qt::Key_0 && k <= Qt::Key_9) return keypad ? "kp_" + std::string(1, char('0' + (k - Qt::Key_0))) : std::string(1, char('0' + (k - Qt::Key_0)));
     if (k >= Qt::Key_F1 && k <= Qt::Key_F24) return "f" + std::to_string(k - Qt::Key_F1 + 1);
     switch (k) {
         case Qt::Key_Up: return "up";
@@ -34,8 +34,33 @@ inline std::string captureKeyName(const QKeyEvent *e) {
         case Qt::Key_Tab:
         case Qt::Key_Backtab: return "tab";
         case Qt::Key_Space: return "space";
-        case Qt::Key_Return:
-        case Qt::Key_Enter: return "enter";
+        case Qt::Key_Return: return "enter";
+        case Qt::Key_Enter: return keypad ? "kp_enter" : "enter";
+        case Qt::Key_Asterisk: return keypad ? "kp_multiply" : "";
+        case Qt::Key_Slash: return keypad ? "kp_divide" : "slash";
+        case Qt::Key_Comma: return "comma";
+        case Qt::Key_Period: return keypad ? "kp_decimal" : "period";
+        case Qt::Key_Backslash: return "backslash";
+        case Qt::Key_Semicolon: return "semicolon";
+        case Qt::Key_Apostrophe: return "apostrophe";
+        case Qt::Key_BracketLeft: return "bracket_left";
+        case Qt::Key_BracketRight: return "bracket_right";
+        case Qt::Key_QuoteLeft: return "grave";
+        case Qt::Key_Equal: return "equal";
+        case Qt::Key_CapsLock: return "caps_lock";
+        case Qt::Key_Print: return "print";
+        case Qt::Key_ScrollLock: return "scroll_lock";
+        case Qt::Key_Pause: return "pause";
+        case Qt::Key_Menu: return "menu";
+        case Qt::Key_NumLock: return "num_lock";
+        case Qt::Key_MediaTogglePlayPause:
+        case Qt::Key_MediaPlay: return "play_pause";
+        case Qt::Key_MediaNext: return "media_next";
+        case Qt::Key_MediaPrevious: return "media_prev";
+        case Qt::Key_MediaStop: return "media_stop";
+        case Qt::Key_VolumeUp: return "volume_up";
+        case Qt::Key_VolumeDown: return "volume_down";
+        case Qt::Key_VolumeMute: return "volume_mute";
         case Qt::Key_Escape: return "esc";
         case Qt::Key_Backspace: return "backspace";
         case Qt::Key_Delete: return "delete";

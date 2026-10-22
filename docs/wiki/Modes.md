@@ -111,7 +111,7 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 
 Toggle state is shown in the tray ("Navigation mode on") and cleared by a reload (also the tray's "Release all keys"), a restart, suspend or `ENABLED = 0`, and any joystick mode change. A joystick mode binding wins over a `BUTTON_<n>` binding in the main config. A switch by `mode:` lasts until the daemon restarts, the config or joystick modes reload, or another switch happens; held keys and buttons are released on every switch. An unknown joystick mode id in a joystick mode file is dropped with a warning.
 
-Key names are lower case: `ctrl shift alt super`, `up down left right home end pageup pagedown insert delete`, `space enter esc tab backspace`, `f1`-`f24` (macOS: up to `f20`), `a`-`z`, `0`-`9`, `plus minus kp_plus kp_minus`.
+Key names are lower case: `ctrl shift alt super`, `up down left right home end pageup pagedown insert delete`, `space enter esc tab backspace`, `f1`-`f24` (macOS: up to `f20`), `a`-`z`, `0`-`9`, `plus minus`, the keypad (`kp_0`-`kp_9 kp_enter kp_plus kp_minus kp_multiply kp_divide kp_decimal`), punctuation (`comma period slash backslash semicolon apostrophe bracket_left bracket_right grave equal`), `caps_lock print scroll_lock pause menu num_lock` and the media keys (`play_pause media_next media_prev media_stop volume_up volume_down volume_mute`). macOS cannot send `f21`-`f24`, `print`, `scroll_lock`, `pause`, `num_lock` or the media keys.
 
 ## Loader warnings
 

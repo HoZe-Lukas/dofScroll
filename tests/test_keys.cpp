@@ -19,12 +19,17 @@ int main() {
         assert(keyToKeysym(k) != 0);
         assert(keyToLinuxCode(k) != 0);
         assert(syms.insert(keyToKeysym(k)).second);
-        assert(codes.insert(keyToLinuxCode(k)).second);
+        // "plus" is Shift + the code of "equal" (US layout, keyNeedsShift): the one shared code
+        if (k != Key::Plus) assert(codes.insert(keyToLinuxCode(k)).second);
         assert(names.insert(keyName(k)).second);
         Key back = Key::Count_;
         assert(parseKeyName(keyName(k), &back) && back == k);
     }
-    assert(syms.size() == kKeyCount && codes.size() == kKeyCount);
+    assert(syms.size() == kKeyCount && codes.size() == kKeyCount - 1);
+    assert(keyToLinuxCode(Key::Plus) == keyToLinuxCode(Key::Equal) && keyNeedsShift(Key::Plus) && !keyNeedsShift(Key::Equal));
+    assert(keyToLinuxCode(Key::Kp7) == KEY_KP7 && keyToLinuxCode(Key::KpEnter) == KEY_KPENTER && keyToLinuxCode(Key::Grave) == KEY_GRAVE);
+    assert(keyToKeysym(Key::KpDecimal) == XK_KP_Decimal && keyToKeysym(Key::Menu) == XK_Menu && keyToKeysym(Key::F24) == XK_F24);
+    assert(keyToLinuxCode(Key::VolumeUp) == KEY_VOLUMEUP && keyToLinuxCode(Key::PlayPause) == KEY_PLAYPAUSE && keyToLinuxCode(Key::F13) == KEY_F13);
     assert(Key::Plus != Key::KpPlus && keyToKeysym(Key::Plus) != keyToKeysym(Key::KpPlus));
     assert(keyToKeysym(Key::Plus) == XK_plus && keyToKeysym(Key::KpPlus) == XK_KP_Add);
     assert(keyToKeysym(Key::KpMinus) == XK_KP_Subtract && keyToKeysym(Key::Minus) == XK_minus);

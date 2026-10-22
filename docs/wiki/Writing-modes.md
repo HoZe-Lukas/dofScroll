@@ -118,8 +118,12 @@ Keys are lower case. The full list (`src/keys.hpp`):
 | Function keys | `f1` to `f24` (macOS: up to `f20`) |
 | Letters and digits | `a` to `z`, `0` to `9` |
 | Plus and minus | `plus`, `minus` (main keyboard), `kp_plus`, `kp_minus` (keypad) |
+| Keypad | `kp_0` to `kp_9`, `kp_enter`, `kp_plus`, `kp_minus`, `kp_multiply`, `kp_divide`, `kp_decimal` |
+| Punctuation | `comma`, `period`, `slash`, `backslash`, `semicolon`, `apostrophe`, `bracket_left`, `bracket_right`, `grave`, `equal` (the key at its US-layout place) |
+| System keys | `caps_lock`, `print`, `scroll_lock`, `pause`, `menu`, `num_lock` |
+| Media keys | `play_pause`, `media_next`, `media_prev`, `media_stop`, `volume_up`, `volume_down`, `volume_mute` |
 
-There are no media keys (volume, play) and no way to type text. `plus` is resolved from the keyboard layout on X11; with the uinput backend it is sent as Shift and `=` (US-style layout assumed). `kp_plus` / `kp_minus` do not depend on the layout. Programs differ in which of them they accept for zoom.
+There is no way to type text. `plus` is resolved from the keyboard layout on X11; with the uinput backend it is sent as Shift and `=` (US-style layout assumed). `kp_plus` / `kp_minus` do not depend on the layout. Programs differ in which of them they accept for zoom.
 
 **Chords.** Each of the two arguments may be a chord: zero to four modifiers (`ctrl`, `shift`, `alt`, `super`, each at most once, any order) joined by `+` to exactly one key that is not a modifier. `keys:ctrl+pageup,ctrl+pagedown` is previous and next tab. `ctrl+plus` is valid. A lone modifier (`keys:ctrl,shift`) is also valid. One tap presses the modifiers that are not yet held, taps the key and releases only the modifiers it pressed. A modifier that is already held (a `key:ctrl` button, or zoom) stays held.
 

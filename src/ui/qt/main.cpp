@@ -888,11 +888,22 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
                 check(captureKeyName(&fk) == "f" + std::to_string(n), "the key F1 to F24 is known");
             }
         }
+        {   // the complete list: keypad, punctuation, system and media keys are known
+            struct K { int qt; Qt::KeyboardModifiers m; const char *name; };
+            const K listed[] = {{Qt::Key_5, Qt::KeypadModifier, "kp_5"}, {Qt::Key_Enter, Qt::KeypadModifier, "kp_enter"},
+                              {Qt::Key_Comma, Qt::NoModifier, "comma"}, {Qt::Key_QuoteLeft, Qt::NoModifier, "grave"},
+                              {Qt::Key_CapsLock, Qt::NoModifier, "caps_lock"}, {Qt::Key_VolumeUp, Qt::NoModifier, "volume_up"},
+                              {Qt::Key_MediaNext, Qt::NoModifier, "media_next"}};
+            for (const K &k : listed) {
+                QKeyEvent ev(QEvent::KeyPress, k.qt, k.m);
+                check(captureKeyName(&ev) == k.name, "the key from the complete list is known");
+            }
+        }
         sel(QStringLiteral("m:v_push"));
         neg = captureButton(QStringLiteral("negative"));
         if (neg) {
             neg->click();
-            QKeyEvent caps(QEvent::KeyPress, Qt::Key_CapsLock, Qt::NoModifier);
+            QKeyEvent caps(QEvent::KeyPress, Qt::Key_Help, Qt::NoModifier);
             neg->press(&caps);
             check(!neg->capturing(), "a key that cannot be sent ends the capture");
             bool said = false;

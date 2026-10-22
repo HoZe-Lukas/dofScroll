@@ -16,15 +16,20 @@ using namespace spn::winkeys;
 int main() {
     // every Key is mapped; names round-trip; VKs are unique except documented ones (none)
     std::set<unsigned> vks;
+    std::set<unsigned> specs;  // vk, extended flag and shift together: "enter" and "kp_enter" share a vk, "plus" and "equal" too
     for (size_t i = 0; i < kKeyCount; ++i) {
         const Key k = static_cast<Key>(i);
         const WinKeySpec s = keyToWin(k);
         assert(s.vk != 0 && s.vk < 0x100);
-        assert(vks.insert(s.vk).second);  // no two keys share a virtual-key code
+        vks.insert(s.vk);
+        assert(specs.insert(s.vk | (s.extended ? 0x100u : 0u) | (s.shift ? 0x200u : 0u)).second);  // no two keys send the same
         Key back;
         assert(parseKeyName(keyName(k), &back) && back == k);
     }
-    assert(vks.size() == kKeyCount);
+    assert(specs.size() == kKeyCount);
+    assert(keyToWin(Key::Kp0).vk == 0x60 && keyToWin(Key::Kp9).vk == 0x69 && keyToWin(Key::KpEnter).vk == 0x0D && keyToWin(Key::KpEnter).extended);
+    assert(keyToWin(Key::Equal).vk == 0xBB && !keyToWin(Key::Equal).shift && keyToWin(Key::Grave).vk == 0xC0);
+    assert(keyToWin(Key::VolumeUp).vk == 0xAF && keyToWin(Key::PlayPause).vk == 0xB3 && keyToWin(Key::Menu).vk == 0x5D);
 
     // spot checks against the documented VK_* values
     assert(keyToWin(Key::Ctrl).vk == 0xA2 && keyToWin(Key::Shift).vk == 0xA0);
@@ -45,10 +50,10 @@ int main() {
     for (size_t i = 0; i < kKeyCount; ++i)
         if (static_cast<Key>(i) != Key::Plus) assert(!keyToWin(static_cast<Key>(i)).shift);
 
-    // extended-key flag exactly for arrows, the nav block and the Win key
+    // extended-key flag exactly for arrows, the nav block, the Win key, keypad enter and divide, print, menu and num lock
     const std::set<Key> ext = {Key::Up,     Key::Down, Key::Left, Key::Right,  Key::Insert,
                                Key::Delete, Key::Home, Key::End,  Key::PageUp, Key::PageDown,
-                               Key::Super};
+                               Key::Super,  Key::KpEnter, Key::KpDivide, Key::Print, Key::Menu, Key::NumLock};
     for (size_t i = 0; i < kKeyCount; ++i) {
         const Key k = static_cast<Key>(i);
         assert(keyToWin(k).extended == (ext.count(k) != 0));

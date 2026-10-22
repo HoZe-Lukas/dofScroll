@@ -251,9 +251,15 @@ Names are lower case.
 | Modifiers | `ctrl`, `shift`, `alt`, `super` |
 | Arrows and navigation | `up`, `down`, `left`, `right`, `home`, `end`, `pageup`, `pagedown`, `insert`, `delete` |
 | Editing | `space`, `enter`, `esc`, `tab`, `backspace` |
-| Function keys | `f1` to `f24` (on macOS only `f1` to `f20`: Apple has no key codes above F20, so `f21` to `f24` are not sent there) |
+| Function keys | `f1` to `f24` (on macOS only `f1` to `f20`) |
 | Letters and digits | `a` to `z`, `0` to `9` |
 | Plus and minus | `plus`, `minus` (main keyboard), `kp_plus`, `kp_minus` (keypad) |
+| Keypad | `kp_0` to `kp_9`, `kp_enter`, `kp_plus`, `kp_minus`, `kp_multiply`, `kp_divide`, `kp_decimal` |
+| Punctuation | `comma`, `period`, `slash`, `backslash`, `semicolon`, `apostrophe`, `bracket_left`, `bracket_right`, `grave`, `equal` (the key at its US-layout place) |
+| System keys | `caps_lock`, `print`, `scroll_lock`, `pause`, `menu`, `num_lock` |
+| Media keys | `play_pause`, `media_next`, `media_prev`, `media_stop`, `volume_up`, `volume_down`, `volume_mute` |
+
+On macOS Apple has no key codes for `f21` to `f24`, `print`, `scroll_lock`, `pause`, `num_lock` and the media keys, so these are not sent there (the other keys are).
 
 `plus` is the main-keyboard plus. On X11 it is resolved from the keyboard layout. On uinput it
 is sent as Shift and `=` (a US-style layout is assumed). `kp_plus` and `kp_minus` are the keypad keys and

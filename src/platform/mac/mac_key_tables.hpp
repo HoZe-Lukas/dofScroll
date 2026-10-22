@@ -110,6 +110,43 @@ inline uint16_t keyToKeycode(Key k) {
     case Key::N7: return 0x1A;         // kVK_ANSI_7
     case Key::N8: return 0x1C;         // kVK_ANSI_8
     case Key::N9: return 0x19;         // kVK_ANSI_9
+    case Key::Kp0: return 0x52;
+    case Key::Kp1: return 0x53;
+    case Key::Kp2: return 0x54;
+    case Key::Kp3: return 0x55;
+    case Key::Kp4: return 0x56;
+    case Key::Kp5: return 0x57;
+    case Key::Kp6: return 0x58;
+    case Key::Kp7: return 0x59;
+    case Key::Kp8: return 0x5B;
+    case Key::Kp9: return 0x5C;
+    case Key::KpEnter: return 0x4C;
+    case Key::KpMultiply: return 0x43;
+    case Key::KpDivide: return 0x4B;
+    case Key::KpDecimal: return 0x41;
+    case Key::Comma: return 0x2B;
+    case Key::Period: return 0x2F;
+    case Key::Slash: return 0x2C;
+    case Key::Backslash: return 0x2A;
+    case Key::Semicolon: return 0x29;
+    case Key::Apostrophe: return 0x27;
+    case Key::BracketLeft: return 0x21;
+    case Key::BracketRight: return 0x1E;
+    case Key::Grave: return 0x32;
+    case Key::Equal: return 0x18;
+    case Key::CapsLock: return 0x39;
+    case Key::Print: return 0xFFFF;  // no key code on macOS
+    case Key::ScrollLock: return 0xFFFF;  // no key code on macOS
+    case Key::Pause: return 0xFFFF;  // no key code on macOS
+    case Key::Menu: return 0x6E;
+    case Key::NumLock: return 0xFFFF;  // no key code on macOS
+    case Key::PlayPause: return 0xFFFF;  // no key code on macOS
+    case Key::MediaNext: return 0xFFFF;  // no key code on macOS
+    case Key::MediaPrev: return 0xFFFF;  // no key code on macOS
+    case Key::MediaStop: return 0xFFFF;  // no key code on macOS
+    case Key::VolumeUp: return 0xFFFF;  // no key code on macOS
+    case Key::VolumeDown: return 0xFFFF;  // no key code on macOS
+    case Key::VolumeMute: return 0xFFFF;  // no key code on macOS
     case Key::Count_: break;
     }
     return 0xFFFF;

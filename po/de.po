@@ -4275,3 +4275,19 @@ msgstr "Anklicken, dann die Taste oder Tastenkombination drücken. Esc bricht ab
 #: src/ui/qt/key_capture.hpp
 msgid "dofscroll cannot send this key. Choose a key from the list instead."
 msgstr "dofscroll kann diese Taste nicht senden. Wähle stattdessen eine Taste aus der Liste."
+
+#: src/ui/model/key_list.hpp
+msgid "Keypad"
+msgstr "Ziffernblock"
+
+#: src/ui/model/key_list.hpp
+msgid "Punctuation"
+msgstr "Satzzeichen"
+
+#: src/ui/model/key_list.hpp
+msgid "System keys"
+msgstr "Systemtasten"
+
+#: src/ui/model/key_list.hpp
+msgid "Media keys"
+msgstr "Medientasten"

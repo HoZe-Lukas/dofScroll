@@ -15,6 +15,8 @@
 
 namespace spn {
 
+// XF86 media keysyms (X11/XF86keysym.h) as numbers, so that no further header is needed.
+
 // X11 keysym of a key (0 = unmapped; never the case for a valid Key).
 inline unsigned long keyToKeysym(Key k) {
     switch (k) {
@@ -101,6 +103,43 @@ inline unsigned long keyToKeysym(Key k) {
     case Key::N7: return XK_7;
     case Key::N8: return XK_8;
     case Key::N9: return XK_9;
+    case Key::Kp0: return XK_KP_0;
+    case Key::Kp1: return XK_KP_1;
+    case Key::Kp2: return XK_KP_2;
+    case Key::Kp3: return XK_KP_3;
+    case Key::Kp4: return XK_KP_4;
+    case Key::Kp5: return XK_KP_5;
+    case Key::Kp6: return XK_KP_6;
+    case Key::Kp7: return XK_KP_7;
+    case Key::Kp8: return XK_KP_8;
+    case Key::Kp9: return XK_KP_9;
+    case Key::KpEnter: return XK_KP_Enter;
+    case Key::KpMultiply: return XK_KP_Multiply;
+    case Key::KpDivide: return XK_KP_Divide;
+    case Key::KpDecimal: return XK_KP_Decimal;
+    case Key::Comma: return XK_comma;
+    case Key::Period: return XK_period;
+    case Key::Slash: return XK_slash;
+    case Key::Backslash: return XK_backslash;
+    case Key::Semicolon: return XK_semicolon;
+    case Key::Apostrophe: return XK_apostrophe;
+    case Key::BracketLeft: return XK_bracketleft;
+    case Key::BracketRight: return XK_bracketright;
+    case Key::Grave: return XK_grave;
+    case Key::Equal: return XK_equal;
+    case Key::CapsLock: return XK_Caps_Lock;
+    case Key::Print: return XK_Print;
+    case Key::ScrollLock: return XK_Scroll_Lock;
+    case Key::Pause: return XK_Pause;
+    case Key::Menu: return XK_Menu;
+    case Key::NumLock: return XK_Num_Lock;
+    case Key::PlayPause: return 0x1008FF14UL;
+    case Key::MediaNext: return 0x1008FF17UL;
+    case Key::MediaPrev: return 0x1008FF16UL;
+    case Key::MediaStop: return 0x1008FF15UL;
+    case Key::VolumeUp: return 0x1008FF13UL;
+    case Key::VolumeDown: return 0x1008FF11UL;
+    case Key::VolumeMute: return 0x1008FF12UL;
     case Key::Count_: break;
     }
     return 0UL;
@@ -192,6 +231,43 @@ inline int keyToLinuxCode(Key k) {
     case Key::N7: return KEY_7;
     case Key::N8: return KEY_8;
     case Key::N9: return KEY_9;
+    case Key::Kp0: return KEY_KP0;
+    case Key::Kp1: return KEY_KP1;
+    case Key::Kp2: return KEY_KP2;
+    case Key::Kp3: return KEY_KP3;
+    case Key::Kp4: return KEY_KP4;
+    case Key::Kp5: return KEY_KP5;
+    case Key::Kp6: return KEY_KP6;
+    case Key::Kp7: return KEY_KP7;
+    case Key::Kp8: return KEY_KP8;
+    case Key::Kp9: return KEY_KP9;
+    case Key::KpEnter: return KEY_KPENTER;
+    case Key::KpMultiply: return KEY_KPASTERISK;
+    case Key::KpDivide: return KEY_KPSLASH;
+    case Key::KpDecimal: return KEY_KPDOT;
+    case Key::Comma: return KEY_COMMA;
+    case Key::Period: return KEY_DOT;
+    case Key::Slash: return KEY_SLASH;
+    case Key::Backslash: return KEY_BACKSLASH;
+    case Key::Semicolon: return KEY_SEMICOLON;
+    case Key::Apostrophe: return KEY_APOSTROPHE;
+    case Key::BracketLeft: return KEY_LEFTBRACE;
+    case Key::BracketRight: return KEY_RIGHTBRACE;
+    case Key::Grave: return KEY_GRAVE;
+    case Key::Equal: return KEY_EQUAL;
+    case Key::CapsLock: return KEY_CAPSLOCK;
+    case Key::Print: return KEY_SYSRQ;
+    case Key::ScrollLock: return KEY_SCROLLLOCK;
+    case Key::Pause: return KEY_PAUSE;
+    case Key::Menu: return KEY_COMPOSE;
+    case Key::NumLock: return KEY_NUMLOCK;
+    case Key::PlayPause: return KEY_PLAYPAUSE;
+    case Key::MediaNext: return KEY_NEXTSONG;
+    case Key::MediaPrev: return KEY_PREVIOUSSONG;
+    case Key::MediaStop: return KEY_STOPCD;
+    case Key::VolumeUp: return KEY_VOLUMEUP;
+    case Key::VolumeDown: return KEY_VOLUMEDOWN;
+    case Key::VolumeMute: return KEY_MUTE;
     case Key::Count_: break;
     }
     return KEY_RESERVED;

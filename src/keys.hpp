@@ -26,7 +26,14 @@ namespace spn {
     X(J, "j") X(K, "k") X(L, "l") X(M, "m") X(N, "n") X(O, "o") X(P, "p") X(Q, "q") X(R, "r")  \
     X(S, "s") X(T, "t") X(U, "u") X(V, "v") X(W, "w") X(X, "x") X(Y, "y") X(Z, "z")            \
     X(N0, "0") X(N1, "1") X(N2, "2") X(N3, "3") X(N4, "4") X(N5, "5") X(N6, "6")              \
-    X(N7, "7") X(N8, "8") X(N9, "9")
+    X(N7, "7") X(N8, "8") X(N9, "9") \
+    X(Kp0, "kp_0") X(Kp1, "kp_1") X(Kp2, "kp_2") X(Kp3, "kp_3") X(Kp4, "kp_4") X(Kp5, "kp_5") \
+    X(Kp6, "kp_6") X(Kp7, "kp_7") X(Kp8, "kp_8") X(Kp9, "kp_9") X(KpEnter, "kp_enter") X(KpMultiply, "kp_multiply") \
+    X(KpDivide, "kp_divide") X(KpDecimal, "kp_decimal") X(Comma, "comma") X(Period, "period") X(Slash, "slash") X(Backslash, "backslash") \
+    X(Semicolon, "semicolon") X(Apostrophe, "apostrophe") X(BracketLeft, "bracket_left") X(BracketRight, "bracket_right") X(Grave, "grave") X(Equal, "equal") \
+    X(CapsLock, "caps_lock") X(Print, "print") X(ScrollLock, "scroll_lock") X(Pause, "pause") X(Menu, "menu") X(NumLock, "num_lock") \
+    X(PlayPause, "play_pause") X(MediaNext, "media_next") X(MediaPrev, "media_prev") X(MediaStop, "media_stop") X(VolumeUp, "volume_up") X(VolumeDown, "volume_down") \
+    X(VolumeMute, "volume_mute")
 
 enum class Key {
 #define X(id, name) id,
