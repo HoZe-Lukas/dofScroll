@@ -4,13 +4,13 @@
 
 Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons](Buttons).
 
-The first five minutes on Linux (X11, the tested setup). This assumes you finished the [Installation](Installation) steps and met the [Requirements](Requirements) (on Windows and macOS see the per-OS checklist there).
+The first five minutes (Linux X11 is the tested setup). This assumes you installed the package or installer and met the [Requirements](Requirements). **The first start is just opening dofScroll** from the start menu, the application launcher or the Applications folder: no terminal.
 
-1. **Driver.** `systemctl status spacenavd` must be active. If not: `sudo systemctl enable --now spacenavd`. Plug in the SpaceMouse; `lsusb` should list a 3Dconnexion device.
-2. **Units.** `systemctl --user enable --now dofscroll.service dofscroll-ui.service`.
-3. **Check the log.** `journalctl --user -u dofscroll.service -f` shows the device name and button count when the device connects. You need the device name for `[device:*]` sections.
+1. **Open dofScroll.** The interface starts the daemon by itself (about 6 seconds after it starts, if none runs) and the first start shows a short **setup guide** with live checks: "dofscroll is running", "SpaceMouse found", "Start at login" (a check box, on by default) and, on macOS, the two permissions (Input Monitoring, Accessibility) with a button that opens System Settings. Skip it or finish it any time; **Show setup guide** on the Overview opens it again. The Linux packages enable the `spacenavd` driver service themselves; if the guide says it is off, it shows the one command to copy.
+2. **Plug in the SpaceMouse.** The guide's step "SpaceMouse found" turns to Done. Without a desktop, or for a TGZ install, the old commands still work: `sudo systemctl enable --now spacenavd`, then `systemctl --user enable --now dofscroll.service dofscroll-ui.service`.
+3. **Check the log (optional).** `journalctl --user -u dofscroll.service -f` shows the device name and button count when the device connects. You need the device name for `[device:*]` sections.
 4. **Try it.** Push the cap: the window under the pointer scrolls. Twist: zoom (Ctrl + scroll; the key is `ZOOM_MODIFIER`). Scrolls the wrong way? See the [FAQ](FAQ). Nothing happens? See [Troubleshooting](Troubleshooting).
-5. **Tray.** Right-click the tray icon and open "Settings..." (the interface starts minimized, no window opens by itself): sensitivity, dead zone and direction per channel. Changes apply immediately. GNOME needs an AppIndicator extension to show the icon.
+5. **Tray.** Right-click the tray icon and open "Settings..." (after the first start the interface starts minimized, no window opens by itself): sensitivity, dead zone and direction per channel. Changes apply immediately. GNOME needs an AppIndicator extension to show the icon.
 
 ## What the seeded config gives you
 

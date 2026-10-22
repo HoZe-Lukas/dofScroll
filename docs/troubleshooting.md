@@ -4,6 +4,10 @@
 
 ## Quick checks
 
+Open **dofscroll** from the start menu and look at the setup guide ("Show setup guide" on the
+Overview shows it again): it checks live whether the daemon runs, whether the SpaceMouse is found and,
+on macOS, the two permissions, and says what to do. On Linux:
+
     systemctl status spacenavd
     systemctl --user status dofscroll.service dofscroll-ui.service
     journalctl --user -u dofscroll.service -n 50
@@ -41,7 +45,13 @@ service again afterwards.
 
 ### Nothing happens
 
-1. Is `spacenavd` running? `systemctl status spacenavd`. If not:
+The setup guide of the interface ("Show setup guide" on the Overview) shows the first failing check.
+The interface starts the daemon by itself about 6 seconds after it starts when none runs; if the guide
+says "could not be started", the log (`journalctl --user -u dofscroll.service`, or the log window) has
+the reason. A second daemon exits at once with "another dofscroll daemon is already running": that is
+the single-instance lock, not an error (stop the first one, or use it).
+
+1. Is `spacenavd` running? (The Linux packages enable it themselves; the guide shows the command if it is off.) `systemctl status spacenavd`. If not:
    `sudo systemctl enable --now spacenavd`. The daemon starts without it and reconnects with a
    backoff of up to 5 s, so you need no restart.
 2. Does `spacenavd` see the device? Check `journalctl -u spacenavd` and that the device is
@@ -223,6 +233,17 @@ active. A locked screen is not detected on Windows and macOS. See
 The daemon reloads when the file changes. Force it: `systemctl --user kill -s HUP dofscroll.service`.
 Check the journal for a rejected line. `BACKEND` needs a restart. Validate a file with
 `build/tests/check_config FILE` (source build only).
+
+### macOS: the guide says a permission is missing
+
+The daemon reports `permissions=missing:accessibility,input_monitoring` in the status file when macOS
+does not accept its events. The setup guide shows one row for each (Input Monitoring: reading the
+SpaceMouse; Accessibility: sending scroll, zoom and key events) with a button that opens the matching
+pane of System Settings. Switch on **dofscroll** there; if it is not in the list, add
+`/Applications/dofscroll.app/Contents/Resources/daemon/dofscroll` with the `+` button. The daemon looks
+again every 5 seconds, so no restart is needed (the row turns to "Done"). The grants are tied to the
+file and its code signature: after replacing the app or rebuilding an unsigned binary, switch it off and
+on again. The pane names differ between macOS versions (unverified).
 
 ### Windows and macOS: nothing moves, or the wrong input path is active
 

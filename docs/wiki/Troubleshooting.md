@@ -30,6 +30,8 @@ For button indices and live axis values, stop the service and run `dofscroll --d
 
 ## Nothing happens
 
+First open the **setup guide** (Overview, "Show setup guide"): it checks live whether the daemon runs, whether the SpaceMouse is found and, on macOS, the two permissions. A second daemon exits at once with "another dofscroll daemon is already running": that is the single-instance lock, not an error.
+
 1. `spacenavd` running? `sudo systemctl enable --now spacenavd`. The daemon reconnects by itself (backoff up to 5 s).
 2. Does `spacenavd` see the device? `journalctl -u spacenavd`; `lsusb` should list a 3Dconnexion device.
 3. User unit "not found": `systemctl --user daemon-reload`, then check the setup steps in [Installation](Installation).

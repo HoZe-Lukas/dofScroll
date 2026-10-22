@@ -14,14 +14,21 @@ This build is NOT signed with an Apple Developer ID and NOT notarized. It is sig
    - Or remove the quarantine flag in a terminal:
        xattr -dr com.apple.quarantine /Applications/dofscroll.app
 
-3. Permissions (System Settings > Privacy & Security)
-   - Input Monitoring: needed to read the SpaceMouse.
-   - Accessibility: needed to post scroll, zoom and key events.
-   Add and enable the daemon:
+3. That is the whole first start: opening dofscroll starts the daemon by itself and shows a short setup
+   guide. You do not run a script or a command. The guide
+   - checks live that dofscroll is running and that the SpaceMouse is found,
+   - has "Start at login" (switched on by default; a per-user LaunchAgent, no administrator rights),
+   - has one row for each permission (System Settings > Privacy & Security), with a button that opens the
+     matching pane and a note while macOS does not accept the events:
+       Input Monitoring: needed to read the SpaceMouse.
+       Accessibility: needed to post scroll, zoom and key events.
+     Switch on dofscroll in both lists. If it is not listed, add the daemon with the "+" button
+     (press Command-Shift-G to type the path):
        /Applications/dofscroll.app/Contents/Resources/daemon/dofscroll
-   (use the "+" button, press Command-Shift-G to type the path). Restart the daemon afterwards.
+     No restart is needed: dofscroll looks at the permissions every few seconds.
+   You can skip the guide and open it again later from the Overview ("Show setup guide").
 
-4. Start the daemon at login (per-user LaunchAgent, no administrator rights)
+4. Alternative by hand (not needed after step 3): start the daemon at login with the script
        sh /Applications/dofscroll.app/Contents/Resources/launchagent/install-launchagent.sh \
           --daemon /Applications/dofscroll.app/Contents/Resources/daemon/dofscroll
    Remove it again:

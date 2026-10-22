@@ -21,7 +21,9 @@ The RPM and DEB files are install-tested in CI containers only (not on a real de
 
 ## First-time setup (Linux)
 
-1. `sudo systemctl enable --now spacenavd`
+**Install the package, then open dofScroll from the application menu.** That is the whole first start: the interface starts the daemon by itself and shows a short setup guide (daemon running, SpaceMouse found, "Start at login" on by default). The RPM and DEB enable the `spacenavd` service on every install and upgrade (best effort, as root; a fresh install does not start your dofscroll units, the interface does that). The steps below are the alternative: a TGZ install, a machine without a desktop, or when the automatic way did not work.
+
+1. `sudo systemctl enable --now spacenavd` (done by the RPM and DEB)
 2. `systemctl --user daemon-reload`, then check `systemctl --user list-unit-files 'dofscroll*'`
 3. `systemctl --user enable --now dofscroll.service dofscroll-ui.service`. The interface's "Start at login" switch does the same through one interface on all systems.
 4. Wayland only (or `BACKEND = uinput`): activate the udev rule yourself, it is not active by default.
@@ -50,7 +52,7 @@ CI builds an installer (`dofscroll-<version>-windows-x64-setup.exe`) and a porta
 
 1. Download, verify the checksum as above, run the installer. No administrator rights are needed (default folder `%LOCALAPPDATA%\Programs\dofscroll`).
 2. SmartScreen shows "Windows protected your PC": click **More info**, then **Run anyway**.
-3. Optional component "Start the daemon at logon" (off by default). The Start menu entry opens the settings window (`dofscroll-ui.exe`); `dofscroll.exe` is the daemon without a window.
+3. **Open dofscroll from the Start menu** (or tick "Open dofscroll now" on the finish page): the interface (`dofscroll-ui.exe`) starts the daemon (`dofscroll.exe`, no window) by itself and the first start shows the setup guide with "Start at login" on. The installer has the optional component "Start the daemon at logon" (off by default) too.
 4. Config: `%APPDATA%\dofscroll\dofscroll.conf` (same format as on Linux). Log: `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
 5. The official 3Dconnexion driver can stay installed and running; dofscroll works next to it and never asks you to stop it: with the driver installed it reads the device through the driver's interface (setting `INPUT`, default `auto`), otherwise directly (not verified on hardware yet). Please run the 5 minute test `powershell -ExecutionPolicy Bypass -File scripts\test-driver-coexistence.ps1` from the install folder and attach its file to issue #36, see [Requirements](Requirements). The diagnostic tool `dofscroll-hidprobe.exe` is next to `dofscroll.exe`.
 
@@ -62,8 +64,8 @@ CI builds `dofscroll-<version>-macos-arm64.dmg` (Apple silicon). It is signed ad
 
 1. Open the DMG and drag `dofscroll.app` to Applications.
 2. Gatekeeper blocks the first start: right-click the app > **Open** > **Open**. On macOS 15 and later use System Settings > Privacy & Security > **Open Anyway**. Alternative: `xattr -dr com.apple.quarantine /Applications/dofscroll.app`.
-3. Grant **Input Monitoring** and **Accessibility** to the daemon inside the app (`Contents/Resources/daemon/dofscroll`), then restart it.
-4. Autostart: the interface's "Start at login" switch, or the LaunchAgent script from the image (`README-first-run.txt`).
+3. **Open dofscroll from Applications.** The interface starts the daemon inside the app and shows the setup guide: "Start at login" is on by default, and each of the two permissions, **Input Monitoring** and **Accessibility**, has a button that opens the matching pane of System Settings and a live note while macOS does not accept the events. Switch on dofscroll in both lists (if it is not listed, add `Contents/Resources/daemon/dofscroll` with `+`).
+4. Alternative by hand: the LaunchAgent script from the image (`README-first-run.txt`).
 
 Details: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md), [port-macos.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-macos.md), [packaging/macos/README.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/packaging/macos/README.md).
 

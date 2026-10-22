@@ -12,9 +12,11 @@
 
 Install in three lines (download the package from the [latest release](https://github.com/HoZe-Lukas/dofScroll/releases/latest) first; first-time setup in [docs/installation.md](docs/installation.md)):
 
-- **Linux (Fedora, RHEL family; RHEL, Rocky and Alma need EPEL first: `sudo dnf install epel-release`):** `sudo dnf install ./dofscroll-*.rpm`, then `sudo systemctl enable --now spacenavd` and `systemctl --user enable --now dofscroll.service dofscroll-ui.service`. Debian and Ubuntu: `sudo apt install ./dofscroll_*.deb`.
-- **Windows:** run the unsigned `dofscroll-*-setup.exe` (SmartScreen: More info, Run anyway) or unpack the portable ZIP.
-- **macOS (Apple silicon):** open the unsigned, not notarized DMG and drag the app to Applications (right-click, Open on first start).
+- **Linux (Fedora, RHEL family; RHEL, Rocky and Alma need EPEL first: `sudo dnf install epel-release`):** `sudo dnf install ./dofscroll-*.rpm`. Debian and Ubuntu: `sudo apt install ./dofscroll_*.deb`. Then open **dofScroll** from the application menu.
+- **Windows:** run the unsigned `dofscroll-*-setup.exe` (SmartScreen: More info, Run anyway) or unpack the portable ZIP. Then open **dofscroll** from the Start menu.
+- **macOS (Apple silicon):** open the unsigned, not notarized DMG and drag the app to Applications (right-click, Open on first start). Then open **dofscroll** from Applications.
+
+The first start is always just opening the program: it starts the daemon by itself and shows a short setup guide (daemon, SpaceMouse, start at login, on macOS the two permissions). No terminal commands. The Linux packages enable the `spacenavd` driver service themselves.
 
 dofscroll is not affiliated with or endorsed by 3Dconnexion.
 
@@ -101,20 +103,25 @@ Release notes: [docs/release-notes-1.2.2.md](docs/release-notes-1.2.2.md) (and [
    `spacenavd` is needed for the device (EPEL on the RHEL family).
    Windows: unsigned `-setup.exe` or portable ZIP (SmartScreen: More info, Run anyway). macOS:
    unsigned DMG (right-click > Open). Details per system: [docs/installation.md](docs/installation.md).
-5. Follow the first-time setup in [docs/installation.md](docs/installation.md) (enable `spacenavd`,
-   enable the user services; the packages install the units where systemd looks for them).
+5. Open dofscroll from the start menu, the application launcher or the Applications folder (first-time
+   setup in [docs/installation.md](docs/installation.md), the packages install the units where systemd looks for them; the commands that were needed before are only an
+   alternative for a machine without a desktop).
 
 ## First run
 
-1. `sudo systemctl enable --now spacenavd`
-2. Enable the user services:
-   `systemctl --user enable --now dofscroll.service dofscroll-ui.service`
-   "Start at login" in the interface switches autostart on and off.
-3. Plug in the SpaceMouse. Push the cap: the window under the pointer scrolls. Twist: it zooms
+1. Open dofscroll from the start menu, the application launcher or the Applications folder. The interface
+   starts the daemon by itself (about 6 seconds after it starts, if none runs) and the first start shows
+   the **setup guide** with live checks: "dofscroll is running", "SpaceMouse found", "Start at login" (a
+   check box, on by default), on macOS the two permissions with a button that opens System Settings, and
+   "Try it". Skip it or finish it any time; **Show setup guide** on the Overview opens it again.
+2. Plug in the SpaceMouse. Push the cap: the window under the pointer scrolls. Twist: it zooms
    (Ctrl + scroll; the zoom key is `ZOOM_MODIFIER`, per profile). Scrolls the wrong way? Reverse a motion in the
    Channels tab ("Invert direction of", `INVERT_AXES`) or in the joystick mode editor.
-4. Right-click the tray icon, open "Settings..." and adjust sensitivity, dead zone and direction.
+3. Right-click the tray icon, open "Settings..." and adjust sensitivity, dead zone and direction.
    Changes apply immediately.
+
+Without a desktop (or for a TGZ install) the old way still works: `sudo systemctl enable --now spacenavd`,
+then `systemctl --user enable --now dofscroll.service dofscroll-ui.service`.
 
 If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 

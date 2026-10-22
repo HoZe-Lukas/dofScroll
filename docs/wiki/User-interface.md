@@ -22,11 +22,15 @@ A **sidebar** on the left picks a category (Overview, Profiles, Modes, Device, S
 | Device | Axes | Live view of the six axes and the axis assistant |
 | Settings | Settings | Output on/off, start at login, language and theme, tick rate, output backend, input path, log, About |
 
+### The setup guide (first start)
+
+The first start of a new installation shows the window with a short guide: **dofscroll is running** (the interface starts the daemon by itself when none runs), **SpaceMouse found** (on Linux, if the `spacenavd` service is off, the one command to copy), **Start at login** (a check box, on by default) and, on macOS only, the two permissions **Input Monitoring** and **Accessibility** with a button that opens the matching pane of System Settings. The last step, **Try it**, says to push the cap. Each step checks live and says "Done", "To do" or "Needs attention" in words. **Skip the guide** or **Finish** closes it; **Show setup guide** on the Overview opens it again. Details: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md#the-setup-guide).
+
 ### Overview
 
 - **Getting started** (until the daemon has seen a device and a profile exists): connect the SpaceMouse, check the axes with the assistant, add a profile for a program you use. Each step says "Done:" or "To do:" in words and opens the page that does it.
 - **What do you want to do?** Three buttons: tune scroll and zoom, check the axes, switch joystick modes.
-- **Quick actions:** add a profile, new profile for the running program, **Active joystick mode** (switches the running daemon until the next reload or restart, like the tray menu), open the log, open the documentation, release all keys, restart the daemon, restart the interface.
+- **Quick actions:** **Show setup guide**, add a profile, new profile for the running program, **Active joystick mode** (switches the running daemon until the next reload or restart, like the tray menu), open the log, open the documentation, release all keys, restart the daemon, restart the interface.
 - **One card per profile** with its joystick mode, six small chips that show what its joystick mode does with each motion of the cap, what it overrides and how many settings; the filter box narrows the list; "Open" jumps to the profile.
 
 ### Profiles
