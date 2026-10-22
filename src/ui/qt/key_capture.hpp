@@ -75,7 +75,8 @@ public:
         setToolTip(T("Click, then press the key or key combination. Esc cancels."));
         setCheckable(false);
         idle();
-        connect(this, &QPushButton::clicked, this, [this] {
+        // no context object: this class has no Q_OBJECT (Qt 6.9 refuses `this` as the receiver then); the sender is this button
+        QObject::connect(this, &QPushButton::clicked, [this] {
             capturing_ = true;
             setText(T("Press the key or combination..."));
             grabKeyboard();
