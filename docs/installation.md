@@ -129,11 +129,36 @@ been checked on a real machine yet (unverified until the first release).
 
 ## 2. First-time setup
 
+**On every system the first start is: install, then open dofScroll from the start menu, the application
+launcher or the Applications folder.** No terminal, no `systemctl`, no script. What was done by hand
+before happens by itself:
+
+- **The interface starts the daemon** when none runs: it waits about 6 seconds after its own start (so a
+  login autostart, which starts both at the same moment, does not produce two daemons), then starts it
+  once: on Linux `systemctl --user start dofscroll.service` (the daemon binary directly if that fails),
+  on macOS `launchctl kickstart` when the LaunchAgent is loaded (otherwise the daemon inside the app),
+  on Windows `dofscroll.exe` next to the interface. The daemon itself refuses to run twice (a lock in its
+  private runtime directory on Linux and macOS, a named mutex on Windows).
+- **The first start shows the setup guide** with the settings window (a new installation only): a few
+  steps with live checks, "dofscroll is running", "SpaceMouse found", "Start at login" (a check box,
+  on by default), on macOS the two permissions, and "Try it". See [ui.md](ui.md#the-setup-guide). Skip
+  it, finish it, or open it again later with **Show setup guide** on the Overview.
+- **Linux packages enable the SpaceMouse driver service.** On every install and upgrade the RPM and DEB
+  run `systemctl enable --now spacenavd.service` as root, best effort, when the unit exists and is not
+  enabled (it never fails the installation). A fresh install does not start your dofscroll units: the
+  interface does that at the first start.
+
+The steps below are the alternative: for a TGZ install, a machine without a desktop, or when the
+automatic way did not work.
+
+### Alternative: by hand, or without a desktop
+
 dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch or toggle joystick modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. Setup step: configure plain button mappings in the driver (see [modes.md](modes.md#buttons-and-the-vendor-driver)) before you tune dofscroll.
 
 Do these steps once per machine. Steps 1 and 5 need root.
 
-1. Enable the SpaceMouse driver:
+1. Enable the SpaceMouse driver (the RPM and DEB do this themselves; needed for the TGZ, or when the
+   package could not):
 
         sudo systemctl enable --now spacenavd
 
@@ -254,7 +279,7 @@ The package stops and starts the programs on its own, in three steps (RPM `%pre`
 **before** the files are replaced it stops `dofscroll-ui.service` and `dofscroll.service` of every
 logged-in user (the daemon releases held keys when it stops); **after** the files are in place it runs
 `systemctl --user daemon-reload` and starts both again, the daemon first, whether they were running before
-or not. A fresh install does nothing (enable the units as in the first-time setup). If nobody was logged
+or not. A fresh install starts none of your units (the first start of the interface does it, see the first-time setup), but, like every install and upgrade, enables the system service `spacenavd.service` when it is not enabled. If nobody was logged
 in through logind, or you run the program from a terminal, restart by hand (user names with an `@`, such as domain accounts, are handled; an interface that was not started by its unit, for example by the desktop's session restore, is stopped and started through the unit when its binary was replaced):
 
     systemctl --user daemon-reload
@@ -393,9 +418,12 @@ are in [work-plan.md](work-plan.md); how the packages are built is in
 2. Run the installer. Because it is not code-signed, Windows SmartScreen shows "Windows protected
    your PC": click **More info**, then **Run anyway**. No administrator rights are needed; the
    default folder is `%LOCALAPPDATA%\Programs\dofscroll`.
-3. The components page has **Start the daemon at logon** (off by default; Run key value `dofscroll`
-   of the current user). The Start menu folder `dofscroll` opens the settings window
-   (`dofscroll-ui.exe`); `dofscroll.exe` is the daemon (no window).
+3. **Open dofscroll from the Start menu** (the finish page also offers "Open dofscroll now"). That is the
+   whole first start: the interface (`dofscroll-ui.exe`) starts the daemon (`dofscroll.exe`, no window)
+   by itself when it does not run, and the first start shows the setup guide with **Start at login**
+   switched on (it writes the Run values of the current user, see 6.). The components page has
+   **Start the daemon at logon** too (off by default; Run key value `dofscroll`) for a daemon without
+   the interface.
 4. Config is read from `%APPDATA%\dofscroll\dofscroll.conf`, logs are in
    `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
 5. The official 3Dconnexion driver can stay installed and running: dofscroll is designed to work next
@@ -411,9 +439,10 @@ are in [work-plan.md](work-plan.md); how the packages are built is in
 **Upgrade:** run the new installer over the old one (same folder). It stops the daemon (releasing held
 keys) and a running `dofscroll-ui.exe` of that install before replacing the files. If the daemon was
 running, the installer starts it again afterwards, also for a silent `/S` install, then the
-interface if that was running too (interactive installs only). The finish-page box "Start the
-dofscroll daemon now" does not start a second daemon. A fresh install, or an update with the daemon
-stopped before, starts nothing on its own. The tray item **Restart** restarts the daemon and the
+interface if that was running too (interactive installs only). A fresh install, or an update with the
+daemon stopped before, starts nothing on its own: the finish-page box "Open dofscroll now" (or the Start
+menu entry) opens the interface, which starts the daemon. A second start of an interface that is
+already open only brings its window to the front. The tray item **Restart** restarts the daemon and the
 interface without the installer.
 
 **Uninstall:** Settings > Apps > dofscroll, or the Start menu entry "Uninstall dofscroll". It stops
@@ -436,9 +465,17 @@ this; [port-windows-checklist.md](port-windows-checklist.md) lists what a tester
    Gatekeeper blocks the first start. Right-click the app > **Open** > **Open**; on macOS 15 and
    later use System Settings > Privacy & Security > **Open Anyway**. Alternatively:
    `xattr -dr com.apple.quarantine /Applications/dofscroll.app`.
-3. In System Settings > Privacy & Security grant **Input Monitoring** and **Accessibility** to
-   `/Applications/dofscroll.app/Contents/Resources/daemon/dofscroll`, then restart the daemon.
-4. Autostart (per-user LaunchAgent, no sudo):
+3. **Opening the app is the whole first start.** The interface starts the daemon (the one inside the
+   app) when none runs and shows the setup guide. The guide switches **Start at login** on (per-user
+   LaunchAgents, no sudo) and has one row for each of the two permissions, **Input Monitoring** (to
+   read the SpaceMouse) and **Accessibility** (to send scroll, zoom and key events), with a button that
+   opens the matching pane of System Settings and a live note while macOS does not accept them (the
+   daemon reports it every few seconds; no restart is needed). Switch on dofscroll in each list; if it
+   is not listed, add `/Applications/dofscroll.app/Contents/Resources/daemon/dofscroll` with the `+`
+   button. Which pane names a macOS version uses is **unverified**.
+4. Alternative without the guide, by hand: grant the two permissions to
+   `/Applications/dofscroll.app/Contents/Resources/daemon/dofscroll` in System Settings > Privacy &
+   Security, then restart the daemon. Autostart as a per-user LaunchAgent:
    `sh /Applications/dofscroll.app/Contents/Resources/launchagent/install-launchagent.sh --daemon /Applications/dofscroll.app/Contents/Resources/daemon/dofscroll`
 5. **Upgrade** (no installer script, nothing is stopped for you): choose **Quit** in the tray menu to
    close the interface, stop the daemon (`launchctl bootout gui/$(id -u)/io.github.dofscroll.daemon`

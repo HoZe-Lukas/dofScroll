@@ -8,6 +8,8 @@ ExecStart=@DOFSCROLL_EXEC_Q@@DOFSCROLL_EXEC_BINDIR@/dofscroll@DOFSCROLL_EXEC_Q@
 ExecStopPost=-@DOFSCROLL_EXEC_Q@@DOFSCROLL_EXEC_BINDIR@/dofscroll@DOFSCROLL_EXEC_Q@ --release-keys
 Restart=always
 RestartSec=1s
+# A second daemon (the lock is held by the first) exits with 75: do not start it again in a loop
+RestartPreventExitStatus=75
 
 # --- Hardening (user unit, only directives from systemd <= 252 / RHEL 9) --------
 # Rationale, test log and deliberately NOT set directives:

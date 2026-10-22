@@ -13,10 +13,13 @@ class QtActionRunner : public spn::ui::ActionRunner {
 public:
     bool openPath(const std::string &path, std::string *err) override;
     bool openUrl(const std::string &url, std::string *err) override;
+    bool openSystemSettings(const std::string &url, std::string *err) override;
     bool setAutostart(bool enable, std::string *err) override;
     bool requestReload(std::string *err) override;
     bool releaseKeys(std::string *err) override;
     bool restartDaemon(std::string *err) override;
+    bool startDaemon(std::string *err) override;
+    spn::ui::ServiceState spacenavdState() override;
     bool restartInterface(std::string *err) override;
 };
 

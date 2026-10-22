@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "platform/autostart_os.hpp"
+
 namespace spn::ui {
 
 inline const char *daemonExecutableName() {
@@ -20,13 +22,16 @@ inline const char *daemonExecutableName() {
 }
 
 // exeDir: directory of the UI executable ('/' separators, may be empty); isExecutable(path) is
-// the file test (injected for tests).
+// the file test (injected for tests). The daemon next to the UI executable, else (macOS app) in the
+// bundle's Resources/daemon, else the bare name.
 inline std::vector<std::string> releaseKeysCommand(const std::string &exeDir,
                                                    const std::function<bool(const std::string &)> &isExecutable) {
     std::string program = daemonExecutableName();
     if (!exeDir.empty()) {
         const std::string cand = exeDir + (exeDir.back() == '/' ? "" : "/") + daemonExecutableName();
+        const std::string bundle = spn::autostart::macBundleDaemonPath(exeDir);
         if (isExecutable && isExecutable(cand)) program = cand;
+        else if (isExecutable && !bundle.empty() && isExecutable(bundle)) program = bundle;
     }
     return {program, "--release-keys"};
 }

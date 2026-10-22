@@ -15,8 +15,10 @@ namespace spn::ui {
 struct UiProgress {
     bool axisAssistantApplied = false;
     bool motionTourSeen = false;  // the tour of the Motions and buttons tab ran to its end or was dismissed
+    bool setupGuideSeen = false;  // the first-run setup guide was finished or skipped (or never needed)
     bool operator==(const UiProgress &o) const {
-        return axisAssistantApplied == o.axisAssistantApplied && motionTourSeen == o.motionTourSeen;
+        return axisAssistantApplied == o.axisAssistantApplied && motionTourSeen == o.motionTourSeen &&
+               setupGuideSeen == o.setupGuideSeen;
     }
 };
 
@@ -43,13 +45,15 @@ inline UiProgress parseUiProgress(const std::string &text) {
         const std::string key = trim(line.substr(0, eq)), value = trim(line.substr(eq + 1));
         if (key == "axis_assistant_applied") p.axisAssistantApplied = value == "1";
         if (key == "motion_tour_seen") p.motionTourSeen = value == "1";
+        if (key == "setup_guide_seen") p.setupGuideSeen = value == "1";
     }
     return p;
 }
 
 inline std::string serializeUiProgress(const UiProgress &p) {
     return std::string("# dofscroll user interface progress\naxis_assistant_applied = ") +
-           (p.axisAssistantApplied ? "1" : "0") + "\nmotion_tour_seen = " + (p.motionTourSeen ? "1" : "0") + "\n";
+           (p.axisAssistantApplied ? "1" : "0") + "\nmotion_tour_seen = " + (p.motionTourSeen ? "1" : "0") +
+           "\nsetup_guide_seen = " + (p.setupGuideSeen ? "1" : "0") + "\n";
 }
 
 // Missing, unreadable, foreign-owned or oversized file: nothing done yet.
@@ -71,6 +75,14 @@ inline bool markAxisAssistantApplied(const std::string &path, std::string *err) 
     UiProgress p = loadUiProgress(path);
     if (p.axisAssistantApplied) return true;
     p.axisAssistantApplied = true;
+    return saveUiProgress(path, p, err);
+}
+
+// The first-run setup guide was finished, skipped or is not needed (an existing installation).
+inline bool markSetupGuideSeen(const std::string &path, std::string *err) {
+    UiProgress p = loadUiProgress(path);
+    if (p.setupGuideSeen) return true;
+    p.setupGuideSeen = true;
     return saveUiProgress(path, p, err);
 }
 

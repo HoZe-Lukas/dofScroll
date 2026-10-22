@@ -87,6 +87,40 @@ inline DaemonRestartPlan daemonRestartPlan(Os os, const std::string &exeDir,
     return p;
 }
 
+// Start of the daemon by the interface (the daemon does not run; see daemon_autostart.hpp):
+//   1. `probe` (may be empty): exit 0 = the service manager knows the daemon, then run `managed` and stop
+//      when it succeeds; a failed probe or `managed` goes on with 2.;
+//   2. start `spawn` detached.
+// Linux: `systemctl --user start dofscroll.service` (works for a unit that is not enabled), the binary
+// as the fallback. macOS: `launchctl kickstart` when the LaunchAgent is loaded, else the daemon of the
+// app bundle. Windows: dofscroll.exe next to the interface.
+struct DaemonStartPlan {
+    Argv probe;
+    Argv managed;
+    Argv spawn;
+};
+
+inline DaemonStartPlan daemonStartPlan(Os os, const std::string &exeDir,
+                                       const std::function<bool(const std::string &)> &isExecutable,
+                                       unsigned uid) {
+    DaemonStartPlan p;
+    p.spawn = {releaseKeysCommand(exeDir, isExecutable)[0]};
+    switch (os) {
+        case Os::Linux:
+            p.managed = {"systemctl", "--user", "start", "dofscroll.service"};
+            break;
+        case Os::MacOS: {
+            const std::string target = "gui/" + std::to_string(uid) + "/" + spn::autostart::kMacDaemonLabel;
+            p.probe = {"launchctl", "print", target};
+            p.managed = {"launchctl", "kickstart", target};
+            break;
+        }
+        case Os::Windows:
+            break;
+    }
+    return p;
+}
+
 struct UiRestartPlan {
     Argv managed;   // Linux under dofscroll-ui.service: run and wait; this process is replaced
     Argv relaunch;  // otherwise: start detached, then quit
@@ -116,6 +150,9 @@ inline UiRestartPlan uiRestartPlan(Os os, const std::string &selfExe, const Argv
 
 // Probe for "running as dofscroll-ui.service" (run only when INVOCATION_ID is set).
 inline Argv uiUnitProbe() { return {"systemctl", "--user", "is-active", "--quiet", "dofscroll-ui.service"}; }
+
+// Probe for the SpaceMouse driver service of Linux (exit 0 active, 3 inactive, 4 unknown unit).
+inline Argv spacenavdProbe() { return {"systemctl", "is-active", "--quiet", "spacenavd.service"}; }
 
 // Replaces a bare program name in argv[0] (systemctl, launchctl) by the path `find` returns for it
 // (the fixed system directories, platform/exec_lookup.hpp), so PATH never decides what runs. A name

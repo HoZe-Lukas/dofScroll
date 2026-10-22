@@ -50,6 +50,7 @@ signals:
     void openProfile(int section);  // a card was clicked: show this profile on the Profiles page
     void openPage(const QString &pageId);
     void newProgramProfile();       // "New profile for the running program": open its picker directly
+    void showSetupGuide();          // "Show setup guide": the first-run guide again
 
 protected:
     bool eventFilter(QObject *watched, QEvent *e) override;  // the card area got another width: wrap the cards again

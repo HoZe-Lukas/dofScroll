@@ -183,4 +183,10 @@ inline int permanentErrorExitCode(const char *xpcServiceName) {
     return xpcServiceName && std::string(xpcServiceName) == launchdLabel() ? 0 : kExitConfig;
 }
 
+// A second daemon finds the single-instance lock taken (platform/instance_lock.hpp): under launchd
+// it exits 0 (a failure exit would restart it every ThrottleInterval), in a terminal EX_TEMPFAIL.
+inline int alreadyRunningExitCode(const char *xpcServiceName) {
+    return xpcServiceName && std::string(xpcServiceName) == launchdLabel() ? 0 : 75;
+}
+
 }  // namespace spn
