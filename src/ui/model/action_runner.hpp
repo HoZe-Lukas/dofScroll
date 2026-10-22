@@ -10,6 +10,9 @@
 
 namespace spn::ui {
 
+// State of a service of the system (the SpaceMouse driver service spacenavd on Linux).
+enum class ServiceState { Unknown, Active, Inactive };
+
 class ActionRunner {
 public:
     virtual ~ActionRunner() = default;
@@ -18,6 +21,9 @@ public:
     // Opens an https address (documentation) with the system's default browser. Anything else is
     // refused (ui_links.hpp: isOpenableUrl). false + *err on failure.
     virtual bool openUrl(const std::string &url, std::string *err) = 0;
+    // Opens a pane of the system's settings (macOS: the privacy panes of the setup guide). Only the
+    // addresses of setup_guide_model.hpp (isSystemSettingsUrl) are accepted. false + *err on failure.
+    virtual bool openSystemSettings(const std::string &url, std::string *err) = 0;
     // "Start at login" on/off (affects the next login only). false + *err on failure.
     virtual bool setAutostart(bool enable, std::string *err) = 0;
     // Asks the daemon to re-read the configuration (SIGHUP or the platform equivalent).
@@ -28,6 +34,12 @@ public:
     // Restarts the daemon (service manager if it manages it, otherwise stop + start; see
     // restart_plan.hpp). The caller releases held keys first. false + *err on failure.
     virtual bool restartDaemon(std::string *err) = 0;
+    // Starts the daemon when it does not run (service manager first, then the binary; plan in
+    // restart_plan.hpp: daemonStartPlan). Does not wait for the first heartbeat. false + *err on failure.
+    virtual bool startDaemon(std::string *err) = 0;
+    // Linux: is the spacenavd service (the SpaceMouse driver the daemon reads from) active?
+    // Unknown on every other system and when the service manager cannot say.
+    virtual ServiceState spacenavdState() = 0;
     // Starts a replacement of this UI process (or asks the service manager to). true: the caller
     // quits this process now (harmless when the service manager restarts it anyway).
     virtual bool restartInterface(std::string *err) = 0;
@@ -43,7 +55,7 @@ inline std::function<bool(std::string *err)> reloadVia(ActionRunner &runner) {
 // Records the calls and returns the configured result (tests).
 class RecordingActionRunner : public ActionRunner {
 public:
-    enum class Kind { OpenPath, OpenUrl, SetAutostart, RequestReload, ReleaseKeys, RestartDaemon, RestartInterface };
+    enum class Kind { OpenPath, OpenUrl, OpenSystemSettings, SetAutostart, RequestReload, ReleaseKeys, RestartDaemon, StartDaemon, RestartInterface };
     struct Call {
         Kind kind;
         std::string path;     // OpenPath, OpenUrl (the address)
@@ -59,12 +71,18 @@ public:
     bool openUrl(const std::string &url, std::string *err) override {
         return rec({Kind::OpenUrl, url, false}, err);
     }
+    bool openSystemSettings(const std::string &url, std::string *err) override {
+        return rec({Kind::OpenSystemSettings, url, false}, err);
+    }
     bool setAutostart(bool enable, std::string *err) override {
         return rec({Kind::SetAutostart, "", enable}, err);
     }
     bool requestReload(std::string *err) override { return rec({Kind::RequestReload, "", false}, err); }
     bool releaseKeys(std::string *err) override { return rec({Kind::ReleaseKeys, "", false}, err); }
     bool restartDaemon(std::string *err) override { return rec({Kind::RestartDaemon, "", false}, err); }
+    bool startDaemon(std::string *err) override { return rec({Kind::StartDaemon, "", false}, err); }
+    ServiceState spacenavdState() override { return spacenavd; }
+    ServiceState spacenavd = ServiceState::Unknown;  // answer of spacenavdState()
     bool restartInterface(std::string *err) override { return rec({Kind::RestartInterface, "", false}, err); }
     int count(Kind k) const {
         int n = 0;

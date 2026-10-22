@@ -83,6 +83,7 @@ int main() {
     // exit code of permanent errors: 0 under launchd (no restart loop), EX_CONFIG otherwise
     assert(permanentErrorExitCode("io.github.dofscroll.daemon") == 0);
     assert(permanentErrorExitCode(nullptr) == kExitConfig && permanentErrorExitCode("other") == 78);
+    assert(alreadyRunningExitCode("io.github.dofscroll.daemon") == 0 && alreadyRunningExitCode(nullptr) == 75);
 
     // permission tracking: log on change, reminder rate limited, nothing when all is fine
     {

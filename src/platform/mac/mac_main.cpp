@@ -33,6 +33,7 @@
 #include "../../modes.hpp"
 #include "../../output.hpp"
 #include "../fs.hpp"
+#include "../instance_lock.hpp"
 #include "../platform.hpp"
 #include "../suspend_probe.hpp"
 #include "mac_output.hpp"
@@ -325,6 +326,20 @@ int main(int argc, char **argv) {
 
     // Deliberately never destroyed: the detached reader thread logs and reads until exit.
     std::cerr.rdbuf(new TeeLogBuf(std::cerr.rdbuf(), paths.runtimeDir, debug));
+
+    // Single-instance guard (flock in the runtime directory, released by the kernel when the process
+    // ends): a second daemon must not run next to the first, it would double every event. The
+    // interface starts a daemon when none seems to run; a LaunchAgent may race with it.
+    static InstanceLock instance;
+    switch (instance.acquire(paths.runtimeDir)) {
+        case InstanceLock::Result::Acquired: break;
+        case InstanceLock::Result::AlreadyRunning:
+            std::cerr << LOG << "another dofscroll daemon is already running, exiting" << std::endl;
+            return alreadyRunningExitCode(std::getenv("XPC_SERVICE_NAME"));
+        case InstanceLock::Result::Unavailable:
+            std::cerr << LOG << "WARNING: no private runtime directory, cannot guard against a second daemon" << std::endl;
+            break;
+    }
 
     const bool ax = accessibilityGranted();
     const bool im = inputMonitoringGranted();

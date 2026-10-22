@@ -24,6 +24,7 @@
 #include "live_feed/live_feed.hpp"
 #include "modes.hpp"
 #include "output.hpp"
+#include "platform/instance_lock.hpp"
 #include "platform/linux/runtime_files.hpp"
 #include "platform/platform.hpp"
 #include "platform/session_monitor.hpp"
@@ -117,6 +118,23 @@ int main(int argc, char **argv) {
     // Also mirror log lines into the log file (deliberately never destroyed: the detached
     // reader thread may still log).
     std::cerr.rdbuf(makeTeeLogBuf(std::cerr.rdbuf(), paths.runtimeDir, debug));
+
+    // Single-instance guard: a second daemon (the interface starts one when none seems to run, a
+    // login autostart may race with it) must not run next to the first: double events. Held until
+    // the process ends (the kernel drops it); deliberately never destroyed.
+    {
+        static InstanceLock instance;
+        switch (instance.acquire(paths.runtimeDir)) {
+            case InstanceLock::Result::Acquired: break;
+            case InstanceLock::Result::AlreadyRunning:
+                std::cerr << LOG << "another dofscroll daemon is already running (lock "
+                          << checkedRuntimeFile(paths.runtimeDir, RuntimeFile::LockFile) << "), exiting" << std::endl;
+                return kExitDaemonAlreadyRunning;
+            case InstanceLock::Result::Unavailable:
+                std::cerr << LOG << "WARNING: no private runtime directory, cannot guard against a second daemon" << std::endl;
+                break;
+        }
+    }
 
     {
         // Best effort: adopt the legacy config into the own folder (may fail in the
