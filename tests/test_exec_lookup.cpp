@@ -58,6 +58,11 @@ int main() {
     assert(trustedBinDirs() == (std::vector<std::string>{"/usr/bin", "/usr/local/bin", "/bin"}));
     assert(findExecutableIn("sh", trustedBinDirs()).find("/bin/sh") != std::string::npos);
 
+    // findHelper: the trusted directories only, whatever PATH says
+    assert(findHelper("tool").empty());
+    assert(!findHelper("sh").empty() && findHelper("sh")[0] == '/');
+    assert(findHelper("../tool").empty() && findHelper("").empty());
+
     int rc = system(("rm -rf '" + std::string(root) + "'").c_str());
     (void)rc;
     return 0;

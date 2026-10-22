@@ -117,6 +117,17 @@ inline UiRestartPlan uiRestartPlan(Os os, const std::string &selfExe, const Argv
 // Probe for "running as dofscroll-ui.service" (run only when INVOCATION_ID is set).
 inline Argv uiUnitProbe() { return {"systemctl", "--user", "is-active", "--quiet", "dofscroll-ui.service"}; }
 
+// Replaces a bare program name in argv[0] (systemctl, launchctl) by the path `find` returns for it
+// (the fixed system directories, platform/exec_lookup.hpp), so PATH never decides what runs. A name
+// with a path separator stays as it is. Returns false, argv untouched, when the name is not found.
+inline bool resolveHelperArgv(Argv *argv, const std::function<std::string(const std::string &)> &find) {
+    if (argv->empty() || (*argv)[0].find_first_of("/\\") != std::string::npos) return true;
+    const std::string full = find((*argv)[0]);
+    if (full.empty()) return false;
+    (*argv)[0] = full;
+    return true;
+}
+
 // How long a start waits for the single-instance lock (ms): a restarted instance waits for the old
 // one to exit, a normal start only lets the stale-lock detection run.
 inline int lockWaitMs(bool restarted) { return restarted ? 8000 : 100; }

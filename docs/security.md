@@ -89,7 +89,7 @@ additional conditions, or robustness; **Info** = no action needed, for classific
 | S7 | Low | Shutdown race with the detached reader thread; signal handlers installed late | `src/dofscroll.cpp` |
 | S8 | Low | Binaries under `/usr/local/bin` are root-owned symlinks into a user-writable home | `readme.md` (install), `/usr/local/bin/dofscroll*` |
 | S9 | Low | `spacenavd` socket `0777`: other users can read movements/reconfigure the device | `/run/spnav.sock` (system configuration) |
-| S10 | Low | Tray: PATH search for `systemctl`/`xdg-open`; editor inherits the sandbox | `src/dofscroll_tray.cpp` |
+| S10 | Low (fixed) | Tray: PATH search for `systemctl`/`xdg-open`; editor inherits the sandbox | `src/dofscroll_tray.cpp` |
 | S11 | Low | Config path from environment without checks (relative `XDG_CONFIG_HOME`, missing `HOME`) | `src/config.cpp` |
 | I1-I6 | Info | Positives and classification (reader-thread atomics, `findIconDir`, buffers, WM_CLASS spoofing, log injection) | see below |
 
@@ -922,8 +922,16 @@ workflows). Nothing high or critical, no local privilege escalation. Fixed in 1.
   `%SystemRoot%`), not by name; the uninstaller removes the folder only when `dofscroll.exe` is in it, and the folder
   picker refuses a folder that is not empty and not a dofscroll install (a silent install with `/D=` is not checked).
 
+Fixed afterwards (issue #150): the interface, the autostart code and the reload request no longer start `systemctl` and
+`launchctl` through `PATH`. They use the same lookup as the daemon's helper programs (`findHelper()` in
+`src/platform/exec_lookup.hpp`: `/usr/bin`, `/usr/local/bin`, `/bin`, only absolute directories, only executable regular
+files); a helper that is not there is an error, never a `PATH` fallback. The argv plans in
+`src/ui/model/restart_plan.hpp` stay plain names, `resolveHelperArgv()` (unit-tested) turns them into paths right before
+the start. Windows PowerShell is started by its full path in the installer, in the interface and in
+`scripts/test-driver-coexistence.ps1`.
+
 Open, tracked as issues: release builds use unpinned CI images and an unhashed Qt download (a checksum file made in the same
-pipeline is no provenance); the UI starts `systemctl` and `launchctl` by name through `PATH`; root removes a dangling
+pipeline is no provenance); root removes a dangling
 tray link through a glob in a directory the user controls (only that fixed name, no practical harm); look-alike texts
 (see section 11). Plain `key:ctrl`, `key:super`, `key:enter` and `keys:` pairs get no warning on load, only chords do
 (known, F2).

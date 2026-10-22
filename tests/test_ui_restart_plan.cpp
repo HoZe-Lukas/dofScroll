@@ -56,6 +56,29 @@ int main() {
     assert((uiUnitProbe() == Argv{"systemctl", "--user", "is-active", "--quiet", "dofscroll-ui.service"}));
     assert(lockWaitMs(true) > lockWaitMs(false) && lockWaitMs(false) == 100);
 
+    // Helper programs are resolved through a fixed-directory lookup, never left to PATH
+    const auto finder = [](const std::string &n) {
+        return n == "systemctl" ? std::string("/usr/bin/systemctl") : n == "launchctl" ? std::string("/bin/launchctl") : std::string();
+    };
+    Argv sc = l.managed;
+    assert(resolveHelperArgv(&sc, finder));
+    assert((sc == Argv{"/usr/bin/systemctl", "--user", "restart", "dofscroll.service"}));  // arguments untouched
+    Argv lc = m.probe;
+    assert(resolveHelperArgv(&lc, finder) && lc[0] == "/bin/launchctl" && lc.size() == 3);
+    Argv up = uiUnitProbe();
+    assert(resolveHelperArgv(&up, finder) && up[0] == "/usr/bin/systemctl");
+    Argv path = {"/opt/x/dofscroll", "a"};  // a path is used as given, the finder is not asked
+    assert(resolveHelperArgv(&path, [](const std::string &) { return std::string("/evil"); }) && path[0] == "/opt/x/dofscroll");
+    Argv win = {"C:\\Windows\\System32\\powershell.exe", "-NoProfile"};
+    assert(resolveHelperArgv(&win, [](const std::string &) { return std::string("/evil"); }) && win[0][0] == 'C');
+    Argv missing = {"nosuchtool", "x"};  // not found: refused, argv untouched, no PATH fallback
+    assert(!resolveHelperArgv(&missing, finder) && missing[0] == "nosuchtool");
+    Argv empty;
+    assert(resolveHelperArgv(&empty, finder) && empty.empty());
+    // every program of the plans is either a bare helper name the lookup resolves, or a path
+    for (const Argv *a : {&l.probe, &l.managed, &m.probe, &m.managed, &u.managed})
+        if (!a->empty()) assert((*a)[0] == "systemctl" || (*a)[0] == "launchctl");
+
     std::puts("test_ui_restart_plan OK");
     return 0;
 }

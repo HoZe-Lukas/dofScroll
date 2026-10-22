@@ -32,4 +32,8 @@ inline std::string findExecutableIn(const std::string &prog, const std::vector<s
     return std::string();
 }
 
+// Absolute path of the helper program `prog` (systemctl, launchctl, ...) in the trusted system
+// directories; "" if there is none. The only way the daemon and the interface find a helper.
+inline std::string findHelper(const std::string &prog) { return findExecutableIn(prog, trustedBinDirs()); }
+
 }  // namespace spn

@@ -17,6 +17,9 @@
 #endif
 
 #include "platform/autostart_platform.hpp"
+#ifndef _WIN32
+#include "platform/exec_lookup.hpp"
+#endif
 #include "platform/platform.hpp"
 #include "ui/model/release_keys.hpp"
 #include "ui/model/restart_plan.hpp"
@@ -73,8 +76,19 @@ void noConsoleWindow(QProcess *p) {
 }
 
 // Runs argv (no shell) and waits; the exit code, or -1 if it did not start or did not finish in time.
-int runWait(const spn::ui::Argv &argv, int timeoutMs) {
-    if (argv.empty()) return -1;
+// Helper programs (systemctl, launchctl) come from the fixed system directories, never from PATH
+// (the same lookup as the daemon). Windows plans already carry full paths.
+bool resolveHelper(spn::ui::Argv *argv) {
+#ifdef _WIN32
+    (void)argv;
+    return true;
+#else
+    return spn::ui::resolveHelperArgv(argv, [](const std::string &n) { return spn::findHelper(n); });
+#endif
+}
+
+int runWait(spn::ui::Argv argv, int timeoutMs) {
+    if (argv.empty() || !resolveHelper(&argv)) return -1;
     QProcess p;
     noConsoleWindow(&p);
     p.start(QString::fromStdString(argv[0]), toQArgs(argv));
@@ -87,8 +101,8 @@ int runWait(const spn::ui::Argv &argv, int timeoutMs) {
     return p.exitStatus() == QProcess::NormalExit ? p.exitCode() : -1;
 }
 
-bool startDetached(const spn::ui::Argv &argv) {
-    if (argv.empty()) return false;
+bool startDetached(spn::ui::Argv argv) {
+    if (argv.empty() || !resolveHelper(&argv)) return false;
     QProcess p;
     noConsoleWindow(&p);
     p.setProgram(QString::fromStdString(argv[0]));
