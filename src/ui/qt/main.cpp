@@ -409,19 +409,19 @@ static bool modeLibrarySelfTest(UiContext ctx, const QString &tmpPath) {
           "the profile that uses the mode is listed");
     check(page.usedByLines(QStringLiteral("normal")).isEmpty(), "an unused mode has no profile");
     // every row of the list carries six chips (one per motion of the cap) and a muted flag per chip; the detail
-    // panel of the selected joystick mode shows six motions, "Lift / press" last
+    // panel of the selected joystick mode shows six motions, "Lift / press" fifth, the twist last
     for (const spn::ui::ModeCatalog::ModeEntry &e : page.catalog().modes())
         check(page.rowChips(QString::fromStdString(e.id)).size() == 6, "every list row shows six motion chips");
     check(page.rowChips(QStringLiteral("normal")).value(0).contains(QStringLiteral("Scroll")) &&
               page.rowChips(QStringLiteral("off")).value(0).contains(QStringLiteral("Off")) &&
-              page.rowChips(QStringLiteral("normal")).value(5).contains(QStringLiteral("Unused")),
+              page.rowChips(QStringLiteral("normal")).value(4).contains(QStringLiteral("Unused")),
           "the chips say what the motion does in words (English test run)");
     for (const char *id : {"normal", "off", "timeline", "mine"}) {
         check(page.selectMode(QString::fromLatin1(id)), "select a joystick mode");
         settle();
         const QStringList cards = page.motionCardTexts();
         check(cards.size() == 6 && cards.value(0).startsWith(QStringLiteral("Vertical push")) &&
-                  cards.value(5).startsWith(QStringLiteral("Lift / press")),
+                  cards.value(4).startsWith(QStringLiteral("Lift / press")),
               "the detail panel shows the six motions");
     }
     const QString out = tmpPath + QStringLiteral("/exported-mine.conf");

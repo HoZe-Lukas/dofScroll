@@ -278,7 +278,7 @@ public:
                     cand.push_back(std::string(cp[c].pre) + k);
             }
             if (!(m->v.type == ChannelActionType::Off && m->h.type == ChannelActionType::Off && m->twist.type == ChannelActionType::Off))
-                cand.push_back("INVERT_AXES");  // every mode that uses the axes: the direction of an axis is a matter of taste and of the program
+                cand.push_back("INVERT_AXES");  // every mode that uses the axes (the preferred direction depends on the user and the program)
             if (m->twist.type == ChannelActionType::Default || m->twist.type == ChannelActionType::Zoom || m->v.type == ChannelActionType::Zoom ||
                 m->h.type == ChannelActionType::Zoom)
                 cand.push_back("ZOOM_MODIFIER");  // the key differs per program (Cmd on macOS)
