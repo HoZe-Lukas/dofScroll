@@ -73,6 +73,7 @@
 #include "pages/cycle_editor_widget.hpp"
 #include "pages/editor_page.hpp"
 #include "pages/motion_editor.hpp"
+#include "key_capture.hpp"
 #include "pages/profile_motions_view.hpp"
 #include "pages/button_use_widget.hpp"
 #include "autosaver.hpp"
@@ -856,6 +857,53 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
         if (arrows) arrows->click();
         check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")) && !fileText(rel).contains(QStringLiteral("V_PUSH_ACTION")),
               "arrow keys on a vertical motion are up and down, and push and tilt are one again");
+    }
+    // press a key instead of choosing it: "Press a key..." takes the key and the modifiers
+    {
+        sel(QStringLiteral("m:v_push"));
+        auto captureButton = [&](const QString &dir) -> KeyCaptureButton * {
+            for (KeyCaptureButton *b : me()->inspector()->findChildren<KeyCaptureButton *>())
+                if (b->accessibleName().contains(dir + QStringLiteral(": Press a key"))) return b;
+            return nullptr;
+        };
+        KeyCaptureButton *neg = captureButton(QStringLiteral("negative"));
+        check(neg != nullptr && captureButton(QStringLiteral("positive")) != nullptr, "each direction has a Press a key button");
+        if (neg) {
+            neg->click();
+            check(neg->capturing() && neg->text().contains(QStringLiteral("Press the key")), "clicking it waits for the key, in words");
+            QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+            neg->press(&esc);
+            check(!neg->capturing(), "Esc cancels");
+            neg->click();
+            QKeyEvent ctrlOnly(QEvent::KeyPress, Qt::Key_Control, Qt::ControlModifier);
+            neg->press(&ctrlOnly);
+            check(neg->capturing(), "a modifier alone keeps waiting");
+            QKeyEvent combo(QEvent::KeyPress, Qt::Key_PageUp, Qt::ControlModifier);
+            neg->press(&combo);
+        }
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:ctrl+pageup,down")), "the pressed combination is written");
+        sel(QStringLiteral("m:v_push"));
+        neg = captureButton(QStringLiteral("negative"));
+        if (neg) {
+            neg->click();
+            QKeyEvent caps(QEvent::KeyPress, Qt::Key_CapsLock, Qt::NoModifier);
+            neg->press(&caps);
+            check(!neg->capturing(), "a key that cannot be sent ends the capture");
+            bool said = false;
+            for (QLabel *l : me()->inspector()->findChildren<QLabel *>()) said = said || (l->text().contains(QStringLiteral("cannot send this key")) && l->isVisibleTo(me()));
+            settle();
+            for (QLabel *l : me()->inspector()->findChildren<QLabel *>()) said = said || (l->text().contains(QStringLiteral("cannot send this key")) && !l->isHidden());
+            check(said, "and says so in words");
+        }
+        check(fileText(rel).contains(QStringLiteral("V_ACTION = keys:ctrl+pageup,down")), "the chord stays as it was");
+        // back to up / down for the steps that follow: push and tilt both get the arrow keys, which is one action again
+        QToolButton *arrows = radio(QStringLiteral("Arrow keys"));
+        if (arrows) arrows->click();
+        settleWrite();
+        sel(QStringLiteral("m:v_tilt"));
+        arrows = radio(QStringLiteral("Arrow keys"));
+        if (arrows) arrows->click();
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")) && !fileText(rel).contains(QStringLiteral("V_PUSH_ACTION")), "back to the arrow keys");
     }
     // the live sentence names the keys and a rate; every element has a "?" popover
     sel(QStringLiteral("m:v_tilt"));

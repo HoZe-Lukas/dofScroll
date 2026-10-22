@@ -4259,3 +4259,19 @@ msgstr "Lass sie unbelegt, dann gilt die Belegung des Profils."
 #: src/ui/qt/pages/editor_page.cpp
 msgid "The binding of this profile. Without one, the Global profile or the joystick mode applies."
 msgstr "Die Belegung dieses Profils. Ohne sie gilt das globale Profil oder der Joystick-Modus."
+
+#: src/ui/qt/key_capture.hpp
+msgid "Press a key..."
+msgstr "Taste drücken..."
+
+#: src/ui/qt/key_capture.hpp
+msgid "Press the key or combination..."
+msgstr "Taste oder Kombination drücken..."
+
+#: src/ui/qt/key_capture.hpp
+msgid "Click, then press the key or key combination. Esc cancels."
+msgstr "Anklicken, dann die Taste oder Tastenkombination drücken. Esc bricht ab."
+
+#: src/ui/qt/key_capture.hpp
+msgid "dofscroll cannot send this key. Choose a key from the list instead."
+msgstr "dofscroll kann diese Taste nicht senden. Wähle stattdessen eine Taste aus der Liste."

@@ -33,6 +33,7 @@
 #include <set>
 
 #include "info_popup.hpp"
+#include "key_capture.hpp"
 #include "key_combo.hpp"
 #include "ui/model/action_preset_model.hpp"
 #include "ui/model/axes_model.hpp"
@@ -674,10 +675,36 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
             auto committed = [this] {
                 if (env_.committed) env_.committed();
             };
-            kg->addWidget(new QLabel(T("Negative:"), keys), 0, 0, Qt::AlignRight);
-            kg->addWidget(chordPicker(keys, this, &ref->neg, qs8(l.name) + QStringLiteral(" ") + T("negative"), committed), 0, 1);
-            kg->addWidget(new QLabel(T("Positive:"), keys), 1, 0, Qt::AlignRight);
-            kg->addWidget(chordPicker(keys, this, &ref->pos, qs8(l.name) + QStringLiteral(" ") + T("positive"), committed), 1, 1);
+            // per direction: the picker (modifiers and a key list) and, below it, "Press a key..." which takes the key you press
+            auto *note = new QLabel(keys);
+            note->setWordWrap(true);
+            note->setTextFormat(Qt::PlainText);
+            note->setProperty("warning", true);
+            note->hide();
+            auto refused = [note](const QString &text) {
+                note->setText(mark(StatusKind::Warning, text));
+                note->show();
+            };
+            struct Dir {
+                const char *label;
+                std::string ChannelForm::*chord;
+                const char *accessible;
+            };
+            const Dir dirs[2] = {{"Negative:", &ChannelForm::neg, "negative"}, {"Positive:", &ChannelForm::pos, "positive"}};
+            int row = 0;
+            for (const Dir &d : dirs) {
+                kg->addWidget(new QLabel(T(d.label), keys), row, 0, Qt::AlignRight);
+                kg->addWidget(chordPicker(keys, this, &(ref->*d.chord), qs8(l.name) + QStringLiteral(" ") + T(d.accessible), committed), row, 1);
+                auto *capture = new KeyCaptureButton(qs8(l.name) + QStringLiteral(" ") + T(d.accessible) + QStringLiteral(": ") + T("Press a key..."),
+                                                     [this, ref, d](const std::string &chord) {
+                                                         ref->*d.chord = chord;
+                                                         if (env_.changed) env_.changed();
+                                                     },
+                                                     refused, keys);
+                kg->addWidget(capture, row + 1, 1, Qt::AlignLeft);
+                row += 2;
+            }
+            kg->addWidget(note, row, 0, 1, 2);
             kg->setColumnStretch(1, 1);
             col->addWidget(keys);
         }

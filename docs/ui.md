@@ -200,7 +200,7 @@ to the picture shows the selected item:
 
 - **A motion:** "What it does" is a grid of big tiles, one glance each: scroll up and down, scroll sideways,
   zoom, Page up / Page down, arrow keys (up and down on the vertical motions, left and right on the others),
-  other keys (any key or chord per direction, set in the Keys box that appears), one key tap per push, do
+  other keys (any key or chord per direction, set in the Keys box that appears: modifier check boxes and a key list, or **Press a key...**: click it and press the key or combination, which is taken over; Esc cancels, a modifier alone waits for its key, and a key dofscroll cannot send is refused in words), one key tap per push, do
   nothing and as in the profile. The tile of the motion's action now is lit (thick border, bold text). The editor hides "channel" and "split": push and tilt of one channel with the same
   action are written as `V_ACTION` / `H_ACTION`, different actions as `V_PUSH_ACTION` / `V_TILT_ACTION`
   (`H_...`), the same keys the Settings tab writes. **Reverse direction** writes the existing sign
