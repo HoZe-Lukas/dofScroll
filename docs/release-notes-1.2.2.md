@@ -21,11 +21,10 @@ twist below. The legend under the list says so. The symbols are no longer cut of
 ### Linux: the package stops the programs before installing and starts them again afterwards
 
 An upgrade no longer needs a restart by hand. The RPM (`%pre`/`%post`) and the DEB (`preinst`/`postinst`) now stop
-`dofscroll-ui.service` and `dofscroll.service` of every logged-in user whose units are running **before** the files
-are replaced, and start exactly those units again **afterwards** (the daemon first). Before, the package only did a
-`try-restart` after the files were in place, which did not always replace a running interface or daemon. A user whose
-units were not running gets nothing started; a fresh install does nothing. The steps are best effort and never fail
-the upgrade. See [installation.md](installation.md#3-upgrade-uninstall-migration).
+`dofscroll-ui.service` and `dofscroll.service` of every logged-in user **before** the files are replaced, and start
+both again **afterwards** (the daemon first), whether they were running before or not. Before, the package only did a
+`try-restart` after the files were in place, which did not always replace a running interface or daemon. A fresh
+install does nothing. The steps are best effort and never fail the upgrade. See [installation.md](installation.md#3-upgrade-uninstall-migration).
 
 ### Windows and macOS: never without the interface (#178)
 

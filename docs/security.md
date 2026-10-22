@@ -914,10 +914,8 @@ workflows). Nothing high or critical, no local privilege escalation. Fixed in 1.
 - **Display text from files, programs and devices** (profile names and match strings, device names, mode texts,
   configuration path, action texts) is shown as plain text in the labels that carry it. Before, a name such as
   `<img src=...>` could be rendered as rich text.
-- **Upgrade scripts (`packaging/cpack/preinst` and `postinst`, run as root):** `preinst` stops the running user
-  units and records them in `/run/dofscroll-upgrade.state` (a root-only directory); `postinst` reads that file only if it
-  is a regular file, accepts only lines with a user name from the allowed characters and two `0`/`1` flags, and removes
-  it afterwards. A user name must not start with `-`; every
+- **Upgrade scripts (`packaging/cpack/preinst` and `postinst`, run as root):** `preinst` stops the user units
+  (interface, then daemon) and `postinst` starts them again, for every logged-in user; no file is written. A user name must not start with `-`; every
   call is time-limited, and when `timeout` is missing nothing is done; a process is signalled only after its owner is
   checked again right before the signal (process numbers can be reused); an interface is stopped only for a user who
   has the unit enabled.

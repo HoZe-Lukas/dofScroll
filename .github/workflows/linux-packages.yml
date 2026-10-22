@@ -54,10 +54,11 @@ jobs:
             echo "a packaged unit has an ExecStart outside /usr/bin" >&2; exit 1
           fi
           test -z "$(find /tmp/scan -path '*/usr/lib/udev/*' -type f)"
-          # the upgrade steps: %pre stops the user units, %post starts the recorded ones again
+          # the upgrade steps: %pre stops the user units, %post starts them again
           rpm -qp --scripts build/dofscroll-*.rpm > /tmp/rpm-scripts.txt
           grep -q 'preinstall scriptlet' /tmp/rpm-scripts.txt
-          test "$(grep -c 'dofscroll-upgrade.state' /tmp/rpm-scripts.txt)" -ge 2
+          grep -q 'stop dofscroll.service' /tmp/rpm-scripts.txt
+          grep -q 'start dofscroll.service' /tmp/rpm-scripts.txt
           echo "--- RPM requires:"; rpm -qp --requires build/dofscroll-*.rpm
           echo "--- RPM files:"; rpm -qlp build/dofscroll-*.rpm
           if [ -x /tmp/scan/rpm/usr/bin/dofscroll-ui ]; then
@@ -144,10 +145,9 @@ jobs:
             echo "a packaged unit has an ExecStart outside /usr/bin" >&2; exit 1
           fi
           test -z "$(find /tmp/scan -path '*/usr/lib/udev/*' -type f)"
-          # the upgrade steps: preinst stops the user units, postinst starts the recorded ones again
-          for s in preinst postinst; do
-            dpkg-deb -I build/dofscroll*.deb "$s" | grep -q 'dofscroll-upgrade.state'
-          done
+          # the upgrade steps: preinst stops the user units, postinst starts them again
+          dpkg-deb -I build/dofscroll*.deb preinst | grep -q 'stop dofscroll.service'
+          dpkg-deb -I build/dofscroll*.deb postinst | grep -q 'start dofscroll.service'
           . packaging/qt.env
           deps="$(dpkg-deb -f build/dofscroll*.deb Depends)"
           echo "--- DEB Depends: $deps"

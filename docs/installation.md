@@ -251,12 +251,10 @@ Install the newer package over the old one:
 The package stops and starts the programs on its own, in three steps (RPM `%pre`/`%post`, DEB
 `preinst`/`postinst`; best effort, the steps never fail the upgrade and never touch your config):
 **before** the files are replaced it stops `dofscroll-ui.service` and `dofscroll.service` of every
-logged-in user whose units are running (the daemon releases held keys when it stops) and notes which
-ones ran; **after** the files are in place it runs `systemctl --user daemon-reload` and starts exactly those
-units again, the daemon first. A user whose units were not running gets nothing started, and a fresh
-install does nothing. A user whose units were not noted (for example somebody who logged in during the
-upgrade) gets the older `try-restart` of both units. If nobody was logged in through logind, or you run
-the program from a terminal, restart by hand (user names with an `@`, such as domain accounts, are handled; an interface that was not started by its unit, for example by the desktop's session restore, is stopped and started through the unit when its binary was replaced):
+logged-in user (the daemon releases held keys when it stops); **after** the files are in place it runs
+`systemctl --user daemon-reload` and starts both again, the daemon first, whether they were running before
+or not. A fresh install does nothing (enable the units as in the first-time setup). If nobody was logged
+in through logind, or you run the program from a terminal, restart by hand (user names with an `@`, such as domain accounts, are handled; an interface that was not started by its unit, for example by the desktop's session restore, is stopped and started through the unit when its binary was replaced):
 
     systemctl --user daemon-reload
     systemctl --user restart dofscroll.service dofscroll-ui.service

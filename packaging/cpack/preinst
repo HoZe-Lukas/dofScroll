@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 # Package upgrade step 1 of 2 (RPM %pre and DEB preinst, same file). Before the files are replaced, the
-# running dofscroll user units (the interface first, then the daemon) of every logged-in user are
-# stopped, and which ones were running is written to /run/dofscroll-upgrade.state. packaging/cpack/postinst
-# starts exactly those again after the files are in place, so the new programs run without a restart by
-# hand and no old process keeps running a replaced binary. Best effort: never fails the package
+# dofscroll user units (the interface first, then the daemon) of every logged-in user are stopped, so
+# no old process keeps running a replaced binary. packaging/cpack/postinst starts both again after the
+# files are in place, whether they were running before or not. Best effort: never fails the package
 # transaction (always exit 0), every call is time-limited, nothing in the users' configuration is touched.
 #   RPM: $1 = number of installed instances after this one (1 = fresh install, 2+ = upgrade)
 #   DEB: $1 = upgrade (and $2 = the old version) on an upgrade, install on a fresh install
@@ -15,9 +14,6 @@ case "$1" in
     '' | *[!0-9]*) exit 0 ;;
     *) [ "$1" -ge 2 ] || exit 0 ;;
 esac
-
-state=/run/dofscroll-upgrade.state
-rm -f "$state" 2>/dev/null
 
 command -v loginctl >/dev/null 2>&1 || exit 0
 command -v systemctl >/dev/null 2>&1 || exit 0
@@ -34,23 +30,13 @@ users=$(limited loginctl list-users --no-legend 2>/dev/null | while read -r _uid
     printf '%s\n' "$name"
 done)
 
-# One line per user: name, daemon running (0/1), interface running (0/1). Only root can write /run.
-umask 077
-: > "$state" 2>/dev/null || exit 0
-
 for name in $users; do
     case "$name" in
         '' | -* | *[!A-Za-z0-9._@-]*) continue ;;
     esac
     m="$name@.host"
-    daemon=0
-    ui=0
-    limited systemctl --user --machine="$m" is-active --quiet dofscroll.service >/dev/null 2>&1 && daemon=1
-    limited systemctl --user --machine="$m" is-active --quiet dofscroll-ui.service >/dev/null 2>&1 && ui=1
-    [ "$daemon" = 1 ] || [ "$ui" = 1 ] || continue
-    printf '%s %s %s\n' "$name" "$daemon" "$ui" >> "$state"
     # the interface first (it wants the daemon), then the daemon: the daemon releases held keys on stop
-    if [ "$ui" = 1 ]; then limited systemctl --user --machine="$m" stop dofscroll-ui.service >/dev/null 2>&1 || true; fi
-    if [ "$daemon" = 1 ]; then limited systemctl --user --machine="$m" stop dofscroll.service >/dev/null 2>&1 || true; fi
+    limited systemctl --user --machine="$m" stop dofscroll-ui.service >/dev/null 2>&1 || true
+    limited systemctl --user --machine="$m" stop dofscroll.service >/dev/null 2>&1 || true
 done
 exit 0

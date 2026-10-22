@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 # Package upgrade step 2 of 2 (RPM %post and DEB postinst, same file). packaging/cpack/preinst stopped the
-# running user units before the files were replaced and wrote which ones ran to
-# /run/dofscroll-upgrade.state: here exactly those are started again (daemon, then interface), so the
-# new binaries are used without a re-login. A logged-in user who is not in that file gets the old
-# best-effort try-restart. Only after an UPGRADE (not a fresh install). Never fails the package
+# dofscroll user units before the files were replaced: here, for every logged-in user, the daemon and then
+# the interface are started again, whether they were running before or not, so the new binaries are used
+# without a re-login. Only after an UPGRADE (not a fresh install). Never fails the package
 # transaction (always exit 0), every call is time-limited, nothing in the users' configuration is touched.
 # Migration: the old GTK tray (dofscroll-tray.service) was removed. A user who had it enabled
 # gets dofscroll-ui.service enabled instead (and started, if the tray was running), so the tray
@@ -109,20 +108,6 @@ restart_stale_ui() {
     return 0
 }
 
-# The units that preinst stopped for this user: "<daemon 0/1> <interface 0/1>", empty when not recorded.
-state=/run/dofscroll-upgrade.state
-recorded() {
-    [ -f "$state" ] && [ ! -L "$state" ] || return 0
-    while read -r n d u; do
-        [ "$n" = "$1" ] || continue
-        case "$d$u" in
-            [01][01]) printf '%s %s\n' "$d" "$u" ;;
-        esac
-        return 0
-    done < "$state"
-    return 0
-}
-
 for name in $users; do
     case "$name" in
         '' | -* | *[!A-Za-z0-9._@-]*) continue ;;
@@ -130,17 +115,13 @@ for name in $users; do
     m="$name@.host"
     limited systemctl --user --machine="$m" daemon-reload >/dev/null 2>&1 || true
     if [ -f "$ui_unit" ]; then migrate_user "$name" || true; fi
-    rec=$(recorded "$name")
-    if [ -n "$rec" ]; then
-        # stopped by preinst: start them again, the daemon first
-        set -- $rec
-        [ "$1" = 1 ] && { limited systemctl --user --machine="$m" start dofscroll.service >/dev/null 2>&1 || true; }
-        [ "$2" = 1 ] && { limited systemctl --user --machine="$m" start dofscroll-ui.service >/dev/null 2>&1 || true; }
-    else
-        limited systemctl --user --machine="$m" try-restart \
-            dofscroll.service dofscroll-ui.service >/dev/null 2>&1 || true
-    fi
+    # an interface that the desktop's session restore started would keep the new one from starting (single
+    # instance): it is stopped first (only when its binary was replaced and the user has the unit enabled)
     restart_stale_ui "$name" || true
+    # always started, also when the units were not running before the upgrade: the daemon first
+    limited systemctl --user --machine="$m" start dofscroll.service >/dev/null 2>&1 || true
+    if [ -f "$ui_unit" ]; then
+        limited systemctl --user --machine="$m" start dofscroll-ui.service >/dev/null 2>&1 || true
+    fi
 done
-rm -f "$state" 2>/dev/null
 exit 0
