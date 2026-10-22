@@ -17,6 +17,7 @@
 #include <QToolButton>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
 #include <QLocale>
 #include <QLockFile>
 #include <QStandardPaths>
@@ -52,6 +53,7 @@
 #include <QTimer>
 #include <QTranslator>
 #include <algorithm>
+#include <atomic>
 #include <memory>
 #include <optional>
 #include <cstdio>
@@ -67,6 +69,8 @@
 #include "pages/add_device_dialog.hpp"
 #include "pages/axes_page.hpp"
 #include "button_row.hpp"
+#include "daemon_starter.hpp"
+#include "pages/setup_guide_dialog.hpp"
 #include "common.hpp"
 #include "pages/profiles_env.hpp"
 #include "pages/button_modes_page.hpp"
@@ -3010,6 +3014,187 @@ static bool autosaveAuditSelfTest(const std::function<bool(MainWindow &)> &) {
     return ok;
 }
 
+// A runner that remembers "Start at login" like the system would (the guide reads the state back).
+namespace {
+struct GuideRunner : spn::ui::RecordingActionRunner {
+    std::atomic<int> autostart{static_cast<int>(spn::autostart::AutostartState::Disabled)};
+    bool setAutostart(bool enable, std::string *err) override {
+        autostart = static_cast<int>(enable ? spn::autostart::AutostartState::Enabled : spn::autostart::AutostartState::Disabled);
+        return RecordingActionRunner::setAutostart(enable, err);
+    }
+};
+}  // namespace
+
+static QString guideStatusText(const QString &extra) {
+    return QStringLiteral("profile=global\nenabled=1\nupdated=%1\n").arg(static_cast<qlonglong>(std::time(nullptr))) + extra;
+}
+
+// First-run guide and the automatic start of the daemon: the steps with their live checks, skip, finish and
+// "Show setup guide", "Start at login" on by default, no horizontal scroll bar, accessible names, and the
+// grace period before the interface starts the daemon (src/ui/model/setup_guide_model.hpp, daemon_autostart.hpp).
+static bool setupGuideSelfTest(const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "setup guide self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    const QString dir = tmpPath + QStringLiteral("/guide");
+    QDir().mkpath(dir + QStringLiteral("/run"));
+    QDir().mkpath(dir + QStringLiteral("/run2"));
+    QDir().mkpath(dir + QStringLiteral("/cfg"));
+
+    // ---- the dialog on its own, with a fake status
+    GuideRunner rec;
+    spn::ui::StatusModel st;
+    QtStrings strings;
+    UiContext c;
+    c.runner = &rec;
+    c.status = &st;
+    c.strings = &strings;
+    c.runtimeDir = (dir + QStringLiteral("/run")).toStdString();
+    auto reader = [&rec](std::string *) { return static_cast<spn::autostart::AutostartState>(rec.autostart.load()); };
+    SetupGuideDialog d(c, nullptr, true, nullptr, reader);
+    int skipped = 0, finished = 0;
+    QObject::connect(&d, &SetupGuideDialog::skipRequested, [&] { ++skipped; });
+    QObject::connect(&d, &SetupGuideDialog::finishRequested, [&] { ++finished; });
+    d.show();
+    d.waitIdle();
+    settle();
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 1 && rec.calls.front().enable,
+          "the first run switches Start at login on through the runner");
+    check(d.autostartBox() && d.autostartBox()->isChecked() && d.autostartBox()->isEnabled(), "the check box is on by default");
+    const spn::ui::SetupStep *autoStep = d.step(QStringLiteral("autostart"));
+    check(autoStep && autoStep->state == spn::ui::StepState::Done, "Start at login is done");
+    const spn::ui::SetupStep *daemonStep = d.step(QStringLiteral("daemon"));
+    check(daemonStep && daemonStep->state == spn::ui::StepState::Problem, "no heartbeat: the daemon step needs attention");
+    check(d.actionButtonOf(QStringLiteral("daemon")) != nullptr, "...with a Start now button");
+    d.actionButtonOf(QStringLiteral("daemon"))->click();
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::StartDaemon) == 1, "Start now asks the runner to start the daemon");
+    check(d.step(QStringLiteral("tryit")) && d.step(QStringLiteral("tryit"))->state == spn::ui::StepState::Info, "Try it is information");
+    // unticking switches it off at once
+    d.autostartBox()->click();
+    d.waitIdle();
+    check(rec.calls.back().kind == spn::ui::RecordingActionRunner::Kind::SetAutostart && !rec.calls.back().enable &&
+              !d.autostartBox()->isChecked() && d.step(QStringLiteral("autostart"))->state == spn::ui::StepState::Todo,
+          "unticking Start at login switches it off");
+    // a live heartbeat without a device: the daemon is done, the device is not (spacenavd off: the command)
+    rec.spacenavd = spn::ui::ServiceState::Inactive;
+    st.update(guideStatusText(QString()).toStdString(), true, std::time(nullptr));
+    d.refresh();
+    check(d.step(QStringLiteral("daemon"))->state == spn::ui::StepState::Done, "a heartbeat: dofscroll is running");
+    check(d.step(QStringLiteral("device"))->state != spn::ui::StepState::Done, "no device yet");
+    if (spn::ui::hostOs() == spn::ui::Os::Linux)
+        check(d.commandOf(QStringLiteral("device")) == QStringLiteral("sudo systemctl enable --now spacenavd.service"),
+              "spacenavd not active: the fix is shown as a command");
+    st.update(guideStatusText(QStringLiteral("devices_seen=1\ndevice=SpaceMouse Pro\n")).toStdString(), true, std::time(nullptr));
+    d.refresh();
+    check(d.step(QStringLiteral("device"))->state == spn::ui::StepState::Done && d.commandOf(QStringLiteral("device")).isEmpty(),
+          "the device is found: done, no command");
+    check(d.step(QStringLiteral("device"))->text.find("SpaceMouse Pro") != std::string::npos, "the device name is shown");
+    // every row says its state in words, every control has a name, nothing scrolls sideways
+    for (const spn::ui::SetupStep &s : d.steps()) check(s.state == spn::ui::StepState::Info || !s.status.empty(), "every step has a state word");
+    for (QPushButton *b : d.findChildren<QPushButton *>()) check(!b->isVisibleTo(&d) || !b->text().isEmpty() || !b->accessibleName().isEmpty(), "buttons have a name");
+    for (QLineEdit *e : d.findChildren<QLineEdit *>()) check(!e->accessibleName().isEmpty(), "the command field has an accessible name");
+    check(!d.autostartBox()->accessibleName().isEmpty(), "the check box has an accessible name");
+    for (const QSize &size : {QSize(660, 700), QSize(520, 420), QSize(720, 480)}) {
+        d.resize(size);
+        settle();
+        check(!d.hasHorizontalScrollBar(), "no horizontal scroll bar");
+    }
+    // Skip and Finish: once each, the dialog hides
+    d.skipButton()->click();
+    check(skipped == 1 && finished == 0 && !d.isVisible(), "Skip closes the guide");
+    d.show();
+    d.finishButton()->click();
+    check(skipped == 1 && finished == 1 && !d.isVisible(), "Finish closes the guide");
+    d.show();
+    d.close();  // the close button (Escape does the same through reject)
+    check(skipped == 2 && !d.isVisible(), "the close button counts as Skip, once");
+
+    // ---- in the window: shown at the first start, remembered, shown again from the Overview
+    {
+        GuideRunner r2;
+        UiContext ctx;
+        ctx.runner = &r2;
+        ctx.configPath = (dir + QStringLiteral("/cfg/dofscroll.conf")).toStdString();
+        ctx.modesDir = (dir + QStringLiteral("/cfg/modes")).toStdString();
+        ctx.buttonModesDir = (dir + QStringLiteral("/cfg/buttons")).toStdString();
+        ctx.runtimeDir = (dir + QStringLiteral("/run2")).toStdString();
+        const std::string progress = spn::ui::uiProgressPath(ctx.configPath);
+        {
+            MainWindow w(ctx);
+            check(!w.setupGuideShown(), "no guide before the start call");
+            check(w.startSetupGuide(true) && w.setupGuideShown(), "a new installation shows the guide with the window");
+            check(w.setupGuide() && w.setupGuide()->isEnabled(), "the guide is usable");
+            w.setupGuide()->waitIdle();
+            w.setupGuide()->skipButton()->click();
+            check(!w.setupGuideShown() && spn::ui::loadUiProgress(progress).setupGuideSeen, "Skip remembers it in ui-progress.conf");
+            // ... and the Overview opens it again
+            w.show();
+            w.showPage(QStringLiteral("overview"));
+            settle();
+            QPushButton *again = w.findChild<QPushButton *>(QStringLiteral("show-setup-guide"));
+            check(again != nullptr, "the Overview has Show setup guide");
+            if (again) again->click();
+            settle();
+            check(w.setupGuideShown(), "Show setup guide opens the guide again");
+            w.setupGuide()->waitIdle();
+            w.setupGuide()->finishButton()->click();
+            check(!w.setupGuideShown(), "Finish closes it");
+        }
+        {
+            MainWindow w2(ctx);
+            check(!w2.startSetupGuide(true) && !w2.setupGuideShown(), "a guide that was seen does not come back by itself");
+        }
+        {
+            // an existing installation (not a fresh one) never gets it, and is marked as seen
+            std::remove(progress.c_str());
+            MainWindow w3(ctx);
+            check(!w3.startSetupGuide(false) && !w3.setupGuideShown() && spn::ui::loadUiProgress(progress).setupGuideSeen,
+                  "an existing installation does not get the guide");
+        }
+    }
+
+    // ---- the daemon is started by the interface after the grace period, once
+    {
+        GuideRunner r3;
+        const std::string run = (dir + QStringLiteral("/run")).toStdString();
+        DaemonStarter s1(r3, run);
+        check(s1.tick(0, 0) == spn::ui::DaemonAutoStart::Step::Wait && s1.waiting() && !s1.failed(), "inside the grace period: wait");
+        check(s1.tick(3000, 0) == spn::ui::DaemonAutoStart::Step::Wait, "still waiting");
+        check(r3.count(spn::ui::RecordingActionRunner::Kind::StartDaemon) == 0, "not started inside the grace period");
+        check(s1.tick(spn::ui::DaemonAutoStart::kGraceMs, 0) == spn::ui::DaemonAutoStart::Step::Start &&
+                  r3.count(spn::ui::RecordingActionRunner::Kind::StartDaemon) == 1 && s1.attempted() && s1.waiting(),
+              "after the grace period: started once");
+        s1.tick(9000, 0);
+        check(r3.count(spn::ui::RecordingActionRunner::Kind::StartDaemon) == 1, "never started twice");
+        check(!s1.failed() && s1.tick(20000, 0) == spn::ui::DaemonAutoStart::Step::Done && s1.failed(),
+              "no heartbeat long after the start: failed");
+        GuideRunner r4;
+        DaemonStarter s2(r4, run);
+        s2.tick(2000, 1);  // the heartbeat shows up (the login autostart started the daemon too)
+        s2.tick(60000, 0);
+        check(r4.count(spn::ui::RecordingActionRunner::Kind::StartDaemon) == 0 && !s2.failed(), "a daemon that runs is never started");
+        // a heartbeat read from the status file
+        QFile sf(dir + QStringLiteral("/run/dofscroll-status"));
+        check(sf.open(QIODevice::WriteOnly) && sf.write(guideStatusText(QString()).toUtf8()) > 0, "write a status file");
+        sf.close();
+        GuideRunner r5;
+        DaemonStarter s3(r5, run);
+        s3.tick(0);
+        s3.tick(spn::ui::DaemonAutoStart::kGraceMs + 1000);
+        check(r5.count(spn::ui::RecordingActionRunner::Kind::StartDaemon) == 0 && s3.daemonSeen(), "the status file is the heartbeat");
+        GuideRunner r6;
+        r6.result = false;
+        DaemonStarter s4(r6, (dir + QStringLiteral("/run2")).toStdString(), nullptr, 100);
+        s4.tick(0);
+        s4.tick(200);
+        check(s4.startFailed() && s4.failed() && !s4.waiting(), "a failed start is reported at once");
+    }
+    std::printf("setup guide self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
 // Index of the firefox program profile in the Overview list of the demo configuration used by --screenshots
 // (global, two devices, then the programs).
 static constexpr int kFirefoxProfile = 3;
@@ -3214,6 +3399,23 @@ int main(int argc, char **argv) {
             settle();
             if (small.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-medium-editor-motion.png"))) ++written;
         }
+        for (const char *th : {"light", "dark"}) {  // the first-run guide (a recording runner: nothing is changed on this machine)
+            applyTheme(spn::ui::themeFromId(th));
+            spn::ui::RecordingActionRunner guideRunner;
+            spn::ui::StatusModel guideStatus;
+            QtStrings guideStrings;
+            UiContext gctx = ctx;
+            gctx.runner = &guideRunner;
+            gctx.status = &guideStatus;
+            gctx.strings = &guideStrings;
+            guideStatus.update(guideStatusText(QStringLiteral("devices_seen=1\ndevice=SpaceMouse Pro\n")).toStdString(), true,
+                               std::time(nullptr));
+            SetupGuideDialog guide(gctx, nullptr, false, nullptr, [](std::string *) { return spn::autostart::AutostartState::Enabled; });
+            guide.show();
+            guide.waitIdle();
+            settle();
+            if (guide.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-setup-guide.png").arg(QString::fromLatin1(th)))) ++written;
+        }
         for (const char *th : {"light", "dark"}) {  // lists with a selected row, in both themes
             applyTheme(spn::ui::themeFromId(th));
             ModesPage page(ctx);
@@ -3364,6 +3566,7 @@ int main(int argc, char **argv) {
         if (!wheelSelfTest()) return 1;
         if (!defaultSizeFitsSelfTest(w)) return 1;
         if (!windowStateSelfTest(ctx, tmp.path())) return 1;
+        if (!setupGuideSelfTest(tmp.path())) return 1;
         if (!windowAutosaveSelfTest(ctx, tmp.path())) return 1;
         return axesPageSelfTest();  // Axes page with a fake live feed, rendered offscreen
     }
@@ -3397,8 +3600,12 @@ int main(int argc, char **argv) {
     }
     QFile::remove(raiseMarker);  // stale request of an earlier start
 
-    // First start (src/ui/model/first_start.hpp).
-    std::fputs(spn::ui::runFirstStart().text("dofscroll-ui").c_str(), stderr);
+    // First start (src/ui/model/first_start.hpp). A new installation has no configuration yet and nothing
+    // to migrate: it gets the setup guide (src/ui/model/setup_guide_model.hpp) with the window.
+    const bool configExisted = QFileInfo::exists(QString::fromStdString(ctx.configPath));
+    const spn::ui::FirstStart firstStart = spn::ui::runFirstStart();
+    std::fputs(firstStart.text("dofscroll-ui").c_str(), stderr);
+    const bool freshInstall = !configExisted && !firstStart.migrated;
 
     // The theme of the user (before any window exists, so the whole interface starts in it).
     applyTheme(spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).theme);
@@ -3418,9 +3625,16 @@ int main(int argc, char **argv) {
     window.enableStatePersistence(spn::ui::uiSettingsPath());  // size, position and page of the last run
     Tray tray(&window, icon, ctx);
     tray.show();
+    // The daemon is started from here when none runs (after the grace period of a login autostart,
+    // src/ui/model/daemon_autostart.hpp): the first start after installing is "open dofscroll from the menu".
+    DaemonStarter starter(runner, ctx.runtimeDir);
+    window.setDaemonStarter(&starter);
+    starter.start();
     // Starts minimized to the tray: no window is shown. Without a system tray the icon would be
     // unreachable, so the window is then shown minimized (the taskbar or the second start reach it).
-    if (!hasTray) window.showMinimized();
+    // The first start of a new installation shows the window with the setup guide instead.
+    if (window.startSetupGuide(freshInstall)) window.bringToFront();
+    else if (!hasTray) window.showMinimized();
     QTimer raiseTimer;
     QObject::connect(&raiseTimer, &QTimer::timeout, [&] {
         if (QFile::exists(raiseMarker) && QFile::remove(raiseMarker)) window.bringToFront();

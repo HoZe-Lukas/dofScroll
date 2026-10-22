@@ -116,6 +116,11 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
         connect(b, &QPushButton::clicked, this, [this, i] { runAction(static_cast<int>(i)); });
         quickButtons_.push_back(b);
     }
+    auto *guide = new QPushButton(T("Show setup guide"));
+    guide->setObjectName(QStringLiteral("show-setup-guide"));
+    guide->setToolTip(T("Open the first-run guide again: the daemon, the SpaceMouse, start at login and, on macOS, the permissions"));
+    connect(guide, &QPushButton::clicked, this, [this] { emit showSetupGuide(); });
+    quickButtons_.push_back(guide);
     auto *docs = new QPushButton(T("Documentation"));
     docs->setObjectName(QStringLiteral("documentation"));
     docs->setToolTip(T("Open the documentation of the interface in your browser"));
