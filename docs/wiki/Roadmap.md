@@ -15,12 +15,12 @@ Every user-visible feature must work on Linux, Windows and macOS. A feature is "
 - Modes plugin system, `ModeRunner`, all keys and mouse buttons on X11 and uinput
 - First-start seeding of the config and example modes
 - Daemon split into a platform-independent core and a thin Linux main; platform interfaces with a fake for tests
-- GTK tray with application modes, gettext (English source, German catalog), start-at-login checkbox
+- Tray with gettext (English source, German catalog) and a start-at-login switch (since 0.1.1 part of the Qt interface; the GTK tray was removed)
 - Device database, HID descriptor parser, `devices/*.conf`, `dofscroll-hidprobe`
 - 1-based `BUTTON_<n>` numbering everywhere
 - CMake build, CPack packages (RPM, DEB, TGZ), CI with sanitizers, cppcheck, secret scan, release workflow
 - Security review report and first fixes
-- Qt6 interface `dofscroll-ui`: Channels, General, Axes, Modes and Profiles pages, navigation, running-program picker, tray, start at login
+- Qt6 interface `dofscroll-ui`: Overview, Profiles, Editor, Joystick modes, Button modes, User modes, Device, Axes and Settings pages, running-program picker, tray, start at login
 - Linux packages include the Qt interface when Qt6 is available at build time (the GTK tray was removed in 0.1.1)
 - Unsigned Windows installer and ZIP and macOS DMG built by CI
 - Stuck-key safety net, `--release-keys`, and pausing output while the own session is not the active one
@@ -34,7 +34,7 @@ Every user-visible feature must work on Linux, Windows and macOS. A feature is "
 
 - Everything on Windows and macOS (daemon, interface, installers) on real hardware and desktops
 - The Qt interface on Windows and macOS desktops
-- Packages on Debian, Ubuntu and Fedora; Wayland
+- Packages on Debian, Ubuntu and Fedora on a real desktop (they are install-tested in CI containers); Wayland
 
 ## Planned
 

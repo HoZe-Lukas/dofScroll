@@ -54,7 +54,7 @@ service again afterwards.
    exist. A package install points at `/usr/bin`, the symlink flow from the build tree at
    `/usr/local/bin` (see "Run from the build tree"). Check with `systemctl --user cat dofscroll.service`.
 5. Is output paused or disabled? The status file shows `enabled=0` or `paused=1`. The daemon
-   pauses while the tray's "Axes" tab or the wizard is open. An `[app:*]` section with
+   pauses while the interface's Axes page or the axis assistant is open. An `[app:*]` section with
    `ENABLED = 0`, or `MODE = off`, switches it off for that program.
 6. Does another program grab the device (Blender, CAD)? Switch dofscroll off for it with
    `[app:<name>]` `ENABLED = 0`.
@@ -166,7 +166,7 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 
 ### Scrolling is inverted or on the wrong axis
 
-Set `<CH>_SIGN = -1` or change the `<CH>_MIX` line, or run "Learn axes" in the tray. If you changed
+Set `<CH>_SIGN = -1` or change the `<CH>_MIX` line, or run the axis assistant ("Axis assistant..." on the Axes page of the interface). If you changed
 `spacenavd` settings (`/etc/spnavrc`), the axis meaning changed too.
 
 ### Keys stay pressed after a crash

@@ -55,7 +55,7 @@ The axis names (libspnav convention, measured on a SpaceMouse Pro): `x` sideways
 
 **Lift and press (`y`) is unused on purpose.** It is in no default mix and no built-in joystick mode puts a function on it, because lifting or pressing the cap while you grab or release it would cause false triggers (maintainer decision, [issue #94](https://github.com/HoZe-Lukas/dofScroll/issues/94)). You can still write `y` in a mix; expect false triggers.
 
-If you changed axis settings in `spacenavd` (swap, inversion), the axes may not be what is described here. The axis assistant ("Learn axes") on the Axes page finds out which physical movement drives which axis.
+If you changed axis settings in `spacenavd` (swap, inversion), the axes may not be what is described here. The axis assistant ("Axis assistant..." button) on the Axes page finds out which physical movement drives which axis.
 
 ### Signs and directions
 

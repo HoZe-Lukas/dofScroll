@@ -13,11 +13,11 @@ Before you install, check [Requirements](Requirements) (supported systems, drive
 
 | Format | Command | Notes |
 |---|---|---|
-| RPM (built on Rocky Linux 9) | `sudo dnf install -y epel-release`, then `sudo dnf install ./dofscroll-*.rpm` | `spacenavd` comes from EPEL on RHEL 9 and its clones; Qt is inside the package, nothing else to install |
-| DEB (built on Debian 12) | `sudo apt install ./dofscroll_*.deb` | Whether `spacenavd` is in your release's repositories is unverified |
+| RPM (built on Rocky Linux 9) | `sudo dnf install -y epel-release`, then `sudo dnf install ./dofscroll-*.rpm` | `spacenavd` comes from EPEL on RHEL 9 and its clones (Fedora has it in its own repositories); Qt is inside the package, nothing else to install |
+| DEB (built on Debian 12) | `sudo apt install ./dofscroll_*.deb` | `spacenavd` is in Debian 12 and 13 and Ubuntu 24.04 (install-tested in CI); check other releases with `apt-cache policy spacenavd` |
 | TGZ | `tar xzf dofscroll-*-Linux.tar.gz`, then `sudo cp -a dofscroll-*-Linux/usr/. /usr/` | Self-contained interface (own Qt): `dofscroll-ui` runs from the unpacked folder; the daemon needs `libspnav` and the X11 libraries from your distribution |
 
-The RPM and DEB files have not been installed on a real machine yet. A package installs `/usr/bin/dofscroll` and `/usr/bin/dofscroll-ui` (with its own Qt 6.9.3 in `/usr/lib/dofscroll`, which is why the packages are 27 to 35 MB), a menu entry, the user units in `/usr/lib/systemd/user`, examples in `/usr/share/dofscroll/examples/`, and the uinput udev rule as an inactive example under `/usr/share/dofscroll/udev/`.
+The RPM and DEB files are install-tested in CI containers only (not on a real desktop). A package installs `/usr/bin/dofscroll` and `/usr/bin/dofscroll-ui` (with its own Qt 6.9.3 in `/usr/lib/dofscroll`, which is why the packages are 27 to 35 MB), `/usr/bin/dofscroll-hidprobe` (diagnostic), a menu entry, the user units in `/usr/lib/systemd/user`, example configs in `/usr/share/dofscroll/examples/` (the joystick modes and button modes are built into the program), and the uinput udev rule as an inactive example under `/usr/share/dofscroll/udev/`.
 
 ## First-time setup (Linux)
 
@@ -71,7 +71,7 @@ Details: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/mai
 
 Upgrade per OS (A package or installer never touches your config):
 
-- Linux: install the newer package over the old one. The package restarts the running user units of logged-in users on upgrade (best effort, never fails the upgrade). Otherwise run `systemctl --user daemon-reload` and restart `dofscroll.service` and `dofscroll-ui.service` (or the tray unit), or use the tray item "Restart".
+- Linux: install the newer package over the old one. The package stops the running daemon and interface before installing and starts them again afterwards. If that did not happen (for example you started the program from a terminal), run `systemctl --user daemon-reload` and restart `dofscroll.service` and `dofscroll-ui.service`, or use the tray item "Restart".
 - Windows: run the new installer; it stops the daemon and a running `dofscroll-ui.exe` first, then starts the daemon again if it was running (also for silent `/S` installs) and the interface (interactive installs only).
 - macOS: quit the interface (tray, Quit), stop the daemon, replace `dofscroll.app`, start both again (a loaded LaunchAgent: `launchctl kickstart -k gui/$(id -u)/io.github.dofscroll.daemon`).
 
