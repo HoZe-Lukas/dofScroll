@@ -35,10 +35,11 @@ Test a change to the installers with `gh workflow run installers-dry-run.yml --r
 workflow file must exist on the default branch for `gh workflow run`; before that the pull request
 run does the same).
 
-If Qt cannot be installed in a job (the `install-qt-action` step is `continue-on-error`), that job
-builds the daemon without the UI and warns; the file names then contain `-daemon-only`
-(`dofscroll-<v>-windows-x64-daemon-only-setup.exe`, `...-daemon-only-portable.zip`,
-`dofscroll-<v>-macos-arm64-daemon-only.dmg`). The Qt version is the one of `packaging/qt.env` (the same on
+There is no daemon-only fallback: every Windows and macOS package contains the interface and the daemon. If Qt
+cannot be installed the job fails, `build-dmg.sh` and `build-installer.ps1` refuse to build without
+`dofscroll-ui`, the image and installer tests require it, and the `release` job publishes nothing unless all six
+files (RPM, DEB, TGZ, Windows setup and ZIP, macOS DMG) exist and none has `daemon-only` in its name. (Version 1.2.0
+shipped a macOS image without the interface because that step used to be allowed to fail.) The Qt version is the one of `packaging/qt.env` (the same on
 Windows, macOS and Linux; Windows kit `win64_msvc2022_64`), installed with a pinned `aqtinstall` instead of `install-qt-action` (that action uses an unpinned `setup-python`, which the repository action policy rejects); all actions are pinned to commit SHAs.
 
 Both jobs test their package before uploading: the Windows job installs silently with autostart
@@ -69,8 +70,8 @@ No release step depends on a package feed being up at that moment:
   (repository variable `NSIS_MIRROR_URL`, same file) tried first, and `actions/cache` for the zip.
   `installers-dry-run.yml` calls the same reusable workflow, so a broken source shows up before a
   tag. To bump NSIS, change version and SHA-256 in the script and the cache key in `installers.yml`.
-- **aqtinstall and Qt** (pip, `aqt`) are retried 3 times; a failure still falls back to the
-  daemon-only package.
+- **aqtinstall and Qt** (pip, `aqt`) are retried 3 times; a failure fails the job (no daemon-only
+  fallback).
 - Audit, not yet hardened: the Linux package jobs (`linux-packages.yml`: `dnf`/`apt` inside
   containers) and `ci.yml` (`dnf`) rely on distribution mirrors, which retry internally; the macOS
   job uses only aqtinstall (retried) and the runner's tools.

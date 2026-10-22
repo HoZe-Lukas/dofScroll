@@ -2,9 +2,12 @@
 ; SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 ;
 ; Per-user installer (NSIS 3, no administrator rights). Built by packaging/windows/build-installer.ps1:
-;   makensis /DVERSION=1.2.1 /DSTAGE=<staged folder> /DOUTFILE=<setup.exe> [/DHAS_UI] [/DAPP_ICO=<ico>] installer.nsi
+;   makensis /DVERSION=1.2.1 /DSTAGE=<staged folder> /DOUTFILE=<setup.exe> /DHAS_UI [/DAPP_ICO=<ico>] installer.nsi
 ; Silent use:  setup.exe /S [/AUTOSTART=1] [/D=C:\target\folder]   (the /D= argument must come last)
 ; Uninstall:   <install dir>\uninstall.exe  (also from Settings > Apps); it removes the autostart value.
+!ifndef HAS_UI
+  !error "HAS_UI must be defined: every installer contains the interface and the daemon (no daemon-only installer)"
+!endif
 Unicode true
 ManifestDPIAware true
 RequestExecutionLevel user
@@ -144,11 +147,7 @@ SectionEnd
 
 Section "Start menu shortcuts" SecMenu
   CreateDirectory "$SMPROGRAMS\dofscroll"
-!ifdef HAS_UI
   CreateShortCut "$SMPROGRAMS\dofscroll\dofscroll.lnk" "$INSTDIR\dofscroll-ui.exe" "" "$INSTDIR\dofscroll-ui.exe" 0
-!else
-  CreateShortCut "$SMPROGRAMS\dofscroll\dofscroll.lnk" "$INSTDIR\dofscroll.exe" "" "$INSTDIR\dofscroll.exe" 0
-!endif
   CreateShortCut "$SMPROGRAMS\dofscroll\Uninstall dofscroll.lnk" "$INSTDIR\uninstall.exe"
 SectionEnd
 

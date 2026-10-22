@@ -31,8 +31,7 @@ jobs:
       # install-qt-action is not used here: it pulls in an unpinned actions/setup-python, which the
       # repository's action policy rejects (the whole job would fail). aqtinstall is pinned instead.
       - name: Install Qt6 (aqtinstall, pinned version)
-        id: qt
-        continue-on-error: true   # without Qt the daemon-only package is built (name contains -daemon-only)
+        # No fallback: if Qt cannot be installed the job fails (an installer without the interface is never published).
         shell: bash
         run: |
           retry() { for i in 1 2 3; do "$@" && return 0; echo "::warning::attempt $i/3 failed: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
@@ -56,11 +55,8 @@ jobs:
         run: ./scripts/install-nsis.ps1 -MirrorUrl "$env:NSIS_MIRROR_URL"
       - name: Configure
         shell: pwsh
-        env:
-          WITH_UI: ${{ steps.qt.outcome == 'success' && 'ON' || 'OFF' }}
         run: |
-          if ($env:WITH_UI -eq 'OFF') { Write-Output '::warning::Qt is not available: building the daemon-only package' }
-          cmake -S . -B build "-DDOFSCROLL_UI=$env:WITH_UI"
+          cmake -S . -B build "-DDOFSCROLL_UI=ON"
       - name: Build
         run: cmake --build build --config Release --parallel
       - name: Package
@@ -114,17 +110,16 @@ jobs:
           Invoke-Limited 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $dir 'scripts\test-driver-coexistence.ps1') + '"'), '-NonInteractive', '-ReportPath', ('"' + $rep + '"')) 'test-driver-coexistence.ps1 -NonInteractive'
           if (-not (Select-String -LiteralPath $rep -Pattern 'A: device opened while the driver runs:' -Quiet)) { throw 'coexistence report lacks the test A verdict' }
           $ui = Join-Path $dir 'dofscroll-ui.exe'
-          if (Test-Path $ui) {
-            # the Qt runtime comes from the install folder, not from the runner's Qt
-            $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -notmatch 'Qt' }) -join ';'
-            $env:QT_QPA_PLATFORM = 'offscreen'
-            # windeployqt ships only the "windows" platform plugin; the headless self-test needs the
-            # offscreen one (test only: the folder is removed again below). Without it Qt shows a
-            # modal error box in this GUI program and waits forever.
-            New-Item -ItemType Directory -Force -Path (Join-Path $dir 'platforms') | Out-Null
-            Copy-Item -LiteralPath (Join-Path $env:QT_ROOT_DIR 'plugins\platforms\qoffscreen.dll') -Destination (Join-Path $dir 'platforms')
-            Invoke-Limited $ui @('--self-test') 'dofscroll-ui.exe --self-test'
-          }
+          if (-not (Test-Path $ui)) { throw 'the installed folder has no dofscroll-ui.exe: every package needs the interface and the daemon' }
+          # the Qt runtime comes from the install folder, not from the runner's Qt
+          $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -notmatch 'Qt' }) -join ';'
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          # windeployqt ships only the "windows" platform plugin; the headless self-test needs the
+          # offscreen one (test only: the folder is removed again below). Without it Qt shows a
+          # modal error box in this GUI program and waits forever.
+          New-Item -ItemType Directory -Force -Path (Join-Path $dir 'platforms') | Out-Null
+          Copy-Item -LiteralPath (Join-Path $env:QT_ROOT_DIR 'plugins\platforms\qoffscreen.dll') -Destination (Join-Path $dir 'platforms')
+          Invoke-Limited $ui @('--self-test') 'dofscroll-ui.exe --self-test'
           # _?= keeps the uninstaller in place so that the wait really waits for it
           Invoke-Limited (Join-Path $dir 'uninstall.exe') "/S _?=$dir" 'silent uninstall'
           if (Get-ItemProperty -Path $runKey -Name 'dofscroll' -ErrorAction SilentlyContinue) { throw 'autostart value still present after uninstall' }
@@ -176,8 +171,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Qt6 (aqtinstall, pinned version)
-        id: qt
-        continue-on-error: true   # without Qt the daemon-only package is built (name contains -daemon-only)
+        # No fallback: if Qt cannot be installed the job fails (an installer without the interface is never published).
         run: |
           python3 -m venv "$RUNNER_TEMP/aqt-venv"   # the runner's Python is externally managed
           retry() { for i in 1 2 3; do "$@" && return 0; echo "::warning::attempt $i/3 failed: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
@@ -190,11 +184,8 @@ jobs:
           echo "CMAKE_PREFIX_PATH=$root" >> "$GITHUB_ENV"
           echo "$root/bin" >> "$GITHUB_PATH"
       - name: Configure
-        env:
-          WITH_UI: ${{ steps.qt.outcome == 'success' && 'ON' || 'OFF' }}
         run: |
-          if [ "$WITH_UI" = OFF ]; then echo "::warning::Qt is not available: building the daemon-only package"; fi
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DDOFSCROLL_UI="$WITH_UI"
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DDOFSCROLL_UI=ON
       - name: Build
         run: cmake --build build --parallel
       - name: Package
@@ -212,29 +203,26 @@ jobs:
           hdiutil attach -nobrowse -readonly -mountpoint "$mnt" dist-installers/*.dmg
           trap 'hdiutil detach "$mnt" -force >/dev/null || true' EXIT
           ls -l "$mnt"
-          if [ -d "$mnt/dofscroll.app" ]; then
-            codesign --verify --deep --strict "$mnt/dofscroll.app"
-            plutil -p "$mnt/dofscroll.app/Contents/Info.plist"
-            d="$mnt/dofscroll.app/Contents/Resources/daemon/dofscroll"
-          else
-            d="$mnt/dofscroll/dofscroll"
-          fi
+          # every image holds the interface and the daemon (no daemon-only fallback)
+          test -d "$mnt/dofscroll.app" || { echo "::error::the image has no dofscroll.app"; exit 1; }
+          test -x "$mnt/dofscroll.app/Contents/MacOS/dofscroll-ui"
+          codesign --verify --deep --strict "$mnt/dofscroll.app"
+          plutil -p "$mnt/dofscroll.app/Contents/Info.plist"
+          d="$mnt/dofscroll.app/Contents/Resources/daemon/dofscroll"
+          test -x "$d"
           "$d" --version
           # the diagnostic tool and the guided driver test are part of the image
           probe="$(dirname "$d")/dofscroll-hidprobe"
           test -x "$probe"
           "$probe" --version
           "$probe" --help >/dev/null
-          if [ -d "$mnt/dofscroll.app" ]; then script="$mnt/dofscroll.app/Contents/Resources/diagnostics/test-driver-coexistence.sh"
-          else script="$(dirname "$d")/test-driver-coexistence.sh"; fi
+          script="$mnt/dofscroll.app/Contents/Resources/diagnostics/test-driver-coexistence.sh"
           test -x "$script"
           bash "$script" --non-interactive --report "$RUNNER_TEMP/coexistence-report.txt" >/dev/null
           grep -q '^A: device opened while the driver runs:' "$RUNNER_TEMP/coexistence-report.txt"
-          if [ -d "$mnt/dofscroll.app" ]; then
-            # the frameworks must come from the bundle, not from the runner's Qt
-            env -u QT_ROOT_DIR -u DYLD_FRAMEWORK_PATH QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORM_PLUGIN_PATH="$qt_platforms" \
-              "$mnt/dofscroll.app/Contents/MacOS/dofscroll-ui" --self-test
-          fi
+          # the frameworks must come from the bundle, not from the runner's Qt
+          env -u QT_ROOT_DIR -u DYLD_FRAMEWORK_PATH QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORM_PLUGIN_PATH="$qt_platforms" \
+            "$mnt/dofscroll.app/Contents/MacOS/dofscroll-ui" --self-test
           # Round trip in a folder with spaces and non-ASCII characters (umlauts, CJK, an emoji and an
           # ampersand; UTF-8 bytes written as octal escapes so that this file stays ASCII). HOME points
           # into the sandbox folder, so no real LaunchAgent is touched; nothing is loaded into launchd.
@@ -242,16 +230,12 @@ jobs:
           sandbox="$RUNNER_TEMP/$odd"
           rm -rf "$sandbox" && mkdir -p "$sandbox/home" "$sandbox/pkg"
           cp -R "$mnt/." "$sandbox/pkg/"
-          if [ -d "$sandbox/pkg/dofscroll.app" ]; then
-            res="$sandbox/pkg/dofscroll.app/Contents/Resources"
-            d="$res/daemon/dofscroll"
-            codesign --verify --deep --strict "$sandbox/pkg/dofscroll.app"
-            env -u QT_ROOT_DIR -u DYLD_FRAMEWORK_PATH QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORM_PLUGIN_PATH="$qt_platforms" \
-              "$sandbox/pkg/dofscroll.app/Contents/MacOS/dofscroll-ui" --self-test
-          else
-            res="$sandbox/pkg/dofscroll"
-            d="$res/dofscroll"
-          fi
+          test -d "$sandbox/pkg/dofscroll.app"
+          res="$sandbox/pkg/dofscroll.app/Contents/Resources"
+          d="$res/daemon/dofscroll"
+          codesign --verify --deep --strict "$sandbox/pkg/dofscroll.app"
+          env -u QT_ROOT_DIR -u DYLD_FRAMEWORK_PATH QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORM_PLUGIN_PATH="$qt_platforms" \
+            "$sandbox/pkg/dofscroll.app/Contents/MacOS/dofscroll-ui" --self-test
           "$d" --version
           HOME="$sandbox/home" sh "$res/launchagent/install-launchagent.sh" --daemon "$d" --no-load
           plist="$sandbox/home/Library/LaunchAgents/io.github.dofscroll.daemon.plist"

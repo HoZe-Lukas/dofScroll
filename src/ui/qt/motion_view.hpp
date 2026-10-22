@@ -53,19 +53,23 @@ inline int chipPadX(const QFontMetrics &fm) { return fm.height() / 2; }
 inline int chipHeight(const QFontMetrics &fm) { return fm.height() + 2 * std::max(2, fm.height() / 6); }
 
 // Flows the chips left to right and wraps to the next row at `width`; a chip never gets wider than `width`.
-// padX < 0: the normal inset; a smaller one (a symbol-only chip in a list row) keeps six chips in one row.
-inline ChipLayout layoutChips(const QFontMetrics &fm, const QList<Chip> &chips, int width, int padX = -1) {
+// padX < 0: the normal inset; a smaller one (a symbol-only chip in a list row) keeps the chips narrow.
+// perRow > 0: a fixed number of chips per line (the list rows show the pushes above the tilts), else the line
+// breaks where the width ends. The text gets 2 px of slack: a symbol font may measure a little differently
+// when drawn, and an elided symbol ("...") is worse than a chip that is 2 px wider.
+inline ChipLayout layoutChips(const QFontMetrics &fm, const QList<Chip> &chips, int width, int padX = -1, int perRow = 0) {
     const int px = padX >= 0 ? padX : chipPadX(fm), gap = chipGap(fm), ch = chipHeight(fm);
     ChipLayout l;
-    int x = 0, y = 0;
+    int x = 0, y = 0, n = 0;
     for (const Chip &c : chips) {
-        const int cw = std::min(std::max(width, 1), fm.horizontalAdvance(c.text) + 2 * px);
-        if (x > 0 && x + cw > width) {
+        const int cw = std::min(std::max(width, 1), fm.horizontalAdvance(c.text) + 2 * px + 2);
+        if (x > 0 && (perRow > 0 ? n % perRow == 0 : x + cw > width)) {
             x = 0;
             y += ch + gap;
         }
         l.rects.append(QRect(x, y, cw, ch));
         x += cw + gap;
+        ++n;
     }
     l.height = chips.isEmpty() ? 0 : y + ch;
     return l;

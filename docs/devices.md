@@ -89,7 +89,7 @@ Where it is:
 | Linux | `dofscroll-hidprobe` in `bin` of the package (`/usr/bin`) |
 | Windows installer | `dofscroll-hidprobe.exe` in the install folder (default `%LOCALAPPDATA%\Programs\dofscroll`), next to `dofscroll.exe` |
 | Windows ZIP | `dofscroll-hidprobe.exe` in the unpacked folder, next to `dofscroll.exe` |
-| macOS image | `dofscroll.app/Contents/Resources/daemon/dofscroll-hidprobe` (the daemon-only image: `dofscroll/dofscroll-hidprobe`) |
+| macOS image | `dofscroll.app/Contents/Resources/daemon/dofscroll-hidprobe` |
 
 It is a command line program: open a terminal (PowerShell or cmd on Windows, Terminal on macOS) and
 run it by its full path, or from its folder. It finds the `devices` folder next to itself. On

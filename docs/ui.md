@@ -62,7 +62,7 @@ SpaceMouse cap always appear in the same order with the same symbol and the same
 page that shows what a joystick mode or a profile does: vertical push (axis z, symbol shows the action),
 vertical tilt (rx), horizontal push (x), horizontal tilt (rz), lift / press (y, normally "Not used") and
 twist (ry). In the 3x2 panel the top row holds only pushes (vertical, horizontal, lift / press) and the bottom
-row only the tilts and the twist. A chip starts with a marker for the kind of motion (a flat bar for a push, a
+row only the tilts and the twist; the Joystick modes list shows the six symbols the same way, two lines of three. A chip starts with a marker for the kind of motion (a flat bar for a push, a
 wedge for a tilt, a turn arrow for the twist), then the symbol of the action and the word; a Keys or Tap action
 shows its keys instead of the word ("Left / Right", "Ctrl+Page up / Ctrl+Page down") and the Zoom action says
 "Ctrl+Wheel" (the keys of `ZOOM_MODIFIER`, read from the profile, and the mouse wheel), so a zoom by keys such as Ctrl+Plus / Ctrl+Minus is not

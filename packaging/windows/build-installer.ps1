@@ -5,15 +5,16 @@
   Stages dofscroll for Windows and builds the per-user NSIS installer and the portable ZIP.
 
 .DESCRIPTION
-  Input: a Release build (build\Release\dofscroll.exe, optionally dofscroll-ui.exe). With the UI,
-  windeployqt copies the Qt runtime next to it. Output in -OutDir:
+  Input: a Release build with the daemon and the interface (build\Release\dofscroll.exe and
+  dofscroll-ui.exe; both are required, there is no daemon-only package). windeployqt copies the Qt runtime
+  next to the interface. Output in -OutDir:
     dofscroll-<version>-windows-x64-setup.exe     (installer, needs no administrator rights)
     dofscroll-<version>-windows-x64-portable.zip
-  Without the UI the names carry "-daemon-only". Needs makensis (NSIS 3) in PATH.
+  Needs makensis (NSIS 3) in PATH.
 
 .PARAMETER BuildDir   CMake build directory (default: build)
 .PARAMETER OutDir     Output directory (default: dist-installers)
-.PARAMETER QtBin      Qt bin directory with windeployqt.exe (default: $env:QT_ROOT_DIR\bin); only used with the UI
+.PARAMETER QtBin      Qt bin directory with windeployqt.exe (default: $env:QT_ROOT_DIR\bin)
 #>
 [CmdletBinding()]
 param(
@@ -32,12 +33,11 @@ $rel = Join-Path $BuildDir 'Release'
 $daemon = Join-Path $rel 'dofscroll.exe'
 $ui = Join-Path $rel 'dofscroll-ui.exe'
 if (-not (Test-Path -LiteralPath $daemon)) { throw "not built: $daemon" }
-$hasUi = Test-Path -LiteralPath $ui
+if (-not (Test-Path -LiteralPath $ui)) { throw "not built: $ui (every package contains the interface and the daemon; build with -DDOFSCROLL_UI=ON)" }
 # The diagnostic tool ships with every package (docs/devices.md, scripts\test-driver-coexistence.ps1).
 $probe = Join-Path $rel 'dofscroll-hidprobe.exe'
 if (-not (Test-Path -LiteralPath $probe)) { throw "not built: $probe" }
-$suffix = if ($hasUi) { '' } else { '-daemon-only' }
-$base = "dofscroll-$version-windows-x64$suffix"
+$base = "dofscroll-$version-windows-x64"
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $OutDir = (Resolve-Path $OutDir).ProviderPath
@@ -56,15 +56,13 @@ New-Item -ItemType Directory -Force -Path $scripts | Out-Null
 Copy-Item (Join-Path $root 'packaging\windows\*.ps1') $scripts -Exclude 'build-installer.ps1'
 Copy-Item (Join-Path $root 'scripts\test-driver-coexistence.ps1') $scripts
 
-if ($hasUi) {
-    Copy-Item $ui $stage
-    Get-ChildItem -Path $rel -Filter '*.qm' | Copy-Item -Destination $stage
-    if (-not $QtBin) { $QtBin = Join-Path $env:QT_ROOT_DIR 'bin' }
-    $wdq = Join-Path $QtBin 'windeployqt.exe'
-    if (-not (Test-Path $wdq)) { throw "windeployqt not found: $wdq" }
-    & $wdq --release --no-compiler-runtime --no-translations (Join-Path $stage 'dofscroll-ui.exe')
-    if ($LASTEXITCODE -ne 0) { throw "windeployqt failed ($LASTEXITCODE)" }
-}
+Copy-Item $ui $stage
+Get-ChildItem -Path $rel -Filter '*.qm' | Copy-Item -Destination $stage
+if (-not $QtBin) { $QtBin = Join-Path $env:QT_ROOT_DIR 'bin' }
+$wdq = Join-Path $QtBin 'windeployqt.exe'
+if (-not (Test-Path $wdq)) { throw "windeployqt not found: $wdq" }
+& $wdq --release --no-compiler-runtime --no-translations (Join-Path $stage 'dofscroll-ui.exe')
+if ($LASTEXITCODE -ne 0) { throw "windeployqt failed ($LASTEXITCODE)" }
 
 # App-local Microsoft C++ runtime (the daemon and Qt are built with /MD): copy the redistributable
 # DLLs of the build toolchain so the program runs on a machine without the VC++ redistributable.
@@ -106,7 +104,7 @@ if ($magick) {
 $setup = Join-Path $OutDir "$base-setup.exe"
 $nsi = Join-Path $root 'packaging\windows\installer.nsi'
 $nsisArgs = @('/V2', "/DVERSION=$version", "/DSTAGE=$stage", "/DOUTFILE=$setup")
-if ($hasUi) { $nsisArgs += '/DHAS_UI' }
+$nsisArgs += '/DHAS_UI'
 $nsisArgs += $icoArg
 $nsisArgs += $nsi
 Write-Output ("makensis " + ($nsisArgs -join ' '))

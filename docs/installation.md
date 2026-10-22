@@ -39,8 +39,8 @@ version `1.2.1`. Replace the version with the one you download.
 | `dofscroll-1.2.1-macos-arm64.dmg` | macOS disk image for Apple silicon (ad-hoc signed, not notarized), see section 5. |
 | `SHA256SUMS.txt` | SHA-256 checksums of all other assets. |
 
-If Qt was not available when a Windows or macOS package was built, its name contains
-`-daemon-only` and it has no settings window.
+Every Windows and macOS package contains the settings window and the daemon. (The macOS image of
+1.2.0 was an exception, named `-daemon-only`; 1.2.1 fixed that, and a build without Qt now fails.)
 
 ### Verify the download
 
