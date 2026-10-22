@@ -13,6 +13,9 @@ A release is built and published by GitHub Actions when a tag `v<version>` is pu
    to `main`; wait for CI to be green.
 3. Tag and push: `git tag v<x.y.z> && git push origin v<x.y.z>`
    (a suffix such as `v0.2.0-rc1` is allowed; the tag must start with the CMake version).
+   Without a shell (for example on a phone), run the workflow `tag-release` from the Actions tab or the GitHub
+   app on branch `main` with the version (for example `1.2.2`): it checks the version against `CMakeLists.txt`
+   and that the checks of the tip of `main` are green, creates the tag there and starts the `ci` run on it.
 4. The workflow `.github/workflows/ci.yml` runs all checks, builds RPM, DEB and TGZ packages,
    writes `SHA256SUMS.txt`, attests the build provenance of every file (signed with Sigstore, needs
    no secret) and creates the GitHub Release with generated notes. Versions `0.x` and
