@@ -14,7 +14,7 @@ The first five minutes on Linux (X11, the tested setup). This assumes you finish
 
 ## What the seeded config gives you
 
-On first start the tray writes `~/.config/dofscroll/dofscroll.conf` from [examples/default/dofscroll.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/default/dofscroll.conf): a `[global]` section with the three channels (vertical scroll, horizontal scroll, zoom) and a `[device:...]` section each for SpaceMouse Pro and SpaceMouse Compact. The joystick modes are built into the program (nothing is copied):
+On first start the tray writes `~/.config/dofscroll/dofscroll.conf` from [examples/default/dofscroll.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/default/dofscroll.conf): a `[global]` section with the three channels (vertical scroll, horizontal scroll, zoom) and a `[device:SpaceMouse Compact]` section (no sideways scroll, button 1 is navigation). The joystick modes are built into the program (nothing is copied):
 
 | Joystick mode | What it does |
 |---|---|

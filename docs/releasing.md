@@ -33,7 +33,7 @@ A failed release can be repeated by deleting the tag and the draft release and t
 proof of origin is the build provenance attestation: it says which workflow, in which repository and
 for which tag and commit, built a file. With the GitHub CLI:
 
-    gh attestation verify dofscroll-<version>-Linux.rpm -R HoZe-Lukas/dofScroll
+    gh attestation verify dofscroll-<version>-1.x86_64.rpm -R HoZe-Lukas/dofScroll
 
 (any release file; add `--signer-workflow HoZe-Lukas/dofScroll/.github/workflows/ci.yml` to insist on
 the release workflow). It works offline against a bundle too (`gh attestation download`, then

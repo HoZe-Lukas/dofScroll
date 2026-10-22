@@ -6,7 +6,7 @@ A **joystick mode** decides what the three channels (vertical, horizontal, twist
 
 ## How to use one
 
-- **Joystick mode:** pick it in the profile's joystick mode drop-down in the interface (Profiles page), from the tray "Joystick mode" menu (sets the global joystick mode), or write `MODE = <id>` into `[global]`, `[device:*]` or `[app:*]` of the config, for example `[app:impress]` with `MODE = slides`. A button can switch to it with `BUTTON_<n> = mode:<id>` (or `hold:mode:<id>`, `toggle:mode:<id>`).
+- **Joystick mode:** pick it in the profile's joystick mode drop-down in the interface (Profiles page), from the tray "Joystick mode" menu (switches the running daemon until the next reload; it does not write `MODE`), or write `MODE = <id>` into `[global]`, `[device:*]` or `[app:*]` of the config, for example `[app:impress]` with `MODE = slides`. A button can switch to it with `BUTTON_<n> = mode:<id>` (or `hold:mode:<id>`, `toggle:mode:<id>`).
 - **Button mode:** pick it in the button's drop-down in the interface, or write `BUTTON_<n> = buttonmode:<id>`.
 - **Override:** a file with the same id in `~/.config/dofscroll/modes/` or `~/.config/dofscroll/buttons/` replaces the built-in ("Create editable copy" in the interface writes one for you).
 - **Cycling:** `mode:next` and `mode:prev` (and the button modes `next-mode` and `prev-mode`) walk through all loaded joystick modes in alphabetical order of id, built-ins included, wrapping around. A button mode with a `CYCLE` list (`cycle-favorites`, or your own) cycles through exactly the listed joystick modes in your order instead.

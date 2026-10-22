@@ -122,7 +122,11 @@
 <li><h3>Scroll</h3><p>Push the cap to scroll, twist it to zoom.</p></li>
 </ol>
 <details class="more"><summary>Linux commands</summary>
-<pre><code>sudo dnf install ./dofscroll-*.rpm   # Debian, Ubuntu: sudo apt install ./dofscroll_*.deb
+<pre><code># Fedora, RHEL family (RHEL, Rocky, Alma: first sudo dnf install epel-release, for spacenavd)
+sudo dnf install ./dofscroll-*.rpm
+# Debian, Ubuntu
+sudo apt install ./dofscroll_*.deb
+# then, on every distribution
 sudo systemctl enable --now spacenavd
 systemctl --user enable --now dofscroll.service dofscroll-ui.service</code></pre>
 <p>Nothing happens? See <a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Troubleshooting">Troubleshooting</a>. More: <a href="https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md">installation guide</a>, <a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Quick-start">Quick start</a>.</p>

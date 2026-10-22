@@ -122,7 +122,11 @@
 <li><h3>Scrollen</h3><p>Kappe schieben zum Scrollen, drehen zum Zoomen.</p></li>
 </ol>
 <details class="more"><summary>Linux-Befehle</summary>
-<pre><code>sudo dnf install ./dofscroll-*.rpm   # Debian, Ubuntu: sudo apt install ./dofscroll_*.deb
+<pre><code># Fedora, RHEL-Familie (RHEL, Rocky, Alma: vorher sudo dnf install epel-release, wegen spacenavd)
+sudo dnf install ./dofscroll-*.rpm
+# Debian, Ubuntu
+sudo apt install ./dofscroll_*.deb
+# danach auf jeder Distribution
 sudo systemctl enable --now spacenavd
 systemctl --user enable --now dofscroll.service dofscroll-ui.service</code></pre>
 <p>Es passiert nichts? Siehe <a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Troubleshooting">Troubleshooting</a>. Mehr: <a href="https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md">Installationsanleitung</a>, <a href="https://github.com/HoZe-Lukas/dofScroll/wiki/Quick-start">Quick start</a> (englisch).</p>

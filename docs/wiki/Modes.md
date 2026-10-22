@@ -4,7 +4,7 @@
 
 A joystick mode decides what the three channels and the device buttons do. Joystick modes are plain text files, no recompiling needed. Full reference: [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md). Parser: [src/modes.cpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/modes.cpp); key names: [src/keys.hpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/keys.hpp).
 
-Exactly one joystick mode is active: the one named by `MODE` in the resolved profile, otherwise `normal`. Select it in `[global]`, `[device:*]` or `[app:*]` (see [Profiles](Profiles)), from the tray "Joystick mode" menu (sets the global `MODE`), or with a button action.
+Exactly one joystick mode is active: the one named by `MODE` in the resolved profile, otherwise `normal`. Select it in `[global]`, `[device:*]` or `[app:*]` (see [Profiles](Profiles)), from the tray "Joystick mode" menu (switches the running daemon until the next reload; it does not write `MODE`), or with a button action.
 
 ## The six motions
 
@@ -132,6 +132,6 @@ use the old id are listed first and keep pointing at it), see which profiles use
 `.conf` files by dropping them onto the page. Imports get the same checks and the safety
 confirmation as the Import button. The id `release` is a normal joystick mode id.
 
-## Editing from the tray
+## Editing
 
-The tray "Joystick mode" submenu has `Edit mode file`, `Create editable copy` (for built-ins without a file, writes a template with joystick mode 0600 and never overwrites) and `Open modes folder`.
+The tray "Joystick mode" submenu only switches the joystick mode; the tray menu also has "Open joystick modes folder". Editing, "Edit mode file" and "Create editable copy" (for built-ins without a file; it never overwrites) are in the interface: the Editor and Joystick modes pages, and the General tab of a profile.

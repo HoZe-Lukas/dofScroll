@@ -6,7 +6,7 @@
 Windows and macOS. It edits the same config file as the daemon and asks the daemon to reload, so
 changes apply immediately. There is no Save button: every change is saved by itself (see "Saving"
 below). The daemon runs without it. The interface starts minimized to the
-tray (no window opens); "Open settings" or a click on the tray icon shows the window. Without a
+tray (no window opens); "Settings..." in the tray menu or a click on the tray icon shows the window. Without a
 system tray the window is shown minimized instead.
 
 The window remembers its size, position and the page you last used (`window = x,y,w,h` and
@@ -638,7 +638,7 @@ constant there and the texts that carry the word (search the old word in `src/ui
 `docs`: the sentences in `src/ui/qt/pages/*.cpp`, the model texts in
 `src/ui/model/{mode_catalog,mode_info_model,binding_editor_model,settings_model,status_model,
 overview_model,tray_menu_model,examples_model}.hpp`, and the German catalog "Joystick-Modus" /
-"Tasten-Modus"). The GTK tray (`dofscroll-tray`) is separate and keeps its own words.
+"Tasten-Modus").
 
 ## Languages
 
