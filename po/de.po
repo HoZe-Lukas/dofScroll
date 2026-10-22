@@ -3747,3 +3747,359 @@ msgstr "Eigener Kanal-Mix"
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "Not used: custom channel mix"
 msgstr "Nicht genutzt: eigener Kanal-Mix"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Live: %v"
+msgstr "Live: %v"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Live value"
+msgstr "Live-Wert"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Help:"
+msgstr "Hilfe:"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Help: %1"
+msgstr "Hilfe: %1"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "What is this?"
+msgstr "Was ist das?"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Detect by moving"
+msgstr "Durch Bewegen erkennen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Move the cap or press a button on the device to select it here. The daemon's output is paused while this is on."
+msgstr "Bewege die Kappe oder drücke eine Taste am Gerät, um sie hier auszuwählen. Die Ausgabe des Daemons ist pausiert, solange das aktiv ist."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Try this joystick mode"
+msgstr "Diesen Joystick-Modus ausprobieren"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Switch to this joystick mode now, on all profiles, to try it in a program"
+msgstr "Jetzt auf allen Profilen zu diesem Joystick-Modus wechseln, um ihn in einem Programm auszuprobieren"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Start from a template"
+msgstr "Mit einer Vorlage beginnen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Start from a template..."
+msgstr "Mit einer Vorlage beginnen..."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Show me how"
+msgstr "Zeig mir, wie"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "State of Detect by moving"
+msgstr "Zustand von Durch Bewegen erkennen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "State of Try"
+msgstr "Zustand von Ausprobieren"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Guided tour"
+msgstr "Geführte Tour"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Click it instead"
+msgstr "Stattdessen anklicken"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Skip the tour"
+msgstr "Tour überspringen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Step %1 of %2: %3"
+msgstr "Schritt %1 von %2: %3"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Trying: %1 on all profiles"
+msgstr "Ausprobieren: %1 auf allen Profilen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Back to %1"
+msgstr "Zurück zu %1"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Could not ask the daemon: %1"
+msgstr "Der Daemon konnte nicht gefragt werden: %1"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Detecting: move the cap or press a button on the device to select it. The daemon's output is paused while this is on."
+msgstr "Erkennung läuft: Bewege die Kappe oder drücke eine Taste am Gerät, um sie auszuwählen. Die Ausgabe des Daemons ist pausiert, solange das aktiv ist."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Start the daemon to detect by moving."
+msgstr "Starte den Daemon, um durch Bewegen zu erkennen."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "%1: is added to another motion; it is prone to false triggers when the cap is grabbed or released"
+msgstr "%1: wird zu einer anderen Bewegung addiert; beim Greifen oder Loslassen der Kappe löst es leicht fälschlich aus"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "%1: not used"
+msgstr "%1: nicht genutzt"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "%1: does nothing here, no channel uses this motion (custom channel mix)"
+msgstr "%1: tut hier nichts, kein Kanal nutzt diese Bewegung (eigener Kanal-Mix)"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "scrolls up and down, about %1 notches a second at full deflection"
+msgstr "scrollt auf und ab, etwa %1 Rastungen pro Sekunde bei voller Auslenkung"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid ", now: %1 a second"
+msgstr ", jetzt: %1 pro Sekunde"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "scrolls sideways, about %1 notches a second at full deflection"
+msgstr "scrollt seitlich, etwa %1 Rastungen pro Sekunde bei voller Auslenkung"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "zooms (mouse wheel with the zoom keys held)"
+msgstr "zoomt (Mausrad bei gehaltenen Zoom-Tasten)"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid ", now: zooming"
+msgstr ", jetzt: Zoomen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "presses %1 or %2, about %3 times a second at full deflection"
+msgstr "drückt %1 oder %2, etwa %3-mal pro Sekunde bei voller Auslenkung"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid ", now: %1, %2 a second"
+msgstr ", jetzt: %1, %2 pro Sekunde"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid ", now: %1"
+msgstr ", jetzt: %1"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid ", now: at rest"
+msgstr ", jetzt: in Ruhe"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid " (direction reversed)"
+msgstr " (Richtung umgekehrt)"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Button %1: not bound here, the profile's binding applies"
+msgstr "Taste %1: hier nicht belegt, es gilt die Belegung des Profils"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "%1 (axis %2). Example: %3. In the file: %4."
+msgstr "%1 (Achse %2). Beispiel: %3. In der Datei: %4."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Pushing the cap away from you and toward you"
+msgstr "Die Kappe von dir weg und zu dir hin schieben"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "scroll up and down"
+msgstr "auf und ab scrollen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "V_ACTION, or V_PUSH_ACTION when push and tilt have different actions"
+msgstr "V_ACTION, oder V_PUSH_ACTION, wenn Schieben und Kippen verschiedene Aktionen haben"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Tilting the cap forward and back"
+msgstr "Die Kappe nach vorn und hinten kippen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "press Page up and Page down"
+msgstr "Bild auf und Bild ab drücken"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "V_ACTION, or V_TILT_ACTION when push and tilt have different actions"
+msgstr "V_ACTION, oder V_TILT_ACTION, wenn Schieben und Kippen verschiedene Aktionen haben"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Pushing the cap to the left and to the right"
+msgstr "Die Kappe nach links und nach rechts schieben"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "scroll sideways"
+msgstr "seitlich scrollen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "H_ACTION, or H_PUSH_ACTION when push and tilt have different actions"
+msgstr "H_ACTION, oder H_PUSH_ACTION, wenn Schieben und Kippen verschiedene Aktionen haben"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Tilting the cap to the left and to the right"
+msgstr "Die Kappe nach links und nach rechts kippen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "press Left and Right"
+msgstr "Links und Rechts drücken"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "H_ACTION, or H_TILT_ACTION when push and tilt have different actions"
+msgstr "H_ACTION, oder H_TILT_ACTION, wenn Schieben und Kippen verschiedene Aktionen haben"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Twisting the cap around its vertical axis"
+msgstr "Die Kappe um ihre senkrechte Achse drehen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "zoom"
+msgstr "zoomen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Pulling the cap up or pressing it down"
+msgstr "Die Kappe nach oben ziehen oder nach unten drücken"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "added to the vertical push as a mix term"
+msgstr "als Mix-Term zum vertikalen Schieben addiert"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "a term of a channel mix, for example SCROLL_V_MIX = z + rx + y"
+msgstr "ein Term eines Kanal-Mix, zum Beispiel SCROLL_V_MIX = z + rx + y"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "The motion does what the profile says: scroll for push and tilt, zoom for the twist. In the file: default."
+msgstr "Die Bewegung tut, was das Profil vorgibt: scrollen beim Schieben und Kippen, zoomen beim Drehen. In der Datei: default."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "The motion has no effect in this joystick mode. In the file: none."
+msgstr "Die Bewegung hat in diesem Joystick-Modus keine Wirkung. In der Datei: none."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "The motion turns the vertical mouse wheel; the harder you move, the faster it scrolls. In the file: wheel_v."
+msgstr "Die Bewegung dreht das vertikale Mausrad; je stärker du dich bewegst, desto schneller scrollt es. In der Datei: wheel_v."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "The motion turns the horizontal mouse wheel. In the file: wheel_h."
+msgstr "Die Bewegung dreht das horizontale Mausrad. In der Datei: wheel_h."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "The motion zooms: the mouse wheel is sent with the zoom keys held (ZOOM_MODIFIER, Ctrl by default). In the file: zoom."
+msgstr "Die Bewegung zoomt: Das Mausrad wird bei gehaltenen Zoom-Tasten gesendet (ZOOM_MODIFIER, standardmäßig Strg). In der Datei: zoom."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "The motion presses one key (or chord) for each direction; the harder you move, the faster it repeats. Example: keys:pageup,pagedown. In the file: keys:<negative>,<positive>."
+msgstr "Die Bewegung drückt je Richtung eine Taste (oder Tastenkombination); je stärker du dich bewegst, desto schneller wiederholt sie sich. Beispiel: keys:pageup,pagedown. In der Datei: keys:<negative>,<positive>."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "One key press for each push or tilt, however far you go. Example: step:left,right. In the file: step:<negative>,<positive>."
+msgstr "Ein Tastendruck pro Schieben oder Kippen, egal wie weit du gehst. Beispiel: step:left,right. In der Datei: step:<negative>,<positive>."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Reverses the direction of this motion for scroll, zoom and keys alike. In the file: the sign of the channel, for example SCROLL_V_SIGN = -1."
+msgstr "Kehrt die Richtung dieser Bewegung für Scrollen, Zoomen und Tasten gleichermaßen um. In der Datei: das Vorzeichen des Kanals, zum Beispiel SCROLL_V_SIGN = -1."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Optional values that apply while this joystick mode is active: sensitivity, dead zone, curve and smoothing. An empty field follows the profile. In the file: for example SCROLL_V_SENS."
+msgstr "Optionale Werte, die gelten, solange dieser Joystick-Modus aktiv ist: Empfindlichkeit, Totzone, Kurve und Glättung. Ein leeres Feld folgt dem Profil. In der Datei: zum Beispiel SCROLL_V_SENS."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "A button the joystick mode does not bind keeps the binding of the profile. A binding here applies only while this joystick mode is active. In the file: BUTTON_<n>."
+msgstr "Eine Taste, die der Joystick-Modus nicht belegt, behält die Belegung des Profils. Eine Belegung hier gilt nur, solange dieser Joystick-Modus aktiv ist. In der Datei: BUTTON_<n>."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "The cap with its six motions and the buttons of the device. Choose one (click, or arrow keys and Enter) and set what it does on the right. Everything here is also in the Settings and Buttons tabs."
+msgstr "Die Kappe mit ihren sechs Bewegungen und die Tasten des Geräts. Wähle eine aus (Klick, oder Pfeiltasten und Eingabe) und lege rechts fest, was sie tut. Alles hier findest du auch in den Tabs Einstellungen und Tasten."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Scroll and zoom"
+msgstr "Scrollen und Zoomen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Push to scroll, twist to zoom, as in the profile."
+msgstr "Zum Scrollen schieben, zum Zoomen drehen, wie im Profil."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Page up and down"
+msgstr "Bild auf und ab"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Forward/back turns pages (Page up / Page down), sideways does nothing."
+msgstr "Vor/zurück blättert (Bild auf / Bild ab), seitlich passiert nichts."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Arrow keys"
+msgstr "Pfeiltasten"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Push or tilt in any direction to press the arrow keys."
+msgstr "In jede Richtung schieben oder kippen, um die Pfeiltasten zu drücken."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Timeline"
+msgstr "Zeitleiste"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Sideways scrubs with Left / Right, twist steps single frames."
+msgstr "Seitlich wird mit Links / Rechts gescrubbt, Drehen springt einzelne Bilder weiter."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Zoom and pan"
+msgstr "Zoomen und Verschieben"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Forward/back zooms, twist scrolls sideways."
+msgstr "Vor/zurück zoomt, Drehen scrollt seitlich."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "%1 does nothing in this joystick mode"
+msgstr "%1 tut in diesem Joystick-Modus nichts"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Assign it"
+msgstr "Belegen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "%1 and %2 both press %3"
+msgstr "%1 und %2 drücken beide %3"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Show %1"
+msgstr "%1 anzeigen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "This joystick mode replaces the channel mix of the profile (%1)"
+msgstr "Dieser Joystick-Modus ersetzt den Kanal-Mix des Profils (%1)"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Button %1 is bound, but this device has only %2 buttons"
+msgstr "Taste %1 ist belegt, aber dieses Gerät hat nur %2 Tasten"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Move the cap: the motion you move is selected."
+msgstr "Bewege die Kappe: Die Bewegung, die du ausführst, wird ausgewählt."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Click a motion in the picture to select it."
+msgstr "Klicke im Bild auf eine Bewegung, um sie auszuwählen."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Pick what the motion does in the box on the right."
+msgstr "Wähle im Feld rechts, was die Bewegung tut."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Press a button on the device: it is selected."
+msgstr "Drücke eine Taste am Gerät: Sie wird ausgewählt."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Click a button in the picture to select it."
+msgstr "Klicke im Bild auf eine Taste, um sie auszuwählen."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Press \"Try this joystick mode\" and move the cap in a program."
+msgstr "Drücke \"Diesen Joystick-Modus ausprobieren\" und bewege die Kappe in einem Programm."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "That is all. \"Show me how\" runs this tour again."
+msgstr "Das war's. Mit \"Zeig mir, wie\" startest du diese Tour erneut."

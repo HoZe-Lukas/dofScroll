@@ -204,6 +204,28 @@ to the picture shows the selected item:
   the cap is grabbed or released. No built-in joystick mode uses it (`tests/test_no_lift_press.cpp`).
 - **A button:** the same button row as on the Buttons tab (the actions, the button modes, "Unbind").
 
+**Help where you work.** The line under the picture says in plain words what the selected item does, with
+the real rate from the channel processing at full deflection ("Vertical tilt: presses Page up or Page
+down, about 3 times a second at full deflection"); while Detect is on it follows the real deflection ("...,
+now: Page down, 2 a second"). Every element (motion, action, reverse, tuning, button, the picture) has a
+**?** button with a popover: what it is, the axis, an example and the file key (Esc closes it). **Start
+from a template** fills the three channels (Scroll and zoom, Page up and down, Arrow keys, Timeline, Zoom
+and pan); name, buttons and overrides stay. **Hints** name the cause of a likely mistake and have the fix as a
+button: a motion that does nothing ("Assign it"), two motions that press the same key, a channel mix of the
+joystick mode that differs from the profile's, a bound button the device does not have ("Unbind"). A
+guided tour (four steps: move the cap, pick an action, press a button, try the joystick mode) runs the
+first time the tab opens and from **Show me how**; with a device and a running daemon each step waits for
+the real movement or button press, otherwise (or with "Click it instead") you click. It is kept in
+`ui-progress.conf` (`motion_tour_seen`) and not shown again once finished or skipped. All of this works
+without hardware and without the daemon; only the "wait for your real movement" steps need them.
+
+**Detect by moving** selects the motion you move (the strongest axis wins, crosstalk and ties are ignored,
+the rules of the axis assistant) and the button you press. It needs the running daemon with the live feed and
+pauses the daemon's output only while it is on, with the state in words; switching it off or leaving the tab
+resumes the output at once. **Try this joystick mode** switches the running daemon to this joystick mode
+now, on all profiles (like the tray's menu; the saved file is applied), says "Trying: <name> on all
+profiles" and offers "Back to <previous joystick mode>".
+
 The buttons follow the device: the attached device if the daemon reports one, otherwise choose a model
 under "Device:" (SpaceMouse Compact 2 buttons, Pro 15, Enterprise 31) or get a plain numbered grid. The
 button positions are a schematic arrangement, not a copy of the device. The picture and the Settings tab

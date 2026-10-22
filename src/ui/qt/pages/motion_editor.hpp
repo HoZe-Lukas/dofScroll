@@ -10,21 +10,33 @@
 // inspector). Every state has a word (a muted, dashed item says "Not used" or "Unassigned"), never colour alone.
 // All lengths follow the font metrics, so the layout also holds at a large font size.
 #pragma once
+#include <QElapsedTimer>
 #include <QList>
 #include <QRect>
 #include <QString>
+#include <QTimer>
 #include <QWidget>
 #include <functional>
+#include <memory>
 #include <string>
 
 #include "config.hpp"
+#include "live_feed/live_feed.hpp"
+#include "ui/model/detect_model.hpp"
+#include "ui/model/live_feed_model.hpp"
+#include "ui/model/suspend_heartbeat.hpp"
+#include "ui/model/tour_model.hpp"
 #include "ui/model/device_layout_model.hpp"
 #include "ui/model/mode_editor_model.hpp"
 #include "ui/model/motion_map_model.hpp"
 #include "ui/model/strings.hpp"
 
 class QComboBox;
+class QFrame;
 class QLabel;
+class QProgressBar;
+class QPushButton;
+class QToolButton;
 class QGridLayout;
 class QVBoxLayout;
 
@@ -100,6 +112,18 @@ struct MotionEditorEnv {
     std::function<void(const QString &tabId)> showTab;   // "Show in Settings tab" ("settings", "overrides")
     // One row of the shared button editor for button n (the host owns the code of the Buttons tab).
     std::function<void(QWidget *parent, QGridLayout *grid, int gridRow, int n)> addButtonRow;
+    // Live parts (phase 3). Everything is optional: without them the tab works by clicking only.
+    std::string runtimeDir;                              // the live feed and the output pause live there
+    std::function<std::unique_ptr<spn::FeedConn>(std::string *err)> connector;  // null: the real transport
+    std::function<bool()> daemonRunning;                 // for the words and the tour
+    std::function<bool(const std::string &id, std::string *err)> tryMode;  // ask the daemon to switch (global)
+    std::function<std::string()> activeMode;             // the joystick mode that is active now
+    std::string uiProgressFile;                          // where "the tour was shown" is kept
+    spn::ui::TourModel *tour = nullptr;                  // owned by the host: it survives the rebuild after an edit
+    bool detect = false;                                 // Detect by moving was on before the rebuild
+    std::function<void(bool)> detectChanged;
+    std::string tryingFrom;                              // "" = not trying; else the joystick mode before the try
+    std::function<void(const std::string &)> tryingChanged;
 };
 
 class MotionEditor : public QWidget {
@@ -111,11 +135,37 @@ public:
     MotionPicture *picture() const { return picture_; }
     QWidget *inspector() const { return inspectorBox_; }
     QString inspectorTitle() const;  // the heading of the inspector (tests)
+    // Detect by moving: the feed selects the motion you move and the button you press; the daemon's output is
+    // paused only while it is on (the same heartbeat as the Axes page).
+    void setDetect(bool on);
+    bool detecting() const { return detectOn_; }
+    QString detectText() const;       // the sentence next to the switch ("" = none)
+    QString liveSentence() const;     // the line under the picture
+    QProgressBar *liveBar() const { return liveBar_; }
+    QString tryText() const;          // "Trying: ..." ("" = not trying)
+    QStringList hintTexts() const;    // the hints that name the cause
+    QString tourText() const;         // "" when no tour is shown
+    // A sample as the feed would deliver it (also the test seam).
+    void injectSample(const spn::RawAxes &axes, uint32_t buttons);
 
 signals:
     void selectionChanged(const QString &id);
 
+protected:
+    void hideEvent(QHideEvent *) override;
+
 private:
+    void buildTop(QVBoxLayout *left);
+    void refreshTop();
+    void refreshHints();
+    void refreshTour();
+    void refreshSentence();
+    void refreshDetect();
+    void pollFeed();
+    bool deviceAvailable() const;
+    void tourEvent(spn::ui::TourEvent e);
+    void tryThis(const std::string &modeId);
+    QToolButton *helpButton(QWidget *parent, const QString &topic);
     void rebuildPicture();
     void rebuildInspector();
     void buildMotionInspector(QVBoxLayout *col, spn::ui::Motion m);
@@ -131,4 +181,22 @@ private:
     QLabel *sentence_ = nullptr, *inspectorTitle_ = nullptr;
     QComboBox *deviceCombo_ = nullptr;
     int deviceChoice_ = 0;
+    // live parts
+    QPushButton *detectBtn_ = nullptr, *tryBtn_ = nullptr, *backBtn_ = nullptr, *tourBtn_ = nullptr;
+    QLabel *detectState_ = nullptr, *tryState_ = nullptr, *tourLabel_ = nullptr;
+    QFrame *tourBox_ = nullptr;
+    QPushButton *tourClick_ = nullptr, *tourNext_ = nullptr, *tourSkip_ = nullptr;
+    QComboBox *templates_ = nullptr;
+    QWidget *hintBox_ = nullptr;
+    QProgressBar *liveBar_ = nullptr;
+    std::unique_ptr<spn::LiveFeedClient> client_;
+    std::unique_ptr<spn::ui::SuspendHeartbeat> suspend_;
+    spn::LiveFeedModel feed_;
+    spn::ui::DetectModel detectModel_;
+    QTimer *timer_ = nullptr;
+    QElapsedTimer clock_;
+    bool detectOn_ = false, haveLive_ = false, fromDetect_ = false;
+    spn::RawAxes live_{};
+    std::string tryingFrom_;
+    QStringList hints_;
 };

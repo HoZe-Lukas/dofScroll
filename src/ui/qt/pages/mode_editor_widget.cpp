@@ -27,6 +27,8 @@
 #include "button_row.hpp"
 #include "key_combo.hpp"
 #include "pages/motion_editor.hpp"
+#include "ui/model/overview_model.hpp"
+#include "ui/model/ui_progress.hpp"
 #include "ui_i18n.hpp"
 
 using namespace spn;
@@ -313,6 +315,23 @@ void ModeEditorWidget::rebuild() {
         menv.typed = [this] { edited(true); };
         menv.flush = [this] { flush(); };
         menv.showTab = [this](const QString &id) { selectTab(id); };
+        // live parts: detect by moving, try, the guided tour
+        menv.runtimeDir = ctx_.runtimeDir;
+        menv.daemonRunning = [this] { return ctx_.status && ctx_.status->daemonRunning(); };
+        menv.activeMode = [this] { return ctx_.status ? ctx_.status->modeId() : std::string(); };
+        if (ctx_.runner)
+            menv.tryMode = [this](const std::string &id, std::string *err) { return requestActiveMode(ctx_.runtimeDir, *ctx_.runner, id, err); };
+        menv.uiProgressFile = ctx_.configPath.empty() ? std::string() : uiProgressPath(ctx_.configPath);
+        if (!motionTour_) {
+            motionTour_ = std::make_unique<TourModel>(false);
+            // shown the first time the tab opens; not again once it ran to its end or was dismissed
+            if (!menv.uiProgressFile.empty() && loadUiProgress(menv.uiProgressFile).motionTourSeen) motionTour_->dismiss();
+        }
+        menv.tour = motionTour_.get();
+        menv.detect = motionDetect_;
+        menv.detectChanged = [this](bool on) { motionDetect_ = on; };
+        menv.tryingFrom = motionTrying_;
+        menv.tryingChanged = [this](const std::string &from) { motionTrying_ = from; };
         menv.addButtonRow = [this](QWidget *parent, QGridLayout *grid, int gridRow, int n) {
             static thread_local ButtonModeSet keep;
             keep = loadButtonModes(ctx_.buttonModesDir, nullptr);

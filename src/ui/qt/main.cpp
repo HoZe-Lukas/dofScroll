@@ -736,6 +736,7 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
         for (int j = 0; j < i; ++j)
             check(!me()->picture()->items()[i].rect.intersects(me()->picture()->items()[j].rect), "no two items overlap");
 
+    check(me()->tourText().startsWith(QStringLiteral("Step 1 of 4")), "the guided tour starts the first time the tab opens");
     // select by click
     {
         MotionPicture *pic = me()->picture();
@@ -743,6 +744,7 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
         QMouseEvent press(QEvent::MouseButtonPress, QPointF(at), QPointF(pic->mapToGlobal(at)), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
         QApplication::sendEvent(pic, &press);
         check(me()->selectedId() == QStringLiteral("m:h_tilt") && me()->inspectorTitle().contains(QStringLiteral("Horizontal tilt")), "a click selects a motion");
+        check(me()->tourText().startsWith(QStringLiteral("Step 2 of 4")), "without a device a click completes step 1 of the tour");
     }
     // select by keyboard: arrows move between the items, Enter goes to the inspector
     {
@@ -771,6 +773,7 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
     if (keys) keys->click();
     check(settleWrite() && fileText(rel).contains(QStringLiteral("V_TILT_ACTION = keys:up,down")) && fileText(rel).contains(QStringLiteral("V_PUSH_ACTION = wheel_v")),
           "assigning keys to the tilt splits the channel and keeps the push");
+    check(me()->tourText().startsWith(QStringLiteral("Step 3 of 4")), "assigning an action completes step 2 of the tour");
     check(fileText(rel).contains(QStringLiteral("# demo")), "comments stay");
     check(me()->selectedId() == QStringLiteral("m:v_tilt"), "the selection survives the rebuild");
     sel(QStringLiteral("m:v_push"));
@@ -832,6 +835,91 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
             emit where->activated(0);
         }
         check(settleWrite() && !fileText(rel).contains(QStringLiteral("SCROLL_V_MIX")), "not used removes the mix again");
+    }
+    // the live sentence names the keys and a rate; every element has a "?" popover
+    sel(QStringLiteral("m:v_tilt"));
+    check(me()->liveSentence().contains(QStringLiteral("Vertical tilt: presses Up or Down, about")), "the sentence under the picture says what the motion does");
+    {
+        QToolButton *help = nullptr;
+        for (QToolButton *tb : me()->inspector()->findChildren<QToolButton *>())
+            if (tb->text() == QStringLiteral("?") && tb->accessibleName().contains(QStringLiteral("Vertical tilt"))) help = tb;
+        check(help != nullptr, "the motion has a ? button");
+        if (help) {
+            help->click();
+            check(InfoPopup::openText().contains(QStringLiteral("axis rx")) && InfoPopup::openText().contains(QStringLiteral("V_TILT_ACTION")),
+                  "the popover says what it is, the axis and the file key");
+            for (QWidget *w : QApplication::topLevelWidgets())
+                if (w->objectName() == QLatin1String("infoPopup")) w->close();
+        }
+        int helps = 0;
+        for (QToolButton *tb : me()->inspector()->findChildren<QToolButton *>()) helps += tb->text() == QStringLiteral("?");
+        check(helps >= 10, "action cards, reverse, tuning and the motion have a ? button");
+    }
+    // a template fills the picture; a motion that does nothing gets a hint with its fix
+    {
+        QComboBox *tpl = nullptr;
+        for (QComboBox *cb : me()->findChildren<QComboBox *>())
+            if (cb->accessibleName() == QStringLiteral("Start from a template")) tpl = cb;
+        check(tpl != nullptr && tpl->count() == 6, "the template gallery lists five templates");
+        if (tpl) {
+            const int i = tpl->findText(QStringLiteral("Timeline"));
+            check(i >= 0, "a Timeline template");
+            emit tpl->activated(i);
+        }
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = none")) && fileText(rel).contains(QStringLiteral("TWIST_ACTION = step:left,right")) &&
+                  !fileText(rel).contains(QStringLiteral("V_TILT_ACTION")),
+              "the template writes the channels and leaves the split");
+        bool hint = false;
+        for (const QString &h : me()->hintTexts()) hint = hint || h == QStringLiteral("Vertical push does nothing in this joystick mode");
+        check(hint, "a motion that does nothing is named in a hint");
+        QPushButton *fix = nullptr;
+        for (QPushButton *b : me()->findChildren<QPushButton *>())
+            if (b->text() == QStringLiteral("Assign it") && b->accessibleName().contains(QStringLiteral("Vertical push"))) fix = b;
+        check(fix != nullptr, "the hint offers the fix as a button");
+        if (fix) fix->click();
+        check(me()->selectedId() == QStringLiteral("m:v_push"), "the fix selects the motion");
+        // back to the wheel for the following steps
+        QRadioButton *wheel = radio(QStringLiteral("Scroll up and down"));
+        settle();
+        wheel = radio(QStringLiteral("Scroll up and down"));
+        if (wheel) wheel->click();
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_PUSH_ACTION = wheel_v")) && fileText(rel).contains(QStringLiteral("V_TILT_ACTION = none")),
+              "scroll on the push splits it from the tilt, which is still off");
+    }
+    // Detect by moving: the state in words, the motion you move and the button you press are selected
+    {
+        me()->setDetect(true);
+        check(me()->detecting() && me()->detectText().contains(QStringLiteral("Start the daemon to detect by moving")), "Detect says in words that the daemon is needed");
+        spn::RawAxes rest{};
+        spn::RawAxes tilt{};
+        tilt[spn::AX_RZ] = 300;
+        me()->injectSample(rest, 0);
+        for (int i = 0; i < 6; ++i) me()->injectSample(tilt, 0);
+        check(me()->selectedId() == QStringLiteral("m:h_tilt"), "moving the cap selects the motion");
+        sel(me()->selectedId());
+        for (int i = 0; i < 6; ++i) me()->injectSample(rest, 0);
+        me()->injectSample(rest, 0x1);
+        check(me()->selectedId() == QStringLiteral("b:1"), "pressing a button selects it");
+        me()->setDetect(false);
+        check(!me()->detecting() && me()->detectText().isEmpty(), "switching it off clears the state");
+        me()->injectSample(tilt, 0);  // ignored while off
+        check(me()->selectedId() == QStringLiteral("b:1"), "an off Detect selects nothing");
+    }
+    // Try this joystick mode: global, with the way back
+    {
+        QPushButton *tryBtn = nullptr;
+        for (QPushButton *b : me()->findChildren<QPushButton *>())
+            if (b->text() == QStringLiteral("Try this joystick mode")) tryBtn = b;
+        check(tryBtn != nullptr, "Try this joystick mode exists");
+        if (tryBtn) tryBtn->click();
+        settle();
+        check(me()->tryText().contains(QStringLiteral("Trying: Motions demo on all profiles")), "Trying says it in words, on all profiles");
+        QPushButton *back = nullptr;
+        for (QPushButton *b : me()->findChildren<QPushButton *>())
+            if (b->text().startsWith(QStringLiteral("Back to ")) && !b->isHidden()) back = b;
+        check(back != nullptr, "and offers the way back");
+        check(me()->tourText().contains(QStringLiteral("That is all")), "trying completes the tour");
+        check(spn::ui::loadUiProgress(spn::ui::uiProgressPath(ctx.configPath)).motionTourSeen, "a finished tour is not shown again");
     }
     // a button: the inspector is the shared button row
     sel(QStringLiteral("b:1"));

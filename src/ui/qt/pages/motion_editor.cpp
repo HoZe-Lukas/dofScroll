@@ -21,17 +21,23 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QToolButton>
 #include <QToolTip>
 #include <QVBoxLayout>
 #include <algorithm>
 #include <cmath>
 #include <set>
 
+#include "info_popup.hpp"
 #include "key_combo.hpp"
+#include "ui/model/axes_model.hpp"
 #include "ui/model/button_chip_model.hpp"
+#include "ui/model/motion_help_model.hpp"
 #include "ui/model/motion_map_model.hpp"
+#include "ui/model/ui_progress.hpp"
 #include "ui_i18n.hpp"
 
 using namespace spn;
@@ -383,7 +389,7 @@ QString MotionEditor::T(const char *s) const { return ::T(s); }
 MotionEditor::MotionEditor(const MotionEditorEnv &env, const QString &selected, QWidget *parent) : QWidget(parent), env_(env) {
     auto *root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
-    // Left: device choice, picture, live sentence.
+    // Left: device choice, tools, tour, picture, live sentence, hints.
     auto *left = new QVBoxLayout;
     auto *devRow = new QHBoxLayout;
     auto *devLabel = new QLabel(T("Device:"), this);
@@ -392,7 +398,9 @@ MotionEditor::MotionEditor(const MotionEditorEnv &env, const QString &selected, 
     devLabel->setBuddy(deviceCombo_);
     devRow->addWidget(devLabel);
     devRow->addWidget(deviceCombo_, 1);
+    devRow->addWidget(helpButton(this, QStringLiteral("picture")));
     left->addLayout(devRow);
+    buildTop(left);
     picture_ = new MotionPicture(this);
     left->addWidget(picture_);
     sentence_ = new QLabel(this);
@@ -400,6 +408,10 @@ MotionEditor::MotionEditor(const MotionEditorEnv &env, const QString &selected, 
     sentence_->setTextFormat(Qt::PlainText);
     sentence_->setAccessibleName(T("What the selected item does"));
     left->addWidget(sentence_);
+    hintBox_ = new QWidget(this);
+    new QVBoxLayout(hintBox_);
+    hintBox_->layout()->setContentsMargins(0, 0, 0, 0);
+    left->addWidget(hintBox_);
     left->addStretch(1);
     root->addLayout(left, 3);
     // Right: the inspector.
@@ -418,9 +430,11 @@ MotionEditor::MotionEditor(const MotionEditorEnv &env, const QString &selected, 
     connect(deviceCombo_, &QComboBox::activated, this, [this](int i) {
         deviceChoice_ = i;
         rebuildPicture();
+        refreshHints();
     });
     connect(picture_, &MotionPicture::selected, this, [this](const QString &id) {
         rebuildInspector();
+        if (!fromDetect_) tourEvent(id.startsWith(QLatin1String("b:")) ? TourEvent::ButtonClicked : TourEvent::MotionClicked);
         emit selectionChanged(id);
     });
     connect(picture_, &MotionPicture::activated, this, [this] {
@@ -433,6 +447,11 @@ MotionEditor::MotionEditor(const MotionEditorEnv &env, const QString &selected, 
     rebuildPicture();
     if (!selected.isEmpty()) picture_->setCurrent(selected);
     rebuildInspector();
+    refreshHints();
+    tryingFrom_ = env_.tryingFrom;
+    refreshTop();
+    refreshTour();
+    if (env_.detect) setDetect(true);
 }
 
 bool MotionEditor::select(const QString &id) {
@@ -497,33 +516,38 @@ void MotionEditor::rebuildInspector() {
         delete item;
     }
     inspectorTitle_ = nullptr;
+    liveBar_ = nullptr;
     const QString id = picture_->current();
-    sentence_->clear();
     if (id.startsWith(QLatin1String("m:"))) {
         Motion m;
         if (motionFromId(id.mid(2).toStdString(), &m)) {
             if (m == Motion::Lift) buildLiftInspector(inspectorCol_);
             else buildMotionInspector(inspectorCol_, m);
-            const MotionLabel l = motionLabel(*env_.form, env_.base, m, *env_.strings);
-            sentence_->setText(qs8(l.name) + QStringLiteral(": ") + qs8(l.action) + (l.reversed ? QStringLiteral(", ") + T("reversed") : QString()) +
-                               (l.badge.empty() ? QString() : QStringLiteral(". ") + qs8(l.badge)));
         }
     } else if (id.startsWith(QLatin1String("b:"))) {
-        const int n = id.mid(2).toInt();
-        buildButtonInspector(inspectorCol_, n);
-        const std::string *act = env_.form->button(n);
-        sentence_->setText(T("Button %1: %2").arg(n).arg(act ? qs8(buttonActionWords(*act, *env_.strings)) : T("not bound here, the profile's binding applies")));
+        buildButtonInspector(inspectorCol_, id.mid(2).toInt());
     }
     inspectorCol_->addStretch(1);
+    refreshSentence();
+    refreshDetect();
 }
 
 void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
     const MotionLabel l = motionLabel(*env_.form, env_.base, m, *env_.strings);
     inspectorTitle_ = new QLabel(QStringLiteral("<b>") + qs8(l.name).toHtmlEscaped() + QStringLiteral("</b>"), inspectorBox_);
     inspectorTitle_->setTextFormat(Qt::RichText);
-    col->addWidget(inspectorTitle_);
+    auto *titleRow = new QHBoxLayout;
+    titleRow->addWidget(inspectorTitle_, 1);
+    titleRow->addWidget(helpButton(inspectorBox_, QStringLiteral("motion:") + QString::fromLatin1(motionId(m))));
+    col->addLayout(titleRow);
     auto *how = new QLabel(qs8(l.how), inspectorBox_);
     col->addWidget(how);
+    liveBar_ = new QProgressBar(inspectorBox_);
+    liveBar_->setRange(0, int(kFullDeflection));
+    liveBar_->setFormat(T("Live: %v"));
+    liveBar_->setAccessibleName(T("Live value"));
+    liveBar_->setVisible(detectOn_);
+    col->addWidget(liveBar_);
 
     const MotionPlace place = placeOf(*env_.form, env_.base, m);
     if (!l.badge.empty()) {
@@ -551,7 +575,13 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
         rb->setToolTip(T(c.tip));
         rb->setChecked(cur.type == c.type);
         group->addButton(rb);
-        av->addWidget(rb);
+        auto *cardRow = new QHBoxLayout;
+        cardRow->addWidget(rb, 1);
+        const char *topic = c.type == ChannelActionType::Default ? "action:default" : c.type == ChannelActionType::Off ? "action:none"
+                            : c.type == ChannelActionType::WheelV ? "action:wheel_v" : c.type == ChannelActionType::WheelH ? "action:wheel_h"
+                            : c.type == ChannelActionType::Zoom ? "action:zoom" : c.type == ChannelActionType::Keys ? "action:keys" : "action:step";
+        cardRow->addWidget(helpButton(actions, QString::fromLatin1(topic)));
+        av->addLayout(cardRow);
         connect(rb, &QRadioButton::clicked, this, [this, m, c, cur] {
             ChannelForm a;
             a.type = c.type;
@@ -560,6 +590,7 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
                 a.pos = cur.usesKeys() && !cur.pos.empty() ? cur.pos : "down";
             }
             if (!assign(*env_.form, env_.base, m, a).ok) return;
+            tourEvent(TourEvent::ActionAssigned);
             if (env_.changed) env_.changed();
         });
     }
@@ -589,7 +620,10 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
         if (!setReversed(*env_.form, env_.base, m, on).ok) return;
         if (env_.changed) env_.changed();
     });
-    col->addWidget(rev);
+    auto *revRow = new QHBoxLayout;
+    revRow->addWidget(rev, 1);
+    revRow->addWidget(helpButton(inspectorBox_, QStringLiteral("reverse")));
+    col->addLayout(revRow);
 
     // Same as / swap with another motion
     auto *copyRow = new QHBoxLayout;
@@ -634,6 +668,7 @@ void MotionEditor::buildTuning(QVBoxLayout *col, Motion m) {
     box->setChecked(anySet);
     box->setToolTip(T("Optional: values that apply while this joystick mode is active"));
     auto *fl = new QFormLayout(box);
+    fl->addRow(T("Help:"), helpButton(box, QStringLiteral("tuning")));
     for (const auto &f : fields) {
         const std::string key = prefix + f[0];
         auto *e = new QLineEdit(box);
@@ -663,7 +698,10 @@ void MotionEditor::buildLiftInspector(QVBoxLayout *col) {
     const MotionLabel l = motionLabel(*env_.form, env_.base, Motion::Lift, *env_.strings);
     inspectorTitle_ = new QLabel(QStringLiteral("<b>") + qs8(l.name).toHtmlEscaped() + QStringLiteral("</b>"), inspectorBox_);
     inspectorTitle_->setTextFormat(Qt::RichText);
-    col->addWidget(inspectorTitle_);
+    auto *liftTitle = new QHBoxLayout;
+    liftTitle->addWidget(inspectorTitle_, 1);
+    liftTitle->addWidget(helpButton(inspectorBox_, QStringLiteral("motion:lift")));
+    col->addLayout(liftTitle);
     col->addWidget(new QLabel(qs8(l.how), inspectorBox_));
     auto *warn = new QLabel(mark(StatusKind::Warning, T("Lift / press is prone to false triggers when the cap is grabbed or released. "
                                                        "No built-in joystick mode uses it.")),
@@ -724,9 +762,333 @@ void MotionEditor::buildLiftInspector(QVBoxLayout *col) {
 void MotionEditor::buildButtonInspector(QVBoxLayout *col, int n) {
     inspectorTitle_ = new QLabel(QStringLiteral("<b>") + T("Button %1").arg(n).toHtmlEscaped() + QStringLiteral("</b>"), inspectorBox_);
     inspectorTitle_->setTextFormat(Qt::RichText);
-    col->addWidget(inspectorTitle_);
+    auto *titleRow = new QHBoxLayout;
+    titleRow->addWidget(inspectorTitle_, 1);
+    titleRow->addWidget(helpButton(inspectorBox_, QStringLiteral("button")));
+    col->addLayout(titleRow);
     auto *grid = new QGridLayout;
     grid->setColumnStretch(2, 1);
     col->addLayout(grid);
     if (env_.addButtonRow) env_.addButtonRow(inspectorBox_, grid, 0, n);
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Help, templates, hints, tour, Detect by moving, Try
+
+QToolButton *MotionEditor::helpButton(QWidget *parent, const QString &topic) {
+    const HelpTopic h = helpTopic(topic.toStdString(), *env_.strings);
+    auto *b = makeInfoButton(parent, T("Help: %1").arg(qs8(h.title)), T("What is this?"));
+    b->setText(QStringLiteral("?"));
+    const QString text = qs8(h.title) + QStringLiteral("\n\n") + qs8(h.body);
+    connect(b, &QToolButton::clicked, this, [b, text] { InfoPopup::open(b, text); });
+    return b;
+}
+
+void MotionEditor::buildTop(QVBoxLayout *left) {
+    // tools row: Detect, Try, template, tour
+    auto *tools = new QHBoxLayout;
+    detectBtn_ = new QPushButton(T("Detect by moving"), this);
+    detectBtn_->setCheckable(true);
+    detectBtn_->setToolTip(T("Move the cap or press a button on the device to select it here. The daemon's output is paused while this is on."));
+    tryBtn_ = new QPushButton(T("Try this joystick mode"), this);
+    tryBtn_->setToolTip(T("Switch to this joystick mode now, on all profiles, to try it in a program"));
+    templates_ = new QComboBox(this);
+    templates_->setAccessibleName(T("Start from a template"));
+    templates_->addItem(T("Start from a template..."), -1);
+    const std::vector<MotionTemplate> all = motionTemplates(*env_.strings);
+    for (size_t i = 0; i < all.size(); ++i) {
+        templates_->addItem(qs8(all[i].title), int(i));
+        templates_->setItemData(int(templates_->count()) - 1, qs8(all[i].description), Qt::ToolTipRole);
+    }
+    tourBtn_ = new QPushButton(T("Show me how"), this);
+    tools->addWidget(detectBtn_);
+    tools->addWidget(tryBtn_);
+    tools->addWidget(templates_, 1);
+    tools->addWidget(tourBtn_);
+    left->addLayout(tools);
+    detectState_ = new QLabel(this);
+    detectState_->setWordWrap(true);
+    detectState_->setTextFormat(Qt::PlainText);
+    detectState_->setAccessibleName(T("State of Detect by moving"));
+    left->addWidget(detectState_);
+    auto *tryRow = new QHBoxLayout;
+    tryState_ = new QLabel(this);
+    tryState_->setWordWrap(true);
+    tryState_->setTextFormat(Qt::PlainText);
+    tryState_->setAccessibleName(T("State of Try"));
+    backBtn_ = new QPushButton(this);
+    tryRow->addWidget(tryState_, 1);
+    tryRow->addWidget(backBtn_);
+    left->addLayout(tryRow);
+    // the tour banner
+    tourBox_ = new QFrame(this);
+    tourBox_->setFrameShape(QFrame::StyledPanel);
+    auto *tl = new QHBoxLayout(tourBox_);
+    tourLabel_ = new QLabel(tourBox_);
+    tourLabel_->setWordWrap(true);
+    tourLabel_->setTextFormat(Qt::PlainText);
+    tourLabel_->setAccessibleName(T("Guided tour"));
+    tourClick_ = new QPushButton(T("Click it instead"), tourBox_);
+    tourNext_ = new QPushButton(T("Next"), tourBox_);
+    tourSkip_ = new QPushButton(T("Skip the tour"), tourBox_);
+    tl->addWidget(tourLabel_, 1);
+    tl->addWidget(tourClick_);
+    tl->addWidget(tourNext_);
+    tl->addWidget(tourSkip_);
+    left->addWidget(tourBox_);
+
+    client_ = std::make_unique<LiveFeedClient>(env_.connector ? env_.connector : LiveFeedClient::Connector([dir = env_.runtimeDir](std::string *err) {
+                                                    return connectFeed(dir, err);
+                                                }));
+    suspend_ = std::make_unique<SuspendHeartbeat>(env_.runtimeDir);
+    clock_.start();
+    timer_ = new QTimer(this);
+    timer_->setInterval(33);  // ~30 Hz like the Axes page
+    timer_->setTimerType(Qt::CoarseTimer);
+    connect(timer_, &QTimer::timeout, this, [this] { pollFeed(); });
+
+    connect(detectBtn_, &QPushButton::clicked, this, [this](bool on) { setDetect(on); });
+    connect(tryBtn_, &QPushButton::clicked, this, [this] { tryThis(env_.form->id); });
+    connect(backBtn_, &QPushButton::clicked, this, [this] {
+        const std::string back = tryingFrom_.empty() ? std::string("normal") : tryingFrom_;
+        tryThis(back);
+        tryingFrom_.clear();
+        if (env_.tryingChanged) env_.tryingChanged(std::string());
+        refreshTop();
+    });
+    connect(templates_, &QComboBox::activated, this, [this, all](int i) {
+        const int idx = templates_->itemData(i).toInt();
+        if (idx < 0 || idx >= int(all.size())) return;
+        applyTemplate(*env_.form, all[size_t(idx)]);
+        tourEvent(TourEvent::ActionAssigned);
+        if (env_.changed) env_.changed();
+    });
+    connect(tourBtn_, &QPushButton::clicked, this, [this] {
+        if (!env_.tour) return;
+        env_.tour->restart();
+        refreshTour();
+    });
+    connect(tourClick_, &QPushButton::clicked, this, [this] {
+        if (env_.tour) env_.tour->chooseClick();
+        refreshTour();
+    });
+    connect(tourNext_, &QPushButton::clicked, this, [this] {
+        if (env_.tour) env_.tour->next();
+        refreshTour();
+    });
+    connect(tourSkip_, &QPushButton::clicked, this, [this] {
+        if (env_.tour) {
+            env_.tour->dismiss();
+            std::string err;
+            if (!env_.uiProgressFile.empty()) markMotionTourSeen(env_.uiProgressFile, &err);
+        }
+        refreshTour();
+    });
+}
+
+bool MotionEditor::deviceAvailable() const {
+    return !env_.deviceName.empty() && env_.daemonRunning && env_.daemonRunning();
+}
+
+void MotionEditor::tourEvent(TourEvent e) {
+    if (!env_.tour || !env_.tour->active()) return;
+    if (env_.tour->on(e)) refreshTour();
+}
+
+void MotionEditor::refreshTour() {
+    TourModel *t = env_.tour;
+    const bool show = t && (t->active() || t->finished());
+    tourBox_->setVisible(show);
+    if (!show) return;
+    t->setDevice(deviceAvailable());
+    if (t->finished()) {
+        tourLabel_->setText(qs8(t->text(*env_.strings)));
+        tourClick_->hide();
+        tourNext_->hide();
+        tourSkip_->setText(T("Close"));
+        std::string err;
+        if (!env_.uiProgressFile.empty()) markMotionTourSeen(env_.uiProgressFile, &err);
+        return;
+    }
+    tourLabel_->setText(T("Step %1 of %2: %3").arg(t->number()).arg(TourModel::kSteps).arg(qs8(t->text(*env_.strings))));
+    tourClick_->setVisible(t->canClickInstead());
+    tourNext_->setVisible(t->step() == TourStep::Try);
+    tourSkip_->setText(T("Skip the tour"));
+    // a step that waits for the real movement needs Detect to be on
+    if (t->waitsForDevice() && !detectOn_) setDetect(true);
+}
+
+QString MotionEditor::tourText() const { return tourBox_ && !tourBox_->isHidden() ? tourLabel_->text() : QString(); }
+
+void MotionEditor::refreshTop() {
+    if (tryingFrom_.empty() && env_.tryingFrom.empty()) {
+        tryState_->clear();
+        backBtn_->hide();
+    }
+    tryBtn_->setEnabled(env_.tryMode != nullptr);
+    if (!tryingFrom_.empty()) {
+        const QString name = env_.form->name.empty() ? qs8(env_.form->id) : qs8(env_.form->name);
+        tryState_->setText(T("Trying: %1 on all profiles").arg(name));
+        backBtn_->setText(T("Back to %1").arg(qs8(tryingFrom_)));
+        backBtn_->show();
+    }
+}
+
+QString MotionEditor::tryText() const { return tryState_ ? tryState_->text() : QString(); }
+
+void MotionEditor::tryThis(const std::string &modeId) {
+    if (!env_.tryMode) return;
+    if (env_.flush) env_.flush();  // the daemon applies the saved file: write the last edit first
+    const bool trying = modeId == env_.form->id;
+    const std::string before = env_.activeMode ? env_.activeMode() : std::string();
+    std::string err;
+    if (!env_.tryMode(modeId, &err)) {
+        tryState_->setText(mark(StatusKind::Error, T("Could not ask the daemon: %1").arg(qs8(err))));
+        return;
+    }
+    if (trying) {
+        tryingFrom_ = before.empty() || before == modeId ? std::string("normal") : before;
+        if (env_.tryingChanged) env_.tryingChanged(tryingFrom_);
+        tourEvent(TourEvent::Tried);
+    }
+    refreshTop();
+}
+
+void MotionEditor::refreshHints() {
+    auto *col = static_cast<QVBoxLayout *>(hintBox_->layout());
+    while (QLayoutItem *item = col->takeAt(0)) {
+        delete item->widget();
+        delete item;
+    }
+    hints_.clear();
+    // the number of buttons of the device shown in the picture
+    std::string name = env_.deviceName;
+    int reported = env_.reportedButtons;
+    if (deviceChoice_ > 0) {
+        name = deviceCombo_->itemData(deviceChoice_).toString().toStdString();
+        reported = 0;
+    }
+    const int buttons = knownDeviceModel(name) ? deviceLayout(name, reported).count : 0;
+    for (const MotionHint &h : motionHints(*env_.form, env_.base, buttons, *env_.strings)) {
+        auto *row = new QWidget(hintBox_);
+        auto *hl = new QHBoxLayout(row);
+        hl->setContentsMargins(0, 0, 0, 0);
+        auto *text = new QLabel(mark(StatusKind::Warning, qs8(h.text)), row);
+        text->setWordWrap(true);
+        text->setProperty("warning", true);
+        hl->addWidget(text, 1);
+        auto *fix = new QPushButton(qs8(h.fixLabel), row);
+        fix->setAccessibleName(qs8(h.text) + QStringLiteral(": ") + qs8(h.fixLabel));
+        hl->addWidget(fix);
+        col->addWidget(row);
+        hints_ << qs8(h.text);
+        const std::string fixId = h.fixId;
+        connect(fix, &QPushButton::clicked, this, [this, fixId] {
+            if (fixId.rfind("select:", 0) == 0) {
+                select(qs8(std::string("m:") + fixId.substr(7)));
+            } else if (fixId.rfind("tab:", 0) == 0) {
+                if (env_.showTab) env_.showTab(qs8(fixId.substr(4)));
+            } else if (fixId.rfind("unbind:", 0) == 0) {
+                env_.form->setButton(std::atoi(fixId.c_str() + 7), "none");
+                if (env_.changed) env_.changed();
+            }
+        });
+    }
+}
+
+QStringList MotionEditor::hintTexts() const { return hints_; }
+
+void MotionEditor::refreshSentence() {
+    const QString id = picture_->current();
+    QString text;
+    if (id.startsWith(QLatin1String("m:"))) {
+        Motion m;
+        if (motionFromId(id.mid(2).toStdString(), &m)) {
+            const double live = detectOn_ && haveLive_ ? double(live_[motionAxis(m)]) : std::nan("");
+            text = qs8(motionSentence(*env_.form, env_.base, m, *env_.strings, live));
+            const MotionLabel l = motionLabel(*env_.form, env_.base, m, *env_.strings);
+            if (!l.badge.empty()) text += QStringLiteral(". ") + qs8(l.badge);
+            if (liveBar_) liveBar_->setValue(std::min(int(kFullDeflection), std::abs(int(live_[motionAxis(m)]))));
+        }
+    } else if (id.startsWith(QLatin1String("b:"))) {
+        text = qs8(buttonSentence(*env_.form, id.mid(2).toInt(), *env_.strings));
+    }
+    sentence_->setText(text);
+}
+
+QString MotionEditor::liveSentence() const { return sentence_ ? sentence_->text() : QString(); }
+
+void MotionEditor::setDetect(bool on) {
+    if (on == detectOn_ && detectBtn_->isChecked() == on) return;
+    detectOn_ = on;
+    detectBtn_->setChecked(on);
+    detectModel_.reset();
+    haveLive_ = false;
+    if (on) {
+        timer_->start();
+    } else {
+        timer_->stop();
+        suspend_->stop();  // the output resumes at once
+    }
+    if (env_.detectChanged) env_.detectChanged(on);
+    if (liveBar_) liveBar_->setVisible(on);
+    refreshDetect();
+    refreshSentence();
+}
+
+void MotionEditor::hideEvent(QHideEvent *e) {
+    QWidget::hideEvent(e);
+    if (detectOn_) setDetect(false);  // leaving the tab switches it off and resumes the output
+}
+
+QString MotionEditor::detectText() const { return detectState_ ? detectState_->text() : QString(); }
+
+void MotionEditor::refreshDetect() {
+    if (!detectState_) return;
+    if (!detectOn_) {
+        detectState_->clear();
+        detectState_->hide();
+        return;
+    }
+    const int64_t now = clock_.nsecsElapsed();
+    const ConnState cs = connectionState(client_->state(), feed_, now);
+    QString text;
+    if (cs == ConnState::Connected || haveLive_)
+        text = T("Detecting: move the cap or press a button on the device to select it. The daemon's output is paused while this is on.");
+    else
+        text = mark(StatusKind::Warning, T("Start the daemon to detect by moving.") + QLatin1Char(' ') + T(connectionHint(cs, currentHostOs())));
+    detectState_->setText(text);
+    detectState_->show();
+}
+
+void MotionEditor::pollFeed() {
+    const int64_t now = clock_.nsecsElapsed();
+    suspend_->update(detectOn_, now);
+    client_->poll(now, [&](const LiveSample &s) {
+        feed_.update(s, now);
+        injectSample(s.axes, s.buttons);
+    });
+    refreshDetect();
+}
+
+void MotionEditor::injectSample(const RawAxes &axes, uint32_t buttons) {
+    if (!detectOn_) return;
+    live_ = axes;
+    haveLive_ = true;
+    const DetectEvent e = detectModel_.feed(axes, buttons);
+    if (e.kind != DetectEvent::None) {
+        fromDetect_ = true;
+        if (e.kind == DetectEvent::Motion) {
+            select(QStringLiteral("m:") + QString::fromLatin1(motionId(e.motion)));
+            tourEvent(TourEvent::MotionDetected);
+        } else {
+            if (!select(QStringLiteral("b:") + QString::number(e.button))) {
+                // a button the picture does not show: nothing to select
+            } else {
+                tourEvent(TourEvent::ButtonDetected);
+            }
+        }
+        fromDetect_ = false;
+    }
+    refreshSentence();
 }

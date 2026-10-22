@@ -16,6 +16,7 @@
 
 #include "autosaver.hpp"
 #include "ui/model/mode_editor_model.hpp"
+#include "ui/model/tour_model.hpp"
 #include "qt_action_runner.hpp"
 #include "ui_context.hpp"
 
@@ -79,6 +80,9 @@ private:
     QString lastTab_ = QStringLiteral("motions");
     QString motionSel_;  // the selected motion or button of the Motions and buttons tab, kept across rebuilds
     MotionEditor *motionEditor_ = nullptr;
+    std::unique_ptr<spn::ui::TourModel> motionTour_;  // lives here so that it survives the rebuild after an edit
+    bool motionDetect_ = false;                      // Detect by moving was on
+    std::string motionTrying_;                       // the joystick mode before "Try this joystick mode" ("" = not trying)
     QLabel *title_ = nullptr, *problems_ = nullptr;
     QPlainTextEdit *warnings_ = nullptr;
     QPushButton *closeBtn_ = nullptr, *textBtn_ = nullptr;
