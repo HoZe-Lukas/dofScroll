@@ -26,7 +26,7 @@ jobs:
   package-rpm:
     name: package RPM + TGZ (Rocky 9)
     runs-on: ubuntu-latest
-    container: ghcr.io/hoze-lukas/dofscroll-ci-rocky9-qt@sha256:cb647a652c3e16d96f0abedaa821c8eab7668da74b779bf0f7d34a1ee613cfce  # pinned, scripts/pin-ci-images.sh
+    container: ghcr.io/hoze-lukas/dofscroll-ci-rocky9-qt@sha256:f534142ced555b21ca67047574bded29294e9684372875da4a670bf44dd9a580  # pinned, scripts/pin-ci-images.sh
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
