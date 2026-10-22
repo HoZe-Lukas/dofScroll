@@ -110,8 +110,7 @@ inline std::vector<OverviewTask> overviewTasks() {
 inline std::vector<OverviewAction> overviewActions() {
     return {{"open_log", "Open log", TrayAction::OpenLog},
             {"release_keys", "Release all keys", TrayAction::ReleaseAllKeys},
-            {"restart_daemon", "Restart daemon", TrayAction::RestartDaemon},
-            {"restart_interface", "Restart interface", TrayAction::RestartInterface}};
+            {"restart", "Restart", TrayAction::Restart}};
 }
 
 // Switches the mode of the running daemon (not the configuration): the runtime request of the
@@ -186,7 +185,7 @@ inline std::vector<GettingStartedStep> gettingStartedSteps(const OverviewData &d
     // The Axes page shows what the daemon sees of the device; it is where the user checks the connection.
     GettingStartedStep device{"device", s.tr("Connect your SpaceMouse. The daemon has to see it."), deviceSeen, "axes", ""};
     if (!deviceSeen && !status.daemonRunning())
-        device.hint = s.tr("The daemon is not running. Start dofscroll (or use Restart daemon) and see Troubleshooting.");
+        device.hint = s.tr("The daemon is not running. Start dofscroll (or use Restart) and see Troubleshooting.");
     out.push_back(device);
     out.push_back({"axes", s.tr("Check on the Axes page that the axes move as you expect (the assistant helps)."),
                    axisAssistantApplied, "axes", ""});

@@ -13,9 +13,8 @@
 //   6 separator
 //   7 Settings...   8 Open config file   9 Show log...   10 Open modes folder
 //   11 Release all keys (emergency: runs `dofscroll --release-keys`)
-//   12 Restart daemon (releases held keys, then restarts the daemon)
-//   13 Restart interface (restarts this UI process)
-//   14 separator    15 Quit
+//   12 Restart (releases held keys, restarts the daemon, then this UI process)
+//   13 separator    14 Quit
 #pragma once
 #include <functional>
 #include <string>
@@ -28,7 +27,7 @@
 
 namespace spn::ui {
 
-enum class TrayAction { None, SetMode, ToggleEnabled, OpenSettings, OpenConfig, OpenLog, OpenModesFolder, ReleaseAllKeys, RestartDaemon, RestartInterface, Quit };
+enum class TrayAction { None, SetMode, ToggleEnabled, OpenSettings, OpenConfig, OpenLog, OpenModesFolder, ReleaseAllKeys, Restart, Quit };
 
 struct TrayEntry {
     enum class Kind { Info, Separator, Item, Radio, Check, Submenu } kind = Kind::Item;
@@ -111,8 +110,7 @@ inline TrayMenu buildTrayMenu(const TrayMenuInput &in, const StringProvider &s) 
     m.entries.push_back(item("Show log...", TrayAction::OpenLog));
     m.entries.push_back(item("Open joystick modes folder", TrayAction::OpenModesFolder));
     m.entries.push_back(item("Release all keys", TrayAction::ReleaseAllKeys));
-    m.entries.push_back(item("Restart daemon", TrayAction::RestartDaemon));
-    m.entries.push_back(item("Restart interface", TrayAction::RestartInterface));
+    m.entries.push_back(item("Restart", TrayAction::Restart));
     m.entries.push_back(sep());
     m.entries.push_back(item("Quit", TrayAction::Quit));
     return m;
@@ -157,16 +155,16 @@ inline bool performTrayAction(const TrayEntry &entry, ActionRunner &runner, cons
             runner.requestReload(&ignored);
             return ok;
         }
-        case TrayAction::RestartDaemon: {
+        case TrayAction::Restart: {
             // Keys first (a failure here must not block the restart: the daemon releases on quit).
+            // The daemon is restarted before the interface: restarting the interface may end this process.
             std::string ignored;
             runner.releaseKeys(&ignored);
-            return runner.restartDaemon(err);
-        }
-        case TrayAction::RestartInterface:
+            if (!runner.restartDaemon(err)) return false;
             if (!runner.restartInterface(err)) return false;
             if (h.quit) h.quit();
             return true;
+        }
     }
     return true;
 }

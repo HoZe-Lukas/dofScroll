@@ -29,6 +29,7 @@ inline std::vector<SettingsModel::Group> channelPageGroups() {
             if (d.id == "zoom_detect") z.keys.insert(z.keys.end(), d.keys.begin(), d.keys.end());
         out.push_back(z);
     }
+    out.push_back({"axes", "Axis directions", {"INVERT_AXES"}, false});
     out.push_back({"steps", "Step actions", {"STEP_TRIGGER"}, false});
     return out;
 }
@@ -55,6 +56,7 @@ inline bool restoreAllDefaults(SettingsModel &m, size_t section) {
     return changed;
 }
 
+// INVERT_AXES as a bit set over the six axes (bit = Axis value), like ZOOM_LATERAL.
 // ZOOM_LATERAL as a bit set over the six axes (bit = Axis value).
 inline unsigned lateralMask(const Settings &s) {
     unsigned m = 0;

@@ -75,10 +75,21 @@ void ModeRunner::releaseAll() {
 
 void ModeRunner::resetDsp() {
     resetState();
-    if (keys_held_[idx(Key::Ctrl)]) {
-        out_->setKey(Key::Ctrl, false);
-        keys_held_[idx(Key::Ctrl)] = false;
+    // The zoom keys may differ in the new settings (ZOOM_MODIFIER): release every modifier; a button binding
+    // that holds one is pressed again on the next tick.
+    for (Key k : {Key::Ctrl, Key::Shift, Key::Alt, Key::Super}) {
+        if (!keys_held_[idx(k)]) continue;
+        out_->setKey(k, false);
+        keys_held_[idx(k)] = false;
     }
+}
+
+// The keys held while a zoom action sends the mouse wheel (ZOOM_MODIFIER).
+static void addZoomKeys(std::bitset<kKeyCount> &keys, const Settings &s) {
+    if (s.zoom_modifier & kZoomModCtrl) keys[idx(Key::Ctrl)] = true;
+    if (s.zoom_modifier & kZoomModShift) keys[idx(Key::Shift)] = true;
+    if (s.zoom_modifier & kZoomModAlt) keys[idx(Key::Alt)] = true;
+    if (s.zoom_modifier & kZoomModSuper) keys[idx(Key::Super)] = true;
 }
 
 void ModeRunner::syncMouse(uint8_t want) {
@@ -210,6 +221,14 @@ void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, b
         }
     }
     prev_buttons_ = buttons;
+    if (s.invert_axes != 0) {  // INVERT_AXES: flip the chosen axes before any mix, split part or zoom detection sees them
+        RawAxes flipped = raw;
+        for (int a = 0; a < AX_COUNT; ++a)
+            if (s.invert_axes & (1u << a)) flipped[size_t(a)] = -flipped[size_t(a)];
+        if (legacy_) tickLegacy(s, flipped, buttons, fresh, dt);
+        else tickCustom(s, flipped, buttons, fresh, dt);
+        return;
+    }
     if (legacy_) tickLegacy(s, raw, buttons, fresh, dt);
     else tickCustom(s, raw, buttons, fresh, dt);
 }
@@ -241,7 +260,7 @@ void ModeRunner::tickLegacy(const Settings &s, const RawAxes &raw, uint32_t butt
     double rate_zoom = ch_zoom_.processValue(s.zoom, zoom_mixed, dt);
 
     std::bitset<kKeyCount> keys = w.keys;
-    if (zooming) keys[idx(Key::Ctrl)] = true;
+    if (zooming) addZoomKeys(keys, s);
     syncKeys(keys);
     if (zooming) {
         acc_v_.reset();
@@ -371,7 +390,7 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
         if (split[i / 2] && part_t[i] == ChannelActionType::Zoom && part_rate[i] != 0.0) part_zoom = true;
     if (zooming || (!split[0] && tv == ChannelActionType::Zoom && rate_v != 0.0) ||
         (!split[1] && th == ChannelActionType::Zoom && rate_h != 0.0) || part_zoom)
-        keys[idx(Key::Ctrl)] = true;
+        addZoomKeys(keys, s);
     syncKeys(keys);
 
     auto emit = [&](const ChannelAction &a, ChannelActionType t, int n, int sgn) {

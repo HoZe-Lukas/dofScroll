@@ -222,8 +222,8 @@ msgstr "Tickrate (Hz)"
 msgid "How many times per second the daemon generates events (30..1000)"
 msgstr "Wie oft pro Sekunde der Daemon Ereignisse erzeugt (30..1000)"
 
-msgid "Restart daemon"
-msgstr "Daemon neu starten"
+msgid "Restart"
+msgstr "Neu starten"
 
 msgid "General"
 msgstr "Allgemein"
@@ -1230,10 +1230,6 @@ msgstr "Keine Anwendung konnte %1 öffnen"
 msgid "Cannot run %1"
 msgstr "%1 kann nicht ausgeführt werden"
 
-#: src/ui/model/tray_menu_model.hpp
-msgid "Restart interface"
-msgstr "Oberfläche neu starten"
-
 #: src/ui/qt/qt_action_runner.cpp
 msgid "Cannot restart the daemon through the service manager"
 msgstr "Der Daemon kann nicht über den Dienstmanager neu gestartet werden"
@@ -1895,7 +1891,7 @@ msgid "No profile matches the filter."
 msgstr "Kein Profil passt zum Filter."
 
 #: src/ui/qt (Overview, log viewer, Channels filter)
-msgid "The daemon is not running. Start dofscroll (or use Restart daemon) and see Troubleshooting."
+msgid "The daemon is not running. Start dofscroll (or use Restart) and see Troubleshooting."
 msgstr "Der Daemon läuft nicht. Starten Sie dofscroll (oder nutzen Sie Daemon neu starten) und lesen Sie die Fehlerbehebung."
 
 #: src/ui/qt (Overview, log viewer, Channels filter)
@@ -3337,6 +3333,18 @@ msgid "Scroll sideways"
 msgstr "Seitlich scrollen"
 
 #: src/ui/model/motion_summary_model.hpp
+msgid "Zoom: mouse wheel"
+msgstr "Zoom: Mausrad"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Wheel"
+msgstr "Mausrad"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Zoom: %1 + mouse wheel"
+msgstr "Zoom: %1 + Mausrad"
+
+#: src/ui/model/motion_summary_model.hpp
 msgid "Sideways"
 msgstr "Seitlich"
 
@@ -3519,3 +3527,23 @@ msgstr "Schaltet durch: %1"
 #: src/ui/qt/pages/cycle_editor_widget.cpp
 msgid "Which joystick modes the button goes through"
 msgstr "Durch welche Joystick-Modi die Taste schaltet"
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "Axis directions"
+msgstr "Achsenrichtungen"
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "Invert direction of"
+msgstr "Richtung umkehren von"
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "Zoom key"
+msgstr "Zoom-Taste"
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "Flips the direction of the checked motions in every joystick mode, for example when pushing scrolls the wrong way but tilting is right"
+msgstr "Kehrt die Richtung der angehakten Bewegungen in jedem Joystick-Mode um, zum Beispiel wenn Schieben in die falsche Richtung scrollt, Kippen aber stimmt"
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "Keys held while zooming (the mouse wheel is sent with them): ctrl, shift, alt, super (Cmd on macOS), a combination such as ctrl+shift, or none"
+msgstr "Tasten, die beim Zoomen gehalten werden (dazu wird das Mausrad gesendet): ctrl, shift, alt, super (Cmd auf macOS), eine Kombination wie ctrl+shift oder none"

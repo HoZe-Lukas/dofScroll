@@ -52,11 +52,21 @@ desktop portal; `--self-test` checks on Linux that the base style is Fusion. The
 | `kRowHeight` | 32 | rows of lists and trees |
 | `kRadius`, `kRadiusCard` | 8, 10 | corners |
 
+The Channels tab also has **Invert direction of** (a check box per motion, key `INVERT_AXES`; flips the
+direction in every joystick mode, for example when pushing scrolls the wrong way but tilting is right) and
+**Zoom key** (`ZOOM_MODIFIER`, the keys held while zooming, `super` for Cmd on macOS); both can be set per
+profile, and the motion chips show the zoom key of the profile.
+
 **One component, used everywhere (what a joystick mode or a profile does).** The six motions of the
 SpaceMouse cap always appear in the same order with the same symbol and the same chip style, on every
 page that shows what a joystick mode or a profile does: vertical push (axis z, symbol shows the action),
-vertical tilt (rx), horizontal push (x), horizontal tilt (rz), twist (ry) and lift / press (y, normally
-"Not used"). The shared view components are in `src/ui/qt/motion_view.hpp` (`MotionStrip` six small chips,
+vertical tilt (rx), horizontal push (x), horizontal tilt (rz), lift / press (y, normally "Not used") and
+twist (ry). In the 3x2 panel the top row holds only pushes (vertical, horizontal, lift / press) and the bottom
+row only the tilts and the twist. A chip starts with a marker for the kind of motion (a flat bar for a push, a
+wedge for a tilt, a turn arrow for the twist), then the symbol of the action and the word; a Keys or Tap action
+shows its keys instead of the word ("Left / Right", "Ctrl+Page up / Ctrl+Page down") and the Zoom action says
+"Ctrl+Wheel" (the keys of `ZOOM_MODIFIER`, read from the profile, and the mouse wheel), so a zoom by keys such as Ctrl+Plus / Ctrl+Minus is not
+mistaken for it and two motions with keys can be told apart. The shared view components are in `src/ui/qt/motion_view.hpp` (`MotionStrip` six small chips,
 `MotionGrid` the 3x2 panel with name, symbol, action, how the cap moves and where the value comes from,
 `ButtonChips` the buttons as numbered chips such as "1 Space", "2 Right click", "15 Navigation"), the
 models behind them are toolkit-free (`motion_summary_model.hpp`, `button_chip_model.hpp`,
@@ -65,7 +75,7 @@ the General tab of a profile (the effective assignment: joystick mode, the profi
 inherited ones, each with "from the joystick mode", "from this profile" or "inherited"), the Overview cards
 (compact strip), the "i" popover (text) and the Button modes page (the chip of the chosen action). A chip never
 relies on colour: an off or unused motion and an unassigned button have a dashed outline, a muted colour and
-the word ("Off", "Not used", "Unassigned"). Chip text stays short, the rest is the tooltip. All lengths come
+the word ("Off", "Not used", "Unassigned"). Chip text stays short (the keys of a key action are shown in full), the rest is the tooltip. All lengths come
 from the font metrics and the chips wrap, so no page needs a horizontal scroll bar at the default size
 (`--self-test` checks it). A new place that shows what a mode or profile does must use these components
 instead of drawing its own text.
@@ -136,7 +146,7 @@ With one lane per device (Windows and macOS, direct HID; [multi-device.md](multi
 - **Documentation** (Overview, Settings, and on the Button modes page) opens the project
   documentation in the default browser: `docs/ui.md`, or `docs/modes.md` from the Button modes page.
   Only https addresses are ever opened.
-- **Release all keys**, **Restart daemon** and **Restart interface** as before.
+- **Release all keys** and **Restart** (daemon and interface together) as in the tray menu.
 - The filter box above the profile cards matches every word against the name, the joystick mode, the kind
   ("device" or "program") and the settings of a profile, ignoring ASCII case. A card says how many settings the profile overrides ("Overrides 3 settings"; the
   profile list on the Profiles page shows the same number after the name). The tooltip of a card
@@ -475,18 +485,18 @@ untouched and the Buttons tab lists them as "Not moved: ...". Disabled old keys 
 ## Tray menu
 
 Status line, "Joystick mode" submenu (the Global joystick mode; every entry has its description as tooltip), "Enabled", "Settings...", "Open config file",
-"Show log...", "Open joystick modes folder", "Release all keys", "Restart daemon", "Restart interface",
+"Show log...", "Open joystick modes folder", "Release all keys", "Restart",
 "Quit". "Release all keys" starts
 `dofscroll --release-keys` as a separate process (the daemon binary next to the interface, else
 `dofscroll` from `PATH`); the same command works in a terminal (see
 [troubleshooting.md](troubleshooting.md#a-key-or-scrolling-gets-stuck)).
 
-"Restart daemon" releases held keys first (as "Release all keys"), then restarts the daemon:
+"Restart" releases held keys first (as "Release all keys"), then restarts the daemon and then the interface. The daemon:
 on Linux `systemctl --user restart dofscroll.service` when the unit is active, on macOS
 `launchctl kickstart -k gui/<uid>/io.github.dofscroll.daemon` when the LaunchAgent is loaded; on
 Windows (and when the service manager does not manage the daemon) it stops the process (Windows:
-`scripts\stop-daemon.ps1`) and starts the `dofscroll` binary next to the interface. "Restart
-interface" restarts this program: under `dofscroll-ui.service` through
+`scripts\stop-daemon.ps1`) and starts the `dofscroll` binary next to the interface. The
+interface is restarted under `dofscroll-ui.service` through
 `systemctl --user restart dofscroll-ui.service`, otherwise it starts a copy of itself with
 `--restart` (which waits up to 8 seconds for the old instance to release the single-instance
 lock) and quits. No shell is involved; the command lines are built in

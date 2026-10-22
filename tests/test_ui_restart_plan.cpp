@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Unit tests for restart_plan.hpp: the argv lists of "Restart daemon" / "Restart interface".
+// Unit tests for restart_plan.hpp: the argv lists of the daemon and interface parts of "Restart".
 #include <cassert>
 #include <cstdio>
 #include <string>

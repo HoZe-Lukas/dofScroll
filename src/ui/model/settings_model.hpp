@@ -45,7 +45,7 @@
 //    the section changed, so the view rebuilds the page (no signals).
 //
 // Keys are the canonical names of config.hpp (SCROLL_V_/SCROLL_H_/ZOOM_ MIX, SENS, DEADZONE, SIGN,
-// CURVE, SMOOTH_MS; ZOOM_LATERAL, ZOOM_ENTER_MS, ZOOM_EXIT_RATIO, BACKEND, INPUT, TICK_HZ, ENABLED,
+// CURVE, SMOOTH_MS; ZOOM_MODIFIER, ZOOM_LATERAL, ZOOM_ENTER_MS, ZOOM_EXIT_RATIO, BACKEND, INPUT, TICK_HZ, ENABLED,
 // MODE); BUTTON_<n> goes through setButton. NAV_BUTTON[_ENABLED] and CLICK_BUTTON[_ENABLED] are
 // deprecated: the model does not offer them any more (visibleSettings, the overrides list) and
 // migrateLegacyButtons() turns a file that still uses them into BUTTON_<n> entries.
@@ -234,7 +234,7 @@ public:
                 x.keys.push_back(std::string(c.pre) + k);
             g.push_back(x);
         }
-        g.push_back({"zoom_detect", "Zoom detection", {"ZOOM_LATERAL", "ZOOM_ENTER_MS", "ZOOM_EXIT_RATIO"}, false});
+        g.push_back({"zoom_detect", "Zoom detection", {"ZOOM_MODIFIER", "ZOOM_LATERAL", "ZOOM_ENTER_MS", "ZOOM_EXIT_RATIO"}, false});
         g.push_back({"general", "General", {"ENABLED", "STEP_TRIGGER", "BACKEND", "TICK_HZ"}, false});
         return g;
     }
@@ -277,6 +277,11 @@ public:
                 for (const char *k : {"MIX", "SENS", "DEADZONE", "SIGN", "CURVE", "SMOOTH_MS"})
                     cand.push_back(std::string(cp[c].pre) + k);
             }
+            if (!(m->v.type == ChannelActionType::Off && m->h.type == ChannelActionType::Off && m->twist.type == ChannelActionType::Off))
+                cand.push_back("INVERT_AXES");  // every mode that uses the axes: the direction of an axis is a matter of taste and of the program
+            if (m->twist.type == ChannelActionType::Default || m->twist.type == ChannelActionType::Zoom || m->v.type == ChannelActionType::Zoom ||
+                m->h.type == ChannelActionType::Zoom)
+                cand.push_back("ZOOM_MODIFIER");  // the key differs per program (Cmd on macOS)
             if (m->twist.type == ChannelActionType::Default)
                 for (const char *k : {"ZOOM_LATERAL", "ZOOM_ENTER_MS", "ZOOM_EXIT_RATIO"}) cand.push_back(k);
             Group o{"overrides", "Overrides for this profile", {}, false};

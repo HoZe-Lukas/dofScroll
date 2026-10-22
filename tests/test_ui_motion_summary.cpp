@@ -22,7 +22,7 @@ public:
     std::string tr(const char *source) const override { return std::string("<") + source + ">"; }
 };
 
-// chips of the rows in the order v_push v_tilt h_push h_tilt twist lift
+// chips of the rows in the order v_push v_tilt h_push h_tilt lift twist
 std::vector<std::string> chips(const ModeDef &m) {
     IdentityStrings id;
     std::vector<std::string> out;
@@ -51,13 +51,14 @@ int main() {
         assert(m && "built-in joystick mode is there");
         const std::vector<MotionRow> rows = motionSummary(*m, id);
         assert(rows.size() == 6);
-        const char *ids[6] = {"v_push", "v_tilt", "h_push", "h_tilt", "twist", "lift"};
+        const char *ids[6] = {"v_push", "v_tilt", "h_push", "h_tilt", "lift", "twist"};
         for (size_t i = 0; i < 6; ++i) assert(rows[i].id == ids[i] && !rows[i].name.empty() && !rows[i].how.empty());
         assert(rows[0].chip == e.v && rows[1].chip == e.v);  // unsplit: push and tilt agree
         assert(rows[2].chip == e.h && rows[3].chip == e.h);
-        assert(rows[4].chip == e.t);
-        assert(rows[5].kind == MotionKind::NotUsed && rows[5].action == "Not used" && rows[5].chip == "Unused" && rows[5].muted());
-        for (size_t i = 0; i < 5; ++i) assert(rows[i].muted() == (rows[i].kind == MotionKind::Off) && !rows[i].action.empty());
+        assert(rows[5].chip == e.t);
+        assert(rows[4].kind == MotionKind::NotUsed && rows[4].action == "Not used" && rows[4].chip == "Unused" && rows[4].muted());
+        for (size_t i = 0; i < 6; ++i)
+            if (i != 4) assert(rows[i].muted() == (rows[i].kind == MotionKind::Off) && !rows[i].action.empty());
         assert(motionChipTexts(rows).size() == 6);
     }
 
@@ -65,13 +66,32 @@ int main() {
     {
         const std::vector<MotionRow> n = motionSummary(*builtins.find("normal"), id);
         assert(n[0].name == "Vertical push" && n[0].action == "Scroll" && n[0].symbol == "scroll");
-        assert(n[2].action == "Scroll sideways" && n[2].symbol == "scroll_h" && n[4].action == "Zoom" && n[4].symbol == "zoom");
-        assert(n[1].name == "Vertical tilt" && n[3].name == "Horizontal tilt" && n[4].name == "Twist" && n[5].name == "Lift / press");
+        assert(n[2].action == "Scroll sideways" && n[2].symbol == "scroll_h" && n[5].action == "Zoom: Ctrl + mouse wheel" && n[5].symbol == "zoom");
+        // zoom says how it zooms: a Keys action (Ctrl+Plus / Ctrl+Minus) is a different zoom
+        assert(n[5].detail == "Ctrl+Wheel" && motionChipTexts(n)[5] == motionMarker("twist") + " " + motionGlyph("zoom") + " Ctrl+Wheel");
+        // the keys come from ZOOM_MODIFIER of the settings (a profile can differ, e.g. Cmd on macOS)
+        Settings mac;
+        mac.zoom_modifier = kZoomModSuper;
+        assert(motionSummary(*builtins.find("normal"), mac, id)[5].detail == "Super+Wheel");
+        mac.zoom_modifier = kZoomModCtrl | kZoomModShift;
+        assert(motionSummary(*builtins.find("normal"), mac, id)[5].action == "Zoom: Ctrl+Shift + mouse wheel");
+        mac.zoom_modifier = 0;
+        assert(motionSummary(*builtins.find("normal"), mac, id)[5].detail == "Wheel");
+        ModeDef alt = *builtins.find("normal");  // a mode may override it as well
+        alt.overrides.push_back({"ZOOM_MODIFIER", "alt"});
+        assert(motionSummary(alt, id)[5].detail == "Alt+Wheel");
+        assert(n[1].name == "Vertical tilt" && n[3].name == "Horizontal tilt" && n[5].name == "Twist" && n[4].name == "Lift / press");
         const std::vector<MotionRow> t = motionSummary(*builtins.find("tabs"), id);
         assert(t[2].action == "Keys: Ctrl+Page up / Ctrl+Page down" && t[2].symbol == "keys");
         const std::vector<MotionRow> o = motionSummary(*builtins.find("off"), id);
         assert(o[0].action == "Off" && o[0].kind == MotionKind::Off && o[0].symbol == "off" && o[0].muted());
-        assert(motionChipTexts(n)[0] == motionGlyph("scroll") + " Scroll");
+        assert(motionChipTexts(n)[0] == motionMarker("v_push") + " " + motionGlyph("scroll") + " Scroll");
+        // push, tilt and twist are marked differently
+        assert(motionMarker("v_push") != motionMarker("v_tilt") && motionMarker("v_tilt") != motionMarker("twist") && motionMarker("lift") == motionMarker("h_push"));
+        // keys are shown, not just the word: timeline has Left / Right on both the horizontal channel and the twist
+        const std::vector<MotionRow> tl = motionSummary(*builtins.find("timeline"), id);
+        assert(tl[2].detail == "Left / Right" && motionChipTexts(tl)[2] == motionMarker("h_push") + " " + motionGlyph("keys") + " Left / Right");
+        assert(motionChipTexts(tl)[2] != motionChipTexts(tl)[5] && motionChipTexts(tl)[2] != motionChipTexts(tl)[3]);
         assert(motionSummaryText(n).find("Lift / press: Not used") != std::string::npos);
         // the glyphs differ per symbol, so the chips are told apart without colour
         assert(motionGlyph("off") != motionGlyph("unused") && motionGlyph("zoom") != motionGlyph("scroll"));
@@ -99,7 +119,7 @@ int main() {
         const std::vector<std::string> c = chips(m);
         assert(c[0] == "Scroll" && c[1] == "Off");
         assert(c[2] == "Sideways" && c[3] == "Zoom");  // H push follows the channel (default = scroll sideways)
-        assert(c[4] == "Zoom" && c[5] == "Unused");
+        assert(c[5] == "Zoom" && c[4] == "Unused");
         // an explicit "default" on a part is the channel's normal behaviour, not the channel's action
         ModeDef d = *builtins.find("timeline");
         d.hSplit.pushSet = true;
@@ -115,18 +135,18 @@ int main() {
         assert(r[0].kind == MotionKind::Active && r[1].kind == MotionKind::NotUsed && r[1].action == "Not used");
         m.overrides.push_back({"SCROLL_H_MIX", "x - rz + y"});
         r = motionSummary(m, id);
-        assert(r[5].kind == MotionKind::Active && r[5].chip == "Sideways" && r[3].chip == "Sideways");
+        assert(r[4].kind == MotionKind::Active && r[4].chip == "Sideways" && r[3].chip == "Sideways");
         // the same through the settings argument (a profile mix)
         Settings st;
         st.scroll_v.mix.terms = {{AX_Y, 1.0}};
         r = motionSummary(*builtins.find("normal"), st, id);
-        assert(r[0].kind == MotionKind::NotUsed && r[1].kind == MotionKind::NotUsed && r[5].chip == "Scroll");
+        assert(r[0].kind == MotionKind::NotUsed && r[1].kind == MotionKind::NotUsed && r[4].chip == "Scroll");
         // a split channel drops a twist term: the twist belongs to the twist channel
         ModeDef s2 = *builtins.find("normal");
         s2.overrides.push_back({"SCROLL_V_MIX", "z + ry"});
         s2.vSplit.pushSet = true;
         s2.vSplit.push.type = ChannelActionType::Off;
-        assert(motionSummary(s2, id)[4].chip == "Zoom");
+        assert(motionSummary(s2, id)[5].chip == "Zoom");
     }
 
     // button chips: number and action in a few words; unassigned is muted and says so
@@ -157,7 +177,7 @@ int main() {
         Marking up;
         const std::vector<MotionRow> r = motionSummary(*builtins.find("timeline"), up);
         assert(r[0].name == "<Vertical push>" && r[0].how == "<Push forward / back>" && r[0].action == "<Off>" && r[0].chip == "<Off>");
-        assert(r[5].action == "<Not used>" && r[5].chip == "<Unused>");
+        assert(r[4].action == "<Not used>" && r[4].chip == "<Unused>");
         assert(r[2].action.rfind("<Keys: ", 0) == 0);
     }
     std::puts("ok");

@@ -40,6 +40,8 @@ The seeded config uses different values than these built-in defaults; it is a st
 
 | Key | Default | Meaning |
 |---|---|---|
+| `INVERT_AXES` | `none` | Axes whose direction is flipped in every joystick mode: a list of `x y z rx ry rz`, or `none`; per device and per program as well |
+| `ZOOM_MODIFIER` | `ctrl` | Keys held while a zoom action sends the mouse wheel: `ctrl`, `shift`, `alt`, `super` (Command on macOS), a combination such as `ctrl+shift`, or `none` |
 | `ZOOM_LATERAL` | `x z rx rz` | Axes the twist must dominate to enter zoom |
 | `ZOOM_ENTER_MS` | `40` | How long the twist must dominate before zoom latches |
 | `ZOOM_EXIT_RATIO` | `1.5` | Zoom ends when another axis exceeds the twist by this factor (at least 1.0) |

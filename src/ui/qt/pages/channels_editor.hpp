@@ -86,6 +86,7 @@ private:
     void addSign(QGridLayout *grid, int *row, const std::string &key);
     void addCurve(QGridLayout *grid, int *row, const std::string &key, const std::string &groupId);
     void addZoomDetection(QGridLayout *grid, int *row);
+    void addInvertAxes(QGridLayout *grid, int *row);
 
     UiContext ctx_;
     size_t section_ = 0;

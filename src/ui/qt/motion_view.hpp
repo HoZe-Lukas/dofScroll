@@ -91,7 +91,7 @@ inline void paintChips(QPainter *p, const QFontMetrics &fm, const QList<Chip> &c
 
 inline Chip chipOf(const spn::ui::MotionRow &r) {
     Chip c;
-    c.text = qs8(spn::ui::motionGlyph(r.symbol)) + QLatin1Char(' ') + qs8(r.chip);
+    c.text = qs8(spn::ui::motionChipText(r));
     c.tooltip = qs8(r.name + " (" + r.how + "): " + r.action);
     c.muted = r.muted();
     return c;
@@ -256,7 +256,7 @@ public:
             if (i >= rows.size()) continue;
             const spn::ui::MotionRow &r = rows[i];
             c.name->setText(qs8(r.name));
-            c.action->setText(qs8(spn::ui::motionGlyph(r.symbol)) + QStringLiteral("  ") + qs8(r.action));
+            c.action->setText(qs8(spn::ui::motionMarker(r.id) + " " + spn::ui::motionGlyph(r.symbol)) + QStringLiteral("  ") + qs8(r.action));
             c.how->setText(qs8(r.how));
             c.source->setText(qs8(r.source));
             c.source->setVisible(!r.source.empty());
