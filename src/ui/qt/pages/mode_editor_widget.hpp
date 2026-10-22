@@ -51,6 +51,8 @@ public:
     QString problemText() const;  // what is wrong with the form now ("" = valid)
     // Sub-tabs: motions (the picture), settings (name, description, channels), buttons, overrides. The last one stays
     // selected while the form is rebuilt and when another mode is opened.
+    // The page that hosts the editor alone (Editor page): no title and no Close button.
+    void setCompact(bool on);
     QStringList tabIds() const;
     MotionEditor *motionEditor() const { return motionEditor_; }
     QString currentTabId() const;
@@ -79,6 +81,7 @@ private:
     QTabWidget *tabs_ = nullptr;
     QString lastTab_ = QStringLiteral("motions");
     QString motionSel_;  // the selected motion or button of the Motions and buttons tab, kept across rebuilds
+    bool compact_ = false;  // the Editor page: no scroll area per tab
     MotionEditor *motionEditor_ = nullptr;
     std::unique_ptr<spn::ui::TourModel> motionTour_;  // lives here so that it survives the rebuild after an edit
     bool motionDetect_ = false;                      // Detect by moving was on

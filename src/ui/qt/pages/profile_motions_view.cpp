@@ -115,10 +115,7 @@ void ProfileMotionsView::rebuild() {
 }
 
 void ProfileMotionsView::rebuildInspector() {
-    while (QLayoutItem *item = col_->takeAt(0)) {
-        delete item->widget();
-        delete item;
-    }
+    clearLayoutNow(col_);
     title_ = nullptr;
     const QString id = picture_->current();
     if (id.startsWith(QLatin1String("m:"))) buildMotion(col_, id.mid(2));

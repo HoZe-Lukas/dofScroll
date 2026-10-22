@@ -11,6 +11,8 @@
 // All lengths follow the font metrics, so the layout also holds at a large font size.
 #pragma once
 #include <QElapsedTimer>
+#include <QLayout>
+#include <QLayoutItem>
 #include <QList>
 #include <QRect>
 #include <QString>
@@ -31,6 +33,7 @@
 #include "ui/model/motion_map_model.hpp"
 #include "ui/model/strings.hpp"
 
+class QBoxLayout;
 class QComboBox;
 class QFrame;
 class QLabel;
@@ -38,7 +41,18 @@ class QProgressBar;
 class QPushButton;
 class QToolButton;
 class QGridLayout;
+class QHBoxLayout;
 class QVBoxLayout;
+
+// Removes everything from a layout, nested layouts and their widgets too, and deletes the widgets at once (a lookup
+// right after a rebuild must not find the old controls).
+inline void clearLayoutNow(QLayout *l) {
+    while (QLayoutItem *item = l->takeAt(0)) {
+        if (QLayout *sub = item->layout()) clearLayoutNow(sub);
+        delete item->widget();
+        delete item;
+    }
+}
 
 // The picture: items are the six motions ("m:v_push", ...) and the buttons ("b:3").
 class MotionPicture : public QWidget {
@@ -48,6 +62,7 @@ public:
         QString id;       // "m:<motion id>" or "b:<number>"
         QString title;    // "Vertical push" / "1"
         QString text;     // the action in words, short
+        QString glyph;    // the symbol drawn before the action
         QString tooltip;  // full sentence
         bool muted = false;
         double ux = 0.5, uy = 0.5;  // unit position of a button (device_layout_model.hpp): left or right group, row order
@@ -153,9 +168,10 @@ signals:
 
 protected:
     void hideEvent(QHideEvent *) override;
+    void resizeEvent(QResizeEvent *) override;
 
 private:
-    void buildTop(QVBoxLayout *left);
+    void buildTop(QVBoxLayout *left, QHBoxLayout *tools);
     void refreshTop();
     void refreshHints();
     void refreshTour();
@@ -175,6 +191,8 @@ private:
     QString T(const char *s) const;
 
     MotionEditorEnv env_;
+    QBoxLayout *root_ = nullptr;
+    QWidget *leftBox_ = nullptr;
     MotionPicture *picture_ = nullptr;
     QWidget *inspectorBox_ = nullptr;
     QVBoxLayout *inspectorCol_ = nullptr;

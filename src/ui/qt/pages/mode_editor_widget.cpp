@@ -289,6 +289,14 @@ void ModeEditorWidget::rebuild() {
         w->deleteLater();
     }
     auto newTab = [this](const char *id, const QString &label, QWidget **content) {
+        if (compact_) {
+            // on the Editor page the window scrolls, not every tab (one scroll bar, not two)
+            auto *page = new QWidget;
+            page->setProperty("tabId", QString::fromLatin1(id));
+            *content = page;
+            tabs_->addTab(page, label);
+            return new QVBoxLayout(page);
+        }
         auto *scroll = new QScrollArea;
         scroll->setWidgetResizable(true);
         scroll->setFrameShape(QFrame::NoFrame);
@@ -477,6 +485,12 @@ QString ModeEditorWidget::problemText() const {
         t += where + QStringLiteral(": ") + qs8(x.message) + QLatin1Char('\n');
     }
     return t.trimmed();
+}
+
+void ModeEditorWidget::setCompact(bool on) {
+    compact_ = on;
+    title_->setVisible(!on);
+    closeBtn_->setVisible(!on);
 }
 
 void ModeEditorWidget::showProblems() {

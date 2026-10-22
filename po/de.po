@@ -4167,3 +4167,79 @@ msgstr "Auf dieser Taste verwenden"
 #: src/ui/qt/pages/profile_motions_view.cpp
 msgid "Use \"%1\" on button %2"
 msgstr "\"%1\" auf Taste %2 verwenden"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Editor"
+msgstr "Editor"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Click a motion of the cap or a button, then choose what it does. Every change is saved at once."
+msgstr "Klicke eine Bewegung der Kappe oder eine Taste an und wähle dann, was sie tut. Jede Änderung wird sofort gespeichert."
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Joystick mode to edit"
+msgstr "Zu bearbeitender Joystick-Modus"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Make my own copy"
+msgstr "Eigene Kopie anlegen"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "A built-in joystick mode is not a file. Make a copy with its own name and edit that."
+msgstr "Ein eingebauter Joystick-Modus ist keine Datei. Lege eine Kopie mit eigenem Namen an und bearbeite diese."
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "About the chosen joystick mode"
+msgstr "Zum gewählten Joystick-Modus"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "This is a built-in joystick mode, so it cannot be changed. Make your own copy to edit it."
+msgstr "Das ist ein eingebauter Joystick-Modus und kann deshalb nicht geändert werden. Lege eine eigene Kopie an, um ihn zu bearbeiten."
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Your file replaces the built-in joystick mode of this name."
+msgstr "Deine Datei ersetzt den eingebauten Joystick-Modus mit diesem Namen."
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Turns the vertical mouse wheel"
+msgstr "Dreht das vertikale Mausrad"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Turns the horizontal mouse wheel"
+msgstr "Dreht das horizontale Mausrad"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Zooms: the mouse wheel with the zoom keys held"
+msgstr "Zoomt: das Mausrad bei gehaltenen Zoom-Tasten"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Page up / Page down"
+msgstr "Bild auf / Bild ab"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Presses Page up and Page down"
+msgstr "Drückt Bild auf und Bild ab"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Presses the arrow keys"
+msgstr "Drückt die Pfeiltasten"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Other keys"
+msgstr "Andere Tasten"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Presses any key or key combination for each direction"
+msgstr "Drückt je Richtung eine beliebige Taste oder Tastenkombination"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "Scroll and zoom as the profile says"
+msgstr "Scrollen und Zoomen, wie es das Profil sagt"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "In a mix"
+msgstr "In einem Mix"
+
+#: src/ui/qt/pages/editor_page.cpp
+msgid "More options"
+msgstr "Weitere Optionen"

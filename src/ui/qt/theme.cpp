@@ -205,6 +205,9 @@ QString styleSheetFor(const spn::ui::ThemeColors &c) {
     // focus: a 2 px ring in the accent (padding one pixel less, so nothing moves); never removed
     add(QStringLiteral("QPushButton:focus, QToolButton:focus { border: 2px solid %1; padding: 4px 17px; }").arg(hex(c.focusRing)));
     add(QStringLiteral("QToolButton:focus { padding: 4px 9px; }"));
+    // the action tiles of the joystick mode editor: the lit one (the motion's action now) has a thicker border, bold text and a tint
+    add(QStringLiteral("QToolButton[actionTile=\"true\"]:checked { background: %1; color: %2; border: 3px solid %3; padding: 3px 8px; font-weight: bold; }")
+            .arg(hex(c.accentSoft), hex(c.selectedText), hex(c.highlight)));
     add(QStringLiteral("QPushButton:disabled, QToolButton:disabled { color: %1; background: %2; border-color: %3; }")
             .arg(hex(c.disabledText), hex(c.window), hex(c.border)));
     add(QStringLiteral("QPushButton[primary=\"true\"], QPushButton:default { background: %1; color: %2; border: 1px solid %1; }")

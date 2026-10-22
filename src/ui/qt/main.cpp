@@ -71,6 +71,7 @@
 #include "pages/profiles_env.hpp"
 #include "pages/button_modes_page.hpp"
 #include "pages/cycle_editor_widget.hpp"
+#include "pages/editor_page.hpp"
 #include "pages/motion_editor.hpp"
 #include "pages/profile_motions_view.hpp"
 #include "pages/button_use_widget.hpp"
@@ -717,9 +718,9 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
     ModeEditorWidget *ed = page.editorWidget();
     if (!ed) return false;
     auto me = [&]() { return ed->motionEditor(); };
-    auto radio = [&](const QString &text) -> QRadioButton * {
-        for (QRadioButton *r : me()->inspector()->findChildren<QRadioButton *>())
-            if (r->text() == text) return r;
+    auto radio = [&](const QString &label) -> QToolButton * {  // an action tile of the inspector
+        for (QToolButton *r : me()->inspector()->findChildren<QToolButton *>())
+            if (r->accessibleName() == label && r->isCheckable()) return r;
         return nullptr;
     };
     auto sel = [&](const QString &id) {
@@ -770,7 +771,7 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
 
     // assign: tilt keys -> the channel splits; push the same -> back to the unsplit key
     sel(QStringLiteral("m:v_tilt"));
-    QRadioButton *keys = radio(QStringLiteral("Keys: a rate of key presses"));
+    QToolButton *keys = radio(QStringLiteral("Other keys"));
     check(keys != nullptr, "the inspector offers the action cards");
     if (keys) keys->click();
     check(settleWrite() && fileText(rel).contains(QStringLiteral("V_TILT_ACTION = keys:up,down")) && fileText(rel).contains(QStringLiteral("V_PUSH_ACTION = wheel_v")),
@@ -779,7 +780,7 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
     check(fileText(rel).contains(QStringLiteral("# demo")), "comments stay");
     check(me()->selectedId() == QStringLiteral("m:v_tilt"), "the selection survives the rebuild");
     sel(QStringLiteral("m:v_push"));
-    keys = radio(QStringLiteral("Keys: a rate of key presses"));
+    keys = radio(QStringLiteral("Other keys"));
     if (keys) keys->click();
     check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")) && !fileText(rel).contains(QStringLiteral("V_TILT_ACTION")) &&
               !fileText(rel).contains(QStringLiteral("V_PUSH_ACTION")),
@@ -838,6 +839,24 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
         }
         check(settleWrite() && !fileText(rel).contains(QStringLiteral("SCROLL_V_MIX")), "not used removes the mix again");
     }
+    // the tiles: the lit one is what the motion does, and a ready choice writes its keys
+    sel(QStringLiteral("m:v_push"));
+    {
+        QToolButton *lit = radio(QStringLiteral("Arrow keys"));
+        check(lit && lit->isChecked(), "the tile of the motion's action is lit (up / down on a vertical motion: the arrow keys)");
+        QToolButton *pages = radio(QStringLiteral("Page up / Page down"));
+        check(pages != nullptr && !pages->isChecked(), "a ready choice for page up and down");
+        if (pages) pages->click();
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_PUSH_ACTION = keys:pageup,pagedown")) && fileText(rel).contains(QStringLiteral("V_TILT_ACTION = keys:up,down")),
+              "it writes the keys for the push; the tilt keeps its arrow keys");
+        sel(QStringLiteral("m:v_push"));
+        pages = radio(QStringLiteral("Page up / Page down"));
+        check(pages && pages->isChecked(), "and is lit afterwards");
+        QToolButton *arrows = radio(QStringLiteral("Arrow keys"));
+        if (arrows) arrows->click();
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")) && !fileText(rel).contains(QStringLiteral("V_PUSH_ACTION")),
+              "arrow keys on a vertical motion are up and down, and push and tilt are one again");
+    }
     // the live sentence names the keys and a rate; every element has a "?" popover
     sel(QStringLiteral("m:v_tilt"));
     check(me()->liveSentence().contains(QStringLiteral("Vertical tilt: presses Up or Down, about")), "the sentence under the picture says what the motion does");
@@ -855,7 +874,7 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
         }
         int helps = 0;
         for (QToolButton *tb : me()->inspector()->findChildren<QToolButton *>()) helps += tb->text() == QStringLiteral("?");
-        check(helps >= 10, "action cards, reverse, tuning and the motion have a ? button");
+        check(helps >= 1, "the motion has a ? button");
     }
     // a template fills the picture; a motion that does nothing gets a hint with its fix
     {
@@ -881,7 +900,7 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
         if (fix) fix->click();
         check(me()->selectedId() == QStringLiteral("m:v_push"), "the fix selects the motion");
         // back to the wheel for the following steps
-        QRadioButton *wheel = radio(QStringLiteral("Scroll up and down"));
+        QToolButton *wheel = radio(QStringLiteral("Scroll up and down"));
         settle();
         wheel = radio(QStringLiteral("Scroll up and down"));
         if (wheel) wheel->click();
@@ -930,6 +949,54 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
     QFile::remove(tmpPath + rel);
     page.refreshIfChanged();
     std::printf("motion editor self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
+// Editor page (issue #143): the visual editor at full width with a joystick mode chooser; a built-in joystick mode is
+// copied before it is edited.
+static bool editorPageSelfTest(const UiContext &ctx, const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "editor page self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    auto waitFor = [](const std::function<bool()> &done, int ms) {
+        QElapsedTimer t;
+        t.start();
+        while (!done() && t.elapsed() < ms) QApplication::processEvents(QEventLoop::AllEvents, 20);
+        return done();
+    };
+    EditorPage page(ctx);
+    page.resize(1300, 800);
+    page.show();
+    settle();
+    check(page.chooser() && page.chooser()->count() >= 5, "the chooser lists the joystick modes");
+    check(page.selectMode(QStringLiteral("timeline")) && !page.canEdit(), "a built-in joystick mode is not a file");
+    check(page.copyButton()->isVisibleTo(&page) && !page.editorWidget()->isVisibleTo(&page), "it offers a copy and shows no editor");
+    check(page.note().contains(QStringLiteral("built-in")), "and says why");
+    check(page.makeCopy() && page.canEdit() && page.currentId() != QStringLiteral("timeline"), "Make my own copy chooses a new file");
+    settle();
+    const QString id = page.currentId();
+    check(QFile::exists(tmpPath + QStringLiteral("/modes/") + id + QStringLiteral(".conf")), "the copy is a file");
+    ModeEditorWidget *ed = page.editorWidget();
+    check(ed->isVisibleTo(&page) && ed->currentTabId() == QStringLiteral("motions") && ed->motionEditor() != nullptr, "the picture is shown at once");
+    check(!page.copyButton()->isVisibleTo(&page), "the copy button is gone for a file");
+    // an edit is written by itself
+    ed->motionEditor()->select(QStringLiteral("m:twist"));
+    settle();
+    QToolButton *off = nullptr;
+    for (QToolButton *b : ed->motionEditor()->inspector()->findChildren<QToolButton *>())
+        if (b->accessibleName() == QStringLiteral("Do nothing") && b->isCheckable()) off = b;
+    check(off != nullptr, "the action tiles are there");
+    if (off) off->click();
+    settle();
+    check(waitFor([&] { return !ed->pending(); }, 3000), "written by itself");
+    QFile f(tmpPath + QStringLiteral("/modes/") + id + QStringLiteral(".conf"));
+    check(f.open(QIODevice::ReadOnly) && QString::fromUtf8(f.readAll()).contains(QStringLiteral("TWIST_ACTION = none")), "the file holds the choice");
+    // the other joystick modes of the chooser
+    check(page.selectMode(QStringLiteral("normal")) && !page.canEdit(), "choosing a built-in joystick mode again");
+    QFile::remove(tmpPath + QStringLiteral("/modes/") + id + QStringLiteral(".conf"));
+    std::printf("editor page self-test: %s\n", ok ? "ok" : "failed");
     return ok;
 }
 
@@ -3024,6 +3091,41 @@ int main(int argc, char **argv) {
                 if (page.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-mode-editor.png"))) ++written;
             }
         }
+        {   // the Editor page: a joystick mode of the user, a motion selected, a button selected, a built-in one
+            for (const char *th : {"light", "dark"}) {
+                applyTheme(spn::ui::themeFromId(th));
+                EditorPage ep(ctx);
+                ep.resize(1500, 860);
+                ep.show();
+                settle();
+                if (ep.selectMode(QStringLiteral("slides")) && ep.editorWidget() && ep.editorWidget()->motionEditor()) {
+                    MotionEditor *me = ep.editorWidget()->motionEditor();
+                    me->select(QStringLiteral("m:v_push"));
+                    settle();
+                    if (ep.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/%1-wide-editor-motion.png").arg(QString::fromLatin1(th)))) ++written;
+                    if (std::string(th) == "light") {
+                        ep.editorWidget()->motionEditor()->select(QStringLiteral("b:1"));
+                        settle();
+                        if (ep.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-editor-button.png"))) ++written;
+                        ep.editorWidget()->motionEditor()->select(QStringLiteral("m:lift"));
+                        settle();
+                        if (ep.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-editor-lift.png"))) ++written;
+                    }
+                }
+                if (std::string(th) == "light" && ep.selectMode(QStringLiteral("timeline"))) {
+                    settle();
+                    if (ep.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-wide-editor-builtin.png"))) ++written;
+                }
+            }
+            applyTheme(spn::ui::themeFromId("light"));
+            EditorPage small(ctx);
+            small.resize(900, 640);
+            small.show();
+            settle();
+            small.selectMode(QStringLiteral("slides"));
+            settle();
+            if (small.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-medium-editor-motion.png"))) ++written;
+        }
         for (const char *th : {"light", "dark"}) {  // lists with a selected row, in both themes
             applyTheme(spn::ui::themeFromId(th));
             ModesPage page(ctx);
@@ -3124,6 +3226,7 @@ int main(int argc, char **argv) {
         if (!buttonModesSelfTest(ctx, tmp.path())) return 1;
         if (!modeEditorSelfTest(ctx, tmp.path())) return 1;
         if (!motionEditorSelfTest(ctx, tmp.path())) return 1;
+        if (!editorPageSelfTest(ctx, tmp.path())) return 1;
         if (!modeFilesAutosaveSelfTest(ctx, tmp.path())) return 1;
         if (!examplesSelfTest(ctx, tmp.path())) return 1;
         if (!extensionsSelfTest(ctx, tmp.path())) return 1;
@@ -3155,7 +3258,7 @@ int main(int argc, char **argv) {
         bool tipsOk = static_cast<int>(tray.modeMenuToolTips().size()) == expectedModes;
         for (const QString &tip : tray.modeMenuToolTips()) tipsOk = tipsOk && !tip.isEmpty();
         if (!tipsOk) std::fprintf(stderr, "self-test failed: every entry of the tray's joystick mode menu carries the description as tooltip\n");
-        const bool ok = tipsOk && w.pageCount() == 8 && w.categoryCount() == 5 && w.profileCount() >= 0 &&
+        const bool ok = tipsOk && w.pageCount() == 9 && w.categoryCount() == 5 && w.profileCount() >= 0 &&
                         modes.modeCount() == expectedModes && tray.modeMenuCount() == expectedModes && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
         if (!overviewSelfTest(w)) return 1;

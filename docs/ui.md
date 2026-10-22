@@ -110,6 +110,7 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 |---|---|---|
 | Overview | Overview | Only summarizes and links: the state of the daemon, task buttons, quick actions (see "Overview quick actions" below) and one card per device or program profile with its joystick mode, a one-line summary of what it overrides and how many settings that are; "Open" shows the profile on the Profiles page. Every profile of the configuration has a card, a filter box narrows the list |
 | Profiles | Profiles | The list of profiles (Global first, then devices, then programs) and the editor of the selected one with the tabs General, Channels, Buttons, Motions and buttons and Overrides, see "Profiles" below |
+| Modes | Editor | The visual editor at full width: choose a joystick mode, click a motion of the cap or a button and choose what it does from big action tiles; see "The Editor page" below. A built-in joystick mode is copied first ("Make my own copy") |
 | Modes | Joystick modes | The available joystick modes (built-in and files in the joystick modes folder), one row each with name, origin badge, one description line and six motion chips; the detail view shows the six motions as a panel, the buttons as chips and the profiles that use it. Actions: new, new from example, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every joystick mode the profiles that use it; a reminder that joystick mode files can press any key |
 | Modes | Button modes | The button mode files (`buttons/`): create, new from example, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
 | Modes | User modes | Your joystick mode files and button mode files in one list, each with a switch (on / off), where it is used and Remove; "Open folder" for both folders, see "User modes" below |
@@ -179,6 +180,15 @@ three channels), Buttons and Overrides. Each tab scrolls on its own; the problem
 "Close editor" stay visible below the tabs. The selected tab is kept while you edit and when you
 open another joystick mode.
 
+### The Editor page
+
+The **Editor** page (category Modes, first tab) is the visual editor at full width, so the picture has room. At
+the top you choose the joystick mode; a built-in joystick mode is not a file, so the page says so and offers
+**Make my own copy** (a new file with its own name, chosen at once). Below, the "Motions and buttons" tab of the
+joystick mode editor (next section) and its Settings, Buttons and Overrides tabs for everything else. There is
+one scroll bar, the window's: the tabs do not scroll on their own here. When the window is too narrow for the
+picture and the inspector side by side, the inspector goes below the picture.
+
 ### Motions and buttons (the picture)
 
 The first tab shows the cap and its six motions (push forward/back, push sideways, tilt forward/back,
@@ -188,9 +198,10 @@ box with its name and what it does in words ("Scroll", "Keys: Up / Down", "Off",
 alone. Click an item, or move to it with the arrow keys (Enter goes to the inspector); the inspector next
 to the picture shows the selected item:
 
-- **A motion:** "What it does" offers one choice per action: default behavior, do nothing, scroll up and
-  down, scroll sideways, zoom, keys (a rate of key presses, one key or chord per direction) and one key
-  tap per push. The editor hides "channel" and "split": push and tilt of one channel with the same
+- **A motion:** "What it does" is a grid of big tiles, one glance each: scroll up and down, scroll sideways,
+  zoom, Page up / Page down, arrow keys (up and down on the vertical motions, left and right on the others),
+  other keys (any key or chord per direction, set in the Keys box that appears), one key tap per push, do
+  nothing and as in the profile. The tile of the motion's action now is lit (thick border, bold text). The editor hides "channel" and "split": push and tilt of one channel with the same
   action are written as `V_ACTION` / `H_ACTION`, different actions as `V_PUSH_ACTION` / `V_TILT_ACTION`
   (`H_...`), the same keys the Settings tab writes. **Reverse direction** writes the existing sign
   (`SCROLL_V_SIGN`, `SCROLL_H_SIGN`, `ZOOM_SIGN`, or `SCROLL_<V|H>_<PUSH|TILT>_SIGN` while the channel is
@@ -359,7 +370,7 @@ device (see below), or the highest button it has seen when no device information
 
 ## User modes
 
-The User modes page (category Modes, third tab) lists the mode files of yours: the joystick mode files
+The User modes page (category Modes, fourth tab) lists the mode files of yours: the joystick mode files
 (`modes/*.conf`) and the button mode files (`buttons/*.conf`). A user mode is a plain file that the daemon's own
 loaders read with their checks and warnings; nothing is executed. Each row has
 

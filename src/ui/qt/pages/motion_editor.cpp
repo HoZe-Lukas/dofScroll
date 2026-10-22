@@ -3,6 +3,7 @@
 #include "pages/motion_editor.hpp"
 
 #include <QAccessible>
+#include <QBoxLayout>
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
@@ -33,7 +34,9 @@
 
 #include "info_popup.hpp"
 #include "key_combo.hpp"
+#include "ui/model/action_preset_model.hpp"
 #include "ui/model/axes_model.hpp"
+#include "ui/model/design_tokens.hpp"
 #include "ui/model/button_chip_model.hpp"
 #include "ui/model/motion_help_model.hpp"
 #include "ui/model/motion_map_model.hpp"
@@ -50,6 +53,12 @@ namespace {
 constexpr int kMinTarget = 24;  // px, the smallest item
 
 int itemPad(const QFontMetrics &fm) { return std::max(4, fm.height() / 3); }
+QFont glyphFont(const QFont &f) {
+    QFont g = f;
+    if (g.pointSizeF() > 0) g.setPointSizeF(g.pointSizeF() * 1.7);
+    else g.setPixelSize(int(g.pixelSize() * 1.7));
+    return g;
+}
 }  // namespace
 
 MotionPicture::MotionPicture(QWidget *parent) : QWidget(parent) {
@@ -90,24 +99,30 @@ QRect MotionPicture::itemRect(const QString &id) const {
 
 int MotionPicture::minimumWidth() const {
     const QFontMetrics fm(font());
+    QFont boldFont = font();
+    boldFont.setBold(true);
+    const QFontMetrics bold(boldFont);
     const int pad = itemPad(fm), gap = std::max(6, fm.height() / 2);
     bool anyMotion = false;
     for (const Item &it : items_) anyMotion = anyMotion || it.id.startsWith(QLatin1String("m:"));
     if (!anyMotion) {  // only buttons (the Button modes page): two columns of buttons are enough
         int bw = kMinTarget;
-        for (const Item &it : items_) bw = std::max(bw, std::min(fm.horizontalAdvance(it.text) + 2 * pad, 9 * fm.height()));
+        for (const Item &it : items_) bw = std::max(bw, std::min(bold.horizontalAdvance(it.text) + 2 * pad, 9 * fm.height()));
         return 2 * bw + gap;
     }
     int cw = 0;
     for (const Item &it : items_)
         if (it.id.startsWith(QLatin1String("m:")))
-            cw = std::max({cw, fm.horizontalAdvance(it.title) + 2 * pad, std::min(fm.horizontalAdvance(it.text) + 2 * pad, 12 * fm.height())});
+            cw = std::max({cw, fm.horizontalAdvance(it.title) + 2 * pad, std::min(bold.horizontalAdvance(it.text) + 2 * pad + fm.height() / 2, 12 * fm.height())});
     cw = std::max(cw, 8 * fm.height());
     return 2 * cw + 2 * gap + 5 * fm.height();
 }
 
 MotionPicture::Plan MotionPicture::plan(int width) const {
     const QFontMetrics fm(font());
+    QFont boldFont = font();
+    boldFont.setBold(true);
+    const QFontMetrics bold(boldFont);
     const int em = fm.height(), pad = itemPad(fm), gap = std::max(6, em / 2);
     Plan p;
     p.rects.resize(items_.size());
@@ -115,8 +130,8 @@ MotionPicture::Plan MotionPicture::plan(int width) const {
     int cw = 8 * em;
     for (const Item &it : items_)
         if (it.id.startsWith(QLatin1String("m:")))
-            cw = std::max({cw, fm.horizontalAdvance(it.title) + 2 * pad, std::min(fm.horizontalAdvance(it.text) + 2 * pad, 12 * em)});
-    const int ch = std::max(kMinTarget, 2 * em + 2 * pad);
+            cw = std::max({cw, fm.horizontalAdvance(it.title) + 2 * pad, std::min(bold.horizontalAdvance(it.text) + 2 * pad + em / 2, 12 * em)});
+    const int ch = std::max(kMinTarget, em + QFontMetrics(glyphFont(font())).height() + em + 2 * pad);
     static const char *const left[3] = {"m:v_push", "m:h_push", "m:twist"};
     static const char *const right[3] = {"m:v_tilt", "m:h_tilt", "m:lift"};
     const int w = std::max(width, minimumWidth());
@@ -137,7 +152,7 @@ MotionPicture::Plan MotionPicture::plan(int width) const {
     if (!btn.isEmpty()) {
         y += em + gap;  // heading
         int bw = kMinTarget;
-        for (int i : btn) bw = std::max(bw, std::min(fm.horizontalAdvance(items_[i].text) + 2 * pad, 9 * em));
+        for (int i : btn) bw = std::max(bw, std::min(bold.horizontalAdvance(items_[i].text) + 2 * pad, 9 * em));
         bw = std::max(bw, fm.horizontalAdvance(QStringLiteral("00")) + 2 * pad);
         const int bh = std::max(kMinTarget, 2 * em + 2 * pad);
         auto flow = [&](const QList<int> &which, int x0, int avail, int *yOut) {
@@ -199,6 +214,9 @@ QSize MotionPicture::minimumSizeHint() const {
 void MotionPicture::resizeEvent(QResizeEvent *e) {
     QWidget::resizeEvent(e);
     layoutItems();
+    // the layouts around do not ask for a height that depends on the width: say how tall the picture needs to be
+    const int h = plan(width()).height;
+    if (minimumHeight() != h) setMinimumHeight(h);
 }
 
 void MotionPicture::changeEvent(QEvent *e) {
@@ -266,7 +284,14 @@ void MotionPicture::paintEvent(QPaintEvent *) {
         QPen pen(cur ? hi : line, cur ? 3 : 1);
         if (it.muted && !cur) pen.setStyle(Qt::DashLine);  // a muted item is dashed and says so in words
         p.setPen(pen);
-        p.setBrush(base);
+        QColor fill = base;
+        if (cur) {
+            fill = hi;
+            fill.setAlphaF(0.14);  // the selected key is tinted as well as outlined
+            p.setBrush(base);
+            p.drawRoundedRect(QRectF(it.rect).adjusted(1.5, 1.5, -1.5, -1.5), em / 3.0, em / 3.0);
+        }
+        p.setBrush(fill);
         p.drawRoundedRect(QRectF(it.rect).adjusted(1.5, 1.5, -1.5, -1.5), em / 3.0, em / 3.0);
         if (cur && hasFocus()) {
             p.setBrush(Qt::NoBrush);
@@ -274,16 +299,30 @@ void MotionPicture::paintEvent(QPaintEvent *) {
             p.drawRoundedRect(QRectF(it.rect).adjusted(-3, -3, 3, 3), em / 3.0 + 2, em / 3.0 + 2);
         }
         const QRect inner = it.rect.adjusted(pad, pad / 2, -pad, -pad / 2);
-        QFont f = font();
-        f.setBold(true);
-        p.setFont(f);
-        p.setPen(it.muted ? mutedText : text);
-        p.drawText(inner.adjusted(0, 0, 0, -em), Qt::AlignHCenter | Qt::AlignTop,
-                   QFontMetrics(f).elidedText(it.title, Qt::ElideRight, inner.width()));
+        QFont bold = font();
+        bold.setBold(true);
+        if (it.id.startsWith(QLatin1String("m:"))) {
+            // a key of the cap: what it is (quiet), a big symbol, what it does (bold)
+            p.setFont(font());
+            p.setPen(mutedText);
+            p.drawText(QRect(inner.left(), inner.top(), inner.width(), em), Qt::AlignHCenter | Qt::AlignTop, fm.elidedText(it.title, Qt::ElideRight, inner.width()));
+            const QFont gf = glyphFont(font());
+            p.setFont(gf);
+            p.setPen(it.muted ? mutedText : text);
+            p.drawText(QRect(inner.left(), inner.top() + em, inner.width(), QFontMetrics(gf).height()), Qt::AlignCenter, it.glyph);
+            p.setFont(bold);
+            p.drawText(QRect(inner.left(), inner.bottom() - em + 1, inner.width(), em), Qt::AlignHCenter | Qt::AlignBottom,
+                       QFontMetrics(bold).elidedText(it.text, Qt::ElideRight, inner.width()));
+        } else {
+            // a button: its number (big, bold) and what it does
+            p.setFont(bold);
+            p.setPen(it.muted ? mutedText : text);
+            p.drawText(inner.adjusted(0, 0, 0, -em), Qt::AlignHCenter | Qt::AlignTop, QFontMetrics(bold).elidedText(it.title, Qt::ElideRight, inner.width()));
+            p.setFont(font());
+            p.drawText(QRect(inner.left(), inner.bottom() - em + 1, inner.width(), em), Qt::AlignHCenter | Qt::AlignBottom,
+                       fm.elidedText(it.text, Qt::ElideRight, inner.width()));
+        }
         p.setFont(font());
-        p.setPen(it.muted ? mutedText : text);
-        p.drawText(QRect(inner.left(), inner.bottom() - em + 1, inner.width(), em), Qt::AlignHCenter | Qt::AlignBottom,
-                   fm.elidedText(it.text, Qt::ElideRight, inner.width()));
     }
 }
 
@@ -407,20 +446,27 @@ std::string tuningPrefix(const ModeForm &form, const Settings &base, Motion m) {
 QString MotionEditor::T(const char *s) const { return ::T(s); }
 
 MotionEditor::MotionEditor(const MotionEditorEnv &env, const QString &selected, QWidget *parent) : QWidget(parent), env_(env) {
-    auto *root = new QHBoxLayout(this);
+    auto *root = new QBoxLayout(QBoxLayout::LeftToRight, this);
+    root_ = root;
     root->setContentsMargins(0, 0, 0, 0);
     // Left: device choice, tools, tour, picture, live sentence, hints.
-    auto *left = new QVBoxLayout;
+    leftBox_ = new QWidget(this);
+    auto *left = new QVBoxLayout(leftBox_);
+    left->setContentsMargins(0, 0, 0, 0);
     auto *devRow = new QHBoxLayout;
     auto *devLabel = new QLabel(T("Device:"), this);
     deviceCombo_ = new QComboBox(this);
     deviceCombo_->setAccessibleName(T("Device whose buttons are shown"));
+    deviceCombo_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    deviceCombo_->setMinimumContentsLength(6);
     devLabel->setBuddy(deviceCombo_);
     devRow->addWidget(devLabel);
     devRow->addWidget(deviceCombo_, 1);
     devRow->addWidget(helpButton(this, QStringLiteral("picture")));
     left->addLayout(devRow);
-    buildTop(left);
+    auto *toolRow = new QHBoxLayout;
+    buildTop(left, toolRow);
+    left->addLayout(toolRow);
     picture_ = new MotionPicture(this);
     left->addWidget(picture_);
     sentence_ = new QLabel(this);
@@ -433,7 +479,7 @@ MotionEditor::MotionEditor(const MotionEditorEnv &env, const QString &selected, 
     hintBox_->layout()->setContentsMargins(0, 0, 0, 0);
     left->addWidget(hintBox_);
     left->addStretch(1);
-    root->addLayout(left, 3);
+    root->addWidget(leftBox_, 3);
     // Right: the inspector.
     inspectorBox_ = new QGroupBox(T("Selected"), this);
     inspectorCol_ = new QVBoxLayout(inspectorBox_);
@@ -483,6 +529,14 @@ bool MotionEditor::select(const QString &id) {
     return false;
 }
 
+// Side by side when both parts fit; else the inspector goes below the picture (no horizontal scroll bar).
+void MotionEditor::resizeEvent(QResizeEvent *e) {
+    QWidget::resizeEvent(e);
+    const int needed = leftBox_->minimumSizeHint().width() + inspectorBox_->minimumSizeHint().width() + root_->spacing();
+    const QBoxLayout::Direction dir = width() >= needed ? QBoxLayout::LeftToRight : QBoxLayout::TopToBottom;
+    if (root_->direction() != dir) root_->setDirection(dir);
+}
+
 QString MotionEditor::inspectorTitle() const { return inspectorTitle_ ? inspectorTitle_->text() : QString(); }
 
 void MotionEditor::rebuildPicture() {
@@ -492,7 +546,8 @@ void MotionEditor::rebuildPicture() {
         MotionPicture::Item it;
         it.id = QStringLiteral("m:") + QString::fromLatin1(motionId(l.motion));
         it.title = qs8(l.name);
-        it.text = qs8(l.action) + (l.reversed ? QStringLiteral(", ") + T("reversed") : QString());
+        it.glyph = qs8(motionGlyph(l.symbol));
+        it.text = qs8(l.tile) + (l.reversed ? QStringLiteral(", ") + T("reversed") : QString());
         it.muted = l.kind != MotionKind::Active;
         it.tooltip = qs8(l.name) + QStringLiteral(" (") + qs8(l.how) + QStringLiteral("): ") + it.text +
                      (l.badge.empty() ? QString() : QStringLiteral(". ") + qs8(l.badge));
@@ -530,11 +585,7 @@ void MotionEditor::rebuildPicture() {
 }
 
 void MotionEditor::rebuildInspector() {
-    // clear
-    while (QLayoutItem *item = inspectorCol_->takeAt(0)) {
-        delete item->widget();  // at once: a lookup right after a selection must not find the old controls
-        delete item;
-    }
+    clearLayoutNow(inspectorCol_);
     inspectorTitle_ = nullptr;
     liveBar_ = nullptr;
     const QString id = picture_->current();
@@ -585,36 +636,36 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
     }
     if (!place.found) return;  // nothing can be assigned to a motion that no channel uses
 
-    // Action cards: one radio button each, with the words of the action.
-    auto *actions = new QGroupBox(T("What it does"), inspectorBox_);
-    auto *av = new QVBoxLayout(actions);
-    auto *group = new QButtonGroup(actions);
+    // Action tiles: big, one glance each (action_preset_model.hpp); the lit one is what the motion does now.
     const ChannelForm cur = actionOf(*env_.form, env_.base, m);
-    for (const KindCard &c : kCards) {
-        auto *rb = new QRadioButton(T(c.label), actions);
-        rb->setToolTip(T(c.tip));
-        rb->setChecked(cur.type == c.type);
-        group->addButton(rb);
-        auto *cardRow = new QHBoxLayout;
-        cardRow->addWidget(rb, 1);
-        const char *topic = c.type == ChannelActionType::Default ? "action:default" : c.type == ChannelActionType::Off ? "action:none"
-                            : c.type == ChannelActionType::WheelV ? "action:wheel_v" : c.type == ChannelActionType::WheelH ? "action:wheel_h"
-                            : c.type == ChannelActionType::Zoom ? "action:zoom" : c.type == ChannelActionType::Keys ? "action:keys" : "action:step";
-        cardRow->addWidget(helpButton(actions, QString::fromLatin1(topic)));
-        av->addLayout(cardRow);
-        connect(rb, &QRadioButton::clicked, this, [this, m, c, cur] {
-            ChannelForm a;
-            a.type = c.type;
-            if (a.usesKeys()) {
-                a.neg = cur.usesKeys() && !cur.neg.empty() ? cur.neg : "up";
-                a.pos = cur.usesKeys() && !cur.pos.empty() ? cur.pos : "down";
-            }
-            if (!assign(*env_.form, env_.base, m, a).ok) return;
-            tourEvent(TourEvent::ActionAssigned);
-            if (env_.changed) env_.changed();
-        });
+    {
+        auto *actions = new QGroupBox(T("What it does"), inspectorBox_);
+        auto *grid = new QGridLayout(actions);
+        const std::string active = activePreset(m, cur);
+        int i = 0;
+        for (const ActionPreset &p : actionPresets(*env_.strings)) {
+            auto *tile = new QToolButton(actions);
+            tile->setText(qs8(p.glyph) + QStringLiteral("\n") + qs8(p.label));
+            tile->setToolTip(qs8(p.tip));
+            tile->setAccessibleName(qs8(p.label));
+            tile->setCheckable(true);
+            tile->setProperty("actionTile", true);
+            tile->setChecked(p.id == active);
+            tile->setAutoRaise(false);
+            tile->setMinimumHeight(3 * tile->fontMetrics().height() + 16);
+            tile->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+            grid->addWidget(tile, i / 2, i % 2);
+            ++i;
+            const std::string id = p.id;
+            connect(tile, &QToolButton::clicked, this, [this, m, id] {
+                const ChannelForm now = actionOf(*env_.form, env_.base, m);
+                if (!assign(*env_.form, env_.base, m, presetForm(id, m, now)).ok) return;
+                tourEvent(TourEvent::ActionAssigned);
+                if (env_.changed) env_.changed();
+            });
+        }
+        col->addWidget(actions);
     }
-    col->addWidget(actions);
 
     if (cur.usesKeys())
         if (ChannelForm *ref = actionRef(*env_.form, env_.base, m)) {
@@ -640,15 +691,19 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
         if (!setReversed(*env_.form, env_.base, m, on).ok) return;
         if (env_.changed) env_.changed();
     });
-    auto *revRow = new QHBoxLayout;
-    revRow->addWidget(rev, 1);
-    revRow->addWidget(helpButton(inspectorBox_, QStringLiteral("reverse")));
-    col->addLayout(revRow);
+    col->addWidget(rev);
 
-    // Same as / swap with another motion
+    // More options, closed until wanted: copy or swap with another motion, tuning.
+    bool anyTuning = false;
+    const std::string prefix = tuningPrefix(*env_.form, env_.base, m);
+    for (const char *f : {"SENS", "DEADZONE", "CURVE", "SMOOTH_MS"}) anyTuning = anyTuning || (!prefix.empty() && env_.form->overrideValue(prefix + f));
+    auto *more = new QGroupBox(T("More options"), inspectorBox_);
+    more->setCheckable(true);
+    more->setChecked(anyTuning);
+    auto *ml = new QVBoxLayout(more);
     auto *copyRow = new QHBoxLayout;
-    auto *same = new QComboBox(inspectorBox_);
-    auto *swap = new QComboBox(inspectorBox_);
+    auto *same = new QComboBox(more);
+    auto *swap = new QComboBox(more);
     same->setAccessibleName(qs8(l.name) + QStringLiteral(": ") + T("Same as ..."));
     swap->setAccessibleName(qs8(l.name) + QStringLiteral(": ") + T("Swap with ..."));
     same->addItem(T("Same as ..."), QString());
@@ -661,7 +716,7 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
     }
     copyRow->addWidget(same, 1);
     copyRow->addWidget(swap, 1);
-    col->addLayout(copyRow);
+    ml->addLayout(copyRow);
     connect(same, &QComboBox::activated, this, [this, m, same](int i) {
         Motion o;
         if (i <= 0 || !motionFromId(same->itemData(i).toString().toStdString(), &o)) return;
@@ -673,8 +728,12 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
         const ChannelForm mine = actionOf(*env_.form, env_.base, m), theirs = actionOf(*env_.form, env_.base, o);
         if (assign(*env_.form, env_.base, m, theirs).ok && assign(*env_.form, env_.base, o, mine).ok && env_.changed) env_.changed();
     });
-
-    buildTuning(col, m);
+    buildTuning(ml, m);
+    for (QWidget *w : more->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly)) w->setVisible(anyTuning);
+    connect(more, &QGroupBox::toggled, this, [more](bool on) {
+        for (QWidget *w : more->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly)) w->setVisible(on);
+    });
+    col->addWidget(more);
 }
 
 void MotionEditor::buildTuning(QVBoxLayout *col, Motion m) {
@@ -684,11 +743,8 @@ void MotionEditor::buildTuning(QVBoxLayout *col, Motion m) {
     bool anySet = false;
     for (const auto &f : fields) anySet = anySet || env_.form->overrideValue(prefix + f[0]);
     auto *box = new QGroupBox(T("Tune this motion"), inspectorBox_);
-    box->setCheckable(true);
-    box->setChecked(anySet);
     box->setToolTip(T("Optional: values that apply while this joystick mode is active"));
     auto *fl = new QFormLayout(box);
-    fl->addRow(T("Help:"), helpButton(box, QStringLiteral("tuning")));
     for (const auto &f : fields) {
         const std::string key = prefix + f[0];
         auto *e = new QLineEdit(box);
@@ -706,11 +762,7 @@ void MotionEditor::buildTuning(QVBoxLayout *col, Motion m) {
             if (env_.flush) env_.flush();
         });
     }
-    // collapsed: only the check box line shows
-    for (QWidget *w : box->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly)) w->setVisible(anySet);
-    connect(box, &QGroupBox::toggled, this, [box](bool on) {
-        for (QWidget *w : box->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly)) w->setVisible(on);
-    });
+    (void)anySet;
     col->addWidget(box);
 }
 
@@ -804,9 +856,8 @@ QToolButton *MotionEditor::helpButton(QWidget *parent, const QString &topic) {
     return b;
 }
 
-void MotionEditor::buildTop(QVBoxLayout *left) {
-    // tools row: Detect, Try, template, tour
-    auto *tools = new QHBoxLayout;
+void MotionEditor::buildTop(QVBoxLayout *left, QHBoxLayout *tools) {
+    // tools: Detect, Try, template, tour (in the row of the device choice)
     detectBtn_ = new QPushButton(T("Detect by moving"), this);
     detectBtn_->setCheckable(true);
     detectBtn_->setToolTip(T("Move the cap or press a button on the device to select it here. The daemon's output is paused while this is on."));
@@ -821,11 +872,12 @@ void MotionEditor::buildTop(QVBoxLayout *left) {
         templates_->setItemData(int(templates_->count()) - 1, qs8(all[i].description), Qt::ToolTipRole);
     }
     tourBtn_ = new QPushButton(T("Show me how"), this);
+    templates_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    templates_->setMinimumContentsLength(8);
     tools->addWidget(detectBtn_);
     tools->addWidget(tryBtn_);
     tools->addWidget(templates_, 1);
     tools->addWidget(tourBtn_);
-    left->addLayout(tools);
     detectState_ = new QLabel(this);
     detectState_->setWordWrap(true);
     detectState_->setTextFormat(Qt::PlainText);
@@ -842,8 +894,9 @@ void MotionEditor::buildTop(QVBoxLayout *left) {
     left->addLayout(tryRow);
     // the tour banner
     tourBox_ = new QFrame(this);
-    tourBox_->setFrameShape(QFrame::StyledPanel);
+    tourBox_->setFrameShape(QFrame::NoFrame);  // a quiet tip line, not a panel
     auto *tl = new QHBoxLayout(tourBox_);
+    tl->setContentsMargins(0, 0, 0, 0);
     tourLabel_ = new QLabel(tourBox_);
     tourLabel_->setWordWrap(true);
     tourLabel_->setTextFormat(Qt::PlainText);
@@ -976,10 +1029,7 @@ void MotionEditor::tryThis(const std::string &modeId) {
 
 void MotionEditor::refreshHints() {
     auto *col = static_cast<QVBoxLayout *>(hintBox_->layout());
-    while (QLayoutItem *item = col->takeAt(0)) {
-        delete item->widget();
-        delete item;
-    }
+    clearLayoutNow(col);
     hints_.clear();
     // the number of buttons of the device shown in the picture
     std::string name = env_.deviceName;

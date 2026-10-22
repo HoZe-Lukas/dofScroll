@@ -332,6 +332,7 @@ struct MotionLabel {
     std::string name, how;
     std::string action;   // "Scroll", "Keys: Up / Down", "Off", "Not used"
     std::string chip;     // "Scroll", "Keys", "Taps", ...
+    std::string tile;     // the short words of the key in the picture: the keys of a Keys / Step action, else the chip
     std::string symbol;   // icon key as in motion_summary_model.hpp
     MotionKind kind = MotionKind::Active;
     bool customMix = false;
@@ -370,6 +371,7 @@ inline MotionLabel motionLabel(const ModeForm &form, const Settings &base, Motio
     l.how = row.how;
     l.action = row.action;
     l.chip = row.chip;
+    l.tile = row.detail.empty() || row.symbol == "zoom" ? row.chip : row.detail;
     l.symbol = row.symbol;
     l.kind = row.kind;
     l.customMix = p.customMix;
@@ -378,6 +380,7 @@ inline MotionLabel motionLabel(const ModeForm &form, const Settings &base, Motio
     if (m == Motion::Lift) {
         if (p.found) {
             l.action = s.tr("Added to another motion");
+            l.tile = s.tr("In a mix");
             l.symbol = "lift_in";
             l.kind = MotionKind::Active;
         }
