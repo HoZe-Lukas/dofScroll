@@ -162,7 +162,8 @@ static void testHints(const StringProvider &s) {
     ModeForm b;
     b.setButton(20, "key:space");
     assert(!find(motionHints(b, base, 0, s), "button:20"));  // device unknown: nothing to compare with
-    const MotionHint *bh = find(motionHints(b, base, 15, s), "button:20");
+    const std::vector<MotionHint> withDevice = motionHints(b, base, 15, s);  // find() points into it: keep it alive
+    const MotionHint *bh = find(withDevice, "button:20");
     assert(bh && has(bh->text, "only 15 buttons") && bh->fixId == "unbind:20");
 }
 
