@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "../exec_lookup.hpp"
 #include "../../modes.hpp"  // modesDir(): "<config base>/dofscroll/modes"
 #include "../platform.hpp"
 
@@ -30,13 +31,19 @@ PlatformPaths platformPaths() {
 // Same mechanism the tray uses today: ask the user's systemd instance to send SIGHUP to the
 // daemon unit.
 bool requestReload(std::string *err) {
+    // systemctl from the fixed system directories, never through PATH (exec_lookup.hpp)
+    const std::string systemctl = findHelper("systemctl");
+    if (systemctl.empty()) {
+        if (err) *err = "systemctl not found in /usr/bin, /usr/local/bin or /bin";
+        return false;
+    }
     pid_t pid = ::fork();
     if (pid < 0) {
         if (err) *err = "fork failed";
         return false;
     }
     if (pid == 0) {
-        ::execlp("systemctl", "systemctl", "--user", "kill", "-s", "HUP", "dofscroll.service",
+        ::execl(systemctl.c_str(), "systemctl", "--user", "kill", "-s", "HUP", "dofscroll.service",
                  static_cast<char *>(nullptr));
         ::_exit(127);
     }

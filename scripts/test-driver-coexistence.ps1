@@ -328,7 +328,7 @@ if ($bDone) {
         # the only thing the script ends: the dofscroll it started itself, through the daemon's own quit event
         $stop = Join-Path $here 'stop-daemon.ps1'
         if (Test-Path -LiteralPath $stop -PathType Leaf) {
-            try { & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $stop -ExePath $DaemonPath | Out-Null } catch { }
+            try { & (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -NoProfile -ExecutionPolicy Bypass -File $stop -ExePath $DaemonPath | Out-Null } catch { }
         } else {
             try { $started.CloseMainWindow() | Out-Null } catch { }
         }

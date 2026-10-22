@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Runs a program from an argument vector (fork + execvp, never a shell) and captures stdout and
+// Runs a program from an argument vector (fork + execv, never a shell; a plain program name is
+// looked up in the fixed system directories of exec_lookup.hpp, never through PATH) and captures stdout and
 // stderr. POSIX only (Linux and macOS autostart). Output is capped; a hung child is killed after
 // the timeout.
 #pragma once
@@ -17,6 +18,8 @@
 #include <string>
 #include <vector>
 
+#include "exec_lookup.hpp"
+
 namespace spn {
 
 struct ExecResult {
@@ -28,13 +31,20 @@ struct ExecResult {
 inline ExecResult execCapture(const std::vector<std::string> &argv, int timeoutMs = 15000) {
     ExecResult r;
     if (argv.empty()) { r.error = "empty command"; return r; }
+    // A name without a slash is resolved in the trusted directories; a path is used as given.
+    std::string prog = argv[0];
+    if (prog.find('/') == std::string::npos) {
+        prog = findHelper(prog);
+        if (prog.empty()) { r.error = argv[0] + ": not found in " + "/usr/bin, /usr/local/bin or /bin"; return r; }
+    }
     int po[2], pe[2], px[2];
     if (pipe(po) != 0) { r.error = "pipe failed"; return r; }
     if (pipe(pe) != 0) { close(po[0]); close(po[1]); r.error = "pipe failed"; return r; }
     if (pipe(px) != 0) { for (int fd : {po[0], po[1], pe[0], pe[1]}) close(fd); r.error = "pipe failed"; return r; }
     fcntl(px[1], F_SETFD, FD_CLOEXEC);  // closes on a successful exec: EOF means "exec worked"
     std::vector<char *> a;
-    for (const auto &s : argv) a.push_back(const_cast<char *>(s.c_str()));
+    a.push_back(const_cast<char *>(prog.c_str()));
+    for (size_t i = 1; i < argv.size(); i++) a.push_back(const_cast<char *>(argv[i].c_str()));
     a.push_back(nullptr);
     const pid_t pid = fork();
     if (pid < 0) {
@@ -48,7 +58,7 @@ inline ExecResult execCapture(const std::vector<std::string> &argv, int timeoutM
         dup2(po[1], 1);
         dup2(pe[1], 2);
         for (int fd : {po[0], po[1], pe[0], pe[1], px[0]}) close(fd);
-        execvp(a[0], a.data());
+        execv(a[0], a.data());
         const int e = errno;
         if (write(px[1], &e, sizeof e) < 0) {}
         _exit(127);
