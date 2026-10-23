@@ -74,6 +74,16 @@ Your files in `modes/` and `buttons/` in one list. The **switch** turns a file o
 - **Device:** the connected SpaceMice and the number of buttons each has (this decides how many button rows a profile offers). With several devices (Windows and macOS, direct HID) every device is listed; see [FAQ](FAQ).
 - **Axes:** live bars of the six axes with a marker for the peak, one cell per button, the active joystick mode and, when the joystick mode splits a scroll channel, live bars for push and tilt. **The daemon pauses its output while this page is open**, so moving the cap does not scroll the window you look at. The **axis assistant** asks you to push, tilt and twist in turn, detects which axis does what even with strong crosstalk, and applies the result to the axis mix.
 
+### Driver cleanup (Windows)
+
+The official 3Dconnexion driver keeps one XML file per program (`%APPDATA%\3Dconnexion\3DxWare\Cfg\`). An axis switched on there (for example twist to the mouse wheel) makes the program receive every movement twice, from the driver and from dofscroll. The box **3Dconnexion driver** on the Settings page opens **Remove driver axis settings...**:
+
+- A list of the programs with active driver axes: name, program, and what each axis does (mouse wheel, keys, joystick, passed on).
+- Everything is ticked except programs whose axes are only passed on (3D and CAD programs). Tick as many as you want; **Tick all** and **Tick none** set every box.
+- **Switch off the ticked programs** sets the axis flags of those files to off (nothing else in the file changes), after copying the original to `Cfg\dofscroll-backup\<date>-<time>\`. **Restore the last backup** puts them back.
+
+Not available on macOS yet. Details: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md#platform-notes-windows-and-macos).
+
 ### Settings
 
 Output on/off, **Start at login** (see below), language and theme, the daemon settings (tick rate, output backend; on Windows and macOS also the **Input path**: Automatic, 3Dconnexion driver or Direct HID), the read-only daemon status, "Open config file", "Show log...", "Documentation" and **About** (version, licenses, Qt, the 3Dconnexion note).

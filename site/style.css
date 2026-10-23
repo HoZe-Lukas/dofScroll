@@ -252,6 +252,7 @@ section.alt .card, section.alt ol.steps li { background: var(--bg); border: 1px 
 .card p { margin: 0; color: var(--muted); font-size: 1rem; line-height: 1.55; }
 .card .ico { display: block; width: 2rem; height: 2rem; margin-bottom: var(--space-4); fill: none; stroke: var(--accent); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .card .btn { margin-top: var(--space-5); }
+.cards .card.highlight { grid-column: 1 / -1; border-color: var(--accent); }
 .ba { text-align: center; margin: calc(-1 * var(--space-2)) auto var(--space-8); font-size: 1.1rem; color: var(--muted); }
 
 /* "How it feels": three small animated pictures (CSS only, stopped under reduced motion). */

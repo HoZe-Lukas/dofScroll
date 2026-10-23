@@ -19,6 +19,10 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 | macOS | Daemon, Qt interface and unsigned, not notarized DMG built by CI; **not run on hardware** |
 | SpaceMouse Wireless, Pro Wireless, Enterprise, SpaceNavigator | Not tested |
 
+## Highlight: no doubled input next to the official driver (Windows)
+
+If the official 3Dconnexion driver also scrolls in a program, that program gets every movement twice. **Settings > General > Remove driver axis settings...** lists the programs with active driver axes; you tick the ones to switch off (and leave your CAD and 3D programs alone), every changed file is saved first and can be restored. See [User interface](User-interface#driver-cleanup-windows).
+
 ## Programs
 
 | Program | Task |

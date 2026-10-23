@@ -23,6 +23,9 @@ On Linux, `spacenavd` applies its own sensitivity, dead zone and axis settings f
 **Can I keep the official 3Dconnexion driver installed? Do I need it?**
 You do not need it for dofscroll, and you need it for your CAD programs, so keep it installed and running: dofscroll works next to it and never asks you to stop it. On Windows and macOS dofscroll reads the SpaceMouse through the installed driver's interface when the driver is installed, and directly otherwise (setting `INPUT`, default `auto`). On Linux there is no vendor driver (`spacenavd` takes its place). On Windows and macOS, whether both really run at the same time is not verified on real machines yet and is the top priority: the guided test finds out (about 5 minutes, it changes nothing and never stops the driver) and writes one file for issue #36 (Windows) or #37 (macOS). How to run it: [Requirements](Requirements). Community reports say Windows probably works and macOS may not; those are unconfirmed.
 
+**A program scrolls twice (driver and dofscroll). Can that be switched off for many programs at once?**
+Yes, on Windows: Settings > General > **Remove driver axis settings...** lists the programs with active driver axes. Tick the ones to clean up (3D and CAD programs are not ticked by default), and the driver's axes are switched off there, with a backup you can restore. See [User interface](User-interface#driver-cleanup-windows).
+
 **Can I use two SpaceMice?**
 On Linux through `spacenavd` they arrive as one merged stream, so `[device:*]` profiles apply to both and per-device joystick modes are not possible. The Windows and macOS ports read each device separately: every device then has its own profile, joystick mode, holds and latches, and only one device per model is used (a Pro next to a Compact, not two Compacts). That is covered by tests but unverified on hardware. Details: [docs/multi-device.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/multi-device.md).
 
