@@ -46,16 +46,16 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 
 ## Status and testing
 
-Current stable version: **1.2.2**. Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact).
-Other Linux distributions were install-tested in CI containers; the Windows and macOS builds are built and
-unit-tested by CI but have never been run with a real device.
+Current stable version: **1.2.3**. Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact).
+Other Linux distributions were install-tested in CI containers; on Windows the basic functions work on one real machine
+(SpaceMouse Pro, official driver; first tests, not extensive); the macOS build is unit-tested by CI but has never been run with a real device.
 
 | Platform | Status |
 |---|---|
 | RHEL 9, X11, KDE Plasma | **Tested** with the SpaceMouse Pro and the SpaceMouse Compact. |
 | Other Linux distributions (Debian, Ubuntu, Fedora, ...) | Not tested with a device. The RPM, DEB and TGZ packages are built and install-tested in CI containers. |
 | Linux, Wayland | Not tested. Uses the uinput backend and needs a udev rule that you install yourself (opt-in, see [installation.md](docs/installation.md)); active-window profiles work only with `kdotool` (KDE). |
-| Windows | Daemon, Qt interface and an unsigned installer/ZIP are built by CI. **Not run on hardware.** |
+| Windows | Daemon, Qt interface and an unsigned installer/ZIP are built by CI. **Basic functions work on one real machine** (SpaceMouse Pro, official driver; first tests). |
 | macOS | Daemon, Qt interface and an unsigned, not notarized DMG (Apple silicon) are built by CI. **Not run on hardware.** |
 
 | Device | Status |
@@ -87,7 +87,7 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
   (Windows, macOS); the factory button count is known for SpaceMouse Pro, Pro Wireless, Compact,
   Wireless, Enterprise and SpaceNavigator.
 
-Release notes: [docs/release-notes-1.2.2.md](docs/release-notes-1.2.2.md) (and [1.2.1](docs/release-notes-1.2.1.md), [1.2.0](docs/release-notes-1.2.0.md), [1.1.2](docs/release-notes-1.1.2.md), [1.1.1](docs/release-notes-1.1.1.md), [1.1.0](docs/release-notes-1.1.0.md), [1.0.0](docs/release-notes-1.0.0.md), [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
+Release notes: [docs/release-notes-1.2.3.md](docs/release-notes-1.2.3.md) (and [1.2.2](docs/release-notes-1.2.2.md), [1.2.1](docs/release-notes-1.2.1.md), [1.2.0](docs/release-notes-1.2.0.md), [1.1.2](docs/release-notes-1.1.2.md), [1.1.1](docs/release-notes-1.1.1.md), [1.1.0](docs/release-notes-1.1.0.md), [1.0.0](docs/release-notes-1.0.0.md), [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
 
 ## Download and install
 
@@ -139,7 +139,7 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 | [docs/security.md](docs/security.md) | Threat model, systemd hardening, uinput permissions, loading the driver interface |
 | [docs/legal-notes.md](docs/legal-notes.md) | What dofscroll uses of the 3Dconnexion driver, what it does not ship, where the rights lie |
 | [docs/releasing.md](docs/releasing.md) | How a release is made |
-| [docs/release-notes-1.2.2.md](docs/release-notes-1.2.2.md) | Release notes of 1.2.2; 1.2.1 in [docs/release-notes-1.2.1.md](docs/release-notes-1.2.1.md), 1.2.0 in [docs/release-notes-1.2.0.md](docs/release-notes-1.2.0.md), 1.1.2 in [docs/release-notes-1.1.2.md](docs/release-notes-1.1.2.md), 1.1.1 in [docs/release-notes-1.1.1.md](docs/release-notes-1.1.1.md), 1.1.0 in [docs/release-notes-1.1.0.md](docs/release-notes-1.1.0.md), 1.0.0 in [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md), 0.1.1 in [docs/release-notes-0.1.1.md](docs/release-notes-0.1.1.md), beta.2 in [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-beta.2.md), beta.1 notes in [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) |
+| [docs/release-notes-1.2.3.md](docs/release-notes-1.2.3.md) | Release notes of 1.2.3; 1.2.2 in [docs/release-notes-1.2.2.md](docs/release-notes-1.2.2.md), 1.2.1 in [docs/release-notes-1.2.1.md](docs/release-notes-1.2.1.md), 1.2.0 in [docs/release-notes-1.2.0.md](docs/release-notes-1.2.0.md), 1.1.2 in [docs/release-notes-1.1.2.md](docs/release-notes-1.1.2.md), 1.1.1 in [docs/release-notes-1.1.1.md](docs/release-notes-1.1.1.md), 1.1.0 in [docs/release-notes-1.1.0.md](docs/release-notes-1.1.0.md), 1.0.0 in [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md), 0.1.1 in [docs/release-notes-0.1.1.md](docs/release-notes-0.1.1.md), beta.2 in [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-beta.2.md), beta.1 notes in [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) |
 | [docs/work-plan.md](docs/work-plan.md) | Roadmap and the Windows/macOS ports |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, pull requests, adding a joystick mode or language |
 
