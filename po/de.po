@@ -4653,8 +4653,8 @@ msgid "passed to the program"
 msgstr "ans Programm durchgereicht"
 
 #: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "3D navigation"
-msgstr "3D-Navigation"
+msgid "only passes the axes on"
+msgstr "reicht die Achsen nur durch"
 
 #: src/ui/qt/pages/general_page.cpp
 msgid "If the driver has axes switched on for a program, that program receives every movement twice: from the driver and from dofscroll. Switch them off here, except for your 3D and CAD programs."
@@ -4667,3 +4667,19 @@ msgstr "Treiber-Achseneinstellungen entfernen..."
 #: src/ui/qt/pages/general_page.cpp
 msgid "List the programs with active driver axes and switch off the ones you tick"
 msgstr "Listet die Programme mit aktiven Treiberachsen und schaltet die angehakten aus"
+
+#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+msgid "Tick all"
+msgstr "Alle anhaken"
+
+#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+msgid "Tick every program in the list"
+msgstr "Hakt alle Programme in der Liste an"
+
+#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+msgid "Tick none"
+msgstr "Keines anhaken"
+
+#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+msgid "Remove every tick"
+msgstr "Entfernt alle Haken"

@@ -653,7 +653,8 @@ Compiled and unit-tested in CI only; what has to be checked by hand on real mach
   dofscroll. The **3Dconnexion driver** box on the General page opens **Remove driver axis settings...**:
   a list of the programs with active driver axes (program, executable, which axis does what). Programs
   whose axes only pass the motion on to the program (3D navigation of CAD and 3D programs) are not
-  ticked; everything else is. Tick what you want and choose **Switch off the ticked programs**: the
+  ticked; everything else is. Tick as many programs as you want (click each box, or select rows with
+  Ctrl or Shift and press Space; **Tick all** and **Tick none** set every box) and choose **Switch off the ticked programs**: the
   `<Enabled>` flag of every axis in those files is set to `false` (nothing else in the file changes),
   after the original was copied to `Cfg\dofscroll-backup\<date>-<time>\`. **Restore the last backup**
   puts those files back. Global.xml and the driver's installed defaults are not touched; a program

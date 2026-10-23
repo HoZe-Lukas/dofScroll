@@ -2,13 +2,20 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "driver_cleanup_dialog.hpp"
 
+#include <QAbstractItemView>
 #include <QDateTime>
 #include <QDialogButtonBox>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QStringList>
 #include <QVBoxLayout>
+
+#include <algorithm>
+#include <utility>
+#include <vector>
 
 #include "ui_i18n.hpp"
 
@@ -26,16 +33,26 @@ QString outputText(spn::ui::DriverOutput o, const std::string &id) {
     return qs8(id);
 }
 
+// "Name (program.exe)" and, grouped by what the driver does, the axes: "mouse wheel: X, Ry; keys: Z". An axis
+// appears once per group (the driver lists the two directions of an axis separately).
 QString rowText(const spn::ui::DriverApp &a) {
     QString t = qs8(a.name);
-    if (!a.exe.empty()) t += QStringLiteral(" (") + qs8(a.exe) + QLatin1Char(')');
-    QString axes;
+    if (!a.exe.empty() && a.exe != a.name) t += QStringLiteral(" (") + qs8(a.exe) + QLatin1Char(')');
+    std::vector<std::pair<QString, QStringList>> groups;
     for (const spn::ui::DriverAxis &d : a.active) {
-        if (!axes.isEmpty()) axes += QStringLiteral(", ");
-        axes += qs8(d.input) + QStringLiteral(" → ") + outputText(d.output, d.outputId);
+        const QString what = outputText(d.output, d.outputId);
+        auto it = std::find_if(groups.begin(), groups.end(), [&](const auto &g) { return g.first == what; });
+        if (it == groups.end()) {
+            groups.push_back({what, QStringList()});
+            it = groups.end() - 1;
+        }
+        const QString axis = qs8(d.input);
+        if (!it->second.contains(axis)) it->second.append(axis);
     }
-    t += QStringLiteral(": ") + axes;
-    if (a.navigation) t += QStringLiteral("  [") + T("3D navigation") + QLatin1Char(']');
+    QStringList parts;
+    for (const auto &g : groups) parts << g.first + QStringLiteral(": ") + g.second.join(QStringLiteral(", "));
+    t += QStringLiteral(" \u2014 ") + parts.join(QStringLiteral("; "));
+    if (a.navigation) t += QStringLiteral("  [") + T("only passes the axes on") + QLatin1Char(']');
     return t;
 }
 
@@ -55,7 +72,24 @@ DriverCleanupDialog::DriverCleanupDialog(const std::string &dir, QWidget *parent
     col->addWidget(intro);
     list_ = new QListWidget(this);
     list_->setAccessibleName(T("Programs with active driver axes"));
+    // Several rows can be ticked: click each box, or select rows (Ctrl/Shift) and press Space.
+    list_->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    list_->setWordWrap(true);  // long rows wrap instead of being cut off
+    list_->setTextElideMode(Qt::ElideNone);
     col->addWidget(list_, 1);
+    auto *tickRow = new QHBoxLayout;
+    auto *all = new QPushButton(T("Tick all"), this);
+    all->setObjectName(QStringLiteral("tick-all"));
+    all->setToolTip(T("Tick every program in the list"));
+    auto *none = new QPushButton(T("Tick none"), this);
+    none->setObjectName(QStringLiteral("tick-none"));
+    none->setToolTip(T("Remove every tick"));
+    tickRow->addWidget(all);
+    tickRow->addWidget(none);
+    tickRow->addStretch(1);
+    col->addLayout(tickRow);
+    connect(all, &QPushButton::clicked, this, [this] { tickAll(true); });
+    connect(none, &QPushButton::clicked, this, [this] { tickAll(false); });
     note_ = new QLabel(this);
     note_->setWordWrap(true);
     note_->setForegroundRole(QPalette::PlaceholderText);
@@ -106,6 +140,9 @@ void DriverCleanupDialog::refreshList() {
 int DriverCleanupDialog::rowCount() const { return list_->count(); }
 bool DriverCleanupDialog::rowChecked(int row) const { return list_->item(row)->checkState() == Qt::Checked; }
 void DriverCleanupDialog::setRowChecked(int row, bool on) { list_->item(row)->setCheckState(on ? Qt::Checked : Qt::Unchecked); }
+void DriverCleanupDialog::tickAll(bool on) {
+    for (int i = 0; i < list_->count(); ++i) setRowChecked(i, on);
+}
 QString DriverCleanupDialog::note() const { return note_->text(); }
 
 bool DriverCleanupDialog::cleanUp(bool confirm) {
