@@ -303,8 +303,10 @@ Symptoms:
 - **Scrolling happens twice in a program**: the driver and dofscroll both translate the motion. Set
   `ENABLED = 0` for that program in dofscroll's own profiles (the Profiles page, or an `[app:<name>]`
   section), so only the driver acts there; the CAD programs, where you want the driver, are the typical
-  case. (Turning off the driver's own scroll and zoom for one particular 2D program in the driver's
-  per-application settings is possible as a one-time measure, but it is not the standard answer.)
+  case. On Windows the **3Dconnexion driver** box on the General page lists the programs with active driver
+  axes and switches them off for the ones you tick (with a backup), see [ui.md](ui.md#platform-notes-windows-and-macos).
+  (Turning off the driver's own scroll and zoom for one particular 2D program in the driver's
+  per-application settings by hand is possible as well.)
 - **The CAD program stops reacting normally**: this must not happen. Report it with the test file.
 
 The checks (about 5 minutes, nothing is changed, the driver is never stopped):

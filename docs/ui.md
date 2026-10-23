@@ -647,6 +647,19 @@ Compiled and unit-tested in CI only; what has to be checked by hand on real mach
 - **macOS Dock.** The `.app` has `LSUIElement` (no Dock icon). The same Info.plist is embedded in
   the plain executable of a CMake build (linker option `-sectcreate`), so a run from the build
   directory does not show a Dock icon without a window either. Unchecked on hardware.
+- **Removing the driver's axis settings (Windows).** The 3Dconnexion driver keeps one XML file per
+  program in `%APPDATA%\3Dconnexion\3DxWare\Cfg\`. An axis that is switched on there (for example twist
+  to the mouse wheel) makes that program receive every movement twice, from the driver and from
+  dofscroll. The **3Dconnexion driver** box on the General page opens **Remove driver axis settings...**:
+  a list of the programs with active driver axes (program, executable, which axis does what). Programs
+  whose axes only pass the motion on to the program (3D navigation of CAD and 3D programs) are not
+  ticked; everything else is. Tick what you want and choose **Switch off the ticked programs**: the
+  `<Enabled>` flag of every axis in those files is set to `false` (nothing else in the file changes),
+  after the original was copied to `Cfg\dofscroll-backup\<date>-<time>\`. **Restore the last backup**
+  puts those files back. Global.xml and the driver's installed defaults are not touched; a program
+  without a file of its own keeps whatever the driver does for it. If a change does not take effect,
+  restart the driver or sign out and in. Not available on macOS yet (the driver's settings location
+  there is not verified). Unchecked on hardware.
 - **Output backend.** The "Output backend" choice (X11, uinput) on the Settings page exists on
   Linux only; Windows uses SendInput and macOS CGEvent.
 - **German catalog.** `dofscroll_de.qm` is next to the executable on every system (Linux
