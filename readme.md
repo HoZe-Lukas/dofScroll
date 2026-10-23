@@ -47,15 +47,15 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 ## Status and testing
 
 Current stable version: **1.2.3**. Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact).
-Other Linux distributions were install-tested in CI containers; Windows had its first tests on one real machine
-(SpaceMouse Pro, official driver); the macOS build is unit-tested by CI but has never been run with a real device.
+Other Linux distributions were install-tested in CI containers; on Windows the basic functions work on one real machine
+(SpaceMouse Pro, official driver; first tests, not extensive); the macOS build is unit-tested by CI but has never been run with a real device.
 
 | Platform | Status |
 |---|---|
 | RHEL 9, X11, KDE Plasma | **Tested** with the SpaceMouse Pro and the SpaceMouse Compact. |
 | Other Linux distributions (Debian, Ubuntu, Fedora, ...) | Not tested with a device. The RPM, DEB and TGZ packages are built and install-tested in CI containers. |
 | Linux, Wayland | Not tested. Uses the uinput backend and needs a udev rule that you install yourself (opt-in, see [installation.md](docs/installation.md)); active-window profiles work only with `kdotool` (KDE). |
-| Windows | Daemon, Qt interface and an unsigned installer/ZIP are built by CI. **First tests on one real machine** (SpaceMouse Pro, official driver). |
+| Windows | Daemon, Qt interface and an unsigned installer/ZIP are built by CI. **Basic functions work on one real machine** (SpaceMouse Pro, official driver; first tests). |
 | macOS | Daemon, Qt interface and an unsigned, not notarized DMG (Apple silicon) are built by CI. **Not run on hardware.** |
 
 | Device | Status |

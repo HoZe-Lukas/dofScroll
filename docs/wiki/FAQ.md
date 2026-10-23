@@ -60,7 +60,7 @@ Disable the user units, remove the package, and delete the udev rule if you adde
 The seeded config differs from the built-in defaults and `spacenavd` settings affect what dofscroll sees. Tune sensitivity, dead zone and curve per channel, see [Configuration reference](Configuration-reference).
 
 **Is there a Windows or macOS installer?**
-Yes: an unsigned Windows installer and ZIP and an unsigned, not notarized macOS DMG (Apple silicon) are attached to every release. They are built and unit-tested by CI; Windows had its first tests on one real machine, macOS has never been run with a real device, see [Supported systems and requirements](Requirements) and the [Installation](Installation) page for the SmartScreen and Gatekeeper steps.
+Yes: an unsigned Windows installer and ZIP and an unsigned, not notarized macOS DMG (Apple silicon) are attached to every release. They are built and unit-tested by CI; on Windows the basic functions work on one real machine (first tests), macOS has never been run with a real device, see [Supported systems and requirements](Requirements) and the [Installation](Installation) page for the SmartScreen and Gatekeeper steps.
 
 **A key got stuck. What now?**
 Run `dofscroll --release-keys` or restart the service. This can happen after SIGKILL under X11, a known limitation, see [Security](Security).

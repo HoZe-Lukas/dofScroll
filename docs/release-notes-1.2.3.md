@@ -3,8 +3,8 @@
 # dofscroll 1.2.3
 
 > **Tested extensively only on RHEL 9** (X11, KDE Plasma, SpaceMouse Pro and Compact). Other Linux
-> distributions were install-tested in CI containers. **Windows: first tests on a real machine
-> (SpaceMouse Pro, official 3Dconnexion driver)**; the macOS build is built and unit-tested by CI but has
+> distributions were install-tested in CI containers. **Windows: the basic functions work on a real machine
+> (first tests, SpaceMouse Pro, official 3Dconnexion driver)**; the macOS build is built and unit-tested by CI but has
 > never been run with a real device.
 
 Release after [1.2.2](release-notes-1.2.2.md), mainly the findings of the first tests on Windows. The
