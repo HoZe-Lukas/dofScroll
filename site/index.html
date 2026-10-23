@@ -62,7 +62,7 @@
 <a class="btn big" href="#download">Download</a>
 <a class="btn secondary big" href="#quickstart">How it works</a>
 </div>
-<p class="note">Tested on RHEL 9, not yet on Windows or macOS: <a href="#status">see status</a>.</p>
+<p class="note">Tested on RHEL 9, first tests on Windows, not yet on macOS: <a href="#status">see status</a>.</p>
 </div>
 <div class="hero-visual"><div class="stack">
 <img class="shot-light main" src="img/ui-window-light.png" width="1040" height="680" alt="The dofscroll settings window: the Joystick modes page with six symbols per joystick mode and, for the selected one, what push, tilt and twist do"><img class="shot-dark main" src="img/ui-window-dark.png" width="1040" height="680" alt="The dofscroll settings window: the Joystick modes page with six symbols per joystick mode and, for the selected one, what push, tilt and twist do">
@@ -105,7 +105,7 @@
 <li class="card"><h3>macOS</h3><p>Apple silicon<br>Open the DMG, drag the app to Applications. First start: right-click, then Open.</p></li>
 </ul>
 <div class="cta"><a class="btn big" href="https://github.com/HoZe-Lukas/dofScroll/releases/latest">Download the latest release</a></div>
-<p class="status" id="status">Tested on RHEL 9 with SpaceMouse Pro and Compact. Windows and macOS builds come from CI and have not been run on a device yet: <a href="https://github.com/HoZe-Lukas/dofScroll/issues">tell us how it goes</a>.</p>
+<p class="status" id="status">Tested on RHEL 9 with SpaceMouse Pro and Compact. The Windows build had its first tests on one real machine; the macOS build comes from CI and has not been run on a device yet: <a href="https://github.com/HoZe-Lukas/dofScroll/issues">tell us how it goes</a>.</p>
 <details class="more"><summary>Check the download</summary>
 <p>Download <code>SHA256SUMS.txt</code> too and run:</p>
 <pre><code>sha256sum -c --ignore-missing SHA256SUMS.txt</code></pre>
@@ -142,7 +142,7 @@ systemctl --user enable --now dofscroll.service dofscroll-ui.service</code></pre
 <div class="faq">
 <details><summary><h3>Does it work in Firefox or Chrome?</h3></summary><p>Yes. dofscroll sends ordinary scroll and zoom events, so browsers, PDF readers and maps work.</p></details>
 <details><summary><h3>It scrolls the wrong way. Can I reverse it?</h3></summary><p>Yes, for every motion on its own: push and tilt are separate, so you can reverse only the one that feels wrong. Set it per program or per device if you like. The zoom key can differ per program too (for example Cmd on a Mac).</p></details>
-<details><summary><h3>Is it tested?</h3></summary><p>Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact). Other Linux distributions were install-tested in CI containers. The Windows and macOS builds are built and unit-tested by CI but have never been run with a real device.</p></details>
+<details><summary><h3>Is it tested?</h3></summary><p>Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact). Other Linux distributions were install-tested in CI containers. The Windows build had its first tests on one real machine; the macOS build comes from CI and has never been run with a real device.</p></details>
 <details><summary><h3>Does it work on Wayland?</h3></summary><p>There is a uinput backend. It is untested, needs an opt-in udev rule for <code>/dev/uinput</code>, and per-program profiles work only with <code>kdotool</code> on KDE.</p></details>
 <details><summary><h3>Do I need the 3Dconnexion driver?</h3></summary><p>No. On Linux dofscroll uses the open-source <code>spacenavd</code>. On Windows and macOS dofscroll reads the SpaceMouse through the installed driver&rsquo;s programming interface when the driver is installed, and directly otherwise (setting <code>INPUT</code>, default automatic; the interface shows which one is active). dofscroll contains nothing of the driver: it only loads the installed driver&rsquo;s interface when it runs. The driver, its interface and the names 3Dconnexion and SpaceMouse belong to 3Dconnexion (a Logitech company); no permission was requested from them. This has only been tested against a fake driver, never against the real one.</p></details>
 <details><summary><h3>Can I keep the official 3Dconnexion driver installed?</h3></summary><p>Yes, and you should if your CAD programs need it: you do not need the driver for dofscroll, and dofscroll is designed to run next to it. Whether both really read the SpaceMouse at the same time on Windows and macOS is still being tested and has not been verified on real machines. A short guided test (about 5 minutes, it changes nothing and never stops the driver) finds out and writes one file for the issue tracker: see the <a href="https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/troubleshooting.md#the-official-3dconnexion-driver-and-dofscroll">troubleshooting guide</a>. Community reports are unconfirmed.</p></details>
