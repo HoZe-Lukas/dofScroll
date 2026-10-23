@@ -3,7 +3,9 @@
 #include "driver_cleanup_dialog.hpp"
 
 #include <QDateTime>
+#include <QAbstractItemView>
 #include <QDialogButtonBox>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
 #include <QMessageBox>
@@ -55,7 +57,22 @@ DriverCleanupDialog::DriverCleanupDialog(const std::string &dir, QWidget *parent
     col->addWidget(intro);
     list_ = new QListWidget(this);
     list_->setAccessibleName(T("Programs with active driver axes"));
+    // Several rows can be ticked: click each box, or select rows (Ctrl/Shift) and press Space.
+    list_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     col->addWidget(list_, 1);
+    auto *tickRow = new QHBoxLayout;
+    auto *all = new QPushButton(T("Tick all"), this);
+    all->setObjectName(QStringLiteral("tick-all"));
+    all->setToolTip(T("Tick every program in the list"));
+    auto *none = new QPushButton(T("Tick none"), this);
+    none->setObjectName(QStringLiteral("tick-none"));
+    none->setToolTip(T("Remove every tick"));
+    tickRow->addWidget(all);
+    tickRow->addWidget(none);
+    tickRow->addStretch(1);
+    col->addLayout(tickRow);
+    connect(all, &QPushButton::clicked, this, [this] { tickAll(true); });
+    connect(none, &QPushButton::clicked, this, [this] { tickAll(false); });
     note_ = new QLabel(this);
     note_->setWordWrap(true);
     note_->setForegroundRole(QPalette::PlaceholderText);
@@ -106,6 +123,9 @@ void DriverCleanupDialog::refreshList() {
 int DriverCleanupDialog::rowCount() const { return list_->count(); }
 bool DriverCleanupDialog::rowChecked(int row) const { return list_->item(row)->checkState() == Qt::Checked; }
 void DriverCleanupDialog::setRowChecked(int row, bool on) { list_->item(row)->setCheckState(on ? Qt::Checked : Qt::Unchecked); }
+void DriverCleanupDialog::tickAll(bool on) {
+    for (int i = 0; i < list_->count(); ++i) setRowChecked(i, on);
+}
 QString DriverCleanupDialog::note() const { return note_->text(); }
 
 bool DriverCleanupDialog::cleanUp(bool confirm) {

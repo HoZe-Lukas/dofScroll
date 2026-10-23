@@ -26,6 +26,7 @@ public:
     int rowCount() const;                   // programs listed
     bool rowChecked(int row) const;
     void setRowChecked(int row, bool on);
+    void tickAll(bool on);                  // ticks (or unticks) every program
     QString note() const;                   // line below the list
     bool cleanUp(bool confirm = true);      // switches the ticked programs off; false on error or when nothing is ticked
     bool restoreLast(bool confirm = true);  // puts the newest backup back
