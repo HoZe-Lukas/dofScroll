@@ -21,6 +21,7 @@
 
 #include "platform/autostart_platform.hpp"
 #include "driver_platform.hpp"
+#include "driver_cleanup_dialog.hpp"
 #include "log_dialog.hpp"
 #include "theme.hpp"
 #include "ui/model/channels_page_model.hpp"
@@ -259,6 +260,26 @@ public:
             else configMsg_->setText(T("Could not open the documentation: ") + qs8(err));
         });
         right->addWidget(cfgBox);
+
+        // ---- the official 3Dconnexion driver (Windows: its per-program folder is known) ----
+        const std::string driverDir = spn::ui::driverConfigDir();
+        if (!driverDir.empty()) {
+            auto *drvBox = new QGroupBox(T("3Dconnexion driver"));
+            auto *dvl = new QVBoxLayout(drvBox);
+            auto *drvNote = makeNote();
+            drvNote->setText(T("If the driver has axes switched on for a program, that program receives every movement twice: "
+                               "from the driver and from dofscroll. Switch them off here, except for your 3D and CAD programs."));
+            dvl->addWidget(drvNote);
+            auto *drvBtn = new QPushButton(T("Remove driver axis settings..."));
+            drvBtn->setObjectName(QStringLiteral("driver-cleanup"));
+            drvBtn->setToolTip(T("List the programs with active driver axes and switch off the ones you tick"));
+            dvl->addWidget(drvBtn, 0, Qt::AlignLeft);
+            QObject::connect(drvBtn, &QPushButton::clicked, this, [this, driverDir] {
+                DriverCleanupDialog dlg(driverDir, window());
+                dlg.exec();
+            });
+            right->addWidget(drvBox);
+        }
 
         // ---- about: version, licences, and (Windows, macOS) what belongs to 3Dconnexion ----
         auto *aboutBox = new QGroupBox(T("About"));
