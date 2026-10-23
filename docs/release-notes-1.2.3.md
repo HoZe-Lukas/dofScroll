@@ -56,3 +56,9 @@ The cleanup dialog (ticking several rows with mouse and keyboard, backup and res
 installation) and scrolling by pushing and tilting in both directions with the new Windows default need a human
 on Windows. The macOS default and image have not been run on a real Mac. Linux behavior is unchanged but was
 not re-tested on hardware for this release.
+
+## Known limitation
+
+The interface assumes the Linux axis names (`y` = lift/press, `ry` = twist). With the official driver on Windows the
+axes are named differently, so the lift/press warning on the Channels page and the labels of the motion editor and
+motion help can be wrong there. The scrolling itself is not affected. Tracked in issue #186.
