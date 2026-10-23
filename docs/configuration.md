@@ -40,7 +40,7 @@ Three channels, each with its own axis mix, sensitivity, dead zone, direction, c
 | `<CH>_SMOOTH_MS` | `0` | Low-pass time constant in ms, 0 to 500. `0` = off. |
 
 `<CH>` is `SCROLL_V`, `SCROLL_H` or `ZOOM`. Values in the seeded config
-(`examples/default/<os>/dofscroll.conf`) differ from this table; the seeded file is a starting point. The axis order of the official driver differs between the systems, so Linux, Windows and macOS each have their own file: Linux uses mixes of two axes (`z + rx`, `x - rz`, `ry`), Windows one fixed axis per channel (`y`, `x`, `-rz`, no mixes). The macOS file is experimental: it carries the Linux values and is untested on a Mac, run the axis assistant there.
+(`examples/default/<os>/dofscroll.conf`) differ from this table; the seeded file is a starting point. The axis order of the official driver differs between the systems, so Linux, Windows and macOS each have their own file: Linux uses mixes of two axes (`z + rx`, `x - rz`, `ry`), Windows mixes of push and tilt as well (`y + rx`, `x - ry`, `-rz`: scrolling by pushing and by tilting, measured with the official driver). The macOS file is experimental: it carries the Linux values and is untested on a Mac, run the axis assistant there.
 
 Per-part keys for split channels: `SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>`
 (for example `SCROLL_V_TILT_SENS = 8`). A joystick mode can split the vertical or horizontal channel
