@@ -322,12 +322,12 @@ void MainWindow::updateStatus() {
 
 // New installation: the seeded configuration has no device profile; the first attached device gets one.
 void MainWindow::addFirstDeviceProfile() {
-    if (status_.device.empty() || autosave_.pending() || settings_.dirty()) return;
+    if (status_.status().device.empty() || autosave_.pending() || settings_.dirty()) return;
     const std::string pp = spn::ui::uiProgressPath(ctx_.configPath);
     spn::ui::UiProgress p = spn::ui::loadUiProgress(pp);
     if (!p.firstDevicePending) return;
     std::string err;
-    if (spn::ui::addFirstDeviceProfile(settings_, status_.device, &err)) {
+    if (spn::ui::addFirstDeviceProfile(settings_, status_.status().device, &err)) {
         ctx_.saveSoon();
         if (auto *pg = qobject_cast<ProfilesPage *>(profilesPage_)) pg->reloadFromModel();
     }

@@ -62,7 +62,7 @@ static bool usesY(const std::string &key, const std::string &value, std::string 
 }
 
 // Scans "KEY = value" lines of a mode or config file.
-static int scanFile(const std::filesystem::path &p) {
+static int scanFile(const std::filesystem::path &p, bool yIsLift = true) {
     std::ifstream in(p);
     assert(in.good());
     std::vector<std::pair<std::string, std::string>> lines;
@@ -86,7 +86,7 @@ static int scanFile(const std::filesystem::path &p) {
         std::string perr;
         const bool y = usesY(kv.first, kv.second, &perr);
         if (!perr.empty()) fail(p.generic_string(), kv.first, "has a value that does not parse: " + perr);
-        else if (y && !optedIn) fail(p.generic_string(), kv.first, "uses y (value: " + kv.second + ")");
+        else if (y && yIsLift && !optedIn) fail(p.generic_string(), kv.first, "uses y (value: " + kv.second + ")");
     }
     return scanned;
 }
@@ -103,7 +103,9 @@ int main() {
         }
     assert(files > 0);
     for (const char *os : {"linux", "windows", "macos"})  // the default mixes and ZOOM_LATERAL are in each
-        assert(scanFile(std::string("examples/default/") + os + "/dofscroll.conf") >= 4);
+        // The official Windows driver names the axes differently: its y is push forward/back, not lift/press
+        // (measured with the axis assistant), so the Windows file may use y.
+        assert(scanFile(std::string("examples/default/") + os + "/dofscroll.conf", std::string(os) != "windows") >= 4);
 
     // 2. the built-in defaults of the program
     for (const KV &p : allKeys(Settings()))
