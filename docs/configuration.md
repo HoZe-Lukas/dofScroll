@@ -40,7 +40,7 @@ Three channels, each with its own axis mix, sensitivity, dead zone, direction, c
 | `<CH>_SMOOTH_MS` | `0` | Low-pass time constant in ms, 0 to 500. `0` = off. |
 
 `<CH>` is `SCROLL_V`, `SCROLL_H` or `ZOOM`. Values in the seeded config
-(`examples/default/dofscroll.conf`) differ from this table; the seeded file is a starting point.
+(`examples/default/<os>/dofscroll.conf`) differ from this table; the seeded file is a starting point. The axis order of the official driver differs between the systems, so Linux, Windows and macOS each have their own file: Linux uses mixes of two axes (`z + rx`, `x - rz`, `ry`), Windows one fixed axis per channel (`y`, `x`, `-rz`, no mixes). The macOS file is experimental: it carries the Linux values and is untested on a Mac, run the axis assistant there.
 
 Per-part keys for split channels: `SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>`
 (for example `SCROLL_V_TILT_SENS = 8`). A joystick mode can split the vertical or horizontal channel
@@ -61,7 +61,7 @@ changed `spacenavd` settings (axis swap, inversion), adjust the mixes or run the
 |---|---|---|
 | `INVERT_AXES` | `none` | Axes whose direction is flipped before anything else sees them, in every joystick mode: a list of `x y z rx ry rz` (or `none`). Use it when pushing scrolls the wrong way but tilting is right (`INVERT_AXES = z`). Like every key it can be set per device and per program; the Channels tab has a check box per motion. The sign of a channel (`*_SIGN`) flips the whole channel instead. |
 | `ZOOM_MODIFIER` | `ctrl` | Keys held while a zoom action sends the mouse wheel: `ctrl`, `shift`, `alt`, `super` (the Command key on macOS; `cmd` is accepted), a combination such as `ctrl+shift`, or `none`. Set it per program or device where the zoom key differs, for example `super` on macOS. `none` sends the plain wheel, so a twist scrolls instead of zooming. It affects only the mouse-wheel zoom action, not zoom done with `keys:`. The joystick mode chips and cards show the keys of the profile they are shown for. |
-| `ZOOM_LATERAL` | `x z rx rz` | Axes the twist must dominate to enter zoom. |
+| `ZOOM_LATERAL` | `x z rx rz` | Axes the twist must dominate to enter zoom. An axis that is part of `ZOOM_MIX` itself is ignored here. The axis assistant sets this list to the axes of the two scroll channels. |
 | `ZOOM_ENTER_MS` | `40` | How long the twist must dominate before zoom latches. |
 | `ZOOM_EXIT_RATIO` | `1.5` | Zoom ends when another axis exceeds the twist by this factor (at least 1.0). |
 | `STEP_TRIGGER` | `20` | Level at which a `step:` channel action (see [joystick modes](modes.md)) fires one key tap, measured in steps per second after the channel's dead zone, curve, smoothing and sensitivity (`deflection * SENS / 20`; 0.5 to 10000). The action re-arms at half of it. Raise it for a firmer push, lower it together with a low `*_SENS`. |
@@ -193,7 +193,7 @@ All are validated by `cmake --build build --target check-config`. Copy one to
 
 | File | Content |
 |---|---|
-| `examples/default/dofscroll.conf` | Initial config that the tray seeds on first start. |
+| `examples/default/linux/`, `windows/`, `macos/` (`dofscroll.conf`) | Initial config that the interface seeds on first start, one per operating system (macOS: experimental, untested). It has no device profile: the first attached device gets its own profile once (button 1 = navigation). |
 | `examples/dofscroll-pro.conf` | SpaceMouse Pro, buttons off. |
 | `examples/dofscroll-compact.conf` | SpaceMouse Compact, left button as nav button. |
 | `examples/dofscroll-multi-device.conf` | Both device profiles in one file. |

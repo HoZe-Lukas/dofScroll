@@ -12,7 +12,7 @@ if(DOFSCROLL_BUILD_DAEMON)
   enable_language(RC)
   set(WIN_RC ${CMAKE_SOURCE_DIR}/packaging/windows/dofscroll.rc)
   set_source_files_properties(${WIN_RC} PROPERTIES OBJECT_DEPENDS
-    ${CMAKE_SOURCE_DIR}/packaging/windows/dofscroll.manifest)
+    "${CMAKE_SOURCE_DIR}/packaging/windows/dofscroll.manifest;${CMAKE_SOURCE_DIR}/packaging/windows/dofscroll.ico")
   add_executable(dofscroll WIN32 ${WIN_SRC} ${WIN_RC})
   target_include_directories(dofscroll PRIVATE ${CMAKE_SOURCE_DIR}/packaging/windows)
   target_link_libraries(dofscroll PRIVATE dofscroll_core hid setupapi user32 advapi32 shell32 bcrypt wtsapi32 ole32 oleaut32 uuid)

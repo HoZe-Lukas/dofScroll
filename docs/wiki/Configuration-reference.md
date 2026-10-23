@@ -72,7 +72,7 @@ All are validated by `cmake --build build --target check-config`. Packages insta
 
 | File | Content |
 |---|---|
-| [examples/default/dofscroll.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/default/dofscroll.conf) | Initial config seeded by the tray |
+| [examples/default/linux/dofscroll.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/default/linux/dofscroll.conf) | Initial config seeded by the interface on Linux (`windows/` and `macos/` next to it, macOS experimental) |
 | [examples/dofscroll-pro.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-pro.conf) | SpaceMouse Pro, buttons off |
 | [examples/dofscroll-compact.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-compact.conf) | SpaceMouse Compact, both buttons active |
 | [examples/dofscroll-multi-device.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-multi-device.conf) | Both device profiles in one file |

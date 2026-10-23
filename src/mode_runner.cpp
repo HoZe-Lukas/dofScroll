@@ -250,7 +250,7 @@ void ModeRunner::tickLegacy(const Settings &s, const RawAxes &raw, uint32_t butt
     // ZoomDetector). Off in nav mode.
     double zoom_mixed = evalMix(s.zoom.mix, raw);
     double twist = nav_active ? 0.0 : std::fabs(zoom_mixed * s.zoom.sign);
-    double lateral = lateralMax(s.zoom_lateral, raw);
+    double lateral = lateralMax(s.zoom_lateral, raw, s.zoom.mix);
     if (s.zoom.sensitivity <= 0) twist = 0.0;
     bool zooming = zoom_.update(twist, lateral, s, dt);
     double rate_zoom = ch_zoom_.processValue(s.zoom, zoom_mixed, dt);
@@ -334,7 +334,7 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
     // Twist with zoom keeps the dominance detection; all other actions are plain.
     double zoom_mixed = evalMix(s.zoom.mix, raw);
     double twist = std::fabs(zoom_mixed * s.zoom.sign);
-    double lateral = lateralMax(s.zoom_lateral, raw);
+    double lateral = lateralMax(s.zoom_lateral, raw, s.zoom.mix);
     if (nav_active || s.zoom.sensitivity <= 0) twist = 0.0;
     bool zooming = false;
     if (tt == ChannelActionType::Zoom) zooming = zoom_.update(twist, lateral, s, dt);

@@ -90,16 +90,11 @@ It takes about 5 minutes and writes dofscroll-driver-test-report.txt (see docs/d
 Licenses: LICENSE, THIRD-PARTY-NOTICES.md.
 "@ | Set-Content -Encoding utf8 (Join-Path $stage 'README-portable.txt')
 
-# Optional icon: only when ImageMagick can render the SVG (the installer works without it).
+# Icon of the installer and uninstaller: the same dofscroll.ico that is embedded in the executables
+# (made by scripts/make-windows-ico.py).
 $icoArg = @()
-$magick = Get-Command magick -ErrorAction SilentlyContinue
-if ($magick) {
-    $ico = Join-Path $OutDir 'dofscroll.ico'
-    try {
-        & $magick.Source -background none -density 384 (Join-Path $root 'icons\dofscroll-app.svg') -define icon:auto-resize=256,64,48,32,16 $ico
-        if ($LASTEXITCODE -eq 0 -and (Test-Path $ico)) { $icoArg = @("/DAPP_ICO=$ico") }
-    } catch { Write-Warning "icon conversion failed: $_" }
-}
+$ico = Join-Path $root 'packaging\windows\dofscroll.ico'
+if (Test-Path $ico) { $icoArg = @("/DAPP_ICO=$ico") } else { Write-Warning "icon not found: $ico" }
 
 $setup = Join-Path $OutDir "$base-setup.exe"
 $nsi = Join-Path $root 'packaging\windows\installer.nsi'

@@ -124,6 +124,13 @@ if(DOFSCROLL_UI)
       set(DOFSCROLL_UI_RUNNING_APPS_STUB OFF)
     endif()
   elseif(WIN32)
+    # The application icon of the executable (taskbar, Start menu shortcut): a resource, because the
+    # window icon alone (an SVG in the Qt resources) does not reach a pinned or not yet started entry.
+    enable_language(RC)
+    set(DOFSCROLL_UI_RC ${CMAKE_SOURCE_DIR}/packaging/windows/dofscroll-ui.rc)
+    set_source_files_properties(${DOFSCROLL_UI_RC} PROPERTIES OBJECT_DEPENDS
+      ${CMAKE_SOURCE_DIR}/packaging/windows/dofscroll.ico)
+    target_sources(dofscroll-ui PRIVATE ${DOFSCROLL_UI_RC})
     if(EXISTS ${CMAKE_SOURCE_DIR}/src/platform/win/running_apps_win.cpp)
       target_sources(dofscroll-ui PRIVATE src/platform/win/running_apps_win.cpp
                      src/platform/win/win_activewin.cpp)

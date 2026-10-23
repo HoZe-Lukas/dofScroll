@@ -34,7 +34,7 @@ the driver:
 - [ ] `dofscroll.exe --version` prints a version and exits with code 0.
 - [ ] Starting `dofscroll.exe` shows no console window; a process `dofscroll.exe` exists.
 - [ ] `%LOCALAPPDATA%\dofscroll\dofscroll.log` and `dofscroll-status` appear; the status file is updated about every second and contains `device=`, `profile=`, `app=`, `mode=`.
-- [ ] `%APPDATA%\dofscroll\` is the config folder (seeded or created by hand with `examples\default\dofscroll.conf` and `modes\`).
+- [ ] `%APPDATA%\dofscroll\` is the config folder (seeded or created by hand with `examples\default\windows\dofscroll.conf` and `modes\`).
 - [ ] The log contains no raw control characters or line breaks from device names.
 
 ## 2. Device detection (repeat per model: Compact, Wireless, Pro, Pro Wireless, Enterprise, SpaceNavigator)

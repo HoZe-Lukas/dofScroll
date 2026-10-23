@@ -144,6 +144,20 @@ static void testZoom() {
         ZoomDetector z;
         for (int i = 0; i < 500; ++i) assert(!z.update(tw, lat, s, dt));
     }
+    {   // twist axis (rz) still listed in ZOOM_LATERAL: it must not block zoom against itself
+        Settings s2 = s;
+        std::string perr;
+        assert(parseMix("-rz", &s2.zoom.mix, &perr));
+        RawAxes raw{};
+        raw[AX_RZ] = -350;
+        double tw = std::fabs(evalMix(s2.zoom.mix, raw) * s2.zoom.sign);
+        assert(lateralMax(s2.zoom_lateral, raw) == 350.0);  // old behavior: the blocker
+        double lat = lateralMax(s2.zoom_lateral, raw, s2.zoom.mix);
+        assert(lat == 0.0);
+        ZoomDetector z; bool on = false;
+        for (int i = 0; i < 20; ++i) on = z.update(tw, lat, s2, dt);
+        assert(on);
+    }
 }
 
 // Regression S2 (docs/security.md): extreme config values must produce neither inf/NaN

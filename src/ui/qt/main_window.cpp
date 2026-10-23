@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "main_window.hpp"
 #include "ui/model/status_text.hpp"
+#include "ui/model/first_device.hpp"
+#include "ui/model/ui_progress.hpp"
 
 #include <QCloseEvent>
 #include <QEvent>
@@ -220,6 +222,13 @@ bool MainWindow::event(QEvent *e) {
 }
 
 bool MainWindow::startSetupGuide(bool freshInstall) {
+    if (freshInstall) {  // the profile of the first attached device is added once (updateStatus)
+        const std::string pp = spn::ui::uiProgressPath(ctx_.configPath);
+        spn::ui::UiProgress p = spn::ui::loadUiProgress(pp);
+        p.firstDevicePending = true;
+        std::string perr;
+        spn::ui::saveUiProgress(pp, p, &perr);
+    }
     if (!guideFlow_.start(freshInstall)) return false;
     showSetupGuide(true);
     return true;
@@ -307,7 +316,23 @@ void MainWindow::updateStatus() {
         statusLabel_->setText(line);
         statusLabel_->setToolTip(line);  // the full text when the window is too narrow for it
     }
+    addFirstDeviceProfile();
     if (auto *overview = qobject_cast<OverviewPage *>(overviewPage_)) overview->refresh();
+}
+
+// New installation: the seeded configuration has no device profile; the first attached device gets one.
+void MainWindow::addFirstDeviceProfile() {
+    if (status_.status().device.empty() || autosave_.pending() || settings_.dirty()) return;
+    const std::string pp = spn::ui::uiProgressPath(ctx_.configPath);
+    spn::ui::UiProgress p = spn::ui::loadUiProgress(pp);
+    if (!p.firstDevicePending) return;
+    std::string err;
+    if (spn::ui::addFirstDeviceProfile(settings_, status_.status().device, &err)) {
+        ctx_.saveSoon();
+        if (auto *pg = qobject_cast<ProfilesPage *>(profilesPage_)) pg->reloadFromModel();
+    }
+    p.firstDevicePending = false;  // once: also when the configuration already had a device profile
+    spn::ui::saveUiProgress(pp, p, &err);
 }
 
 void MainWindow::bringToFront() {

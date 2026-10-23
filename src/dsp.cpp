@@ -117,4 +117,15 @@ double lateralMax(const std::vector<Axis> &axes, const RawAxes &raw) {
     return m;
 }
 
+double lateralMax(const std::vector<Axis> &axes, const RawAxes &raw, const Mix &zoom_mix) {
+    double m = 0.0;
+    for (Axis a : axes) {
+        bool in_zoom = false;
+        for (const Term &t : zoom_mix.terms)
+            if (t.axis == a && t.weight != 0.0) in_zoom = true;
+        if (!in_zoom) m = std::max(m, std::fabs(static_cast<double>(raw[a])));
+    }
+    return m;
+}
+
 }  // namespace spn

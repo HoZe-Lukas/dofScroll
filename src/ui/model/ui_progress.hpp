@@ -16,9 +16,10 @@ struct UiProgress {
     bool axisAssistantApplied = false;
     bool motionTourSeen = false;  // the tour of the Motions and buttons tab ran to its end or was dismissed
     bool setupGuideSeen = false;  // the first-run setup guide was finished or skipped (or never needed)
+    bool firstDevicePending = false;  // new installation: the profile of the first attached device is still to be added
     bool operator==(const UiProgress &o) const {
         return axisAssistantApplied == o.axisAssistantApplied && motionTourSeen == o.motionTourSeen &&
-               setupGuideSeen == o.setupGuideSeen;
+               setupGuideSeen == o.setupGuideSeen && firstDevicePending == o.firstDevicePending;
     }
 };
 
@@ -46,6 +47,7 @@ inline UiProgress parseUiProgress(const std::string &text) {
         if (key == "axis_assistant_applied") p.axisAssistantApplied = value == "1";
         if (key == "motion_tour_seen") p.motionTourSeen = value == "1";
         if (key == "setup_guide_seen") p.setupGuideSeen = value == "1";
+        if (key == "first_device_pending") p.firstDevicePending = value == "1";
     }
     return p;
 }
@@ -53,7 +55,8 @@ inline UiProgress parseUiProgress(const std::string &text) {
 inline std::string serializeUiProgress(const UiProgress &p) {
     return std::string("# dofscroll user interface progress\naxis_assistant_applied = ") +
            (p.axisAssistantApplied ? "1" : "0") + "\nmotion_tour_seen = " + (p.motionTourSeen ? "1" : "0") +
-           "\nsetup_guide_seen = " + (p.setupGuideSeen ? "1" : "0") + "\n";
+           "\nsetup_guide_seen = " + (p.setupGuideSeen ? "1" : "0") +
+           "\nfirst_device_pending = " + (p.firstDevicePending ? "1" : "0") + "\n";
 }
 
 // Missing, unreadable, foreign-owned or oversized file: nothing done yet.

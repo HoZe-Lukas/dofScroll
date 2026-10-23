@@ -1,0 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+// Application icon of dofscroll-ui.exe (taskbar, Start menu shortcut, Explorer). Made by
+// scripts/make-windows-ico.py from icons/dofscroll-app.svg.
+1 ICON "dofscroll.ico"

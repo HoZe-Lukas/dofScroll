@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Application manifest of dofscroll.exe (asInvoker, long paths, UTF-8 active code page).
+// Application manifest and icon of dofscroll.exe (asInvoker, long paths, UTF-8 active code page).
 // 1 = CREATEPROCESS_MANIFEST_RESOURCE_ID, 24 = RT_MANIFEST (numeric: no header needed).
 1 24 "dofscroll.manifest"
+// 1 = the application icon (lowest id: Explorer, taskbar and the Start menu shortcut use it). Made by
+// scripts/make-windows-ico.py from icons/dofscroll-app.svg.
+1 ICON "dofscroll.ico"

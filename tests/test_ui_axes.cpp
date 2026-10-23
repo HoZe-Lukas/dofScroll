@@ -225,6 +225,7 @@ static void testWizard() {
     assert(m.value(0, "SCROLL_H_MIX", &v) && v.text == "-x");
     assert(m.value(0, "ZOOM_MIX", &v) && v.text == "ry");
     assert(m.value(0, "ZOOM_SIGN", &v) && v.text == "1");
+    assert(m.value(0, "ZOOM_LATERAL", &v) && v.text == "x z");  // the scroll axes, never the twist
 
     // Going back to repeat a step is possible; an incomplete mapping cannot be applied and leaves
     // the model alone (cancel = never calling applyTo).
