@@ -271,16 +271,20 @@ if(BUILD_TESTING)
     add_test(NAME check_site COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/check-site.sh)
   endif()
 
-  # config validation: examples/*.conf and examples/default/dofscroll.conf
+  # config validation: examples/*.conf and examples/default/<os>/dofscroll.conf
   add_executable(check_config tests/check_config.cpp)
   target_link_libraries(check_config PRIVATE dofscroll_core)
   set_target_properties(check_config PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
   file(GLOB EXAMPLE_CONFS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/examples/*.conf)
-  list(APPEND EXAMPLE_CONFS ${CMAKE_SOURCE_DIR}/examples/default/dofscroll.conf)
   set(CHECK_CONFIG_COMMANDS)
   foreach(c ${EXAMPLE_CONFS})
     get_filename_component(cname ${c} NAME_WE)
     add_test(NAME check_config_${cname} COMMAND check_config ${c})
+    list(APPEND CHECK_CONFIG_COMMANDS COMMAND check_config ${c})
+  endforeach()
+  foreach(os linux windows macos)  # the first-start configuration of each operating system
+    set(c ${CMAKE_SOURCE_DIR}/examples/default/${os}/dofscroll.conf)
+    add_test(NAME check_config_default_${os} COMMAND check_config ${c})
     list(APPEND CHECK_CONFIG_COMMANDS COMMAND check_config ${c})
   endforeach()
   # mode files (split push/tilt keys and per-part tuning included)

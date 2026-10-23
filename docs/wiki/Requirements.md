@@ -76,7 +76,7 @@ The shipped units (`dofscroll.service`, `dofscroll-ui.service`) are systemd user
 - KDE Plasma: supported (verified).
 - GNOME: install and enable the AppIndicator extension (on RHEL `gnome-shell-extension-appindicator`; the package name elsewhere is unverified). Not tested on GNOME.
 - Without a tray the window opens minimized and closing it quits the interface; the status bar says so.
-- The daemon works without the tray. The interface is needed for the settings window and for the first-start seeding of the config. Without it, copy `examples/default/dofscroll.conf` to `~/.config/dofscroll/dofscroll.conf` yourself.
+- The daemon works without the tray. The interface is needed for the settings window and for the first-start seeding of the config. Without it, copy `examples/default/linux/dofscroll.conf` (`windows/` or `macos/` on those systems) to `~/.config/dofscroll/dofscroll.conf` yourself.
 
 ### Qt runtime
 

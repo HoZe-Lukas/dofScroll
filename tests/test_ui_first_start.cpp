@@ -20,9 +20,9 @@ static std::string get(const std::string &p) {
 int main() {
     const std::string root = tu::makeTempDir("dofscroll-first-start"), ex = root + "/ex";
     std::filesystem::create_directories(root + "/cfg");
-    std::filesystem::create_directories(ex + "/default");
+    std::filesystem::create_directories(ex + "/default/" + spn::seedOsName());
     std::filesystem::create_directories(ex + "/modes");  // built in: never copied
-    put(ex + "/default/dofscroll.conf", "[global]\nSENSITIVITY = 7\n");
+    put(ex + "/default/" + spn::seedOsName() + "/dofscroll.conf", "[global]\nSENSITIVITY = 7\n");
     put(ex + "/modes/slides.conf", "NAME = Slides\n");
     const std::string cfg = tu::useConfigBase(root + "/cfg");
     tu::setEnv("DOFSCROLL_EXAMPLES", ex);

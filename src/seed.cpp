@@ -76,6 +76,18 @@ std::string findExamplesDir() {
 
 }  // namespace
 
+// The example configuration of this operating system: the axis order of the official driver differs
+// between Linux (spacenavd), Windows and macOS, so each has its own file in examples/default/<os>/.
+const char *seedOsName() {
+#if defined(_WIN32)
+    return "windows";
+#elif defined(__APPLE__)
+    return "macos";
+#else
+    return "linux";
+#endif
+}
+
 std::string examplesDir() { return findExamplesDir(); }
 
 bool seedDefaults(std::string *log) {
@@ -92,7 +104,7 @@ bool seedDefaults(std::string *log) {
     const std::string ex = findExamplesDir();
     if (ex.empty()) return false;
     if (!mkdirs(cfgDir)) return false;
-    if (!copyFile(ex + "/default/dofscroll.conf", cfgFile)) return false;
+    if (!copyFile(ex + "/default/" + seedOsName() + "/dofscroll.conf", cfgFile)) return false;
     if (log) *log = "seeded default config into " + cfgDir + " from " + ex;
     return true;
 }

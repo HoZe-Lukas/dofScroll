@@ -50,10 +50,12 @@ int main() {
     assert(!spn::seedDefaults(&log));
     assert(!exists(conf));
 
+    const std::string osName = spn::seedOsName();
     mkdir1(ex + "/default");
+    mkdir1(ex + "/default/" + osName);
     mkdir1(ex + "/modes");
     mkdir1(ex + "/buttons");
-    put(ex + "/default/dofscroll.conf", "[global]\nA = 1\n");
+    put(ex + "/default/" + osName + "/dofscroll.conf", "[global]\nA = 1\n");
     put(ex + "/modes/a.conf", "a\n");
     put(ex + "/buttons/latch.conf", "ACTION = toggle:nav\n");
 
@@ -90,7 +92,7 @@ int main() {
     {
         tu::removeAll(cfg + "/dofscroll");
         tu::removeAll(cfg + "/spnav-scroll");
-        put(ex + "/default/dofscroll.conf", std::string(70 * 1024, 'x'));
+        put(ex + "/default/" + osName + "/dofscroll.conf", std::string(70 * 1024, 'x'));
         assert(!spn::seedDefaults(&log) && !exists(conf));
     }
 

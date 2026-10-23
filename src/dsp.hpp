@@ -71,6 +71,9 @@ private:
 };
 
 // Strongest single axis (magnitude) from the list.
+// Axes that are part of the zoom mix itself are skipped: the twist cannot dominate against itself
+// (a mapping like ZOOM_MIX = -rz with rz still in ZOOM_LATERAL would never zoom).
+double lateralMax(const std::vector<Axis> &axes, const RawAxes &raw, const Mix &zoom_mix);
 double lateralMax(const std::vector<Axis> &axes, const RawAxes &raw);
 
 }  // namespace spn

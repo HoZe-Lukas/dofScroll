@@ -109,6 +109,7 @@ protected:
 private:
     QLabel *categoryTitle_ = nullptr;  // large title above the category
     void updateStatus();
+    void addFirstDeviceProfile();
     void noteConfigStamp();
     void followConfigFile();
     void migrateLegacyButtons();  // NAV_BUTTON / CLICK_BUTTON -> BUTTON_<n>, once and visibly

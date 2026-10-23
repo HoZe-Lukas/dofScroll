@@ -376,6 +376,25 @@ public:
             if (!tmp.setValue(0, p.first, *p.second, err)) return false;
         for (const char *k : {"SCROLL_V_SIGN", "SCROLL_H_SIGN", "ZOOM_SIGN"})
             if (!tmp.setValue(0, k, "1", err)) return false;
+        // Zoom must dominate against the axes the two scroll channels use, never against its own
+        // twist axis (the seeded x z rx rz would block zoom on a device whose twist is rz).
+        std::string lat;
+        {
+            Mix mv, mh, mz;
+            std::string perr;
+            if (parseMix(final_.mix_v, &mv, &perr) && parseMix(final_.mix_h, &mh, &perr) &&
+                parseMix(final_.mix_zoom, &mz, &perr)) {
+                for (int a = 0; a < 6; ++a) {
+                    auto uses = [a](const Mix &x) {
+                        for (const Term &tm : x.terms)
+                            if (int(tm.axis) == a) return true;
+                        return false;
+                    };
+                    if ((uses(mv) || uses(mh)) && !uses(mz)) lat += (lat.empty() ? "" : " ") + std::string(axisName(Axis(a)));
+                }
+            }
+        }
+        if (!lat.empty() && !tmp.setValue(0, "ZOOM_LATERAL", lat, err)) return false;
         m = tmp;
         return true;
     }

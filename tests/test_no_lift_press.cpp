@@ -102,7 +102,8 @@ int main() {
             ++files;
         }
     assert(files > 0);
-    assert(scanFile("examples/default/dofscroll.conf") >= 4);  // the default mixes and ZOOM_LATERAL are in it
+    for (const char *os : {"linux", "windows", "macos"})  // the default mixes and ZOOM_LATERAL are in each
+        assert(scanFile(std::string("examples/default/") + os + "/dofscroll.conf") >= 4);
 
     // 2. the built-in defaults of the program
     for (const KV &p : allKeys(Settings()))
