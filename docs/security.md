@@ -413,13 +413,12 @@ Target platform RHEL 9 = **systemd 252**; only directives available there were u
 | `NoNewPrivileges=yes` | no privilege gain via setuid/file caps, also not for child processes |
 | `UMask=0077` | newly written files (config!) readable only by the user |
 | `PrivateUsers=yes` | **required in the systemd 252 user manager**, see below |
-| `CapabilityBoundingSet=` | empty bounding set (works only together with `PrivateUsers=yes`) |
 | `ProtectSystem=strict` | whole file system read-only (except `/dev`, `/proc`, `/sys` API) |
 | `ProtectHome=read-only` | home only readable; the daemon reads the config, writes nothing there |
 | `ConfigurationDirectory=dofscroll`, `ConfigurationDirectoryMode=0700` | **tray only**: creates `~/.config/dofscroll` (0700) before the sandbox is set up so that the `ReadWritePaths` target exists |
 | `ReadWritePaths=%t` | **daemon only**: `/run/user/UID` writable; the daemon creates only `dofscroll-status` (temp file + rename) and `dofscroll.log` there, see section 8 |
 | `ReadWritePaths=%E/dofscroll %t` | **tray only**: write the config (temp + rename in the same directory; this includes `modes/` for first-start seeding), `/run/user/UID` for dconf/at-spi. The rest of `~/.config` (including `systemd/user`, `autostart`, `environment.d`) stays read-only; the earlier `ReadOnlyPaths` exceptions are gone |
-| `ProtectKernelTunables=yes`, `ProtectKernelModules=yes`, `ProtectKernelLogs=yes`, `ProtectControlGroups=yes`, `ProtectClock=yes`, `ProtectHostname=yes` | kernel/cgroup/clock/hostname protection |
+| `ProtectKernelTunables=yes`, `ProtectControlGroups=yes`, `ProtectHostname=yes` | kernel/cgroup/hostname protection |
 | `PrivateIPC=yes` | **daemon only** (no SysV IPC needed) |
 | `KeyringMode=private` | own kernel keyring |
 | `RestrictAddressFamilies=AF_UNIX` (daemon) / `AF_UNIX AF_NETLINK` (tray) | X11, `spacenavd`, DBus are Unix sockets; GIO may use netlink |
@@ -438,7 +437,9 @@ units, see "Verification"):
   "2.5 OK" (the offline analysis checks only the unit file, not the effect).
 - `CapabilityBoundingSet=`, `ProtectKernelModules=`, `ProtectKernelLogs=`, `ProtectClock=` made
   the start fail with `status=218/CAPABILITIES` (the user manager may not shrink the bounding
-  set without its own user namespace).
+  set without its own user namespace). They start together with `PrivateUsers=yes` only where
+  unprivileged user namespaces are unrestricted; where a distribution confines them they fail even
+  with `PrivateUsers=yes` (next section), so they are not set any more.
 
 With `PrivateUsers=yes` all restrictions take effect. Side effect: supplementary groups appear
 as `nobody` inside the service (`id` shows `65534(nobody)`), but the kernel's permission check
@@ -446,6 +447,40 @@ still uses the real groups - access to a `root:input 0660` device file worked in
 `systemctl --user` from the sandbox (tray: SIGHUP/restart) works as well, since the user
 manager sees the caller with the real UID via `SO_PEERCRED`. Prerequisite: unprivileged user
 namespaces are allowed (`/proc/sys/user/max_user_namespaces` > 0; RHEL 9 default).
+
+### Why `CapabilityBoundingSet`/`ProtectKernelModules`/`ProtectKernelLogs`/`ProtectClock` are not set
+
+Verified 2026-10-25 on Ubuntu 26.04 (systemd 259, AppArmor,
+`kernel.apparmor_restrict_unprivileged_userns = 1`):
+
+- With `PrivateUsers=yes` plus any of the four directives, `systemctl --user start
+  dofscroll.service` fails with `status=218/CAPABILITIES`; the journal says `Failed to drop
+  capabilities: Operation not permitted`, at the step `CAPABILITIES`, before `ExecStart`.
+- The kernel audit log gives the reason: `userns_create ... profile="unconfined" ...
+  target="unprivileged_userns"` followed by `apparmor="DENIED" operation="capable" ...
+  profile="unprivileged_userns" capability=setpcap` (and `sys_admin`). The sandbox setup runs
+  confined in that profile and may not manipulate capabilities or the kernel-related mounts, so
+  the start is aborted.
+- It is not specific to dofscroll: a transient unit running `/bin/true` with the same directives
+  fails with `218` as well (`systemd-run --user --wait -p CapabilityBoundingSet= /bin/true` and
+  the same for `ProtectKernelModules=`, `ProtectKernelLogs=`, `ProtectClock=`), while the other
+  directives of the units above start fine there.
+- Where the calls are allowed, all four start (RHEL 9, systemd 252, verified 2026-10-15 with
+  `PrivateUsers=yes`); without `PrivateUsers=yes` they fail with `218` on every system (see above).
+
+A setup that wants them anyway on a distribution that allows the calls:
+
+    systemctl --user edit dofscroll.service
+
+    [Service]
+    CapabilityBoundingSet=
+    ProtectKernelModules=yes
+    ProtectKernelLogs=yes
+    ProtectClock=yes
+
+`systemctl --user daemon-reload` plus a restart makes it effective. On a system with the AppArmor
+restriction the unit then fails to start again - the directives are a hardening gain there, not a
+functional requirement: nothing in the daemon or the interface needs them.
 
 ### Limit of the sandbox: DBus/`systemd-run --user`
 
@@ -464,6 +499,7 @@ in the daemon (it needs it only for `kdotool`); both are deliberately not implem
 
 | Directive | Reason |
 |---|---|
+| `CapabilityBoundingSet=`, `ProtectKernelModules=`, `ProtectKernelLogs=`, `ProtectClock=` | they abort the start with `status=218/CAPABILITIES` on distributions that confine unprivileged user namespaces with AppArmor (Ubuntu 24.10+, verified on Ubuntu 26.04), see "Why ... are not set" above; a hardening gain, not a functional requirement |
 | `PrivateTmp=yes` | hides `/tmp/.X11-unix/X0` -> Xlib could connect only through the abstract socket, which is missing depending on the X server configuration (`-nolisten local`); also some setups use `/tmp` for `XAUTHORITY`. Read access to `/tmp` stays read-only anyway through `ProtectSystem=strict`. |
 | `PrivateNetwork=yes` | cuts abstract Unix sockets (X11 `@/tmp/.X11-unix/X0`, possibly DBus/at-spi); network access is already blocked through `RestrictAddressFamilies` |
 | `PrivateDevices=yes`, `DevicePolicy=`/`DeviceAllow=` | `PrivateDevices` hides `/dev/uinput`; device ACLs (cgroup BPF) cannot be enforced by the user manager - the directive would be accepted but stay ineffective |
