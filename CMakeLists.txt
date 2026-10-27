@@ -341,6 +341,7 @@ endif()
 file(GLOB EXAMPLE_FILES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/examples/*.conf)
 install(FILES ${EXAMPLE_FILES} DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
 install(DIRECTORY examples/default DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
+install(DIRECTORY examples/split DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
 install(DIRECTORY devices/ DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/devices FILES_MATCHING PATTERN "*.conf")
 # examples/modes and examples/buttons are built into the program (cmake/BuiltinLibrary.cmake), not installed.
 

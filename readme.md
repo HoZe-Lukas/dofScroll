@@ -132,7 +132,7 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 |---|---|
 | [docs/installation.md](docs/installation.md) | Install from a release, first-time setup, upgrade, uninstall, build from source |
 | [docs/ui.md](docs/ui.md) | The Qt interface: pages, profile editor, autosave, inheritance, joystick modes and button modes, running-program picker, tray |
-| [docs/configuration.md](docs/configuration.md) | Config file, all keys, profiles, precedence, examples |
+| [docs/configuration.md](docs/configuration.md) | Config folder (one file per profile), all keys, profiles, precedence, examples |
 | [docs/button-modes.md](docs/button-modes.md) | Button modes: named button behaviors in `buttons/*.conf`, chosen per button |
 | [docs/modes.md](docs/modes.md) | Joystick modes, button actions, key names, buttons versus the vendor driver (always-the-same button mappings belong in the driver) |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common problems, logs, status files |

@@ -29,6 +29,9 @@ Yes, on Windows: Settings > General > **Remove driver axis settings...** lists t
 **Can I use two SpaceMice?**
 On Linux through `spacenavd` they arrive as one merged stream, so `[device:*]` profiles apply to both and per-device joystick modes are not possible. The Windows and macOS ports read each device separately: every device then has its own profile, joystick mode, holds and latches, and only one device per model is used (a Pro next to a Compact, not two Compacts). That is covered by tests but unverified on hardware. Details: [docs/multi-device.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/multi-device.md).
 
+**Where are my profiles stored, and how do I share one?**
+Every device profile is a file in `~/.config/dofscroll/devices/` and every program profile a file in `apps/` (Windows: `%APPDATA%\dofscroll\`; macOS: `~/Library/Application Support/dofscroll/`); `dofscroll.conf` holds the global settings. Sharing a profile is copying its file (Profiles > Export..., then copy it into the other computer's folder or use Import...). After the 1.2.4 upgrade the old single `dofscroll.conf` is split once and kept as `backup/dofscroll.conf.pre-split`; to go back to an older version run `cat devices/*.conf apps/*.conf >> dofscroll.conf`. See [Profiles](Profiles).
+
 **Is it safe to share or download joystick modes?**
 Treat a joystick mode file like a script: it can press any key on the key list, including modifier chords, while a button is held or an axis is deflected. Read it first (look for `key:`, `keys:`, `zoom`, `mode:`), and when you share one, say which keys it presses. See [Joystick modes](Modes).
 

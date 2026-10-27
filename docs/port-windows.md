@@ -81,8 +81,8 @@ Compile-checked and smoke-tested by `running_apps_selftest`; unverified on a rea
 
 `%LOCALAPPDATA%\dofscroll\dofscroll.log` (rolling, same limits and sanitizing of device strings as
 on Linux) and `dofscroll-status` (replaced atomically; same `key=value` format as `common.hpp`).
-Config and modes are the same files as on Linux (`dofscroll.conf`, `modes\*.conf`) and can be
-copied between machines unchanged.
+Config and modes are the same files as on Linux (`dofscroll.conf`, `devices\*.conf` and `apps\*.conf` with one profile
+each, `modes\*.conf`) and can be copied between machines unchanged.
 
 ## Autostart
 

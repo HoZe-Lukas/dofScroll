@@ -4,13 +4,13 @@
 
 Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons](Buttons).
 
-Profiles are sections in `dofscroll.conf` that override only the keys they list. Full text: [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
+A profile is one file that overrides only the keys it lists: `devices/<name>.conf` holds one `[device:<text>]` section, `apps/<name>.conf` one `[app:<text>]` section; `dofscroll.conf` holds `[global]`. The header inside the file names the device or program, the file name is only a label, and every profile exists once (a second file with the same header is ignored with a warning). Older versions kept the profiles as sections in `dofscroll.conf`; that is still read, a file wins over a section of the same name. Full text: [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
 
-| Section | Applies when |
+| Section (file) | Applies when |
 |---|---|
-| `[global]` | Always |
-| `[device:<text>]` | The device name from `spacenavd` contains `<text>` (case-insensitive substring) |
-| `[app:<text>]` | The active window's class contains `<text>` (case-insensitive substring) |
+| `[global]` (`dofscroll.conf`) | Always |
+| `[device:<text>]` (`devices/<name>.conf`) | The device name from `spacenavd` contains `<text>` (case-insensitive substring) |
+| `[app:<text>]` (`apps/<name>.conf`) | The active window's class contains `<text>` (case-insensitive substring) |
 
 ## Precedence
 
@@ -18,9 +18,11 @@ Profiles are sections in `dofscroll.conf` that override only the keys they list.
 [global]  <  matching [device:*]  <  active joystick mode's overrides  <  matching [app:*]
 ```
 
-All device sections are applied before all app sections, each in file order, so a later matching section wins. The joystick mode is chosen by `MODE` from the resolved profile (global, device or app). An app section can select a joystick mode and still has the last word over that joystick mode's overrides.
+All device profiles are applied before all app profiles, each in the order of the file names, so a later matching profile wins. The joystick mode is chosen by `MODE` from the resolved profile (global, device or app). An app section can select a joystick mode and still has the last word over that joystick mode's overrides.
 
 ## Example
+
+The sections below are shown together; each of the last four is its own file (`devices/spacemouse-pro.conf`, `apps/firefox.conf`, `apps/blender.conf`, `apps/resolve.conf`), see [examples/split](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/split).
 
 ```
 [global]
@@ -42,7 +44,7 @@ MODE = timeline
 
 ## Editing a profile in the interface
 
-The editor of the selected profile on the Profiles page has the tabs General (joystick mode, output switch), Channels (scroll, zoom key, zoom detection, curve, "Invert direction of" per motion; per row the value, where it comes from and Reset), Motions and buttons (the picture of the cap for this profile; the row of every button is in the inspector next to it) and Overrides. Global has the same tabs: everything can be set in Global like in any other profile. The header says which profile is edited and that everything not changed in a device or program profile is inherited from Global; a value of Global that profiles override says "N profiles override this". There is no Save button: every change is saved by itself and an invalid value is not written. Two search boxes filter the profile list (by name) and the settings of the selected profile (by label or key). "Export..." writes the selected profile as a `.conf` file.
+The editor of the selected profile on the Profiles page has the tabs General (joystick mode, output switch), Channels (scroll, zoom key, zoom detection, curve, "Invert direction of" per motion; per row the value, where it comes from and Reset), Motions and buttons (the picture of the cap for this profile; the row of every button is in the inspector next to it) and Overrides. Global has the same tabs: everything can be set in Global like in any other profile. The header says which profile is edited and that everything not changed in a device or program profile is inherited from Global; a value of Global that profiles override says "N profiles override this". There is no Save button: every change is saved by itself and an invalid value is not written. Two search boxes filter the profile list (by name) and the settings of the selected profile (by label or key). "Export..." writes the selected profile as a `.conf` file, which is a valid profile file: sharing a profile is copying a file into `devices/` or `apps/` (or "Import...").
 
 ### Inheritance
 

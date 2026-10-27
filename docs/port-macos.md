@@ -71,7 +71,7 @@ request and re-reads the file on its main thread. Reload is idempotent. There ar
 
 ### Paths, logs, status
 
-Config and modes: `~/Library/Application Support/dofscroll/{dofscroll.conf,modes/}`, same formats
+Config and modes: `~/Library/Application Support/dofscroll/{dofscroll.conf,devices/,apps/,modes/}`, same formats and layout
 as on Linux. Runtime directory `~/Library/Caches/dofscroll` (user only): `dofscroll.log` (rolling,
 same limits and sanitizing as Linux), `dofscroll-status`. launchd's own stdout/stderr capture is
 switched off (`/dev/null`): it would never be rotated.

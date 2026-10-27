@@ -3,7 +3,8 @@
 # The dofscroll interface (`dofscroll-ui`)
 
 `dofscroll-ui` is the Qt6 interface: a tray icon plus a settings window, one code base for Linux,
-Windows and macOS. It edits the same config file as the daemon and asks the daemon to reload, so
+Windows and macOS. It edits the same configuration as the daemon (`dofscroll.conf` for Global, one file per
+device or program profile in `devices/` and `apps/`, see [configuration.md](configuration.md#file-and-location)) and asks the daemon to reload, so
 changes apply immediately. There is no Save button: every change is saved by itself (see "Saving"
 below). The daemon runs without it. The interface starts minimized to the
 tray (no window opens); "Settings..." in the tray menu or a click on the tray icon shows the window. Without a
@@ -332,8 +333,20 @@ itself and tells the daemon to reload:
 - Page switches, tab switches, profile switches, closing the window and Quit write what is pending
   first, synchronously, so no edit is lost. (An invalid form of the joystick mode editor cannot be
   written by design; it stays as you left it in the editor until you fix it.)
-- The window follows the configuration file: when the tray (Enabled) or a text editor changes it
-  and the window has nothing of its own pending, the window reads it again.
+- The window follows the configuration files: when the tray (Enabled) or a text editor changes `dofscroll.conf` or
+  a profile file and the window has nothing of its own pending, the window reads it again.
+- Every profile is its own file. Autosave writes only the files whose profile changed (each atomically), then
+  asks for one reload. Deleting a profile removes its file after checking that the file is unchanged since it was
+  read; renaming writes the new file first and removes the old one afterwards, so a crash leaves a duplicate,
+  never a loss. If you edited a profile file by hand while the window was about to write it, the window says so
+  and reads your file instead of overwriting it. A defective profile file (wrong header, several sections, too
+  big, unreadable) is marked "defective" in the profile list with the reason, and is never overwritten while
+  the error stands. A second file with the same header name is shown with a warning and ignored. There is no
+  lock file, so hand editing keeps working.
+- The first start of the new version converts an existing single `dofscroll.conf` into this layout once, with a
+  backup (`backup/dofscroll.conf.pre-split`) and a read-back check, see
+  [installation.md](installation.md#upgrading-the-configuration-one-file-per-profile). A symlinked
+  `dofscroll.conf` is not converted.
 
 The model of the rule (debounce, burst coalescing, flush, failure handling) is
 `src/ui/model/autosave.hpp` with a fake clock in `tests/test_ui_autosave.cpp`; the Qt side is
@@ -579,10 +592,11 @@ search is in use): **Change application...** (program profiles) or **Change devi
 the same picker as "Add application..." / "Add device..." (running programs, capture the next focused program,
 device list, manual entry) with the current match string filled in, and changes the program or device the
 profile applies to while all its settings stay, for example when a program's name changed; **Export...**
-writes the selected profile (its section, for Global the `[global]` keys the file holds) as a `.conf` file that
-can be copied into another configuration; **Remove** deletes the profile after asking. Global has no program or
-device and cannot be removed, it has only Export. Import of a whole profile is not offered; joystick modes and
-button modes have Import.
+writes the selected profile as a `.conf` file: that is its profile file, so sharing a profile is copying a file
+into `devices/` or `apps/` of another configuration (for Global it writes the `[global]` keys); **Import...**
+(next to Add application... and Add device...) copies such a file in, after checking it like the loader does;
+**Remove** deletes the profile (its file) after asking. Global has no program or
+device and cannot be removed, it has only Export. Joystick modes and button modes have Import as well.
 
 ### Inheritance
 
@@ -638,7 +652,7 @@ untouched and the Motions and buttons tab lists them as "Not moved: ...". Disabl
 
 ## Tray menu
 
-Status line, "Joystick mode" submenu (the Global joystick mode; every entry has its description as tooltip), "Enabled", "Settings...", "Open config file",
+Status line, "Joystick mode" submenu (the Global joystick mode; every entry has its description as tooltip), "Enabled", "Settings...", "Open config file" (opens `dofscroll.conf`; the profile files are in the folders `devices/` and `apps/` next to it),
 "Show log...", "Open joystick modes folder", "Release all keys", "Restart",
 "Quit". "Release all keys" starts
 `dofscroll --release-keys` as a separate process (the daemon binary next to the interface, else

@@ -27,7 +27,7 @@ The daemon keeps one **lane** per attached device. A lane is everything that bel
   device that stopped),
 - the safety net against stuck keys.
 
-Shared by all lanes: the config file, the joystick mode and button mode files, the active program
+Shared by all lanes: the configuration (`dofscroll.conf` and the profile files in `devices/` and `apps/`), the joystick mode and button mode files, the active program
 (`[app:*]` matches the same program for every device), the output backend and the status file.
 
 The output counts who holds a key or a mouse button: Ctrl for zoom is pressed when the first device needs
@@ -40,7 +40,7 @@ A joystick mode requested through the tray applies to every lane.
 
 ## Addressing a device in profiles
 
-`[device:<text>]` matches when the device name contains `<text>` (case-insensitive). With one device, or
+`[device:<text>]` (the header of a file in `devices/`, see [configuration.md](configuration.md#profile-files)) matches when the device name contains `<text>` (case-insensitive). With one device, or
 devices with different names, nothing changes: `[device:SpaceMouse Pro]` and
 `[device:SpaceMouse Compact]` address one device each.
 
