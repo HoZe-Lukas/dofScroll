@@ -28,11 +28,26 @@ joystick mode overrides < program), the DSP, the modes and the UI logic stay as 
   profile export already writes, so an exported profile is a valid profile file and import is a file copy.
 - Every profile exists once. The file system already forbids two files with the same name; two files whose header
   names are the same (for example a hand-made copy) are an error: the first file in sort order wins, the second is
-  reported with a warning in the UI and the log and is never written.
+  reported as defective in the UI and the log and is never written.
 - A file in `apps/` with a `[device:...]` header, or with several sections, is defective (warning, ignored).
 - The single-file format stays readable for ever (hand-edited files, dotfile repositories with a symlinked
   `dofscroll.conf`). Sections `[device:]` and `[app:]` inside `dofscroll.conf` are still accepted; when the same
   profile also has a file in `devices/` or `apps/`, the file wins and the section is ignored with a warning.
+
+## Order of overlapping profiles (PRIORITY)
+
+In the single file the order matters: all device sections are applied before all app sections, each in file order,
+and a later matching section wins (matching is by substring, so several app profiles can match the same program).
+Files have no order of their own, so every profile may carry an optional integer key `PRIORITY` (range -1000 to
+1000, default 0, no effect in `[global]`). Profiles of the same kind are applied by `PRIORITY` ascending (later wins
+as today); ties: legacy sections first (in file order), then the files by file name. `ProfileSet::resolve` is
+unchanged, it applies the sections in vector order. The migration assigns `PRIORITY` 10, 20, 30 ... in the old file
+order when a kind has more than one profile, so the split layout resolves exactly like the old file (tested with
+overlapping patterns). The UI shows the order and offers move up and move down (stage 4).
+
+A defective profile file does not hide a legacy section of the same name: the section stays active, so mixed versions
+lose nothing; the UI says so next to the profile. If two profiles collide on a file name, the profile that is written
+second gets the hash suffix (the result depends on which file exists first, which is acceptable).
 
 ## File names (slug)
 
