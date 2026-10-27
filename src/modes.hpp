@@ -163,6 +163,9 @@ struct ModeSet {
 bool validModeId(const std::string &id);
 
 bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err);
+// The canonical config text of a channel action ("default", "none", "wheel_v", "keys:ctrl+pageup,ctrl+pagedown", ...),
+// the inverse of parseChannelAction.
+std::string channelActionText(const ChannelAction &a);
 
 // Cycle lists (mode:next:<ids> / button mode CYCLE).
 constexpr size_t kMaxModeCycle = 32;

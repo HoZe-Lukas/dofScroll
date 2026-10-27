@@ -1951,6 +1951,81 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
             bool noSettings = false;
             for (QLabel *l : mv->inspector()->findChildren<QLabel *>()) noSettings = noSettings || l->text().contains(QStringLiteral("no settings of its own"));
             check(noSettings, "lift / press has no tuning");
+
+            // Every motion and button of a program profile can be changed on its own: another action, Clear, Switch on and the way
+            // back to inheriting (motion_edit_model.hpp); the actions are written as V_PUSH_ACTION ... TWIST_ACTION of the profile.
+            check(page->selectSection(2) && page->selectTab(QStringLiteral("motions")), "program profile firefox, Motions and buttons tab");
+            settle();
+            auto itemText = [&](const char *id) {
+                for (const MotionPicture::Item &it : mv->picture()->items())
+                    if (it.id == QLatin1String(id)) return it.text;
+                return QString();
+            };
+            auto find = [&](const char *name) { return mv->inspector()->findChild<QPushButton *>(QLatin1String(name)); };
+            auto stateWords = [&]() {
+                QLabel *l = mv->inspector()->findChild<QLabel *>(QStringLiteral("motionStateWords"));
+                return l ? l->text() : QString();
+            };
+            // another action: the twist zooms in this program (set here), then back to what it inherited
+            check(mv->select(QStringLiteral("m:twist")), "select the twist of the program profile");
+            settle();
+            QComboBox *act = mv->inspector()->findChild<QComboBox *>(QStringLiteral("motionAction"));
+            check(act != nullptr, "a motion has the list of actions");
+            if (act) {
+                const int idx = act->findData(int(spn::ChannelActionType::Zoom));
+                act->setCurrentIndex(idx);
+                emit act->activated(idx);
+                settle();
+                check(itemText("m:twist").startsWith(QStringLiteral("Zoom")) && stateWords().contains(QStringLiteral("Set in this profile")),
+                      "another action for the twist is set here and said in words");
+                check(find("motionInherit") && find("motionInherit")->isEnabled(), "a motion set here has Use the inherited setting");
+                if (find("motionInherit")) find("motionInherit")->click();
+                settle();
+                check(!stateWords().contains(QStringLiteral("Set in this profile")) && (stateWords().startsWith(QStringLiteral("On.")) || stateWords().startsWith(QStringLiteral("Off."))),
+                      "Use the inherited setting goes back to inheriting");
+            }
+            // clear only the tilt of the horizontal direction: the push keeps its action
+            const QString pushBefore = [&] { return itemText("m:h_push"); }();
+            check(mv->select(QStringLiteral("m:h_tilt")), "select the horizontal tilt");
+            settle();
+            check(find("motionClear") && find("motionClear")->isEnabled(), "a motion can be cleared");
+            if (find("motionClear")) find("motionClear")->click();
+            settle();
+            check(itemText("m:h_tilt") == QStringLiteral("Off") && stateWords().startsWith(QStringLiteral("Cleared in this profile")),
+                  "Clear switches the tilt off in this profile and says so");
+            check(itemText("m:h_push") == pushBefore && itemText("m:h_push") != QStringLiteral("Off"), "the push of the same direction keeps its action");
+            check(mv->select(QStringLiteral("m:h_tilt")) && find("motionSwitchOn") && !find("motionSwitchOn")->isHidden(), "a cleared motion offers Switch on");
+            if (find("motionSwitchOn")) find("motionSwitchOn")->click();
+            settle();
+            check(itemText("m:h_tilt") != QStringLiteral("Off") && !stateWords().contains(QStringLiteral("Cleared")), "Switch on makes the tilt work again");
+            // a motion the joystick mode switched off can be switched on in the program profile
+            check(mv->select(QStringLiteral("m:v_push")), "select the vertical push");
+            settle();
+            if (find("motionSwitchOn") && !find("motionSwitchOn")->isHidden()) {
+                find("motionSwitchOn")->click();
+                settle();
+                check(itemText("m:v_push") != QStringLiteral("Off"), "Switch on gives a motion the mode switched off an action in this profile");
+            }
+            // a button: Clear writes an explicit "nothing" for this profile, Inherit takes it back
+            QString btn;
+            for (const MotionPicture::Item &it : mv->picture()->items())
+                if (it.id.startsWith(QLatin1String("b:")) && btn.isEmpty()) btn = it.id;
+            if (!btn.isEmpty()) {
+                const QByteArray bid = btn.toLatin1();
+                check(mv->select(btn), "select a button of the program profile");
+                settle();
+                check(find("buttonClear") != nullptr, "a button has Clear");
+                if (find("buttonClear")) find("buttonClear")->click();
+                settle();
+                check(itemText(bid.constData()) == QStringLiteral("Cleared"), "Clear writes an explicit nothing for the button and says so");
+                QToolButton *back = nullptr;
+                for (QToolButton *t : mv->inspector()->findChildren<QToolButton *>())
+                    if (t->text() == QStringLiteral("Inherit")) back = t;
+                check(back != nullptr, "a cleared button has Inherit");
+                if (back) back->click();
+                settle();
+                check(itemText(bid.constData()) != QStringLiteral("Cleared"), "Inherit takes the explicit nothing back");
+            }
         }
     }
     // Button modes page: the device buttons of the Global profile, bind the selected button mode to one of them

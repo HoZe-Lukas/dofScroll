@@ -383,8 +383,11 @@ public:
         const ModeDef *m = modes_.find(effectiveMode(i));
         if (!m || m->overrides.empty()) return s;
         for (const auto &kv : m->overrides) applyKey(s, upper(kv.first), kv.second, nullptr);
-        if (ps_.sections[i].kind == Section::APP)
+        if (ps_.sections[i].kind == Section::APP) {
+            s.action_layer = 1;  // the program layer: its channel actions and buttons beat the mode's
             for (const KV &kv : ps_.sections[i].kv) applyKey(s, upper(kv.first), kv.second, nullptr);
+            s.action_layer = 0;
+        }
         return s;
     }
 
@@ -462,6 +465,7 @@ public:
         if (i >= ps_.sections.size()) return failb(err, "no such profile");
         if (!isEditableKey(k)) return failb(err, "unknown setting " + key);
         Settings t = ps_.sectionSettings(i);
+        t.action_layer = ps_.sections[i].kind == Section::APP ? 1 : 0;  // the layer the section's own keys live in
         if (!applyKey(t, k, text, err)) return false;
         const std::vector<KV> tk = allKeys(t);
         const std::string *cp = lookup(tk, k);
@@ -692,9 +696,15 @@ private:
     static bool isLegacyButtonKey(const std::string &k) {
         return k == "NAV_BUTTON" || k == "NAV_BUTTON_ENABLED" || k == "CLICK_BUTTON" || k == "CLICK_BUTTON_ENABLED";
     }
+    // V_ACTION and friends (the channel actions of a profile) are written only when a profile sets them, so they are
+    // not in allKeys(Settings()).
+    static bool isActionKey(const std::string &k) {
+        return k == "V_ACTION" || k == "H_ACTION" || k == "TWIST_ACTION" || k == "V_PUSH_ACTION" || k == "V_TILT_ACTION" ||
+               k == "H_PUSH_ACTION" || k == "H_TILT_ACTION";
+    }
     static bool isEditableKey(const std::string &k) {
         static const std::vector<KV> all = allKeys(Settings());
-        return lookup(all, k) != nullptr;
+        return lookup(all, k) != nullptr || isActionKey(k);
     }
     static const std::string *lookup(const std::vector<KV> &kv, const std::string &k) {
         for (const KV &p : kv)

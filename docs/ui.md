@@ -232,6 +232,24 @@ to the picture shows the selected item:
   the cap is grabbed or released. No built-in joystick mode uses it (`tests/test_no_lift_press.cpp`).
 - **A button:** the same button row as on the Buttons tab (the actions, the button modes, "Unbind").
 
+**Motions and buttons of a profile (Profiles page).** On the Profiles page the same picture edits the selected
+profile (Global, a device or a program). Global and the device profile are the base; what the profile does not
+set is inherited and said in words. Every one of the six motions can be edited on its own, push and tilt of a
+direction included, and has three states: inherited ("On. Inherited from Global ..."), set here ("On. Set in this
+profile (inherited: on)") and cleared ("Cleared in this profile: nothing happens for this motion here"). The box
+"In this profile" has the list "What this motion does in this profile" (normal, scroll, scroll sideways, zoom, keys,
+one key tap per push, nothing; a key action shows two key pickers), **Clear** (the action of the motion is "none" in
+this profile only, for example the twist in a code editor profile), **Switch on** (the action the profile had, else
+the inherited one, else the normal one; never left at nothing) and **Use the inherited setting** (removes what the
+profile sets for the motion). The actions are the keys of the joystick mode files, `V_PUSH_ACTION` ... `TWIST_ACTION`
+(see [configuration.md](configuration.md#precedence)); the program profile wins over the joystick mode, a device
+profile or Global cannot beat a joystick mode that sets the motion itself (the interface says so and writes
+nothing). The chips, the list texts and the Overview say "Off" for a cleared motion and never show its action. Every
+button has the same three states: its row (the action drop-down, "Inherit") and **Clear** (`BUTTON_<n> = none`, nothing
+happens although Global, the device or the joystick mode binds the button), with "Set in this profile", "Inherited from
+Global: ..." and "device X sets ..." in words, and a note when the joystick mode binds the button too (a program profile's
+binding wins). Everything is saved at once; there is no Save button; an invalid value is shown and not written.
+
 **Help where you work.** The line under the picture says in plain words what the selected item does, with
 the real rate from the channel processing at full deflection ("Vertical tilt: presses Page up or Page
 down, about 3 times a second at full deflection"); while Detect is on it follows the real deflection ("...,

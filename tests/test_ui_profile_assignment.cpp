@@ -51,8 +51,8 @@ int main() {
     assert(v.buttons.size() == 3);
     assert(v.buttons[0].text == "1 Space" && v.buttons[0].source == "inherited");
     assert(v.buttons[1].text == "2 Right click" && v.buttons[1].source == "from this profile");
-    assert(v.buttons[2].text == "3 Navigation" && v.buttons[2].source == "from the joystick mode");
-    assert(v.buttons[2].tooltip.find("from the joystick mode") != std::string::npos);
+    // BUTTON_3 of the program profile wins over the mode's own binding of button 3 (the program has the last word)
+    assert(v.buttons[2].text == "3 Click" && v.buttons[2].source == "from this profile");
 
     // a profile without MODE inherits the joystick mode
     ProfileAssignment p = profileAssignment(m, plain, id);

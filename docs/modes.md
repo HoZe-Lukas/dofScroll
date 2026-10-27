@@ -130,6 +130,12 @@ For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`) and `TWIST_ACTION` 
 | `keys:<neg>,<pos>` | Key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection. Dead zone, curve, smoothing and sensitivity of the channel apply. Each argument can be a chord, see below. |
 | `step:<neg>,<pos>` | One key tap per push instead of a rate, with hysteresis; see below. |
 
+The same keys (`V_ACTION`, `H_ACTION`, `TWIST_ACTION` and the four split keys) are also allowed **in a profile**
+(`[global]`, `[device:*]`, `[app:*]` of `dofscroll.conf`) for one program or device, for example `TWIST_ACTION = none`
+in `[app:code]`. A program profile wins over the joystick mode; `[global]` and `[device:*]` sit below it (a joystick mode
+that sets the channel keeps it). Details and precedence: [configuration.md](configuration.md#precedence). Likewise
+`BUTTON_<n>` of a program profile wins over the binding of the joystick mode for the same button.
+
 ## Button actions
 
 `BUTTON_<n> = <action>`. Buttons are numbered from 1 (`BUTTON_1` is the first button), in joystick mode files

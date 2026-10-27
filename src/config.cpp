@@ -380,6 +380,8 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
         std::string canon = lower(trim(value));
         if (bt == ButtonActionType::Key) canon = keyActionText(bk, bmods);
         s.buttons[static_cast<int>(bn)] = canon;
+        if (s.action_layer) s.app_buttons[static_cast<int>(bn)] = canon;
+        else s.app_buttons.erase(static_cast<int>(bn));  // a later [global]/[device:*] value is below the joystick mode again
         return true;
     }
     if (key == "NAV_BUTTON" || key == "CLICK_BUTTON") {
@@ -413,6 +415,29 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
             c->curve_points.clear();  // otherwise the exponent would have no effect
         }
         return true;
+    }
+
+    // --- channel actions of a profile (the keys of a joystick mode file, same grammar)
+    {
+        static const struct { const char *name; int chan; int part; } actionKeys[] = {
+            {"V_ACTION", ProfileActions::V, -1},        {"H_ACTION", ProfileActions::H, -1},
+            {"TWIST_ACTION", ProfileActions::TWIST, -1}, {"V_PUSH_ACTION", -1, PART_V_PUSH},
+            {"V_TILT_ACTION", -1, PART_V_TILT},         {"H_PUSH_ACTION", -1, PART_H_PUSH},
+            {"H_TILT_ACTION", -1, PART_H_TILT}};
+        for (const auto &k : actionKeys) {
+            if (key != k.name) continue;
+            ChannelAction a;
+            if (!parseChannelAction(value, &a, err)) return false;
+            ProfileActions &pa = s.actions[s.action_layer ? 1 : 0];
+            if (k.chan >= 0) {
+                pa.chan[k.chan] = a;
+                pa.chanSet[k.chan] = true;
+            } else {
+                pa.part[k.part] = a;
+                pa.partSet[k.part] = true;
+            }
+            return true;
+        }
     }
 
     // --- per-part keys of split channels: SCROLL_<V|H>_<PUSH|TILT>_<SUFFIX>
@@ -626,6 +651,19 @@ std::vector<KV> allKeys(const Settings &s) {
     kv.emplace_back("CLICK_BUTTON", std::to_string(s.click_button));
     kv.emplace_back("CLICK_BUTTON_ENABLED", s.click_button_enabled ? "1" : "0");
     for (const auto &b : s.buttons) kv.emplace_back("BUTTON_" + std::to_string(b.first), b.second);
+    // Channel actions of profiles: only the keys that were set (nothing for a config without them); the program layer wins.
+    {
+        static const char *const chanNames[3] = {"V_ACTION", "H_ACTION", "TWIST_ACTION"};
+        static const char *const partNames2[PART_COUNT] = {"V_PUSH_ACTION", "V_TILT_ACTION", "H_PUSH_ACTION", "H_TILT_ACTION"};
+        for (int c = 0; c < 3; ++c) {
+            const int l = s.actions[1].chanSet[c] ? 1 : s.actions[0].chanSet[c] ? 0 : -1;
+            if (l >= 0) kv.emplace_back(chanNames[c], channelActionText(s.actions[l].chan[c]));
+        }
+        for (int i = 0; i < PART_COUNT; ++i) {
+            const int l = s.actions[1].partSet[i] ? 1 : s.actions[0].partSet[i] ? 0 : -1;
+            if (l >= 0) kv.emplace_back(partNames2[i], channelActionText(s.actions[l].part[i]));
+        }
+    }
     // Per-part tuning of split channels: only the values that were set (nothing for a config without them).
     static const char *partNames[PART_COUNT] = {"SCROLL_V_PUSH_", "SCROLL_V_TILT_", "SCROLL_H_PUSH_", "SCROLL_H_TILT_"};
     for (int i = 0; i < PART_COUNT; ++i) {
@@ -667,7 +705,11 @@ Settings ProfileSet::sectionSettings(size_t i) const {
     Settings s;
     if (sections.empty()) return s;
     applyKvList(s, sections[0].kv);
-    if (i > 0 && i < sections.size()) applyKvList(s, sections[i].kv);
+    if (i > 0 && i < sections.size()) {
+        s.action_layer = sections[i].kind == Section::APP ? 1 : 0;
+        applyKvList(s, sections[i].kv);
+        s.action_layer = 0;
+    }
     return s;
 }
 
@@ -684,9 +726,11 @@ Settings ProfileSet::resolve(const std::string &device_name, const std::string &
         if (sections[i].kind == Section::DEVICE && containsCI(device_name, sections[i].pattern))
             applyKvList(s, sections[i].kv);
     if (mode_overrides) applyKvList(s, *mode_overrides);
+    s.action_layer = 1;  // the program layer: its channel actions and buttons beat the joystick mode's
     for (size_t i = 1; i < sections.size(); i++)
         if (sections[i].kind == Section::APP && containsCI(wm_class, sections[i].pattern))
             applyKvList(s, sections[i].kv);
+    s.action_layer = 0;
     return s;
 }
 

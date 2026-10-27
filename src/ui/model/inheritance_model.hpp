@@ -119,6 +119,8 @@ inline KeyOrigin buttonOrigin(const SettingsModel &m, size_t section, int number
 
 // A value the way a person reads it: the on/off switch and the direction are words, everything else as is.
 inline std::string displayValue(const std::string &key, const std::string &text, const StringProvider &s) {
+    if (key.compare(0, 7, "BUTTON_") == 0 && text == "none") return s.tr("nothing");
+    if (key.size() > 5 && key.compare(key.size() - 5, 5, "_SENS") == 0 && text == "0") return s.tr("0 (off)");
     if (key == "ENABLED") return text == "0" ? s.tr("off") : s.tr("on");
     if (key.size() > 5 && key.compare(key.size() - 5, 5, "_SIGN") == 0) return text == "-1" ? s.tr("inverted") : s.tr("normal");
     return text;

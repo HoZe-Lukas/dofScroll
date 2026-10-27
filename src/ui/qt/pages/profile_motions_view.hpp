@@ -14,6 +14,7 @@
 #include <QWidget>
 #include <functional>
 
+#include "ui/model/motion_edit_model.hpp"
 #include "ui_context.hpp"
 
 class MotionPicture;
@@ -56,4 +57,5 @@ private:
     QVBoxLayout *col_ = nullptr, *extras_ = nullptr;
     QLabel *title_ = nullptr, *sentence_ = nullptr;
     QString selected_;
+    spn::ui::MotionMemory memory_;  // the sensitivity a channel had before it was cleared (session only)
 };
