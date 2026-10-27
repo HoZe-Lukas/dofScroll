@@ -16,6 +16,8 @@ fixes for Ubuntu that came from a contributor. The configuration format does not
 - A first-start default for each operating system. Windows scrolls by pushing and tilting.
 - The settings window is no longer empty under a regional format with a decimal comma (`de_DE`, `it_IT`, ...).
 - The daemon starts as a service on Ubuntu 24.10 and newer (AppArmor).
+- The interface no longer assumes the Linux axis names: what an axis does is read from the configuration, so the
+  Windows (and macOS) axis names are shown correctly.
 
 ## Windows: cleanup of the 3Dconnexion driver's axis settings
 
@@ -38,7 +40,7 @@ See [ui.md](ui.md) and [troubleshooting.md](troubleshooting.md).
 The first start seeds the example configuration of the running system (`examples/default/linux`, `windows`,
 `macos`), because the axis order differs. Windows scrolls by pushing and tilting
 (`SCROLL_V_MIX = y + rx`, `SCROLL_H_MIX = x - ry`, `ZOOM_MIX = -rz`). The macOS default is experimental and untested
-(Linux values). Existing configurations are not touched.
+(the Windows values: both systems deliver the axes in the 3DxWare order). Existing configurations are not touched.
 
 The seeded file no longer contains a device profile that switched off sideways scroll for one device. On a new
 installation the interface adds `[device:<name>]` (button 1 = navigation) for the first device the daemon
@@ -53,6 +55,17 @@ reports, once.
 - **The user units failed with `status=218/CAPABILITIES`** on distributions that confine unprivileged user
   namespaces with AppArmor (Ubuntu 24.10 and newer), so the daemon never started as a service. The reason and the
   manual repair for an installed older release are in [troubleshooting.md](troubleshooting.md).
+
+## Axis names come from the configuration
+
+The official driver on Windows names the axes differently from spacenavd on Linux (push is `y`, tilt sideways is
+`ry`, twist is `rz`, lift is `z`). The interface used to assume the Linux names, so the lift/press warning, the
+motion editor and the motion help could be wrong there. Now one place derives the role of every axis from the
+settings that are shown (Global, device profile, program), so a changed mix, a device with its own profile or
+another driver is followed. Where the settings do not match a known pattern, the interface says in neutral words
+which axes a channel uses and shows no warning that could be wrong. Developers: how to add a default or a device is
+in [ui.md](ui.md). In the daemon, a split joystick mode now treats every rotation axis of a mix as a tilt part, not
+only `rx` and `rz`.
 
 ## Other fixes
 
@@ -69,6 +82,8 @@ them is in [security.md](security.md).
 
 ## All changes
 
+- UI: axis roles come from the configuration, not from code; the macOS default uses the Windows values; split
+  modes treat every rotation axis as a tilt part (#201, issue #186)
 - Windows: cleanup dialog for the 3Dconnexion driver's axis settings (#185); several programs can be ticked (#187)
 - Per-OS first-start defaults, first device profile, zoom fix, Windows icon (#183); Windows default scrolls by
   pushing and tilting (#187)
@@ -78,6 +93,7 @@ them is in [security.md](security.md).
 - New workflow `tag-release` creates the release tag from the Actions tab (#182, [releasing.md](releasing.md))
 - Website (English and German) and wiki: the driver cleanup, Windows status after the first tests on a real
   machine (#188)
+- macOS: survey procedure and a read-only helper script (`scripts/macos-driver-survey.sh`) to collect the format of the driver's per-program settings (#200, for #184)
 - Build inputs: refreshed CI pins, brotli 1.2.1 (#198); CodeQL action 4.39.1 (#196)
 
 ## Thank you
@@ -89,15 +105,17 @@ two fixes (#194, #195).
 
 The cleanup dialog (ticking several rows with mouse and keyboard, backup and restore against a real driver
 installation) and scrolling by pushing and tilting in both directions with the new Windows default need a human
-on Windows. The macOS default and image have not been run on a real Mac. Apart from the two Linux fixes, Linux
+on Windows. The axis names shown by the interface (Axes page sentence, motion editor and help, lift/press warning for `z` and
+not for `y`, no "custom mix" with the Windows default) were checked by CI on all three systems but not on real
+hardware. The macOS default and image have not been run on a real Mac; its axis order is read from the code. Apart from the two Linux fixes, Linux
 behavior is unchanged but was not re-tested on hardware for this release. The two fixes were verified on Ubuntu
 26.04 by their author; the start of the units in a fresh graphical session and on RHEL 9 without the four
 directives still need a human.
 
 ## Known limitations
 
-- The interface assumes the Linux axis names (`y` = lift/press, `ry` = twist). With the official driver on Windows
-  the axes are named differently, so the lift/press warning on the Channels page and the labels of the motion
-  editor and motion help can be wrong there. The scrolling itself is not affected. Tracked in issue #186.
+- The driver cleanup is available on Windows only. For macOS the location and format of the driver's per-program
+  settings are not documented well enough to change them safely; the survey procedure in
+  [windows-mac.md](windows-mac.md) collects them. Tracked in issue #184.
 - `dofscroll-ui --self-test` still fails on a real Wayland session at the info popover check (the grabbing popup
   is refused); the normal use of the interface is not affected. Tracked in issue #193.
