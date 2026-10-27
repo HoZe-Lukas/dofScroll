@@ -87,10 +87,11 @@ The release builds do not take their inputs from moving tags:
   this by hand: the monthly `refresh-ci-pins.yml` (or a manual start of it) runs both scripts and opens (or updates) the pull request
   "Refresh CI pins", never merged automatically. The refresh PR is merged before a release so the release
   uses the newest tested versions. The job changes only files under `packaging/ci`, so the default token
-  suffices. A branch and a PR made with it do not start CI, so the job starts the checks itself with
-  `workflow_dispatch` (ci, lint, codeql, ports, ui, Linux packages dry run) on the branch `ci/refresh-pins`; the runs
-  show up in the checks of the PR (the optional secret `REFRESH_PINS_TOKEN`, a fine-grained token with contents and
-  pull requests write, would start them by itself, and the dispatch is skipped then).
+  suffices. The checks of a PR opened by the bot wait for an approval (`action_required`), so the job approves them
+  itself and they count as the checks of the PR (a dispatch would not: its runs belong to the commit, not to the PR,
+  and do not satisfy the required checks). If the approval ever fails, approve the runs in the Actions tab or via the
+  PR. The optional secret `REFRESH_PINS_TOKEN`, a fine-grained token with contents and pull requests write, would start
+  the checks by itself, and the approval is skipped then.
   The workflow needs the repository setting that lets Actions create pull requests.
 - aqtinstall and its dependencies come from `packaging/ci/aqt-requirements.txt` (versions and SHA-256,
   `pip install --require-hashes`). After a change of `AQT_VERSION` in `packaging/qt.env`:
