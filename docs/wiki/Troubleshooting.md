@@ -44,6 +44,14 @@ First open the **setup guide** (Overview, "Show setup guide"): it checks live wh
 
 The units are `WantedBy=graphical-session.target`; a plain SSH login has no graphical session. Log in graphically or start them by hand. After `systemctl --user enable`, log out and in once.
 
+## `status=218/CAPABILITIES` (Ubuntu 24.10 and newer)
+
+On systems that confine user namespaces with AppArmor the user units failed before `ExecStart`. Fixed in 1.2.3 (the units no longer set four sandbox directives). On an older release: `systemctl --user edit dofscroll.service dofscroll-ui.service`, remove `CapabilityBoundingSet=`, `ProtectKernelModules=`, `ProtectKernelLogs=` and `ProtectClock=`, then `daemon-reload` and start the units. Details: [docs/troubleshooting.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/troubleshooting.md).
+
+## Settings window looks empty (decimal-comma locale)
+
+With `LC_NUMERIC` set to a decimal-comma format (`de_DE`, `it_IT`, ...) the window of 1.2.2 and older shows only its title bar. Fixed in 1.2.3. On an older release start `LC_NUMERIC=C.UTF-8 dofscroll-ui`.
+
 ## uinput: permission denied (Wayland)
 
 `BACKEND = auto` picks uinput under Wayland. The user needs write access to `/dev/uinput`. The packages do not activate the udev rule: copy it yourself (see [Installation](Installation)), reload udev, log out and in. If `/dev/uinput` is missing: `sudo modprobe uinput`. Check with `ls -l /dev/uinput` (a `+` means an ACL) and `getfacl /dev/uinput`. Do not add yourself to the `input` group. An SSH session gets no `uaccess` ACL.
