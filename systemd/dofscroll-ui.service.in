@@ -26,9 +26,14 @@ Restart=on-failure
 NoNewPrivileges=yes
 UMask=0077
 # PrivateUsers=yes is MANDATORY in the systemd 252 user manager (otherwise the
-# Protect* directives are ignored or the start fails with 218).
+# Protect* directives are ignored). CapabilityBoundingSet=, ProtectKernelModules=,
+# ProtectKernelLogs= and ProtectClock= are NOT set: with PrivateUsers=yes they
+# start where unprivileged user namespaces are allowed (RHEL 9, systemd 252), but
+# on a distribution that confines them with AppArmor (Ubuntu 24.10+, sysctl
+# kernel.apparmor_restrict_unprivileged_userns = 1) the unit fails with
+# status=218/CAPABILITIES before ExecStart (verified 2026-10-25,
+# docs/security.md, section 3).
 PrivateUsers=yes
-CapabilityBoundingSet=
 # NO PrivateTmp (hides /tmp/.X11-unix).
 ProtectSystem=strict
 ProtectHome=read-only
@@ -46,10 +51,7 @@ ConfigurationDirectory=dofscroll
 ConfigurationDirectoryMode=0700
 ReadWritePaths=%E/dofscroll %t
 ProtectKernelTunables=yes
-ProtectKernelModules=yes
-ProtectKernelLogs=yes
 ProtectControlGroups=yes
-ProtectClock=yes
 ProtectHostname=yes
 KeyringMode=private
 # No PrivateIPC: Qt xcb uses MIT-SHM (SysV shared memory with the X server).

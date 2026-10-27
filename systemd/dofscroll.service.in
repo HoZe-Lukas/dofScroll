@@ -28,13 +28,19 @@ NoNewPrivileges=yes
 UMask=0077
 # PrivateUsers=yes is MANDATORY in the systemd 252 user manager: without it
 # ProtectSystem/ProtectHome/ProtectKernelTunables/ProtectControlGroups are
-# silently ignored, and CapabilityBoundingSet=/ProtectClock/
-# ProtectKernelModules/ProtectKernelLogs abort the start with
-# status=218/CAPABILITIES. Supplementary groups (e.g. 'input') appear in it
+# silently ignored. Supplementary groups (e.g. 'input') appear in it
 # as 'nobody', but the kernel's permission check still applies
 # (/dev/uinput via the group remains usable).
+# NOT set: CapabilityBoundingSet=, ProtectKernelModules=, ProtectKernelLogs=,
+# ProtectClock=. With PrivateUsers=yes they start on a system that allows
+# unprivileged user namespaces (RHEL 9, systemd 252, verified 2026-10-15), but
+# on a distribution that confines them with AppArmor (Ubuntu 24.10+, sysctl
+# kernel.apparmor_restrict_unprivileged_userns = 1) the sandbox setup is denied
+# CAP_SETPCAP/CAP_SYS_ADMIN and the unit fails with status=218/CAPABILITIES
+# BEFORE ExecStart: the daemon never starts (verified 2026-10-25, also with a
+# transient unit running /bin/true). Re-enable on a system that allows it:
+# systemctl --user edit dofscroll.service (docs/security.md, section 3).
 PrivateUsers=yes
-CapabilityBoundingSet=
 # File system: everything read-only, home incl. config (~/.config/dofscroll/
 # dofscroll.conf or legacy fallback ~/.config/dofscroll.conf) read-only;
 # tested 2026-10-15: both paths readable, --release-keys runs in the sandbox. NO
@@ -44,10 +50,7 @@ ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=%t
 ProtectKernelTunables=yes
-ProtectKernelModules=yes
-ProtectKernelLogs=yes
 ProtectControlGroups=yes
-ProtectClock=yes
 ProtectHostname=yes
 PrivateIPC=yes
 KeyringMode=private

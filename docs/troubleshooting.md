@@ -77,6 +77,27 @@ The units are `WantedBy=graphical-session.target`. A plain SSH login has no grap
 and does not start them. Log in graphically or start them by hand. After
 `systemctl --user enable`, log out and in once.
 
+### `status=218/CAPABILITIES`: the daemon does not start (AppArmor)
+
+`systemctl --user status dofscroll.service` shows `status=218/CAPABILITIES`, the journal says
+`Failed to drop capabilities: Operation not permitted`, and the daemon never runs (the interface
+then starts it as a plain process, so scrolling works while autostart is broken).
+
+Distributions that confine unprivileged user namespaces with AppArmor
+(`sysctl kernel.apparmor_restrict_unprivileged_userns` = 1, Ubuntu 24.10 and newer) deny the
+capability calls the sandbox setup needs, so the unit fails **before** `ExecStart`. It is not
+specific to dofscroll: a transient unit with the same hardening running `/bin/true` fails the same
+way. The units therefore do not set `CapabilityBoundingSet=`, `ProtectKernelModules=`,
+`ProtectKernelLogs=` and `ProtectClock=` ([security.md](security.md#3-systemd-hardening-of-the-user-units)).
+
+To repair an installed older release by hand:
+
+    systemctl --user edit dofscroll.service dofscroll-ui.service
+
+comment out or delete those four lines under `[Service]`, then `systemctl --user daemon-reload`
+and start the units again. On a system that allows the calls (RHEL 9), the four directives can be
+added the same way; see [security.md](security.md#3-systemd-hardening-of-the-user-units).
+
 ### uinput: permission denied (Wayland)
 
 `BACKEND = auto` picks uinput under Wayland. The user needs write access to `/dev/uinput`.
