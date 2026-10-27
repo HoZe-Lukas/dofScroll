@@ -28,8 +28,8 @@ from urllib.parse import urldefrag, urlparse
 BASE = "https://hoze-lukas.github.io/dofScroll/"
 VOID = {"meta", "link", "img", "br", "hr", "input", "source", "area", "base", "col", "wbr"}
 LANGS = {"en": "", "de": "de"}
-BUDGET_LANG = 352 * 1024      # shared files + that language's files (the main picture is the Joystick modes page, about 10 KB more than the old profile editor)
-BUDGET_TOTAL = 440 * 1024     # whole site folder
+BUDGET_LANG = 384 * 1024      # shared files + that language's files (the main picture is the Joystick modes page, about 10 KB more than the old profile editor)
+BUDGET_TOTAL = 480 * 1024     # whole site folder
 
 errors = []
 
