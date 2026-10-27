@@ -120,7 +120,11 @@ static void testSplitMix() {
     split("y + z", &p, &t);
     CHECK(p == "y + z" && t.empty(), "lift/press y is a translation term");
     split("z + ry + rx", &p, &t);
-    CHECK(p == "z" && t == "rx", "twist term belongs to neither part: '%s' | '%s'", p.c_str(), t.c_str());
+    CHECK(p == "z" && t == "ry + rx", "every rotation axis is a tilt part (driver axis names differ): '%s' | '%s'", p.c_str(), t.c_str());
+    split("y + rx", &p, &t);
+    CHECK(p == "y" && t == "rx", "Windows/macOS order: push y");
+    split("x - ry", &p, &t);
+    CHECK(p == "x" && t == "-ry", "Windows/macOS order: tilt sideways ry is a tilt part");
     split("", &p, &t);
     CHECK(p.empty() && t.empty(), "empty mix");
     splitMix(d.scroll_v.mix, nullptr, &mt);

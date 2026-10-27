@@ -72,11 +72,10 @@ profile, and the motion chips show the zoom key of the profile.
 
 **One component, used everywhere (what a joystick mode or a profile does).** The six motions of the
 SpaceMouse cap always appear in the same order with the same symbol and the same chip style, on every
-page that shows what a joystick mode or a profile does: vertical push (axis z on Linux, y on Windows; symbol shows the action),
+page that shows what a joystick mode or a profile does: vertical push (symbol shows the action),
 vertical tilt (rx), horizontal push (x), horizontal tilt (rz), lift / press (y, normally "Not used") and
-twist (ry). The axis names in this paragraph are the Linux ones; on Windows (official driver) they are
-vertical push y, vertical tilt rx, horizontal push x, horizontal tilt ry, lift / press z and twist rz, and the
-interface shows those. In the 3x2 panel the top row holds only pushes (vertical, horizontal, lift / press) and the bottom
+twist. Which raw axis a motion is (z or y for the vertical push, ry or rz for the twist) comes from your
+channel mixes, see below. In the 3x2 panel the top row holds only pushes (vertical, horizontal, lift / press) and the bottom
 row only the tilts and the twist; the Joystick modes list shows the six symbols the same way, two lines of three. A chip starts with a marker for the kind of motion (a flat bar for a push, a
 wedge for a tilt, a turn arrow for the twist), then the symbol of the action and the word; a Keys or Tap action
 shows its keys instead of the word ("Left / Right", "Ctrl+Page up / Ctrl+Page down") and the Zoom action says
@@ -289,6 +288,29 @@ to each of them, no motions. Choose a button and **Use on this button** (its too
 selected button mode to it in the Global profile (the same binding the Profiles page writes, saved by itself), **Unbind** removes
 the binding. A line says in words which buttons use the button mode now. Without an attached device the picture
 shows a numbered grid of eight buttons.
+
+## Where the interface gets the axis meaning
+
+The axis names depend on the driver (spacenavd: `z` is push forward/back and `y` lift/press; the 3Dconnexion
+driver on Windows and the 3DxWare client API on macOS: `y` is push forward/back and `z` lift/press), so the
+interface never assumes them. `src/ui/model/axis_roles_model.hpp` derives the roles from the **profile that is
+shown** (global < device < program, the same inheritance as everywhere): the three channel mixes
+(`SCROLL_V_MIX`, `SCROLL_H_MIX`, `ZOOM_MIX`) are matched against a small table of patterns (vertical = push +
+tilt, horizontal = push - tilt, zoom = twist; signs and weights do not matter) and the axis the mixes leave out is
+lift/press. A joystick mode's own mix override moves axes between channels, it does not rename them. If you or the
+axis assistant change a mix, the interface follows; a device profile with its own mixes is read the same way.
+
+- When the mixes match a pattern, the interface names the movements (push, tilt, twist, lift/press) and the axes.
+- When they do not match (a hand-made mix), it says only what the file says ("Axis y scrolls vertically", "the
+  vertical scroll uses the axes ..."), shows the six motions as "Not used", and shows no lift/press warning.
+- With no configuration at all (fresh state) it reads the default file of this system, the one the first start
+  seeds (`examples/default/<os>/dofscroll.conf`, chosen by `seedOsName()`); the values are not repeated in code.
+
+For developers: a new operating system, driver or device needs only data. Add its default file under
+`examples/default/<os>/` (CI validates it), or a device profile with its mixes; if its mixes have another shape,
+add one row to `rolePatterns()` and one row to `tests/test_ui_axis_roles.cpp`. Tests supply the fresh state
+explicitly (`tests/ui_fixture.hpp`), they never depend on the host system. A later extension (for example a
+hint block in a `devices/*.conf` or a driver note) can feed `deriveAxisRoles()` without touching the views.
 
 ## Saving
 

@@ -910,13 +910,14 @@ void MotionEditor::buildLiftInspector(QVBoxLayout *col) {
 
     // where it is added now and with which weight
     const Settings eff = effectiveSettings(*env_.form, env_.base);
+    const AxisRoles liftRoles = deriveAxisRoles(env_.base);
     int where = 0;
     double weight = 1.0;
     const MotionChannel order[3] = {MotionChannel::V, MotionChannel::H, MotionChannel::Twist};
     for (int i = 0; i < 3; ++i) {
         const Mix &mix = motion_map_detail::mixOf(eff, order[i]);
         for (const Term &t : mix.terms)
-            if (t.axis == motionAxis(Motion::Lift) && t.weight != 0.0) {
+            if (liftRoles.has(Motion::Lift) && t.axis == liftRoles.axis(Motion::Lift) && t.weight != 0.0) {
                 where = i + 1;
                 weight = t.weight;
             }
@@ -976,7 +977,8 @@ void MotionEditor::buildButtonInspector(QVBoxLayout *col, int n) {
 // Help, templates, hints, tour, Detect by moving, Try
 
 QToolButton *MotionEditor::helpButton(QWidget *parent, const QString &topic) {
-    const HelpTopic h = helpTopic(topic.toStdString(), *env_.strings);
+    const AxisRoles roles = deriveAxisRoles(env_.base);
+    const HelpTopic h = helpTopic(topic.toStdString(), *env_.strings, &roles);
     auto *b = makeInfoButton(parent, T("Help: %1").arg(qs8(h.title)), T("What is this?"));
     b->setText(QStringLiteral("?"));
     const QString text = qs8(h.title) + QStringLiteral("\n\n") + qs8(h.body);
@@ -1202,11 +1204,13 @@ void MotionEditor::refreshSentence() {
     if (id.startsWith(QLatin1String("m:"))) {
         Motion m;
         if (motionFromId(id.mid(2).toStdString(), &m)) {
-            const double live = detectOn_ && haveLive_ ? double(live_[motionAxis(m)]) : std::nan("");
+            const AxisRoles roles = deriveAxisRoles(env_.base);
+            const bool known = roles.has(m);
+            const double live = detectOn_ && haveLive_ && known ? double(live_[roles.axis(m)]) : std::nan("");
             text = qs8(motionSentence(*env_.form, env_.base, m, *env_.strings, live));
             const MotionLabel l = motionLabel(*env_.form, env_.base, m, *env_.strings);
             if (!l.badge.empty()) text += QStringLiteral(". ") + qs8(l.badge);
-            if (liveBar_) liveBar_->setValue(std::min(int(kFullDeflection), std::abs(int(live_[motionAxis(m)]))));
+            if (liveBar_) liveBar_->setValue(known ? std::min(int(kFullDeflection), std::abs(int(live_[roles.axis(m)]))) : 0);
         }
     } else if (id.startsWith(QLatin1String("b:"))) {
         text = qs8(buttonSentence(*env_.form, id.mid(2).toInt(), *env_.strings));
@@ -1277,7 +1281,9 @@ void MotionEditor::injectSample(const RawAxes &axes, uint32_t buttons) {
     if (e.kind != DetectEvent::None) {
         fromDetect_ = true;
         if (e.kind == DetectEvent::Motion) {
-            select(QStringLiteral("m:") + QString::fromLatin1(motionId(e.motion)));
+            Motion moved;
+            if (deriveAxisRoles(env_.base).motionOf(e.axis, &moved))
+                select(QStringLiteral("m:") + QString::fromLatin1(motionId(moved)));
             tourEvent(TourEvent::MotionDetected);
         } else {
             if (!select(QStringLiteral("b:") + QString::number(e.button))) {

@@ -841,10 +841,10 @@ msgstr "Ungültiger Wert: "
 
 #: src/ui/qt/pages/channels_editor.cpp
 msgid ""
-"Warning: lift/press (y) is prone to false triggers when you grab or release "
+"Warning: lift/press (%1) is prone to false triggers when you grab or release "
 "the cap"
 msgstr ""
-"Warnung: Heben/Drücken (y) löst leicht fälschlich aus, wenn du die Kappe "
+"Warnung: Heben/Drücken (%1) löst leicht fälschlich aus, wenn du die Kappe "
 "anfasst oder loslässt"
 
 #: src/ui/qt/pages/channels_page.cpp:215 src/ui/qt/pages/profiles_page.cpp:627
@@ -4683,3 +4683,31 @@ msgstr "Keines anhaken"
 #: src/ui/qt/pages/driver_cleanup_dialog.cpp
 msgid "Remove every tick"
 msgstr "Entfernt alle Haken"
+
+#: src/ui/model/axis_roles_model.hpp
+msgid "In this configuration vertical scroll uses the axes %1, horizontal scroll %2 and zoom %3. A joystick mode that splits a channel gives the push and the tilt parts different functions."
+msgstr "In dieser Konfiguration nutzt vertikales Scrollen die Achsen %1, horizontales Scrollen %2 und Zoom %3. Ein Joystick-Modus, der einen Kanal trennt, gibt dem Schiebe- und dem Kippanteil unterschiedliche Funktionen."
+
+#: src/ui/model/motion_help_model.hpp
+msgid "%1 (this configuration assigns no axis to it). Example: %2. In the file: %3."
+msgstr "%1 (diese Konfiguration weist ihr keine Achse zu). Beispiel: %2. In der Datei: %3."
+
+#: src/ui/model/motion_help_model.hpp
+msgid "a term of a channel mix"
+msgstr "ein Term eines Kanal-Mix"
+
+#: src/ui/model/axis_roles_model.hpp
+msgid "zooms"
+msgstr "zoomt"
+
+#: src/ui/model/axis_roles_model.hpp
+msgid "is in no channel mix"
+msgstr "ist in keinem Kanal-Mix"
+
+#: src/ui/model/axis_roles_model.hpp
+msgid "Axis %1 %2"
+msgstr "Achse %1 %2"
+
+#: src/ui/model/axis_roles_model.hpp
+msgid "none"
+msgstr "keine"

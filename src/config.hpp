@@ -88,8 +88,9 @@ bool parseMix(const std::string &text, Mix *out, std::string *err);
 std::string mixToString(const Mix &m);  // round-trip safe: parseMix(mixToString(m)) == m
 
 // Splitting a scroll channel's mix into a push part (translation terms x, y, z) and a tilt part
-// (rotation terms rx, rz); weights and signs are kept ("x - rz" -> push "x", tilt "-rz"). Twist
-// terms (ry) belong to neither part and are dropped. Either output may be null.
+// (every rotation term, whatever the driver calls the axis: rx, ry or rz); weights and signs are kept
+// ("x - rz" -> push "x", tilt "-rz"). A twist belongs to the zoom channel, not to a scroll mix. Either output
+// may be null.
 void splitMix(const Mix &m, Mix *push, Mix *tilt);
 
 struct ChannelCfg {

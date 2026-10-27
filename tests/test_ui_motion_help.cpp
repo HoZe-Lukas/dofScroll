@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <string>
 
+#include "ui_fixture.hpp"
 #include "testutil.hpp"
 #include "ui/model/motion_help_model.hpp"
 #include "ui/model/tour_model.hpp"
@@ -40,12 +41,12 @@ static void testSentence(const StringProvider &s) {
     hot.setOverride("SCROLL_V_SENS", "20");
     const std::string b = motionSentence(hot, base, Motion::VTilt, s);
     assert(a != b);
-    const double ra = help_detail::rateAt(base.scroll_v, Motion::VTilt, kFullDeflection);
+    const double ra = help_detail::rateAt(base.scroll_v, AX_RX, kFullDeflection);
     ModeForm cold = f;
     cold.setOverride("SCROLL_V_SENS", "1");
     ChannelCfg cc;
     assert(help_detail::configOf(cold, base, Motion::VTilt, &cc) && cc.sensitivity == 1);
-    assert(help_detail::rateAt(cc, Motion::VTilt, kFullDeflection) < ra);
+    assert(help_detail::rateAt(cc, AX_RX, kFullDeflection) < ra);
     // a split part uses its own tuning
     ModeForm sp = f;
     assert(assign(sp, base, Motion::VPush, templateType(ChannelActionType::WheelV)).ok);
@@ -211,6 +212,7 @@ static void testProgress() {
 }
 
 int main() {
+    useFreshDefaultOf("linux");  // not the host system
     English s;
     testSentence(s);
     testTopics(s);

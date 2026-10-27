@@ -6,9 +6,10 @@
 // the storage: nothing here writes a file, the form is saved by ModeEditor as before.
 //
 // Motions and file keys (docs/modes.md):
-//   VPush  z   V_ACTION, or V_PUSH_ACTION when split     VTilt  rx  V_ACTION, or V_TILT_ACTION when split
-//   HPush  x   H_ACTION, or H_PUSH_ACTION when split     HTilt  rz  H_ACTION, or H_TILT_ACTION when split
-//   Twist  ry  TWIST_ACTION                              Lift   y   no key of its own: a term of a channel mix
+//   VPush  V_ACTION, or V_PUSH_ACTION when split     VTilt  V_ACTION, or V_TILT_ACTION when split
+//   HPush  H_ACTION, or H_PUSH_ACTION when split     HTilt  H_ACTION, or H_TILT_ACTION when split
+//   Twist  TWIST_ACTION                              Lift   no key of its own: a term of a channel mix
+// The raw axis of each motion is derived from the profile's mixes (axis_roles_model.hpp), not fixed here.
 //
 // Push and tilt of one channel with the same action are written as the unsplit key, different actions as
 // the split keys. A hand-written channel mix is never changed by assigning an action; it is reported
@@ -26,7 +27,7 @@
 
 #include "common.hpp"
 #include "config.hpp"
-#include "ui/model/axis_layout.hpp"
+#include "ui/model/axis_roles_model.hpp"
 #include "ui/model/mode_editor_model.hpp"
 #include "ui/model/motion_summary_model.hpp"
 #include "ui/model/strings.hpp"
@@ -34,7 +35,6 @@
 
 namespace spn::ui {
 
-enum class Motion { VPush, VTilt, HPush, HTilt, Twist, Lift };
 enum class MotionChannel { V, H, Twist };
 
 inline const std::vector<Motion> &allMotions() {
@@ -62,25 +62,7 @@ inline bool motionFromId(const std::string &id, Motion *out) {
         }
     return false;
 }
-inline Axis motionAxis(Motion m) {
-    const AxisLayout l = currentAxisLayout();  // the axis names of the running system (axis_layout.hpp)
-    switch (m) {
-        case Motion::VPush: return l.vPush;
-        case Motion::VTilt: return l.vTilt;
-        case Motion::HPush: return l.hPush;
-        case Motion::HTilt: return l.hTilt;
-        case Motion::Twist: return l.twist;
-        case Motion::Lift: return l.lift;
-    }
-    return l.vPush;
-}
-// The motion of a raw axis.
-inline Motion motionOfAxis(Axis a) {
-    for (Motion m : allMotions())
-        if (motionAxis(m) == a) return m;
-    return Motion::VPush;
-}
-// The channel the motion belongs to in the built-in mixes (Linux: V = z + rx, H = x - rz, twist = ry; the axis names follow axis_layout.hpp); lift has none.
+// The channel the motion belongs to in the built-in mixes (the pattern of axis_roles_model.hpp: V = push + tilt, H = push - tilt, twist alone); lift has none.
 inline bool naturalChannel(Motion m, MotionChannel *out) {
     switch (m) {
         case Motion::VPush:
@@ -123,6 +105,9 @@ inline const ChannelForm &channelForm(const ModeForm &f, MotionChannel c) { retu
 inline SplitForm *splitForm(ModeForm &f, MotionChannel c) { return c == MotionChannel::V ? &f.vSplit : c == MotionChannel::H ? &f.hSplit : nullptr; }
 inline const SplitForm *splitForm(const ModeForm &f, MotionChannel c) { return c == MotionChannel::V ? &f.vSplit : c == MotionChannel::H ? &f.hSplit : nullptr; }
 
+// The mix without its lift/press term (when the configuration has one, see axis_roles_model.hpp).
+inline Mix withoutLift(const Mix &m, const AxisRoles &r) { return r.has(Motion::Lift) ? withoutAxis(m, r.axis(Motion::Lift)) : m; }
+
 inline bool sameMix(const Mix &a, const Mix &b) { return mixToString(a) == mixToString(b); }
 
 inline std::string signKey(MotionChannel c, bool split, bool tilt) {
@@ -152,20 +137,23 @@ struct MotionPlace {
 inline MotionPlace placeOf(const ModeForm &form, const Settings &base, Motion m) {
     using namespace motion_map_detail;
     const Settings s = effectiveSettings(form, base);
-    const Settings builtin = builtinSettings();
-    const AxisLayout lay = currentAxisLayout();
+    const AxisRoles roles = deriveAxisRoles(base);  // the axis names of the profile; a mode override moves axes between channels, it does not rename them
     MotionPlace p;
-    const Axis ax = motionAxis(m);
+    if (!roles.has(m)) {  // the configuration assigns no axis to this movement
+        p.customMix = m != Motion::Lift;
+        return p;
+    }
+    const Axis ax = roles.axis(m);
     const MotionChannel order[3] = {MotionChannel::V, MotionChannel::H, MotionChannel::Twist};
     for (MotionChannel c : order) {
         const SplitForm *sp = splitForm(form, c);
         const bool split = sp && sp->active();
-        if (split && ax == lay.twist) continue;
+        if (split && m == Motion::Twist) continue;
         if (!hasAxis(mixOf(s, c), ax)) continue;
         p.found = true;
         p.channel = c;
         p.split = split;
-        p.part = c != MotionChannel::Twist && ax != lay.twist;
+        p.part = c != MotionChannel::Twist && m != Motion::Twist;
         break;
     }
     MotionChannel nat;
@@ -174,7 +162,7 @@ inline MotionPlace placeOf(const ModeForm &form, const Settings &base, Motion m)
         p.customMix = true;
         return p;
     }
-    p.customMix = !sameMix(withoutAxis(mixOf(s, p.channel), lay.lift), withoutAxis(mixOf(builtin, p.channel), lay.lift));
+    p.customMix = !sameMix(withoutLift(mixOf(s, p.channel), roles), withoutLift(mixOf(base, p.channel), roles));
     return p;
 }
 
@@ -339,10 +327,16 @@ inline AssignResult setLift(ModeForm &form, const Settings &base, MotionChannel 
     }
     const MotionChannel order[3] = {MotionChannel::V, MotionChannel::H, MotionChannel::Twist};
     const Settings eff = effectiveSettings(form, base);
+    const AxisRoles roles = deriveAxisRoles(base);
+    if (!roles.has(Motion::Lift)) {
+        r.error = "this configuration has no lift/press axis that is certain";
+        return r;
+    }
+    const Axis lift = roles.axis(Motion::Lift);
     for (MotionChannel c : order) {
-        if (c != target && !hasAxis(mixOf(eff, c), motionAxis(Motion::Lift))) continue;  // other mixes stay exactly as they are
-        Mix mix = withoutAxis(mixOf(eff, c), motionAxis(Motion::Lift));
-        if (c == target && weight != 0.0) mix.terms.push_back({motionAxis(Motion::Lift), weight});
+        if (c != target && !hasAxis(mixOf(eff, c), lift)) continue;  // other mixes stay exactly as they are
+        Mix mix = withoutAxis(mixOf(eff, c), lift);
+        if (c == target && weight != 0.0) mix.terms.push_back({lift, weight});
         if (mix.terms.size() > kMaxMixTerms) {
             r.error = "the channel mix would have too many terms";
             return r;

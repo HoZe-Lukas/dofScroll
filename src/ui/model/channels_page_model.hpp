@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "common.hpp"
-#include "ui/model/axis_layout.hpp"
+#include "ui/model/axis_roles_model.hpp"
 #include "ui/model/settings_model.hpp"
 
 namespace spn::ui {
@@ -70,15 +70,7 @@ inline std::string lateralText(unsigned mask) {
     return t;
 }
 
-// True if an axis mix text (valid or not) puts a function on lift/press (axis y on Linux and macOS, z on Windows: axis_layout.hpp). That stays allowed
-// but is prone to false triggers when the cap is grabbed or released (issue #94, docs/modes.md).
-inline bool mixUsesLiftPress(const std::string &text) {
-    Mix m;
-    std::string err;
-    if (!parseMix(text, &m, &err)) return false;
-    for (const Term &t : m.terms)
-        if (t.axis == currentAxisLayout().lift && t.weight != 0) return true;
-    return false;
-}
+// The lift/press warning next to an axis mix is LiftWatch::usesLift (axis_roles_model.hpp): it knows the lift/press
+// axis from the configuration and stays silent when it is not sure (issue #94, issue #186, docs/modes.md).
 
 }  // namespace spn::ui

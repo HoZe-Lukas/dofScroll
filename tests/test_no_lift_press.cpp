@@ -15,6 +15,8 @@
 #include <vector>
 
 #include "config.hpp"
+#include "ui/model/axis_roles_model.hpp"
+#include "ui/model/fresh_state.hpp"
 
 using namespace spn;
 
@@ -103,9 +105,15 @@ int main() {
         }
     assert(files > 0);
     for (const char *os : {"linux", "windows", "macos"})  // the default mixes and ZOOM_LATERAL are in each
-        // The official Windows driver names the axes differently: its y is push forward/back, not lift/press
-        // (measured with the axis assistant), so the Windows file may use y.
-        assert(scanFile(std::string("examples/default/") + os + "/dofscroll.conf", std::string(os) != "windows") >= 4);
+    {
+        using namespace spn::ui;
+        // The driver names the axes differently per system: the lift/press axis of each default file is what its
+        // own mixes leave out (axis_roles_model.hpp), y on Linux, z where y is push forward/back.
+        const std::string f = std::string("examples/default/") + os + "/dofscroll.conf";
+        const AxisRoles r = deriveAxisRoles(settingsOfFile(f));
+        assert(r.matched && r.has(Motion::Lift));
+        assert(scanFile(f, r.axis(Motion::Lift) == AX_Y) >= 4);
+    }
 
     // 2. the built-in defaults of the program
     for (const KV &p : allKeys(Settings()))

@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <string>
 
+#include "ui_fixture.hpp"
 #include "testutil.hpp"
 #include "ui/model/profile_assignment_model.hpp"
 
@@ -15,6 +16,7 @@ using namespace spn;
 using namespace spn::ui;
 
 int main() {
+    useFreshDefaultOf("linux");  // not the host system
     IdentityStrings id;
     ModeSet modes = loadModes("/nonexistent-dir-for-test", nullptr);
     ModeDef mine = *modes.find("timeline");
