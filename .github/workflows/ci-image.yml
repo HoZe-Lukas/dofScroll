@@ -4,7 +4,7 @@
 # Builds the Rocky Linux 9 build images of the CI jobs (packaging/ci/rocky9.Dockerfile) and pushes
 # them to ghcr.io. The jobs of ci.yml, codeql.yml and linux-packages.yml pull them instead of
 # running dnf on every run (#40). Pull requests only build and check the image, they never push.
-# The weekly run picks up distribution updates.
+# The monthly run picks up distribution updates.
 name: ci-image
 
 on:
@@ -20,7 +20,7 @@ on:
       - "packaging/qt.env"
       - ".github/workflows/ci-image.yml"
   schedule:
-    - cron: "41 3 * * 1"   # weekly, Monday 03:41 UTC
+    - cron: "41 3 1 * *"   # monthly, the 1st at 03:41 UTC
   workflow_dispatch:
 
 permissions:

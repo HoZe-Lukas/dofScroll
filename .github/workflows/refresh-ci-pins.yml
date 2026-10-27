@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #
-# Weekly refresh of the pinned build inputs (docs/releasing.md, "Pinned build inputs"): the image
+# Monthly refresh of the pinned build inputs (docs/releasing.md, "Pinned build inputs"): the image
 # digests (scripts/pin-ci-images.sh) and the hash-pinned aqtinstall requirements
 # (scripts/update-aqt-requirements.sh). Pins give stability, the newest versions are wanted: when
 # anything changed, this job opens (or updates) the pull request "Refresh CI pins", so that CI
@@ -9,15 +9,18 @@
 # release, so that the release uses the newest tested versions. The GitHub Actions SHAs are
 # refreshed by Dependabot (.github/dependabot.yml).
 #
-# A pull request opened with the default GITHUB_TOKEN does not start other workflows. To have CI run
-# on it, store a fine-grained token (contents and pull requests: write) as the secret REFRESH_PINS_TOKEN;
-# without it, close and reopen the PR once to start the checks. The repository setting "Allow GitHub
-# Actions to create and approve pull requests" must be on.
+# The pins are only needed at a release, so the job runs once a month and can be started by hand before a
+# release (Actions > refresh-ci-pins > Run workflow). It changes only files under packaging/ci (the image
+# digests live in packaging/ci/images.env, not in the workflow files), so the default GITHUB_TOKEN may push
+# the branch: no extra secret is needed. A pull request opened with that token does not start other
+# workflows: close and reopen the PR once to start the checks. (A fine-grained token stored as the secret
+# REFRESH_PINS_TOKEN, contents and pull requests: write, would start them by itself; it is optional.) The
+# repository setting "Allow GitHub Actions to create and approve pull requests" must be on.
 name: refresh-ci-pins
 
 on:
   schedule:
-    - cron: "17 4 * * 1"   # weekly, Monday 04:17 UTC (after the Monday 03:41 ci-image run)
+    - cron: "17 4 1 * *"   # monthly, the 1st at 04:17 UTC (after the 03:41 ci-image run)
   workflow_dispatch:
 
 permissions:
@@ -57,12 +60,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -B ci/refresh-pins
-          git add -A packaging/ci .github/workflows
+          git add -A packaging/ci
           git commit -m "Refresh CI pins: image digests and aqtinstall hashes"
           git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci/refresh-pins
           if [ -n "$(gh pr list --head ci/refresh-pins --state open --json number --jq '.[].number')" ]; then
             echo "Updated the open pull request." | tee -a "$GITHUB_STEP_SUMMARY"
           else
             gh pr create --base main --head ci/refresh-pins --title "Refresh CI pins" \
-              --body "Weekly refresh of the pinned image digests and the hash-pinned aqtinstall requirements (scripts/pin-ci-images.sh, scripts/update-aqt-requirements.sh). Review the diff, let CI prove the new versions work, then merge. Merge this before a release so the release uses the newest tested versions. Opened by .github/workflows/refresh-ci-pins.yml."
+              --body "Monthly refresh of the pinned image digests and the hash-pinned aqtinstall requirements (scripts/pin-ci-images.sh, scripts/update-aqt-requirements.sh). Review the diff, let CI prove the new versions work, then merge. Merge this before a release so the release uses the newest tested versions. Opened by .github/workflows/refresh-ci-pins.yml."
           fi
