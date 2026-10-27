@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "profiles_page.hpp"
 
+#include "pages/motion_editor.hpp"
 #include "pages/profile_motions_view.hpp"
 
 #include <algorithm>
@@ -505,8 +506,19 @@ void ProfilesPage::rebuildContent() {
         if (layout.bindingEditor && hasAdvancedSection(ctxKind) && anyAdvancedBinding(bindingRows(*ctx_.settings, section), ctxKind))
             advancedOpen_ = true;
     }
-    motions_->setExtras(buildButtonExtras(section, layout.bindingEditor));
-    motions_->setSection(section, layout.bindingEditor);
+    // The settings search also finds a button by "Button <n>", its key BUTTON_<n> or its action text.
+    if (filtering)
+        motions_->setButtonFilter([this](int n, const QString &label) { return settingMatches(label, "BUTTON_" + std::to_string(n)); });
+    else
+        motions_->setButtonFilter(nullptr);
+    {
+        QList<QWidget *> extras = buildButtonExtras(section, layout.bindingEditor);
+        motions_->setSection(section, layout.bindingEditor);
+        bool anyButton = false;
+        for (const auto &it : motions_->picture()->items()) anyButton = anyButton || it.id.startsWith(QLatin1String("b:"));
+        if (filtering && layout.bindingEditor && !anyButton) extras << noteLabel(T("No setting of this tab matches the search."));
+        motions_->setExtras(extras);
+    }
 
     // Channels: the persistent editor shows this profile.
     channels_->setSection(section);

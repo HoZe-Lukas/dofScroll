@@ -568,6 +568,8 @@ The tabs are the same for every profile and the selected tab stays when you sele
   Next to every drop-down sits the same button chip as on the other pages (the number and the action in
   a few words, "1 Space"; muted with the word "Unassigned" when nothing is bound); it follows the
   drop-down at once and wraps under it with the font size.
+  The search box above the tabs also applies here: while it holds text, only the buttons whose label ("Button 3"), key
+  (`BUTTON_3`) or action text contains it are drawn in the picture; if none matches, a note says so.
 - **Overrides** (advanced): the channel values this profile sets itself as raw text, with Remove
   (inherit again) and Add override. Global has nothing to override (it holds the base values).
 

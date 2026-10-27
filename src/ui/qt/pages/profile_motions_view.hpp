@@ -28,6 +28,9 @@ public:
     // bindingEditor false: the profile's joystick mode brings its own button bindings (the buttons are read-only).
     void setSection(size_t section, bool bindingEditor);
     // Widgets shown above the picture (notes about moved old button settings, the Global "Advanced" section); the view owns them.
+    // The settings search: a button is drawn (and its row reachable) only when this returns true for its number and
+    // its label ("Button 3 <action>"); an empty function shows every button.
+    void setButtonFilter(std::function<bool(int number, const QString &label)> filter) { buttonFilter_ = std::move(filter); }
     void setExtras(const QList<QWidget *> &widgets);
     MotionPicture *picture() const { return picture_; }
     QWidget *inspector() const { return inspector_; }
@@ -45,6 +48,7 @@ private:
 
     const UiContext &ctx_;
     ButtonRowFn addButtonRow_;
+    std::function<bool(int, const QString &)> buttonFilter_;
     size_t section_ = 0;
     bool bindingEditor_ = true;
     MotionPicture *picture_ = nullptr;

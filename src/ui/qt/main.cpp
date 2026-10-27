@@ -2284,6 +2284,27 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
     page->setSettingsFilter(QString());
     check(ch->visibleRowCount() == ch->rowCount(), "an empty search shows every row");
 
+    // the search also finds buttons on the Motions and buttons tab: by BUTTON_<n>, none for a text that matches nothing
+    {
+        auto buttonItems = [&] {
+            int n = 0;
+            for (const MotionPicture::Item &it : page->motionsView()->picture()->items()) n += it.id.startsWith(QLatin1String("b:"));
+            return n;
+        };
+        check(page->selectSection(1) && page->selectTab(QStringLiteral("motions")), "Motions and buttons tab for the search");
+        settle();
+        const int all = buttonItems();
+        page->setSettingsFilter(QStringLiteral("button_3"));
+        settle();
+        check(all > 1 && buttonItems() >= 1 && buttonItems() < all, "the search keeps only the matching buttons");
+        page->setSettingsFilter(QStringLiteral("no-such-setting"));
+        settle();
+        check(buttonItems() == 0, "a search without a match shows no button");
+        page->setSettingsFilter(QString());
+        settle();
+        check(buttonItems() == all, "an empty search shows every button again");
+    }
+
     // export of the selected profile
     check(page->selectSection(3), "blender");
     {

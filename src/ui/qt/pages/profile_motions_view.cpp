@@ -106,6 +106,8 @@ void ProfileMotionsView::rebuild() {
         const ButtonChip *chip = nullptr;
         for (const ButtonChip &c : a.buttons)
             if (c.number == n) chip = &c;
+        if (buttonFilter_ && !buttonFilter_(n, T("Button") + QStringLiteral(" %1 ").arg(n) + (chip ? qs8(chip->action) : QString())))
+            return;
         MotionPicture::Item it;
         it.id = QStringLiteral("b:") + QString::number(n);
         it.title = QString::number(n);
