@@ -1862,8 +1862,8 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
     check(page != nullptr, "the window has a Profiles page");
     if (!page) return false;
     ChannelsEditor *ch = page->channelsEditor();
-    const QStringList allTabs = {QStringLiteral("general"), QStringLiteral("channels"), QStringLiteral("buttons"),
-                                 QStringLiteral("motions"), QStringLiteral("overrides")};
+    const QStringList allTabs = {QStringLiteral("general"), QStringLiteral("channels"), QStringLiteral("motions"),
+                                 QStringLiteral("overrides")};
 
     // the list: Global first, then the devices, then the programs, always next to the tabs
     const QStringList labels = page->profileListLabels();
@@ -1875,7 +1875,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
 
     // the same tabs for every profile; the header says which profile is edited
     for (size_t s : {size_t(0), size_t(1), size_t(2), size_t(3)}) {
-        check(page->selectSection(s) && page->tabIds() == allTabs, "General, Channels, Buttons, Motions and buttons and Overrides for every profile");
+        check(page->selectSection(s) && page->tabIds() == allTabs, "General, Channels, Motions and buttons and Overrides for every profile");
         // the General tab shows what the profile does with the same six-motion panel as the Joystick modes page
         const QList<motionview::MotionGrid *> grids = findAllOf<motionview::MotionGrid>(page);
         if (s == 3) {  // blender has its output off: nothing is sent, so the panel is hidden with the joystick mode
@@ -2150,7 +2150,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         }
     }
     // a button that switches the joystick mode: the entries of its argument drop-down have tooltips
-    check(page->selectSection(1) && page->selectTab(QStringLiteral("buttons")), "Buttons tab for the descriptions");
+    check(page->selectSection(1) && page->selectButton(1), "button 1 on the Motions and buttons tab for the descriptions");
     {
         settle();
         auto *act = findNamed<QComboBox>(page, QStringLiteral("Action of button 1"));
@@ -2178,15 +2178,15 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         settle();
         auto *en = findNamed<QCheckBox>(page, QStringLiteral("Send events"));
         check(en && !en->isChecked(), "blender is switched off");
-        check(findNamed<QComboBox>(page, QStringLiteral("Joystick mode")) == nullptr && !page->tabVisible(QStringLiteral("buttons")),
-              "with output off the joystick mode and the Buttons tab are hidden");
+        check(findNamed<QComboBox>(page, QStringLiteral("Joystick mode")) == nullptr && !page->tabVisible(QStringLiteral("motions")),
+              "with output off the joystick mode and the Motions and buttons tab are hidden");
         if (en) en->setChecked(true);
         check(rig.waitSaved(), "enabled written");
         settle();  // the page is rebuilt: the joystick mode and the tabs come back
         std::optional<std::string> v = diskKey(rig, Section::APP, "blender", "ENABLED");
         check(v && *v == "1", "switching on is written");
-        check(findNamed<QComboBox>(page, QStringLiteral("Joystick mode")) != nullptr && page->tabVisible(QStringLiteral("buttons")),
-              "with output on the joystick mode and the Buttons tab are shown");
+        check(findNamed<QComboBox>(page, QStringLiteral("Joystick mode")) != nullptr && page->tabVisible(QStringLiteral("motions")),
+              "with output on the joystick mode and the Motions and buttons tab are shown");
         en = findNamed<QCheckBox>(page, QStringLiteral("Send events"));
         {
             auto *modeBox = findNamed<QComboBox>(page, QStringLiteral("Joystick mode"));
@@ -2211,7 +2211,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
     check(findNamed<QCheckBox>(page, QStringLiteral("Send events")) == nullptr, "no setting appears in two places: the output switch is not in Global");
 
     // buttons: the effective action and its origin, 'Inherit' first, written and removed again
-    check(page->selectSection(1) && page->selectTab(QStringLiteral("buttons")), "Buttons tab of the device profile");
+    check(page->selectSection(1) && page->selectButton(1), "button 1 on the Motions and buttons tab of the device profile");
     settle();
     {
         auto *origin = findNamed<QLabel>(page, QStringLiteral("Origin of button 1"));
@@ -2666,18 +2666,18 @@ static bool legacyButtonsSelfTest() {
     check(!text.contains(QStringLiteral("NAV_BUTTON")) && !text.contains(QStringLiteral("CLICK_BUTTON")), "the old keys are gone from the file");
     check(text.contains(QStringLiteral("BUTTON_3 = nav")) && text.contains(QStringLiteral("BUTTON_4 = key:space")), "the navigation button became BUTTON_3 = nav");
     check(rig.reloads() >= 1, "the daemon was told");
-    check(rig.win->saveStatus().contains(QStringLiteral("Moved the old navigation/click button settings to the Buttons tab")),
+    check(rig.win->saveStatus().contains(QStringLiteral("Moved the old navigation/click button settings to the Motions and buttons tab")),
           "the user is told once in the status line");
     ProfilesPage *page = rig.win->profilesPage();
     check(page != nullptr, "Profiles page");
     if (page) {
         rig.win->showPage(QStringLiteral("profiles"));
-        page->selectTab(QStringLiteral("buttons"));
+        page->selectTab(QStringLiteral("motions"));
         settle();
         QLabel *note = nullptr;
         for (QLabel *l : page->findChildren<QLabel *>())
             if (l->objectName() == QStringLiteral("legacyButtonNotes")) note = l;
-        check(note && note->text().contains(QStringLiteral("BUTTON_3")), "the Buttons tab lists what was moved");
+        check(note && note->text().contains(QStringLiteral("BUTTON_3")), "the Motions and buttons tab lists what was moved");
         check(findNamed<QSpinBox>(page, QStringLiteral("Navigation button")) == nullptr, "there is no navigation button setting any more");
     }
     // a button above the count of the device: kept untouched and listed
@@ -2686,7 +2686,7 @@ static bool legacyButtonsSelfTest() {
     ProfilesPage *p2 = rig2.win->profilesPage();
     if (p2) {
         rig2.win->showPage(QStringLiteral("profiles"));
-        p2->selectTab(QStringLiteral("buttons"));
+        p2->selectTab(QStringLiteral("motions"));
         settle();
         QLabel *note = nullptr;
         for (QLabel *l : p2->findChildren<QLabel *>())
@@ -2874,7 +2874,9 @@ static bool autosaveAuditSelfTest(const std::function<bool(MainWindow &)> &) {
     for (const auto &p : profiles) {
         const size_t sec = p.sec;
         const QString who = QString::fromLatin1(p.name);
-        go(sec, "buttons");
+        go(sec, "motions");
+        page->selectButton(2);
+        settle();
         auto act = [&](const QString &text) {
             auto *combo = findNamed<QComboBox>(page, QStringLiteral("Action of button 2"));
             int idx = -1;

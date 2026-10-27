@@ -566,7 +566,7 @@ public:
                                            ? format(str.tr("%1: %2 = %3 is above the %4 buttons of this device"),
                                                     {title, keyNum, std::to_string(n - 1), std::to_string(lim)})
                                            : format(str.tr("%1: %2 is on, but the inherited button %3 does not exist on this "
-                                                           "device (%4 buttons); assign a button in the Buttons tab"),
+                                                           "device (%4 buttons); assign a button on the Motions and buttons tab"),
                                                     {title, keyOn, std::to_string(n - 1), std::to_string(lim)}));
                     continue;
                 }

@@ -402,7 +402,7 @@ int main() {
         assert(mig.notices[0].find("[device:SpaceMouse Compact]") != std::string::npos &&
                mig.notices[0].find("NAV_BUTTON_ENABLED") != std::string::npos &&
                mig.notices[0].find("2 buttons") != std::string::npos &&
-               mig.notices[0].find("Buttons tab") != std::string::npos);
+               mig.notices[0].find("Motions and buttons tab") != std::string::npos);
         assert(lm.effective(cmp).buttons.empty() && lm.effective(pro).buttons.empty());  // no BUTTON_15
         assert(lm.isOverridden(cmp, "NAV_BUTTON_ENABLED") && lm.isOverridden(0, "NAV_BUTTON") &&
                lm.isOverridden(pro, "NAV_BUTTON_ENABLED"));  // the NAV keys stay where they were

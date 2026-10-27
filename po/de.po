@@ -1105,10 +1105,6 @@ msgstr "nicht installiert"
 msgid "Unsaved changes"
 msgstr "Ungespeicherte Änderungen"
 
-#: src/ui/qt/pages/profiles_page.cpp:287
-msgid "Button bindings"
-msgstr "Tastenbelegungen"
-
 #: src/ui/qt/pages/profiles_page.cpp:301 src/ui/qt/pages/profiles_page.cpp:473
 msgid "Button"
 msgstr "Taste"
@@ -2260,10 +2256,10 @@ msgstr "%1: %2 = %3 liegt über den %4 Tasten dieses Geräts"
 #: src/ui
 msgid ""
 "%1: %2 is on, but the inherited button %3 does not exist on this device (%4 "
-"buttons); assign a button in the Buttons tab"
+"buttons); assign a button on the Motions and buttons tab"
 msgstr ""
 "%1: %2 ist an, aber die geerbte Taste %3 gibt es an diesem Gerät nicht (%4 "
-"Tasten); weise im Reiter Tasten eine Taste zu"
+"Tasten); weise auf dem Reiter Bewegungen und Tasten eine Taste zu"
 
 #: src/ui
 msgid "%1: %2 is already set; %3 was left as it is"
@@ -2290,10 +2286,10 @@ msgid "Chip of button"
 msgstr "Kurzbeschreibung der Taste"
 
 #: src/ui
-msgid "Moved the old navigation/click button settings to the Buttons tab"
+msgid "Moved the old navigation/click button settings to the Motions and buttons tab"
 msgstr ""
 "Die alten Einstellungen für Navigations- und Klicktaste wurden auf den "
-"Reiter Tasten verschoben"
+"Reiter Bewegungen und Tasten verschoben"
 
 #: src/ui
 msgid "Not moved: "
@@ -2758,16 +2754,6 @@ msgid "Device profile"
 msgstr "Geräteprofil"
 
 #: src/ui
-msgid ""
-"Each button can use a button mode, switch the joystick mode or hold the "
-"navigation mode (arrow keys instead of scrolling). All buttons are set "
-"here, one row each."
-msgstr ""
-"Jede Taste kann einen Tasten-Modus nutzen, den Joystick-Modus umschalten "
-"oder die Navigation halten (Pfeiltasten statt Scrollen). Alle Tasten "
-"werden hier eingestellt, je eine Zeile."
-
-#: src/ui
 msgid "Edit joystick mode file"
 msgstr "Joystick-Modus-Datei bearbeiten"
 
@@ -2840,10 +2826,11 @@ msgstr "Schalte das für ein Programm aus, das die SpaceMouse selbst liest"
 #: src/ui
 msgid ""
 "The Global profile holds the base values, so it has nothing to override. "
-"Change them on the Channels and Buttons tabs."
+"Change them on the Channels and Motions and buttons tabs."
 msgstr ""
 "Das globale Profil enthält die Basiswerte, also gibt es nichts zu "
-"überschreiben. Ändere sie auf den Reitern Kanäle und Tasten."
+"überschreiben. Ändere sie auf den Reitern Kanäle und Bewegungen und "
+"Tasten."
 
 #: src/ui
 msgid ""
@@ -2864,16 +2851,6 @@ msgstr ""
 "Die Kanalwerte, die dieses Profil selbst setzt, als Rohtext. Alles andere "
 "wird geerbt. Der Reiter Kanäle zeigt dieselben Werte mit ihrer Herkunft "
 "und den Bedienelementen zum Ändern."
-
-#: src/ui
-msgid ""
-"The joystick mode of this profile has its own button bindings; they are "
-"listed on the General tab. Choose \"Same as Global\" or the normal "
-"joystick mode to assign buttons here."
-msgstr ""
-"Der Joystick-Modus dieses Profils hat eigene Tastenbelegungen; sie stehen "
-"auf dem Reiter Allgemein. Wähle \"Wie Global\" oder den normalen "
-"Joystick-Modus, um hier Tasten zu belegen."
 
 #: src/ui
 msgid ""
