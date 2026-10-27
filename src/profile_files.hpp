@@ -46,7 +46,7 @@ namespace spn {
 
 constexpr size_t kMaxProfileFiles = 255;            // files read per directory (kMaxSections - 1)
 constexpr size_t kMaxProfileFileBytes = 64 * 1024;  // size of one profile file
-constexpr size_t kMaxProfileDirEntries = 4096;      // directory entries inspected per directory
+constexpr size_t kMaxProfileDirEntries = 16384;     // directory entries listed per directory (all are collected and sorted before the first kMaxProfileFiles are used, so the choice is deterministic)
 constexpr size_t kMaxSlugBytes = 80;                // file name stem, without ".conf"
 
 // ---- file names -------------------------------------------------------------------------------

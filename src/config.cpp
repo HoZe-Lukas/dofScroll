@@ -697,19 +697,42 @@ std::vector<KV> diffKeys(const Settings &base, const Settings &s) {
 
 ProfileSet::ProfileSet() { sections.push_back(Section()); }
 
-static void applyKvList(Settings &s, const std::vector<KV> &kv) {
-    for (const KV &p : kv) applyKey(s, p.first, p.second, nullptr);  // error: skip
+int layerOfSection(Section::Kind kind) { return kind == Section::APP ? 1 : 0; }
+
+bool applyKeyLayer(Settings &s, const std::string &key, const std::string &value, int layer, std::string *err) {
+    const int saved = s.action_layer;
+    s.action_layer = layer ? 1 : 0;
+    const bool ok = applyKey(s, key, value, err);
+    s.action_layer = saved;
+    return ok;
+}
+
+void applyKvList(Settings &s, const std::vector<KV> &kv, int layer) {
+    for (const KV &p : kv) applyKeyLayer(s, p.first, p.second, layer, nullptr);  // error: skip
+}
+
+static bool sameActions(const ProfileActions &a, const ProfileActions &b) {
+    for (int c = 0; c < 3; ++c) {
+        if (a.chanSet[c] != b.chanSet[c]) return false;
+        if (a.chanSet[c] && channelActionText(a.chan[c]) != channelActionText(b.chan[c])) return false;
+    }
+    for (int i = 0; i < PART_COUNT; ++i) {
+        if (a.partSet[i] != b.partSet[i]) return false;
+        if (a.partSet[i] && channelActionText(a.part[i]) != channelActionText(b.part[i])) return false;
+    }
+    return true;
+}
+
+bool sameSettings(const Settings &a, const Settings &b) {
+    return allKeys(a) == allKeys(b) && a.app_buttons == b.app_buttons && sameActions(a.actions[0], b.actions[0]) &&
+           sameActions(a.actions[1], b.actions[1]);
 }
 
 Settings ProfileSet::sectionSettings(size_t i) const {
     Settings s;
     if (sections.empty()) return s;
-    applyKvList(s, sections[0].kv);
-    if (i > 0 && i < sections.size()) {
-        s.action_layer = sections[i].kind == Section::APP ? 1 : 0;
-        applyKvList(s, sections[i].kv);
-        s.action_layer = 0;
-    }
+    applyKvList(s, sections[0].kv, 0);
+    if (i > 0 && i < sections.size()) applyKvList(s, sections[i].kv, layerOfSection(sections[i].kind));
     return s;
 }
 
@@ -721,16 +744,15 @@ Settings ProfileSet::resolve(const std::string &device_name, const std::string &
                              const std::vector<KV> *mode_overrides) const {
     Settings s;
     if (sections.empty()) return s;
-    applyKvList(s, sections[0].kv);
+    applyKvList(s, sections[0].kv, 0);
     for (size_t i = 1; i < sections.size(); i++)
         if (sections[i].kind == Section::DEVICE && containsCI(device_name, sections[i].pattern))
-            applyKvList(s, sections[i].kv);
-    if (mode_overrides) applyKvList(s, *mode_overrides);
-    s.action_layer = 1;  // the program layer: its channel actions and buttons beat the joystick mode's
+            applyKvList(s, sections[i].kv, 0);
+    if (mode_overrides) applyKvList(s, *mode_overrides, 0);
+    // The program layer (1): its channel actions and buttons beat the joystick mode's.
     for (size_t i = 1; i < sections.size(); i++)
         if (sections[i].kind == Section::APP && containsCI(wm_class, sections[i].pattern))
-            applyKvList(s, sections[i].kv);
-    s.action_layer = 0;
+            applyKvList(s, sections[i].kv, 1);
     return s;
 }
 
@@ -780,8 +802,8 @@ void ProfileSet::setSectionFromSettingsKeys(size_t i, const Settings &s) {
         for (size_t j = 1; j < sections.size(); j++) {
             if (sections[j].kind != Section::DEVICE) continue;
             Settings d = base;
-            applyKvList(d, sections[j].kv);
-            applyKvList(all, sections[j].kv);
+            applyKvList(d, sections[j].kv, 0);
+            applyKvList(all, sections[j].kv, 0);
             devs.push_back(toMap(allKeys(d)));
         }
         devs.push_back(toMap(allKeys(all)));

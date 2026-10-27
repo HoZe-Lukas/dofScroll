@@ -111,9 +111,27 @@ void failCand(Cand *c, const std::string &why) {
     c->d.warnings.push_back(c->d.path + ": " + why + " - profile ignored");
 }
 
+// Number of [device:NAME] / [app:NAME] header lines of a text (the parser merges headers of the same name).
+size_t countProfileHeaders(const std::string &text) {
+    size_t n = 0, pos = 0;
+    while (pos <= text.size()) {
+        size_t nl = text.find('\n', pos);
+        if (nl == std::string::npos) nl = text.size();
+        size_t a = pos, b = nl;
+        pos = nl + 1;
+        while (a < b && (text[a] == ' ' || text[a] == '\t' || text[a] == '\r')) a++;
+        if (a >= b || text[a] != '[') continue;
+        const std::string head = utf8::lowerAscii(text.substr(a + 1, std::min<size_t>(b - a - 1, 7)));
+        if (head.compare(0, 7, "device:") == 0 || head.compare(0, 4, "app:") == 0) n++;
+    }
+    return n;
+}
+
 void parseCand(const std::string &text, Section::Kind dirKind, Cand *c) {
     ProfileSet ps;
     parseProfilesText(text, c->d.path, &ps, &c->d.warnings);
+    if (ps.sections.size() == 2 && countProfileHeaders(text) > 1)
+        c->d.warnings.push_back(c->d.path + ": the section header is repeated (a profile file holds exactly one section) - the keys are merged");
     if (ps.sections.size() == 1) {
         failCand(c, std::string("no [") + (dirKind == Section::DEVICE ? "device" : "app") + ":NAME] section");
         return;

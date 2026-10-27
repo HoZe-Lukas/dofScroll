@@ -170,7 +170,7 @@ bool sameResolve(const ProfileSet &a, const ProfileSet &b) {
     const std::vector<std::string> dev = probesFor(a, Section::DEVICE), app = probesFor(a, Section::APP);
     for (const std::string &d : dev)
         for (const std::string &p : app)
-            if (allKeys(a.resolve(d, p)) != allKeys(b.resolve(d, p))) return false;
+            if (!sameSettings(a.resolve(d, p), b.resolve(d, p))) return false;
     return true;
 }
 

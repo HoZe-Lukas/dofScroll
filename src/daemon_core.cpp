@@ -561,7 +561,7 @@ void DaemonCore::applyProfile(Lane &l, bool modes_changed) {
     std::string desc = describeMatches(profiles_, l.device, wm_class_);
     Settings next = profiles_.resolve(l.device, wm_class_);
     const bool mode_switched = selectMode(l, next, modes_changed);
-    if (!mode_switched && desc == l.match_desc && allKeys(next) == allKeys(l.settings)) return;
+    if (!mode_switched && desc == l.match_desc && sameSettings(next, l.settings)) return;
 
     l.settings = std::move(next);
     l.match_desc = desc;
