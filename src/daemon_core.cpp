@@ -268,18 +268,6 @@ DaemonCore::DaemonCore(DaemonDeps deps)
       tick_period_(periodFor(250)),
       reader_(d_.input, clock_, d_.debug) {}
 
-DaemonCore::FileStamp DaemonCore::statFile(const std::string &path) {
-    FileStamp f;
-    fs::FileInfo fi;
-    if (fs::statPath(path, &fi)) {
-        f.exists = true;
-        f.mtime_ns = fi.mtimeNs;
-        f.size = fi.size;
-        f.ino = fi.fileId;
-    }
-    return f;
-}
-
 void DaemonCore::loadConfig() {
     for (auto &lp : lanes_) {
         lp->mode_override.clear();  // a reload drops the button-selected mode
@@ -287,19 +275,20 @@ void DaemonCore::loadConfig() {
         lp->hold_active = false;
         if (lp->runner) lp->runner->clearToggles();  // ... and the toggled navigation mode
     }
-    // Take the stamp before reading: if the file changes while reading, it is
-    // noticed at the next check.
-    stamp_ = statFile(config_path_);
+    // Take the stamp before reading: if a file changes while reading, it is noticed at the next check.
+    stamp_.reset(profileTreeStampAt(config_path_));
     ProfileSet ps;
-    std::vector<std::string> warnings;
-    if (!loadProfiles(config_path_, &ps, &warnings)) {
-        std::cerr << LOG << "WARNING: config " << config_path_
+    std::vector<FileDiag> diag;
+    if (!loadProfileTreeAt(config_path_, &ps, &diag)) {
+        std::cerr << LOG << "WARNING: config " << sanitizeForLog(config_path_, 512)
                   << " not readable, keeping previous settings" << std::endl;
     } else {
         profiles_ = std::move(ps);
     }
-    for (const std::string &w : warnings)
-        std::cerr << LOG << "Config: " << sanitizeForLog(w, 512) << std::endl;
+    profile_diag_ = std::move(diag);
+    for (const FileDiag &d : profile_diag_)
+        for (const std::string &w : d.warnings)
+            std::cerr << LOG << "Config: " << sanitizeForLog(w, 512) << std::endl;
     // INPUT is a process-level key (the hybrid input of Windows and macOS; other sources ignore it).
     if (d_.input) {
         InputMode m = InputMode::Auto;
@@ -749,8 +738,8 @@ void DaemonCore::updateProfile(int64_t now_ns) {
                       << std::endl;
             loadConfig();  // sets the stamp anew
             need_resolve = true;
-        } else if (statFile(config_path_) != stamp_) {
-            std::cerr << LOG << "Config file changed, reloading" << std::endl;
+        } else if (stamp_.settled(profileTreeStampAt(config_path_))) {
+            std::cerr << LOG << "Configuration files changed, reloading" << std::endl;
             loadConfig();
             need_resolve = true;
         }

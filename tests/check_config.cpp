@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
-// Small CLI: validates a configuration file with loadProfiles(), or a directory of mode files
-// with loadModes().
-// Usage: check_config FILE | check_config --modes DIR
+// Small CLI: validates a configuration file with loadProfiles(), a configuration directory
+// (dofscroll.conf, devices/, apps/) with loadProfileTree(), or a directory of mode files with loadModes().
+// Usage: check_config FILE | check_config DIR | check_config --modes DIR
 //   exit 0 = ok, 1 = warning/error, 2 = usage.
 #include <iostream>
 #include <string>
 #include <vector>
 #include "config.hpp"
 #include "modes.hpp"
+#include "platform/fs.hpp"
+#include "profile_files.hpp"
 
 int main(int argc, char **argv) {
     if (argc == 3 && std::string(argv[1]) == "--modes") {
@@ -21,12 +23,30 @@ int main(int argc, char **argv) {
         return 0;
     }
     if (argc != 2) {
-        std::cerr << "Usage: check_config FILE | check_config --modes DIR\n";
+        std::cerr << "Usage: check_config FILE | check_config DIR | check_config --modes DIR\n";
         return 2;
     }
     const std::string path = argv[1];
     spn::ProfileSet ps;
     std::vector<std::string> warnings;
+    spn::fs::FileInfo fi;
+    if (spn::fs::statPath(path, &fi) && fi.isDir) {
+        // Every warning and every defective file fails, like for a single file.
+        std::vector<spn::FileDiag> diag;
+        if (!spn::loadProfileTree(path, &ps, &diag)) {
+            for (const auto &d : diag)
+                for (const auto &w : d.warnings) std::cerr << "ERROR: " << w << "\n";
+            return 1;
+        }
+        bool bad = false;
+        for (const auto &d : diag) {
+            for (const auto &w : d.warnings) std::cerr << "WARNING: " << w << "\n";
+            if (d.fatal || !d.warnings.empty()) bad = true;
+        }
+        if (bad) return 1;
+        std::cout << "OK: " << path << " (" << ps.sections.size() << " sections)\n";
+        return 0;
+    }
     if (!spn::loadProfiles(path, &ps, &warnings)) {
         std::cerr << "ERROR: '" << path << "' could not be loaded\n";
         return 1;

@@ -71,6 +71,7 @@ constexpr size_t kMaxCurvePoints = 64;         // points per CURVE
 constexpr size_t kMaxLateralAxes = 6;          // axes in ZOOM_LATERAL
 constexpr double kMaxZoomExitRatio = 100.0;
 constexpr double kMinStepTrigger = 0.5, kMaxStepTrigger = 10000.0;
+constexpr long kMinPriority = -1000, kMaxPriority = 1000;  // PRIORITY of a [device:]/[app:] profile
 constexpr long kMaxButtons = 32;               // highest accepted BUTTON_<n> (the daemon button mask is 32 bits)
 
 struct Term {
@@ -187,6 +188,10 @@ struct Section {
     std::vector<KV> kv;               // raw keys as in the file (order preserved)
 };
 
+// PRIORITY of a profile section (integer key, default 0, kMinPriority..kMaxPriority, no effect in [global]).
+// Profiles of one kind are applied in ascending PRIORITY, later wins; see profile_files.hpp for the order.
+int sectionPriority(const Section &s);
+
 struct ProfileSet {
     std::vector<Section> sections;    // sections[0] is always GLOBAL
 
@@ -218,6 +223,7 @@ struct ProfileSet {
     void remove(size_t i);            // GLOBAL (i == 0) cannot be removed
 
 private:
+    void setSectionFromSettingsKeys(size_t i, const Settings &s);  // the part of setSectionFromSettings that rewrites kv
     // Search index (kind + lower-case pattern -> index) so that findOrAdd is O(1)
     // instead of O(n). Rebuilt lazily when the size of `sections` changes or on a
     // hit mismatch; please avoid changes other than push_back/erase from outside
@@ -257,5 +263,14 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
 // setuid/setgid/sticky. Temp file with a random name in the same directory handle.
 // Comments of the original file are lost (known limitation, stated in the file header).
 bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *err);
+
+// The text of loadProfiles() for text already in memory (the profile files of profile_files.hpp are read
+// through the bounded directory reader and parsed here). `path` is only the label in the warnings.
+// Always true; *out is only set when non-null.
+bool parseProfilesText(const std::string &data, const std::string &path, ProfileSet *out,
+                       std::vector<std::string> *warnings);
+// The text of one profile file: "[device:NAME]" or "[app:NAME]" and the key lines, as saveProfiles() writes
+// a section. Same validation as saveProfiles(); a GLOBAL section is refused. false + *err when invalid.
+bool renderProfileSection(const Section &sec, std::string *out, std::string *err);
 
 }  // namespace spn

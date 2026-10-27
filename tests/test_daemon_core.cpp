@@ -845,8 +845,43 @@ static void testInputIssue() {
     }
 }
 
+// Split layout: the daemon reads devices/ and apps/, reloads on a changed file (stamp poll, debounced) and on a
+// reload request, and a broken profile file drops only its own profile. A legacy section is shadowed by a file.
+static void testSplitLayoutReload() {
+    Rig r("[global]\nTICK_HZ = 250\nCLICK_BUTTON = 1\nCLICK_BUTTON_ENABLED = 0\n[device:Test Mouse]\nZOOM_SENS = 1\n");
+    r.run(0.1);
+    CHECK(!r.core->settings().click_button_enabled, "start: click off");
+    CHECK(r.core->settings().zoom.sensitivity == 1, "legacy section active");
+    std::filesystem::create_directories(r.dir + "/devices");
+    std::filesystem::create_directories(r.dir + "/apps");
+    writeFile(r.dir + "/devices/mouse.conf", "[device:Test Mouse]\nCLICK_BUTTON_ENABLED = 1\nZOOM_SENS = 7\n");
+    writeFile(r.dir + "/apps/broken.conf", "[device:Wrong]\n");
+    r.run(0.5);
+    CHECK(!r.core->settings().click_button_enabled, "no reload before the poll has seen the change twice");
+    r.run(3.0);  // poll sees the change, the next poll confirms it (debounce)
+    CHECK(r.core->settings().click_button_enabled, "file in devices/ applied by the stamp poll");
+    CHECK(r.core->settings().zoom.sensitivity == 7, "the file wins over the legacy section");
+    bool fatal = false, shadowed = false;
+    for (const FileDiag &d : r.core->profileDiagnostics()) {
+        if (d.origin == FileDiag::PROFILE_FILE && d.fatal) fatal = true;
+        if (d.origin == FileDiag::LEGACY_SECTION && d.fatal) shadowed = true;
+    }
+    CHECK(fatal && shadowed, "diagnostics: broken file and shadowed section");
+    // reload request (SIGHUP, event, socket) applies at once
+    writeFile(r.dir + "/devices/mouse.conf", "[device:Test Mouse]\nCLICK_BUTTON_ENABLED = 1\nZOOM_SENS = 9\n");
+    r.reload.pending = true;
+    r.run(0.02);
+    CHECK(r.core->settings().zoom.sensitivity == 9, "reload request re-reads the profile files");
+    // removing the file brings the legacy section back
+    std::filesystem::remove(r.dir + "/devices/mouse.conf");
+    r.reload.pending = true;
+    r.run(0.02);
+    CHECK(r.core->settings().zoom.sensitivity == 1 && !r.core->settings().click_button_enabled, "file removed");
+}
+
 int main() {
     testInputIssue();
+    testSplitLayoutReload();
     testButtonModes();
     testLogSanitized();
     testModeVsAppPrecedence();

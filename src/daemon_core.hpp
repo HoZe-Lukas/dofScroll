@@ -24,6 +24,7 @@
 #include "common.hpp"
 #include "live_feed/live_feed_protocol.hpp"
 #include "config.hpp"
+#include "profile_files.hpp"
 #include "mode_runner.hpp"
 #include "button_modes.hpp"
 #include "modes.hpp"
@@ -202,6 +203,8 @@ public:
     const std::string &deviceName() const { return lanes_.front()->device; }
     const ModeRunner &runner() const { return *lanes_.front()->runner; }
     // One lane per attached device (at least one).
+    // Per-file results of the last profile load (profile_files.hpp), for tests and diagnostics.
+    const std::vector<FileDiag> &profileDiagnostics() const { return profile_diag_; }
     size_t laneCount() const { return lanes_.size(); }
     const Lane &lane(size_t i) const { return *lanes_[i]; }
 
@@ -210,14 +213,8 @@ private:
     std::function<int64_t()> clock_;
     std::atomic<bool> quit_{false};
     std::string config_path_;
-    struct FileStamp {
-        bool exists = false;
-        int64_t mtime_ns = 0, size = 0;
-        uint64_t ino = 0;
-        bool operator!=(const FileStamp &o) const {
-            return exists != o.exists || mtime_ns != o.mtime_ns || size != o.size || ino != o.ino;
-        }
-    } stamp_;
+    StampDebounce stamp_;  // profile tree (dofscroll.conf, devices/, apps/), debounced by one poll
+    std::vector<FileDiag> profile_diag_;
     ProfileSet profiles_;
     ModeSet modes_;
     std::string modes_dir_, modes_stamp_;
@@ -246,7 +243,6 @@ private:
     DeviceReader reader_;
     std::unique_ptr<Output> output_;
 
-    static FileStamp statFile(const std::string &path);
     void loadConfig();
     void loadModeSet();
     bool selectMode(Lane &l, Settings &next, bool force);

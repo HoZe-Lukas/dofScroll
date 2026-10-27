@@ -72,8 +72,8 @@ void printHelp() {
 // --release-keys: open an own output, release everything, exit.
 static int releaseKeysAndExit() {
     ProfileSet ps;
-    std::vector<std::string> warnings;
-    loadProfiles(defaultConfigPath(), &ps, &warnings);
+    std::vector<FileDiag> diag;
+    loadProfileTreeAt(defaultConfigPath(), &ps, &diag);
     std::string log;
     std::unique_ptr<Output> out = makeOutput(ps.resolve("", "").backend, &log);
     if (!out) {
