@@ -3,9 +3,11 @@
 #include "profile_files.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <map>
 
 #include "platform/fs.hpp"
+#include "platform/path_rules.hpp"
 #include "utf8.hpp"
 
 namespace spn {
@@ -21,17 +23,14 @@ std::string foldedKey(Section::Kind k, const std::string &name) {
 
 std::string stampOf(const fs::FileInfo &fi) {
     return std::string(fi.isLink ? "L" : "F") + std::to_string(static_cast<long long>(fi.mtimeNs)) + ":" +
+           std::to_string(static_cast<long long>(fi.ctimeNs)) + ":" +
            std::to_string(static_cast<long long>(fi.size)) + ":" + std::to_string(static_cast<unsigned long long>(fi.fileId));
 }
 
 bool isReservedWindowsName(const std::string &stem) {
-    // stem is already folded; the part before the first dot decides ("con.txt" is reserved too)
-    const size_t dot = stem.find('.');
-    const std::string b = dot == std::string::npos ? stem : stem.substr(0, dot);
-    if (b == "con" || b == "prn" || b == "aux" || b == "nul") return true;
-    if (b.size() == 4 && (b.compare(0, 3, "com") == 0 || b.compare(0, 3, "lpt") == 0) && b[3] >= '1' && b[3] <= '9')
-        return true;
-    return false;
+    // The part before the first dot decides ("con.txt" is reserved too); the rule is the one of path_rules.hpp
+    // (CONIN$, CONOUT$, the superscript digits, a space before the dot), so a slug is never unsafe on Windows.
+    return isReservedDeviceName(stem);
 }
 
 // Replaces forbidden characters etc.; the input is the ASCII-folded name.
@@ -154,12 +153,24 @@ void parseCand(const std::string &text, Section::Kind dirKind, Cand *c) {
     c->ok = true;
 }
 
-void readProfileDir(const std::string &baseDir, Section::Kind kind, std::vector<Cand> *cands,
+// false when the directory exists but cannot be listed or opened (the caller keeps what it has: an unreadable
+// directory must not look like "no profiles"). A missing directory is no error.
+bool readProfileDir(const std::string &baseDir, Section::Kind kind, std::vector<Cand> *cands,
                     std::vector<FileDiag> *dirDiags) {
     const std::string dir = profileDirOf(baseDir, kind);
     std::vector<std::string> names;
     bool capped = false;
-    if (!listProfileNames(dir, &names, &capped)) return;  // missing directory is no error
+    if (!listProfileNames(dir, &names, &capped)) {
+        if (!fs::pathExists(dir)) return true;
+        FileDiag d;
+        d.origin = FileDiag::DIRECTORY;
+        d.kind = kind;
+        d.path = dir;
+        d.warnings.push_back(dir + ": cannot be read (not a readable directory) - the profile files are not loaded");
+        d.fatal = true;
+        dirDiags->push_back(d);
+        return false;
+    }
     auto dirDiag = [&](const std::string &msg, bool fatal) {
         FileDiag d;
         d.origin = FileDiag::DIRECTORY;
@@ -181,7 +192,7 @@ void readProfileDir(const std::string &baseDir, Section::Kind kind, std::vector<
     std::string derr;
     if (!dh.open(dir, &derr)) {
         dirDiag(derr, true);
-        return;
+        return false;
     }
     for (const std::string &n : names) {
         Cand c;
@@ -214,6 +225,31 @@ void readProfileDir(const std::string &baseDir, Section::Kind kind, std::vector<
             break;
         }
         cands->push_back(std::move(c));
+    }
+    return true;
+}
+
+// The profile directories belong to <dir>/dofscroll.conf only. A legacy location (spnav-scroll.conf in a generic
+// config directory) has none: foreign *.conf files there would act as profiles.
+bool hasProfileDirs(const std::string &globalFile) {
+    const size_t p = fs::lastSeparator(globalFile);
+    return globalFile.substr(p == std::string::npos ? 0 : p + 1) == "dofscroll.conf";
+}
+
+// Removes leftovers of an interrupted atomic write ("<name>.conf.tmp.<16 hex>") older than a day.
+void cleanStaleTemps(const std::string &dir) {
+    std::vector<std::string> all;
+    bool capped = false;
+    if (!fs::listDir(dir, kMaxProfileDirEntries, &all, &capped)) return;
+    const int64_t now = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    for (const std::string &n : all) {
+        const size_t at = n.rfind(".conf.tmp.");
+        if (at == std::string::npos || at == 0 || n.size() != at + 10 + 16) continue;
+        if (n.find_first_not_of("0123456789abcdef", at + 10) != std::string::npos) continue;
+        fs::FileInfo fi;
+        const std::string p = dir + "/" + n;
+        if (!fs::lstatPath(p, &fi) || !fi.isFile || fi.isLink) continue;
+        if (now - fi.mtimeNs > 24LL * 3600 * 1'000'000'000LL) fs::removeFile(p);
     }
 }
 
@@ -277,8 +313,11 @@ WriteResult saveProfileImpl(const std::string &configDir, const Section &sec, co
     }
 
     const std::string dir = profileDirOf(configDir, sec.kind);
-    const std::string p1 = dir + "/" + profileSlug(sec.pattern) + ".conf";
     const std::string p2 = dir + "/" + profileSlugHashed(sec.pattern) + ".conf";
+    // A plain slug that Windows would resolve to something else (a device name, ...) is never used: hashed name.
+    const std::string plain = profileSlug(sec.pattern) + ".conf";
+    const std::string p1 = windowsPathHazard(plain) == PathHazard::None ? dir + "/" + plain : p2;
+    cleanStaleTemps(dir);
     const bool haveKnown = known && !known->path.empty();
 
     std::string target;
@@ -385,13 +424,17 @@ std::string configDirOf(const std::string &globalFile) {
 std::string profileTreeStampAt(const std::string &globalFile) {
     std::string s = "tree|" + profileFileStamp(globalFile, true);
     const std::string base = configDirOf(globalFile);
+    if (!hasProfileDirs(globalFile)) return s;
     for (Section::Kind k : {Section::DEVICE, Section::APP}) {
         const std::string dir = profileDirOf(base, k);
         std::vector<std::string> names;
         bool capped = false;
         if (!listProfileNames(dir, &names, &capped)) continue;
-        s += std::string("|") + dirNameOf(k);
-        for (const std::string &n : names) s += "|" + n + ":" + profileFileStamp(dir + "/" + n, false);
+        s += std::string("|") + dirNameOf(k) + "#" + std::to_string(names.size());
+        // Only the files the loader reads (the first kMaxProfileFiles in sort order) are stat'ed: a directory with
+        // thousands of entries does not cost thousands of stat calls per second.
+        for (size_t i = 0; i < names.size() && i < kMaxProfileFiles; i++)
+            s += "|" + names[i] + ":" + profileFileStamp(dir + "/" + names[i], false);
     }
     return s;
 }
@@ -437,8 +480,15 @@ bool loadProfileTreeAt(const std::string &globalFile, ProfileSet *out, std::vect
 
     std::vector<Cand> cands;
     std::vector<FileDiag> dirDiags;
-    readProfileDir(base, Section::DEVICE, &cands, &dirDiags);
-    readProfileDir(base, Section::APP, &cands, &dirDiags);
+    bool dirsOk = true;
+    if (hasProfileDirs(globalFile)) {
+        dirsOk = readProfileDir(base, Section::DEVICE, &cands, &dirDiags) && dirsOk;
+        dirsOk = readProfileDir(base, Section::APP, &cands, &dirDiags) && dirsOk;
+    }
+    if (!dirsOk) {
+        if (diag) *diag = std::move(dirDiags);
+        return false;
+    }
 
     // Every profile exists once: the first file in sort order wins.
     std::map<std::string, size_t> winner;
@@ -523,12 +573,14 @@ void assignMigrationPriorities(ProfileSet *ps) {
         for (const Section &s : ps->sections)
             if (s.kind == k) count++;
         if (count < 2) continue;
-        int next = 10;
+        // 10, 20, ... but never above kMaxPriority: the step shrinks for more than 100 profiles of one kind.
+        const int step = std::max(1, std::min(10, static_cast<int>(kMaxPriority / static_cast<long>(count))));
+        int next = step;
         for (Section &s : ps->sections) {
             if (s.kind != k) continue;
             s.kv.erase(std::remove_if(s.kv.begin(), s.kv.end(), [](const KV &p) { return p.first == "PRIORITY"; }), s.kv.end());
             s.kv.insert(s.kv.begin(), KV("PRIORITY", std::to_string(next)));
-            next += 10;
+            next += step;
         }
     }
 }
@@ -558,9 +610,9 @@ WriteResult deleteProfileFile(const std::string &configDir, Section::Kind kind, 
     return mk(WriteStatus::Ok, path, "");
 }
 
-WriteResult saveGlobalFile(const std::string &configDir, const ProfileSet &globalAndLegacy,
-                           const std::string &expectedStamp) {
-    const std::string path = configDir + "/dofscroll.conf";
+namespace {
+// The checks of every write of dofscroll.conf: a regular file (or a link to one), unchanged since expectedStamp.
+WriteResult checkGlobalTarget(const std::string &path, const std::string &expectedStamp) {
     fs::FileInfo li, si;
     if (fs::lstatPath(path, &li)) {
         if (fs::statPath(path, &si) && !si.isFile)
@@ -569,8 +621,28 @@ WriteResult saveGlobalFile(const std::string &configDir, const ProfileSet &globa
     }
     if (!expectedStamp.empty() && profileFileStamp(path, true) != expectedStamp)
         return mk(WriteStatus::Conflict, path, path + ": changed since it was read - not overwritten");
+    return mk(WriteStatus::Ok, path, "");
+}
+}  // namespace
+
+WriteResult saveGlobalFile(const std::string &configDir, const ProfileSet &globalAndLegacy,
+                           const std::string &expectedStamp) {
+    const std::string path = configDir + "/dofscroll.conf";
+    WriteResult c = checkGlobalTarget(path, expectedStamp);
+    if (!c.ok()) return c;
     std::string err;
     if (!saveProfiles(path, globalAndLegacy, &err)) return mk(WriteStatus::Failed, path, err);
+    WriteResult r = mk(WriteStatus::Ok, path, "");
+    r.stamp = profileFileStamp(path, true);
+    return r;
+}
+
+WriteResult saveGlobalText(const std::string &configDir, const std::string &text, const std::string &expectedStamp) {
+    const std::string path = configDir + "/dofscroll.conf";
+    WriteResult c = checkGlobalTarget(path, expectedStamp);
+    if (!c.ok()) return c;
+    std::string err;
+    if (!fs::writeFileReplace(path, text, &err)) return mk(WriteStatus::Failed, path, path + ": " + err);
     WriteResult r = mk(WriteStatus::Ok, path, "");
     r.stamp = profileFileStamp(path, true);
     return r;

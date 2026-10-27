@@ -708,6 +708,20 @@ by a file). Assessment and limits:
 - **Review:** modes loading, symlink handling and the sandbox were reviewed in
   [security-review-2026-10.md](security-review-2026-10.md); findings that stay open are listed in
   "Known limitations" below.
+- **Profile files (split layout):** the interface writes `devices/`, `apps/` and `backup/` inside
+  `~/.config/dofscroll` (all covered by the `ReadWritePaths` of the UI unit); the daemon only reads
+  them (its unit stays read-only for the configuration folder). The files are read through the
+  bounded directory reader: owner check, no links, at most 64 KiB each, the first 255 per directory
+  in sort order, and only next to a file named `dofscroll.conf` (a legacy `spnav-scroll.conf` in a
+  generic folder has no profile directories). A directory that exists but cannot be read makes the
+  whole load fail and the daemon keeps its previous settings. Leftover temporary files of an
+  interrupted write (`*.conf.tmp.<16 hex>`) older than a day are removed by the next write.
+- **Profile files are less restricted than mode files:** a profile may set `ENABLED`, `BACKEND`,
+  `TICK_HZ`, `PRIORITY` and channel actions with chords. Mode files reject the process-level keys, but
+  `[app:x] ENABLED = 0` is documented and in use (`docs/configuration.md`), so profiles keep it. Instead a
+  profile's channel action that presses an Alt/Super chord, or a chord with a non-navigation key, is
+  loaded and noted with a warning, as for a mode file. The profile files have the same trust level as
+  `dofscroll.conf` (same owner, same folder).
 
 ---
 
@@ -808,6 +822,11 @@ Known gaps, stated plainly:
   Linux build is not applicable. The hardening check script is Linux-only.
 - macOS: the sandbox/entitlement story (hardened runtime, notarization) belongs to packaging
   (package W4), not to this layer.
+- Profile file names come from the profile name through a slugger that follows the same reserved-name
+  rule as the path layer (`isReservedDeviceStem`: CON, CONIN$, COM and LPT with the superscript digits,
+  a space before the dot); if a plain slug were still rejected the writer uses the hashed name. The file
+  stamp (mtime, ctime, size, file id) is POSIX-complete; Windows has no ctime in it, so a same-size
+  rewrite inside one 100 ns timestamp with a reused file id would go unnoticed there until the next change.
 
 ---
 

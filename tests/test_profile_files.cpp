@@ -133,10 +133,10 @@ static void testLoadBasics(const std::string &d) {
     ProfileSet p2;
     assert(loadProfileTree(e, &p2, &diag) && p2.sections.size() == 1 && !anyFatal(diag));
     tu::removeAll(e);
-    // loadProfileTreeAt with a legacy file name looks next to it
+    // loadProfileTreeAt with a legacy file name does not look at devices/ and apps/ next to it
     put(d + "/old.conf", "[global]\nTICK_HZ = 100\n");
     ProfileSet p3;
-    assert(loadProfileTreeAt(d + "/old.conf", &p3, &diag) && p3.sections.size() == 3);
+    assert(loadProfileTreeAt(d + "/old.conf", &p3, &diag) && p3.sections.size() == 1);  // legacy name: devices/ and apps/ are not read
     assert(configDirOf(d + "/old.conf") == d && configDirOf("x.conf") == "." && configDirOf("/x.conf") == "/");
     // the single-file reader is unchanged and does not look at devices/
     ProfileSet p4;

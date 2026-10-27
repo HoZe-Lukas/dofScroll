@@ -89,8 +89,10 @@ struct FileDiag {
 // a file or over a limit), one entry per file of devices/ and then apps/ (name order), and DIRECTORY entries
 // for directory problems. Every profile file that exists has an entry (path, stamp, section index).
 bool loadProfileTree(const std::string &configDir, ProfileSet *out, std::vector<FileDiag> *diag);
-// Same for a global file that is not <dir>/dofscroll.conf (legacy locations, e.g. spnav-scroll.conf);
-// devices/ and apps/ are looked up next to it.
+// Same for any global file path. devices/ and apps/ are read only next to a file named dofscroll.conf; a legacy
+// location (e.g. spnav-scroll.conf in a generic config directory) is read as the single file it is.
+// Also false when devices/ or apps/ exists but cannot be read (permission, not a directory, I/O error): the caller
+// keeps its profiles; *diag then holds the fatal DIRECTORY entry.
 bool loadProfileTreeAt(const std::string &globalFile, ProfileSet *out, std::vector<FileDiag> *diag);
 // The single legacy file as today (loadProfiles), for readers that must not look at devices/ and apps/.
 bool loadLegacyProfileFile(const std::string &file, ProfileSet *out, std::vector<std::string> *warnings);
@@ -99,7 +101,7 @@ std::string configDirOf(const std::string &globalFile);
 
 // ---- stamps -----------------------------------------------------------------------------------
 
-// Identity of one file (mtime, size, file id) as a string; "" if it does not exist. follow = true also looks
+// Identity of one file (mtime, ctime, size, file id) as a string; "" if it does not exist. follow = true also looks
 // through a symlink (use it for dofscroll.conf, which may be a link into a dotfile repository), false looks at
 // the entry itself (profile files are never links).
 std::string profileFileStamp(const std::string &path, bool follow);
@@ -159,10 +161,12 @@ WriteResult deleteProfileFile(const std::string &configDir, Section::Kind kind, 
 // followed and kept (dotfile repositories).
 WriteResult saveGlobalFile(const std::string &configDir, const ProfileSet &globalAndLegacy,
                            const std::string &expectedStamp);
+// Replaces dofscroll.conf by `text` through the same checks as saveGlobalFile (regular file, stamp unchanged).
+WriteResult saveGlobalText(const std::string &configDir, const std::string &text, const std::string &expectedStamp);
 // Global section plus the legacy sections of `ps` that are still active, i.e. what dofscroll.conf holds.
 ProfileSet legacyPart(const ProfileSet &ps, const std::vector<FileDiag> &diags);
 // For the migration: `ps` holds the sections in resolution order (the order of the legacy file, as
-// loadProfiles/loadProfileTree return them). Sets PRIORITY 10, 20, 30, ... per kind in that order (replacing an
+// loadProfiles/loadProfileTree return them). Sets PRIORITY 10, 20, 30, ... (a smaller step above 100 profiles, so the last stays within kMaxPriority) per kind in that order (replacing an
 // existing PRIORITY) when the kind has more than one profile; a kind with one profile is left alone. After
 // writeProfileSetSplit the split layout resolves identically to the old file.
 void assignMigrationPriorities(ProfileSet *ps);

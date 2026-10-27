@@ -56,6 +56,7 @@ struct TextSplit {
     std::string globalText;                        // original text without the profile sections
     std::map<std::string, std::string> comments;   // keyOf -> comment lines directly above the header
     bool clean = true;                             // false: a profile has two blocks, the text cannot be cut safely
+    bool innerComments = false;                    // a moved block had comments between/after its keys or after a value
 };
 
 TextSplit splitText(const std::string &data, const ProfileSet &parsed) {
@@ -114,6 +115,13 @@ TextSplit splitText(const std::string &data, const ProfileSet &parsed) {
         while (comment.size() > 4000) comment.erase(0, comment.find('\n') + 1);  // writer limit 4096: keep the last lines
         if (!comment.empty()) r.comments[key] = comment;
         for (size_t i = hs[k].commentStart; i < to; i++) moved[i] = true;
+        // Only the comment run above a header moves to the file; what is inside the block stays in the backup.
+        for (size_t i = hs[k].line + 1; i < to; i++) {
+            const std::string c = utf8::trim(lines[i]);
+            if (c.empty()) continue;
+            if (c[0] == '#' || c[0] == ';' || c.find(" #") != std::string::npos || c.find("\t#") != std::string::npos)
+                r.innerComments = true;
+        }
     }
     // A second block of a profile is merged into the first by the parser: moving only the first block would
     // leave keys behind, so then the caller falls back to a rendered [global].
@@ -211,6 +219,7 @@ MigrateResult migrateToSplit(const std::string &configDir, const MigrateOptions 
     }
     if (!li.isFile) return fail(global + ": not a regular file - not migrated");
     std::string data;
+    const std::string stamp0 = profileFileStamp(global, true);  // before reading, as the loader does
     const fs::ReadResult rr = fs::readFileBounded(global, kMaxConfigBytes, fs::ReadOptions(), &data);
     if (!rr.ok()) {
         return fail(global + ": " + (rr.status == fs::ReadStatus::TooLargeBySize || rr.status == fs::ReadStatus::TooLargeWhileReading
@@ -218,7 +227,6 @@ MigrateResult migrateToSplit(const std::string &configDir, const MigrateOptions 
                                          : rr.sysError.empty() ? std::string("cannot be read") : rr.sysError) +
                     " - not migrated");
     }
-    const std::string stamp0 = profileFileStamp(global, true);
     ProfileSet legacy;
     std::vector<std::string> parseWarnings;
     parseProfilesText(data, global, &legacy, &parseWarnings);
@@ -231,7 +239,9 @@ MigrateResult migrateToSplit(const std::string &configDir, const MigrateOptions 
     for (const FileDiag &d : diag0)
         if (d.origin == FileDiag::PROFILE_FILE && !d.fatal) filed.insert(keyOf(d.kind, d.name));
 
-    for (size_t i = 0; i < parseWarnings.size() && i < kMaxWarningsKept; i++) res.warnings.push_back(parseWarnings[i]);
+    // Notes of the parser about the old file: labelled, so they do not read like errors of the migration itself.
+    for (size_t i = 0; i < parseWarnings.size() && i < kMaxWarningsKept; i++)
+        res.warnings.push_back("in the old file: " + parseWarnings[i]);
 
     // The profiles in resolution order: kind, PRIORITY ascending, file order (what loadProfileTree does for a
     // pure single file); then PRIORITY 10, 20, ... per kind.
@@ -246,6 +256,16 @@ MigrateResult migrateToSplit(const std::string &configDir, const MigrateOptions 
         const size_t i = ref.findOrAdd(s.kind, s.pattern);
         if (i != ProfileSet::npos) ref.sections[i].kv = s.kv;
     }
+    // A legacy section whose profile already has a file is dropped from dofscroll.conf (the file wins): say so when
+    // its values differ, they stay only in the backup.
+    for (size_t i = 1; i < ref.sections.size(); i++) {
+        const Section &o = ref.sections[i];
+        if (!filed.count(keyOf(o.kind, o.pattern))) continue;
+        const size_t at = tree0.find(o.kind, o.pattern);
+        if (at != ProfileSet::npos && sameKv(withoutPriority(tree0.sections[at].kv), withoutPriority(o.kv))) continue;
+        res.warnings.push_back(std::string("[") + (o.kind == Section::DEVICE ? "device:" : "app:") + o.pattern +
+                               "]: a profile file exists already and is kept; the different values in the old dofscroll.conf are only in the backup");
+    }
     ProfileSet prio = ref;
     assignMigrationPriorities(&prio);
 
@@ -256,10 +276,7 @@ MigrateResult migrateToSplit(const std::string &configDir, const MigrateOptions 
 
     // 1. backup
     if (opt.backup) {
-        if (!step.go("backup", &err)) {
-            if (step.crashed) return fail(err);
-            return fail(err);
-        }
+        if (!step.go("backup", &err)) return fail(err);
         const std::string bdir = configDir + "/backup";
         if (!fs::mkdirsPrivate(bdir, &err)) return fail(bdir + ": cannot be created (" + err + ") - not migrated");
         std::string chosen;
@@ -322,8 +339,13 @@ MigrateResult migrateToSplit(const std::string &configDir, const MigrateOptions 
         std::set<std::string> mine;
         for (const FileDiag &d : written) mine.insert(d.path);
         for (const FileDiag &d : diag1)
-            if (d.origin == FileDiag::PROFILE_FILE && mine.count(d.path) && (d.fatal || !d.warnings.empty()))
-                return abortWith("read-back failed: " + (d.warnings.empty() ? d.path : d.warnings.front()));
+            if (d.origin == FileDiag::PROFILE_FILE && mine.count(d.path)) {
+                // A name that is not valid UTF-8 is written and read back byte for byte; the parser only notes it.
+                std::string bad;
+                for (const std::string &w : d.warnings)
+                    if (w.find("invalid UTF-8 at byte") == std::string::npos) bad = bad.empty() ? w : bad;
+                if (d.fatal || !bad.empty()) return abortWith("read-back failed: " + (bad.empty() ? d.path : bad));
+            }
     }
     if (!sameKv(tree1.sections[0].kv, legacy.sections[0].kv)) return abortWith("read-back failed: [global] differs");
     std::set<std::string> expectedKeys(filed);
@@ -354,7 +376,10 @@ MigrateResult migrateToSplit(const std::string &configDir, const MigrateOptions 
     if (keepText) {
         std::string text = split.globalText;
         if (text.empty()) text = "[global]\n";
-        if (!fs::writeFileReplace(global, text, &err)) return abortWith(global + ": " + err);
+        const WriteResult g = saveGlobalText(configDir, text, stamp0);
+        if (!g.ok()) return abortWith(g.error);
+        if (split.innerComments)
+            res.warnings.push_back(global + ": comments inside the profile blocks (between keys, at the end, after a value) are kept only in the backup");
     } else {
         const WriteResult g = saveGlobalFile(configDir, globalOnly, stamp0);
         if (!g.ok()) return abortWith(g.error);

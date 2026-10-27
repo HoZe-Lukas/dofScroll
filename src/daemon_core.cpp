@@ -12,6 +12,7 @@
 #include "log_sanitize.hpp"
 #include "mode_request.hpp"
 #include "platform/fs.hpp"
+#include "profile_actions.hpp"
 #include "profile_match.hpp"
 
 namespace spn {
@@ -548,7 +549,7 @@ bool DaemonCore::selectMode(Lane &l, Settings &next, bool force) {
     l.mode_applied = true;
     l.runner->setMode(active);
     std::cerr << LOG << "Mode: " << sanitizeForLog(m->id)
-              << (l.runner->legacyPath() ? " (default channels)" : "") << std::endl;
+              << (effectiveChannelActions(active, next).allDefault() ? " (default channels)" : "") << std::endl;
     return true;
 }
 

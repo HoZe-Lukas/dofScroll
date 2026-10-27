@@ -1179,6 +1179,14 @@ bool parseProfilesText(const std::string &data, const std::string &path, Profile
             warn(lineno, key + ": " + err + " - line ignored");
             continue;
         }
+        // A channel action that presses a chord with Alt/Super (or a chord with a non-navigation key) is loaded, but
+        // noted, as for a joystick mode file.
+        if (key.size() > 7 && key.compare(key.size() - 7, 7, "_ACTION") == 0) {
+            ChannelAction act;
+            if (parseChannelAction(value, &act, nullptr) && act.usesKeys() &&
+                ((act.negMods.n > 0 && chordNeedsWarning(act.neg, act.negMods)) || (act.posMods.n > 0 && chordNeedsWarning(act.pos, act.posMods))))
+                warn(lineno, key + ": presses a shortcut chord with Alt/Super or a non-navigation key - loaded anyway");
+        }
         std::vector<KV> &kv = ps.sections[static_cast<size_t>(cur)].kv;
         // Merge duplicates: last value wins, position of the last occurrence.
         auto dup = std::find_if(kv.begin(), kv.end(), [&](const KV &e) { return e.first == key; });
