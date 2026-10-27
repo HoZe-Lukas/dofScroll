@@ -9,16 +9,17 @@
 #   scripts/pin-ci-images.sh           rewrite the digests (review the diff, commit)
 #   scripts/pin-ci-images.sh --check   exit 1 and list every digest that is out of date (no changes)
 #
-# Pinned references live in FILES below. A reference without a tag (our own images, which are
+# Pinned references live in FILES below (not in the workflow files: they read packaging/ci/images.env, so the
+# refresh pull request changes no workflow file and needs no token with the `workflows` permission). A reference without a tag (our own images, which are
 # published as :latest by .github/workflows/ci-image.yml) is looked up as :latest.
-# Procedure after the weekly ci-image run or a change of packaging/ci/: run this script, commit the
+# Procedure after the monthly ci-image run or a change of packaging/ci/: run this script, commit the
 # new digests (docs/releasing.md). Needs skopeo (or crane) and network access; it never invents a digest.
 set -eu
 cd "$(dirname "$0")/.."
 mode=update
 [ "${1:-}" = "--check" ] && mode=check
 
-FILES=".github/workflows/linux-packages.yml packaging/ci/rocky9.Dockerfile"
+FILES="packaging/ci/images.env packaging/ci/rocky9.Dockerfile"
 
 if command -v skopeo >/dev/null 2>&1; then
   lookup() { skopeo inspect --no-tags "docker://$1" | sed -n 's/^ *"Digest": *"\(sha256:[0-9a-f]\{64\}\)".*/\1/p' | head -1; }

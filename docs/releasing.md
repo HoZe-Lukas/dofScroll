@@ -4,7 +4,8 @@
 
 A release is built and published by GitHub Actions when a tag `v<version>` is pushed.
 
-1. Refresh the pins: merge the open pull request "Refresh CI pins" (weekly, `refresh-ci-pins.yml`) so the
+1. Refresh the pins: start the workflow `refresh-ci-pins` (Actions tab; it also runs monthly) and merge the pull
+   request "Refresh CI pins" (close and reopen it once so that CI runs) so the
    release uses the newest tested image digests and aqtinstall hashes. If there is none or you
    changed `packaging/ci/` or `AQT_VERSION`, run `scripts/pin-ci-images.sh` and
    `scripts/update-aqt-requirements.sh` yourself (see "Pinned build inputs" below) and merge the result.
@@ -76,16 +77,18 @@ the release workflow). It works offline against a bundle too (`gh attestation do
 
 The release builds do not take their inputs from moving tags:
 
-- The container images of the release builds (`linux-packages.yml`, the `FROM` of
-  `packaging/ci/rocky9.Dockerfile`) are pinned by digest. The weekly `ci-image` run publishes a new
-  `dofscroll-ci-rocky9(-qt):latest`, but the release builds keep the pinned digest until you refresh it:
+- The container images of the CI and release builds (`packaging/ci/images.env`, read by the job `pins` of
+  `ci.yml`, `codeql.yml` and `linux-packages.yml`; the `FROM` of `packaging/ci/rocky9.Dockerfile`) are pinned by
+  digest. They are not in the workflow files, so refreshing them changes no workflow. The monthly `ci-image` run
+  publishes a new `dofscroll-ci-rocky9(-qt):latest`, but the builds keep the pinned digest until you refresh it:
   run `scripts/pin-ci-images.sh` (needs `skopeo` or `crane`), review and commit the diff, and let
   CI run. Do this before tagging a release, and after every change to `packaging/ci/` that
   `ci-image` has published. `scripts/pin-ci-images.sh --check` only reports. Normally you do not do
-  this by hand: the weekly `refresh-ci-pins.yml` runs both scripts and opens (or updates) the pull request
+  this by hand: the monthly `refresh-ci-pins.yml` (or a manual start of it) runs both scripts and opens (or updates) the pull request
   "Refresh CI pins", never merged automatically. The refresh PR is merged before a release so the release
-  uses the newest tested versions. A PR created with the default token does not start CI: set the secret
-  `REFRESH_PINS_TOKEN` (fine-grained token, contents and pull requests write) or close and reopen the PR.
+  uses the newest tested versions. The job changes only files under `packaging/ci`, so the default token
+  suffices. A PR created with it does not start CI: close and reopen the PR once (the optional secret
+  `REFRESH_PINS_TOKEN`, a fine-grained token with contents and pull requests write, would start it by itself).
   The workflow needs the repository setting that lets Actions create pull requests.
 - aqtinstall and its dependencies come from `packaging/ci/aqt-requirements.txt` (versions and SHA-256,
   `pip install --require-hashes`). After a change of `AQT_VERSION` in `packaging/qt.env`:

@@ -982,7 +982,8 @@ the start. Windows PowerShell is started by its full path in the installer, in t
 CI supply chain (issue #149), status after the fix:
 
 - Fixed: the container images of the release builds (Rocky 9 Qt image, Debian 12, and the `FROM` of the Rocky Dockerfile)
-  are pinned by digest; `scripts/pin-ci-images.sh` refreshes them and the weekly `qt-update-check` run warns when they
+  are pinned by digest in `packaging/ci/images.env` (together with the images of the CI jobs; the workflows read the file,
+  so the refresh changes no workflow file); `scripts/pin-ci-images.sh` refreshes them and the weekly `qt-update-check` run warns when they
   are out of date. aqtinstall and all its dependencies are installed with `pip install --require-hashes` from
   `packaging/ci/aqt-requirements.txt` (every Qt install: CI image, Debian 12, Windows, macOS, `ui.yml`).
   `scripts/check-ci-pins.sh` keeps these pins from being removed. Every release file, including `SHA256SUMS.txt`,
@@ -993,9 +994,10 @@ CI supply chain (issue #149), status after the fix:
 - Remains: aqtinstall verifies each Qt archive against a SHA-256 that it fetches from download.qt.io too, so a
   compromised Qt server could serve both; there is no independent per-archive hash of our own. The one source
   distribution in the aqtinstall closure (`patch`) is built by pip with an unpinned build backend (setuptools),
-  which `--require-hashes` does not cover. The pins are refreshed weekly by a reviewed PR (`refresh-ci-pins.yml`, never auto-merged; a
-  tampered image published before a refresh would be pinned as it is, so review that PR and the weekly image build). Other jobs (`ci.yml` build and test,
-  CodeQL) and the install smoke test still use the images by tag; they produce no release file. Windows and macOS
+  which `--require-hashes` does not cover. The pins are refreshed monthly by a reviewed PR (`refresh-ci-pins.yml`, never auto-merged; a
+  tampered image published before a refresh would be pinned as it is, so review that PR and the monthly image build). The jobs of `ci.yml` and CodeQL use the same pinned images; only
+  the install smoke test still uses the distribution images by tag (it tests the
+  current distributions on purpose and produces no release file). Windows and macOS
   runner images are GitHub's own and not pinned.
 
 Open, tracked as issues: root removes a dangling

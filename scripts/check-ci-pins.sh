@@ -3,7 +3,8 @@
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #
 # Offline check of the CI supply chain pins (docs/security.md, section 14):
-#  1. the release builds (linux-packages.yml) and the Dockerfile use images pinned by digest;
+#  1. the images of the CI and release builds (packaging/ci/images.env) and the Dockerfile are pinned by digest,
+#     and the workflows take every `container:` image from there, never from a tag;
 #  2. aqtinstall is installed with hashes only, and packaging/ci/aqt-requirements.txt pins the
 #     AQT_VERSION of packaging/qt.env, every package with at least one hash;
 #  3. the release job attests the artifacts with a commit-pinned action and has the permissions for it.
@@ -14,8 +15,11 @@ fail=0
 bad() { echo "check-ci-pins: $*" >&2; fail=1; }
 
 # 1. images by digest
-grep -E '^ +container: ' .github/workflows/linux-packages.yml | grep -v -E '@sha256:[0-9a-f]{64}' \
-  && bad "linux-packages.yml: a container image is not pinned by digest (scripts/pin-ci-images.sh)"
+[ -f packaging/ci/images.env ] || bad "packaging/ci/images.env is missing"
+grep -E '^[A-Z0-9_]+=' packaging/ci/images.env | grep -v -E '^[A-Z0-9_]+=[^ ]+@sha256:[0-9a-f]{64}$' \
+  && bad "images.env: an image is not pinned by digest (scripts/pin-ci-images.sh)"
+grep -h -E '^ +container: ' .github/workflows/*.yml | grep -v -F 'container: ${{ needs.pins.outputs.' \
+  && bad "a workflow takes a container image from somewhere else than packaging/ci/images.env (job pins)"
 grep -E '^FROM ' packaging/ci/rocky9.Dockerfile | grep -v -E '^FROM [^ ]*@sha256:[0-9a-f]{64}( |$)' \
   | grep -v -E '^FROM (base|qt)( |$)' \
   && bad "rocky9.Dockerfile: a FROM line is not pinned by digest (scripts/pin-ci-images.sh)"

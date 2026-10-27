@@ -23,6 +23,21 @@ concurrency:
 #   github/codeql-action    = v4.39.0
 
 jobs:
+  # Reads the pinned container images (packaging/ci/images.env) for the jobs below (`container:`).
+  pins:
+    name: pinned images
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      rocky9_image: ${{ steps.read.outputs.ROCKY9_IMAGE }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          sparse-checkout: packaging/ci
+          persist-credentials: false
+      - id: read
+        run: grep -E '^[A-Z0-9_]+=' packaging/ci/images.env >> "$GITHUB_OUTPUT"
+
   analyze:
     name: CodeQL (c-cpp)
     # Code scanning needs a public repository (or GitHub Advanced Security): skip while private so
@@ -31,7 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     # Same container and dependency set as the ci "build + ctest" job; the daemon (and the core
     # library it links) is compiled and analysed. The Qt interface is not in this image.
-    container: ghcr.io/hoze-lukas/dofscroll-ci-rocky9:latest
+    needs: pins
+    container: ${{ needs.pins.outputs.rocky9_image }}
     timeout-minutes: 45
     permissions:
       contents: read          # checkout
