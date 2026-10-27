@@ -32,9 +32,9 @@ Every user-visible feature must work on Linux, Windows and macOS. A feature is "
 
 ## Not verified yet
 
-- Everything on Windows and macOS (daemon, interface, installers) on real hardware and desktops
-- The Qt interface on Windows and macOS desktops
-- Packages on Debian, Ubuntu and Fedora on a real desktop (they are install-tested in CI containers); Wayland
+- Windows beyond the first tests on one machine (SpaceMouse Pro, official driver): scrolling in both directions, the driver cleanup, backup and restore
+- Everything on macOS (daemon, interface, installer) on real hardware; the macOS driver cleanup needs the survey of issue #184
+- Packages on Debian, Ubuntu and Fedora on a real desktop (they are install-tested in CI containers); Wayland (one contributor report: Ubuntu 26.04, GNOME, services start and window renders; not tested by the maintainer)
 
 ## Planned
 

@@ -3,13 +3,13 @@
 # FAQ
 
 **Which setup has actually been tested?**
-RHEL 9, X11, KDE Plasma, with a SpaceMouse Pro and a SpaceMouse Compact. Everything else is built in CI but not run on hardware, see [Home](Home).
+Extensively only RHEL 9, X11, KDE Plasma, with a SpaceMouse Pro and a SpaceMouse Compact. On Windows the basic functions work on one real machine (first tests). A contributor reports that 1.2.3 starts and shows its window on Ubuntu 26.04 (GNOME, Wayland, SpaceMouse Compact); the maintainer has not tested that. macOS has never been run with a device. See [Home](Home).
 
 **Scrolling goes the wrong way. How do I reverse it?**
 Reverse a single motion: on the Channels tab of the profile, "Invert direction of" has a check box per motion (`INVERT_AXES`; push and tilt are separate, so you can flip only the one that feels wrong). It works for every joystick mode and can be set per program or device. In the joystick mode editor, "Reverse direction" of a motion writes the sign of that channel instead. See [Configuration reference](Configuration-reference).
 
 **Does it work on Wayland?**
-There is a uinput backend that `BACKEND = auto` picks under Wayland, but it is untested. It needs write access to `/dev/uinput` through a udev rule you install yourself, and program profiles work only with `kdotool` on KDE. See [Troubleshooting](Troubleshooting).
+There is a uinput backend that `BACKEND = auto` picks under Wayland, but the maintainer has not tested it (a contributor reports that the services start and the window renders on Ubuntu 26.04, GNOME, with the uinput backend). It needs write access to `/dev/uinput` through a udev rule you install yourself, and program profiles work only with `kdotool` on KDE. See [Troubleshooting](Troubleshooting).
 
 **Does dofscroll use the 3Dconnexion driver? Do I have to stop it?**
 No, never stop it: the official driver keeps running for your CAD programs. On Windows and macOS dofscroll reads the SpaceMouse through the installed driver's programming interface when the driver is installed, and directly as raw HID otherwise (setting `INPUT = auto | driver | hid`, default `auto`; the interface shows which one is active). dofscroll contains nothing of the driver: it loads the installed driver's interface at run time, with declarations written from public knowledge. The driver, its interface and the names 3Dconnexion and SpaceMouse belong to 3Dconnexion (a Logitech company); dofscroll is not affiliated with or endorsed by them, and no permission was requested from them. This path has only been tested against a fake driver, never the real one. On Linux, `spacenavd` is the driver and `INPUT` is ignored. See [Requirements](Requirements) and `docs/legal-notes.md`.

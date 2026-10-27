@@ -4,15 +4,15 @@
 
 What you need on each operating system before dofscroll can work. Read this before [Installation](Installation).
 
-**Status in short.** Only one setup has been run on real hardware by the maintainer: Linux (RHEL 9, X11, KDE Plasma) with a SpaceMouse Pro and a SpaceMouse Compact. Everything else is built and unit-tested in CI but has not been run with a device. Statements below are marked **verified** (run by the maintainer on hardware), **CI** (checked by a build or a unit test, no device involved) or **unverified** (taken from documentation or from reading the code; nobody has tried it on hardware).
+**Status in short.** The only system that is tested extensively, by the maintainer, is Linux (RHEL 9, X11, KDE Plasma) with a SpaceMouse Pro and a SpaceMouse Compact. On Windows the basic functions work on one real machine (SpaceMouse Pro, official 3Dconnexion driver; first tests, not extensive). A contributor reports that 1.2.3 starts its services and shows the settings window on Ubuntu 26.04 (GNOME, Wayland, SpaceMouse Compact, uinput backend); the maintainer has not tested that. Everything else, in particular macOS, is built and unit-tested in CI but has not been run with a device. Statements below are marked **verified** (run by the maintainer on hardware), **CI** (checked by a build or a unit test, no device involved) or **unverified** (taken from documentation or from reading the code; nobody has tried it on hardware).
 
 ## Overview
 
 | OS | What runs | What you need | Status |
 |---|---|---|---|
-| Linux, X11 | `dofscroll` daemon (XTest output) and `dofscroll-ui` | `spacenavd` running, a SpaceMouse, systemd user session (for the shipped units) | Verified on RHEL 9, KDE Plasma, SpaceMouse Pro and Compact. Other distributions: packages are built and install-tested in CI only |
-| Linux, Wayland | Same programs, uinput output | The above, plus write access to `/dev/uinput` (opt-in udev rule); `kdotool` for program profiles on KDE | Not tested on hardware |
-| Windows 10 / 11 | `dofscroll.exe` daemon (SendInput) and `dofscroll-ui.exe` | A SpaceMouse. No SDK and no vendor driver are required by dofscroll; the official driver may stay installed (its interface is used when it is installed) | Built by CI only, not run on hardware |
+| Linux, X11 | `dofscroll` daemon (XTest output) and `dofscroll-ui` | `spacenavd` running, a SpaceMouse, systemd user session (for the shipped units) | Verified on RHEL 9, KDE Plasma, SpaceMouse Pro and Compact. Other distributions: packages are built and install-tested in CI only (Ubuntu 26.04: see the Wayland row) |
+| Linux, Wayland | Same programs, uinput output | The above, plus write access to `/dev/uinput` (opt-in udev rule); `kdotool` for program profiles on KDE | Not tested by the maintainer. A contributor reports that on Ubuntu 26.04 (GNOME, SpaceMouse Compact, uinput backend) the services start and the settings window renders (after the 1.2.3 fixes) |
+| Windows 10 / 11 | `dofscroll.exe` daemon (SendInput) and `dofscroll-ui.exe` | A SpaceMouse. No SDK and no vendor driver are required by dofscroll; the official driver may stay installed (its interface is used when it is installed) | Built by CI. Basic functions work on one real machine (SpaceMouse Pro, official driver; first tests, not extensive) |
 | macOS | `dofscroll.app` with daemon (CGEvent) and interface | A SpaceMouse, Apple silicon, **Input Monitoring** and **Accessibility** permissions | Built by CI only, not run on hardware |
 
 ## Hardware: supported devices
@@ -30,7 +30,7 @@ dofscroll knows these models (description files in [devices/](https://github.com
 
 - **Linux:** any model that `spacenavd` supports delivers motion; the table above only matters for the button count. Models that are not in the table still work for the axes, with the button count the driver reports.
 - **Windows and macOS:** only devices whose vendor and product id appear in a `devices/*.conf` file are opened. A model that is not listed is ignored. You can add one with a description file, see [Devices](Devices).
-- Verified on hardware: SpaceMouse Pro and SpaceMouse Compact, on Linux only. All other models are untested. The button counts come from manufacturer pages, not from a device. The raw report layout in the description files (used on Windows and macOS) has **not** been verified on hardware, and axis signs relative to Linux are unverified.
+- Verified on hardware: SpaceMouse Pro and SpaceMouse Compact on Linux; the SpaceMouse Pro on one Windows machine (first tests only). All other models are untested. The button counts come from manufacturer pages, not from a device. The raw report layout in the description files (used on Windows and macOS) has **not** been verified on hardware, and axis signs relative to Linux are unverified.
 - SpaceExplorer and SpacePilot Pro are deliberately not listed: no button count could be verified.
 
 ## Linux
@@ -52,7 +52,7 @@ The daemon reads the device through `spacenavd` (the open-source SpaceMouse daem
 | Output | XTest | uinput (virtual input device) |
 | Extra requirement | None | Write access to `/dev/uinput`, see below |
 | Program profiles (`[app:*]`) | Yes (window class) | Only with `kdotool` on KDE; native Wayland windows may not be found |
-| Status | Verified (KDE Plasma) | Not tested |
+| Status | Verified (KDE Plasma) | Not tested by the maintainer; one contributor report (Ubuntu 26.04, GNOME) |
 
 - `BACKEND = auto` (default) reads `XDG_SESSION_TYPE`: `wayland` selects uinput first, anything else selects X11 first. If the chosen backend fails, the other is tried. You can force `BACKEND = x11` or `uinput` in `[global]` (needs a daemon restart). The log says which backend was chosen and why.
 - Under X11 `/dev/uinput` is not needed at all.
@@ -213,4 +213,4 @@ The build needs a C++17 compiler, CMake 3.16 or newer, `libspnav` and the X11 an
 
 ## What only a human can verify
 
-Everything marked unverified on this page, in particular: scrolling, zoom and buttons on any real device on Windows and macOS; the interaction with the official 3Dconnexion driver on both; the macOS permission prompts; the Wayland (uinput) path and GNOME tray on Linux; and every distribution other than RHEL 9. Test lists: `docs/port-windows-checklist.md` and `docs/port-macos-checklist.md` in the repository. See also [Troubleshooting](Troubleshooting) and [Devices](Devices).
+Everything marked unverified on this page, in particular: scrolling and zoom in both directions and the driver cleanup on Windows beyond the first tests; everything on macOS; the interaction with the official 3Dconnexion driver on both; the macOS permission prompts; the Wayland (uinput) path and GNOME tray on Linux; and every distribution other than RHEL 9. Test lists: `docs/port-windows-checklist.md` and `docs/port-macos-checklist.md` in the repository. See also [Troubleshooting](Troubleshooting) and [Devices](Devices).
