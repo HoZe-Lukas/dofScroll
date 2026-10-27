@@ -843,6 +843,13 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
     copyRow->addWidget(same, 1);
     copyRow->addWidget(swap, 1);
     ml->addLayout(copyRow);
+    if (env_.takeOverMotion) {
+        auto *take = new QPushButton(T("Take over from ..."), more);
+        take->setObjectName(QStringLiteral("modeTakeOverMotion"));
+        take->setToolTip(T("Copy what this motion does in a profile or another joystick mode into this joystick mode"));
+        connect(take, &QPushButton::clicked, this, [this, m] { env_.takeOverMotion(m); });
+        ml->addWidget(take, 0, Qt::AlignLeft);
+    }
     connect(same, &QComboBox::activated, this, [this, m, same](int i) {
         Motion o;
         if (i <= 0 || !motionFromId(same->itemData(i).toString().toStdString(), &o)) return;
@@ -971,6 +978,13 @@ void MotionEditor::buildButtonInspector(QVBoxLayout *col, int n) {
     grid->setColumnStretch(2, 1);
     col->addLayout(grid);
     if (env_.addButtonRow) env_.addButtonRow(inspectorBox_, grid, 0, n);
+    if (env_.takeOverButton) {
+        auto *take = new QPushButton(T("Take over from ..."), inspectorBox_);
+        take->setObjectName(QStringLiteral("modeTakeOverButton"));
+        take->setToolTip(T("Copy the binding of this button in a profile, another joystick mode or a button mode into this joystick mode"));
+        connect(take, &QPushButton::clicked, this, [this, n] { env_.takeOverButton(n); });
+        col->addWidget(take, 0, Qt::AlignLeft);
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------

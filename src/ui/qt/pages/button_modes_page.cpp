@@ -282,7 +282,8 @@ const ButtonModeCatalog::Entry *ButtonModesPage::current() const {
 void ButtonModesPage::refreshIfChanged() {
     const ButtonModeCatalog::Entry *cur = current();
     const QString keep = cur ? qs(cur->id) : QString();
-    if (!catalog_.refreshIfChanged()) return;
+    // The catalog is shared: a copy made elsewhere (the profile builder) already refreshed it, so the list is also compared.
+    if (!catalog_.refreshIfChanged() && list_->count() == int(catalog_.buttonModes().size())) return;
     // Unsaved edits stay in the form; the list and the warnings follow the folder.
     populate(keep);
 }

@@ -2769,6 +2769,246 @@ static bool examplesSelfTest(const UiContext &ctx, const QString &tmpPath) {
     return ok;
 }
 
+// Runs `act` (which opens a modal dialog and blocks in its event loop) and calls `handle` on the dialog once it is up;
+// `handle` must accept or reject it. false when no dialog appeared.
+static bool withModal(const std::function<void()> &act, const std::function<void(QDialog *)> &handle) {
+    bool handled = false;
+    QTimer poll;
+    QObject::connect(&poll, &QTimer::timeout, [&] {
+        if (handled) return;
+        if (auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
+            handled = true;
+            handle(d);
+        }
+    });
+    poll.start(30);
+    act();
+    poll.stop();
+    return handled;
+}
+
+// Take over from other profiles (A), any action on any motion (B) and the profile builder (C): the dialogs of the Motions and
+// buttons tab, of the Joystick-mode editor and "New profile ...", with the model underneath (borrow_model.hpp, profile_builder_model.hpp).
+static bool borrowBuildSelfTest() {
+    using spn::Section;
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "take over / profile builder self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    EditorRig rig("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\n\n"
+                  "[app:blender]\nV_TILT_ACTION = zoom\nBUTTON_2 = key:space\n");
+    MainWindow &w = *rig.win;
+    w.showPage(QStringLiteral("profiles"));
+    settle();
+    ProfilesPage *page = w.profilesPage();
+    check(page != nullptr, "the window has a Profiles page");
+    if (!page) return false;
+    ProfileMotionsView *mv = page->motionsView();
+    auto find = [&](const char *name) { return mv->inspector()->findChild<QPushButton *>(QLatin1String(name)); };
+    auto itemText = [&](const char *id) {
+        for (const MotionPicture::Item &it : mv->picture()->items())
+            if (it.id == QLatin1String(id)) return it.text;
+        return QString();
+    };
+
+    // A: take the tilt over from the program "blender" into "firefox"
+    check(page->selectSection(2) && page->selectTab(QStringLiteral("motions")) && mv != nullptr, "program profile firefox, Motions and buttons tab");
+    if (!mv) return false;
+    check(mv->select(QStringLiteral("m:v_tilt")), "select the vertical tilt");
+    settle();
+    check(find("motionTakeOver") != nullptr, "a motion has Take over from ...");
+    QString words;
+    bool listed = false;
+    const bool opened = withModal([&] { if (find("motionTakeOver")) find("motionTakeOver")->click(); }, [&](QDialog *d) {
+        QComboBox *src = d->findChild<QComboBox *>(QStringLiteral("takeOverSource"));
+        QLabel *wl = d->findChild<QLabel *>(QStringLiteral("takeOverWords"));
+        int pick = -1;
+        for (int i = 0; src && i < src->count(); ++i) {
+            if (src->itemText(i) == QStringLiteral("Program profile: blender")) pick = i;
+            listed = listed || src->itemText(i).startsWith(QStringLiteral("Joystick mode: "));
+            check(src->itemText(i) != QStringLiteral("Program profile: firefox"), "not the profile itself");
+        }
+        check(pick >= 0 && src, "the sources list the other profiles");
+        if (src && pick >= 0) src->setCurrentIndex(pick);
+        words = wl ? wl->text() : QString();
+        d->accept();
+    });
+    check(opened && listed, "the dialog lists the joystick modes too");
+    check(words.contains(QStringLiteral("zoom")) && words.contains(QStringLiteral("copies")), "the dialog says in words what is copied");
+    settle();
+    check(rig.waitSaved(), "taking a motion over is saved by itself");
+    {
+        const spn::ui::SettingsModel disk = rig.disk();
+        const std::string *v = keyIn(sectionOf(disk, Section::APP, "firefox"), "V_TILT_ACTION");
+        check(v && *v == "zoom", "V_TILT_ACTION = zoom is copied into the profile");
+        check(!keyIn(sectionOf(disk, Section::APP, "firefox"), "V_PUSH_ACTION"), "the push of the same direction is not touched");
+        check(!keyIn(sectionOf(disk, Section::APP, "blender"), "V_PUSH_ACTION"), "the source is not touched");
+    }
+    check(itemText("m:v_tilt").startsWith(QStringLiteral("Zoom")), "the tilt of the program now zooms, in the picture");
+
+    // B: the list of actions of any motion offers Zoom, with the words about what it does from a tilt
+    check(mv->select(QStringLiteral("m:h_tilt")), "select the horizontal tilt");
+    settle();
+    {
+        QComboBox *act = mv->inspector()->findChild<QComboBox *>(QStringLiteral("motionAction"));
+        check(act != nullptr, "the tilt has the list of actions");
+        if (act) {
+            const int idx = act->findData(int(spn::ChannelActionType::Zoom));
+            check(idx >= 0 && act->model()->flags(act->model()->index(idx, 0)).testFlag(Qt::ItemIsEnabled), "Zoom is offered for a tilt");
+            act->setCurrentIndex(idx);
+            emit act->activated(idx);
+            settle();
+            QLabel *note = mv->inspector()->findChild<QLabel *>(QStringLiteral("motionChoiceNote"));
+            check(note && !note->isHidden() && note->text().contains(QStringLiteral("own channel")) && note->text().contains(QStringLiteral("pause")),
+                  "zoom from a tilt is explained in words");
+            check(itemText("m:h_tilt").startsWith(QStringLiteral("Zoom")), "the horizontal tilt zooms");
+        }
+    }
+
+    // A for a button: from another profile (and the list also offers the button modes)
+    QString btn;
+    for (const MotionPicture::Item &it : mv->picture()->items())
+        if (it.id.startsWith(QLatin1String("b:")) && btn.isEmpty()) btn = it.id;
+    check(!btn.isEmpty() && mv->select(btn), "select a button");
+    settle();
+    check(find("buttonTakeOver") != nullptr, "a button has Take over from ...");
+    bool sawButtonMode = false;
+    withModal([&] { if (find("buttonTakeOver")) find("buttonTakeOver")->click(); }, [&](QDialog *d) {
+        QComboBox *src = d->findChild<QComboBox *>(QStringLiteral("takeOverSource"));
+        int pick = -1;
+        for (int i = 0; src && i < src->count(); ++i) {
+            sawButtonMode = sawButtonMode || src->itemText(i).startsWith(QStringLiteral("Button mode: "));
+            if (src->itemText(i) == QStringLiteral("Program profile: blender")) pick = i;
+        }
+        if (src && pick >= 0) src->setCurrentIndex(pick);
+        d->accept();
+    });
+    check(sawButtonMode, "a button can also be taken over from a button mode");
+    settle();
+    check(rig.waitSaved(), "taking a button over is saved by itself");
+    check(keyIn(sectionOf(rig.disk(), Section::APP, "firefox"), "BUTTON_" + btn.mid(2).toStdString()) != nullptr,
+          "BUTTON_<n> is an explicit key of the profile now");
+
+    // C: New profile ...
+    QString modeId;
+    {
+        QPushButton *np = page->findChild<QPushButton *>(QStringLiteral("newProfile"));
+        check(np != nullptr, "the Profiles page has New profile ...");
+        const bool built = withModal([&] { if (np) np->click(); }, [&](QDialog *d) {
+            auto *create = d->findChild<QPushButton *>(QStringLiteral("builderCreate"));
+            auto *name = d->findChild<QLineEdit *>(QStringLiteral("builderName"));
+            auto *mode = d->findChild<QComboBox *>(QStringLiteral("builderMode"));
+            auto *copy = d->findChild<QCheckBox *>(QStringLiteral("builderModeCopy"));
+            check(create && name && mode && copy, "the builder has its fields");
+            if (!(create && name && mode && copy)) {
+                d->reject();
+                return;
+            }
+            check(!create->isEnabled(), "without a name nothing can be created");
+            name->setText(QStringLiteral("FireFox"));
+            check(!create->isEnabled() && d->findChild<QLabel *>(QStringLiteral("builderProblem"))->text().contains(QStringLiteral("already exists")),
+                  "a name that exists is refused (matching ignores the case) and the reason is shown");
+            name->setText(QStringLiteral("gimp"));
+            check(create->isEnabled(), "a new name can be created");
+            int photo = -1;
+            for (int i = 1; i < mode->count(); ++i)
+                if (mode->itemText(i).contains(QStringLiteral("(photo)"))) photo = i;
+            check(photo > 0, "the joystick modes are listed");
+            check(!copy->isEnabled(), "no copy without a joystick mode");
+            mode->setCurrentIndex(photo);
+            check(copy->isEnabled(), "a joystick mode can be followed or copied");
+            copy->setChecked(true);
+            check(d->findChild<QLabel *>(QStringLiteral("builderModeWords"))->text().contains(QStringLiteral("own copy")), "the copy is said in words");
+            if (auto *add = d->findChild<QPushButton *>(QStringLiteral("builderAddMotion"))) add->click();
+            auto *motion = d->findChild<QComboBox *>(QStringLiteral("builderMotion"));
+            auto *source = d->findChild<QComboBox *>(QStringLiteral("builderMotionSource"));
+            check(motion && source, "a motion can be taken over from another profile");
+            if (motion && source) {
+                motion->setCurrentIndex(motion->findData(QStringLiteral("v_tilt")));
+                for (int i = 0; i < source->count(); ++i)
+                    if (source->itemText(i) == QStringLiteral("Program profile: blender")) source->setCurrentIndex(i);
+            }
+            if (auto *add = d->findChild<QPushButton *>(QStringLiteral("builderAddButton"))) add->click();
+            auto *bnum = d->findChild<QSpinBox *>(QStringLiteral("builderButtonNumber"));
+            auto *bmode = d->findChild<QComboBox *>(QStringLiteral("builderButtonMode"));
+            check(bnum && bmode, "a button mode can be chosen per button");
+            if (bnum && bmode) {
+                bnum->setValue(3);
+                for (int i = 0; i < bmode->count(); ++i)
+                    if (bmode->itemData(i).toString() == QStringLiteral("latch-nav")) bmode->setCurrentIndex(i);
+            }
+            create->click();
+        });
+        check(built, "the builder opened");
+        settle();
+        check(rig.waitSaved(), "the new profile is saved by itself");
+        const spn::ui::SettingsModel disk = rig.disk();
+        const spn::Section *g = sectionOf(disk, Section::APP, "gimp");
+        check(g != nullptr, "the profile exists in the configuration");
+        if (g) {
+            const std::string *mode = keyIn(g, "MODE");
+            check(mode && *mode != "photo" && mode->find("photo") == 0, "an own copy of the joystick mode is named, not the original");
+            if (mode) {
+                modeId = QString::fromStdString(*mode);
+                check(QFile::exists(QString::fromStdString(rig.ctx.modesDir) + QLatin1Char('/') + modeId + QStringLiteral(".conf")), "the copy is a file in the own folder");
+            }
+            const std::string *tilt = keyIn(g, "V_TILT_ACTION");
+            check(tilt && *tilt == "zoom", "the taken-over motion is an explicit key");
+            const std::string *b3 = keyIn(g, "BUTTON_3");
+            check(b3 && *b3 == "buttonmode:latch-nav", "the button mode is followed by name");
+        }
+        check(page->selectedSection() != 0 && page->headerName() == QStringLiteral("gimp"), "the new profile is selected");
+        // a normal profile afterwards: editable on the Motions and buttons tab
+        check(page->selectTab(QStringLiteral("motions")), "Motions and buttons tab of the new profile");
+        check(mv->select(QStringLiteral("m:v_tilt")), "the tilt of the new profile");
+        settle();
+        check(find("motionInherit") && find("motionInherit")->isEnabled(), "the taken-over motion can be set back to inheriting");
+        if (find("motionInherit")) find("motionInherit")->click();
+        settle();
+        check(rig.waitSaved(), "editing the new profile is saved");
+        check(!keyIn(sectionOf(rig.disk(), Section::APP, "gimp"), "V_TILT_ACTION"), "Use the inherited setting removes it again");
+    }
+
+    // A in the Joystick-mode editor: the tilt of the program "blender" is taken into the own copy the builder made
+    if (!modeId.isEmpty()) {
+        ModesPage *mp = w.findChild<ModesPage *>();
+        check(mp != nullptr, "the window has a Joystick modes page");
+        if (mp) {
+            w.showPage(QStringLiteral("modes"));
+            settle();
+            mp->refreshIfChanged();
+            check(mp->selectMode(modeId) && mp->openEditor() && mp->editorWidget(), "the editor opens the own copy");
+            ModeEditorWidget *ed = mp->editorWidget();
+            if (ed && ed->motionEditor()) {
+                MotionEditor *me = ed->motionEditor();
+                check(me->select(QStringLiteral("m:h_push")), "select a motion in the joystick mode");
+                settle();
+                auto *take = me->inspector()->findChild<QPushButton *>(QStringLiteral("modeTakeOverMotion"));
+                check(take != nullptr, "the joystick mode editor has Take over from ... for a motion");
+                withModal([&] { if (take) take->click(); }, [&](QDialog *d) {
+                    QComboBox *src = d->findChild<QComboBox *>(QStringLiteral("takeOverSource"));
+                    for (int i = 0; src && i < src->count(); ++i) {
+                        check(src->itemText(i) != QStringLiteral("Joystick mode: ") + modeId, "a mode is not offered itself");
+                        if (src->itemText(i) == QStringLiteral("Program profile: firefox")) src->setCurrentIndex(i);  // firefox zooms with its horizontal tilt
+                    }
+                    d->accept();
+                });
+                settle();
+                ed->flush();
+                QFile f(QString::fromStdString(rig.ctx.modesDir) + QLatin1Char('/') + modeId + QStringLiteral(".conf"));
+                check(f.open(QIODevice::ReadOnly) && ed->problemText().isEmpty(), "taking a motion over keeps the file valid");
+                check(me->select(QStringLiteral("b:1")), "select a button in the joystick mode");
+                settle();
+                check(me->inspector()->findChild<QPushButton *>(QStringLiteral("modeTakeOverButton")) != nullptr,
+                      "the joystick mode editor has Take over from ... for a button");
+            }
+        }
+    }
+    std::printf("take over / profile builder self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
 // The old NAV_BUTTON / CLICK_BUTTON settings are moved to BUTTON_<n> when the window starts, the file is
 // written, the user is told once, and what cannot be moved stays and is listed.
 static bool legacyButtonsSelfTest() {
@@ -3862,6 +4102,7 @@ int main(int argc, char **argv) {
         if (!targetSizeSelfTest(w)) return 1;
         if (!keyboardSelfTest(w)) return 1;
         if (!profileEditorSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
+        if (!borrowBuildSelfTest()) return 1;
         if (!autosaveAuditSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
         if (!legacyButtonsSelfTest()) return 1;
         if (!profileFilesSelfTest()) return 1;

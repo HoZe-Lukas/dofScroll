@@ -9,12 +9,15 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QStandardItemModel>
 #include <QVBoxLayout>
 #include <memory>
 #include <set>
 
 #include "key_combo.hpp"
 #include "pages/motion_editor.hpp"
+#include "pages/take_over_dialog.hpp"
+#include "ui/model/borrow_model.hpp"
 #include "ui/model/button_chip_model.hpp"
 #include "ui/model/device_layout_model.hpp"
 #include "ui/model/inheritance_model.hpp"
@@ -184,6 +187,27 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         }
         kind->setCurrentIndex(current);
         sl->addWidget(kind);
+        // Any motion can get any action; what cannot work here is greyed out with the reason, and what is worth knowing
+        // about the chosen action (zoom from a tilt) is said in words below the list (motionChoiceCheck).
+        auto *choiceNote = new QLabel(state);
+        choiceNote->setObjectName(QStringLiteral("motionChoiceNote"));
+        choiceNote->setWordWrap(true);
+        choiceNote->setTextFormat(Qt::PlainText);
+        choiceNote->setAccessibleName(T("About this action"));
+        {
+            auto *model = qobject_cast<QStandardItemModel *>(kind->model());
+            const std::string motionStd = motionId.toStdString();
+            for (int i = 0; i < kind->count(); ++i) {
+                const MotionChoiceCheck c = motionChoiceCheck(*ctx_.settings, section_, motionStd, ChannelActionType(kind->itemData(i).toInt()), strings);
+                if (model && model->item(i)) {
+                    model->item(i)->setEnabled(c.works || i == current);
+                    if (!c.works && i != current) model->item(i)->setToolTip(qs8(c.note));
+                }
+                if (i == current && !c.note.empty()) choiceNote->setText(qs8(c.note));
+            }
+        }
+        choiceNote->setVisible(!choiceNote->text().isEmpty());
+        sl->addWidget(choiceNote);
         auto *keysBox = new QWidget(state);
         auto *keysLayout = new QVBoxLayout(keysBox);
         keysLayout->setContentsMargins(0, 0, 0, 0);
@@ -228,11 +252,16 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         inherit->setObjectName(QStringLiteral("motionInherit"));
         inherit->setEnabled(edit.canInherit);
         inherit->setToolTip(T("Remove what this profile sets for this motion: the inherited setting applies again"));
+        auto *takeOver = new QPushButton(T("Take over from ..."), state);
+        takeOver->setObjectName(QStringLiteral("motionTakeOver"));
+        takeOver->setToolTip(T("Copy what this motion does in another profile or joystick mode into this profile"));
+        connect(takeOver, &QPushButton::clicked, this, [this, motionId] { takeOverMotion(motionId); });
         buttons->addWidget(clear);
         buttons->addWidget(on);
         buttons->addWidget(inherit);
         buttons->addStretch(1);
         sl->addLayout(buttons);
+        sl->addWidget(takeOver, 0, Qt::AlignLeft);  // its own line: the row above is already as wide as a narrow inspector allows
         const std::string id = motionId.toStdString();
         auto run = [this, id, words](int what) {
             std::string err;
@@ -350,5 +379,59 @@ void ProfileMotionsView::buildButton(QVBoxLayout *col, int n) {
             rebuild();
         }
     });
-    col->addWidget(clear, 0, Qt::AlignLeft);
+    auto *takeOver = new QPushButton(T("Take over from ..."), inspector_);
+    takeOver->setObjectName(QStringLiteral("buttonTakeOver"));
+    takeOver->setToolTip(T("Copy the binding of this button in another profile, joystick mode or button mode into this profile"));
+    connect(takeOver, &QPushButton::clicked, this, [this, n] { takeOverButton(n); });
+    auto *row = new QHBoxLayout;
+    row->addWidget(clear);
+    row->addWidget(takeOver);
+    row->addStretch(1);
+    col->addLayout(row);
+}
+
+namespace {
+// Shows the reason a take-over was refused in the label of the inspector.
+void showRefusal(QWidget *inspector, const std::string &err) {
+    if (QLabel *l = inspector->findChild<QLabel *>(QStringLiteral("motionStateWords"))) l->setText(mark(StatusKind::Error, qs8(err)));
+}
+}  // namespace
+
+bool ProfileMotionsView::takeOverMotion(const QString &motionId) {
+    const IdentityStrings fallback;
+    const StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
+    const std::string motion = motionId.toStdString();
+    const std::vector<BorrowSource> sources = motionSources(*ctx_.settings, section_);
+    TakeOverDialog dlg(T("Take over a motion"), T("Copy what this motion does in another profile or joystick mode into this profile. It is a copy: later changes in the source do not follow, and you can change it here afterwards."),
+                       sources, [&](size_t i) { return borrowedMotionWords(*ctx_.settings, sources[i], motion, strings); }, strings, this);
+    if (dlg.exec() != QDialog::Accepted || dlg.selected() < 0) return false;
+    std::string err;
+    if (!borrowMotion(*ctx_.settings, section_, motion, sources[size_t(dlg.selected())], &err)) {
+        showRefusal(inspector_, err);
+        return false;
+    }
+    ctx_.saveSoon();
+    if (changed) changed();
+    rebuild();
+    return true;
+}
+
+bool ProfileMotionsView::takeOverButton(int n) {
+    const IdentityStrings fallback;
+    const StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
+    const ButtonModeSet *bm = ctx_.buttonModes ? &ctx_.buttonModes->set() : nullptr;
+    const std::vector<BorrowSource> sources = buttonSources(*ctx_.settings, section_, bm);
+    TakeOverDialog dlg(T("Take over a button"), T("Copy the binding of this button in another profile, joystick mode or button mode into this profile. It is a copy: later changes in the source do not follow, and you can change it here afterwards."),
+                       sources, [&](size_t i) { return borrowedButtonWords(*ctx_.settings, sources[i], n, bm, strings); }, strings, this);
+    if (dlg.exec() != QDialog::Accepted || dlg.selected() < 0) return false;
+    std::string err;
+    if (!borrowButton(*ctx_.settings, section_, n, sources[size_t(dlg.selected())], &err, bm)) {
+        problemText_ = qs8(err);
+        ctx_.report(problemText_, true);
+        return false;
+    }
+    ctx_.saveSoon();
+    if (changed) changed();
+    rebuild();
+    return true;
 }

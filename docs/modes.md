@@ -372,6 +372,18 @@ Several parts can hold the zoom modifier (by default Ctrl) at once for `zoom` (i
 rest). Everything a part holds is released on a joystick mode switch, a reload, an unplugged device,
 suspend and the safety net, like the rest.
 
+`zoom` works on any motion, a tilt included (`V_TILT_ACTION = zoom`, in a joystick mode file or in a profile). The part zooms
+with the sensitivity, dead zone, sign and curve of its own channel and only from its own axes, so no dominance latch is
+needed; while a part zooms, the other wheel actions (scroll, scroll sideways) pause, because the zoom modifier is held and they
+would zoom too; keys and clicks are not paused. The twist keeps its own zoom with the dominance latch. Tilt forward sends the
+wheel "down", which most programs read as zoom out; flip `SCROLL_V_SIGN` (or the sign of the part) for the other way.
+
+Recipes for profiles (configuration.md): [use the tilt as zoom in one program](configuration.md#recipe-use-the-tilt-as-zoom-in-one-program),
+[take the twist assignment from another profile](configuration.md#recipe-take-the-twist-assignment-from-another-profile) and
+[build a profile from existing modes](configuration.md#recipe-build-a-profile-from-existing-modes) (a profile names a joystick mode with
+`MODE = <id>` and a button mode with `BUTTON_<n> = buttonmode:<id>`, so it follows that mode; the profile builder can also make an
+own copy of the mode instead).
+
 What the tilt and push feel like (and whether `step:` triggers cleanly on one without the other
 when you push diagonally) depends on the device and your hand and is not verified without hardware;
 raise the dead zone of the part that fires by accident.

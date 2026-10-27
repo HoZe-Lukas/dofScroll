@@ -39,6 +39,11 @@ public:
     bool select(const QString &id);
     QString inspectorTitle() const { return title_ ? title_->text() : QString(); }
     QString sentence() const;
+    // "Take over from ...": asks for a source (another profile, a joystick mode, for a button also a button mode) and copies
+    // the effective assignment into this profile (src/ui/model/borrow_model.hpp). False when cancelled or refused (the
+    // reason is shown in the inspector).
+    bool takeOverMotion(const QString &motionId);
+    bool takeOverButton(int n);
     std::function<void()> changed;  // a value was written; the page queues a rebuild of the other tabs
 
 private:
@@ -56,6 +61,6 @@ private:
     QWidget *inspector_ = nullptr;
     QVBoxLayout *col_ = nullptr, *extras_ = nullptr;
     QLabel *title_ = nullptr, *sentence_ = nullptr;
-    QString selected_;
+    QString selected_, problemText_;
     spn::ui::MotionMemory memory_;  // the sensitivity a channel had before it was cleared (session only)
 };

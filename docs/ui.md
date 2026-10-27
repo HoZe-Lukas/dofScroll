@@ -656,7 +656,8 @@ own file ... is defective ..."). A profile that is still in an old single `dofsc
 into its own file when you edit it, unless its file is defective; with a symlinked `dofscroll.conf` the interface
 keeps writing the single file and new profiles stay in it.
 
-Below the list: **Add application...** (running-program picker), **Add device...** and **Import profile...**. What belongs to the
+Below the list: **Add application...** (running-program picker), **Add device...**, **Import profile...** and **New profile...** (see
+[Take over and the profile builder](#take-over-and-the-profile-builder)). What belongs to the
 selected profile as a whole is the box **This profile** at the bottom of its General tab (hidden while the settings
 search is in use): **Change application...** (program profiles) or **Change device...** (device profiles) opens
 the same picker as "Add application..." / "Add device..." (running programs, capture the next focused program,
@@ -723,6 +724,27 @@ colour alone), and gives every row a per-row **Reset** (Reset to inherited):
 - The first choice of a button's drop-down is "Default (inherit from Global)" in device and program
   profiles; the Reset of a row, "Default (inherit)", "Same as Global" and Reset all remove only the
   profile's own key.
+
+### Take over and the profile builder
+
+**Take over from ...** sits next to Clear on every motion and every button of the Motions and buttons tab of a profile
+(Global, device, program) and in the inspector of the joystick mode editor. It asks for a source (any other profile, any
+joystick mode; for a button also a button mode), says in words what would be copied and then copies it. It is a copy: the
+effective assignment of the source becomes explicit keys of the target, later changes in the source do not follow. Push and
+tilt are separate motions. A source that is off is copied as "cleared". A refused copy (a profile below its joystick mode
+cannot beat the mode) says why and writes nothing. Like every edit it is saved by itself.
+
+The list of actions of a motion offers every action for every motion, zoom for a tilt included; the words under the list say
+what the choice does ("Zoom from this motion holds the zoom keys and sends the wheel ... flip the direction there if it
+zooms the wrong way ..."), and a choice that cannot work in this profile is greyed out with the reason in its tooltip.
+See [the recipes in configuration.md](configuration.md#recipe-use-the-tilt-as-zoom-in-one-program).
+
+**New profile ...** opens the profile builder: a program or a device with its match name, what to start from (nothing, or the
+settings an existing profile holds itself), a joystick mode, a button mode per button and single motions or buttons taken over
+from other profiles. For the joystick mode and every button mode it is your choice between **follows the mode** (the profile
+names it; a later change of the mode changes the profile) and **Make my own copy of this mode** (a file of its own in your
+folder, named "<mode> (<profile>)"). A sentence under the form says what will be created; a name that exists is refused with
+the reason next to the field. The result is a normal profile, selected afterwards, editable on its Motions and buttons tab.
 
 ### Add application and the device list
 

@@ -27,6 +27,8 @@
 #include "button_row.hpp"
 #include "key_combo.hpp"
 #include "pages/motion_editor.hpp"
+#include "pages/take_over_dialog.hpp"
+#include "ui/model/borrow_model.hpp"
 #include "ui/model/overview_model.hpp"
 #include "ui/model/ui_progress.hpp"
 #include "ui_i18n.hpp"
@@ -319,6 +321,41 @@ void ModeEditorWidget::rebuild() {
             rebuild();
             edited(false);
         };
+        // "Take over from ...": the effective assignment of a profile, joystick mode (or button mode) is copied into this mode.
+        if (ctx_.settings) {
+            const std::string selfId = f.id;
+            menv.takeOverMotion = [this, selfId](Motion m) {
+                const StringProvider &str = ctx_.strings ? *ctx_.strings : static_cast<const StringProvider &>(ownStrings_);
+                const std::vector<BorrowSource> src = motionSources(*ctx_.settings, ProfileSet::npos, selfId);
+                const std::string mid = motionId(m);
+                TakeOverDialog dlg(T("Take over a motion"), T("Copy what this motion does in a profile or another joystick mode into this joystick mode. It is a copy: later changes in the source do not follow."),
+                                   src, [&](size_t i) { return borrowedMotionWords(*ctx_.settings, src[i], mid, str); }, str, this);
+                if (dlg.exec() != QDialog::Accepted || dlg.selected() < 0) return;
+                std::string err;
+                const Settings base = ctx_.settings->effective(0);
+                if (!borrowMotionIntoMode(*ctx_.settings, editor_.form(), base, m, src[size_t(dlg.selected())], &err)) {
+                    ctx_.report(T(err.c_str()), true);
+                    return;
+                }
+                rebuild();
+                edited(false);
+            };
+            menv.takeOverButton = [this, selfId](int n) {
+                const StringProvider &str = ctx_.strings ? *ctx_.strings : static_cast<const StringProvider &>(ownStrings_);
+                const ButtonModeSet *bm = ctx_.buttonModes ? &ctx_.buttonModes->set() : nullptr;
+                const std::vector<BorrowSource> src = buttonSources(*ctx_.settings, ProfileSet::npos, bm, selfId);
+                TakeOverDialog dlg(T("Take over a button"), T("Copy the binding of this button in a profile, another joystick mode or a button mode into this joystick mode. It is a copy: later changes in the source do not follow."),
+                                   src, [&](size_t i) { return borrowedButtonWords(*ctx_.settings, src[i], n, bm, str); }, str, this);
+                if (dlg.exec() != QDialog::Accepted || dlg.selected() < 0) return;
+                std::string err;
+                if (!borrowButtonIntoMode(*ctx_.settings, editor_.form(), n, src[size_t(dlg.selected())], bm, &err)) {
+                    ctx_.report(T(err.c_str()), true);
+                    return;
+                }
+                rebuild();
+                edited(false);
+            };
+        }
         menv.committed = [this] { edited(false); };
         menv.typed = [this] { edited(true); };
         menv.flush = [this] { flush(); };

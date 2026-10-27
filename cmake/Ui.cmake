@@ -93,6 +93,10 @@ if(DOFSCROLL_UI)
     src/ui/qt/pages/add_app_dialog.hpp
     src/ui/qt/pages/add_device_dialog.cpp
     src/ui/qt/pages/add_device_dialog.hpp
+    src/ui/qt/pages/take_over_dialog.cpp
+    src/ui/qt/pages/take_over_dialog.hpp
+    src/ui/qt/pages/profile_builder_dialog.cpp
+    src/ui/qt/pages/profile_builder_dialog.hpp
     src/ui/qt/platform_hooks.cpp
     src/ui/qt/platform_hooks.hpp
     ${DOFSCROLL_UI_AUTOSTART_SRC}

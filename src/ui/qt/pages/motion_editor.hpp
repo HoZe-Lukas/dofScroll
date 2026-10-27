@@ -144,6 +144,9 @@ struct MotionEditorEnv {
     std::function<void()> committed;                     // a value in place changed (key picker): the host saves now
     std::function<void()> typed;                         // typed text changed: the host saves after a pause
     std::function<void()> flush;                         // focus left a text field: write now
+    // "Take over from ...": the host asks for a source and copies the effective assignment into the form (borrow_model.hpp).
+    std::function<void(spn::ui::Motion)> takeOverMotion;
+    std::function<void(int n)> takeOverButton;
     std::function<void(const QString &tabId)> showTab;   // "Show in Settings tab" ("settings", "overrides")
     // One row of the shared button editor for button n (the host owns the code of the Buttons tab).
     std::function<void(QWidget *parent, QGridLayout *grid, int gridRow, int n)> addButtonRow;

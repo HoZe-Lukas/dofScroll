@@ -5149,3 +5149,259 @@ msgstr "Bei mehreren Geräten: nur dieses Gerät anzeigen und messen. \"Alle Ger
 #: src/ui/qt/pages/axes_page.cpp
 msgid "All devices (the one that moved last)"
 msgstr "Alle Geräte (das zuletzt bewegte)"
+
+#: src/ui
+msgid "nothing (cleared)"
+msgstr "nichts (geleert)"
+
+#: src/ui
+msgid "the normal action (scroll, or zoom for the twist)"
+msgstr "die normale Aktion (Scrollen, beim Drehen Zoom)"
+
+#: src/ui
+msgid "scroll"
+msgstr "Scrollen"
+
+#: src/ui
+msgid "keys %1 / %2"
+msgstr "Tasten %1 / %2"
+
+#: src/ui
+msgid "one key tap per push: %1 / %2"
+msgstr "ein Tastendruck pro Schub: %1 / %2"
+
+#: src/ui
+msgid "%1 does: %2. Taking it over copies this action into the profile; later changes in the source do not follow. The tuning (sensitivity, direction) stays as it is here."
+msgstr "%1 macht: %2. Beim Übernehmen wird diese Aktion in das Profil kopiert; spätere Änderungen in der Quelle folgen nicht. Die Abstimmung (Empfindlichkeit, Richtung) bleibt hier, wie sie ist."
+
+#: src/ui
+msgid "In %1 this button does: %2. Taking it over copies this binding into the profile; later changes in the source do not follow."
+msgstr "In %1 macht diese Taste: %2. Beim Übernehmen wird diese Belegung in das Profil kopiert; spätere Änderungen in der Quelle folgen nicht."
+
+#: src/ui
+msgid "Lift / press has no action of its own."
+msgstr "Anheben / Drücken hat keine eigene Aktion."
+
+#: src/ui
+msgid "The joystick mode of this profile sets this motion; only a program profile can change it, or change it in the joystick mode."
+msgstr "Der Joystick-Modus dieses Profils legt diese Bewegung fest; nur ein Programmprofil kann sie ändern, oder du änderst sie im Joystick-Modus."
+
+#: src/ui
+msgid "Zoom from this motion holds the zoom keys and sends the wheel while the motion is moved. It uses the sensitivity, dead zone and direction (sign) of its own channel, not those of the twist; flip the direction there if it zooms the wrong way. While it zooms, the other wheel motions of this profile pause. The twist keeps its own zoom."
+msgstr "Zoom von dieser Bewegung hält die Zoom-Tasten und sendet das Mausrad, solange du die Bewegung machst. Sie nutzt Empfindlichkeit, Totzone und Richtung (Vorzeichen) ihres eigenen Kanals, nicht die des Drehens; kehre dort die Richtung um, wenn es falsch herum zoomt. Solange sie zoomt, pausieren die anderen Rad-Bewegungen dieses Profils. Das Drehen behält seinen eigenen Zoom."
+
+#: src/ui
+msgid "The zoom keys are set to none for this profile, so the plain wheel is sent and it scrolls instead of zooming."
+msgstr "Die Zoom-Tasten sind für dieses Profil auf keine gesetzt, deshalb wird nur das Mausrad gesendet und es scrollt, statt zu zoomen."
+
+#: src/ui
+msgid "Take over from"
+msgstr "Übernehmen aus"
+
+#: src/ui
+msgid "What would be copied"
+msgstr "Was kopiert würde"
+
+#: src/ui
+msgid "Take over"
+msgstr "Übernehmen"
+
+#: src/ui
+msgid "New profile"
+msgstr "Neues Profil"
+
+#: src/ui
+msgid "Build a profile from what already exists: a joystick mode, button modes and single motions or buttons of other profiles. Afterwards it is a normal profile; change it on its Motions and buttons tab whenever you like."
+msgstr "Baue ein Profil aus dem, was es schon gibt: ein Joystick-Modus, Tastenmodi und einzelne Bewegungen oder Tasten anderer Profile. Danach ist es ein normales Profil; ändere es jederzeit auf seinem Reiter Bewegungen und Tasten."
+
+#: src/ui
+msgid "What the profile is for"
+msgstr "Wofür das Profil ist"
+
+#: src/ui
+msgid "A program"
+msgstr "Ein Programm"
+
+#: src/ui
+msgid "A device"
+msgstr "Ein Gerät"
+
+#: src/ui
+msgid "Match name"
+msgstr "Zuordnungsname"
+
+#: src/ui
+msgid "The name of the program or device the profile applies to"
+msgstr "Der Name des Programms oder Geräts, für das das Profil gilt"
+
+#: src/ui
+msgid "Choose ..."
+msgstr "Auswählen ..."
+
+#: src/ui
+msgid "Pick a running program or a connected device"
+msgstr "Ein laufendes Programm oder ein angeschlossenes Gerät wählen"
+
+#: src/ui
+msgid "Start from"
+msgstr "Ausgehen von"
+
+#: src/ui
+msgid "Nothing: an empty profile that inherits everything"
+msgstr "Nichts: ein leeres Profil, das alles erbt"
+
+#: src/ui
+msgid "A copy of the settings that profile holds itself (its joystick mode, bindings, tuning). It does not follow the profile afterwards."
+msgstr "Eine Kopie der Einstellungen, die dieses Profil selbst enthält (Joystick-Modus, Belegungen, Abstimmung). Sie folgt dem Profil danach nicht mehr."
+
+#: src/ui
+msgid "None of its own: the profile follows the joystick mode of Global"
+msgstr "Keiner eigener: das Profil folgt dem Joystick-Modus von Global"
+
+#: src/ui
+msgid "Make my own copy of this joystick mode"
+msgstr "Eine eigene Kopie dieses Joystick-Modus anlegen"
+
+#: src/ui
+msgid "Give single buttons a button mode. By default the profile follows the button mode by name; tick the copy to give it its own."
+msgstr "Gib einzelnen Tasten einen Tastenmodus. Standardmäßig folgt das Profil dem Tastenmodus über seinen Namen; hake die Kopie an, damit es eine eigene bekommt."
+
+#: src/ui
+msgid "Add a button mode ..."
+msgstr "Tastenmodus hinzufügen ..."
+
+#: src/ui
+msgid "Take over from other profiles"
+msgstr "Aus anderen Profilen übernehmen"
+
+#: src/ui
+msgid "Copy single motions or buttons from another profile or a joystick mode, whatever they are set to there. A copy: later changes in the source do not follow."
+msgstr "Kopiere einzelne Bewegungen oder Tasten aus einem anderen Profil oder einem Joystick-Modus, egal worauf sie dort eingestellt sind. Eine Kopie: spätere Änderungen in der Quelle folgen nicht."
+
+#: src/ui
+msgid "Add a motion ..."
+msgstr "Bewegung hinzufügen ..."
+
+#: src/ui
+msgid "Add a button ..."
+msgstr "Taste hinzufügen ..."
+
+#: src/ui
+msgid "Create profile"
+msgstr "Profil anlegen"
+
+#: src/ui
+msgid "Own copy"
+msgstr "Eigene Kopie"
+
+#: src/ui
+msgid "Make my own copy of this button mode"
+msgstr "Eine eigene Kopie dieses Tastenmodus anlegen"
+
+#: src/ui
+msgid "Motion"
+msgstr "Bewegung"
+
+#: src/ui
+msgid "The profile has no joystick mode of its own: it follows the one of Global."
+msgstr "Das Profil hat keinen eigenen Joystick-Modus: es folgt dem von Global."
+
+#: src/ui
+msgid "The profile gets its own copy of the joystick mode, a file in your own folder. Changes to the original do not reach it."
+msgstr "Das Profil bekommt eine eigene Kopie des Joystick-Modus, eine Datei in deinem eigenen Ordner. Änderungen am Original erreichen sie nicht."
+
+#: src/ui
+msgid "The profile follows this joystick mode by name: when the joystick mode is changed, the profile changes with it."
+msgstr "Das Profil folgt diesem Joystick-Modus über seinen Namen: Wird der Joystick-Modus geändert, ändert sich das Profil mit."
+
+#: src/ui
+msgid "A profile with this name already exists."
+msgstr "Ein Profil mit diesem Namen gibt es schon."
+
+#: src/ui
+msgid "A button is chosen twice."
+msgstr "Eine Taste ist doppelt gewählt."
+
+#: src/ui
+msgid "A motion is chosen twice."
+msgstr "Eine Bewegung ist doppelt gewählt."
+
+#: src/ui
+msgid "starts empty"
+msgstr "beginnt leer"
+
+#: src/ui
+msgid "starts as a copy of %1"
+msgstr "beginnt als Kopie von %1"
+
+#: src/ui
+msgid "own copy of the joystick mode %1"
+msgstr "eigene Kopie des Joystick-Modus %1"
+
+#: src/ui
+msgid "follows the joystick mode %1"
+msgstr "folgt dem Joystick-Modus %1"
+
+#: src/ui
+msgid "%1 button mode(s)"
+msgstr "%1 Tastenmodus/-modi"
+
+#: src/ui
+msgid "%1 motion(s) and %2 button(s) taken over"
+msgstr "%1 Bewegung(en) und %2 Taste(n) übernommen"
+
+#: src/ui
+msgid "About this action"
+msgstr "Zu dieser Aktion"
+
+#: src/ui
+msgid "Take over from ..."
+msgstr "Übernehmen aus ..."
+
+#: src/ui
+msgid "Copy what this motion does in another profile or joystick mode into this profile"
+msgstr "Kopiert, was diese Bewegung in einem anderen Profil oder Joystick-Modus macht, in dieses Profil"
+
+#: src/ui
+msgid "Copy the binding of this button in another profile, joystick mode or button mode into this profile"
+msgstr "Kopiert die Belegung dieser Taste aus einem anderen Profil, Joystick-Modus oder Tastenmodus in dieses Profil"
+
+#: src/ui
+msgid "Take over a motion"
+msgstr "Bewegung übernehmen"
+
+#: src/ui
+msgid "Copy what this motion does in another profile or joystick mode into this profile. It is a copy: later changes in the source do not follow, and you can change it here afterwards."
+msgstr "Kopiere, was diese Bewegung in einem anderen Profil oder Joystick-Modus macht, in dieses Profil. Es ist eine Kopie: spätere Änderungen in der Quelle folgen nicht, und du kannst sie hier danach ändern."
+
+#: src/ui
+msgid "Take over a button"
+msgstr "Taste übernehmen"
+
+#: src/ui
+msgid "Copy the binding of this button in another profile, joystick mode or button mode into this profile. It is a copy: later changes in the source do not follow, and you can change it here afterwards."
+msgstr "Kopiere die Belegung dieser Taste aus einem anderen Profil, Joystick-Modus oder Tastenmodus in dieses Profil. Es ist eine Kopie: spätere Änderungen in der Quelle folgen nicht, und du kannst sie hier danach ändern."
+
+#: src/ui
+msgid "New profile..."
+msgstr "Neues Profil..."
+
+#: src/ui
+msgid "Build a profile from existing joystick modes, button modes and the motions and buttons of other profiles"
+msgstr "Ein Profil aus vorhandenen Joystick-Modi, Tastenmodi und den Bewegungen und Tasten anderer Profile bauen"
+
+#: src/ui
+msgid "Copy what this motion does in a profile or another joystick mode into this joystick mode"
+msgstr "Kopiert, was diese Bewegung in einem Profil oder anderen Joystick-Modus macht, in diesen Joystick-Modus"
+
+#: src/ui
+msgid "Copy the binding of this button in a profile, another joystick mode or a button mode into this joystick mode"
+msgstr "Kopiert die Belegung dieser Taste aus einem Profil, anderen Joystick-Modus oder Tastenmodus in diesen Joystick-Modus"
+
+#: src/ui
+msgid "Copy what this motion does in a profile or another joystick mode into this joystick mode. It is a copy: later changes in the source do not follow."
+msgstr "Kopiere, was diese Bewegung in einem Profil oder anderen Joystick-Modus macht, in diesen Joystick-Modus. Es ist eine Kopie: spätere Änderungen in der Quelle folgen nicht."
+
+#: src/ui
+msgid "Copy the binding of this button in a profile, another joystick mode or a button mode into this joystick mode. It is a copy: later changes in the source do not follow."
+msgstr "Kopiere die Belegung dieser Taste aus einem Profil, anderen Joystick-Modus oder Tastenmodus in diesen Joystick-Modus. Es ist eine Kopie: spätere Änderungen in der Quelle folgen nicht."

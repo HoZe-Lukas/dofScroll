@@ -246,6 +246,65 @@ In the interface: select the button in the picture, choose the action in its row
 from Global: ...", "Set in this profile (inherited: ...)", "device Pro sets ...") and, when the profile's
 joystick mode binds the button too, who wins.
 
+#### Recipe: use the tilt as zoom in one program
+
+Any motion can get any action, also zoom: push and tilt of a channel are separate keys.
+
+    [app:photoviewer]
+    V_TILT_ACTION = zoom       # tilt forward and back zooms; the push still scrolls
+
+In the interface: the program profile, tab "Motions and buttons", select the vertical tilt, choose **Zoom** in "What this
+motion does in this profile" (a note below the list explains it in words). How it behaves:
+
+- While the motion moves, the zoom keys (`ZOOM_MODIFIER`, Ctrl by default) are held and the mouse wheel is sent, as for the twist.
+  If `ZOOM_MODIFIER` is `none` the plain wheel is sent and it scrolls instead; the interface says so.
+- The tilt uses the sensitivity, dead zone, direction (`SCROLL_V_SIGN`) and curve of **its own channel**, not those of the
+  twist. Tilt forward sends the wheel "down", which most programs read as zoom out: flip the direction of the channel if
+  it zooms the wrong way. (The twist is the other way round: its zoom in is the wheel up.)
+- Only the axes of the tilt count for it (the push of the same channel does not feed it), so there is nothing to
+  exclude. While the tilt zooms, the other wheel motions of the profile pause, because they would zoom too (a push that
+  scrolls next to a tilt that zooms would otherwise zoom as well). Keys and clicks are not paused.
+- The twist keeps its own zoom with its dominance latch (`ZOOM_LATERAL`, `ZOOM_ENTER_MS`, `ZOOM_EXIT_RATIO`); tilting
+  keeps the twist from latching because the tilt axes are in `ZOOM_LATERAL`.
+
+A profile below its joystick mode (Global, a device) cannot change a motion the joystick mode sets; only a program
+profile can, or change it in the joystick mode. The interface greys such a choice out and says why.
+
+#### Recipe: take the twist assignment from another profile
+
+Copy what a motion does in another profile (or in a joystick mode) into this profile. In the interface: select the motion
+(push and tilt are separate motions) or the button, **Take over from ...**, choose the source (any other profile, any
+joystick mode, for a button also a button mode); the dialog says in words what would be copied. It is a **copy**: the
+**effective** assignment of the source (all its layers and its joystick mode merged) is written as explicit keys of this
+profile and then belongs to it; later changes in the source do not follow, and you change it here like anything else.
+
+    # after taking the twist over from [app:code]
+    [app:video]
+    TWIST_ACTION = keys:ctrl+minus,ctrl+plus
+
+Details: only the **action** of a motion is copied (`V_PUSH_ACTION` ... `TWIST_ACTION`), not the tuning of its channel
+(sensitivity, direction, curve); a motion that is off in the source (action `none`, or sensitivity 0) is copied as
+cleared (`none`); a button the source does not bind is copied as an explicit nothing (`BUTTON_<n> = none`). The
+joystick mode editor has the same button for its motions and buttons (it copies into the mode file).
+
+#### Recipe: build a profile from existing modes
+
+Profiles, **New profile ...**: choose a program or a device and its match name (the same names as in Add application /
+Add device; a name that exists is refused), what to **start from** (nothing, or a copy of the settings an existing
+profile holds itself), a **joystick mode**, **button modes** per button, and single motions or buttons to take over from
+other profiles. The result is a normal profile; edit it afterwards on its Motions and buttons tab.
+
+    [app:gimp]
+    MODE = photo                      # follows the joystick mode photo by name
+    BUTTON_3 = buttonmode:next-mode   # follows the button mode next-mode by name
+    V_TILT_ACTION = zoom              # taken over from another profile
+
+*Follows the mode* means the profile only names the mode (`MODE = <id>`, `BUTTON_<n> = buttonmode:<id>`), so a later
+change of that joystick mode or button mode changes the profile too. **Make my own copy of this mode** duplicates the
+mode into your own folder (`modes/` or `buttons/`) under the name "<mode> (<profile>)" and the profile names the copy
+instead; the copy does not follow the original. If the build fails nothing is left behind (the profile and the copies
+made so far are removed).
+
 Find the `WM_CLASS` of a window with `xprop WM_CLASS` and click the window. The daemon logs every
 profile switch. Program profiles need an active-window query: always on X11, on Wayland only with
 `kdotool` (KDE), which the daemon looks for only in `/usr/bin`, `/usr/local/bin` and `/bin` (not in `PATH`,

@@ -28,7 +28,9 @@
 #include "button_modes.hpp"
 #include "profile_actions.hpp"
 #include "ui/model/button_chip_model.hpp"
+#include "ui/model/mode_editor_model.hpp"
 #include "ui/model/motion_edit_model.hpp"
+#include "ui/model/motion_map_model.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/strings.hpp"
 
@@ -76,7 +78,8 @@ inline std::string actionWords(const ChannelAction &a, bool off, const StringPro
 }
 }  // namespace borrow_detail
 
-inline std::vector<BorrowSource> motionSources(const SettingsModel &m, size_t target) {
+// target: the section being edited (left out), or ProfileSet::npos; excludeMode: the joystick mode being edited (left out).
+inline std::vector<BorrowSource> motionSources(const SettingsModel &m, size_t target, const std::string &excludeMode = std::string()) {
     std::vector<BorrowSource> out;
     for (size_t i = 0; i < m.sectionCount(); ++i) {
         if (i == target) continue;
@@ -86,7 +89,7 @@ inline std::vector<BorrowSource> motionSources(const SettingsModel &m, size_t ta
         out.push_back(b);
     }
     for (const SettingsModel::ModeOption &o : m.modeOptions(0)) {
-        if (o.id.empty() || !o.known || !m.modeDef(o.id)) continue;
+        if (o.id.empty() || !o.known || !m.modeDef(o.id) || o.id == excludeMode) continue;
         BorrowSource b;
         b.kind = BorrowSource::Kind::JoystickMode;
         b.id = o.id;
@@ -96,8 +99,9 @@ inline std::vector<BorrowSource> motionSources(const SettingsModel &m, size_t ta
     return out;
 }
 
-inline std::vector<BorrowSource> buttonSources(const SettingsModel &m, size_t target, const ButtonModeSet *buttonModes) {
-    std::vector<BorrowSource> out = motionSources(m, target);
+inline std::vector<BorrowSource> buttonSources(const SettingsModel &m, size_t target, const ButtonModeSet *buttonModes,
+                                               const std::string &excludeMode = std::string()) {
+    std::vector<BorrowSource> out = motionSources(m, target, excludeMode);
     if (buttonModes)
         for (const ButtonMode &b : buttonModes->modes) {
             BorrowSource s;
@@ -267,6 +271,35 @@ inline bool borrowButton(SettingsModel &m, size_t target, int n, const BorrowSou
     const BorrowedButton b = borrowedButton(m, src, n, buttonModes);
     if (!b.ok) return fail(b.error);
     return m.setButton(target, n, b.action, err);
+}
+
+// ---- into a joystick mode being edited (the Joystick modes page): the same copy, written into the form of the mode ----
+// The form is the one of ModeEditor; the action goes to the motion through assign() (motion_map_model.hpp), so a push and a
+// tilt that end up the same stay one unsplit channel key. A button is copied as its binding.
+inline bool borrowMotionIntoMode(const SettingsModel &m, ModeForm &form, const Settings &base, Motion motion, const BorrowSource &src,
+                                 std::string *err, Motion from = Motion::Lift) {
+    const Motion fromMotion = from == Motion::Lift ? motion : from;
+    const BorrowedMotion b = borrowedMotion(m, src, motionId(fromMotion));
+    if (!b.ok) {
+        if (err) *err = b.error;
+        return false;
+    }
+    ChannelForm f = channelFormOf(b.action);
+    if (b.off) f = ChannelForm(), f.type = ChannelActionType::Off;
+    const AssignResult r = assign(form, base, motion, f);
+    if (!r.ok && err) *err = r.error;
+    return r.ok;
+}
+
+inline bool borrowButtonIntoMode(const SettingsModel &m, ModeForm &form, int n, const BorrowSource &src, const ButtonModeSet *buttonModes,
+                                 std::string *err) {
+    const BorrowedButton b = borrowedButton(m, src, n, buttonModes);
+    if (!b.ok) {
+        if (err) *err = b.error;
+        return false;
+    }
+    form.setButton(n, b.action);
+    return true;
 }
 
 }  // namespace spn::ui

@@ -165,6 +165,25 @@ int main() {
         m.clearOverride(video, "ZOOM_MODIFIER");
     }
 
+    // ---- into a joystick mode being edited: the same copy, through the form of the mode ----
+    {
+        ModeForm f;
+        const Settings base;
+        assert(borrowMotionIntoMode(m, f, base, Motion::VTilt, profile(code), &err, Motion::Twist));  // the twist action of code
+        assert(actionOf(f, base, Motion::VTilt).type == ChannelActionType::Keys);
+        assert(actionOf(f, base, Motion::VPush) == ChannelForm());  // the push keeps what it did
+        assert(borrowMotionIntoMode(m, f, base, Motion::VPush, joystickMode("photo"), &err));
+        assert(actionOf(f, base, Motion::VPush).type == ChannelActionType::Zoom);
+        assert(!borrowMotionIntoMode(m, f, base, Motion::Lift, profile(code), &err) && !err.empty());
+        assert(borrowButtonIntoMode(m, f, 2, profile(code), nullptr, &err));
+        assert(f.buttons.size() == 1 && f.buttons[0].first == 2 && f.buttons[0].second == "key:space");
+        assert(borrowButtonIntoMode(m, f, 2, buttonMode("latch-nav"), &bmodes.set(), &err) && f.buttons[0].second == "toggle:nav");
+        assert(!borrowButtonIntoMode(m, f, 2, buttonMode("latch-nav"), nullptr, &err));
+        bool self = false;
+        for (const BorrowSource &s : motionSources(m, ProfileSet::npos, "photo")) self = self || s.id == "photo";
+        assert(!self);
+    }
+
     // ---- the builder ----
     const size_t before = m.sectionCount();
     ProfileBuild b;

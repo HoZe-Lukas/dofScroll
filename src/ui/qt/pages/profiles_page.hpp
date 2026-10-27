@@ -98,6 +98,7 @@ private slots:
     void onSelectionChanged(QTreeWidgetItem *current, QTreeWidgetItem *previous);
     void addApplication();
     void addDevice();
+    void newProfile();  // the profile builder (profile_builder_dialog.hpp)
     void renameProfile();
     void removeProfile();
     void exportProfile();
@@ -153,7 +154,7 @@ private:
     QScrollArea *general_ = nullptr, *overrides_ = nullptr;
     ProfileMotionsView *motions_ = nullptr;
     ChannelsEditor *channels_ = nullptr;
-    QPushButton *add_app_, *add_dev_, *import_;
+    QPushButton *add_app_, *add_dev_, *import_, *new_profile_;
     QLabel *defectNote_ = nullptr;  // defective profile files, in words, under the list
     size_t shown_ = 0;  // section the tabs show
     int settingRows_ = 0;
