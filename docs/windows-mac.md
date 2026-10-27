@@ -95,6 +95,36 @@ full texts read first-hand. Labels:
 - Official: pull-down menu in the driver pane, "Export Configuration...". [forum, source 9]
 - The path `~/Library/Application Support/3Dconnexion` was not confirmed. [unresolved]
 
+### macOS driver cleanup: survey (issue #184)
+
+The Windows build has a cleanup dialog ("Remove driver axis settings...") that removes the
+driver's per-program axis settings. A macOS version is **not implemented**, because the format of
+the driver's per-program preferences is not documented anywhere we could find:
+
+- Known: user settings are in `~/Library/Preferences/com.3dconnexion.*.plist` (`mappings.plist`;
+  newer driver versions also `mappingsV2.plist`, which the preference pane recreates after the
+  file is deleted). Entries are named after applications, and old entries persist. The files
+  survive uninstalling the driver. [forum, sources 9 and 10; search summaries]
+- Not known: key names, value types, how per-program entries and their axis settings are nested,
+  whether the data is in a binary plist and whether the driver caches it in memory and overwrites
+  edits on exit. [unresolved] A moderator calls editing "not recommended and not supported".
+- Consequence: dofscroll does not modify these files, because a wrong guess could damage the
+  user's driver profiles. The only safe manual workaround is the driver's own "Export
+  Configuration..." (backup), then changing the program's axes in the driver pane.
+
+To get the missing facts, a human with a Mac and the driver runs the read-only helper:
+
+    sh scripts/macos-driver-survey.sh
+
+It writes `dofscroll-macos-driver-survey.txt` (file list and `plutil -p` output, nothing is
+changed). For the axis keys, additionally: quit the driver pane, copy the plist files to a folder,
+change one program's axis setting (for example switch off "Pan up/down") in the pane, quit the pane
+and run `diff` on `plutil -p` of the old and new copy. Post the survey and the diff (remove
+program names you do not want to share) in issue #184. With that, a backend can be written behind
+the existing model (`src/ui/model/driver_cleanup_model.hpp`) using the same rules as Windows:
+read-only survey, show the changes, back up every file, read back, roll back, restore, never touch
+Global settings, CAD/3D programs unticked.
+
 ## If the driver does not scroll: alternatives
 
 | Option | Description | Effort/benefit (estimate = assumption) |
