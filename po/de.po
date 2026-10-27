@@ -522,7 +522,7 @@ msgid ""
 "3Dconnexion driver, may be holding the device. See docs/troubleshooting.md, section \"The official "
 "3Dconnexion driver and dofscroll\""
 msgstr ""
-"Noch keine Eingabe von der SpaceMouse. Bewegen Sie die Kappe. Kommt nichts an, hält möglicherweise ein anderes "
+"Noch keine Eingabe von der SpaceMouse. Bewege die Kappe. Kommt nichts an, hält möglicherweise ein anderes "
 "Programm, etwa der 3Dconnexion-Treiber, das Gerät. Siehe docs/troubleshooting.md, Abschnitt \"The official "
 "3Dconnexion driver and dofscroll\""
 
@@ -1396,11 +1396,11 @@ msgstr "Tastenmodus"
 
 #: src/ui/qt/pages/button_modes_page.cpp
 msgid "A button mode is a named button behavior. Pick it for any button on the Profiles page; the same button mode can be used on several buttons."
-msgstr "Ein Tastenmodus ist ein benanntes Tastenverhalten. Wählen Sie ihn auf der Seite Profile für beliebige Tasten; derselbe Tastenmodus kann auf mehreren Tasten verwendet werden."
+msgstr "Ein Tastenmodus ist ein benanntes Tastenverhalten. Wähle ihn auf der Seite Profile für beliebige Tasten; derselbe Tastenmodus kann auf mehreren Tasten verwendet werden."
 
 #: src/ui/qt/pages/button_modes_page.cpp
 msgid "A button mode can press a key or click. Only use button modes from trusted sources. An action that is the same everywhere and always is better set in the vendor driver (see the documentation)."
-msgstr "Ein Tastenmodus kann eine Taste drücken oder klicken. Verwenden Sie nur Tastenmodi aus vertrauenswürdigen Quellen. Eine Aktion, die überall und immer gleich ist, stellt man besser im Herstellertreiber ein (siehe Dokumentation)."
+msgstr "Ein Tastenmodus kann eine Taste drücken oder klicken. Verwende nur Tastenmodi aus vertrauenswürdigen Quellen. Eine Aktion, die überall und immer gleich ist, stellt man besser im Herstellertreiber ein (siehe Dokumentation)."
 
 #: src/ui/qt/pages/button_modes_page.cpp
 msgid "The files in the button modes folder"
@@ -1496,7 +1496,7 @@ msgstr "Warnungen für den Tastenmodus-Ordner:"
 
 #: src/ui/qt/pages/button_modes_page.cpp
 msgid "No button modes yet. \"New button mode\" creates one; the folder also accepts files you copy there."
-msgstr "Noch keine Tastenmodi. „Neuer Tastenmodus“ legt einen an; der Ordner nimmt auch Dateien an, die Sie dort hineinkopieren."
+msgstr "Noch keine Tastenmodi. „Neuer Tastenmodus“ legt einen an; der Ordner nimmt auch Dateien an, die du dort hineinkopierst."
 
 #: src/ui/qt/pages/button_modes_page.cpp
 msgid "Could not save the button mode."
@@ -1556,7 +1556,7 @@ msgstr "Der Tastenmodus-Ordner konnte nicht angelegt werden."
 
 #: src/ui/qt/pages/button_modes_page.cpp
 msgid "A button mode can press a key or click whenever its button is pressed. Only keep files from sources you trust and read the file first."
-msgstr "Ein Tastenmodus kann eine Taste drücken oder klicken, sobald seine Taste gedrückt wird. Behalten Sie nur Dateien aus vertrauenswürdigen Quellen und lesen Sie die Datei zuerst."
+msgstr "Ein Tastenmodus kann eine Taste drücken oder klicken, sobald seine Taste gedrückt wird. Behalte nur Dateien aus vertrauenswürdigen Quellen und lies die Datei zuerst."
 
 #: src/ui/qt/pages/mode_editor_widget.cpp
 msgid "Default (as in the profile)"
@@ -1644,7 +1644,7 @@ msgstr "Die gespeicherte Datei hat keine Lade-Warnungen."
 
 #: src/ui/qt/pages/mode_editor_widget.cpp
 msgid "The file changed on disk while you were editing. Overwrite it with your changes?"
-msgstr "Die Datei wurde auf der Platte geändert, während Sie sie bearbeitet haben. Mit Ihren Änderungen überschreiben?"
+msgstr "Die Datei wurde auf der Platte geändert, während du sie bearbeitet hast. Mit deinen Änderungen überschreiben?"
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "User modes"
@@ -1652,7 +1652,7 @@ msgstr "Eigene Modi"
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "dofscroll is extended with plain files: joystick modes and button modes. Nothing executable. Here you see where each one comes from, add the examples that ship with dofscroll and remove your own files. Edit them on the Modes and Button modes pages."
-msgstr "dofscroll wird mit einfachen Dateien erweitert: Joystick-Modi und Tastenmodi. Nichts Ausführbares. Hier sehen Sie, woher jede kommt, fügen die mitgelieferten Beispiele hinzu und entfernen eigene Dateien. Bearbeitet werden sie auf den Seiten Modi und Tastenmodi."
+msgstr "dofscroll wird mit einfachen Dateien erweitert: Joystick-Modi und Tastenmodi. Nichts Ausführbares. Hier siehst du, woher jede kommt, fügst die mitgelieferten Beispiele hinzu und entfernst eigene Dateien. Bearbeitet werden sie auf den Seiten Modi und Tastenmodi."
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Type"
@@ -1668,7 +1668,7 @@ msgstr "Beispiel hinzufügen"
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Copy the selected example into your folder"
-msgstr "Das gewählte Beispiel in Ihren Ordner kopieren"
+msgstr "Das gewählte Beispiel in deinen Ordner kopieren"
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Delete the selected file of yours"
@@ -1704,7 +1704,7 @@ msgstr "eingebaut"
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "your file"
-msgstr "Ihre Datei"
+msgstr "Deine Datei"
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "example, not installed"
@@ -1724,15 +1724,15 @@ msgstr "Zu tun:"
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Connect your SpaceMouse. The daemon has to see it."
-msgstr "Schließen Sie Ihre SpaceMouse an. Der Daemon muss sie sehen."
+msgstr "Schließe deine SpaceMouse an. Der Daemon muss sie sehen."
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Check on the Axes page that the axes move as you expect (the assistant helps)."
-msgstr "Prüfen Sie auf der Seite Achsen, dass sich die Achsen wie erwartet bewegen (der Assistent hilft)."
+msgstr "Prüfe auf der Seite Achsen, dass sich die Achsen wie erwartet bewegen (der Assistent hilft)."
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Add a profile for a program you use."
-msgstr "Legen Sie ein Profil für ein Programm an, das Sie verwenden."
+msgstr "Lege ein Profil für ein Programm an, das du verwendest."
 
 #: src/ui/model/button_choice_model.hpp:43
 msgid "Nothing"
@@ -1836,7 +1836,7 @@ msgstr "Das Profil \"%1\" hat ungespeicherte Änderungen. Speichern?"
 
 #: src/ui/qt (Overview, log viewer, Channels filter)
 msgid "What do you want to do?"
-msgstr "Was möchten Sie tun?"
+msgstr "Was möchtest du tun?"
 
 #: src/ui/qt (Overview, log viewer, Channels filter)
 msgid "Tune scroll and zoom"
@@ -1888,7 +1888,7 @@ msgstr "Kein Profil passt zum Filter."
 
 #: src/ui/qt (Overview, log viewer, Channels filter)
 msgid "The daemon is not running. Start dofscroll (or use Restart) and see Troubleshooting."
-msgstr "Der Daemon läuft nicht. Starten Sie dofscroll (oder nutzen Sie Daemon neu starten) und lesen Sie die Fehlerbehebung."
+msgstr "Der Daemon läuft nicht. Starte dofscroll (oder nutze Daemon neu starten) und lies die Fehlerbehebung."
 
 #: src/ui/qt (Overview, log viewer, Channels filter)
 msgid "Config key: %1"
@@ -1981,8 +1981,8 @@ msgid ""
 "To keep the original, use Duplicate instead."
 msgstr ""
 "Der eingebaute Tastenmodus \"%1\" ist keine Datei. Eine bearbeitbare Datei "
-"mit derselben ID erstellen? Sie ersetzt den eingebauten Tastenmodus, bis Sie "
-"die Datei löschen. Um das Original zu behalten, verwenden Sie stattdessen "
+"mit derselben ID erstellen? Sie ersetzt den eingebauten Tastenmodus, bis du "
+"die Datei löschst. Um das Original zu behalten, verwende stattdessen "
 "Duplizieren."
 
 # --- dofscroll-ui: profile-centric editor, autosave, inheritance, joystick modes (new entries) ---
@@ -3088,7 +3088,7 @@ msgstr "Eingabeweg"
 
 #: src/ui/model/input_path_model.hpp
 msgid "How dofscroll reads the SpaceMouse. Automatic: through the interface of the official 3Dconnexion driver when the driver is installed, otherwise directly. 3Dconnexion driver: always through the installed driver. Direct (HID): always directly, without the driver. The driver itself keeps running for your CAD programs in every case. A change takes effect within a few seconds."
-msgstr "So liest dofscroll die SpaceMouse. Automatisch: über die Schnittstelle des offiziellen 3Dconnexion-Treibers, wenn der Treiber installiert ist, sonst direkt. 3Dconnexion-Treiber: immer über den installierten Treiber. Direkt (HID): immer direkt, ohne den Treiber. Der Treiber selbst läuft in jedem Fall für Ihre CAD-Programme weiter. Eine Änderung wirkt innerhalb weniger Sekunden."
+msgstr "So liest dofscroll die SpaceMouse. Automatisch: über die Schnittstelle des offiziellen 3Dconnexion-Treibers, wenn der Treiber installiert ist, sonst direkt. 3Dconnexion-Treiber: immer über den installierten Treiber. Direkt (HID): immer direkt, ohne den Treiber. Der Treiber selbst läuft in jedem Fall für deine CAD-Programme weiter. Eine Änderung wirkt innerhalb weniger Sekunden."
 
 #: src/ui/model/input_path_model.hpp
 msgid "Active input: not known yet"
@@ -3147,7 +3147,7 @@ msgstr "Ausgeschaltet: die Datei bleibt erhalten, wird aber nicht benutzt"
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Copy of a shipped example, not used: the built-in one applies. You can remove this file."
-msgstr "Kopie eines mitgelieferten Beispiels, nicht benutzt: das eingebaute gilt. Sie können diese Datei entfernen."
+msgstr "Kopie eines mitgelieferten Beispiels, nicht benutzt: das eingebaute gilt. Du kannst diese Datei entfernen."
 
 #: src/ui/qt/pages/extensions_page.cpp
 msgid "Delete this copy of a shipped example (nothing changes, the built-in one applies)"
@@ -3391,7 +3391,7 @@ msgstr "Tasten: %1"
 
 #: src/ui/qt/pages/modes_page.cpp
 msgid "Each joystick mode says what the six motions of the cap and the buttons do. Pick one for a profile on the Profiles page."
-msgstr "Jeder Joystick-Modus legt fest, was die sechs Bewegungen der Kappe und die Tasten bewirken. Wählen Sie auf der Seite Profile einen für ein Profil aus."
+msgstr "Jeder Joystick-Modus legt fest, was die sechs Bewegungen der Kappe und die Tasten bewirken. Wähle auf der Seite Profile einen für ein Profil aus."
 
 #: src/ui/qt/pages/modes_page.cpp
 msgid "Top line: vertical push, horizontal push, lift / press. Bottom line: vertical tilt, horizontal tilt, twist. A bar ▬ marks a push, a wedge ◢ a tilt, an arrow ↻ the twist. ↕ scroll, ↔ scroll sideways, ⊕ zoom, ⌨ keys, ⇥ one tap per push, ⊘ off, – not used (dashed)."
@@ -3451,7 +3451,7 @@ msgstr "Joystick-Modi zum Durchlaufen"
 
 #: src/ui
 msgid "Tick the joystick modes the button goes through; the numbers show the order"
-msgstr "Haken Sie die Joystick-Modi an, durch die die Taste schaltet; die Nummern zeigen die Reihenfolge"
+msgstr "Hake die Joystick-Modi an, durch die die Taste schaltet; die Nummern zeigen die Reihenfolge"
 
 #: src/ui
 msgid "Move up"
@@ -3491,11 +3491,11 @@ msgstr "Die Liste ist voll (höchstens 32 Joystick-Modi)."
 
 #: src/ui
 msgid "A joystick mode that is missing stays in the file and is skipped; untick it to remove it."
-msgstr "Ein fehlender Joystick-Modus bleibt in der Datei und wird übersprungen; entfernen Sie den Haken, um ihn zu löschen."
+msgstr "Ein fehlender Joystick-Modus bleibt in der Datei und wird übersprungen; entferne den Haken, um ihn zu löschen."
 
 #: src/ui
 msgid "The built-in button modes for the next and the previous joystick mode go through all joystick modes; the built-in cycle-favorites goes through timeline, then normal. Create an editable copy to choose the joystick modes yourself."
-msgstr "Die eingebauten Tasten-Modi für den nächsten und den vorherigen Joystick-Modus schalten durch alle Joystick-Modi; der eingebaute cycle-favorites schaltet durch timeline, dann normal. Erstellen Sie eine bearbeitbare Kopie, um die Joystick-Modi selbst zu wählen."
+msgstr "Die eingebauten Tasten-Modi für den nächsten und den vorherigen Joystick-Modus schalten durch alle Joystick-Modi; der eingebaute cycle-favorites schaltet durch timeline, dann normal. Erstelle eine bearbeitbare Kopie, um die Joystick-Modi selbst zu wählen."
 
 #: src/ui
 msgid "Cycles: %1"
@@ -4307,7 +4307,7 @@ msgid ""
 "now\"; if it does not help, see Troubleshooting in the documentation."
 msgstr ""
 "Das Hintergrundprogramm (der Daemon) konnte nicht gestartet werden. "
-"Versuchen Sie „Jetzt starten“; hilft das nicht, siehe Fehlersuche in der"
+"Versuche „Jetzt starten“; hilft das nicht, siehe Fehlersuche in der"
 " Dokumentation."
 
 #: src/ui/model/setup_guide_model.hpp
@@ -4349,24 +4349,24 @@ msgid ""
 "to do it, run this command in a terminal:"
 msgstr ""
 "Der Treiberdienst der SpaceMouse (spacenavd) läuft nicht. Er muss einmal"
-" als Administrator eingeschaltet werden. Bietet Ihr System dafür keinen "
-"Weg, führen Sie diesen Befehl in einem Terminal aus:"
+" als Administrator eingeschaltet werden. Bietet dein System dafür keinen "
+"Weg, führe diesen Befehl in einem Terminal aus:"
 
 #: src/ui/model/setup_guide_model.hpp
 msgid ""
 "No SpaceMouse found yet. Plug it in (or its wireless receiver) and move "
 "the cap."
 msgstr ""
-"Noch keine SpaceMouse gefunden. Stecken Sie sie (oder ihren "
-"Funkempfänger) an und bewegen Sie die Kappe."
+"Noch keine SpaceMouse gefunden. Stecke sie (oder ihren "
+"Funkempfänger) an und bewege die Kappe."
 
 #: src/ui/model/setup_guide_model.hpp
 msgid ""
 "No SpaceMouse found yet. Plug it in and move the cap. If another program"
 " holds it, close that program."
 msgstr ""
-"Noch keine SpaceMouse gefunden. Stecken Sie sie an und bewegen Sie die "
-"Kappe. Hält ein anderes Programm sie fest, schließen Sie dieses "
+"Noch keine SpaceMouse gefunden. Stecke sie an und bewege die "
+"Kappe. Hält ein anderes Programm sie fest, schließe dieses "
 "Programm."
 
 #: src/ui/model/setup_guide_model.hpp
@@ -4387,7 +4387,7 @@ msgid ""
 " anything."
 msgstr ""
 "dofscroll bei der Anmeldung starten, damit die SpaceMouse funktioniert, "
-"ohne dass Sie etwas öffnen müssen."
+"ohne dass du etwas öffnen musst."
 
 #: src/ui/model/setup_guide_model.hpp
 msgid "Permission: Input Monitoring"
@@ -4419,7 +4419,7 @@ msgid ""
 "arrive. Switch on dofscroll in the list that opens."
 msgstr ""
 "Fehlt: macOS lässt dofscroll die SpaceMouse nicht lesen, deshalb kommen "
-"keine Ereignisse an. Schalten Sie dofscroll in der Liste ein, die sich "
+"keine Ereignisse an. Schalte dofscroll in der Liste ein, die sich "
 "öffnet."
 
 #: src/ui/model/setup_guide_model.hpp
@@ -4428,13 +4428,13 @@ msgid ""
 "dofscroll sends. Switch on dofscroll in the list that opens."
 msgstr ""
 "Fehlt: macOS nimmt die Scroll-, Zoom- und Tastenereignisse nicht an, die"
-" dofscroll sendet. Schalten Sie dofscroll in der Liste ein, die sich "
+" dofscroll sendet. Schalte dofscroll in der Liste ein, die sich "
 "öffnet."
 
 #: src/ui/model/setup_guide_model.hpp
 msgid "If it is not in the list, add this file with the + button: %1"
 msgstr ""
-"Steht es nicht in der Liste, fügen Sie diese Datei mit der Schaltfläche "
+"Steht es nicht in der Liste, füge diese Datei mit der Schaltfläche "
 "+ hinzu: %1"
 
 #: src/ui/model/setup_guide_model.hpp
@@ -4446,8 +4446,8 @@ msgid ""
 "Push the cap: the window under the mouse pointer scrolls. Twist it: the "
 "window zooms."
 msgstr ""
-"Schieben Sie die Kappe: Das Fenster unter dem Mauszeiger scrollt. Drehen"
-" Sie sie: Das Fenster zoomt."
+"Schiebe die Kappe: Das Fenster unter dem Mauszeiger scrollt. Drehe"
+" sie: Das Fenster zoomt."
 
 #: src/ui/qt/pages/setup_guide_dialog.cpp
 msgid "Set up dofscroll"
@@ -4504,7 +4504,7 @@ msgid ""
 "Everything is set up. You can close this guide; it can be opened again "
 "from the Overview."
 msgstr ""
-"Alles ist eingerichtet. Sie können diese Hilfe schließen; auf der "
+"Alles ist eingerichtet. Du kannst diese Hilfe schließen; auf der "
 "Übersicht lässt sie sich wieder öffnen."
 
 #: src/ui/qt/pages/setup_guide_dialog.cpp
