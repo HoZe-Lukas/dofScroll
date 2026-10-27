@@ -58,6 +58,12 @@ reports, once.
 The driver cleanup is highlighted on the website (English and German) and in the wiki. New workflow
 `tag-release` creates the release tag from the Actions tab ([releasing.md](releasing.md)).
 
+## Thanks
+
+Thanks to @codingkoala for the reports with logs and reproductions on Ubuntu 26.04 (#191, #192, #193) and for the
+two fixes in this release: the user units on AppArmor systems (#194) and the empty settings window under a
+decimal-comma locale (#195).
+
 ## Not verified
 
 The cleanup dialog (ticking several rows with mouse and keyboard, backup and restore against a real driver
