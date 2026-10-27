@@ -10,8 +10,10 @@
 namespace spn {
 
 // Returns true if something was created (*log = one-line description, may be nullptr).
-// Never overwrites an existing file. See seed.cpp for the search paths.
-bool seedDefaults(std::string *log);
+// Never overwrites an existing file. An existing devices/ or apps/ directory with files counts as an existing
+// configuration. splitLayout: profile sections of the example (the shipped ones have none) are written as
+// files by migrateToSplit (profile_migrate.hpp). See seed.cpp for the search paths.
+bool seedDefaults(std::string *log, bool splitLayout = true);
 
 // Name of the operating system directory under examples/default/ whose dofscroll.conf is seeded:
 // "linux", "windows" or "macos".

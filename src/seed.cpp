@@ -12,6 +12,7 @@
 #include "modes.hpp"
 #include "platform/fs.hpp"
 #include "platform/path_rules.hpp"
+#include "profile_migrate.hpp"
 
 namespace spn {
 namespace {
@@ -90,7 +91,17 @@ const char *seedOsName() {
 
 std::string examplesDir() { return findExamplesDir(); }
 
-bool seedDefaults(std::string *log) {
+// devices/ or apps/ with any entry counts as configured (the split layout, docs/plan-config-split.md).
+static bool dirHasEntries(const std::string &dir) {
+    std::vector<std::string> names;
+    bool capped = false;
+    if (!fs::listDir(dir, 8, &names, &capped)) return false;
+    for (const std::string &n : names)
+        if (n != "." && n != "..") return true;
+    return false;
+}
+
+bool seedDefaults(std::string *log, bool splitLayout) {
     // The joystick modes and button modes are built into the program (builtin_library.hpp), so
     // only the default configuration is copied here.
     const std::string prev = previousConfigPath();
@@ -100,12 +111,23 @@ bool seedDefaults(std::string *log) {
     const std::string cfgFile = cfgDir + "/dofscroll.conf";
 
     if (lexists(cfgFile) || lexists(prev) || lexists(legacyConfigPath())) return false;
+    if (dirHasEntries(cfgDir + "/devices") || dirHasEntries(cfgDir + "/apps")) return false;
 
     const std::string ex = findExamplesDir();
     if (ex.empty()) return false;
     if (!mkdirs(cfgDir)) return false;
     if (!copyFile(ex + "/default/" + seedOsName() + "/dofscroll.conf", cfgFile)) return false;
-    if (log) *log = "seeded default config into " + cfgDir + " from " + ex;
+    std::string note;
+    if (splitLayout) {
+        // The shipped example is a valid single file; the same code path as the upgrade turns profile sections
+        // (if an example has any) into files. No backup: the source is the shipped example.
+        MigrateOptions mo;
+        mo.backup = false;
+        const MigrateResult m = migrateToSplit(cfgDir, mo);
+        if (m.status == MigrateStatus::Migrated) note = " (profiles written as files)";
+        else if (!m.ok()) note = " (split layout not made: " + m.error + ")";
+    }
+    if (log) *log = "seeded default config into " + cfgDir + " from " + ex + note;
     return true;
 }
 

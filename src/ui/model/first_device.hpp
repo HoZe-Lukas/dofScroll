@@ -10,6 +10,7 @@
 #pragma once
 #include <string>
 
+#include "profile_files.hpp"
 #include "ui/model/device_source_model.hpp"
 #include "ui/model/settings_model.hpp"
 
@@ -27,6 +28,30 @@ inline bool addFirstDeviceProfile(SettingsModel &m, const std::string &statusDev
     const size_t idx = m.addSection(Section::DEVICE, devs.front().name, err);
     if (idx == ProfileSet::npos) return false;
     return m.setButton(idx, 1, "nav", err);
+}
+
+// The same for the split layout (docs/plan-config-split.md): the profile is written as devices/<slug>.conf.
+// True if the file was written. False: no device known, any device profile exists already (file or legacy
+// section), the configuration cannot be read, or the write failed (*err). Nothing else is touched.
+inline bool writeFirstDeviceProfileFile(const std::string &configDir, const std::string &statusDevice, std::string *err) {
+    DeviceSourceModel src;
+    src.setStatusDevice(statusDevice);
+    const std::vector<DeviceInfo> devs = src.devices();
+    if (devs.empty() || devs.front().name.empty()) return false;
+    ProfileSet ps;
+    std::vector<FileDiag> diag;
+    if (!loadProfileTree(configDir, &ps, &diag)) return false;
+    for (const Section &s : ps.sections)
+        if (s.kind == Section::DEVICE) return false;
+    for (const FileDiag &d : diag)  // a defective device file is not in `ps` but is still somebody's profile
+        if (d.origin == FileDiag::PROFILE_FILE && d.kind == Section::DEVICE) return false;
+    ProfileSet one;
+    const size_t idx = one.findOrAdd(Section::DEVICE, devs.front().name);
+    if (idx == ProfileSet::npos) return false;
+    one.sections[idx].kv.emplace_back("BUTTON_1", "nav");
+    const WriteResult w = saveProfileFile(configDir, one.sections[idx], nullptr);
+    if (!w.ok() && err) *err = w.error;
+    return w.ok();
 }
 
 }  // namespace spn::ui

@@ -18,6 +18,7 @@
 #include "platform/fs.hpp"
 #include "platform/path_rules.hpp"
 #include "profile_match.hpp"
+#include "profile_files.hpp"
 #include "seed.hpp"
 #include "testutil.hpp"
 #include "ui/model/mode_catalog.hpp"
@@ -404,12 +405,16 @@ void testSeeding(const std::string &root) {
     tu::setEnv("DOFSCROLL_EXAMPLES", ex);
     std::string log;
     assert(seedDefaults(&log));
-    assert(readAll(base + "/dofscroll/dofscroll.conf") == readAll(ex + "/default/" + seedOsName() + "/dofscroll.conf"));
+    // the new layout: [global] in dofscroll.conf, the profile in its own file (UTF-8 name kept in the header)
+    assert(readAll(base + "/dofscroll/dofscroll.conf") == "[global]\nMODE = normal\n");
+    assert(readAll(base + "/dofscroll/apps/m\xc3\xbcller tool.conf") == "[app:M\xc3\xbcller Tool]\nMODE = off\n");
     assert(!fs::pathExists(base + "/dofscroll/modes"));  // modes are built in, never copied
     assert(log.find("cfg home") != std::string::npos && utf8::isValid(log));
     ProfileSet ps;
     std::vector<std::string> warn;
-    assert(loadProfiles(base + "/dofscroll/dofscroll.conf", &ps, &warn) && warn.empty());
+    std::vector<FileDiag> diag;
+    assert(loadProfileTree(base + "/dofscroll", &ps, &diag));
+    for (const FileDiag &d : diag) assert(d.warnings.empty() && !d.fatal);
     assert(ps.find(Section::APP, "m\xc3\xbcller tool") == 1);
     tu::unsetEnv("DOFSCROLL_EXAMPLES");
 }
