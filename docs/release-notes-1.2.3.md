@@ -78,6 +78,7 @@ them is in [security.md](security.md).
 - New workflow `tag-release` creates the release tag from the Actions tab (#182, [releasing.md](releasing.md))
 - Website (English and German) and wiki: the driver cleanup, Windows status after the first tests on a real
   machine (#188)
+- macOS: survey procedure and a read-only helper script (`scripts/macos-driver-survey.sh`) to collect the format of the driver's per-program settings (#200, for #184)
 - Build inputs: refreshed CI pins, brotli 1.2.1 (#198); CodeQL action 4.39.1 (#196)
 
 ## Thank you
@@ -99,5 +100,8 @@ directives still need a human.
 - The interface assumes the Linux axis names (`y` = lift/press, `ry` = twist). With the official driver on Windows
   the axes are named differently, so the lift/press warning on the Channels page and the labels of the motion
   editor and motion help can be wrong there. The scrolling itself is not affected. Tracked in issue #186.
+- The driver cleanup is available on Windows only. For macOS the location and format of the driver's per-program
+  settings are not documented well enough to change them safely; the survey procedure in
+  [windows-mac.md](windows-mac.md) collects them. Tracked in issue #184.
 - `dofscroll-ui --self-test` still fails on a real Wayland session at the info popover check (the grabbing popup
   is refused); the normal use of the interface is not affected. Tracked in issue #193.
