@@ -4996,3 +4996,47 @@ msgstr "Zeilen, die sich nicht lesen ließen, wurden weggelassen."
 #: src/ui/qt/main.cpp
 msgid "Your profiles are now one file each. The old configuration file is kept as backup/dofscroll.conf.pre-split."
 msgstr "Deine Profile liegen jetzt in je einer Datei. Die alte Konfigurationsdatei ist als backup/dofscroll.conf.pre-split gesichert."
+
+#: src/ui
+msgid "could not read the folder %1: nothing is written until it can be read again"
+msgstr "konnte den Ordner %1 nicht lesen: Es wird nichts geschrieben, bis er wieder lesbar ist"
+
+#: src/ui
+msgid "This profile presses shortcut chords (Ctrl, Alt, Super) when a button is pressed or the mouse is moved. Only keep profile files from sources you trust and read the file first."
+msgstr "Dieses Profil drückt Tastenkombinationen (Strg, Alt, Super), wenn eine Taste gedrückt oder die Maus bewegt wird. Behalte Profildateien nur aus Quellen, denen du vertraust, und lies die Datei vorher."
+
+#: src/ui
+msgid "PRIORITY was not imported: the order of your profiles stays as it is."
+msgstr "PRIORITY wurde nicht importiert: Die Reihenfolge deiner Profile bleibt, wie sie ist."
+
+#: src/ui
+msgid "%1 was not imported (an imported profile does not switch the output off or change how events are sent)."
+msgstr "%1 wurde nicht importiert (ein importiertes Profil schaltet die Ausgabe nicht ab und ändert nicht, wie Ereignisse gesendet werden)."
+
+#: src/ui
+msgid "It presses shortcut chords (Ctrl, Alt, Super) when a button is pressed or the mouse is moved."
+msgstr "Es drückt Tastenkombinationen (Strg, Alt, Super), wenn eine Taste gedrückt oder die Maus bewegt wird."
+
+#: src/ui
+msgid "Its name \"%1\" is very short, so it matches almost every %2."
+msgstr "Sein Name „%1“ ist sehr kurz und passt deshalb auf fast jedes %2."
+
+#: src/ui
+msgid "Could not read the folder %1: %2 Nothing is written until it can be read again."
+msgstr "Der Ordner %1 konnte nicht gelesen werden: %2 Es wird nichts geschrieben, bis er wieder lesbar ist."
+
+#: src/ui
+msgid "%1 (cannot be read)"
+msgstr "%1 (nicht lesbar)"
+
+#: src/ui
+msgid "Add the profile \"%1\"?"
+msgstr "Das Profil „%1“ hinzufügen?"
+
+#: src/ui
+msgid "Only keep profile files from sources you trust and read the file first."
+msgstr "Behalte Profildateien nur aus Quellen, denen du vertraust, und lies die Datei vorher."
+
+#: src/ui
+msgid "Import the profile"
+msgstr "Profil importieren"

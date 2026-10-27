@@ -27,6 +27,7 @@ struct ProfileEntry {
     int priority = 0;        // PRIORITY (the order inside the group)
     // A profile file that is not loaded: `section` is meaningless (npos), `file` is its name and `message` the reason.
     bool defective = false;
+    bool directory = false;  // a whole folder that cannot be read (file = its name)
     bool duplicate = false;  // defective because another file holds the same profile
     bool legacyActive = false;  // the profile of this name is still read from dofscroll.conf
     std::string file;        // base name of the defective file
@@ -53,6 +54,7 @@ public:
             ProfileEntry e{ProfileSet::npos, d.kind, d.name, false};
             e.defective = true;
             e.duplicate = d.duplicate;
+            e.directory = d.directory;
             e.legacyActive = d.legacyActive;
             const size_t k = d.file.find_last_of('/');
             e.file = k == std::string::npos ? d.file : d.file.substr(k + 1);

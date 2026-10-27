@@ -13,6 +13,7 @@
 #include "platform/fs.hpp"
 #include "profile_files.hpp"
 #include "testutil.hpp"
+#include "ui/model/display_text.hpp"
 #include "ui/model/first_device.hpp"
 #include "ui/model/first_start.hpp"
 #include "ui/model/profile_export.hpp"
@@ -482,6 +483,27 @@ static void testFirstStartAndFirstDevice() {
     tu::removeAll(root);
 }
 
+static void testHostileImportAndDisplay() {
+    const std::string d = makeDir("split-model-hostile");
+    put(d + "/dofscroll.conf", "[global]\n");
+    put(d + "/apps/mine.conf", "[app:mine]\nPRIORITY = 50\n");
+    SettingsModel m = load(d);
+    std::string err;
+    put(d + "/h.conf", "[app:e]\nPRIORITY = 1000\nENABLED = 0\nTICK_HZ = 30\nBACKEND = x11\nBUTTON_1 = key:ctrl+alt+delete\n");
+    ImportPlan p = planProfileImport(m, d + "/h.conf", id);
+    assert(p.ok && p.needsConfirm() && p.risks.size() == 2 && p.notes.size() == 4 && p.keys.size() == 1);
+    assert(has(p.risks[0] + p.risks[1], "very short") && has(p.risks[0] + p.risks[1], "chords"));
+    assert(applyProfileImport(m, p, ImportChoice::Replace, id).done);
+    const size_t e = m.profiles().find(Section::APP, "e");
+    assert(m.priority(e) == 0 && m.priority(m.profiles().find(Section::APP, "mine")) == 50);
+    assert(order(m, Section::APP) == "e,mine");  // never applied after (above) the user's own profile
+    assert(m.save(id).saved && !has(get(d + "/apps/e.conf"), "ENABLED") && !has(get(d + "/apps/e.conf"), "TICK_HZ"));
+    assert(!m.chordNote(e, id).empty() && m.chordNote(m.profiles().find(Section::APP, "mine"), id).empty());
+    // spoofing characters are not displayed
+    assert(displayText(std::string("a\xE2\x80\xAE" "b\xE2\x80\x8B" "c\x1b[31m")) == "abc[31m");
+    tu::removeAll(d);
+}
+
 static void testStateAcrossEdits() {
     // removing and adding keep the file bookkeeping straight (section indexes shift)
     const std::string d = makeDir("split-model-state");
@@ -519,5 +541,6 @@ int main() {
 #endif
     testFirstStartAndFirstDevice();
     testStateAcrossEdits();
+    testHostileImportAndDisplay();
     return 0;
 }

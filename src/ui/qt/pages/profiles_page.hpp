@@ -28,6 +28,7 @@
 #include "profiles_env.hpp"
 #include "ui/model/device_source_model.hpp"
 #include "ui/model/live_feed_model.hpp"
+#include "ui/model/profile_import.hpp"
 #include "ui/model/profile_tree_model.hpp"
 #include "ui_context.hpp"
 
@@ -133,7 +134,7 @@ private:
     QWidget *buildModeInfo(size_t section);
     QWidget *buildOverrides(size_t section);
     void problem(const QString &text);  // a message for the status bar
-    bool doImport(const QString &file, const std::function<int(const QString &name)> &chooseOnCollision);  // 1 replace, 0 keep
+    bool doImport(const QString &file, const std::function<int(const spn::ui::ImportPlan &)> &ask);  // 1 go on / replace, 0 keep the existing, -1 cancel
     QString defectText(const spn::ui::ProfileEntry &e) const;
     const spn::ui::StringProvider &strings() const;
 

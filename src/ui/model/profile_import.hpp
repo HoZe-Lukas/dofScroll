@@ -14,6 +14,7 @@
 #include "config.hpp"
 #include "platform/fs.hpp"
 #include "profile_files.hpp"
+#include "utf8.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/strings.hpp"
 
@@ -28,6 +29,12 @@ struct ImportPlan {
     bool collision = false;            // a profile of this kind and name exists already
     size_t existing = ProfileSet::npos;  // its section index
     std::vector<std::string> warnings;   // lines the parser skipped (they are not imported)
+    // Things the user must see and agree to before the profile is added (in words, translated): a very short name
+    // that matches almost everything, key chords with Ctrl, Alt or Super. Settings that are dropped (ENABLED,
+    // BACKEND, TICK_HZ, INPUT, PRIORITY) are listed in `notes` and need no confirmation.
+    std::vector<std::string> risks;
+    std::vector<std::string> notes;
+    bool needsConfirm() const { return collision || !risks.empty(); }
 };
 
 enum class ImportChoice { Replace, Keep };
@@ -66,7 +73,17 @@ inline ImportPlan planProfileImport(const SettingsModel &m, const std::string &f
     p.name = sec.pattern;
     Settings t;
     for (const KV &kv : sec.kv) {
-        if (kv.first == "PRIORITY") continue;
+        const std::string uk = utf8::upperAscii(kv.first);
+        if (uk == "PRIORITY") {
+            p.notes.push_back(s.tr("PRIORITY was not imported: the order of your profiles stays as it is."));
+            continue;
+        }
+        if (uk == "ENABLED" || uk == "BACKEND" || uk == "TICK_HZ" || uk == "INPUT") {
+            p.notes.push_back(format(s.tr("%1 was not imported (an imported profile does not switch the output off or change how events are sent)."), {uk}));
+            continue;
+        }
+        if (SettingsModel::isRiskyChord(kv.second) && p.risks.empty())
+            p.risks.push_back(s.tr("It presses shortcut chords (Ctrl, Alt, Super) when a button is pressed or the mouse is moved."));
         std::string e;
         if (!applyKey(t, kv.first, kv.second, &e)) {
             p.error = format(s.tr("The setting %1 = %2 is not valid: %3"), {kv.first, kv.second, e});
@@ -74,6 +91,10 @@ inline ImportPlan planProfileImport(const SettingsModel &m, const std::string &f
         }
         p.keys.push_back(kv);
     }
+    size_t chars = 0;
+    for (unsigned char c : p.name) chars += (c & 0xc0) != 0x80;
+    if (chars < 3)
+        p.risks.push_back(format(s.tr("Its name \"%1\" is very short, so it matches almost every %2."), {p.name, p.kind == Section::APP ? s.tr("program") : s.tr("device")}));
     p.existing = m.profiles().find(p.kind, p.name);
     p.collision = p.existing != ProfileSet::npos;
     p.ok = true;
@@ -102,7 +123,7 @@ inline ImportResult applyProfileImport(SettingsModel &m, const ImportPlan &p, Im
         r.message = format(s.tr("The profile \"%1\" was replaced by the imported one."), {p.name});
         return r;
     }
-    const size_t idx = m.addSection(p.kind, p.name, &err);
+    const size_t idx = m.addSection(p.kind, p.name, &err, false);  // an imported profile never outranks your own
     if (idx == ProfileSet::npos) {
         r.message = format(s.tr("The profile \"%1\" could not be imported: %2"), {p.name, err});
         return r;

@@ -103,7 +103,7 @@ QStringList ProfilesPage::profileListLabels() const {
 
 QString ProfilesPage::treeLabel(size_t section) const {
     const SettingsModel::SectionInfo info = ctx_.settings->sections()[section];
-    return section == 0 ? T("Global") : qs8(spn::ui::profileListLabel(info.pattern, ctx_.settings->overrideCount(section)));
+    return section == 0 ? T("Global") : qs8(spn::ui::profileListLabel(spn::ui::displayText(info.pattern), ctx_.settings->overrideCount(section)));
 }
 
 ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(parent), ctx_(ctx) {
@@ -297,6 +297,8 @@ const spn::ui::StringProvider &ProfilesPage::strings() const {
 
 // The words about a defective profile file: it is not used, it is never overwritten while the problem stands.
 QString ProfilesPage::defectText(const ProfileEntry &e) const {
+    if (e.directory)
+        return T("Could not read the folder %1: %2 Nothing is written until it can be read again.").arg(qs8(e.file), qs8(e.message));
     QString t = e.duplicate ? T("The file %1 is ignored: another file already holds this profile. It is never overwritten: %2")
                                   .arg(qs8(e.file), qs8(e.message))
                             : T("The file %1 is defective and is not used. It is never overwritten while the problem stands: %2")
@@ -338,7 +340,7 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
                 group->setFlags(Qt::ItemIsEnabled);
                 group->setExpanded(true);
             }
-            it = new QTreeWidgetItem(group, QStringList(T("%1 (defective)").arg(qs8(e.file))));
+            it = new QTreeWidgetItem(group, QStringList(e.directory ? T("%1 (cannot be read)").arg(qs8(e.file)) : T("%1 (defective)").arg(qs8(e.file))));
             it->setToolTip(0, defectText(e));
             it->setFlags(Qt::ItemIsEnabled);
             defects << defectText(e);
@@ -354,7 +356,7 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
                 group->setExpanded(true);
             }
             const size_t n = ctx_.settings->overrideCount(e.section);
-            it = new QTreeWidgetItem(group, QStringList(qs8(profileListLabel(e.pattern, n))));
+            it = new QTreeWidgetItem(group, QStringList(qs8(profileListLabel(spn::ui::displayText(e.pattern), n))));
             it->setToolTip(0, qs8(profileOverrideCountText(n, *sp) + "\n" + ctx_.settings->orderText(e.section, *sp)));
         }
         it->setIcon(0, themedIcon(iconResource(e.kind), iconColor, tk::kIconSize));
@@ -528,11 +530,12 @@ void ProfilesPage::rebuildHeader() {
     const int px = tk::kIconSize * 3 / 2;
     const QIcon ic = themedIcon(iconResource(info.kind), palette().color(QPalette::WindowText), px);
     headerIcon_->setPixmap(ic.pixmap(px, px));
-    headerName_->setText(section == 0 ? T("Global") : qs8(info.pattern));
+    headerName_->setText(section == 0 ? T("Global") : qs8(spn::ui::displayText(info.pattern)));
     const spn::ui::IdentityStrings fallback;
     std::string note = spn::ui::headerExplanation(section, info.kind, ctx_.strings ? *ctx_.strings : fallback);
     // what the last save or load found about this profile, and a profile kept in dofscroll.conf because its file is defective
-    for (const std::string &extra : {ctx_.settings->legacyHint(section, strings()), ctx_.settings->profileProblem(section)})
+    for (const std::string &extra : {ctx_.settings->legacyHint(section, strings()), ctx_.settings->profileProblem(section),
+                                     ctx_.settings->chordNote(section, strings())})
         if (!extra.empty()) note += "\n" + extra;
     headerNote_->setText(qs8(note));
     headerKind_->setText(section == 0                   ? T("Global profile")
@@ -1235,19 +1238,22 @@ bool ProfilesPage::exportSelected(const QString &file) {
 }
 
 // The file is read and checked completely before the model changes; the autosave then writes the new profile file.
-bool ProfilesPage::doImport(const QString &file, const std::function<int(const QString &)> &chooseOnCollision) {
+bool ProfilesPage::doImport(const QString &file, const std::function<int(const spn::ui::ImportPlan &)> &ask) {
     const spn::ui::ImportPlan plan = spn::ui::planProfileImport(*ctx_.settings, file.toUtf8().toStdString(), strings());
     if (!plan.ok) {
         problem(qs8(plan.error));
         return false;
     }
-    spn::ui::ImportChoice choice = spn::ui::ImportChoice::Replace;
-    if (plan.collision && chooseOnCollision(qs8(plan.name)) == 0) choice = spn::ui::ImportChoice::Keep;
-    const spn::ui::ImportResult r = spn::ui::applyProfileImport(*ctx_.settings, plan, choice, strings());
+    int choice = 1;
+    if (plan.needsConfirm()) choice = ask(plan);
+    if (choice < 0) return false;
+    const spn::ui::ImportResult r = spn::ui::applyProfileImport(
+        *ctx_.settings, plan, choice == 1 ? spn::ui::ImportChoice::Replace : spn::ui::ImportChoice::Keep, strings());
     if (r.done) ctx_.saveSoon();
     if (r.section != ProfileSet::npos) rebuildTree(r.section);
     if (r.done || plan.collision) {
         QString text = qs8(r.message);
+        for (const std::string &n : plan.notes) text += QLatin1Char(' ') + qs8(n);
         if (!plan.warnings.empty()) text += QLatin1Char(' ') + T("Lines that could not be read were left out.");
         ctx_.report(text, false);
     } else {
@@ -1257,7 +1263,7 @@ bool ProfilesPage::doImport(const QString &file, const std::function<int(const Q
 }
 
 bool ProfilesPage::importFrom(const QString &file, bool replaceOnCollision) {
-    return doImport(file, [replaceOnCollision](const QString &) { return replaceOnCollision ? 1 : 0; });
+    return doImport(file, [replaceOnCollision](const spn::ui::ImportPlan &p) { return p.collision && !replaceOnCollision ? 0 : 1; });
 }
 
 void ProfilesPage::importProfile() {
@@ -1265,18 +1271,26 @@ void ProfilesPage::importProfile() {
     const QString file = QFileDialog::getOpenFileName(this, T("Import profile"), dir,
                                                       T("Configuration files (*.conf);;All files (*)"));
     if (file.isEmpty()) return;
-    doImport(file, [this](const QString &name) {
-        // asked once, in words: nothing is overwritten without this choice
-        QMessageBox box(QMessageBox::Question, T("Import profile"),
-                        T("A profile \"%1\" exists already. Replace its settings with the imported ones, or keep the "
-                          "existing profile and drop the imported file?")
-                            .arg(name),
-                        QMessageBox::NoButton, this);
-        QPushButton *replace = box.addButton(T("Replace the existing profile"), QMessageBox::DestructiveRole);
-        QPushButton *keep = box.addButton(T("Keep the existing profile"), QMessageBox::RejectRole);
+    doImport(file, [this](const spn::ui::ImportPlan &p) {
+        // asked once, in words, with everything the file would do: nothing is added or overwritten without this choice
+        const QString name = qs8(spn::ui::displayText(p.name));
+        QString text;
+        if (p.collision)
+            text = T("A profile \"%1\" exists already. Replace its settings with the imported ones, or keep the existing "
+                     "profile and drop the imported file?").arg(name);
+        else
+            text = T("Add the profile \"%1\"?").arg(name);
+        for (const std::string &r : p.risks) text += QStringLiteral("\n\n") + qs8(r);
+        if (!p.risks.empty())
+            text += QStringLiteral("\n\n") + T("Only keep profile files from sources you trust and read the file first.");
+        for (const std::string &n : p.notes) text += QStringLiteral("\n") + qs8(n);
+        QMessageBox box(QMessageBox::Question, T("Import profile"), text, QMessageBox::NoButton, this);
+        QPushButton *go = box.addButton(p.collision ? T("Replace the existing profile") : T("Import the profile"),
+                                        p.collision ? QMessageBox::DestructiveRole : QMessageBox::AcceptRole);
+        QPushButton *keep = box.addButton(p.collision ? T("Keep the existing profile") : T("Cancel"), QMessageBox::RejectRole);
         box.setDefaultButton(keep);
         box.exec();
-        return box.clickedButton() == replace ? 1 : 0;
+        return box.clickedButton() == go ? 1 : (p.collision ? 0 : -1);
     });
 }
 

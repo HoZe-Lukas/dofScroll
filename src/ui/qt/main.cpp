@@ -63,6 +63,7 @@
 
 #include "driver_platform.hpp"
 #include "main_window.hpp"
+#include "ui/model/display_text.hpp"
 #include "motion_view.hpp"
 #include "vertical_tabs.hpp"
 #include "pages/add_app_dialog.hpp"
@@ -3927,9 +3928,13 @@ int main(int argc, char **argv) {
     QObject::connect(&window, &MainWindow::quitRequested, &app, &QApplication::quit);
     window.enableStatePersistence(spn::ui::uiSettingsPath());  // size, position and page of the last run
     // The one informational line of the migration to one file per profile (also in the log above): once.
-    if (firstStart.split.status == spn::MigrateStatus::Migrated)
-        window.showStartupInfo(T("Your profiles are now one file each. The old configuration file is kept as "
-                                 "backup/dofscroll.conf.pre-split."));
+    if (firstStart.split.status == spn::MigrateStatus::Migrated) {
+        QString line = T("Your profiles are now one file each. The old configuration file is kept as "
+                         "backup/dofscroll.conf.pre-split.");
+        for (const std::string &w : firstStart.split.warnings)  // e.g. profiles whose old values differ from an existing file
+            line += QLatin1Char(' ') + qs8(spn::ui::displayText(w, 300));
+        window.showStartupInfo(line);
+    }
     Tray tray(&window, icon, ctx);
     tray.show();
     // The daemon is started from here when none runs (after the grace period of a login autostart,

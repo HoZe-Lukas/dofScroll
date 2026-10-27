@@ -80,6 +80,7 @@
 #include "platform/fs.hpp"
 #include "profile_files.hpp"
 #include "ui/model/action_runner.hpp"
+#include "ui/model/display_text.hpp"
 #include "ui/model/strings.hpp"
 
 namespace spn::ui {
@@ -207,9 +208,9 @@ public:
             if (!d.fatal || (d.origin != FileDiag::PROFILE_FILE && d.origin != FileDiag::DIRECTORY)) continue;
             Defect x;
             x.kind = d.kind;
-            x.name = d.name;
-            x.file = d.path;
-            for (const std::string &w : d.warnings) x.message += (x.message.empty() ? "" : "; ") + w;
+            x.name = displayText(d.name);
+            x.file = displayText(d.path, 400);
+            for (const std::string &w : d.warnings) x.message += (x.message.empty() ? "" : "; ") + displayText(w, 400);
             x.directory = d.origin == FileDiag::DIRECTORY;
             if (!x.directory) {
                 for (size_t i = 1; i < ps_.sections.size() && i < st_.size(); ++i) {
@@ -232,6 +233,26 @@ public:
         return format(s.tr("This profile is still read from dofscroll.conf because its own file %1 is defective. The "
                            "file is not touched; fix or remove it to use the profile file again."),
                       {baseName(d->path)});
+    }
+    // A key binding with Ctrl, Alt or Super (or Cmd) in this profile.
+    static bool isRiskyChord(const std::string &value) {
+        const std::string v = utf8::lowerAscii(value);
+        for (const char *m : {"ctrl+", "alt+", "super+", "cmd+", "meta+", "win+", "control+"})
+            if (v.find(m) != std::string::npos) return true;
+        return false;
+    }
+    bool bindsRiskyChord(size_t i) const {
+        if (i == 0 || i >= ps_.sections.size()) return false;
+        for (const KV &kv : ps_.sections[i].kv)
+            if (isRiskyChord(kv.second)) return true;
+        return false;
+    }
+    // The risk wording for a profile that binds such a chord ("" if it does not); the same idea as the note of the
+    // joystick mode editor.
+    std::string chordNote(size_t i, const StringProvider &s) const {
+        if (!bindsRiskyChord(i)) return std::string();
+        return s.tr("This profile presses shortcut chords (Ctrl, Alt, Super) when a button is pressed or the mouse is "
+                    "moved. Only keep profile files from sources you trust and read the file first.");
     }
     // What the last save or load found about this profile (a refused write, a changed file, ...): "" if nothing.
     std::string profileProblem(size_t i) const {
@@ -298,7 +319,7 @@ public:
             return ps_.sections[i].kind == Section::APP
                        ? s.tr("This is the only program profile, so there is no order to think about.")
                        : s.tr("This is the only device profile, so there is no order to think about.");
-        auto nm = [&](size_t k) { return "\"" + ps_.sections[o[k]].pattern + "\""; };
+        auto nm = [&](size_t k) { return "\"" + displayText(ps_.sections[o[k]].pattern) + "\""; };
         std::string t;
         if (pos > 0) t += format(s.tr("Applied after %1, so it wins over %1 where both match."), {nm(pos - 1)});
         else t += s.tr("Applied first, so every other profile of this kind wins over it where both match.");
@@ -493,7 +514,7 @@ public:
     size_t sectionCount() const { return ps_.sections.size(); }
     // Adds (or finds) a DEVICE/APP section. npos + *err for an invalid pattern, kind GLOBAL or
     // too many sections.
-    size_t addSection(Section::Kind kind, const std::string &pattern, std::string *err) {
+    size_t addSection(Section::Kind kind, const std::string &pattern, std::string *err, bool appliedLast = true) {
         if (kind == Section::GLOBAL) return fail(err, "[global] already exists");
         size_t idx = ps_.find(kind, pattern);
         if (idx != ProfileSet::npos) return idx;
@@ -532,7 +553,7 @@ public:
         }
         t.dirty = true;
         problems_.erase(keyOf(kind, norm));
-        if (same > 0 && maxPrio > 0) {
+        if (appliedLast && same > 0 && maxPrio > 0) {
             if (maxPrio + 10 <= kMaxPriority) ps_.sections[idx].kv.emplace_back("PRIORITY", std::to_string(maxPrio + 10));
         }
         resort();
@@ -895,12 +916,20 @@ public:
             for (size_t i = 0; i < errs.size(); ++i) r.error += (i ? "\n" : "") + errs[i];
             return r;
         }
+        // A profile folder that could not be read: nothing is written (the profiles in it are unknown, a write could
+        // replace or duplicate them).
+        for (const FileDiag &d : diags_)
+            if (d.fatal && d.origin == FileDiag::DIRECTORY) {
+                r.error = format(s.tr("could not read the folder %1: nothing is written until it can be read again"),
+                                 {displayText(d.path, 400)});
+                return r;
+            }
         const std::string dir = configDirOf(path_);
         std::vector<std::string> msgs;
         bool wrote = false, attempted = false;
         auto problem = [&](const Section &sec, const std::string &m) {
             problems_[keyOf(sec.kind, sec.pattern)] = m;
-            msgs.push_back("\"" + sec.pattern + "\": " + m);
+            msgs.push_back("\"" + displayText(sec.pattern) + "\": " + m);
         };
         // 1. one file per changed profile (a profile of the single file moves into its own file once it is edited)
         std::vector<size_t> toSingle;
@@ -941,7 +970,7 @@ public:
                                            "overwritten; the profile was reloaded from it. Repeat your change if you "
                                            "still want it."),
                                       {baseName(w.path)})
-                             : w.error.empty() ? s.tr("cannot write the profile file") : w.error);
+                             : w.error.empty() ? s.tr("cannot write the profile file") : displayText(w.error, 400));
         }
         // 2. profiles that were removed: their files go (only when unchanged since they were read)
         for (size_t k = 0; k < removed_.size();) {
@@ -957,7 +986,7 @@ public:
             ghost.kind = f.kind;
             ghost.pattern = f.name;
             if (w.status == WriteStatus::Failed) {
-                problem(ghost, w.error);
+                problem(ghost, displayText(w.error, 400));
                 ++k;
                 continue;
             }
@@ -966,7 +995,7 @@ public:
                                ? format(s.tr("the file %1 was changed outside the settings window, so it was not "
                                              "removed; the profile was reloaded from it."),
                                         {baseName(w.path)})
-                               : w.error);
+                               : displayText(w.error, 400));
             removed_.erase(removed_.begin() + long(k));
         }
         // 3. dofscroll.conf: [global] plus the profiles that still live in it (only when something there changed)
@@ -1004,7 +1033,7 @@ public:
                                    ? format(s.tr("%1 was changed outside the settings window, so it was not overwritten; "
                                                  "it was reloaded. Repeat your change if you still want it."),
                                             {baseName(w.path)})
-                                   : w.error.empty() ? s.tr("cannot write the configuration") : w.error);
+                                   : w.error.empty() ? s.tr("cannot write the configuration") : displayText(w.error, 400));
             }
         }
         forceAll_ = false;
@@ -1034,7 +1063,8 @@ private:
     struct Removed {
         FileDiag file;
     };
-    static std::string baseName(const std::string &p) {
+    static std::string baseName(const std::string &p0) {
+        const std::string p = displayText(p0, 400);
         const size_t k = p.find_last_of('/');
         return k == std::string::npos ? p : p.substr(k + 1);
     }

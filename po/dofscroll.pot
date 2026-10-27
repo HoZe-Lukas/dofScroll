@@ -2662,3 +2662,47 @@ msgstr ""
 #: src/ui/qt/main.cpp
 msgid "Your profiles are now one file each. The old configuration file is kept as backup/dofscroll.conf.pre-split."
 msgstr ""
+
+#: src/ui
+msgid "could not read the folder %1: nothing is written until it can be read again"
+msgstr ""
+
+#: src/ui
+msgid "This profile presses shortcut chords (Ctrl, Alt, Super) when a button is pressed or the mouse is moved. Only keep profile files from sources you trust and read the file first."
+msgstr ""
+
+#: src/ui
+msgid "PRIORITY was not imported: the order of your profiles stays as it is."
+msgstr ""
+
+#: src/ui
+msgid "%1 was not imported (an imported profile does not switch the output off or change how events are sent)."
+msgstr ""
+
+#: src/ui
+msgid "It presses shortcut chords (Ctrl, Alt, Super) when a button is pressed or the mouse is moved."
+msgstr ""
+
+#: src/ui
+msgid "Its name \"%1\" is very short, so it matches almost every %2."
+msgstr ""
+
+#: src/ui
+msgid "Could not read the folder %1: %2 Nothing is written until it can be read again."
+msgstr ""
+
+#: src/ui
+msgid "%1 (cannot be read)"
+msgstr ""
+
+#: src/ui
+msgid "Add the profile \"%1\"?"
+msgstr ""
+
+#: src/ui
+msgid "Only keep profile files from sources you trust and read the file first."
+msgstr ""
+
+#: src/ui
+msgid "Import the profile"
+msgstr ""

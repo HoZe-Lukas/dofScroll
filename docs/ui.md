@@ -623,7 +623,13 @@ device profile, `[app:...]` a program profile); the file is checked completely b
 Global file, a file with several profiles or with an invalid value is refused with a message. If a profile of that
 name exists already you are asked once in words: "Replace the existing profile" or "Keep the existing profile"
 (nothing is ever overwritten without that choice; the footer says what happened). The `PRIORITY` of the imported
-file is not taken over: a new profile is applied last. Joystick modes and button modes have their own Import.
+file is not taken over and an imported profile is never applied after (above) your own ones; `ENABLED`, `BACKEND`,
+`TICK_HZ` and `INPUT` are dropped too (the dialog lists what was dropped). A very short name (fewer than 3 characters,
+it matches almost every program or device) and key chords with Ctrl, Alt or Super are shown in words and need your
+confirmation before the profile is added; a profile that binds such chords shows the same warning in its header
+("Only keep profile files from sources you trust ..."). Names, file names and messages from files are shown without
+control, zero-width and bidirectional characters. If a profile folder cannot be read, the list says "Could not read the
+folder ..." and nothing is written until it can be read again. Joystick modes and button modes have their own Import.
 
 If a profile file was changed by hand while the window had an edit of that profile, the file is not overwritten:
 the profile is reloaded from the file, the footer says "Could not save: ..." and the same message stays in the
