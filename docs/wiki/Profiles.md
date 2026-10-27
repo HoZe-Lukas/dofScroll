@@ -48,6 +48,10 @@ The editor of the selected profile on the Profiles page has the tabs General (jo
 
 `[global]` is the base; a `[device:*]` or `[app:*]` section holds only what it changes. Precedence: Global < device < joystick mode overrides < program. `MODE`, every channel key and every `BUTTON_<n>` can be set in `[global]` too. Buttons are inherited per button (`BUTTON_<n> = none` in a profile switches an inherited button off there). See [Configuration reference](Configuration-reference). Details: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md).
 
+### Zoom off for one program, other buttons for one program
+
+On the Motions and buttons tab of the program profile select the twist and press **Clear**: the profile gets `ZOOM_SENS = 0` and nothing else, so the program keeps the normal mapping without zoom. **Switch on** brings it back, **Use the inherited setting** removes the line. Push and tilt of a direction are one channel (`SCROLL_V_SENS`, `SCROLL_H_SENS`). For a button choose another action in its row, **Clear** (`BUTTON_<n> = none`, an explicit unbind that overrides the device profile) or **Inherit**; the row says in words where the binding comes from. A profile cannot give a motion another action, that is the joystick mode of the profile (`MODE`). Recipes with the file lines: [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
+
 ## Finding the program name
 
 On X11, run `xprop WM_CLASS` and click the window. The daemon logs every profile switch (`journalctl --user -u dofscroll.service`). On Windows the key is the lower-cased executable name (for example `firefox.exe`); on macOS the bundle identifier or app name. Both are unverified on hardware.

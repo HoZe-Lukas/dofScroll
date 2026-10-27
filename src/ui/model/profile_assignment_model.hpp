@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "ui/model/button_chip_model.hpp"
+#include "ui/model/motion_edit_model.hpp"
 #include "ui/model/motion_summary_model.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/strings.hpp"
@@ -38,7 +39,12 @@ inline ProfileAssignment profileAssignment(const SettingsModel &m, size_t sectio
     // the profile cannot set channel actions: they are the joystick mode's, chosen here or inherited
     const bool modeHere = section == 0 || m.isOverridden(section, "MODE");
     a.motions = motionSummary(*def, settings, s);
-    for (MotionRow &r : a.motions) r.source = modeHere ? s.tr("from the joystick mode") : s.tr("inherited");
+    for (MotionRow &r : a.motions) {
+        r.source = modeHere ? s.tr("from the joystick mode") : s.tr("inherited");
+        // a motion the profile clears (<CH>_SENS = 0 here) says so; never the action it would have
+        const MotionEdit e = motionEdit(m, section, r.id, s);
+        if (e.editable && e.state == MotionState::Cleared) r.source = s.tr("cleared in this profile");
+    }
     // buttons 1..32: a binding of the joystick mode wins over BUTTON_<n> of the profile
     for (int n = 1; n <= int(kMaxButtons); ++n) {
         const ButtonBinding *bound = nullptr;
@@ -49,8 +55,17 @@ inline ProfileAssignment profileAssignment(const SettingsModel &m, size_t sectio
             continue;
         }
         const auto it = settings.buttons.find(n);
-        if (it == settings.buttons.end() || it->second.empty() || it->second == "none") continue;
         const bool own = m.isOverridden(section, "BUTTON_" + std::to_string(n));
+        if (own && section > 0 && (it == settings.buttons.end() || it->second == "none")) {
+            // explicitly nothing in this profile (BUTTON_<n> = none): cleared, even when Global or the device binds it
+            ButtonChip c = buttonChip(n, "none", s.tr("cleared in this profile"), s);
+            c.action = s.tr("Cleared");
+            c.text = std::to_string(n) + " " + c.action;
+            c.tooltip = format(s.tr("Button %1: cleared in this profile, nothing happens"), {std::to_string(n)});
+            a.buttons.push_back(c);
+            continue;
+        }
+        if (it == settings.buttons.end() || it->second.empty() || it->second == "none") continue;
         a.buttons.push_back(buttonChip(n, it->second, own ? s.tr("from this profile") : s.tr("inherited"), s));
     }
     return a;

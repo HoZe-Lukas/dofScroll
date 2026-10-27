@@ -183,6 +183,41 @@ profile cannot know which device is active at run time; the interface shows the 
     [app:resolve]
     MODE = timeline
 
+#### Recipe: zoom off for one program
+
+A program profile keeps the normal mapping but without zoom (for example a code editor): switch the twist
+channel off in that profile only. In the interface: Profiles, the program profile, tab "Motions and buttons",
+select the twist in the picture, **Clear**. In the file it is one line, everything else stays inherited:
+
+    [app:code]
+    ZOOM_SENS = 0              # the twist does nothing in this program
+
+The daemon then neither zooms nor holds the zoom key for that program (a zoom that is running ends and the key is
+released). **Switch on** in the interface writes the number the profile had before, else removes the line again;
+when Global itself has `ZOOM_SENS = 0` it writes the factory sensitivity (5) into the profile instead of leaving 0.
+**Use the inherited setting** removes the profile's own value. The same works for the vertical scroll
+(`SCROLL_V_SENS = 0`, push and tilt forward/back) and the horizontal scroll (`SCROLL_H_SENS = 0`): push and tilt of
+a direction are one channel. A profile cannot give a motion another action (`V_ACTION`, `TWIST_ACTION` belong to
+the joystick mode): choose another joystick mode for the profile with `MODE` for that.
+
+#### Recipe: different buttons for one program
+
+A program profile can bind its own `BUTTON_<n>` (1 to 32); the others are inherited per button (Global, then the
+device profile, then the program, the program wins). `BUTTON_<n> = none` unbinds a button that Global or the
+device binds, in that program only:
+
+    [device:SpaceMouse Pro]
+    BUTTON_1 = key:space
+
+    [app:code]
+    BUTTON_1 = key:ctrl+s      # another key than the device profile
+    BUTTON_2 = none            # nothing here, although Global or the device binds it
+
+In the interface: select the button in the picture, choose the action in its row, **Clear** for nothing, or
+**Inherit** to go back to what Global and the device say. The row says where the binding comes from ("Inherited
+from Global: ...", "Set in this profile (inherited: ...)", "device Pro sets ..."). A joystick mode that binds the
+same button itself wins over the profile's `BUTTON_<n>`.
+
 Find the `WM_CLASS` of a window with `xprop WM_CLASS` and click the window. The daemon logs every
 profile switch. Program profiles need an active-window query: always on X11, on Wayland only with
 `kdotool` (KDE), which the daemon looks for only in `/usr/bin`, `/usr/local/bin` and `/bin` (not in `PATH`,

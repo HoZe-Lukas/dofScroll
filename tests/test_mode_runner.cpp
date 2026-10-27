@@ -701,7 +701,35 @@ static void testChordButtons() {
     }
 }
 
+// A profile that switches the zoom channel off (ZOOM_SENS = 0): no wheel, no zoom key, and a zoom that is
+// running is ended with the held key released (reload while the twist is held).
+static void testZoomChannelOff() {
+    Settings s;
+    Settings off = s;
+    off.zoom.sensitivity = 0;
+    for (int custom = 0; custom < 2; ++custom) {
+        RunnerRec o;
+        ModeRunner r(&o);
+        if (custom) {
+            ModeDef m = mode("t");
+            m.v = act(ChannelActionType::WheelV);
+            r.setMode(m);
+        }
+        run(r, off, axis(AX_RY, 300), 0, 0.5);
+        CHECK(o.wv == 0 && o.count("+ctrl") == 0, "zoom off: no wheel and no Ctrl (custom=%d)", custom);
+        run(r, s, axis(AX_RY, 300), 0, 0.5);
+        CHECK(o.count("+ctrl") == 1 && o.wv < 0, "zoom on again (custom=%d)", custom);
+        o.clear();
+        run(r, off, axis(AX_RY, 300), 0, 0.2);  // the profile changes while the twist is held
+        CHECK(o.count("-ctrl") == 1 && o.wv == 0, "a running zoom ends and Ctrl is released (custom=%d)", custom);
+        o.clear();
+        run(r, off, axis(AX_Z, 300), 0, 0.3);  // everything else keeps working
+        CHECK(o.wv > 0, "scrolling is not affected (custom=%d)", custom);
+    }
+}
+
 int main() {
+    testZoomChannelOff();
     testChordButtons();
     testSettingsButtons();
     testModeSwitchRequest();

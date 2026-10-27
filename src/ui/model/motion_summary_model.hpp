@@ -152,6 +152,19 @@ inline MotionRow rowFor(const char *id, const std::string &name, const std::stri
     return r;
 }
 
+// The motion of a channel that is switched off (sensitivity 0): nothing happens.
+inline MotionRow offRow(const char *id, const std::string &name, const std::string &how, const StringProvider &s) {
+    MotionRow r;
+    r.id = id;
+    r.name = name;
+    r.how = how;
+    r.action = s.tr("Off (cleared)");
+    r.chip = s.tr("Off");
+    r.symbol = "off";
+    r.kind = MotionKind::Off;
+    return r;
+}
+
 inline MotionRow unusedRow(const char *id, const std::string &name, const std::string &how, const StringProvider &s) {
     MotionRow r;
     r.id = id;
@@ -190,11 +203,12 @@ inline std::vector<MotionRow> motionSummary(const ModeDef &m, Settings settings,
         const ChannelAction *action;
         const SplitChannel *split;
         bool vertical, twist;
+        const ChannelCfg *cfg;
     };
     const SplitChannel noSplit;
-    const Chan chans[3] = {{&settings.scroll_v.mix, &m.v, &m.vSplit, true, false},
-                           {&settings.scroll_h.mix, &m.h, &m.hSplit, false, false},
-                           {&settings.zoom.mix, &m.twist, &noSplit, false, true}};
+    const Chan chans[3] = {{&settings.scroll_v.mix, &m.v, &m.vSplit, true, false, &settings.scroll_v},
+                           {&settings.scroll_h.mix, &m.h, &m.hSplit, false, false, &settings.scroll_h},
+                           {&settings.zoom.mix, &m.twist, &noSplit, false, true, &settings.zoom}};
     std::vector<MotionRow> out;
     for (const Row &mo : motions) {
         bool found = false;
@@ -210,7 +224,9 @@ inline std::vector<MotionRow> motionSummary(const ModeDef &m, Settings settings,
             if (!hasAxis(*c.mix, axis)) continue;
             const bool tilt = mo.motion == Motion::VTilt || mo.motion == Motion::HTilt;
             const ChannelAction &a = !split ? *c.action : tilt ? c.split->tiltAction(*c.action) : c.split->pushAction(*c.action);
-            out.push_back(rowFor(mo.id, mo.name, mo.how, a, c.vertical, c.twist, settings.zoom_modifier, s));
+            // a channel with sensitivity 0 does nothing (cleared in the profile or by the mode): say so, never show its action
+            if (!split && c.cfg->sensitivity == 0) out.push_back(offRow(mo.id, mo.name, mo.how, s));
+            else out.push_back(rowFor(mo.id, mo.name, mo.how, a, c.vertical, c.twist, settings.zoom_modifier, s));
             found = true;
             break;
         }

@@ -232,6 +232,20 @@ to the picture shows the selected item:
   the cap is grabbed or released. No built-in joystick mode uses it (`tests/test_no_lift_press.cpp`).
 - **A button:** the same button row as on the Buttons tab (the actions, the button modes, "Unbind").
 
+**Motions and buttons of a profile (Profiles page).** On the Profiles page the same picture edits the selected
+profile (Global, a device or a program). Global and the device profile are the base; what the profile does not
+set is inherited and said in words. Every motion has three states: inherited ("On. Inherited from Global: 5"),
+set here ("On. Set in this profile (Global: on)") and cleared ("Cleared in this profile: nothing happens for this
+motion here"). **Clear** switches the channel of the motion off in this profile only (`<CH>_SENS = 0`, for
+example the twist in a code editor profile), **Switch on** makes it work again (the number the profile had, else
+the inherited setting, else the factory sensitivity, never 0), **Use the inherited setting** removes what the
+profile sets. Push and tilt of one direction are one channel, so clearing one clears the other (the inspector
+says so). The chips, the list texts and the Overview say "Off" for a cleared motion and never show its action. Every
+button has the same three states: its row (the action drop-down, "Inherit") and **Clear** (`BUTTON_<n> = none`,
+nothing happens although Global or the device binds the button), with "Set in this profile", "Inherited from
+Global: ..." and "device X sets ..." in words. Everything is saved at once; there is no Save button. A profile cannot
+give a motion another action: that belongs to the joystick mode of the profile (`MODE`).
+
 **Help where you work.** The line under the picture says in plain words what the selected item does, with
 the real rate from the channel processing at full deflection ("Vertical tilt: presses Page up or Page
 down, about 3 times a second at full deflection"); while Detect is on it follows the real deflection ("...,
