@@ -5,7 +5,7 @@
 A release is built and published by GitHub Actions when a tag `v<version>` is pushed.
 
 1. Refresh the pins: start the workflow `refresh-ci-pins` (Actions tab; it also runs monthly) and merge the pull
-   request "Refresh CI pins" (close and reopen it once so that CI runs) so the
+   request "Refresh CI pins" (the job starts its checks itself; wait for them to be green) so the
    release uses the newest tested image digests and aqtinstall hashes. If there is none or you
    changed `packaging/ci/` or `AQT_VERSION`, run `scripts/pin-ci-images.sh` and
    `scripts/update-aqt-requirements.sh` yourself (see "Pinned build inputs" below) and merge the result.
@@ -87,8 +87,10 @@ The release builds do not take their inputs from moving tags:
   this by hand: the monthly `refresh-ci-pins.yml` (or a manual start of it) runs both scripts and opens (or updates) the pull request
   "Refresh CI pins", never merged automatically. The refresh PR is merged before a release so the release
   uses the newest tested versions. The job changes only files under `packaging/ci`, so the default token
-  suffices. A PR created with it does not start CI: close and reopen the PR once (the optional secret
-  `REFRESH_PINS_TOKEN`, a fine-grained token with contents and pull requests write, would start it by itself).
+  suffices. A branch and a PR made with it do not start CI, so the job starts the checks itself with
+  `workflow_dispatch` (ci, lint, codeql, ports, ui, Linux packages dry run) on the branch `ci/refresh-pins`; the runs
+  show up in the checks of the PR (the optional secret `REFRESH_PINS_TOKEN`, a fine-grained token with contents and
+  pull requests write, would start them by itself, and the dispatch is skipped then).
   The workflow needs the repository setting that lets Actions create pull requests.
 - aqtinstall and its dependencies come from `packaging/ci/aqt-requirements.txt` (versions and SHA-256,
   `pip install --require-hashes`). After a change of `AQT_VERSION` in `packaging/qt.env`:
