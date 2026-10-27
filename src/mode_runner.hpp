@@ -30,6 +30,7 @@
 #include "keys.hpp"
 #include "modes.hpp"
 #include "output.hpp"
+#include "profile_actions.hpp"
 
 namespace spn {
 
@@ -140,7 +141,7 @@ private:
     void tapKeys(Key neg, Key pos, int n);
     void tapChord(Key key, const ChordMods &mods);
     void tickLegacy(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh, double dt);
-    void tickCustom(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh, double dt);
+    void tickCustom(const Settings &s, const ChannelActions &ca, const RawAxes &raw, uint32_t buttons, bool fresh, double dt);
 };
 
 }  // namespace spn

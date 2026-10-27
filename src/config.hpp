@@ -56,6 +56,7 @@
 #include <utility>
 #include <vector>
 #include "common.hpp"
+#include "modes.hpp"
 
 namespace spn {
 
@@ -135,6 +136,22 @@ bool parseInvertAxes(const std::string &text, unsigned *out, std::string *err);
 // "z ry" (axis order), "none" for 0.
 std::string invertAxesToString(unsigned mask);
 
+// The channel actions a PROFILE can set (V_ACTION, H_ACTION, TWIST_ACTION and the split keys V_PUSH_ACTION,
+// V_TILT_ACTION, H_PUSH_ACTION, H_TILT_ACTION): the same keys, grammar and meaning as in a joystick mode file
+// (modes.hpp). A key that is not set leaves the action to the joystick mode (profile_actions.hpp merges them).
+struct ProfileActions {
+    enum Chan { V = 0, H = 1, TWIST = 2 };
+    ChannelAction chan[3];
+    bool chanSet[3] = {false, false, false};
+    ChannelAction part[PART_COUNT];  // V push, V tilt, H push, H tilt
+    bool partSet[PART_COUNT] = {false, false, false, false};
+    bool any() const {
+        for (bool b : chanSet) if (b) return true;
+        for (bool b : partSet) if (b) return true;
+        return false;
+    }
+};
+
 struct Settings {
     ChannelCfg scroll_v;
     ChannelCfg scroll_h;
@@ -164,6 +181,13 @@ struct Settings {
     // toggle:mode:<id>).
     // Which n are valid for a given device is decided by the UI, not here.
     std::map<int, std::string> buttons;
+    // The channel actions set by profiles. Layer 0: [global] and [device:*] (below the joystick mode), layer 1:
+    // [app:*] (above it: the program has the last word, precedence global < device < mode < program).
+    ProfileActions actions[2];
+    // BUTTON_<n> set by [app:*] sections (also in `buttons`): they win over the binding of the joystick mode.
+    std::map<int, std::string> app_buttons;
+    // The layer applyKey writes the action keys and BUTTON_<n> to (ProfileSet::resolve sets 1 for [app:*]).
+    int action_layer = 0;
 
     Settings();  // sets the defaults (see config.cpp): scroll_v "z + rx" sens 5
                  // dz 30 sign 1; scroll_h "x - rz" sens 3 dz 20 sign 1;

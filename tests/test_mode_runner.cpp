@@ -701,6 +701,129 @@ static void testChordButtons() {
     }
 }
 
+// Channel actions and buttons set by profiles (V_ACTION ... TWIST_ACTION, BUTTON_<n>): resolution global < device < mode <
+// program, end to end through ProfileSet::resolve and the runner.
+static Settings resolved(const char *conf, const char *app, const ModeDef *m = nullptr) {
+    ProfileSet ps;
+    const std::string text = conf;
+    size_t pos = 0;
+    Section *sec = &ps.sections[0];
+    while (pos < text.size()) {
+        size_t nl = text.find('\n', pos);
+        if (nl == std::string::npos) nl = text.size();
+        const std::string line = text.substr(pos, nl - pos);
+        pos = nl + 1;
+        if (line.empty()) continue;
+        if (line[0] == '[') {
+            const size_t colon = line.find(':');
+            if (colon == std::string::npos) {
+                sec = &ps.sections[0];
+            } else {
+                const Section::Kind kind = line[1] == 'd' ? Section::DEVICE : Section::APP;
+                const size_t i = ps.findOrAdd(kind, line.substr(colon + 1, line.size() - colon - 2));
+                sec = &ps.sections[i];
+            }
+            continue;
+        }
+        const size_t eq = line.find(" = ");
+        sec->kv.emplace_back(line.substr(0, eq), line.substr(eq + 3));
+    }
+    return ps.resolve("SpaceMouse Pro", app, m ? &m->overrides : nullptr);
+}
+
+static void testProfileActions() {
+    {  // the twist does something else in one program only
+        const char *conf = "[app:code]\nTWIST_ACTION = keys:left,right\n";
+        const Settings code = resolved(conf, "code"), other = resolved(conf, "firefox");
+        RunnerRec o;
+        ModeRunner r(&o);
+        run(r, code, axis(AX_RY, 300), 0, 0.5);
+        CHECK(o.wv == 0 && o.count("+ctrl") == 0 && o.count("tap:left") + o.count("tap:right") > 0, "twist sends keys in the program");
+        RunnerRec o2;
+        ModeRunner r2(&o2);
+        run(r2, other, axis(AX_RY, 300), 0, 0.5);
+        CHECK(o2.wv < 0 && o2.count("+ctrl") == 1, "other programs still zoom");
+    }
+    {  // tilt cleared, push as before (the split key of the profile)
+        const Settings s = resolved("[app:code]\nV_TILT_ACTION = none\n", "code");
+        RunnerRec o;
+        ModeRunner r(&o);
+        run(r, s, axis(AX_RX, 300), 0, 0.5);
+        CHECK(o.wv == 0, "vertical tilt cleared");
+        run(r, s, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o.wv > 0, "vertical push still scrolls");
+        RunnerRec o2;
+        ModeRunner r2(&o2);
+        const Settings s2 = resolved("[app:code]\nV_PUSH_ACTION = none\n", "code");
+        run(r2, s2, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o2.wv == 0, "vertical push cleared");
+        run(r2, s2, axis(AX_RX, 300), 0, 0.5);
+        CHECK(o2.wv > 0, "vertical tilt still scrolls");
+    }
+    {  // precedence: [global] under the mode, the program over it
+        ModeDef m = mode("timeline");
+        m.h = act(ChannelActionType::Keys, Key::Left, Key::Right);
+        const char *conf = "[global]\nH_ACTION = none\nTWIST_ACTION = none\n[app:code]\nH_ACTION = wheel_h\n";
+        RunnerRec o;
+        ModeRunner r(&o);
+        r.setMode(m);
+        const Settings other = resolved(conf, "firefox", &m);
+        run(r, other, axis(AX_X, 300), 0, 0.3);
+        CHECK(o.count("tap:right") > 0 && o.wh == 0, "the mode beats [global]");
+        run(r, other, axis(AX_RY, 300), 0, 0.3);
+        CHECK(o.wv == 0, "[global] TWIST_ACTION = none applies while the mode says nothing about the twist");
+        RunnerRec o2;
+        ModeRunner r2(&o2);
+        r2.setMode(m);
+        run(r2, resolved(conf, "code", &m), axis(AX_X, 300), 0, 0.3);
+        CHECK(o2.wh > 0 && o2.count("tap:right") == 0, "the program beats the mode");
+    }
+    {  // a channel key of the program drops the split of the mode
+        ModeDef m = mode("split");
+        m.vSplit.tilt = act(ChannelActionType::Off);
+        m.vSplit.tiltSet = true;
+        RunnerRec o;
+        ModeRunner r(&o);
+        r.setMode(m);
+        run(r, resolved("[app:code]\nV_ACTION = wheel_v\n", "code", &m), axis(AX_RX, 300), 0, 0.3);
+        CHECK(o.wv > 0, "V_ACTION of the program makes the whole channel scroll again");
+    }
+    {  // buttons: the mode beats [global] and [device:*], the program beats the mode; none unbinds
+        ModeDef m = mode("b");
+        m.buttons = {bind(0, ButtonActionType::Key, Key::Space), bind(1, ButtonActionType::Click)};
+        const char *conf = "[global]\nBUTTON_1 = rightclick\n[app:code]\nBUTTON_2 = none\n[app:vim]\nBUTTON_1 = key:enter\n";
+        {
+            RunnerRec o;
+            ModeRunner r(&o);
+            r.setMode(m);
+            run(r, resolved(conf, "firefox", &m), RawAxes{}, 3u, 0.05);
+            CHECK(o.count("+space") == 1 && o.count("+m1") == 1 && o.count("+m3") == 0, "the mode beats the Global binding");
+        }
+        {
+            RunnerRec o;
+            ModeRunner r(&o);
+            r.setMode(m);
+            run(r, resolved(conf, "code", &m), RawAxes{}, 3u, 0.05);
+            CHECK(o.count("+space") == 1 && o.count("+m1") == 0, "BUTTON_2 = none in the program unbinds the mode's click");
+        }
+        {
+            RunnerRec o;
+            ModeRunner r(&o);
+            r.setMode(m);
+            run(r, resolved(conf, "vim", &m), RawAxes{}, 3u, 0.05);
+            CHECK(o.count("+space") == 0 && o.count("+enter") == 1 && o.count("+m1") == 1, "the program's binding beats the mode's");
+        }
+    }
+    {  // nothing set: exactly the mode, as before
+        const Settings s = resolved("[global]\nSCROLL_V_SENS = 5\n", "code");
+        CHECK(!s.actions[0].any() && !s.actions[1].any() && s.app_buttons.empty(), "no profile actions");
+        RunnerRec o;
+        ModeRunner r(&o);
+        run(r, s, axis(AX_RY, 300), 0, 0.5);
+        CHECK(r.legacyPath() && o.count("+ctrl") == 1, "default path");
+    }
+}
+
 // A profile that switches the zoom channel off (ZOOM_SENS = 0): no wheel, no zoom key, and a zoom that is
 // running is ended with the held key released (reload while the twist is held).
 static void testZoomChannelOff() {
@@ -729,6 +852,7 @@ static void testZoomChannelOff() {
 }
 
 int main() {
+    testProfileActions();
     testZoomChannelOff();
     testChordButtons();
     testSettingsButtons();

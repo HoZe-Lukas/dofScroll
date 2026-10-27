@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "pages/profile_motions_view.hpp"
 
+#include <QComboBox>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -9,8 +10,10 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <memory>
 #include <set>
 
+#include "key_combo.hpp"
 #include "pages/motion_editor.hpp"
 #include "ui/model/button_chip_model.hpp"
 #include "ui/model/device_layout_model.hpp"
@@ -150,13 +153,13 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
     col->addWidget(new QLabel(qs8(row->how), inspector_));
     QString text = qs8(row->name) + QStringLiteral(": ") + qs8(row->action);
     sentence_->setText(text);
-    auto *belongs = new QLabel(T("What this motion does belongs to the joystick mode %1. Change it on the Joystick modes page.").arg(qs8(a.modeLabel)), inspector_);
+    auto *belongs = new QLabel(T("The joystick mode %1 gives this motion its action. Below you can set another action in this profile only; the mode itself is changed on the Joystick modes page.").arg(qs8(a.modeLabel)), inspector_);
     belongs->setWordWrap(true);
     belongs->setTextFormat(Qt::PlainText);
     col->addWidget(belongs);
 
     // What this profile does with the motion: inherited, set here or cleared, in words, with the three ways to change it
-    // (motion_edit_model.hpp: Clear writes <CH>_SENS = 0 into this profile only, "Use the inherited setting" removes it again).
+    // (motion_edit_model.hpp: Clear writes the action "none" of this motion into this profile only, "Use the inherited setting" removes it again).
     const MotionEdit edit = motionEdit(*ctx_.settings, section_, motionId.toStdString(), strings);
     if (edit.editable) {
         auto *state = new QGroupBox(section_ == 0 ? T("In Global") : T("In this profile"), inspector_);
@@ -168,17 +171,55 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         words->setTextFormat(Qt::PlainText);
         words->setAccessibleName(T("State of this motion"));
         sl->addWidget(words);
-        if (!edit.shared.empty()) {
-            auto *shared = new QLabel(T("Push and tilt of a direction are one channel: this also applies to %1.").arg(T(edit.shared.c_str())), state);
-            shared->setWordWrap(true);
-            shared->setForegroundRole(QPalette::PlaceholderText);
-            sl->addWidget(shared);
+        // Another action for this motion in this profile: the choices of the joystick mode editor (motionActionChoices),
+        // written as the action key of the motion; an invalid value is shown here and never written.
+        auto form = std::make_shared<ChannelForm>(edit.action);
+        auto *kind = new QComboBox(state);
+        kind->setObjectName(QStringLiteral("motionAction"));
+        kind->setAccessibleName(T("What this motion does in this profile"));
+        int current = 0;
+        for (const MotionActionChoice &c : motionActionChoices()) {
+            if (c.type == edit.action.type) current = kind->count();
+            kind->addItem(T(c.label), int(c.type));
         }
+        kind->setCurrentIndex(current);
+        sl->addWidget(kind);
+        auto *keysBox = new QWidget(state);
+        auto *keysLayout = new QVBoxLayout(keysBox);
+        keysLayout->setContentsMargins(0, 0, 0, 0);
+        keysBox->setVisible(edit.action.usesKeys());
+        sl->addWidget(keysBox);
+        const std::string motion = motionId.toStdString();
+        auto applyForm = [this, form, motion, words]() {
+            std::string err;
+            if (!setMotionAction(*ctx_.settings, section_, motion, *form, &err)) {
+                words->setText(mark(StatusKind::Error, T("Invalid value: ") + qs8(err)));
+                return;
+            }
+            ctx_.saveSoon();
+            if (changed) changed();
+            rebuild();
+        };
+        if (edit.action.usesKeys()) {
+            keysLayout->addWidget(new QLabel(T("Key for the negative direction"), keysBox));
+            keysLayout->addWidget(chordPicker(keysBox, this, &form->neg, T("Key for the negative direction"), applyForm));
+            keysLayout->addWidget(new QLabel(T("Key for the positive direction"), keysBox));
+            keysLayout->addWidget(chordPicker(keysBox, this, &form->pos, T("Key for the positive direction"), applyForm));
+        }
+        connect(kind, &QComboBox::activated, this, [kind, form, applyForm](int idx) {
+            const ChannelActionType type = ChannelActionType(kind->itemData(idx).toInt());
+            form->type = type;
+            if (form->usesKeys() && (form->neg.empty() || form->pos.empty())) {
+                form->neg = "up";
+                form->pos = "down";
+            }
+            applyForm();
+        });
         auto *buttons = new QHBoxLayout;
         auto *clear = new QPushButton(T("Clear"), state);
         clear->setObjectName(QStringLiteral("motionClear"));
         clear->setEnabled(edit.canClear);
-        clear->setToolTip(T("Nothing happens for this motion in this profile (sensitivity 0); everything else stays inherited"));
+        clear->setToolTip(T("Nothing happens for this motion in this profile; everything else stays inherited"));
         auto *on = new QPushButton(T("Switch on"), state);
         on->setObjectName(QStringLiteral("motionSwitchOn"));
         on->setVisible(edit.canSwitchOn);
@@ -281,11 +322,16 @@ void ProfileMotionsView::buildButton(QVBoxLayout *col, int n) {
         scope->setWordWrap(true);
         col->addWidget(scope);
     }
-    if (!bindingEditor_) {
-        auto *note = new QLabel(T("The joystick mode of this profile has its own button bindings. Choose \"Same as Global\" or the normal joystick mode to assign buttons here."), inspector_);
-        note->setWordWrap(true);
-        col->addWidget(note);
-        return;
+    {   // a joystick mode that binds this button too: say in words who wins (the program profile has the last word)
+        const IdentityStrings fallback;
+        const std::string note = buttonModeNote(*ctx_.settings, section_, n, ctx_.strings ? *ctx_.strings : fallback);
+        if (!note.empty()) {
+            auto *modeNote = new QLabel(qs8(note), inspector_);
+            modeNote->setObjectName(QStringLiteral("buttonModeNote"));
+            modeNote->setWordWrap(true);
+            modeNote->setTextFormat(Qt::PlainText);
+            col->addWidget(modeNote);
+        }
     }
     auto *grid = new QGridLayout;
     grid->setColumnStretch(2, 1);

@@ -4796,3 +4796,59 @@ msgstr "Für diese Taste passiert in diesem Profil nichts; alles andere bleibt g
 #: src/ui
 msgid "The binding of this profile. Without one, the Global profile (or the device profile) or the joystick mode applies. Clear makes the button do nothing here."
 msgstr "Die Belegung dieses Profils. Ohne eine gilt die von Global (oder vom Geräteprofil) oder vom Joystick-Modus. Mit Leeren tut die Taste hier nichts."
+
+#: src/ui
+msgid "%1. Set in Global."
+msgstr "%1. In Global gesetzt."
+
+#: src/ui
+msgid "%1. Set in this profile (inherited: %2)."
+msgstr "%1. In diesem Profil gesetzt (geerbt: %2)."
+
+#: src/ui
+msgid "Cleared in this profile: nothing happens for this motion here (inherited: %1)."
+msgstr "In diesem Profil geleert: Für diese Bewegung passiert hier nichts (geerbt: %1)."
+
+#: src/ui
+msgid "Normal (scroll, or zoom for the twist)"
+msgstr "Normal (Scrollen, bei der Drehung Zoomen)"
+
+#: src/ui
+msgid "Keys (one key per direction)"
+msgstr "Tasten (eine Taste je Richtung)"
+
+#: src/ui
+msgid "What this motion does in this profile"
+msgstr "Was diese Bewegung in diesem Profil tut"
+
+#: src/ui
+msgid "Key for the negative direction"
+msgstr "Taste für die negative Richtung"
+
+#: src/ui
+msgid "Key for the positive direction"
+msgstr "Taste für die positive Richtung"
+
+#: src/ui
+msgid "set in this profile"
+msgstr "in diesem Profil gesetzt"
+
+#: src/ui
+msgid "This profile's binding overrides the one of the joystick mode \"%1\" (%2)."
+msgstr "Die Belegung dieses Profils überschreibt die des Joystick-Modus \"%1\" (%2)."
+
+#: src/ui
+msgid "The joystick mode \"%1\" binds this button (%2). A binding set here overrides it."
+msgstr "Der Joystick-Modus \"%1\" belegt diese Taste (%2). Eine Belegung hier überschreibt sie."
+
+#: src/ui
+msgid "The joystick mode \"%1\" binds this button (%2) and wins over this profile. Only a program profile can override the binding of a joystick mode."
+msgstr "Der Joystick-Modus \"%1\" belegt diese Taste (%2) und gewinnt gegen dieses Profil. Nur ein Programmprofil kann die Belegung eines Joystick-Modus überschreiben."
+
+#: src/ui
+msgid "The joystick mode %1 gives this motion its action. Below you can set another action in this profile only; the mode itself is changed on the Joystick modes page."
+msgstr "Der Joystick-Modus %1 gibt dieser Bewegung ihre Aktion. Unten kannst du nur in diesem Profil eine andere Aktion einstellen; der Joystick-Modus selbst wird auf der Seite Joystick-Modi geändert."
+
+#: src/ui
+msgid "Nothing happens for this motion in this profile; everything else stays inherited"
+msgstr "Für diese Bewegung passiert in diesem Profil nichts; alles andere bleibt geerbt"

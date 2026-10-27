@@ -168,18 +168,7 @@ inline std::string chordText(Key key, const ChordMods &mods) {
     return t + keyName(key);
 }
 
-inline std::string channelActionText(const ChannelAction &a) {
-    switch (a.type) {
-        case ChannelActionType::Default: return "default";
-        case ChannelActionType::Off: return "none";
-        case ChannelActionType::WheelV: return "wheel_v";
-        case ChannelActionType::WheelH: return "wheel_h";
-        case ChannelActionType::Zoom: return "zoom";
-        case ChannelActionType::Step: return "step:" + chordText(a.neg, a.negMods) + "," + chordText(a.pos, a.posMods);
-        case ChannelActionType::Keys: return "keys:" + chordText(a.neg, a.negMods) + "," + chordText(a.pos, a.posMods);
-    }
-    return "default";
-}
+using spn::channelActionText;  // modes.hpp
 
 // Config text of a button binding ("click", "key:space", "mode:next", ...; "none" if unbound).
 inline std::string buttonActionText(const ButtonBinding &b) {

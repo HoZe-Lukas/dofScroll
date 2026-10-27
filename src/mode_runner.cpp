@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "mode_runner.hpp"
+#include "profile_actions.hpp"
 
 #include <cmath>
 
@@ -128,15 +129,17 @@ ModeRunner::Wanted ModeRunner::bindings(const Settings &s, uint32_t buttons) con
     };
     for (const ButtonBinding &b : mode_.buttons) {
         if (!buttonHeld(buttons, b.button - 1)) continue;  // bindings are 1-based
+        if (s.app_buttons.count(b.button)) continue;       // a program profile binds this button itself: it wins
         apply(b);
     }
-    // BUTTON_<n> from the resolved profile; the mode's own binding for n wins.
+    // BUTTON_<n> from the resolved profile: the mode's own binding for n wins over [global] and [device:*], a
+    // BUTTON_<n> of an [app:*] profile wins over the mode (the program has the last word; "none" unbinds).
     for (const auto &kv : s.buttons) {
         if (!buttonHeld(buttons, kv.first - 1)) continue;
         bool in_mode = false;
         for (const ButtonBinding &b : mode_.buttons)
             if (b.button == kv.first) in_mode = true;
-        if (in_mode) continue;
+        if (in_mode && !s.app_buttons.count(kv.first)) continue;
         ButtonBinding b;
         b.button = kv.first;
         if (!parseButtonAction(kv.second, &b.type, &b.key, nullptr, nullptr, &b.mods)) continue;
@@ -155,12 +158,12 @@ std::vector<ButtonBinding> ModeRunner::edgeBindings(const Settings &s) const {
     auto isChord = [](const ButtonBinding &b) { return b.type == ButtonActionType::Key && b.mods.n > 0; };
     std::vector<ButtonBinding> out;
     for (const ButtonBinding &b : mode_.buttons)
-        if (isEdge(b.type) || isChord(b)) out.push_back(b);
+        if ((isEdge(b.type) || isChord(b)) && !s.app_buttons.count(b.button)) out.push_back(b);
     for (const auto &kv : s.buttons) {
         bool in_mode = false;
         for (const ButtonBinding &b : mode_.buttons)
             if (b.button == kv.first) in_mode = true;
-        if (in_mode) continue;
+        if (in_mode && !s.app_buttons.count(kv.first)) continue;
         ButtonBinding b;
         b.button = kv.first;
         if (!parseButtonAction(kv.second, &b.type, &b.key, nullptr, &b.mode, &b.mods)) continue;
@@ -225,8 +228,10 @@ void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, b
     // INVERT_AXES: flip the chosen axes before any mix, split part or zoom detection sees them
     for (int a = 0; a < AX_COUNT; ++a)
         if (s.invert_axes & (1u << a)) axes[size_t(a)] = -axes[size_t(a)];
+    const ChannelActions ca = effectiveChannelActions(mode_, s);
+    legacy_ = ca.allDefault();
     if (legacy_) tickLegacy(s, axes, buttons, fresh, dt);
-    else tickCustom(s, axes, buttons, fresh, dt);
+    else tickCustom(s, ca, axes, buttons, fresh, dt);
 }
 
 // Legacy path: same logic as before modes existed, plus the mode's button bindings.
@@ -284,13 +289,13 @@ void ModeRunner::tickLegacy(const Settings &s, const RawAxes &raw, uint32_t butt
 // zoom action on one channel also affects wheel events of another channel in that tick.
 // Sign convention: scroll channels (V, H): positive = down/right. Twist: positive = zoom
 // in = wheel up, so wheel actions on the twist are inverted on the vertical wheel.
-void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh,
+void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const RawAxes &raw, uint32_t buttons, bool fresh,
                             double dt) {
     Wanted w = bindings(s, buttons);
     const bool nav_active = fresh && w.nav;
     syncMouse(w.mouse);
 
-    const ChannelAction &av = mode_.v, &ah = mode_.h, &at = mode_.twist;
+    const ChannelAction &av = ca.v, &ah = ca.h, &at = ca.twist;
     auto eff = [](const ChannelAction &a, ChannelActionType dflt) {
         return a.type == ChannelActionType::Default ? dflt : a.type;
     };
@@ -300,18 +305,18 @@ void ModeRunner::tickCustom(const Settings &s, const RawAxes &raw, uint32_t butt
 
     // A split channel runs its push and tilt parts as sub-channels (parent's settings + per-part
     // tuning, the part's share of the mix); the mixed channel then stays idle.
-    const bool split[2] = {mode_.vSplit.active(), mode_.hSplit.active()};
+    const bool split[2] = {ca.vSplit.active(), ca.hSplit.active()};
     ChannelActionType part_t[PART_COUNT] = {tv, tv, th, th};
     const ChannelAction *part_a[PART_COUNT] = {&av, &av, &ah, &ah};
     double part_rate[PART_COUNT] = {0, 0, 0, 0};
     double rate_v = 0.0, rate_h = 0.0;
     if (split[0]) {
-        part_a[PART_V_PUSH] = &mode_.vSplit.pushAction(av);
-        part_a[PART_V_TILT] = &mode_.vSplit.tiltAction(av);
+        part_a[PART_V_PUSH] = &ca.vSplit.pushAction(av);
+        part_a[PART_V_TILT] = &ca.vSplit.tiltAction(av);
     }
     if (split[1]) {
-        part_a[PART_H_PUSH] = &mode_.hSplit.pushAction(ah);
-        part_a[PART_H_TILT] = &mode_.hSplit.tiltAction(ah);
+        part_a[PART_H_PUSH] = &ca.hSplit.pushAction(ah);
+        part_a[PART_H_TILT] = &ca.hSplit.tiltAction(ah);
     }
     for (int c = 0; c < 2; ++c) {
         const ChannelCfg &parent = c == 0 ? s.scroll_v : s.scroll_h;

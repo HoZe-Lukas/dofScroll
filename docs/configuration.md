@@ -80,7 +80,9 @@ systems needs its mixes adjusted.
 | `LIVE_FEED` | `1` | `0` disables the live data feed to the UI (axes view, axis assistant); with `1` it only runs while a UI is connected. See `security.md`. |
 | `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | **Deprecated**, use `BUTTON_<n> = nav`. Button (0-based index) that turns X/Y into arrow keys while held. |
 | `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | **Deprecated**, use `BUTTON_<n> = click`. Button (0-based index) that is passed through as the left mouse button. A click that is the same everywhere is better set in the vendor driver, see [modes.md](modes.md#buttons-and-the-vendor-driver). |
-| `BUTTON_<n>` | none | Action of button `n`, same values as in joystick mode files, see [modes.md](modes.md). `buttonmode:<id>` uses a named button behavior from `buttons/<id>.conf`, see [button-modes.md](button-modes.md). |
+| `BUTTON_<n>` | none | Action of button `n`, same values as in joystick mode files, see [modes.md](modes.md). `buttonmode:<id>` uses a named button behavior from `buttons/<id>.conf`, see [button-modes.md](button-modes.md). In `[global]` and `[device:*]` the binding of the active joystick mode for the same button wins; in an `[app:*]` section the program's binding wins over the joystick mode (and `none` unbinds the button there). |
+| `V_ACTION`, `H_ACTION`, `TWIST_ACTION` | none (the joystick mode decides) | What the vertical, horizontal and twist channel does, **in a profile**: the keys and values of the joystick mode files (`default`, `none`, `wheel_v`, `wheel_h`, `zoom`, `keys:<neg>,<pos>`, `step:<neg>,<pos>`, see [modes.md](modes.md)). Allowed in `[global]`, `[device:*]` and `[app:*]`; written only when a profile sets them. |
+| `V_PUSH_ACTION`, `V_TILT_ACTION`, `H_PUSH_ACTION`, `H_TILT_ACTION` | none | The same for push and tilt of a scroll channel on their own (the split keys of the joystick mode files). Setting one of them does not change the other part: `V_TILT_ACTION = none` switches off only the tilt, the push keeps what it did. |
 
 ### Deprecated: NAV_BUTTON and CLICK_BUTTON
 
@@ -139,6 +141,21 @@ Lowest to highest: `[global]` < matching `[device:*]` < overrides of the active 
 matching section wins. The joystick mode is chosen by `MODE` from the resolved profile (global, device or
 app), so an app section can select a joystick mode and still has the last word over the joystick mode's overrides.
 
+The channel actions (`V_ACTION`, `H_ACTION`, `TWIST_ACTION` and the four push/tilt keys) and `BUTTON_<n>` follow the same
+order with the joystick mode's own actions and bindings in the middle: `[global]` and `[device:*]` sit below the
+joystick mode (a mode that sets a channel or a button keeps it; a mode that says nothing about it leaves the
+profile's value in force), an `[app:*]` section sits above it and wins. A joystick mode counts as setting a channel when
+its action is not `default`. A profile that sets the whole channel (`V_ACTION`) makes both parts that action and
+drops a split of the layers below; a profile that sets one part (`V_TILT_ACTION`) changes only that part, the other
+keeps what the layers below say.
+
+**Compatibility.** A configuration without these keys behaves exactly as before; no existing key changed meaning (one
+exception, a fix of the order: an `[app:*]` `BUTTON_<n>` now wins over the binding of the joystick mode for the same
+button; before, the mode's binding won). A version of dofscroll that does not know the keys logs "unknown key ... line
+ignored" for each of them and skips only those lines: everything else of the profile still applies, the profile just
+does not change the action there. (An old interface that saves the file would drop such lines.) Mode files are
+unchanged: `V_ACTION` and friends in a mode file work as before.
+
 ### Inheritance
 
 Everything can be set in `[global]` exactly like in any other section: the joystick mode (`MODE`),
@@ -185,26 +202,37 @@ profile cannot know which device is active at run time; the interface shows the 
 
 #### Recipe: zoom off for one program
 
-A program profile keeps the normal mapping but without zoom (for example a code editor): switch the twist
-channel off in that profile only. In the interface: Profiles, the program profile, tab "Motions and buttons",
-select the twist in the picture, **Clear**. In the file it is one line, everything else stays inherited:
+A program profile keeps the normal mapping but without zoom (for example a code editor): clear the twist in that
+profile only. In the interface: Profiles, the program profile, tab "Motions and buttons", select the twist in the
+picture, **Clear**. In the file it is one line, everything else stays inherited:
 
     [app:code]
-    ZOOM_SENS = 0              # the twist does nothing in this program
+    TWIST_ACTION = none        # the twist does nothing in this program
 
 The daemon then neither zooms nor holds the zoom key for that program (a zoom that is running ends and the key is
-released). **Switch on** in the interface writes the number the profile had before, else removes the line again;
-when Global itself has `ZOOM_SENS = 0` it writes the factory sensitivity (5) into the profile instead of leaving 0.
-**Use the inherited setting** removes the profile's own value. The same works for the vertical scroll
-(`SCROLL_V_SENS = 0`, push and tilt forward/back) and the horizontal scroll (`SCROLL_H_SENS = 0`): push and tilt of
-a direction are one channel. A profile cannot give a motion another action (`V_ACTION`, `TWIST_ACTION` belong to
-the joystick mode): choose another joystick mode for the profile with `MODE` for that.
+released). **Switch on** gives the motion an action again (the action the profile had before, else the inherited
+one, else the normal one: `default`, which is zoom for the twist), **Use the inherited setting** removes the line.
+Every motion works on its own: `V_PUSH_ACTION = none` clears only the vertical push, `V_TILT_ACTION = none` only the
+vertical tilt, and likewise `H_PUSH_ACTION`, `H_TILT_ACTION`. (`TWIST_ACTION = none` replaces the older way,
+`ZOOM_SENS = 0`, which still works and is shown as cleared too.)
+
+#### Recipe: another action for the twist in one program
+
+    [app:code]
+    TWIST_ACTION = keys:ctrl+minus,ctrl+plus   # zoom the editor with its own keys instead of Ctrl+wheel
+    H_TILT_ACTION = step:pageup,pagedown       # one page per tilt sideways
+
+The values are those of the joystick mode files ([modes.md](modes.md)). In the interface: select the motion and
+choose the action in "What this motion does in this profile" (a key action shows the two key pickers). The action is
+written into the profile only; the joystick mode itself is not changed. An `[app:*]` section wins over the
+joystick mode; in `[global]` and `[device:*]` the action applies only where the joystick mode says nothing about the
+channel (the interface says so when it cannot take effect).
 
 #### Recipe: different buttons for one program
 
 A program profile can bind its own `BUTTON_<n>` (1 to 32); the others are inherited per button (Global, then the
-device profile, then the program, the program wins). `BUTTON_<n> = none` unbinds a button that Global or the
-device binds, in that program only:
+device profile, then the joystick mode, then the program: the program wins). `BUTTON_<n> = none` unbinds a button
+that Global, the device or the joystick mode binds, in that program only:
 
     [device:SpaceMouse Pro]
     BUTTON_1 = key:space
@@ -215,8 +243,8 @@ device binds, in that program only:
 
 In the interface: select the button in the picture, choose the action in its row, **Clear** for nothing, or
 **Inherit** to go back to what Global and the device say. The row says where the binding comes from ("Inherited
-from Global: ...", "Set in this profile (inherited: ...)", "device Pro sets ..."). A joystick mode that binds the
-same button itself wins over the profile's `BUTTON_<n>`.
+from Global: ...", "Set in this profile (inherited: ...)", "device Pro sets ...") and, when the profile's
+joystick mode binds the button too, who wins.
 
 Find the `WM_CLASS` of a window with `xprop WM_CLASS` and click the window. The daemon logs every
 profile switch. Program profiles need an active-window query: always on X11, on Wayland only with

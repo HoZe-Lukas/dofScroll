@@ -1,32 +1,37 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Editing one motion of the cap in a PROFILE (Global, device or program), toolkit-free. The Motions and buttons
-// tab shows the six motions; a motion has three states in a profile:
+// tab shows the six motions; every one can be edited on its own, and has three states in a profile:
 //
-//   Inherited  the profile sets nothing for it: what Global (and the device profile) and the joystick mode say applies
-//   SetHere    the profile tunes the channel of the motion itself (SENS, MIX, DEADZONE, SIGN, CURVE or SMOOTH_MS)
-//   Cleared    the profile switched the channel off: <CH>_SENS = 0, nothing happens for the motion in this profile
+//   Inherited  the profile sets nothing for it: what Global (and the device profile), the joystick mode say applies
+//   SetHere    the profile gives the motion another action, or tunes the channel (SENS, MIX, DEADZONE, ...)
+//   Cleared    the profile switched the motion off: its action is "none" here, nothing happens for it in this profile
 //
-// No new config key: a channel is the vertical scroll (SCROLL_V_, vertical push and tilt), the horizontal scroll
-// (SCROLL_H_, horizontal push and tilt) or the twist (ZOOM_); the three states are stored in the keys of that
-// channel in the section of the profile, "Cleared" is <CH>_SENS = 0 and the daemon stops that channel completely
-// (no steps, no zoom key held, a running zoom ends with its keys released: tests/test_mode_runner.cpp).
-// What a profile cannot hold is another ACTION for a motion (V_ACTION, TWIST_ACTION ...): that belongs to the
-// joystick mode, chosen per profile with MODE (docs/modes.md). Lift / press has no channel of its own.
+// Stored with the keys of the joystick mode files, allowed in every profile section (config.hpp ProfileActions,
+// profile_actions.hpp for the precedence global < device < joystick mode < program):
+//   vertical push V_PUSH_ACTION   vertical tilt V_TILT_ACTION   horizontal push H_PUSH_ACTION
+//   horizontal tilt H_TILT_ACTION   twist TWIST_ACTION   (V_ACTION / H_ACTION set both parts of a channel)
+// Only what the profile changes is written; "Use the inherited setting" removes the key. A legacy `<CH>_SENS = 0`
+// (channel off) is read as "cleared" too and removed again by "Use the inherited setting". Lift / press has no
+// action of its own.
 //
-//   const MotionEdit e = motionEdit(model, section, "twist", strings);   // state, words, which buttons make sense
-//   clearMotion(model, section, "twist", &memory, &err);                  // ZOOM_SENS = 0
-//   switchOnMotion(model, section, "twist", &memory, &err);               // the sensitivity again, never left at 0
-//   inheritMotion(model, section, "twist", &memory, &err);                // back to the inherited setting
+//   const MotionEdit e = motionEdit(model, section, "twist", strings);        // state, words, which buttons make sense
+//   setMotionAction(model, section, "twist", form, &err);                       // another action, validated
+//   clearMotion(model, section, "v_tilt", &memory, &err);                       // V_TILT_ACTION = none
+//   switchOnMotion(model, section, "twist", &memory, &err);                     // does something again, never "none"
+//   inheritMotion(model, section, "twist", &memory);                            // back to the inherited setting
 #pragma once
 #include <map>
 #include <string>
 #include <vector>
 
 #include "config.hpp"
+#include "profile_actions.hpp"
 #include "ui/model/inheritance_model.hpp"
+#include "ui/model/mode_editor_model.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/strings.hpp"
+#include "utf8.hpp"
 
 namespace spn::ui {
 
@@ -34,18 +39,19 @@ enum class MotionState { Inherited, SetHere, Cleared };
 
 struct MotionEdit {
     std::string id;       // "v_push" ... "twist", "lift"
-    std::string prefix;   // "SCROLL_V_", "SCROLL_H_", "ZOOM_"; "" for lift / press
-    std::string shared;   // the other motion of the same channel ("Vertical tilt", English source), "" for the twist
+    std::string prefix;   // channel keys "SCROLL_V_", "SCROLL_H_", "ZOOM_"; "" for lift / press
+    std::string key;      // the action key of the motion ("V_PUSH_ACTION"); "" for lift / press
     bool editable = false;
     MotionState state = MotionState::Inherited;
-    bool on = true;            // the channel does something in this profile (effective sensitivity not 0)
+    bool on = true;            // the motion does something in this profile
     bool canClear = false;     // not cleared yet
-    bool canInherit = false;   // the profile sets something for the channel
-    bool canSwitchOn = false;  // the channel is off here (cleared here or inherited off)
+    bool canInherit = false;   // the profile sets something for the motion
+    bool canSwitchOn = false;  // the motion does nothing here (cleared here or inherited off)
+    ChannelForm action;        // what the motion does now (the form the editor shows)
     std::string words;         // one sentence: the state and where it comes from
 };
 
-// The number a profile had before the channel was cleared, per profile and channel, for the session.
+// The values a profile had before a motion was cleared, per profile and motion, for the session.
 using MotionMemory = std::map<std::string, std::string>;
 
 namespace motion_edit_detail {
@@ -57,27 +63,89 @@ inline std::string prefixOf(const std::string &motionId) {
     if (motionId == "twist") return "ZOOM_";
     return std::string();
 }
+// The action key of the motion itself, and the key of its whole channel.
+inline std::string partKeyOf(const std::string &id) {
+    if (id == "v_push") return "V_PUSH_ACTION";
+    if (id == "v_tilt") return "V_TILT_ACTION";
+    if (id == "h_push") return "H_PUSH_ACTION";
+    if (id == "h_tilt") return "H_TILT_ACTION";
+    if (id == "twist") return "TWIST_ACTION";
+    return std::string();
+}
+inline std::string channelKeyOf(const std::string &id) {
+    if (id == "v_push" || id == "v_tilt") return "V_ACTION";
+    if (id == "h_push" || id == "h_tilt") return "H_ACTION";
+    if (id == "twist") return "TWIST_ACTION";
+    return std::string();
+}
 
 inline int sensOf(const Settings &s, const std::string &prefix) {
     return prefix == "SCROLL_V_" ? s.scroll_v.sensitivity : prefix == "SCROLL_H_" ? s.scroll_h.sensitivity : s.zoom.sensitivity;
 }
 
-// The factory sensitivity of the channel (config.hpp defaults): what "switch on" writes when nothing inherited is on.
+// The factory sensitivity of the channel (config.hpp defaults).
 inline int factorySens(const std::string &prefix) { return sensOf(Settings(), prefix); }
 
-inline std::string memoryKey(const SettingsModel &m, size_t section, const std::string &prefix) {
+inline std::string memoryKey(const SettingsModel &m, size_t section, const std::string &id, const char *what) {
     const SettingsModel::SectionInfo info = m.sections()[section];
-    return std::to_string(int(info.kind)) + ":" + info.pattern + ":" + prefix;
+    return std::to_string(int(info.kind)) + ":" + info.pattern + ":" + id + ":" + what;
 }
 
-inline std::string ownSens(const SettingsModel &m, size_t section, const std::string &prefix, bool *has) {
-    SettingsModel::Value v;
-    *has = m.value(section, prefix + "SENS", &v) && v.overridden;
-    return *has ? v.text : std::string();
+// The text the profile itself holds for a key ("" when it does not set it).
+inline bool ownText(const SettingsModel &m, size_t section, const std::string &key, std::string *text) {
+    for (const KV &kv : m.profiles().sections[section].kv)
+        if (utf8::upperAscii(kv.first) == key) {
+            if (text) *text = kv.second;
+            return true;
+        }
+    return false;
 }
 
-inline bool effectiveOn(const SettingsModel &m, size_t section, const std::string &prefix) {
-    return sensOf(m.effectiveWithMode(section), prefix) != 0;
+// The action the motion has in the profile now (all layers and the joystick mode merged).
+inline ChannelAction effectiveAction(const SettingsModel &m, size_t section, const std::string &id) {
+    const Settings s = m.effectiveWithMode(section);
+    ModeDef normal;
+    const ModeDef *def = m.modeDef(m.effectiveMode(section));
+    if (!def) def = &normal;
+    const ChannelActions ca = effectiveChannelActions(*def, s);
+    if (id == "twist") return ca.twist;
+    const bool v = id[0] == 'v';
+    const SplitChannel &sp = v ? ca.vSplit : ca.hSplit;
+    const ChannelAction &parent = v ? ca.v : ca.h;
+    return id.find("tilt") != std::string::npos ? sp.tiltAction(parent) : sp.pushAction(parent);
+}
+
+inline bool effectiveOn(const SettingsModel &m, size_t section, const std::string &id) {
+    if (effectiveAction(m, section, id).type == ChannelActionType::Off) return false;
+    return sensOf(m.effectiveWithMode(section), prefixOf(id)) != 0;
+}
+
+// The same without what the profile sets for this motion itself: what it would inherit.
+inline bool inheritedOn(const SettingsModel &m, size_t section, const std::string &id) {
+    SettingsModel tmp = m;
+    tmp.clearOverride(section, partKeyOf(id));
+    tmp.clearOverride(section, channelKeyOf(id));
+    tmp.clearOverride(section, prefixOf(id) + "SENS");
+    return effectiveOn(tmp, section, id);
+}
+
+// Writes `text` to `key` of the profile and checks that the motion really does `want` afterwards (a profile below the
+// joystick mode cannot beat the mode; only a program profile can). On a mismatch the old value is restored and *err
+// says why.
+inline bool writeAction(SettingsModel &m, size_t section, const std::string &id, const std::string &key,
+                        const std::string &text, std::string *err) {
+    std::string before;
+    const bool had = ownText(m, section, key, &before);
+    if (!m.setValue(section, key, text, err)) return false;  // invalid: nothing written
+    ChannelAction want;
+    parseChannelAction(text, &want, nullptr);
+    if (!(effectiveAction(m, section, id) == want)) {
+        if (had) m.setValue(section, key, before, nullptr);
+        else m.clearOverride(section, key);
+        if (err) *err = "the joystick mode of this profile sets this motion; only a program profile can change it, or change it in the joystick mode";
+        return false;
+    }
+    return true;
 }
 }  // namespace motion_edit_detail
 
@@ -88,39 +156,42 @@ inline MotionEdit motionEdit(const SettingsModel &m, size_t section, const std::
     e.prefix = prefixOf(motionId);
     if (e.prefix.empty() || section >= m.sectionCount()) return e;
     e.editable = true;
-    if (motionId == "v_push") e.shared = "Vertical tilt";
-    else if (motionId == "v_tilt") e.shared = "Vertical push";
-    else if (motionId == "h_push") e.shared = "Horizontal tilt";
-    else if (motionId == "h_tilt") e.shared = "Horizontal push";
-    bool hasSens = false;
-    const std::string own = ownSens(m, section, e.prefix, &hasSens);
-    bool setHere = false;
+    e.key = partKeyOf(motionId);
+    std::string own, ownSens;
+    const bool hasPart = ownText(m, section, e.key, &own);
+    std::string chanText;
+    const bool hasChan = !hasPart && ownText(m, section, channelKeyOf(motionId), &chanText);
+    if (hasChan) own = chanText;
+    const bool hasSens = ownText(m, section, e.prefix + "SENS", &ownSens);
+    bool tuned = false;
     for (const char *k : kChannelKeys)
-        if (m.isOverridden(section, e.prefix + k)) setHere = true;
-    e.on = effectiveOn(m, section, e.prefix);
-    const bool clearedHere = hasSens && own == "0";
-    e.state = clearedHere ? MotionState::Cleared : setHere ? MotionState::SetHere : MotionState::Inherited;
+        if (m.isOverridden(section, e.prefix + k)) tuned = true;
+    e.on = effectiveOn(m, section, motionId);
+    e.action = channelFormOf(effectiveAction(m, section, motionId));
+    const bool clearedHere = (hasPart || hasChan) ? utf8::lowerAscii(own) == "none" : (hasSens && ownSens == "0");
+    e.state = clearedHere ? MotionState::Cleared : (hasPart || hasChan || tuned) ? MotionState::SetHere : MotionState::Inherited;
     e.canClear = !clearedHere;
-    e.canInherit = setHere;
+    e.canInherit = hasPart || hasChan || tuned;
     e.canSwitchOn = !e.on;
 
-    const KeyOrigin o = keyOrigin(m, section, e.prefix + "SENS");
+    const bool inh = inheritedOn(m, section, motionId);
+    const std::string inhWord = inh ? s.tr("on") : s.tr("off");
     const std::string onOff = e.on ? s.tr("On") : s.tr("Off");
     if (section == 0) {
         if (clearedHere) e.words = s.tr("Cleared in Global: nothing happens for this motion unless a profile sets it again.");
-        else if (setHere) e.words = format(s.tr("%1. Tuned in Global."), {onOff});
+        else if (hasPart || hasChan || tuned) e.words = format(s.tr("%1. Set in Global."), {onOff});
         else e.words = e.on ? s.tr("On (the built-in default).") : s.tr("Off: the sensitivity is 0.");
         return e;
     }
-    const std::string inheritedState = sensOf(m.effective(0), e.prefix) != 0 ? s.tr("on") : s.tr("off");
     switch (e.state) {
         case MotionState::Cleared:
-            e.words = format(s.tr("Cleared in this profile: nothing happens for this motion here (Global: %1)."), {inheritedState});
+            e.words = format(s.tr("Cleared in this profile: nothing happens for this motion here (inherited: %1)."), {inhWord});
             break;
         case MotionState::SetHere:
-            e.words = format(s.tr("%1. Set in this profile (Global: %2)."), {onOff, inheritedState});
+            e.words = format(s.tr("%1. Set in this profile (inherited: %2)."), {onOff, inhWord});
             break;
         case MotionState::Inherited: {
+            const KeyOrigin o = keyOrigin(m, section, e.prefix + "SENS");
             std::string from = originBadgeText(o, s);
             if (from.empty()) from = s.tr("Inherited");
             e.words = format(s.tr("%1. %2."), {onOff, from});
@@ -130,69 +201,111 @@ inline MotionEdit motionEdit(const SettingsModel &m, size_t section, const std::
     return e;
 }
 
-// Cleared: <CH>_SENS = 0 in this profile (also when the inherited value is 0 already: it pins the channel off). The
-// number the profile had is remembered for "Switch on". false + *err when the joystick mode keeps the channel on
-// (a mode override beats [global] and the device profile; only a program profile beats it); nothing is changed then.
+// Another action for the motion in this profile (validated by the same parser as the joystick mode files; an invalid
+// action is never written). false + *err (English source text) when it is invalid or the joystick mode keeps the motion.
+inline bool setMotionAction(SettingsModel &m, size_t section, const std::string &motionId, const ChannelForm &form, std::string *err) {
+    using namespace motion_edit_detail;
+    const std::string key = partKeyOf(motionId);
+    if (key.empty() || section >= m.sectionCount()) {
+        if (err) *err = "lift / press has no action of its own";
+        return false;
+    }
+    return writeAction(m, section, motionId, key, form.text(), err);
+}
+
+// Cleared: the action of the motion is "none" in this profile only (also when the inherited action is "none" already:
+// it pins the motion off). The action the profile had is remembered for "Switch on".
 inline bool clearMotion(SettingsModel &m, size_t section, const std::string &motionId, MotionMemory *memory, std::string *err) {
     using namespace motion_edit_detail;
-    const std::string prefix = prefixOf(motionId);
-    if (prefix.empty() || section >= m.sectionCount()) return false;
-    bool had = false;
-    const std::string before = ownSens(m, section, prefix, &had);
-    if (had && before == "0") return true;
-    if (!m.setValue(section, prefix + "SENS", "0", err)) return false;
-    if (effectiveOn(m, section, prefix)) {
-        if (had) m.setValue(section, prefix + "SENS", before, nullptr);
-        else m.clearOverride(section, prefix + "SENS");
-        if (err) *err = "the joystick mode of this profile sets the sensitivity of this channel; change it there";
-        return false;
-    }
-    if (memory && had) (*memory)[memoryKey(m, section, prefix)] = before;
+    const std::string key = partKeyOf(motionId);
+    if (key.empty() || section >= m.sectionCount()) return false;
+    std::string before;
+    const bool had = ownText(m, section, key, &before);
+    if (had && utf8::lowerAscii(before) == "none") return true;
+    if (!writeAction(m, section, motionId, key, "none", err)) return false;
+    if (memory && had) (*memory)[memoryKey(m, section, motionId, "action")] = before;
     return true;
 }
 
-// Back to the inherited setting. A cleared motion: only the 0 goes (a tuning of the channel stays and is then
-// "set here"); a motion set here: every key of its channel goes.
+// Back to the inherited setting: the profile's own action key of the motion goes (the key of its channel when the
+// motion has none of its own), and a legacy `<CH>_SENS = 0`; a motion that is only tuned loses the tuning of its channel.
 inline bool inheritMotion(SettingsModel &m, size_t section, const std::string &motionId, MotionMemory *memory) {
     using namespace motion_edit_detail;
-    const std::string prefix = prefixOf(motionId);
-    if (prefix.empty() || section >= m.sectionCount()) return false;
-    bool had = false;
-    const std::string own = ownSens(m, section, prefix, &had);
-    if (had && own == "0") {
-        m.clearOverride(section, prefix + "SENS");
-    } else {
-        for (const char *k : kChannelKeys) m.clearOverride(section, prefix + k);
+    const std::string key = partKeyOf(motionId), prefix = prefixOf(motionId);
+    if (key.empty() || section >= m.sectionCount()) return false;
+    bool removed = false;
+    if (m.isOverridden(section, key)) {
+        m.clearOverride(section, key);
+        removed = true;
+    } else if (m.isOverridden(section, channelKeyOf(motionId))) {
+        m.clearOverride(section, channelKeyOf(motionId));
+        removed = true;
     }
-    if (memory) memory->erase(memoryKey(m, section, prefix));
+    std::string sens;
+    if (ownText(m, section, prefix + "SENS", &sens) && sens == "0") {
+        m.clearOverride(section, prefix + "SENS");
+        removed = true;
+    }
+    if (!removed)
+        for (const char *k : kChannelKeys) m.clearOverride(section, prefix + k);
+    if (memory) {
+        memory->erase(memoryKey(m, section, motionId, "action"));
+        memory->erase(memoryKey(m, section, motionId, "sens"));
+    }
     return true;
 }
 
-// The channel does something again, never left at sensitivity 0: the number the profile had before it was cleared,
-// else the inherited setting (the override goes); when that is off too (switched off in Global or in the mode), the
-// factory sensitivity of the channel is written in this profile.
+// The motion does something again, never left "none" or at sensitivity 0: the action the profile had before it was
+// cleared, else the inherited action (the key goes); when that is "none" too (switched off in Global or by the joystick
+// mode) the normal action of the motion ("default": scroll or zoom) is written in this profile.
 inline bool switchOnMotion(SettingsModel &m, size_t section, const std::string &motionId, MotionMemory *memory, std::string *err) {
     using namespace motion_edit_detail;
-    const std::string prefix = prefixOf(motionId);
-    if (prefix.empty() || section >= m.sectionCount()) return false;
-    const std::string key = prefix + "SENS";
-    const std::string mk = memoryKey(m, section, prefix);
-    std::string remembered;
-    if (memory && memory->count(mk)) remembered = (*memory)[mk];
-    m.clearOverride(section, key);
-    const int inherited = sensOf(m.effectiveWithMode(section), prefix);
-    if (!remembered.empty() && remembered != "0" && std::to_string(inherited) != remembered) {
-        if (!m.setValue(section, key, remembered, err)) return false;
-    } else if (inherited == 0) {
-        if (!m.setValue(section, key, std::to_string(factorySens(prefix)), err)) return false;
+    const std::string key = partKeyOf(motionId), prefix = prefixOf(motionId);
+    if (key.empty() || section >= m.sectionCount()) return false;
+    std::string own;
+    const bool hadPart = ownText(m, section, key, &own);
+    const bool hadChan = !hadPart && ownText(m, section, channelKeyOf(motionId), &own);
+    if ((hadPart || hadChan) && utf8::lowerAscii(own) == "none") {
+        std::string remembered;
+        if (memory && memory->count(memoryKey(m, section, motionId, "action")))
+            remembered = (*memory)[memoryKey(m, section, motionId, "action")];
+        m.clearOverride(section, hadPart ? key : channelKeyOf(motionId));
+        if (!remembered.empty() && utf8::lowerAscii(remembered) != "none")
+            if (!writeAction(m, section, motionId, key, remembered, nullptr)) m.clearOverride(section, key);
     }
-    if (!effectiveOn(m, section, prefix)) {
-        m.clearOverride(section, key);
-        if (err) *err = "the joystick mode of this profile sets the sensitivity of this channel to 0; change it there";
+    // a legacy sensitivity 0 (written by hand or by an older version of this editor), or an inherited one
+    std::string sens;
+    if (ownText(m, section, prefix + "SENS", &sens) && sens == "0") m.clearOverride(section, prefix + "SENS");
+    if (sensOf(m.effectiveWithMode(section), prefix) == 0 &&
+        !m.setValue(section, prefix + "SENS", std::to_string(factorySens(prefix)), err))
+        return false;
+    if (effectiveAction(m, section, motionId).type == ChannelActionType::Off && !writeAction(m, section, motionId, key, "default", err))
+        return false;
+    if (!effectiveOn(m, section, motionId)) {
+        if (err) *err = "the joystick mode of this profile keeps this motion off; change it there";
         return false;
     }
-    if (memory) memory->erase(mk);
+    if (memory) {
+        memory->erase(memoryKey(m, section, motionId, "action"));
+        memory->erase(memoryKey(m, section, motionId, "sens"));
+    }
     return true;
+}
+
+// The choices of the "What it does" list of a motion, in display order (English source labels; the view translates).
+struct MotionActionChoice {
+    ChannelActionType type;
+    const char *label;
+};
+inline const std::vector<MotionActionChoice> &motionActionChoices() {
+    static const std::vector<MotionActionChoice> c = {{ChannelActionType::Default, "Normal (scroll, or zoom for the twist)"},
+                                                      {ChannelActionType::WheelV, "Scroll"},
+                                                      {ChannelActionType::WheelH, "Scroll sideways"},
+                                                      {ChannelActionType::Zoom, "Zoom"},
+                                                      {ChannelActionType::Keys, "Keys (one key per direction)"},
+                                                      {ChannelActionType::Step, "One key tap per push"},
+                                                      {ChannelActionType::Off, "Nothing"}};
+    return c;
 }
 
 }  // namespace spn::ui

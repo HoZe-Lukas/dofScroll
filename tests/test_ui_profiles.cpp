@@ -212,7 +212,7 @@ static void testLayout() {
     bool changed = false;
     assert(sm.setMode(app, idx, &err, &changed) && changed);
     l = profilePageLayout(sm, app);
-    assert(l.modeInfo && !l.bindingEditor && l.modeId == opts[size_t(idx)].id);
+    assert(l.modeInfo && l.bindingEditor && l.modeId == opts[size_t(idx)].id);
     assert(!l.editModeFile);  // built-in: no file
     // ... and "Default mode" clears MODE again.
     assert(sm.setMode(app, 0, &err, &changed) && changed);

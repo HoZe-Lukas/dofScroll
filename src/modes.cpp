@@ -313,6 +313,27 @@ static bool parseChord(const std::string &text, Key *key, ChordMods *mods, std::
     return true;
 }
 
+namespace {
+std::string chordWords(Key key, const ChordMods &mods) {
+    std::string t;
+    for (uint8_t i = 0; i < mods.n; ++i) t += std::string(keyName(mods.k[i])) + "+";
+    return t + keyName(key);
+}
+}  // namespace
+
+std::string channelActionText(const ChannelAction &a) {
+    switch (a.type) {
+        case ChannelActionType::Default: return "default";
+        case ChannelActionType::Off: return "none";
+        case ChannelActionType::WheelV: return "wheel_v";
+        case ChannelActionType::WheelH: return "wheel_h";
+        case ChannelActionType::Zoom: return "zoom";
+        case ChannelActionType::Step: return "step:" + chordWords(a.neg, a.negMods) + "," + chordWords(a.pos, a.posMods);
+        case ChannelActionType::Keys: return "keys:" + chordWords(a.neg, a.negMods) + "," + chordWords(a.pos, a.posMods);
+    }
+    return "default";
+}
+
 bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err) {
     const std::string t = lower(trim(text));
     ChannelAction a;

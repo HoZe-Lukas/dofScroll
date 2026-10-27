@@ -94,7 +94,7 @@ public:
 // What the profile page shows for a section; rebuilt when the effective mode changes.
 struct ProfilePageLayout {
     bool modeSelector = false;      // device/app profiles only
-    bool bindingEditor = false;     // default mode (or an unknown mode id): editable bindings + NAV/CLICK
+    bool bindingEditor = true;      // always: the buttons of a profile are editable in every joystick mode
     bool modeInfo = false;          // another loaded mode: read-only channel actions and bindings
     bool editModeFile = false;      // "Edit mode file" button (the mode has a file)
     bool unknownMode = false;       // MODE names no loaded mode (treated like the default mode)
@@ -109,7 +109,7 @@ inline ProfilePageLayout profilePageLayout(const SettingsModel &m, size_t sectio
     l.modeSelector = v.canChooseMode;
     l.overridesSection = section > 0;
     l.unknownMode = !v.isDefaultMode && !v.modeLoaded;
-    l.bindingEditor = v.isDefaultMode || !v.modeLoaded;
+    l.bindingEditor = true;  // buttons and motions are always editable in a profile; a joystick mode that binds a button is said in words
     l.modeInfo = !v.isDefaultMode && v.modeLoaded;
     l.editModeFile = l.modeInfo && v.mode.hasFile;
     return l;

@@ -1087,7 +1087,44 @@ static void testAppUnbind() {
     assert(ps.resolve("", "other").buttons.at(1) == "click");
 }
 
+// V_ACTION, H_ACTION, TWIST_ACTION and the four push/tilt keys in profile sections: parsed by the grammar of the
+// mode files, kept canonical through save and load, an invalid value is a warning and never stored.
+static void testProfileActionKeys() {
+    std::string p = tmpPath("profile-actions.conf");
+    writeFile(p,
+              "[global]\nH_ACTION = none\n"
+              "[device:Pro]\nV_PUSH_ACTION = WHEEL_V\n"
+              "[app:code]\nTWIST_ACTION = Keys:Ctrl+Minus,ctrl+plus\nV_TILT_ACTION = none\nH_TILT_ACTION = bogus\nBUTTON_2 = none\n");
+    ProfileSet ps;
+    std::vector<std::string> w;
+    assert(loadProfiles(p, &ps, &w));
+    assert(w.size() == 1 && w[0].find("H_TILT_ACTION") != std::string::npos);  // the invalid line: a warning, not stored
+    const Settings s = ps.resolve("SpaceMouse Pro", "code");
+    assert(s.actions[0].chanSet[ProfileActions::H] && s.actions[0].chan[ProfileActions::H].type == ChannelActionType::Off);
+    assert(s.actions[0].partSet[PART_V_PUSH] && s.actions[0].part[PART_V_PUSH].type == ChannelActionType::WheelV);
+    assert(s.actions[1].chanSet[ProfileActions::TWIST] && s.actions[1].chan[ProfileActions::TWIST].type == ChannelActionType::Keys);
+    assert(s.actions[1].partSet[PART_V_TILT] && !s.actions[1].partSet[PART_H_TILT]);
+    assert(s.app_buttons.count(2) && s.buttons.at(2) == "none");
+    const Settings other = ps.resolve("SpaceMouse Pro", "firefox");
+    assert(!other.actions[1].any() && other.app_buttons.empty());
+    // canonical text, round trip
+    std::string err;
+    assert(saveProfiles(p, ps, &err));
+    ProfileSet back;
+    std::vector<std::string> w2;
+    assert(loadProfiles(p, &back, &w2) && w2.empty());
+    bool found = false;
+    for (const KV &kv : allKeys(back.sectionSettings(2))) found = found || (kv.first == "TWIST_ACTION" && kv.second == "keys:ctrl+minus,ctrl+plus");
+    assert(found);
+    // applyKey: a bad value leaves Settings unchanged; a config without the keys writes none of them
+    Settings t;
+    assert(!applyKey(t, "TWIST_ACTION", "keys:left", &err) && !t.actions[0].any());
+    for (const KV &kv : allKeys(Settings())) assert(kv.first.find("_ACTION") == std::string::npos);
+    std::remove(p.c_str());
+}
+
 int main() {
+    testProfileActionKeys();
     testAppUnbind();
     testUpperBounds();
     testMix();
