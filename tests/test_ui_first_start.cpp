@@ -53,9 +53,9 @@ int main() {
     f.seedLog = "default config";
     assert(f.text("p") == "p: config migration: done - moved old.conf\np: seeded defaults: default config\n");
 
-    // split layout (switched off in the interface until the settings model writes per file): an upgrade moves the
+    // split layout (on in the interface, the settings model writes per file): an upgrade moves the
     // profiles of the old single file into files, once, and says so
-    assert(!spn::ui::kSplitLayoutInUi);
+    assert(spn::ui::kSplitLayoutInUi);
     put(conf, "[global]\nSENSITIVITY = 5\n[app:firefox]\nZOOM_SENS = 3\n[app:vlc]\nZOOM_SENS = 4\n");
     r = spn::ui::runFirstStart(false);
     assert(r.split.status == spn::MigrateStatus::NothingToDo && spn::fs::pathExists(conf));

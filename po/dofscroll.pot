@@ -2514,3 +2514,151 @@ msgid ""
 "Open the first-run guide again: the daemon, the SpaceMouse, start at "
 "login and, on macOS, the permissions"
 msgstr ""
+
+#: src/ui/model/settings_model.hpp
+msgid "This profile is still read from dofscroll.conf because its own file %1 is defective. The file is not touched; fix or remove it to use the profile file again."
+msgstr ""
+
+#: src/ui/model/settings_model.hpp
+msgid "This is the only program profile, so there is no order to think about."
+msgstr ""
+
+#: src/ui/model/settings_model.hpp
+msgid "This is the only device profile, so there is no order to think about."
+msgstr ""
+
+#: src/ui/model/settings_model.hpp
+msgid "Applied after %1, so it wins over %1 where both match."
+msgstr ""
+
+#: src/ui/model/settings_model.hpp
+msgid "Applied first, so every other profile of this kind wins over it where both match."
+msgstr ""
+
+#: src/ui/model/settings_model.hpp
+msgid "%1 is applied after it and wins over it."
+msgstr ""
+
+#: src/ui/model/settings_model.hpp
+msgid "Nothing is applied after it."
+msgstr ""
+
+#: src/ui/model/settings_model.hpp
+msgid "Profiles with the same priority are applied in the order of their file names; use Move up or Move down to fix the order."
+msgstr ""
+
+#: src/ui/model/settings_model.hpp
+msgid "the file %1 was changed outside the settings window, so it was not overwritten; the profile was reloaded from it. Repeat your change if you still want it."
+msgstr ""
+
+#: src/ui/model/settings_model.hpp
+msgid "cannot write the profile file"
+msgstr ""
+
+#: src/ui/model/settings_model.hpp
+msgid "the file %1 was changed outside the settings window, so it was not removed; the profile was reloaded from it."
+msgstr ""
+
+#: src/ui/model/settings_model.hpp
+msgid "%1 was changed outside the settings window, so it was not overwritten; it was reloaded. Repeat your change if you still want it."
+msgstr ""
+
+#: src/ui/model/profile_import.hpp
+msgid "%1 cannot be read as a profile file (not a regular file, too large or unreadable)."
+msgstr ""
+
+#: src/ui/model/profile_import.hpp
+msgid "This file holds Global settings. Import takes a device or program profile ([device:...] or [app:...])."
+msgstr ""
+
+#: src/ui/model/profile_import.hpp
+msgid "This file holds no device or program profile ([device:...] or [app:...])."
+msgstr ""
+
+#: src/ui/model/profile_import.hpp
+msgid "This file holds several profiles; a profile file holds exactly one."
+msgstr ""
+
+#: src/ui/model/profile_import.hpp
+msgid "The setting %1 = %2 is not valid: %3"
+msgstr ""
+
+#: src/ui/model/profile_import.hpp
+msgid "The existing profile \"%1\" was kept; the imported file was not used."
+msgstr ""
+
+#: src/ui/model/profile_import.hpp
+msgid "The profile \"%1\" could not be imported: %2"
+msgstr ""
+
+#: src/ui/model/profile_import.hpp
+msgid "The profile \"%1\" was replaced by the imported one."
+msgstr ""
+
+#: src/ui/model/profile_import.hpp
+msgid "Profile \"%1\" imported."
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Import profile..."
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Add a profile from a .conf file (an exported profile): a device or a program profile, by its header"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Defective profile files"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "%1 (defective)"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "The file %1 is ignored: another file already holds this profile. It is never overwritten: %2"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "The file %1 is defective and is not used. It is never overwritten while the problem stands: %2"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "The profile of the same name is still read from dofscroll.conf instead."
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Apply this profile earlier: the profile above it wins over it where both match"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Apply this profile later: it wins over the profile above it where both match"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Save this profile as a .conf file (a copy of its profile file); Import profile takes it again"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Import profile"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "A profile \"%1\" exists already. Replace its settings with the imported ones, or keep the existing profile and drop the imported file?"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Replace the existing profile"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Keep the existing profile"
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Lines that could not be read were left out."
+msgstr ""
+
+#: src/ui/qt/main.cpp
+msgid "Your profiles are now one file each. The old configuration file is kept as backup/dofscroll.conf.pre-split."
+msgstr ""

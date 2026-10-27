@@ -1770,7 +1770,7 @@ struct EditorRig {
     spn::ui::RecordingActionRunner rec;
     UiContext ctx;
     std::unique_ptr<MainWindow> win;
-    explicit EditorRig(const QByteArray &conf) {
+    explicit EditorRig(const QByteArray &conf, const std::function<void(const QString &)> &prepare = nullptr) {
         const QString p = dir.path();
         ctx.runner = &rec;
         ctx.configPath = (p + QStringLiteral("/dofscroll.conf")).toStdString();
@@ -1783,6 +1783,7 @@ struct EditorRig {
         QFile f(p + QStringLiteral("/dofscroll.conf"));
         if (f.open(QIODevice::WriteOnly)) f.write(conf);
         f.close();
+        if (prepare) prepare(p);  // e.g. the migration to one file per profile, as the first start does it
         ctx.reload = spn::ui::reloadVia(rec);
         win = std::make_unique<MainWindow>(ctx);
         win->show();
@@ -1877,9 +1878,9 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
     // the list: Global first, then the devices, then the programs, always next to the tabs
     const QStringList labels = page->profileListLabels();
     check(labels.size() >= 6 && labels[0] == QStringLiteral("Global") && labels[2].startsWith(QStringLiteral("SpaceMouse Pro")) &&
-              labels[4].startsWith(QStringLiteral("blender")),
-          "the list shows Global, then the devices, then the programs");
-    check(labels[2] == QStringLiteral("SpaceMouse Pro (1)") && labels[5] == QStringLiteral("firefox (1)"),
+              labels[4].startsWith(QStringLiteral("firefox")),
+          "the list shows Global, then the devices, then the programs in the order they are applied");
+    check(labels[2] == QStringLiteral("SpaceMouse Pro (1)") && labels[4] == QStringLiteral("firefox (1)"),
           "the list shows how many settings a profile overrides");
 
     // the same tabs for every profile; the header says which profile is edited
@@ -2811,6 +2812,191 @@ static bool legacyButtonsSelfTest() {
     return ok;
 }
 
+// ---- the split layout: one file per profile (docs/plan-config-split.md) ----
+// Editing, importing, moving, renaming and removing profiles writes the files of exactly those profiles, a
+// defective file is shown in words and never overwritten, and a file changed by hand is not overwritten.
+static bool profileFilesSelfTest() {
+    using spn::Section;
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "profile files self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    EditorRig rig("[global]\n\n[app:firefox]\nZOOM_SENS = 3\n\n[app:vlc]\nZOOM_SENS = 4\n");
+    MainWindow &w = *rig.win;
+    w.showPage(QStringLiteral("profiles"));
+    settle();
+    ProfilesPage *page = w.profilesPage();
+    check(page != nullptr, "the window has a Profiles page");
+    if (!page) return false;
+    const QString dir = QFileInfo(rig.confPath()).absolutePath();
+    auto path = [&](const QString &rel) { return dir + QLatin1Char('/') + rel; };
+    auto text = [&](const QString &rel) {
+        QFile f(path(rel));
+        return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+    };
+    auto put = [&](const QString &rel, const QByteArray &data) {
+        QFile f(path(rel));
+        const bool wrote = f.open(QIODevice::WriteOnly) && f.write(data) == data.size();
+        f.close();
+        return wrote;
+    };
+    auto exists = [&](const QString &rel) { return QFileInfo::exists(path(rel)); };
+    auto wait = [&](int ms = 3000) {  // until nothing is pending; a failed save is checked by the caller
+        QElapsedTimer t;
+        t.start();
+        while (rig.saver()->pending() && t.elapsed() < ms) QApplication::processEvents(QEventLoop::AllEvents, 20);
+        QApplication::processEvents();
+        return !rig.saver()->pending();
+    };
+    auto labelIndex = [&](const QString &start) {
+        const QStringList l = page->profileListLabels();
+        for (int i = 0; i < l.size(); ++i)
+            if (l[i].startsWith(start)) return i;
+        return -1;
+    };
+    auto selectByName = [&](const QString &name) {
+        for (size_t s = 1; s < 16; ++s)
+            if (page->selectSection(s) && page->headerName() == name) return true;
+        return false;
+    };
+    auto editDeadzone = [&](int v) {
+        page->selectTab(QStringLiteral("channels"));
+        auto *dz = qobject_cast<QSpinBox *>(page->channelsEditor()->editorFor("SCROLL_H_DEADZONE"));
+        if (dz) dz->setValue(v);
+        return dz != nullptr;
+    };
+
+    // the old single file: editing one profile moves only that profile into its own file
+    check(selectByName(QStringLiteral("firefox")) && editDeadzone(33), "edit firefox");
+    check(wait() && !rig.saver()->failed() && exists(QStringLiteral("apps/firefox.conf")) &&
+              text(QStringLiteral("apps/firefox.conf")).contains(QStringLiteral("SCROLL_H_DEADZONE = 33")),
+          "the edited profile is written into apps/firefox.conf");
+    check(!exists(QStringLiteral("apps/vlc.conf")) && text(QStringLiteral("dofscroll.conf")).contains(QStringLiteral("[app:vlc]")) &&
+              !text(QStringLiteral("dofscroll.conf")).contains(QStringLiteral("[app:firefox]")),
+          "the other profile stays in dofscroll.conf, the moved one is gone from it");
+    const QByteArray firefoxFile = text(QStringLiteral("apps/firefox.conf")).toUtf8();
+
+    // Import: a new profile gets a file of its own, its PRIORITY is not taken over
+    check(put(QStringLiteral("import-gimp.conf"), "[app:gimp]\nZOOM_SENS = 2\nPRIORITY = 500\n") &&
+              page->importFrom(path(QStringLiteral("import-gimp.conf")), false) && wait() && exists(QStringLiteral("apps/gimp.conf")) &&
+              !text(QStringLiteral("apps/gimp.conf")).contains(QStringLiteral("PRIORITY")),
+          "Import writes apps/gimp.conf");
+    check(text(QStringLiteral("apps/firefox.conf")).toUtf8() == firefoxFile, "an import writes no other file");
+    // a name that exists: kept unless the user chooses Replace
+    check(put(QStringLiteral("import-gimp2.conf"), "[app:GIMP]\nZOOM_SENS = 9\n") &&
+              !page->importFrom(path(QStringLiteral("import-gimp2.conf")), false) && wait() &&
+              text(QStringLiteral("apps/gimp.conf")).contains(QStringLiteral("ZOOM_SENS = 2")),
+          "Keep leaves the existing profile alone");
+    check(page->importFrom(path(QStringLiteral("import-gimp2.conf")), true) && wait() &&
+              text(QStringLiteral("apps/gimp.conf")).contains(QStringLiteral("ZOOM_SENS = 9")) &&
+              text(QStringLiteral("apps/gimp.conf")).contains(QStringLiteral("[app:gimp]")),
+          "Replace changes the existing profile (its own name stays)");
+    // a file that is no profile is refused with a message, nothing is written
+    check(put(QStringLiteral("import-global.conf"), "[global]\nSCROLL_V_SENS = 3\n") &&
+              !page->importFrom(path(QStringLiteral("import-global.conf")), true) && !rig.saver()->pending(),
+          "a Global file is not imported");
+    // export is a copy of the profile file, and Import takes it again
+    check(selectByName(QStringLiteral("gimp")) && page->exportSelected(path(QStringLiteral("export-gimp.conf"))) &&
+              text(QStringLiteral("export-gimp.conf")) == text(QStringLiteral("apps/gimp.conf")),
+          "Export copies the profile file");
+
+    // the order: the list follows it, Move up and Move down change PRIORITY, the words say it
+    check(labelIndex(QStringLiteral("firefox")) < labelIndex(QStringLiteral("vlc")) &&
+              labelIndex(QStringLiteral("vlc")) < labelIndex(QStringLiteral("gimp")),
+          "the list shows the profiles in the order they are applied");
+    check(selectByName(QStringLiteral("gimp")) && page->orderNote().contains(QStringLiteral("Applied after \"vlc\"")),
+          "the order is said in words");
+    check(page->moveSelected(true) && wait() && !rig.saver()->failed(), "Move up");
+    check(labelIndex(QStringLiteral("gimp")) < labelIndex(QStringLiteral("vlc")) &&
+              labelIndex(QStringLiteral("firefox")) < labelIndex(QStringLiteral("gimp")),
+          "the profile moved in the list");
+    check(page->selectedSection() != 0 && page->headerName() == QStringLiteral("gimp") &&
+              page->orderNote().contains(QStringLiteral("Applied after \"firefox\"")),
+          "the moved profile stays selected");
+    {
+        const spn::ui::SettingsModel disk = rig.disk();
+        const size_t g = disk.profiles().find(Section::APP, "gimp"), f = disk.profiles().find(Section::APP, "firefox"),
+                     v = disk.profiles().find(Section::APP, "vlc");
+        check(g != spn::ProfileSet::npos && f != spn::ProfileSet::npos && v != spn::ProfileSet::npos &&
+                  disk.priority(f) < disk.priority(g) && disk.priority(g) < disk.priority(v) && !disk.inSingleFile(v),
+              "the new order is on disk (PRIORITY), vlc moved into its file");
+    }
+    check(page->moveSelected(false) && wait() && labelIndex(QStringLiteral("vlc")) < labelIndex(QStringLiteral("gimp")),
+          "Move down");
+
+    // rename: the new file is written, the old one removed, the order stays
+    check(selectByName(QStringLiteral("vlc")) && page->renameSelected(QStringLiteral("VLC media player")) && wait() &&
+              !rig.saver()->failed(),
+          "rename vlc");
+    check(!exists(QStringLiteral("apps/vlc.conf")) &&
+              text(QStringLiteral("apps/vlc media player.conf")).contains(QStringLiteral("[app:VLC media player]")) &&
+              text(QStringLiteral("apps/vlc media player.conf")).contains(QStringLiteral("ZOOM_SENS = 4")),
+          "the new file was written and the old one removed");
+    check(labelIndex(QStringLiteral("VLC media player")) < labelIndex(QStringLiteral("gimp")), "a rename keeps the place in the order");
+
+    // remove: the file goes, without any question about unsaved changes
+    check(selectByName(QStringLiteral("gimp")) && page->removeSelected() && wait() && !exists(QStringLiteral("apps/gimp.conf")) &&
+              exists(QStringLiteral("apps/vlc media player.conf")) && exists(QStringLiteral("apps/firefox.conf")),
+          "Remove deletes only that profile's file");
+
+    // a defective file: its own entry in the list with the file name, explained in words, never overwritten
+    const QByteArray broken = "[app:b]\n[app:c]\nZOOM_SENS = 1\n";
+    check(put(QStringLiteral("apps/broken.conf"), broken), "write a defective file");
+    {
+        QElapsedTimer t;
+        t.start();
+        while (page->defectNotes().isEmpty() && t.elapsed() < 4000)  // the window follows the directory
+            QApplication::processEvents(QEventLoop::AllEvents, 20);
+    }
+    check(page->defectNotes().contains(QStringLiteral("broken.conf")) && page->defectNotes().contains(QStringLiteral("defective")) &&
+              labelIndex(QStringLiteral("broken.conf (defective)")) >= 0,
+          "the defective file is listed by name, in words");
+    check(selectByName(QStringLiteral("firefox")) && editDeadzone(44) && wait() && !rig.saver()->failed() &&
+              text(QStringLiteral("apps/broken.conf")).toUtf8() == broken,
+          "editing another profile never overwrites the defective file");
+    QFile::remove(path(QStringLiteral("apps/broken.conf")));
+    {
+        QElapsedTimer t;
+        t.start();
+        while (!page->defectNotes().isEmpty() && t.elapsed() < 4000) QApplication::processEvents(QEventLoop::AllEvents, 20);
+    }
+    check(page->defectNotes().isEmpty() && labelIndex(QStringLiteral("broken.conf")) < 0,
+          "the entry goes when the file is repaired or removed");
+
+    // a file changed by hand is never overwritten: the profile is reloaded and the problem shown next to it
+    check(selectByName(QStringLiteral("firefox")) && editDeadzone(55), "edit firefox again");
+    const QByteArray hand = "[app:firefox]\nZOOM_SENS = 8\n# by hand\n";
+    check(put(QStringLiteral("apps/firefox.conf"), hand), "change the file by hand");
+    check(wait() && rig.saver()->failed() && rig.saver()->statusText().contains(QStringLiteral("changed outside")),
+          "the autosave says so");
+    check(text(QStringLiteral("apps/firefox.conf")).toUtf8() == hand, "the hand-edited file was not overwritten");
+    settle();
+    check(selectByName(QStringLiteral("firefox")) && page->headerNote().contains(QStringLiteral("changed outside")),
+          "the message is shown next to the profile");
+
+    // the migration at the first start: the profiles come from their files, in the order of the old file
+    EditorRig mig("[global]\n\n[app:zeta]\nZOOM_SENS = 3\n\n[app:alpha]\nZOOM_SENS = 4\n",
+                  [](const QString &d) { spn::migrateToSplit(d.toStdString()); });
+    mig.win->showPage(QStringLiteral("profiles"));
+    settle();
+    ProfilesPage *mp = mig.win->profilesPage();
+    check(mp != nullptr && QFileInfo::exists(mig.dir.path() + QStringLiteral("/apps/zeta.conf")) &&
+              !mig.confText().contains(QStringLiteral("[app:zeta]")),
+          "the migration moved the profiles into files");
+    if (mp) {
+        const QStringList l = mp->profileListLabels();
+        int z = -1, a = -1;
+        for (int i = 0; i < l.size(); ++i) {
+            if (l[i].startsWith(QStringLiteral("zeta"))) z = i;
+            if (l[i].startsWith(QStringLiteral("alpha"))) a = i;
+        }
+        check(z >= 0 && a > z, "the list keeps the order of the old file");
+    }
+    std::printf("profile files self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
 // ---- audit: every editable control is persisted ----
 // Table-driven: change the control programmatically, wait for the autosave (the real timer), read the file
 // from disk like the daemon would and check the value; a cleared or unchecked state must be written (or
@@ -3676,6 +3862,7 @@ int main(int argc, char **argv) {
         if (!profileEditorSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
         if (!autosaveAuditSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
         if (!legacyButtonsSelfTest()) return 1;
+        if (!profileFilesSelfTest()) return 1;
         if (!themeSelfTest(w)) return 1;
         if (!selectionContrastSelfTest(ctx)) return 1;
         if (!fontScaleSelfTest(w)) return 1;
@@ -3739,6 +3926,10 @@ int main(int argc, char **argv) {
     window.setTrayAvailable(hasTray);  // without a tray, closing the window quits
     QObject::connect(&window, &MainWindow::quitRequested, &app, &QApplication::quit);
     window.enableStatePersistence(spn::ui::uiSettingsPath());  // size, position and page of the last run
+    // The one informational line of the migration to one file per profile (also in the log above): once.
+    if (firstStart.split.status == spn::MigrateStatus::Migrated)
+        window.showStartupInfo(T("Your profiles are now one file each. The old configuration file is kept as "
+                                 "backup/dofscroll.conf.pre-split."));
     Tray tray(&window, icon, ctx);
     tray.show();
     // The daemon is started from here when none runs (after the grace period of a login autostart,

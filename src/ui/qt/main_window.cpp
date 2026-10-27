@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "main_window.hpp"
 #include "ui/model/status_text.hpp"
+#include "profile_files.hpp"
 #include "ui/model/first_device.hpp"
 #include "ui/model/ui_progress.hpp"
 
@@ -269,9 +270,8 @@ bool MainWindow::categoryIconsLoaded() const {
 // (Enabled) and a text editor change the file too; the window follows when it has nothing of its own
 // to write.
 void MainWindow::noteConfigStamp() {
-    const QFileInfo fi(QString::fromStdString(ctx_.configPath));
-    configStamp_ = fi.exists() ? QString::number(fi.size()) + QLatin1Char(':') + QString::number(fi.lastModified().toMSecsSinceEpoch())
-                               : QString();
+    // dofscroll.conf together with devices/ and apps/ (a hand edit of one profile file is noticed too)
+    configStamp_ = qs8(spn::profileTreeStampAt(ctx_.configPath));
 }
 
 // An old configuration may still set the navigation or click button with NAV_BUTTON / CLICK_BUTTON. Those
@@ -327,12 +327,30 @@ void MainWindow::addFirstDeviceProfile() {
     spn::ui::UiProgress p = spn::ui::loadUiProgress(pp);
     if (!p.firstDevicePending) return;
     std::string err;
-    if (spn::ui::addFirstDeviceProfile(settings_, status_.status().device, &err)) {
+    if (settings_.splitLayout()) {
+        // the split layout: the profile is written as devices/<slug>.conf and the model reads it back
+        if (spn::ui::writeFirstDeviceProfileFile(spn::configDirOf(ctx_.configPath), status_.status().device, &err)) {
+            std::vector<std::string> warnings;
+            if (settings_.load(ctx_.configPath, &warnings, &err)) {
+                settings_.setModes(modes_.modeSet(), ctx_.modesDir);
+                noteConfigStamp();
+                std::string rerr;
+                if (ctx_.reload) ctx_.reload(&rerr);
+                if (auto *pg = qobject_cast<ProfilesPage *>(profilesPage_)) pg->reloadFromModel();
+            }
+        }
+    } else if (spn::ui::addFirstDeviceProfile(settings_, status_.status().device, &err)) {
         ctx_.saveSoon();
         if (auto *pg = qobject_cast<ProfilesPage *>(profilesPage_)) pg->reloadFromModel();
     }
     p.firstDevicePending = false;  // once: also when the configuration already had a device profile
     spn::ui::saveUiProgress(pp, p, &err);
+}
+
+// One informational line of the first start (the old single file was moved into one file per profile): shown once in
+// the footer, the same text goes to the log (FirstStart::text).
+void MainWindow::showStartupInfo(const QString &text) {
+    if (!text.isEmpty()) autosave_.report(text, false);
 }
 
 void MainWindow::bringToFront() {

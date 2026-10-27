@@ -28,6 +28,7 @@
 #include "profiles_env.hpp"
 #include "ui/model/device_source_model.hpp"
 #include "ui/model/live_feed_model.hpp"
+#include "ui/model/profile_tree_model.hpp"
 #include "ui_context.hpp"
 
 class ChannelsEditor;
@@ -76,6 +77,14 @@ public:
     // Export of the selected profile (its section as a .conf file) without a dialog; false + lastError().
     bool exportSelected(const QString &file);
     const QString &lastError() const { return lastError_; }
+    // The actions of the profile list without a dialog (the buttons call them after their dialogs; the self-test
+    // calls them directly). All of them go through the settings model and the autosave.
+    bool moveSelected(bool up);                           // Move up / Move down in the order of the profiles of its kind
+    bool removeSelected();                                // Remove (the button asks first)
+    bool renameSelected(const QString &name);             // Change application / device: the new name, same settings
+    bool importFrom(const QString &file, bool replaceOnCollision);  // Import; a name that exists is replaced or kept
+    QString defectNotes() const;                          // the words about defective profile files under the list
+    QString orderNote() const;                            // the order of the selected profile in words (General tab)
     // The model changed behind the page (the configuration file was edited elsewhere): show it again.
     void reloadFromModel() { rebuildTree(currentSection()); }
 
@@ -91,6 +100,7 @@ private slots:
     void renameProfile();
     void removeProfile();
     void exportProfile();
+    void importProfile();
 
 private:
     void rebuildTree(size_t selectSection);
@@ -123,6 +133,9 @@ private:
     QWidget *buildModeInfo(size_t section);
     QWidget *buildOverrides(size_t section);
     void problem(const QString &text);  // a message for the status bar
+    bool doImport(const QString &file, const std::function<int(const QString &name)> &chooseOnCollision);  // 1 replace, 0 keep
+    QString defectText(const spn::ui::ProfileEntry &e) const;
+    const spn::ui::StringProvider &strings() const;
 
     const UiContext &ctx_;
     ProfilesEnv env_;
@@ -139,7 +152,8 @@ private:
     QScrollArea *general_ = nullptr, *overrides_ = nullptr;
     ProfileMotionsView *motions_ = nullptr;
     ChannelsEditor *channels_ = nullptr;
-    QPushButton *add_app_, *add_dev_;
+    QPushButton *add_app_, *add_dev_, *import_;
+    QLabel *defectNote_ = nullptr;  // defective profile files, in words, under the list
     size_t shown_ = 0;  // section the tabs show
     int settingRows_ = 0;
     bool advancedOpen_ = false;

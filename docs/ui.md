@@ -350,8 +350,14 @@ itself and tells the daemon to reload:
 - Page switches, tab switches, profile switches, closing the window and Quit write what is pending
   first, synchronously, so no edit is lost. (An invalid form of the joystick mode editor cannot be
   written by design; it stays as you left it in the editor until you fix it.)
-- The window follows the configuration file: when the tray (Enabled) or a text editor changes it
-  and the window has nothing of its own pending, the window reads it again.
+- The window follows the configuration: when the tray (Enabled) or a text editor changes `dofscroll.conf` or a
+  profile file and the window has nothing of its own pending, the window reads it again.
+- Only the files that changed are written: the file of an edited profile, `dofscroll.conf` for Global, one write and
+  one reload for the whole burst. A file that was changed on disk since the window read it is never overwritten (see
+  "Profiles").
+- The first start after an update moves the profiles of an old single `dofscroll.conf` into one file each (the old
+  file is kept as `backup/dofscroll.conf.pre-split`); the footer says so once: "Your profiles are now one file each.
+  The old configuration file is kept as backup/dofscroll.conf.pre-split."
 
 The model of the rule (debounce, burst coalescing, flush, failure handling) is
 `src/ui/model/autosave.hpp` with a fake clock in `tests/test_ui_autosave.cpp`; the Qt side is
@@ -591,16 +597,50 @@ The tabs are the same for every profile and the selected tab stays when you sele
 - **Overrides** (advanced): the channel values this profile sets itself as raw text, with Remove
   (inherit again) and Add override. Global has nothing to override (it holds the base values).
 
-Below the list: **Add application...** (running-program picker) and **Add device...**. What belongs to the
+Every profile lives in a file of its own (`devices/<name>.conf`, `apps/<name>.conf`; `dofscroll.conf` holds
+Global), and the interface writes only the file of the profile you changed. The list shows the profiles of a kind in the
+order the daemon applies them (see "Order of the profiles" below). A profile file that cannot be used (a
+second profile in it, a header of the wrong kind, a line it cannot read, the same profile name as another file) is
+listed as an entry of its own with the file name and "(defective)", explained in words under the list; it is
+never overwritten while the problem stands. If an old `dofscroll.conf` still holds a section of the same name, that
+section stays active and the profile's header says so ("This profile is still read from dofscroll.conf because its
+own file ... is defective ..."). A profile that is still in an old single `dofscroll.conf` (or in a symlinked one) moves
+into its own file when you edit it, unless its file is defective; with a symlinked `dofscroll.conf` the interface
+keeps writing the single file and new profiles stay in it.
+
+Below the list: **Add application...** (running-program picker), **Add device...** and **Import profile...**. What belongs to the
 selected profile as a whole is the box **This profile** at the bottom of its General tab (hidden while the settings
 search is in use): **Change application...** (program profiles) or **Change device...** (device profiles) opens
 the same picker as "Add application..." / "Add device..." (running programs, capture the next focused program,
 device list, manual entry) with the current match string filled in, and changes the program or device the
-profile applies to while all its settings stay, for example when a program's name changed; **Export...**
-writes the selected profile (its section, for Global the `[global]` keys the file holds) as a `.conf` file that
-can be copied into another configuration; **Remove** deletes the profile after asking. Global has no program or
-device and cannot be removed, it has only Export. Import of a whole profile is not offered; joystick modes and
-button modes have Import.
+profile applies to while all its settings stay, for example when a program's name changed (the new profile
+file is written first, then the old one is removed; the profile keeps its place in the order); **Move up** and
+**Move down** change the order (below); **Export...** saves the profile as a `.conf` file (a copy of its profile
+file; for Global the `[global]` keys the file holds); **Remove** deletes the profile (and its file) after asking
+once, nothing asks about unsaved changes. Global has no program or device and cannot be removed, it has only Export.
+**Import profile...** takes such a `.conf` file: the header of the file decides the kind (`[device:...]` becomes a
+device profile, `[app:...]` a program profile); the file is checked completely before anything changes, and a
+Global file, a file with several profiles or with an invalid value is refused with a message. If a profile of that
+name exists already you are asked once in words: "Replace the existing profile" or "Keep the existing profile"
+(nothing is ever overwritten without that choice; the footer says what happened). The `PRIORITY` of the imported
+file is not taken over: a new profile is applied last. Joystick modes and button modes have their own Import.
+
+If a profile file was changed by hand while the window had an edit of that profile, the file is not overwritten:
+the profile is reloaded from the file, the footer says "Could not save: ..." and the same message stays in the
+header of that profile ("The file ... was changed outside the settings window ..."). The same happens when a file
+to be removed was changed.
+
+### Order of the profiles
+
+When two profiles of the same kind match the same device or program, the one applied later wins (device profiles are
+always applied before program profiles). The order of a kind is the optional key `PRIORITY` (a whole number from
+-1000 to 1000, default 0, lower is applied first); profiles with the same number are applied in the order of their
+file names (the profiles of an old single file first, in file order). The list shows exactly this order, and the box
+"This profile" says it in words: "Applied after "x", so it wins over "x" where both match. "y" is applied after it and
+wins over it." **Move up** applies the profile earlier, **Move down** later. The buttons change the `PRIORITY` of the
+two profiles and leave the gaps; only when the order would stay ambiguous (equal numbers, hand-written numbers) the
+profiles of that kind are numbered again (10, 20, 30, ...). A new profile is applied last when the others have an
+explicit order.
 
 ### Inheritance
 
