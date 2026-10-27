@@ -30,8 +30,8 @@ driver is installed**, and directly as raw HID otherwise (setting `INPUT`, defau
 interface shows which one is active). dofscroll contains nothing of the driver: it only loads the
 installed driver's interface at run time. The driver, its interface and the names 3Dconnexion and
 SpaceMouse belong to 3Dconnexion (a Logitech company); dofscroll is not affiliated with or endorsed
-by them. Details: [docs/legal-notes.md](docs/legal-notes.md). The driver path has never been run
-against the real driver (see [Status and testing](#status-and-testing)).
+by them. Details: [docs/legal-notes.md](docs/legal-notes.md). Apart from the first tests on one
+Windows machine, the driver path has only been run against a fake driver in CI (see [Status and testing](#status-and-testing)).
 
 It consists of two programs. The Qt interface is the only tray and settings window on Linux, Windows and macOS (the old GTK tray `dofscroll-tray` was removed in 0.1.1, #43):
 
@@ -53,6 +53,7 @@ Other Linux distributions were install-tested in CI containers; on Windows the b
 | Platform | Status |
 |---|---|
 | RHEL 9, X11, KDE Plasma | **Tested** with the SpaceMouse Pro and the SpaceMouse Compact. |
+| Ubuntu 26.04, GNOME, Wayland | Reported by a contributor with a SpaceMouse Compact (uinput backend): the services start (after the 1.2.3 fix for AppArmor systems) and the settings window renders. Not tested by the maintainer. |
 | Other Linux distributions (Debian, Ubuntu, Fedora, ...) | Not tested with a device. The RPM, DEB and TGZ packages are built and install-tested in CI containers. |
 | Linux, Wayland | Not tested. Uses the uinput backend and needs a udev rule that you install yourself (opt-in, see [installation.md](docs/installation.md)); active-window profiles work only with `kdotool` (KDE). |
 | Windows | Daemon, Qt interface and an unsigned installer/ZIP are built by CI. **Basic functions work on one real machine** (SpaceMouse Pro, official driver; first tests). |
@@ -68,14 +69,14 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
 
 ### Known limitations
 
-- Windows and macOS: never run with a real device, and the path through the official driver's
-  interface has never been run against the real driver (only against a fake driver in CI; hardware
-  checklist items in `docs/port-windows-checklist.md` and `docs/port-macos-checklist.md`).
-  Whether dofscroll and the driver can read the device at the same time is exactly what is
-  unverified. The Windows installer is not code-signed
+- Windows: first tests only, on one machine (SpaceMouse Pro, official driver); not extensive. macOS: never run
+  with a real device. Outside those first tests the path through the official driver's interface has only been
+  run against a fake driver in CI (hardware checklist items in `docs/port-windows-checklist.md` and
+  `docs/port-macos-checklist.md`). Whether dofscroll and the driver can read the device at the same time on
+  every setup is not verified. The Windows installer is not code-signed
   (SmartScreen warns) and the macOS DMG is only ad-hoc signed and not notarized (Gatekeeper
   blocks the first start). Notes in [docs/installation.md](docs/installation.md).
-- The Qt interface has not been checked on Windows or macOS desktops.
+- The Qt interface had first tests on one Windows desktop; the driver cleanup dialog (Windows only) and the interface on macOS have not been checked on real desktops.
 - Pausing output while the own session is not the active one (several users on one PC) was
   unit-tested with fake probes only; no second user session was available. The Windows and macOS
   probes are compile-checked only.
