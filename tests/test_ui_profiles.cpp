@@ -381,6 +381,10 @@ static void testFilter() {
     assert(ProfileTreeModel::filterMatches("vert", "Vertical", "SCROLL_V_SENS"));
     assert(!ProfileTreeModel::filterMatches("zoom", "Vertical", "SCROLL_V_SENS"));
     assert(ProfileTreeModel::filterMatches("", "x"));
+    // button rows: found by "Button <n> <action>" or by BUTTON_<n>, ASCII case folded
+    assert(ProfileTreeModel::filterMatches("button_3", "Button 3 Left click", "BUTTON_3"));
+    assert(ProfileTreeModel::filterMatches("LEFT", "Button 3 Left click", "BUTTON_3"));
+    assert(!ProfileTreeModel::filterMatches("button_4", "Button 3 Left click", "BUTTON_3"));
 }
 
 int main() {

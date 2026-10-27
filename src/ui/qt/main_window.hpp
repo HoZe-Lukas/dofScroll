@@ -46,7 +46,7 @@ public:
     bool flushPending();
     Autosaver *autosaver() { return &autosave_; }  // the writer of the configuration (self-test)
     QString saveStatus() const;  // the text of the save status in the footer ("" = nothing to say)
-    // Opens a tab of a profile on the Profiles page ("general", "channels", "buttons", "overrides").
+    // Opens a tab of a profile on the Profiles page ("general", "channels", "motions", "overrides").
     bool openProfileTab(size_t section, const QString &tab);
     int pageCount() const;                    // pages in all categories
     int categoryCount() const;                // left tabs

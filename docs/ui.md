@@ -123,7 +123,7 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 | Category | Page (tab) | Content |
 |---|---|---|
 | Overview | Overview | Only summarizes and links: the state of the daemon, task buttons, quick actions (see "Overview quick actions" below) and one card per device or program profile with its joystick mode, a one-line summary of what it overrides and how many settings that are; "Open" shows the profile on the Profiles page. Every profile of the configuration has a card, a filter box narrows the list |
-| Profiles | Profiles | The list of profiles (Global first, then devices, then programs) and the editor of the selected one with the tabs General, Channels, Buttons, Motions and buttons and Overrides, see "Profiles" below |
+| Profiles | Profiles | The list of profiles (Global first, then devices, then programs) and the editor of the selected one with the tabs General, Channels, Motions and buttons and Overrides, see "Profiles" below |
 | Modes | Editor | The visual editor at full width: choose a joystick mode, click a motion of the cap or a button and choose what it does from big action tiles; see "The Editor page" below. A built-in joystick mode is copied first ("Make my own copy") |
 | Modes | Joystick modes | The available joystick modes (built-in and files in the joystick modes folder), one row each with name, origin badge, one description line and six motion chips; the detail view shows the six motions as a panel, the buttons as chips and the profiles that use it. Actions: new, new from example, duplicate, import (button or drop `.conf` files onto the page), export, rename, edit in the page, delete; for every joystick mode the profiles that use it; a reminder that joystick mode files can press any key |
 | Modes | Button modes | The button mode files (`buttons/`): create, new from example, edit in the page, duplicate, import, delete; used from the button drop-downs of the Profiles page |
@@ -274,14 +274,16 @@ write the last change first.
 
 ### The picture in a profile and on the Button modes page
 
-The **Motions and buttons** tab of a profile (Global, device or program; between Buttons and Overrides) shows the
+The **Motions and buttons** tab of a profile (Global, device or program; between Channels and Overrides) shows the
 same picture for that profile. The six motions say what the profile's joystick mode does with them, in words;
 that action belongs to the joystick mode, so the inspector points to the Joystick modes page. What the profile
 sets itself is edited here: for a motion the **tuning of its channel** (sensitivity, dead zone, direction,
 curve, smoothing) as overrides of the profile, each with where its value comes from ("Inherited from Global: 5",
-"Set in this profile (inherited: 5)") and an Inherit or Reset button; for a button the same button row as on
-the Buttons tab. A profile whose joystick mode brings its own button bindings shows the buttons read-only, as
-the Buttons tab does.
+"Set in this profile (inherited: 5)") and an Inherit or Reset button; for a button the button row (every button
+of the device, one row each, with its origin in words; in Global the plain key and click bindings sit behind a
+collapsed "Advanced" section; the notes about moved old button settings are shown above the picture). A profile
+whose joystick mode brings its own button bindings shows the buttons read-only. There is no separate Buttons tab
+on the Profiles page.
 
 The **Button modes** page has "Use it on a button": the buttons of the device with what the Global profile binds
 to each of them, no motions. Choose a button and **Use on this button** (its tooltip says which button mode and which button) binds the
@@ -490,7 +492,7 @@ your own file (a file that replaces a built-in one brings the built-in back).
 
 The Profiles page has a "Joystick mode" drop-down per profile on the General tab (Global, device,
 program): Global chooses the joystick mode that applies unless a device or program profile chooses
-another one; the others have "Same as Global" as first choice. Every button row on the Buttons tab
+another one; the others have "Same as Global" as first choice. Every button row on the Motions and buttons tab
 has its own drop-down with these entries, in this order: "Default (inherit from Global)" (device
 and program profiles; it removes the profile's own `BUTTON_<n>` line; in Global the first entry is
 "Nothing"), the **button modes** by name (tooltip: the description), then the plain actions:
@@ -548,7 +550,7 @@ The tabs are the same for every profile and the selected tab stays when you sele
   zoom and key events while this profile is active", `ENABLED`), then the joystick mode (drop-down with
   the **i** info button). **With the output off the profile sends nothing, so the joystick mode, the buttons
   and the channel settings do not apply: the joystick mode and its information are hidden, and so are the
-  Channels, Buttons and Overrides tabs**; a note says so, and switching the output on brings them back. (To
+  Channels, Motions and buttons and Overrides tabs**; a note says so, and switching the output on brings them back. (To
   switch only the axes off and keep the buttons, choose the joystick mode "off" and leave the output on.) A
   profile with another joystick mode also shows what that joystick mode does, read-only, with "Edit
   joystick mode file". Global has no output switch here: it is on the Settings page, and nothing is hidden for it.
@@ -558,13 +560,16 @@ The tabs are the same for every profile and the selected tab stays when you sele
   rows that do not match; every row names its config key in the tooltip. "Restore defaults" removes
   every value of the tab from the profile; "Reset this group" and the per-row "Reset" do the same
   for a group or a row. The editor edits the selected profile, Global included.
-- **Buttons**: one row per button of the device (factory button count), the effective action, where
-  it comes from, and the drop-down described above. Global may assign buttons like any other
+- **Motions and buttons**: the picture of the cap for this profile (described below). Choosing a button
+  shows its row in the inspector: one row per button of the device (factory button count), the effective
+  action, where it comes from, and the drop-down described above. Global may assign buttons like any other
   profile. A profile whose joystick mode has its own bindings shows a note instead (the bindings
   are listed on the General tab).
   Next to every drop-down sits the same button chip as on the other pages (the number and the action in
   a few words, "1 Space"; muted with the word "Unassigned" when nothing is bound); it follows the
   drop-down at once and wraps under it with the font size.
+  The search box above the tabs also applies here: while it holds text, only the buttons whose label ("Button 3"), key
+  (`BUTTON_3`) or action text contains it are drawn in the picture; if none matches, a note says so.
 - **Overrides** (advanced): the channel values this profile sets itself as raw text, with Remove
   (inherit again) and Add override. Global has nothing to override (it holds the base values).
 
@@ -625,10 +630,10 @@ When the interface loads a configuration that still sets the navigation or click
 `NAV_BUTTON` / `CLICK_BUTTON` (and the matching `..._ENABLED`), it moves them once to the equivalent
 `BUTTON_<n>` entries (`BUTTON_<n> = nav`, `BUTTON_<n> = click`, n = the old 0-based number + 1) in
 the profile that had them, writes the file atomically, tells the daemon and says so in the footer
-("Moved the old navigation/click button settings to the Buttons tab"); the Buttons tab keeps the list
+("Moved the old navigation/click button settings to the Motions and buttons tab"); the Motions and buttons tab keeps the list
 of what was moved. A pair is moved all or nothing: if a button is above the button count of the
 device or the profile already binds that button to something else, the old keys stay in the file
-untouched and the Buttons tab lists them as "Not moved: ...". Disabled old keys (older saves wrote
+untouched and the Motions and buttons tab lists them as "Not moved: ...". Disabled old keys (older saves wrote
 `NAV_BUTTON_ENABLED = 0` everywhere) are simply dropped. The daemon still understands the old keys.
 
 ## Tray menu

@@ -9,6 +9,7 @@
 // is written by the autosave of the profiles page; there is no Save button.
 #pragma once
 #include <QLabel>
+#include <QList>
 #include <QString>
 #include <QWidget>
 #include <functional>
@@ -26,6 +27,11 @@ public:
     ProfileMotionsView(const UiContext &ctx, ButtonRowFn addButtonRow, QWidget *parent = nullptr);
     // bindingEditor false: the profile's joystick mode brings its own button bindings (the buttons are read-only).
     void setSection(size_t section, bool bindingEditor);
+    // Widgets shown above the picture (notes about moved old button settings, the Global "Advanced" section); the view owns them.
+    // The settings search: a button is drawn (and its row reachable) only when this returns true for its number and
+    // its label ("Button 3 <action>"); an empty function shows every button.
+    void setButtonFilter(std::function<bool(int number, const QString &label)> filter) { buttonFilter_ = std::move(filter); }
+    void setExtras(const QList<QWidget *> &widgets);
     MotionPicture *picture() const { return picture_; }
     QWidget *inspector() const { return inspector_; }
     QString selectedId() const;
@@ -42,11 +48,12 @@ private:
 
     const UiContext &ctx_;
     ButtonRowFn addButtonRow_;
+    std::function<bool(int, const QString &)> buttonFilter_;
     size_t section_ = 0;
     bool bindingEditor_ = true;
     MotionPicture *picture_ = nullptr;
     QWidget *inspector_ = nullptr;
-    QVBoxLayout *col_ = nullptr;
+    QVBoxLayout *col_ = nullptr, *extras_ = nullptr;
     QLabel *title_ = nullptr, *sentence_ = nullptr;
     QString selected_;
 };

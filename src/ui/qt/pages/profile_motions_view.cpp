@@ -34,8 +34,12 @@ std::string channelPrefix(const std::string &motion) {
 
 ProfileMotionsView::ProfileMotionsView(const UiContext &ctx, ButtonRowFn addButtonRow, QWidget *parent)
     : QWidget(parent), ctx_(ctx), addButtonRow_(std::move(addButtonRow)) {
-    auto *root = new QHBoxLayout(this);
-    root->setContentsMargins(0, 0, 0, 0);
+    auto *outer = new QVBoxLayout(this);
+    outer->setContentsMargins(0, 0, 0, 0);
+    extras_ = new QVBoxLayout;
+    outer->addLayout(extras_);
+    auto *root = new QHBoxLayout;
+    outer->addLayout(root, 1);
     auto *left = new QVBoxLayout;
     picture_ = new MotionPicture(this);
     left->addWidget(picture_);
@@ -67,6 +71,12 @@ bool ProfileMotionsView::select(const QString &id) {
     return false;
 }
 
+void ProfileMotionsView::setExtras(const QList<QWidget *> &widgets) {
+    clearLayoutNow(extras_);
+    for (QWidget *w : widgets)
+        if (w) extras_->addWidget(w);
+}
+
 void ProfileMotionsView::setSection(size_t section, bool bindingEditor) {
     section_ = section;
     bindingEditor_ = bindingEditor;
@@ -96,6 +106,8 @@ void ProfileMotionsView::rebuild() {
         const ButtonChip *chip = nullptr;
         for (const ButtonChip &c : a.buttons)
             if (c.number == n) chip = &c;
+        if (buttonFilter_ && !buttonFilter_(n, T("Button") + QStringLiteral(" %1 ").arg(n) + (chip ? qs8(chip->action) : QString())))
+            return;
         MotionPicture::Item it;
         it.id = QStringLiteral("b:") + QString::number(n);
         it.title = QString::number(n);

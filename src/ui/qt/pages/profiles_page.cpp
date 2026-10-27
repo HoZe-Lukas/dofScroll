@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "profiles_page.hpp"
 
+#include "pages/motion_editor.hpp"
 #include "pages/profile_motions_view.hpp"
 
 #include <algorithm>
@@ -205,13 +206,11 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
         return area;
     };
     general_ = makeArea("general");
-    buttons_ = makeArea("buttons");
     overrides_ = makeArea("overrides");
     channels_ = new ChannelsEditor(ctx_, tabs_);
     channels_->setProperty("tabId", QStringLiteral("channels"));
     tabs_->addTab(general_, T("General"));
     tabs_->addTab(channels_, T("Channels"));
-    tabs_->addTab(buttons_, T("Buttons"));
     motions_ = new ProfileMotionsView(
         ctx_, [this](QWidget *host, QGridLayout *grid, int gridRow, size_t sec, int n) { addBindingRowFor(host, grid, gridRow, sec, n); }, tabs_);
     motions_->changed = [this] { queueRebuild(); };
@@ -391,6 +390,10 @@ bool ProfilesPage::selectTab(const QString &id) {
     return false;
 }
 
+bool ProfilesPage::selectButton(int n) {
+    return selectTab(QStringLiteral("motions")) && motions_->select(QStringLiteral("b:") + QString::number(n));
+}
+
 bool ProfilesPage::tabVisible(const QString &id) const {
     for (int i = 0; i < tabs_->count(); ++i)
         if (tabs_->widget(i)->property("tabId").toString() == id) return tabs_->isTabVisible(i);
@@ -497,7 +500,25 @@ void ProfilesPage::rebuildContent() {
     const ProfilePageLayout layout = profilePageLayout(*ctx_.settings, section);
 
     // Motions and buttons: the picture of this profile.
-    motions_->setSection(section, profilePageLayout(*ctx_.settings, section).bindingEditor);
+    // The notes about moved old button settings and (Global) the advanced section come first in the tab.
+    {
+        const BindingContext ctxKind = bindingContextOf(section);
+        if (layout.bindingEditor && hasAdvancedSection(ctxKind) && anyAdvancedBinding(bindingRows(*ctx_.settings, section), ctxKind))
+            advancedOpen_ = true;
+    }
+    // The settings search also finds a button by "Button <n>", its key BUTTON_<n> or its action text.
+    if (filtering)
+        motions_->setButtonFilter([this](int n, const QString &label) { return settingMatches(label, "BUTTON_" + std::to_string(n)); });
+    else
+        motions_->setButtonFilter(nullptr);
+    {
+        QList<QWidget *> extras = buildButtonExtras(section, layout.bindingEditor);
+        motions_->setSection(section, layout.bindingEditor);
+        bool anyButton = false;
+        for (const auto &it : motions_->picture()->items()) anyButton = anyButton || it.id.startsWith(QLatin1String("b:"));
+        if (filtering && layout.bindingEditor && !anyButton) extras << noteLabel(T("No setting of this tab matches the search."));
+        motions_->setExtras(extras);
+    }
 
     // Channels: the persistent editor shows this profile.
     channels_->setSection(section);
@@ -517,7 +538,7 @@ void ProfilesPage::rebuildContent() {
         general << noteLabel(T("The Global profile is the base of every other profile. A device or program profile "
                                "inherits its settings unless it chooses another joystick mode or overrides a value."));
     // The output switch comes first: with output off the profile sends nothing, so the joystick mode, the buttons
-    // and the channel settings do not apply and are hidden (the Channels, Buttons and Overrides tabs too).
+    // and the channel settings do not apply and are hidden (the Channels, Motions and buttons and Overrides tabs too).
     bool outputOn = true;
     if (section != 0) {
         SettingsModel::Value ev;
@@ -539,30 +560,11 @@ void ProfilesPage::rebuildContent() {
     if (!filtering) general << buildProfileActions(section);  // not a setting: hidden while searching
     setTabContent(general_, noMatch(general));
 
-    // Buttons: the bindings of the profile, or a hint when the joystick mode brings its own.
-    QList<QWidget *> buttons;
-    if (ctx_.notes && !ctx_.notes->empty()) {
-        QString text;
-        for (const std::string &n : *ctx_.notes) text += (text.isEmpty() ? QString() : QStringLiteral("\n")) + qs8(n);
-        auto *note = wrapLabel(text);
-        note->setObjectName(QStringLiteral("legacyButtonNotes"));
-        note->setAccessibleName(T("Notes about the old button settings"));
-        buttons << note;
-    }
-    if (layout.bindingEditor) {
-        buttons << buildBindings(section);
-    } else {
-        buttons << noteLabel(T("The joystick mode of this profile has its own button bindings; they are listed on the "
-                               "General tab. Choose \"Same as Global\" or the normal joystick mode to assign buttons "
-                               "here."));
-    }
-    setTabContent(buttons_, noMatch(buttons));
-
     // Overrides (advanced): everything the profile sets itself.
     QList<QWidget *> over;
     if (section == 0)
         over << noteLabel(T("The Global profile holds the base values, so it has nothing to override. Change them on the "
-                            "Channels and Buttons tabs."));
+                            "Channels and Motions and buttons tabs."));
     else
         over << buildOverrides(section);
     setTabContent(overrides_, noMatch(over));
@@ -792,7 +794,7 @@ ButtonRowEnv ProfilesPage::makeBindingEnv(size_t section, BindingKit *kit) {
     return env;
 }
 
-// One button row of the profile `section` (the Buttons tab and the Motions and buttons tab).
+// One button row of the profile `section` (shown in the inspector of the Motions and buttons tab).
 void ProfilesPage::addBindingRow(QWidget *parent, QGridLayout *grid, int gridRow, size_t section, const BindingRow &row,
                                  const ButtonRowEnv &env, const std::vector<std::string> &offered) {
     auto changed = [this](bool ok, const std::string &err) {
@@ -818,6 +820,21 @@ void ProfilesPage::addBindingRow(QWidget *parent, QGridLayout *grid, int gridRow
     addButtonRow(this, parent, grid, gridRow, row, env, h);
 }
 
+// Where the action of a row comes from, in words (inheritance made explicit); Global also says which profiles override it.
+void ProfilesPage::fillBindingOrigin(BindingRow &r, size_t section) {
+    const spn::ui::IdentityStrings fallback;
+    const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
+    r.origin = spn::ui::originBadgeText(spn::ui::buttonOrigin(*ctx_.settings, section, r.number), strings);
+    if (section == 0) {
+        std::vector<std::string> names;
+        const std::string hint = spn::ui::overrideHint(*ctx_.settings, "BUTTON_" + std::to_string(r.number), strings, &names);
+        if (!hint.empty()) {
+            r.origin = hint;
+            r.originTip = spn::ui::overrideHintTooltip(names, strings);
+        }
+    }
+}
+
 // The row of button n with its origin words, for the Motions and buttons tab.
 void ProfilesPage::addBindingRowFor(QWidget *parent, QGridLayout *grid, int gridRow, size_t section, int n) {
     BindingRow row;
@@ -828,59 +845,26 @@ void ProfilesPage::addBindingRowFor(QWidget *parent, QGridLayout *grid, int grid
             found = true;
         }
     if (!found) return;
-    const spn::ui::IdentityStrings fallback;
-    const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
-    row.origin = spn::ui::originBadgeText(spn::ui::buttonOrigin(*ctx_.settings, section, n), strings);
+    fillBindingOrigin(row, section);
     BindingKit kit;
     const ButtonRowEnv env = makeBindingEnv(section, &kit);
     addBindingRow(parent, grid, gridRow, section, row, env, kit.offered);
 }
 
-QWidget *ProfilesPage::buildBindings(size_t section) {
-    const BindingContext ctxKind = bindingContextOf(section);
-    const std::vector<BindingRow> allRows = bindingRows(*ctx_.settings, section);
-    if (hasAdvancedSection(ctxKind) && anyAdvancedBinding(allRows, ctxKind)) advancedOpen_ = true;
-    // Search box: a button row is found by "Button <n>", its key BUTTON_<n> or its action text.
-    std::vector<BindingRow> rows;
-    for (const BindingRow &r : allRows)
-        if (settingMatches(T("Button") + QStringLiteral(" %1 ").arg(r.number) + qs8(r.text),
-                           "BUTTON_" + std::to_string(r.number)))
-            rows.push_back(r);
-    if (rows.empty() && !settingsFilter_->text().isEmpty()) return nullptr;
-    settingRows_ += int(rows.size());
-    {   // where each action comes from (inheritance made explicit)
-        const spn::ui::IdentityStrings fallback;
-        const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
-        for (BindingRow &r : rows) {
-            const spn::ui::KeyOrigin o = spn::ui::buttonOrigin(*ctx_.settings, section, r.number);
-            r.origin = spn::ui::originBadgeText(o, strings);
-            if (section == 0) {
-                std::vector<std::string> names;
-                const std::string hint = spn::ui::overrideHint(*ctx_.settings, "BUTTON_" + std::to_string(r.number), strings, &names);
-                if (!hint.empty()) {
-                    r.origin = hint;
-                    r.originTip = spn::ui::overrideHintTooltip(names, strings);
-                }
-            }
-        }
+// What comes before the button editor on the Motions and buttons tab: the notes about the old button settings that
+// were moved, and in Global the collapsed "Advanced" section for plain key and click bindings.
+QList<QWidget *> ProfilesPage::buildButtonExtras(size_t section, bool bindingEditor) {
+    QList<QWidget *> out;
+    if (ctx_.notes && !ctx_.notes->empty()) {
+        QString text;
+        for (const std::string &n : *ctx_.notes) text += (text.isEmpty() ? QString() : QStringLiteral("\n")) + qs8(n);
+        auto *note = wrapLabel(text);
+        note->setObjectName(QStringLiteral("legacyButtonNotes"));
+        note->setAccessibleName(T("Notes about the old button settings"));
+        out << note;
     }
-
-    auto *box = new QGroupBox(T("Button bindings"));
-    auto *outer = new QVBoxLayout(box);
-    outer->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
-    outer->addWidget(wrapLabel(T("Each button can use a button mode, switch the joystick mode or hold the navigation mode "
-                                 "(arrow keys instead of scrolling). All buttons are set here, one row each.")));
-    auto *grid = new QGridLayout;
-    grid->setColumnStretch(2, 1);
-    outer->addLayout(grid);
-
-    BindingKit kit;
-    const ButtonRowEnv env = makeBindingEnv(section, &kit);
-    int r = 0;
-    for (const BindingRow &row : rows) addBindingRow(box, grid, r++, section, row, env, kit.offered);
-
     // Global only: plain key/click bindings behind a collapsed section with a short hint.
-    if (hasAdvancedSection(ctxKind)) {
+    if (bindingEditor && hasAdvancedSection(bindingContextOf(section))) {
         auto *adv = new QGroupBox(T("Advanced: let dofscroll send keys or clicks"));
         adv->setCheckable(true);
         adv->setChecked(advancedOpen_);
@@ -895,15 +879,15 @@ QWidget *ProfilesPage::buildBindings(size_t section) {
             advancedOpen_ = on;
             queueRebuild();
         });
-        outer->addWidget(adv);
+        out << adv;
     }
-    return box;
+    return out;
 }
 
 // What the profile really does: the six motions of its joystick mode and its buttons (the mode's bindings, the
 // profile's own, the inherited ones), each with a short word where the value comes from. The same components
 // as the Joystick modes page and the Overview (motion_view.hpp). The channel actions belong to the joystick mode and are
-// read-only here; the buttons are edited on the Buttons tab.
+// read-only here; the buttons are edited on the Motions and buttons tab.
 QWidget *ProfilesPage::buildModeInfo(size_t section) {
     const SettingsModel::Visible v = ctx_.settings->visibleSettings(section);
     const spn::ui::IdentityStrings fallbackStrings;

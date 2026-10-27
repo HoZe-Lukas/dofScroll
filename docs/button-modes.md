@@ -105,7 +105,7 @@ Deleting a button mode in the interface lists where it is still used first.
 ## In the interface
 
 - **Profiles page:** a *Joystick mode* drop-down (what the axes do, on the General tab) and a
-  drop-down per button (Buttons tab). Its entries: *Default (inherit from Global)* (device and
+  drop-down per button (Motions and buttons tab: select a button). Its entries: *Default (inherit from Global)* (device and
   program profiles; in Global *Nothing*), the button modes by name (tooltip: the description), then
   the plain actions (navigation, joystick mode switch, toggles, and behind "Advanced" key and
   click). *Default (inherit from Global)* removes the profile's own `BUTTON_<n>` line.

@@ -95,14 +95,14 @@ When `dofscroll-ui` loads a file that uses them it migrates them once, visibly: 
 set them, `NAV_BUTTON` becomes `BUTTON_<n> = nav` and `CLICK_BUTTON` becomes `BUTTON_<n> = click`
 (n = index + 1; a profile that only switches the inherited button off gets `BUTTON_<n> = none`), the
 old keys are removed, the file is written atomically, the daemon reloads it and the footer says
-"Moved the old navigation/click button settings to the Buttons tab". A key pair is moved all or
+"Moved the old navigation/click button settings to the Motions and buttons tab". A key pair is moved all or
 nothing: if the index is above the factory button count of the device or the profile already binds
-that button to something else, the old keys stay in the file untouched and the Buttons tab lists
+that button to something else, the old keys stay in the file untouched and the Motions and buttons tab lists
 them as "Not moved". The count is that of the model named in a `[device:NAME]` section
 (`factoryButtonCount()`, 32 for a model that is not in the table), so `NAV_BUTTON = 14`
 (`BUTTON_15`) switched on in `[device:SpaceMouse Compact]` (2 buttons) is not moved, also when
 the index is only inherited from `[global]`: the notice names the section, the key and the
-button count, and you assign a button in the Buttons tab. `[global]` and `[app:*]` apply to
+button count, and you assign a button on the Motions and buttons tab. `[global]` and `[app:*]` apply to
 every device and use the count of the connected device (32 while it is unknown) instead of the
 lowest count of the profiles in the file: a binding there is meant for the models that have
 that button, and every device section is checked against its own count. A device section

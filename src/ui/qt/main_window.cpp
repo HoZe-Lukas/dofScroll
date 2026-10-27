@@ -275,14 +275,14 @@ void MainWindow::noteConfigStamp() {
 }
 
 // An old configuration may still set the navigation or click button with NAV_BUTTON / CLICK_BUTTON. Those
-// settings are moved to BUTTON_<n> entries (the Buttons tab shows them), the file is written and the daemon
+// settings are moved to BUTTON_<n> entries (the Motions and buttons tab shows them), the file is written and the daemon
 // reloads it; what cannot be moved stays in the file and is listed as a note.
 void MainWindow::migrateLegacyButtons() {
     if (!settings_.hasLegacyButtonKeys()) return;
     const spn::ui::SettingsModel::LegacyMigration r = settings_.migrateLegacyButtons(strings_);
     startupNotes_.clear();
     if (!r.migrated.empty()) {
-        startupNotes_.push_back(strings_.tr("Moved the old navigation/click button settings to the Buttons tab"));
+        startupNotes_.push_back(strings_.tr("Moved the old navigation/click button settings to the Motions and buttons tab"));
         for (const std::string &m : r.migrated) startupNotes_.push_back(" - " + m);
     }
     for (const std::string &n : r.notices) startupNotes_.push_back(strings_.tr("Not moved: ") + n);

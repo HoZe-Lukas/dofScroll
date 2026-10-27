@@ -14,7 +14,7 @@ A release is built and published by GitHub Actions when a tag `v<version>` is pu
    `site/de/`), `readme.md`, the other READMEs (`packaging/windows/README.md`, `packaging/macos/README*`,
    `packaging/README-uinput.md`) and the agent files (`AGENTS.md`) up to date. Check their statements against the
    code and the release notes, not against the previous version: tested platforms and devices, status and known
-   limitations, new features, version numbers, links. `scripts/check-site.sh` keeps both website languages in parity.
+   limitations, new features, version numbers, links. `scripts/check-site.sh` keeps both website languages in parity. Check the screenshots too: every picture that shows a changed part of the interface must have been regenerated (`scripts/make-site-screenshots.sh`).
 3. Set the new version in `CMakeLists.txt` (`project(dofscroll VERSION x.y.z ...)`), write
    `docs/release-notes-x.y.z.md` (see "Release notes" below) and merge both to `main`; wait for CI to be green.
 4. Tag and push: `git tag v<x.y.z> && git push origin v<x.y.z>`

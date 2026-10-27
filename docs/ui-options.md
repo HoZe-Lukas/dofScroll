@@ -66,7 +66,7 @@ A `QSplitter`: navigation tree on the far left, a stacked settings area on the r
   from trusted sources. A thin placeholder for now; the logic comes from the `ModeCatalog` model.
 - A **Profiles** group below them: "Global" (the `[global]` section) at the top, then the
   device and application profiles. Only what depends on the profile's mode lives here.
-- The profile editor has the same tabs for every profile (General, Channels, Buttons, Motions and buttons, Overrides) and
+- The profile editor has the same tabs for every profile (General, Channels, Motions and buttons, Overrides) and
   keeps the selected tab when another profile is chosen; only the content is rebuilt when the
   selected profile or its effective joystick mode changes. Global has a joystick mode drop-down too
   (without "Same as Global"); device and program profiles start theirs with "Same as Global" and get

@@ -3,8 +3,8 @@
 // "Profiles" page: the list of profiles on the left (Global first, then the devices, then the
 // programs) and the editor of the selected profile on the right. The editor always says which
 // profile it edits (icon, name and kind in the header) and has the same tabs for every profile:
-// General (joystick mode, enabled), Channels (scroll and zoom, see channels_editor.hpp), Buttons
-// and Overrides (advanced). Switching the profile keeps the tab. Every change is saved by itself
+// General (joystick mode, enabled), Channels (scroll and zoom, see channels_editor.hpp), Motions and
+// buttons (the picture, with every button row in its inspector) and Overrides (advanced). Switching the profile keeps the tab. Every change is saved by itself
 // (UiContext::autosave); there is no Save or Revert button and nothing asks about unsaved changes.
 // All decisions come from the models in src/ui/model/.
 #pragma once
@@ -16,6 +16,7 @@
 #include <vector>
 
 #include <QElapsedTimer>
+#include <QList>
 #include <QPointer>
 #include <QStringList>
 
@@ -51,10 +52,12 @@ public:
     bool selectSection(size_t section);
     size_t selectedSection() const { return currentSection(); }
 
-    // Tabs of the selected profile: general, channels, buttons, overrides (the same for every profile).
+    // Tabs of the selected profile: general, channels, motions, overrides (the same for every profile).
     QStringList tabIds() const;
     QString currentTabId() const;
     bool selectTab(const QString &id);
+    // Opens the Motions and buttons tab with button n selected (its row is in the inspector).
+    bool selectButton(int n);
     // The header of the editor: which profile is edited.
     bool tabVisible(const QString &id) const;  // self-test: is the tab shown (hidden while the output is off)
     QString headerName() const;  // "Global", the device name or the program name
@@ -105,7 +108,9 @@ private:
     QWidget *buildEnabled(size_t section);
     // Change application / device, Export and Remove of the selected profile (General tab).
     QWidget *buildProfileActions(size_t section);
-    QWidget *buildBindings(size_t section);
+    // Notes about moved old button settings and the Global "Advanced" section: shown above the picture of the Motions and buttons tab.
+    QList<QWidget *> buildButtonExtras(size_t section, bool bindingEditor);
+    void fillBindingOrigin(spn::ui::BindingRow &row, size_t section);
     struct BindingKit {  // what a button row needs while it is built
         spn::ModeSet modes;
         spn::ButtonModeSet buttonModes;
@@ -131,7 +136,7 @@ private:
     QLineEdit *profileFilter_, *settingsFilter_;
     QLabel *headerIcon_ = nullptr, *headerName_ = nullptr, *headerKind_ = nullptr, *headerNote_ = nullptr;
     QTabWidget *tabs_;
-    QScrollArea *general_ = nullptr, *buttons_ = nullptr, *overrides_ = nullptr;
+    QScrollArea *general_ = nullptr, *overrides_ = nullptr;
     ProfileMotionsView *motions_ = nullptr;
     ChannelsEditor *channels_ = nullptr;
     QPushButton *add_app_, *add_dev_;

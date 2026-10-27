@@ -55,6 +55,7 @@ open (`Text file busy`); stop it before rebuilding.
   hard-code it in a workflow or a script. The Linux packages bundle Qt (`scripts/bundle-qt-linux.sh`,
   `docs/release-process.md`): new bundled libraries need their license text in the package.
 - Precedence of profiles: global < device < mode overrides < app.
+- A UI change brings the screenshots that show it up to date in the same change (`scripts/make-site-screenshots.sh` for `site/img/`, plus any wiki or docs images) and their captions.
 - On a behavior change update the matching doc (`docs/configuration.md`, `docs/modes.md`,
   `docs/installation.md`, `docs/troubleshooting.md`) in the same change.
 - Build inputs are pinned for stability but kept at the newest versions: image digests (`scripts/pin-ci-images.sh`), the hash-pinned aqtinstall requirements (`scripts/update-aqt-requirements.sh`) and the action SHAs (Dependabot) are refreshed by the monthly `refresh-ci-pins` workflow (start it by hand before a release), which opens the PR "Refresh CI pins" (never auto-merged; close and reopen it once to run CI). The image digests are in `packaging/ci/images.env`, not in the workflows. That PR is merged before a release, so the release uses the newest tested versions; `scripts/check-ci-pins.sh` guards the pins. Never leave the pins stale at a release, and never hand-edit the generated files.

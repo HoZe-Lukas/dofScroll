@@ -36,7 +36,7 @@ struct UiContext {
     spn::ui::ModeCatalog *modes = nullptr;       // the modes folder
     spn::ui::ButtonModeCatalog *buttonModes = nullptr;  // the button modes folder
     const spn::ui::StringProvider *strings = nullptr;
-    // Notes about the configuration to show on the Buttons tab (the old navigation/click button
+    // Notes about the configuration to show on the Motions and buttons tab (the old navigation/click button
     // settings that were moved, or could not be moved); owned by the MainWindow.
     const std::vector<std::string> *notes = nullptr;
     // Writes the configuration by itself after every edit (owned by the MainWindow). Pages change
