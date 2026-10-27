@@ -3,6 +3,7 @@
 // pxToEm: lengths of the style sheet become em (relative to the font), border widths and urls stay.
 #undef NDEBUG
 #include <cassert>
+#include <clocale>
 #include <cstdio>
 #include <string>
 
@@ -37,6 +38,27 @@ int main() {
     assert(pxToEm(in, 0) == in);
     // at the reference font nothing gets bigger than the design
     assert(pxToEm("a { min-height: 28px; }", kQssReferenceFontPx) == "a { min-height: 2em; }");
+
+    // A decimal-comma locale (LC_NUMERIC) must not change the output: Qt needs "0.5em", and
+    // "0,5em" silently kills the rules (empty-looking window, controls at their default size).
+    // Skipped where no such locale is installed (CI containers).
+    const char *prevNumeric = std::setlocale(LC_NUMERIC, nullptr);
+    const char *commaLocales[] = {"de_DE.UTF-8", "it_IT.UTF-8", "fr_FR.UTF-8"};
+    bool commaTested = false;
+    for (const char *loc : commaLocales)
+        if (std::setlocale(LC_NUMERIC, loc)) {
+            commaTested = true;
+            break;
+        }
+    if (commaTested) {
+        assert(emText(6.5, 13) == "0.5em" && emText(34, 13) == "2.615em");
+        assert(pxToEm(in, 13) == out);
+        // the pixel value itself: std::stod would read "6.5px" as 6px in a comma locale
+        assert(pxToEm("d { padding: 6.5px; }", 13) == "d { padding: 0.5em; }");
+        std::setlocale(LC_NUMERIC, prevNumeric ? prevNumeric : "C");
+    } else {
+        std::puts("test_ui_qss_scale: decimal-comma locale check skipped (no such locale installed)");
+    }
     std::puts("test_ui_qss_scale: ok");
     return 0;
 }

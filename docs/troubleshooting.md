@@ -113,6 +113,24 @@ added the same way; see [security.md](security.md#3-systemd-hardening-of-the-use
 Do not add yourself to the `input` group. It gives access to all keyboards (reason in
 [packaging/README-uinput.md](../packaging/README-uinput.md)). An SSH session gets no `uaccess` ACL.
 
+### The settings window shows no content (regional format with a decimal comma)
+
+Symptom: the settings window opens with its title bar but the content looks empty. The widgets
+are there - a tooltip still appears when the pointer rests on an invisible control - the controls
+sit at their platform default size (22 px instead of 32 to 34 px), and some page grows to several
+thousand pixels. `dofscroll-ui --self-test` fails the target size check and prints page sizes such
+as `QSpinBox "..." is 16 x 6451 px`.
+
+Cause: a numeric format with a decimal comma. `locale | grep LC_NUMERIC` shows something like
+`LC_NUMERIC=it_IT.UTF-8`. The style sheet lengths are em values, and the conversion used to write
+`0,571em` there - Qt cannot parse that, so the affected rules lose their padding and their size
+constraints.
+
+The conversion is locale-independent now. For an older release, start the interface with the C
+numeric format (the language of the interface stays the one of the environment):
+
+    LC_NUMERIC=C.UTF-8 dofscroll-ui
+
 ### Wayland versus X11
 
 | | X11 | Wayland |
