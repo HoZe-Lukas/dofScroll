@@ -9,20 +9,28 @@ A release is built and published by GitHub Actions when a tag `v<version>` is pu
    changed `packaging/ci/` or `AQT_VERSION`, run `scripts/pin-ci-images.sh` and
    `scripts/update-aqt-requirements.sh` yourself (see "Pinned build inputs" below) and merge the result.
    Action SHAs are refreshed by Dependabot: merge its open pull requests too.
-2. Set the new version in `CMakeLists.txt` (`project(dofscroll VERSION x.y.z ...)`), write
+2. Documentation: bring the wiki (`docs/wiki/`, published to the GitHub wiki), the website (`site/` and
+   `site/de/`), `readme.md`, the other READMEs (`packaging/windows/README.md`, `packaging/macos/README*`,
+   `packaging/README-uinput.md`) and the agent files (`AGENTS.md`) up to date. Check their statements against the
+   code and the release notes, not against the previous version: tested platforms and devices, status and known
+   limitations, new features, version numbers, links. `scripts/check-site.sh` keeps both website languages in parity.
+3. Set the new version in `CMakeLists.txt` (`project(dofscroll VERSION x.y.z ...)`), write
    `docs/release-notes-x.y.z.md` (see "Release notes" below) and merge both to `main`; wait for CI to be green.
-3. Tag and push: `git tag v<x.y.z> && git push origin v<x.y.z>`
+4. Tag and push: `git tag v<x.y.z> && git push origin v<x.y.z>`
    (a suffix such as `v0.2.0-rc1` is allowed; the tag must start with the CMake version).
    Without a shell (for example on a phone), run the workflow `tag-release` from the Actions tab or the GitHub
    app on branch `main` with the version (for example `1.2.2`): it checks the version against `CMakeLists.txt`
    and that the checks of the tip of `main` are green, creates the tag there and starts the `ci` run on it.
-4. The workflow `.github/workflows/ci.yml` runs all checks, builds RPM, DEB and TGZ packages,
+5. The workflow `.github/workflows/ci.yml` runs all checks, builds RPM, DEB and TGZ packages,
    writes `SHA256SUMS.txt`, attests the build provenance of every file (signed with Sigstore, needs
    no secret) and creates the GitHub Release with generated notes. Versions `0.x` and
    tags with a suffix are marked as pre-release.
-5. Users download the files from the repository's **Releases** page
+6. Users download the files from the repository's **Releases** page
    (`https://github.com/HoZe-Lukas/dofScroll/releases`); the newest stable one is also reachable
    under `/releases/latest`.
+7. Check the open issues against the release (`gh issue list --state open`): comment what the release changed,
+   close an issue only when it is fully fixed and needs no check on real hardware, leave the rest open and say what
+   is missing. Add the release to the issues it fixes.
 
 Windows and macOS installers (unsigned) are built by the same workflow; see
 [release-process.md](release-process.md).
