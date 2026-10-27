@@ -53,6 +53,7 @@ Other Linux distributions were install-tested in CI containers; on Windows the b
 | Platform | Status |
 |---|---|
 | RHEL 9, X11, KDE Plasma | **Tested** with the SpaceMouse Pro and the SpaceMouse Compact. |
+| Ubuntu 26.04, GNOME, Wayland | Reported by a contributor with a SpaceMouse Compact (uinput backend): the services start (after the 1.2.3 fix for AppArmor systems) and the settings window renders. Not tested by the maintainer. |
 | Other Linux distributions (Debian, Ubuntu, Fedora, ...) | Not tested with a device. The RPM, DEB and TGZ packages are built and install-tested in CI containers. |
 | Linux, Wayland | Not tested. Uses the uinput backend and needs a udev rule that you install yourself (opt-in, see [installation.md](docs/installation.md)); active-window profiles work only with `kdotool` (KDE). |
 | Windows | Daemon, Qt interface and an unsigned installer/ZIP are built by CI. **Basic functions work on one real machine** (SpaceMouse Pro, official driver; first tests). |
