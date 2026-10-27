@@ -20,6 +20,8 @@
 //   clearMotion(model, section, "v_tilt", &memory, &err);                       // V_TILT_ACTION = none
 //   switchOnMotion(model, section, "twist", &memory, &err);                     // does something again, never "none"
 //   inheritMotion(model, section, "twist", &memory);                            // back to the inherited setting
+//   motionChoiceCheck(model, section, "v_tilt", ChannelActionType::Zoom, strings);  // works? and what to know, in words
+//   (taking a motion over from another profile or joystick mode: borrow_model.hpp)
 #pragma once
 #include <map>
 #include <string>
@@ -290,6 +292,42 @@ inline bool switchOnMotion(SettingsModel &m, size_t section, const std::string &
         memory->erase(memoryKey(m, section, motionId, "sens"));
     }
     return true;
+}
+
+// Can the profile give the motion this action, and what is worth knowing about it, in words. The choices are the same for every
+// motion (any motion can get any action, including zoom on a tilt); what does not work is said here and the view disables the
+// choice: the check runs the real write on a copy of the model, so it can never disagree with what setMotionAction does.
+struct MotionChoiceCheck {
+    bool works = true;
+    std::string note;  // English source text through the StringProvider; empty when there is nothing to say
+};
+inline MotionChoiceCheck motionChoiceCheck(const SettingsModel &m, size_t section, const std::string &motionId, ChannelActionType type,
+                                           const StringProvider &s) {
+    using namespace motion_edit_detail;
+    MotionChoiceCheck c;
+    const std::string key = partKeyOf(motionId);
+    if (key.empty() || section >= m.sectionCount()) {
+        c.works = false;
+        c.note = s.tr("Lift / press has no action of its own.");
+        return c;
+    }
+    SettingsModel tmp = m;
+    ChannelForm f;
+    f.type = type;
+    std::string err;
+    if (!setMotionAction(tmp, section, motionId, f, &err)) {
+        c.works = false;
+        c.note = s.tr("The joystick mode of this profile sets this motion; only a program profile can change it, or change it in the joystick mode.");
+        return c;
+    }
+    if (type == ChannelActionType::Zoom && motionId != "twist") {
+        c.note = s.tr("Zoom from this motion holds the zoom keys and sends the wheel while the motion is moved. It uses the sensitivity, dead zone and direction (sign) of its own channel, not those of the twist; flip the direction there if it zooms the wrong way. While it zooms, the other wheel motions of this profile pause. The twist keeps its own zoom.");
+        if (m.effectiveWithMode(section).zoom_modifier == 0)
+            c.note += " " + s.tr("The zoom keys are set to none for this profile, so the plain wheel is sent and it scrolls instead of zooming.");
+    } else if (type == ChannelActionType::Zoom && m.effectiveWithMode(section).zoom_modifier == 0) {
+        c.note = s.tr("The zoom keys are set to none for this profile, so the plain wheel is sent and it scrolls instead of zooming.");
+    }
+    return c;
 }
 
 // The choices of the "What it does" list of a motion, in display order (English source labels; the view translates).

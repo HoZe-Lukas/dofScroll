@@ -851,7 +851,45 @@ static void testZoomChannelOff() {
     }
 }
 
+// "Tilt forward = zoom" in one program: the tilt part zooms (modifier + wheel) on its own axes, the push keeps scrolling without the
+// modifier, and while the tilt zooms the other wheel motions pause (they would zoom too).
+static void testTiltZoom() {
+    const Settings s = resolved("[app:code]\nV_TILT_ACTION = zoom\n", "code");
+    {
+        RunnerRec o;
+        ModeRunner r(&o);
+        run(r, s, axis(AX_RX, 300), 0, 0.5);
+        CHECK(o.count("+ctrl") == 1 && o.wv != 0, "tilt zooms: modifier and wheel");
+        run(r, s, RawAxes{}, 0, 0.2);
+        CHECK(o.count("-ctrl") == 1, "the modifier is released at rest");
+    }
+    {
+        RunnerRec o;
+        ModeRunner r(&o);
+        run(r, s, axis(AX_Z, 300), 0, 0.5);
+        CHECK(o.wv > 0 && o.count("+ctrl") == 0, "the push still scrolls, without the modifier");
+    }
+    {
+        RunnerRec o;
+        ModeRunner r(&o);
+        run(r, s, axis(AX_X, 300), 0, 0.5);
+        CHECK(o.wh > 0, "sideways push scrolls alone");
+        RawAxes both = axis(AX_RX, 300);
+        both[AX_X] = 300;
+        o.clear();
+        run(r, s, both, 0, 0.5);
+        CHECK(o.wv != 0 && o.wh == 0 && o.count("+ctrl") == 1, "while the tilt zooms the sideways scroll pauses");
+    }
+    {  // the twist keeps zooming by its latch next to a tilt zoom, and the tilt of the other direction is not a zoom
+        RunnerRec o;
+        ModeRunner r(&o);
+        run(r, s, axis(AX_RY, 300), 0, 0.5);
+        CHECK(o.wv < 0 && o.count("+ctrl") == 1, "the twist still zooms in");
+    }
+}
+
 int main() {
+    testTiltZoom();
     testProfileActions();
     testZoomChannelOff();
     testChordButtons();
