@@ -585,7 +585,7 @@ static bool keyboardSelfTest(MainWindow &w) {
         // refused (qpa.wayland: "Failed to create grabbing popup"). X11 and the offscreen platform
         // have no serial and run the check in full (CI), and on Wayland everything else on the
         // popover still runs whenever it maps. See issue #193.
-        if (!popup && QGuiApplication::platformName() == QStringLiteral("wayland")) {
+        if (!popup && QGuiApplication::platformName().startsWith(QStringLiteral("wayland"))) {
             std::printf("keyboard self-test: info popover open check skipped on Wayland (no input serial for the grabbing popup)\n");
         } else {
             check(popup != nullptr && !InfoPopup::openText().isEmpty(), "the info button opens its popover");
@@ -2155,7 +2155,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
             // popup is refused, the popup is closed again during settle() and deleted
             // (WA_DeleteOnClose), so there is no text left. The content check runs whenever there is
             // text (X11, offscreen, CI) and whenever the popover maps on Wayland. See issue #193.
-            if (text.isEmpty() && QGuiApplication::platformName() == QStringLiteral("wayland")) {
+            if (text.isEmpty() && QGuiApplication::platformName().startsWith(QStringLiteral("wayland"))) {
                 std::printf(
                     "profile editor self-test: info popover content check skipped on Wayland (no input serial for the grabbing popup)\n");
             } else {

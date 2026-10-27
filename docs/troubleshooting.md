@@ -146,7 +146,9 @@ was chosen and why.
 popover checks (the popover opens, and its content), because a grabbing popup needs an input
 serial from the compositor and a test never receives real input
 (`qt.qpa.wayland: Failed to create grabbing popup`). X11 and the offscreen platform (CI) run both
-checks in full. Everything else runs everywhere. See issue #193.
+checks in full. Everything else runs on every platform, but on a real Wayland session the self-test can still
+fail afterwards at the `default size self-test` (the settings page needs more height than the allowed share of the
+screen with some fonts); that check is font-dependent and is tracked in issue #193.
 
 ### The window opens large after every login
 
