@@ -12,11 +12,13 @@ on:
     branches: [main]
     paths:
       - "packaging/ci/**"
+      - "!packaging/ci/images.env"   # the pins themselves: a refresh must not rebuild the image (it would get a new digest again)
       - "packaging/qt.env"
       - ".github/workflows/ci-image.yml"
   pull_request:
     paths:
       - "packaging/ci/**"
+      - "!packaging/ci/images.env"   # the pins themselves: a refresh must not rebuild the image (it would get a new digest again)
       - "packaging/qt.env"
       - ".github/workflows/ci-image.yml"
   schedule:
