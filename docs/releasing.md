@@ -9,8 +9,8 @@ A release is built and published by GitHub Actions when a tag `v<version>` is pu
    changed `packaging/ci/` or `AQT_VERSION`, run `scripts/pin-ci-images.sh` and
    `scripts/update-aqt-requirements.sh` yourself (see "Pinned build inputs" below) and merge the result.
    Action SHAs are refreshed by Dependabot: merge its open pull requests too.
-2. Set the new version in `CMakeLists.txt` (`project(dofscroll VERSION x.y.z ...)`) and merge it
-   to `main`; wait for CI to be green.
+2. Set the new version in `CMakeLists.txt` (`project(dofscroll VERSION x.y.z ...)`), write
+   `docs/release-notes-x.y.z.md` (see "Release notes" below) and merge both to `main`; wait for CI to be green.
 3. Tag and push: `git tag v<x.y.z> && git push origin v<x.y.z>`
    (a suffix such as `v0.2.0-rc1` is allowed; the tag must start with the CMake version).
    Without a shell (for example on a phone), run the workflow `tag-release` from the Actions tab or the GitHub
@@ -29,6 +29,28 @@ Windows and macOS installers (unsigned) are built by the same workflow; see
 
 If the tag does not match the CMake version the release job fails before publishing anything.
 A failed release can be repeated by deleting the tag and the draft release and tagging again.
+
+## Release notes
+
+`docs/release-notes-<version>.md` follows the style of the Home Assistant release notes: a reader sees what is new
+first and can look up every change afterwards. Order of the sections (leave one out when it is empty):
+
+1. SPDX header, title `# dofscroll <version>`, and the quote with the tested platforms (copy it from the last
+   release and update it).
+2. A short intro (what kind of release, link to the previous notes, whether the configuration format changes),
+   then a **Highlights** list of three to five bullets.
+3. One section per notable change, with what the user sees and where to read more (`ui.md`, `troubleshooting.md`,
+   ...). Fixes go in sections of their own.
+4. **Backward-incompatible changes**: everything that changes behavior for existing installations (configuration,
+   units, defaults). Say "None" when there is nothing.
+5. **All changes**: one line per merged pull request with its number. Contributions from other people carry
+   `by @handle` and, if there is one, `reported in #issue`. Maintainer pull requests get only the number.
+6. **Thank you**: thank every external contributor and reporter by GitHub handle and say what they did.
+7. **Not verified**: what only a human on real hardware can check (see AGENTS.md, "Verifying a change").
+8. **Known limitations** with the issue numbers.
+
+Get the list for "All changes" from `gh pr list --state merged --search "merged:>=<date of the last release>"`.
+Names and email addresses never go in; the GitHub handle is enough.
 
 ## Verifying a release
 
