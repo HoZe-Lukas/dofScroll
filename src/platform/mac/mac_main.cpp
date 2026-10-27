@@ -276,8 +276,8 @@ private:
 // --release-keys: open an own output, release everything, exit.
 int releaseKeysAndExit(const PlatformPaths &paths) {
     ProfileSet ps;
-    std::vector<std::string> warnings;
-    loadProfiles(paths.configDir + "/dofscroll.conf", &ps, &warnings);
+    std::vector<FileDiag> diag;
+    loadProfileTree(paths.configDir, &ps, &diag);
     std::string log;
     std::unique_ptr<Output> out = makeOutput(ps.resolve("", "").backend, &log);
     if (!out) {

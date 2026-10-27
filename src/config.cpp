@@ -307,6 +307,12 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
     double d;
     bool b;
 
+    // PRIORITY orders the profiles of one kind (profile_files.hpp); it changes no setting.
+    if (key == "PRIORITY") {
+        if (!parseInt(value, &n) || n < kMinPriority || n > kMaxPriority)
+            return setErr(err, "integer " + std::to_string(kMinPriority) + ".." + std::to_string(kMaxPriority) + " expected");
+        return true;
+    }
     // --- global keys
     if (key == "ZOOM_LATERAL") return parseLateral(value, &s.zoom_lateral, err);
     if (key == "INVERT_AXES") return parseInvertAxes(value, &s.invert_axes, err);
@@ -684,8 +690,28 @@ Settings ProfileSet::resolve(const std::string &device_name, const std::string &
     return s;
 }
 
+int sectionPriority(const Section &s) {
+    if (s.kind == Section::GLOBAL) return 0;
+    for (const KV &p : s.kv) {
+        long n;
+        if (p.first == "PRIORITY" && parseInt(p.second, &n) && n >= kMinPriority && n <= kMaxPriority)
+            return static_cast<int>(n);
+    }
+    return 0;
+}
+
 void ProfileSet::setSectionFromSettings(size_t i, const Settings &s) {
     if (i >= sections.size()) return;
+    // PRIORITY is not a setting: it survives the rewrite of the section's keys.
+    std::vector<KV> keepPriority;
+    if (i != 0)
+        for (const KV &p : sections[i].kv)
+            if (p.first == "PRIORITY") keepPriority.push_back(p);
+    setSectionFromSettingsKeys(i, s);
+    if (!keepPriority.empty()) sections[i].kv.insert(sections[i].kv.begin(), keepPriority.begin(), keepPriority.end());
+}
+
+void ProfileSet::setSectionFromSettingsKeys(size_t i, const Settings &s) {
     if (i == 0) {
         sections[0].kv = allKeys(s);
     } else {
@@ -984,7 +1010,8 @@ bool migrateLegacyConfig(std::string *log) {
 }
 #endif  // _WIN32
 
-bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::string> *warnings) {
+bool parseProfilesText(const std::string &data, const std::string &path, ProfileSet *out,
+                       std::vector<std::string> *warnings) {
     ProfileSet ps;
     constexpr size_t kMaxWarnings = 200;
     size_t nwarn = 0;
@@ -998,30 +1025,6 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
         nwarn++;
         warnings->push_back(path + ":" + std::to_string(line) + ": " + msg);
     };
-    // Open once, then work only through the handle (no stat/open race); see platform/fs.hpp.
-    const std::string tooBigMsg = path + ": file too large (max. " + std::to_string(kMaxConfigBytes) + " bytes)";
-    std::string data;
-    const fs::ReadResult rr = fs::readFileBounded(path, kMaxConfigBytes, fs::ReadOptions(), &data);
-    switch (rr.status) {
-    case fs::ReadStatus::Ok:
-        break;
-    case fs::ReadStatus::NotFound:
-        if (out) *out = ps;  // missing file = defaults
-        return true;
-    case fs::ReadStatus::OpenFailed:
-    case fs::ReadStatus::ReadFailed:
-        if (warnings) warnings->push_back(path + ": " + rr.sysError);
-        return false;
-    case fs::ReadStatus::NotRegular:
-    case fs::ReadStatus::NotOwned:
-        if (warnings) warnings->push_back(path + ": not a regular file");
-        return false;
-    case fs::ReadStatus::TooLargeBySize:
-    case fs::ReadStatus::TooLargeWhileReading:
-        if (warnings) warnings->push_back(tooBigMsg);
-        return false;
-    }
-
     long cur = 0;  // current section, -1 = unknown/surplus section (ignore keys)
     size_t lineno = 0;
     size_t pos = 0;
@@ -1126,6 +1129,34 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
     return true;
 }
 
+bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::string> *warnings) {
+    // Open once, then work only through the handle (no stat/open race); see platform/fs.hpp.
+    const std::string tooBigMsg = path + ": file too large (max. " + std::to_string(kMaxConfigBytes) + " bytes)";
+    std::string data;
+    const fs::ReadResult rr = fs::readFileBounded(path, kMaxConfigBytes, fs::ReadOptions(), &data);
+    switch (rr.status) {
+    case fs::ReadStatus::Ok:
+        break;
+    case fs::ReadStatus::NotFound:
+        if (out) *out = ProfileSet();  // missing file = defaults
+        return true;
+    case fs::ReadStatus::OpenFailed:
+    case fs::ReadStatus::ReadFailed:
+        if (warnings) warnings->push_back(path + ": " + rr.sysError);
+        return false;
+    case fs::ReadStatus::NotRegular:
+    case fs::ReadStatus::NotOwned:
+        if (warnings) warnings->push_back(path + ": not a regular file");
+        return false;
+    case fs::ReadStatus::TooLargeBySize:
+    case fs::ReadStatus::TooLargeWhileReading:
+        if (warnings) warnings->push_back(tooBigMsg);
+        return false;
+    }
+
+    return parseProfilesText(data, path, out, warnings);
+}
+
 bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *err) {
     std::ostringstream os;
     os << "# dofscroll configuration - written by the tray program.\n"
@@ -1161,6 +1192,26 @@ bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *er
     }
 
     return fs::writeFileReplace(path, os.str(), err);
+}
+
+bool renderProfileSection(const Section &sec, std::string *out, std::string *err) {
+    if (sec.kind == Section::GLOBAL) return setErr(err, "a profile file holds a [device:] or [app:] section");
+    std::string np;
+    if (!ProfileSet::normalizePattern(sec.pattern, &np) || np != sec.pattern)
+        return setErr(err, "invalid section pattern '" + sec.pattern +
+                               "' (empty, too long, control character or leading or trailing whitespace)");
+    const std::string hdr = std::string(sec.kind == Section::DEVICE ? "[device:" : "[app:") + sec.pattern + "]";
+    if (headerClose(hdr) != hdr.size() - 1)
+        return setErr(err, "section pattern '" + sec.pattern + "' contains ']' followed by '#' or ';'");
+    std::ostringstream os;
+    os << hdr << "\n";
+    for (const KV &p : sec.kv) {
+        std::string why;
+        if (!validPair(p, &why)) return setErr(err, "section '" + sec.pattern + "': " + why);
+        os << p.first << " = " << p.second << "\n";
+    }
+    if (out) *out = os.str();
+    return true;
 }
 
 }  // namespace spn
