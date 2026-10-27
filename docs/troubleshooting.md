@@ -142,6 +142,12 @@ Without an active-window query only `[global]` and `[device:*]` apply. To force 
 `BACKEND = x11` or `uinput` in `[global]` and restart the daemon. The log says which backend
 was chosen and why.
 
+`dofscroll-ui --self-test` behaves differently on the two: on Wayland it skips the two info
+popover checks (the popover opens, and its content), because a grabbing popup needs an input
+serial from the compositor and a test never receives real input
+(`qt.qpa.wayland: Failed to create grabbing popup`). X11 and the offscreen platform (CI) run both
+checks in full. Everything else runs everywhere. See issue #193.
+
 ### The window opens large after every login
 
 Older builds were also restarted by the desktop's session restore (KDE), which raced with the

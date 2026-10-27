@@ -580,7 +580,16 @@ static bool keyboardSelfTest(MainWindow &w) {
         QWidget *popup = nullptr;
         for (QWidget *top : QApplication::topLevelWidgets())
             if (top->objectName() == QStringLiteral("infoPopup") && top->isVisible()) popup = top;
-        check(popup != nullptr && !InfoPopup::openText().isEmpty(), "the info button opens its popover");
+        // On a real Wayland session the popover often stays hidden: a grabbing popup needs an input
+        // serial from the compositor, and a self-test never receives real input, so the grab is
+        // refused (qpa.wayland: "Failed to create grabbing popup"). X11 and the offscreen platform
+        // have no serial and run the check in full (CI), and on Wayland everything else on the
+        // popover still runs whenever it maps. See issue #193.
+        if (!popup && QGuiApplication::platformName() == QStringLiteral("wayland")) {
+            std::printf("keyboard self-test: info popover open check skipped on Wayland (no input serial for the grabbing popup)\n");
+        } else {
+            check(popup != nullptr && !InfoPopup::openText().isEmpty(), "the info button opens its popover");
+        }
         if (popup) {
             check(!popup->accessibleName().isEmpty(), "the popover has an accessible name");
             QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
@@ -2142,9 +2151,18 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
             info->click();
             settle();
             const QString text = InfoPopup::openText();
-            check(text.contains(QStringLiteral("Vertical push:")) && text.contains(QStringLiteral("Twist:")) &&
-                      text.contains(QStringLiteral("Built in")) && text.contains(QStringLiteral("Sends nothing")) && text.startsWith(QStringLiteral("Off")),
-                  "the info popover names the joystick mode, where it comes from and what its channels do");
+            // Same Wayland limitation as in keyboardSelfTest: without an input serial the grabbing
+            // popup is refused, the popup is closed again during settle() and deleted
+            // (WA_DeleteOnClose), so there is no text left. The content check runs whenever there is
+            // text (X11, offscreen, CI) and whenever the popover maps on Wayland. See issue #193.
+            if (text.isEmpty() && QGuiApplication::platformName() == QStringLiteral("wayland")) {
+                std::printf(
+                    "profile editor self-test: info popover content check skipped on Wayland (no input serial for the grabbing popup)\n");
+            } else {
+                check(text.contains(QStringLiteral("Vertical push:")) && text.contains(QStringLiteral("Twist:")) &&
+                          text.contains(QStringLiteral("Built in")) && text.contains(QStringLiteral("Sends nothing")) && text.startsWith(QStringLiteral("Off")),
+                      "the info popover names the joystick mode, where it comes from and what its channels do");
+            }
             for (QWidget *top : QApplication::topLevelWidgets())
                 if (top->objectName() == QLatin1String("infoPopup")) top->close();
         }
