@@ -44,6 +44,14 @@ reports, once.
 - Zoom never engaged when the twist axis was also listed in `ZOOM_LATERAL`. The daemon now ignores axes of the
   zoom mix there; the axis assistant writes `ZOOM_LATERAL` from the scroll axes.
 - Windows: `dofscroll.exe`, `dofscroll-ui.exe` and the installer now have the dofscroll icon (taskbar).
+- The settings window was empty under a regional format with a decimal comma (`LC_NUMERIC=de_DE.UTF-8`,
+  `it_IT.UTF-8`, ...): the style sheet lengths were written as `0,571em`, which Qt cannot parse. They are now
+  written and read independent of the locale (#195, reported in #192). For an older release,
+  `LC_NUMERIC=C.UTF-8 dofscroll-ui` is the workaround ([troubleshooting.md](troubleshooting.md)).
+- Linux: the user units failed with `status=218/CAPABILITIES` on distributions that confine unprivileged user
+  namespaces with AppArmor (Ubuntu 24.10 and newer), so the daemon never started as a service. The units no longer
+  set `CapabilityBoundingSet=`, `ProtectKernelModules=`, `ProtectKernelLogs=` and `ProtectClock=`; the rest of the
+  hardening stays (#194, reported in #191, [security.md](security.md), [troubleshooting.md](troubleshooting.md)).
 
 ### Website, wiki and workflow
 
@@ -54,11 +62,15 @@ The driver cleanup is highlighted on the website (English and German) and in the
 
 The cleanup dialog (ticking several rows with mouse and keyboard, backup and restore against a real driver
 installation) and scrolling by pushing and tilting in both directions with the new Windows default need a human
-on Windows. The macOS default and image have not been run on a real Mac. Linux behavior is unchanged but was
-not re-tested on hardware for this release.
+on Windows. The macOS default and image have not been run on a real Mac. Apart from the two Linux fixes, Linux behavior is unchanged but was
+not re-tested on hardware for this release. The two fixes above were verified on Ubuntu 26.04 by their author;
+the start of the units in a fresh graphical session and on RHEL 9 without the four directives still need a human.
 
 ## Known limitation
 
 The interface assumes the Linux axis names (`y` = lift/press, `ry` = twist). With the official driver on Windows the
 axes are named differently, so the lift/press warning on the Channels page and the labels of the motion editor and
 motion help can be wrong there. The scrolling itself is not affected. Tracked in issue #186.
+
+`dofscroll-ui --self-test` still fails on a real Wayland session at the info popover check (the grabbing popup is
+refused); the normal use of the interface is not affected. Tracked in issue #193.
