@@ -12,13 +12,12 @@
 # The pins are only needed at a release, so the job runs once a month and can be started by hand before a
 # release (Actions > refresh-ci-pins > Run workflow). It changes only files under packaging/ci (the image
 # digests live in packaging/ci/images.env, not in the workflow files), so the default GITHUB_TOKEN may push
-# the branch: no extra secret is needed. A branch pushed and a pull request opened with that token do not
-# start other workflows (GitHub does not chain them), but a dispatch does: the last step starts the checks
-# of the PR (ci, lint, codeql, ports, ui and the Linux packages dry run) with `gh workflow run` on the branch;
-# the runs belong to the commit and show up in the checks of the PR. (A fine-grained token stored as the
-# secret REFRESH_PINS_TOKEN, contents and pull requests: write, would start them by itself; it is optional,
-# and the dispatch is skipped then.) The repository setting "Allow GitHub Actions to create and approve pull
-# requests" must be on.
+# the branch: no extra secret is needed. The checks of a pull request opened by the bot are created but wait for
+# an approval (`action_required`, like the runs of a fork pull request); the last step approves them, so they run
+# and count as the checks of the PR. (A dispatch would not do: its runs belong to the commit, not to the PR, and
+# do not satisfy the required checks.) A fine-grained token stored as the secret REFRESH_PINS_TOKEN (contents and
+# pull requests: write) is optional; the checks then start by themselves and the approval is skipped. The
+# repository setting "Allow GitHub Actions to create and approve pull requests" must be on.
 name: refresh-ci-pins
 
 on:
@@ -41,7 +40,7 @@ jobs:
     permissions:
       contents: write        # push the branch ci/refresh-pins; only this job
       pull-requests: write   # open or update the pull request; only this job
-      actions: write         # start the checks of the PR with workflow_dispatch; only this job
+      actions: write         # approve the checks of the PR (action_required); only this job
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -74,10 +73,17 @@ jobs:
             gh pr create --base main --head ci/refresh-pins --title "Refresh CI pins" \
               --body "Monthly refresh of the pinned image digests and the hash-pinned aqtinstall requirements (scripts/pin-ci-images.sh, scripts/update-aqt-requirements.sh). Review the diff, let CI prove the new versions work, then merge. Merge this before a release so the release uses the newest tested versions. Opened by .github/workflows/refresh-ci-pins.yml."
           fi
-          # A push and a pull request made with the default token start no workflows; a dispatch does.
+          # The checks of a pull request opened by the bot wait for an approval: approve them (they appear a few
+          # seconds after the push). The code is what the two scripts above produced; CI has a read-only token.
           if [ -z "$OWN_TOKEN" ]; then
-            for w in ci.yml lint.yml codeql.yml ports.yml ui.yml linux-packages-dry-run.yml; do
-              gh workflow run "$w" --ref ci/refresh-pins
+            ids=""
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              ids="$(gh run list --branch ci/refresh-pins --event pull_request --status action_required --json databaseId --jq '.[].databaseId')"
+              [ -n "$ids" ] && break
+              sleep 10
             done
-            echo "Started the checks of the pull request (workflow_dispatch on ci/refresh-pins)." | tee -a "$GITHUB_STEP_SUMMARY"
+            for id in $ids; do
+              gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/approve" --silent
+            done
+            echo "Approved $(echo "$ids" | grep -c .) check runs of the pull request." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
