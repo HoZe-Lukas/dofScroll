@@ -53,6 +53,21 @@ int main() {
     f.seedLog = "default config";
     assert(f.text("p") == "p: config migration: done - moved old.conf\np: seeded defaults: default config\n");
 
+    // split layout (switched off in the interface until the settings model writes per file): an upgrade moves the
+    // profiles of the old single file into files, once, and says so
+    assert(!spn::ui::kSplitLayoutInUi);
+    put(conf, "[global]\nSENSITIVITY = 5\n[app:firefox]\nZOOM_SENS = 3\n[app:vlc]\nZOOM_SENS = 4\n");
+    r = spn::ui::runFirstStart(false);
+    assert(r.split.status == spn::MigrateStatus::NothingToDo && spn::fs::pathExists(conf));
+    assert(get(conf).find("[app:firefox]") != std::string::npos);  // off: untouched
+    r = spn::ui::runFirstStart(true);
+    assert(r.split.status == spn::MigrateStatus::Migrated && !r.seeded);
+    assert(get(cfg + "/dofscroll/apps/vlc.conf").find("ZOOM_SENS = 4") != std::string::npos);
+    assert(get(conf).find("[app:") == std::string::npos);
+    assert(r.text("p").find("p: Your profiles are now one file each, backup in ") != std::string::npos);
+    r = spn::ui::runFirstStart(true);  // second start: silent
+    assert(r.split.status == spn::MigrateStatus::NothingToDo && r.text("p").find("one file each") == std::string::npos);
+
     std::filesystem::remove_all(root);
     return 0;
 }
