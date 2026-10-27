@@ -178,12 +178,15 @@ void ChannelsEditor::showProblem(QWidget *editor, QLabel *help, const QString &h
     setFlag(editor, "invalid", bad);
 }
 
-// A valid mix with lift/press (y) is accepted but flagged: the cap moves when it is grabbed.
+// A valid mix with lift/press is accepted but flagged: the cap moves when it is grabbed.
 void ChannelsEditor::showLiftPressWarning(QLabel *help, const QString &helpText, const std::string &text) {
-    const bool warn = spn::ui::mixUsesLiftPress(text);
+    spn::ui::LiftWatch &watch = lift_[section_];
+    watch.observe(ctx_.settings->effectiveWithMode(section_));
+    const bool warn = watch.usesLift(text);  // only when the configuration says which axis is lift/press
     if (!help) return;
     help->setText(warn ? mark(spn::ui::StatusKind::Warning,
-                              T("Warning: lift/press (y) is prone to false triggers when you grab or release the cap"))
+                              T("Warning: lift/press (%1) is prone to false triggers when you grab or release the cap")
+                                  .arg(QString::fromLatin1(spn::axisName(watch.lift()))))
                        : helpText);
     setFlag(help, "warning", warn);
 }

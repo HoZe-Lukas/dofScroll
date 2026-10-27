@@ -841,10 +841,10 @@ msgstr "Ungültiger Wert: "
 
 #: src/ui/qt/pages/channels_editor.cpp
 msgid ""
-"Warning: lift/press (y) is prone to false triggers when you grab or release "
+"Warning: lift/press (%1) is prone to false triggers when you grab or release "
 "the cap"
 msgstr ""
-"Warnung: Heben/Drücken (y) löst leicht fälschlich aus, wenn du die Kappe "
+"Warnung: Heben/Drücken (%1) löst leicht fälschlich aus, wenn du die Kappe "
 "anfasst oder loslässt"
 
 #: src/ui/qt/pages/channels_page.cpp:215 src/ui/qt/pages/profiles_page.cpp:627
@@ -3053,13 +3053,13 @@ msgstr "Horizontal, Kippanteil: %1"
 
 #: src/ui/qt/pages/axes_page.cpp
 msgid ""
-"Push (z, x, y) and tilt (rx, rz) are the two parts of a scroll channel. A "
+"Push (%1, %2, %3) and tilt (%4, %5) are the two parts of a scroll channel. A "
 "joystick mode that splits a channel gives them different functions; twist "
-"(ry) is zoom by default."
+"(%6) is zoom by default."
 msgstr ""
-"Schieben (z, x, y) und Kippen (rx, rz) sind die beiden Anteile eines "
+"Schieben (%1, %2, %3) und Kippen (%4, %5) sind die beiden Anteile eines "
 "Scroll-Kanals. Ein Joystick-Modus, der einen Kanal trennt, gibt ihnen "
-"unterschiedliche Funktionen; Drehen (ry) ist standardmäßig Zoom."
+"unterschiedliche Funktionen; Drehen (%6) ist standardmäßig Zoom."
 
 #: src/ui/qt/pages/axes_page.cpp
 msgid "Which movement drives which part"
@@ -3965,8 +3965,8 @@ msgid "added to the vertical push as a mix term"
 msgstr "als Mix-Term zum vertikalen Schieben addiert"
 
 #: src/ui/qt/pages/motion_editor.cpp
-msgid "a term of a channel mix, for example SCROLL_V_MIX = z + rx + y"
-msgstr "ein Term eines Kanal-Mix, zum Beispiel SCROLL_V_MIX = z + rx + y"
+msgid "a term of a channel mix, for example %1"
+msgstr "ein Term eines Kanal-Mix, zum Beispiel %1"
 
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "The motion does what the profile says: scroll for push and tilt, zoom for the twist. In the file: default."
@@ -4683,3 +4683,31 @@ msgstr "Keines anhaken"
 #: src/ui/qt/pages/driver_cleanup_dialog.cpp
 msgid "Remove every tick"
 msgstr "Entfernt alle Haken"
+
+#: src/ui/model/axis_roles_model.hpp
+msgid "In this configuration vertical scroll uses the axes %1, horizontal scroll %2 and zoom %3. A joystick mode that splits a channel gives the push and the tilt parts different functions."
+msgstr "In dieser Konfiguration nutzt vertikales Scrollen die Achsen %1, horizontales Scrollen %2 und Zoom %3. Ein Joystick-Modus, der einen Kanal trennt, gibt dem Schiebe- und dem Kippanteil unterschiedliche Funktionen."
+
+#: src/ui/model/motion_help_model.hpp
+msgid "%1 (this configuration assigns no axis to it). Example: %2. In the file: %3."
+msgstr "%1 (diese Konfiguration weist ihr keine Achse zu). Beispiel: %2. In der Datei: %3."
+
+#: src/ui/model/motion_help_model.hpp
+msgid "a term of a channel mix"
+msgstr "ein Term eines Kanal-Mix"
+
+#: src/ui/model/axis_roles_model.hpp
+msgid "zooms"
+msgstr "zoomt"
+
+#: src/ui/model/axis_roles_model.hpp
+msgid "is in no channel mix"
+msgstr "ist in keinem Kanal-Mix"
+
+#: src/ui/model/axis_roles_model.hpp
+msgid "Axis %1 %2"
+msgstr "Achse %1 %2"
+
+#: src/ui/model/axis_roles_model.hpp
+msgid "none"
+msgstr "keine"

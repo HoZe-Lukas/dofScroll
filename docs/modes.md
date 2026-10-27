@@ -388,7 +388,9 @@ writes `SCROLL_V_MIX = z + rx + y` (or `SCROLL_H_MIX`, `ZOOM_MIX`) as an overrid
 configurations and the documented defaults and fails when `y` appears there. The one exception is the
 Windows default: the official 3Dconnexion driver names the axes in a different order (there `y` is push
 forward/back, `z` is lift/press and `rz` the twist), so the Windows file uses `y`, `x` and `-rz`.
-On Windows the warning next to an axis mix that uses `y` does not apply to that default.
+The Channels page warns about the axis your configuration leaves out of the channel mixes (`y` in the Linux
+default, `z` in the Windows and macOS defaults), and only when it is sure which axis that is
+(`src/ui/model/axis_roles_model.hpp`); the tables above show the Linux names.
 
 ## Switching a file off
 

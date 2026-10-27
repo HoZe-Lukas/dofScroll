@@ -59,6 +59,8 @@ private:
     void refreshParts();
     void refreshWizard(int64_t nowNs);
     void applyWizard();
+    void refreshPartsHint();  // the sentence under the live bars: the axes of the shown configuration
+    QLabel *partsHint_ = nullptr;
     int64_t now() const { return clock_.nsecsElapsed(); }
 
     UiContext ctx_;

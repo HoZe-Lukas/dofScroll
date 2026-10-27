@@ -22,6 +22,8 @@
 #include <unordered_map>
 
 #include "config.hpp"
+#include "ui/model/axis_roles_model.hpp"
+#include "ui/model/fresh_state.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/split_parts_model.hpp"
 #include "ui/model/suspend_heartbeat.hpp"
@@ -247,8 +249,9 @@ void AxesPage::buildLivePage(QWidget *page) {
     l->addWidget(connHint_);
     bars_ = new LiveBarsWidget(&session_->view(), false, page);
     l->addWidget(bars_, 1);
-    auto *parts = new QLabel(T("Push (z, x, y) and tilt (rx, rz) are the two parts of a scroll channel. A joystick mode "
-                               "that splits a channel gives them different functions; twist (ry) is zoom by default."));
+    auto *parts = new QLabel;  // filled by refreshPartsHint(): the axes of the shown configuration (issue #186)
+    partsHint_ = parts;
+    refreshPartsHint();
     parts->setWordWrap(true);
     parts->setAccessibleName(T("Which movement drives which part"));
     l->addWidget(parts);
@@ -350,6 +353,12 @@ void AxesPage::cancelWizard() {
     stack_->setCurrentIndex(0);
 }
 
+void AxesPage::refreshPartsHint() {
+    if (!partsHint_) return;
+    const spn::Settings st = ctx_.settings ? ctx_.settings->effective(0) : spn::ui::freshSettings();
+    partsHint_->setText(qs8(spn::ui::axesHint(spn::ui::deriveAxisRoles(st), st, ctx_.strings ? *ctx_.strings : ownStrings_)));
+}
+
 void AxesPage::applyWizard() {
     auto &w = session_->wizard();
     if (!w.canApply()) return;
@@ -360,6 +369,7 @@ void AxesPage::applyWizard() {
         refreshWizard(now());
         return;
     }
+    refreshPartsHint();
     // The axis mixes are written now (not after a pause): the live page below shows their effect.
     SettingsModel::SaveResult r;
     if (ctx_.autosave) {

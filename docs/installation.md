@@ -247,7 +247,7 @@ Do these steps once per machine. Steps 1 and 5 need root.
 When the Qt interface starts and no config exists, it creates
 `~/.config/dofscroll/dofscroll.conf` from `examples/default/<os>/dofscroll.conf` (`linux`, `windows` or
 `macos`: the axis order of the official driver differs per system; the macOS file is experimental and
-untested). It never overwrites an existing file. The seeded file has no device profile: when the daemon
+untested: it uses the Windows axis order). It never overwrites an existing file. The seeded file has no device profile: when the daemon
 reports the attached device for the first time after a new installation, the interface adds the profile
 `[device:<name of that device>]` (button 1 = navigation), once. The joystick modes and button modes are built into the program and are not copied.
 The daemon cannot write to that directory, so only the interface seeds. Without it, copy the file yourself:

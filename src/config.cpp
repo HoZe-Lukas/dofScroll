@@ -510,7 +510,7 @@ void splitMix(const Mix &m, Mix *push, Mix *tilt) {
     Mix p, t;
     for (const Term &term : m.terms) {
         if (term.axis == AX_X || term.axis == AX_Y || term.axis == AX_Z) p.terms.push_back(term);
-        else if (term.axis == AX_RX || term.axis == AX_RZ) t.terms.push_back(term);
+        else t.terms.push_back(term);  // any rotation axis: the axis names differ between drivers (issue #186)
     }
     if (push) *push = p;
     if (tilt) *tilt = t;

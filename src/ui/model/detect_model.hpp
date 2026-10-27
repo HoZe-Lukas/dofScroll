@@ -12,7 +12,7 @@
 //
 //   DetectModel d;
 //   DetectEvent e = d.feed(sample.axes, sample.buttons);   // per sample
-//   if (e.kind == DetectEvent::Motion) select(e.motion, e.sign);
+//   if (e.kind == DetectEvent::Motion) select(roles.motionOf(e.axis), e.sign);
 //   if (e.kind == DetectEvent::Button) selectButton(e.button);
 //   d.reset();                                              // when Detect is switched on or off
 #pragma once
@@ -30,7 +30,7 @@ namespace spn::ui {
 
 struct DetectEvent {
     enum Kind { None, Motion, Button } kind = None;
-    spn::ui::Motion motion = spn::ui::Motion::VPush;
+    Axis axis = AX_X;  // the raw axis that moved; the roles of the configuration (axis_roles_model.hpp) say which motion it is
     int sign = 0;     // +1 / -1: the direction of the first sustained excursion
     int button = 0;   // 1-based
 };
@@ -89,7 +89,7 @@ public:
         if (sign == 0) return e;
         armed_ = false;
         e.kind = DetectEvent::Motion;
-        e.motion = motionOfAxis(Axis(axis));
+        e.axis = Axis(axis);
         e.sign = sign;
         return e;
     }

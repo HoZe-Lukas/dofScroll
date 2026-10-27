@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cstdio>
 
+#include "ui_fixture.hpp"
 #include "ui/model/detect_model.hpp"
 
 using namespace spn;
@@ -33,7 +34,15 @@ static DetectEvent feedN(DetectModel &d, const RawAxes &a, int n, uint32_t butto
     return first;
 }
 
+// the motion of an axis in the configuration of the fixture (the Linux order of the built-in channels)
+static Motion motionOf(Axis a) {
+    Motion m = Motion::VPush;
+    deriveAxisRoles(Settings()).motionOf(a, &m);
+    return m;
+}
+
 int main() {
+    useFreshDefaultOf("linux");  // not the host system
     // every axis selects its motion, with the direction
     const struct { RawAxes a; Motion m; int sign; } cases[] = {
         {axes(0, 0, 300, 0, 0, 0), Motion::VPush, 1},   {axes(0, 0, 0, -300, 0, 0), Motion::VTilt, -1},
@@ -43,21 +52,21 @@ int main() {
     for (const auto &c : cases) {
         DetectModel d;
         const DetectEvent e = feedN(d, c.a, 6);
-        assert(e.kind == DetectEvent::Motion && e.motion == c.m && e.sign == c.sign);
+        assert(e.kind == DetectEvent::Motion && motionOf(e.axis) == c.m && e.sign == c.sign);
     }
 
     // crosstalk: a push sideways with y 293 next to x 350 still selects x (the strongest wins)
     {
         DetectModel d;
         const DetectEvent e = feedN(d, axes(350, 293, 0, 0, 0, 0), 6);
-        assert(e.kind == DetectEvent::Motion && e.motion == Motion::HPush);
+        assert(e.kind == DetectEvent::Motion && motionOf(e.axis) == Motion::HPush);
     }
     // a tie is ambiguous: nothing is selected until it is cleaner
     {
         DetectModel d;
         assert(feedN(d, axes(300, 0, 295, 0, 0, 0), 8).kind == DetectEvent::None);
         const DetectEvent e = feedN(d, axes(0, 0, 400, 0, 0, 0), 12);
-        assert(e.kind == DetectEvent::Motion && e.motion == Motion::VPush);
+        assert(e.kind == DetectEvent::Motion && motionOf(e.axis) == Motion::VPush);
     }
     // too weak: nothing
     {
@@ -79,7 +88,7 @@ int main() {
         assert(n == 1);
         for (int i = 0; i < DetectModel::kRestSamples; ++i) d.feed(kRest, 0);
         const DetectEvent e = feedN(d, axes(300, 0, 0, 0, 0, 0), 6);
-        assert(e.kind == DetectEvent::Motion && e.motion == Motion::HPush);
+        assert(e.kind == DetectEvent::Motion && motionOf(e.axis) == Motion::HPush);
     }
     // moving on without rest does not select a second motion
     {

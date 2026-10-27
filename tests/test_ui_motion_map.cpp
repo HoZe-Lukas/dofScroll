@@ -11,6 +11,7 @@
 #include <iterator>
 #include <string>
 
+#include "ui_fixture.hpp"
 #include "testutil.hpp"
 #include "ui/model/motion_map_model.hpp"
 
@@ -67,7 +68,9 @@ static void testIds() {
     for (Motion m : allMotions()) {
         Motion back;
         assert(motionFromId(motionId(m), &back) && back == m);
-        assert(motionOfAxis(motionAxis(m)) == m);
+        const AxisRoles roles = deriveAxisRoles(Settings());  // every motion has an axis, and the axis maps back
+        Motion of;
+        assert(roles.has(m) && roles.motionOf(roles.axis(m), &of) && of == m);
     }
     Motion x;
     assert(!motionFromId("nope", &x));
@@ -242,6 +245,7 @@ static void testFileResult() {
 }
 
 int main() {
+    useFreshDefaultOf("linux");  // not the host system
     testIds();
     testDrop();
     testSplitAndCollapse();

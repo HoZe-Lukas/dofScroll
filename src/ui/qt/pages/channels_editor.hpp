@@ -13,11 +13,13 @@
 #include <QWidget>
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "ui/model/axis_roles_model.hpp"
 #include "ui_context.hpp"
 
 class QAbstractSpinBox;
@@ -63,6 +65,7 @@ private:
     double number(const std::string &key) const;
     bool apply(const std::string &key, const std::string &text, QWidget *editor, QLabel *help, const QString &helpText,
                bool typed);
+    std::map<size_t, spn::ui::LiftWatch> lift_;  // per profile: the lift/press axis the configuration has (issue #186)
     void showLiftPressWarning(QLabel *help, const QString &helpText, const std::string &text);
     void showProblem(QWidget *editor, QLabel *help, const QString &helpText, const QString &error);
     void changed(const std::string &key, bool typed);

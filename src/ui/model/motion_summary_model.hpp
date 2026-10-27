@@ -6,13 +6,15 @@
 // file format is not touched.
 //
 // The six motions, in this fixed order (the 3x2 panel shows pushes in the top row, tilts and the twist below):
-//   v_push  Vertical push   (push forward / back, axis z)       v_tilt  Vertical tilt   (tilt forward / back, axis rx)
-//   h_push  Horizontal push (push sideways, axis x)             h_tilt  Horizontal tilt (tilt sideways, axis rz)
-//   lift    Lift / press    (push down / pull up, axis y)       twist   Twist           (axis ry)
+//   v_push  Vertical push   (push forward / back)   v_tilt  Vertical tilt   (tilt forward / back)
+//   h_push  Horizontal push (push sideways)         h_tilt  Horizontal tilt (tilt sideways)
+//   lift    Lift / press    (push down / pull up)   twist   Twist           (twist the cap)
+// Which raw axis each motion is comes from the profile's mixes (axis_roles_model.hpp), never from code: a motion the
+// mixes do not assign an axis to is "Not used".
 // A motion belongs to the first channel (vertical, horizontal, twist) whose mix has a term with its axis. An
 // unsplit scroll channel gives push and tilt the same action; a split one (V_PUSH_ACTION, ...) its own action
-// per part (push = x, y, z terms, tilt = rx, rz terms). The built-in mixes are V = z + rx, H = x - rz,
-// twist = ry, so lift is normally "Not used" (only a mix with y uses it).
+// per part (push = the translation terms, tilt = the rotation terms). In the shipped defaults the axis in no mix
+// is lift/press, so it is normally "Not used" (only a mix with that axis uses it).
 //
 //   motionSummary(mode, settings, strings)   // exactly six rows
 //   motionChipTexts(rows)                    // "↕ Scroll", ... for the list row
@@ -26,6 +28,8 @@
 #include "config.hpp"
 #include "mode_list.hpp"
 #include "modes.hpp"
+#include "ui/model/axis_roles_model.hpp"
+#include "ui/model/fresh_state.hpp"
 #include "ui/model/strings.hpp"
 #include "utf8.hpp"
 
@@ -166,19 +170,21 @@ inline MotionRow unusedRow(const char *id, const std::string &name, const std::s
 // a copy, so a SCROLL_V_MIX override of the mode counts).
 inline std::vector<MotionRow> motionSummary(const ModeDef &m, Settings settings, const StringProvider &s) {
     using namespace motion_detail;
+    const AxisRoles roles = deriveAxisRoles(settings);  // the axes of the profile (axis_roles_model.hpp); a mode override moves them between channels
     for (const auto &kv : m.overrides) applyKey(settings, utf8::upperAscii(kv.first), kv.second, nullptr);
-    struct Motion {
+    // the names are literal so that the translation extraction finds them
+    struct Row {
         const char *id;
         std::string name, how;
-        Axis axis;
+        Motion motion;
     };
     // the names are literal so that the translation extraction finds them
-    const Motion motions[6] = {{"v_push", s.tr("Vertical push"), s.tr("Push forward / back"), AX_Z},
-                               {"v_tilt", s.tr("Vertical tilt"), s.tr("Tilt forward / back"), AX_RX},
-                               {"h_push", s.tr("Horizontal push"), s.tr("Push sideways"), AX_X},
-                               {"h_tilt", s.tr("Horizontal tilt"), s.tr("Tilt sideways"), AX_RZ},
-                               {"lift", s.tr("Lift / press"), s.tr("Push down / pull up"), AX_Y},
-                               {"twist", s.tr("Twist"), s.tr("Twist the cap"), AX_RY}};
+    const Row motions[6] = {{"v_push", s.tr("Vertical push"), s.tr("Push forward / back"), Motion::VPush},
+                            {"v_tilt", s.tr("Vertical tilt"), s.tr("Tilt forward / back"), Motion::VTilt},
+                            {"h_push", s.tr("Horizontal push"), s.tr("Push sideways"), Motion::HPush},
+                            {"h_tilt", s.tr("Horizontal tilt"), s.tr("Tilt sideways"), Motion::HTilt},
+                            {"lift", s.tr("Lift / press"), s.tr("Push down / pull up"), Motion::Lift},
+                            {"twist", s.tr("Twist"), s.tr("Twist the cap"), Motion::Twist}};
     struct Chan {
         const Mix *mix;
         const ChannelAction *action;
@@ -190,14 +196,19 @@ inline std::vector<MotionRow> motionSummary(const ModeDef &m, Settings settings,
                            {&settings.scroll_h.mix, &m.h, &m.hSplit, false, false},
                            {&settings.zoom.mix, &m.twist, &noSplit, false, true}};
     std::vector<MotionRow> out;
-    for (const Motion &mo : motions) {
+    for (const Row &mo : motions) {
         bool found = false;
+        if (!roles.has(mo.motion)) {  // the configuration assigns no axis to this movement
+            out.push_back(unusedRow(mo.id, mo.name, mo.how, s));
+            continue;
+        }
+        const Axis axis = roles.axis(mo.motion);
         for (const Chan &c : chans) {
             const bool split = c.split->active();
             // a split channel drops the twist term; its parts take the translation and rotation terms
-            if (split && mo.axis == AX_RY) continue;
-            if (!hasAxis(*c.mix, mo.axis)) continue;
-            const bool tilt = mo.axis == AX_RX || mo.axis == AX_RZ;
+            if (split && mo.motion == Motion::Twist) continue;
+            if (!hasAxis(*c.mix, axis)) continue;
+            const bool tilt = mo.motion == Motion::VTilt || mo.motion == Motion::HTilt;
             const ChannelAction &a = !split ? *c.action : tilt ? c.split->tiltAction(*c.action) : c.split->pushAction(*c.action);
             out.push_back(rowFor(mo.id, mo.name, mo.how, a, c.vertical, c.twist, settings.zoom_modifier, s));
             found = true;
@@ -208,8 +219,8 @@ inline std::vector<MotionRow> motionSummary(const ModeDef &m, Settings settings,
     return out;
 }
 
-// With the built-in channel mixes (no settings at hand).
-inline std::vector<MotionRow> motionSummary(const ModeDef &m, const StringProvider &s) { return motionSummary(m, Settings(), s); }
+// With the settings of a fresh state (no settings at hand, fresh_state.hpp).
+inline std::vector<MotionRow> motionSummary(const ModeDef &m, const StringProvider &s) { return motionSummary(m, freshSettings(), s); }
 
 // The text of one chip: "▬ ↕ Scroll" (motion marker, action symbol, word); a Keys or Step action shows its keys
 // instead of the word ("◢ ⌨ Left / Right", "▬ ⌨ Ctrl+Page up / Ctrl+Page down"), because "Keys" alone does not

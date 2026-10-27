@@ -40,7 +40,7 @@ Three channels, each with its own axis mix, sensitivity, dead zone, direction, c
 | `<CH>_SMOOTH_MS` | `0` | Low-pass time constant in ms, 0 to 500. `0` = off. |
 
 `<CH>` is `SCROLL_V`, `SCROLL_H` or `ZOOM`. Values in the seeded config
-(`examples/default/<os>/dofscroll.conf`) differ from this table; the seeded file is a starting point. The axis order of the official driver differs between the systems, so Linux, Windows and macOS each have their own file: Linux uses mixes of two axes (`z + rx`, `x - rz`, `ry`), Windows mixes of push and tilt as well (`y + rx`, `x - ry`, `-rz`: scrolling by pushing and by tilting, measured with the official driver). The macOS file is experimental: it carries the Linux values and is untested on a Mac, run the axis assistant there.
+(`examples/default/<os>/dofscroll.conf`) differ from this table; the seeded file is a starting point. The axis order of the official driver differs between the systems, so Linux, Windows and macOS each have their own file: Linux uses mixes of two axes (`z + rx`, `x - rz`, `ry`), Windows mixes of push and tilt as well (`y + rx`, `x - ry`, `-rz`: scrolling by pushing and by tilting, measured with the official driver). The macOS file is experimental: it carries the Windows values (the 3DxWare client API delivers the axes in the same order as on Windows, read from the code, not verified on a Mac), run the axis assistant there.
 
 Per-part keys for split channels: `SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>`
 (for example `SCROLL_V_TILT_SENS = 8`). A joystick mode can split the vertical or horizontal channel
@@ -54,6 +54,13 @@ Axes (libspnav convention, measured on a SpaceMouse Pro): push forward or back i
 `x`, lift or press is `y`, tilt forward or back is `rx`, tilt sideways is `rz`, twist is `ry`. If you
 changed `spacenavd` settings (axis swap, inversion), adjust the mixes or run the axis assistant
 (Axes page of the interface, "Axis assistant...").
+
+With the official 3Dconnexion driver on Windows (and the 3DxWare client API on macOS) the axes are named
+differently: push forward or back is `y`, sideways is `x`, lift or press is `z`, tilt forward or back
+is `rx`, tilt sideways is `ry`, twist is `rz` (the default uses `y + rx`, `x - ry` and `-rz`). The
+interface does not assume either order: it reads what your mixes say (see "Where the interface gets the
+axis meaning" in [ui.md](ui.md)). The file format is the same everywhere; a profile copied between
+systems needs its mixes adjusted.
 
 ## Zoom, backend, buttons
 

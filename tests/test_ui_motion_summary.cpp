@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "ui_fixture.hpp"
 #include "testutil.hpp"
 #include "ui/model/button_chip_model.hpp"
 #include "ui/model/motion_summary_model.hpp"
@@ -32,6 +33,7 @@ std::vector<std::string> chips(const ModeDef &m) {
 }  // namespace
 
 int main() {
+    useFreshDefaultOf("linux");  // not the host system
     IdentityStrings id;
     const ModeSet builtins = loadModes("/nonexistent-dir-for-test", nullptr);
 
@@ -138,9 +140,13 @@ int main() {
         assert(r[4].kind == MotionKind::Active && r[4].chip == "Sideways" && r[3].chip == "Sideways");
         // the same through the settings argument (a profile mix)
         Settings st;
+        st.scroll_v.mix.terms = {{AX_Y, 1.0}, {AX_RX, 1.0}};  // y is the push now, z the lift/press
+        r = motionSummary(*builtins.find("normal"), st, id);
+        assert(r[0].kind == MotionKind::Active && r[1].kind == MotionKind::Active && r[4].kind == MotionKind::NotUsed);
+        // a profile mix that matches no known pattern: no motion is named, all six rows are "not used"
         st.scroll_v.mix.terms = {{AX_Y, 1.0}};
         r = motionSummary(*builtins.find("normal"), st, id);
-        assert(r[0].kind == MotionKind::NotUsed && r[1].kind == MotionKind::NotUsed && r[4].chip == "Scroll");
+        for (const MotionRow &row : r) assert(row.kind == MotionKind::NotUsed);
         // a split channel drops a twist term: the twist belongs to the twist channel
         ModeDef s2 = *builtins.find("normal");
         s2.overrides.push_back({"SCROLL_V_MIX", "z + ry"});

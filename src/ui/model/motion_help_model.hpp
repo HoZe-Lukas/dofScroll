@@ -21,6 +21,7 @@
 
 #include "dsp.hpp"
 #include "ui/model/button_chip_model.hpp"
+#include "ui/model/fresh_state.hpp"
 #include "ui/model/motion_map_model.hpp"
 #include "ui/model/strings.hpp"
 
@@ -50,9 +51,9 @@ inline bool configOf(const ModeForm &form, const Settings &base, Motion m, Chann
 }
 
 // Steps per second (signed) the motion produces at the raw deflection `raw` held for a while.
-inline double rateAt(const ChannelCfg &cfg, Motion m, double raw) {
+inline double rateAt(const ChannelCfg &cfg, Axis axis, double raw) {
     RawAxes r{};
-    r[motionAxis(m)] = int(std::lround(raw));
+    r[axis] = int(std::lround(raw));
     Channel ch;
     double v = 0.0;
     for (int i = 0; i < 60; ++i) v = ch.process(cfg, r, 0.1);  // long enough for the smoothing to settle
@@ -86,9 +87,10 @@ inline std::string motionSentence(const ModeForm &form, const Settings &base, Mo
     if (!parseChannelAction(cf.text(), &a, &err)) a = ChannelAction();
     ChannelCfg cfg;
     const bool haveCfg = help_detail::configOf(form, base, m, &cfg);
+    const Axis axis = deriveAxisRoles(base).axis(m);  // placeOf found it, so the axis is known
     const bool live = !std::isnan(liveRaw);
-    const double full = haveCfg ? std::fabs(help_detail::rateAt(cfg, m, kFullDeflection)) : 0.0;
-    const double now = haveCfg && live ? help_detail::rateAt(cfg, m, liveRaw) : 0.0;
+    const double full = haveCfg ? std::fabs(help_detail::rateAt(cfg, axis, kFullDeflection)) : 0.0;
+    const double now = haveCfg && live ? help_detail::rateAt(cfg, axis, liveRaw) : 0.0;
     const bool moving = live && std::fabs(now) >= 0.5;
     std::string text;
     switch (a.type) {
@@ -138,29 +140,38 @@ struct HelpTopic {
 };
 
 // The "?" popover of an element. Ids: "motion:<id>", "action:<type text>", "reverse", "tuning", "button", "picture".
-inline HelpTopic helpTopic(const std::string &id, const StringProvider &s) {
+// `roles` (optional): the axes of the configuration that is shown; without it the roles of the fresh state.
+inline HelpTopic helpTopic(const std::string &id, const StringProvider &s, const AxisRoles *rolesIn = nullptr) {
     HelpTopic t;
-    auto motion = [&](const std::string &title, const std::string &how, const std::string &axis, const std::string &example, const std::string &key) {
+    const AxisRoles fresh = rolesIn ? AxisRoles() : deriveAxisRoles(freshSettings());
+    const AxisRoles &roles = rolesIn ? *rolesIn : fresh;
+    auto motion = [&](Motion mo, const std::string &title, const std::string &how, const std::string &example, const std::string &key) {
         t.title = title;
-        t.body = format(s.tr("%1 (axis %2). Example: %3. In the file: %4."), {how, axis, example, key});
+        if (roles.has(mo))
+            t.body = format(s.tr("%1 (axis %2). Example: %3. In the file: %4."), {how, axisName(roles.axis(mo)), example, key});
+        else
+            t.body = format(s.tr("%1 (this configuration assigns no axis to it). Example: %2. In the file: %3."), {how, example, key});
     };
     if (id == "motion:v_push")
-        motion(s.tr("Vertical push"), s.tr("Pushing the cap away from you and toward you"), "z", s.tr("scroll up and down"),
+        motion(Motion::VPush, s.tr("Vertical push"), s.tr("Pushing the cap away from you and toward you"), s.tr("scroll up and down"),
                s.tr("V_ACTION, or V_PUSH_ACTION when push and tilt have different actions"));
     else if (id == "motion:v_tilt")
-        motion(s.tr("Vertical tilt"), s.tr("Tilting the cap forward and back"), "rx", s.tr("press Page up and Page down"),
+        motion(Motion::VTilt, s.tr("Vertical tilt"), s.tr("Tilting the cap forward and back"), s.tr("press Page up and Page down"),
                s.tr("V_ACTION, or V_TILT_ACTION when push and tilt have different actions"));
     else if (id == "motion:h_push")
-        motion(s.tr("Horizontal push"), s.tr("Pushing the cap to the left and to the right"), "x", s.tr("scroll sideways"),
+        motion(Motion::HPush, s.tr("Horizontal push"), s.tr("Pushing the cap to the left and to the right"), s.tr("scroll sideways"),
                s.tr("H_ACTION, or H_PUSH_ACTION when push and tilt have different actions"));
     else if (id == "motion:h_tilt")
-        motion(s.tr("Horizontal tilt"), s.tr("Tilting the cap to the left and to the right"), "rz", s.tr("press Left and Right"),
+        motion(Motion::HTilt, s.tr("Horizontal tilt"), s.tr("Tilting the cap to the left and to the right"), s.tr("press Left and Right"),
                s.tr("H_ACTION, or H_TILT_ACTION when push and tilt have different actions"));
     else if (id == "motion:twist")
-        motion(s.tr("Twist"), s.tr("Twisting the cap around its vertical axis"), "ry", s.tr("zoom"), "TWIST_ACTION");
+        motion(Motion::Twist, s.tr("Twist"), s.tr("Twisting the cap around its vertical axis"), s.tr("zoom"), "TWIST_ACTION");
     else if (id == "motion:lift")
-        motion(s.tr("Lift / press"), s.tr("Pulling the cap up or pressing it down"), "y", s.tr("added to the vertical push as a mix term"),
-               s.tr("a term of a channel mix, for example SCROLL_V_MIX = z + rx + y"));
+        motion(Motion::Lift, s.tr("Lift / press"), s.tr("Pulling the cap up or pressing it down"), s.tr("added to the vertical push as a mix term"),
+               roles.has(Motion::VPush) && roles.has(Motion::VTilt) && roles.has(Motion::Lift)
+                   ? format(s.tr("a term of a channel mix, for example %1"),
+                            {std::string("SCROLL_V_MIX = ") + axisName(roles.axis(Motion::VPush)) + " + " + axisName(roles.axis(Motion::VTilt)) + " + " + axisName(roles.axis(Motion::Lift))})
+                   : s.tr("a term of a channel mix"));
     else if (id == "action:default")
         t = {s.tr("Default behavior"), s.tr("The motion does what the profile says: scroll for push and tilt, zoom for the twist. In the file: default.")};
     else if (id == "action:none")
@@ -280,11 +291,12 @@ inline std::vector<MotionHint> motionHints(const ModeForm &form, const Settings 
         }
     // a channel mix of the mode that differs from the profile's
     const Settings eff = effectiveSettings(form, base);
+    const AxisRoles roles = deriveAxisRoles(base);
     const struct { MotionChannel c; const char *name; } chans[] = {
         {MotionChannel::V, "Vertical"}, {MotionChannel::H, "Horizontal"}, {MotionChannel::Twist, "Twist"}};
     for (const auto &ch : chans) {
         if (!form.overrideValue(mixKey(ch.c))) continue;
-        if (sameMix(withoutAxis(mixOf(eff, ch.c), AX_Y), withoutAxis(mixOf(base, ch.c), AX_Y))) continue;
+        if (sameMix(withoutLift(mixOf(eff, ch.c), roles), withoutLift(mixOf(base, ch.c), roles))) continue;
         out.push_back({std::string("mix:") + mixKey(ch.c),
                        format(s.tr("This joystick mode replaces the channel mix of the profile (%1)"), {mixKey(ch.c)}),
                        s.tr("Show in Settings tab"), "tab:overrides"});
