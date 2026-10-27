@@ -116,6 +116,7 @@ static void testInvalidUtf8Name(const std::string &root) {
 }
 
 static void testUnreadableDirectory(const std::string &root) {
+    (void)root;
 #ifndef _WIN32
     if (::geteuid() == 0) return;  // root reads everything
     const std::string d = root + "/eacces";
