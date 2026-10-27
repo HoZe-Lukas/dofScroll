@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 # German texts (po/de.po, site/de/) address the reader with the informal "du", never "Sie".
 # Fails on the formal possessives (Ihr, Ihre, ...) and on formal verb forms ("Waehlen Sie",
-# "Sie koennen"). Third person ("Sie wird verwendet") is not matched on purpose.
+# "Sie koennen"). Third person ("Sie wird verwendet") is not matched on purpose.  # check-english: allow
 # A line can opt out with "check-german-du: allow".
 # Usage: scripts/check-german-du.sh
 set -eu
