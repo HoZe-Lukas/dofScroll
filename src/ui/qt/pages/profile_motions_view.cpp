@@ -153,7 +153,7 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
     col->addWidget(new QLabel(qs8(row->how), inspector_));
     QString text = qs8(row->name) + QStringLiteral(": ") + qs8(row->action);
     sentence_->setText(text);
-    auto *belongs = new QLabel(T("The joystick mode %1 gives this motion its action. Below you can set another action in this profile only; the mode itself is changed on the Joystick modes page.").arg(qs8(a.modeLabel)), inspector_);
+    auto *belongs = new QLabel(T("The joystick mode %1 gives this motion its action. Below you can set another action in this profile only; the joystick mode itself is changed on the Joystick modes page.").arg(qs8(a.modeLabel)), inspector_);
     belongs->setWordWrap(true);
     belongs->setTextFormat(Qt::PlainText);
     col->addWidget(belongs);

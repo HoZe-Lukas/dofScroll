@@ -4846,7 +4846,7 @@ msgid "The joystick mode \"%1\" binds this button (%2) and wins over this profil
 msgstr "Der Joystick-Modus \"%1\" belegt diese Taste (%2) und gewinnt gegen dieses Profil. Nur ein Programmprofil kann die Belegung eines Joystick-Modus überschreiben."
 
 #: src/ui
-msgid "The joystick mode %1 gives this motion its action. Below you can set another action in this profile only; the mode itself is changed on the Joystick modes page."
+msgid "The joystick mode %1 gives this motion its action. Below you can set another action in this profile only; the joystick mode itself is changed on the Joystick modes page."
 msgstr "Der Joystick-Modus %1 gibt dieser Bewegung ihre Aktion. Unten kannst du nur in diesem Profil eine andere Aktion einstellen; der Joystick-Modus selbst wird auf der Seite Joystick-Modi geändert."
 
 #: src/ui
