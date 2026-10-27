@@ -26,6 +26,7 @@
 
 #include "common.hpp"
 #include "config.hpp"
+#include "ui/model/axis_layout.hpp"
 #include "ui/model/mode_editor_model.hpp"
 #include "ui/model/motion_summary_model.hpp"
 #include "ui/model/strings.hpp"
@@ -62,15 +63,16 @@ inline bool motionFromId(const std::string &id, Motion *out) {
     return false;
 }
 inline Axis motionAxis(Motion m) {
+    const AxisLayout l = currentAxisLayout();  // the axis names of the running system (axis_layout.hpp)
     switch (m) {
-        case Motion::VPush: return AX_Z;
-        case Motion::VTilt: return AX_RX;
-        case Motion::HPush: return AX_X;
-        case Motion::HTilt: return AX_RZ;
-        case Motion::Twist: return AX_RY;
-        case Motion::Lift: return AX_Y;
+        case Motion::VPush: return l.vPush;
+        case Motion::VTilt: return l.vTilt;
+        case Motion::HPush: return l.hPush;
+        case Motion::HTilt: return l.hTilt;
+        case Motion::Twist: return l.twist;
+        case Motion::Lift: return l.lift;
     }
-    return AX_Z;
+    return l.vPush;
 }
 // The motion of a raw axis.
 inline Motion motionOfAxis(Axis a) {
@@ -78,7 +80,7 @@ inline Motion motionOfAxis(Axis a) {
         if (motionAxis(m) == a) return m;
     return Motion::VPush;
 }
-// The channel the motion belongs to in the built-in mixes (V = z + rx, H = x - rz, twist = ry); lift has none.
+// The channel the motion belongs to in the built-in mixes (Linux: V = z + rx, H = x - rz, twist = ry; the axis names follow axis_layout.hpp); lift has none.
 inline bool naturalChannel(Motion m, MotionChannel *out) {
     switch (m) {
         case Motion::VPush:
@@ -150,19 +152,20 @@ struct MotionPlace {
 inline MotionPlace placeOf(const ModeForm &form, const Settings &base, Motion m) {
     using namespace motion_map_detail;
     const Settings s = effectiveSettings(form, base);
-    const Settings builtin;
+    const Settings builtin = builtinSettings();
+    const AxisLayout lay = currentAxisLayout();
     MotionPlace p;
     const Axis ax = motionAxis(m);
     const MotionChannel order[3] = {MotionChannel::V, MotionChannel::H, MotionChannel::Twist};
     for (MotionChannel c : order) {
         const SplitForm *sp = splitForm(form, c);
         const bool split = sp && sp->active();
-        if (split && ax == AX_RY) continue;
+        if (split && ax == lay.twist) continue;
         if (!hasAxis(mixOf(s, c), ax)) continue;
         p.found = true;
         p.channel = c;
         p.split = split;
-        p.part = c != MotionChannel::Twist && ax != AX_RY;
+        p.part = c != MotionChannel::Twist && ax != lay.twist;
         break;
     }
     MotionChannel nat;
@@ -171,7 +174,7 @@ inline MotionPlace placeOf(const ModeForm &form, const Settings &base, Motion m)
         p.customMix = true;
         return p;
     }
-    p.customMix = !sameMix(withoutAxis(mixOf(s, p.channel), AX_Y), withoutAxis(mixOf(builtin, p.channel), AX_Y));
+    p.customMix = !sameMix(withoutAxis(mixOf(s, p.channel), lay.lift), withoutAxis(mixOf(builtin, p.channel), lay.lift));
     return p;
 }
 
@@ -337,9 +340,9 @@ inline AssignResult setLift(ModeForm &form, const Settings &base, MotionChannel 
     const MotionChannel order[3] = {MotionChannel::V, MotionChannel::H, MotionChannel::Twist};
     const Settings eff = effectiveSettings(form, base);
     for (MotionChannel c : order) {
-        if (c != target && !hasAxis(mixOf(eff, c), AX_Y)) continue;  // other mixes stay exactly as they are
-        Mix mix = withoutAxis(mixOf(eff, c), AX_Y);
-        if (c == target && weight != 0.0) mix.terms.push_back({AX_Y, weight});
+        if (c != target && !hasAxis(mixOf(eff, c), motionAxis(Motion::Lift))) continue;  // other mixes stay exactly as they are
+        Mix mix = withoutAxis(mixOf(eff, c), motionAxis(Motion::Lift));
+        if (c == target && weight != 0.0) mix.terms.push_back({motionAxis(Motion::Lift), weight});
         if (mix.terms.size() > kMaxMixTerms) {
             r.error = "the channel mix would have too many terms";
             return r;

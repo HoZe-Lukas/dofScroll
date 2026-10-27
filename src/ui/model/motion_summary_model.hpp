@@ -26,6 +26,7 @@
 #include "config.hpp"
 #include "mode_list.hpp"
 #include "modes.hpp"
+#include "ui/model/axis_layout.hpp"
 #include "ui/model/strings.hpp"
 #include "utf8.hpp"
 
@@ -173,12 +174,13 @@ inline std::vector<MotionRow> motionSummary(const ModeDef &m, Settings settings,
         Axis axis;
     };
     // the names are literal so that the translation extraction finds them
-    const Motion motions[6] = {{"v_push", s.tr("Vertical push"), s.tr("Push forward / back"), AX_Z},
-                               {"v_tilt", s.tr("Vertical tilt"), s.tr("Tilt forward / back"), AX_RX},
-                               {"h_push", s.tr("Horizontal push"), s.tr("Push sideways"), AX_X},
-                               {"h_tilt", s.tr("Horizontal tilt"), s.tr("Tilt sideways"), AX_RZ},
-                               {"lift", s.tr("Lift / press"), s.tr("Push down / pull up"), AX_Y},
-                               {"twist", s.tr("Twist"), s.tr("Twist the cap"), AX_RY}};
+    const AxisLayout lay = currentAxisLayout();
+    const Motion motions[6] = {{"v_push", s.tr("Vertical push"), s.tr("Push forward / back"), lay.vPush},
+                               {"v_tilt", s.tr("Vertical tilt"), s.tr("Tilt forward / back"), lay.vTilt},
+                               {"h_push", s.tr("Horizontal push"), s.tr("Push sideways"), lay.hPush},
+                               {"h_tilt", s.tr("Horizontal tilt"), s.tr("Tilt sideways"), lay.hTilt},
+                               {"lift", s.tr("Lift / press"), s.tr("Push down / pull up"), lay.lift},
+                               {"twist", s.tr("Twist"), s.tr("Twist the cap"), lay.twist}};
     struct Chan {
         const Mix *mix;
         const ChannelAction *action;
@@ -195,9 +197,9 @@ inline std::vector<MotionRow> motionSummary(const ModeDef &m, Settings settings,
         for (const Chan &c : chans) {
             const bool split = c.split->active();
             // a split channel drops the twist term; its parts take the translation and rotation terms
-            if (split && mo.axis == AX_RY) continue;
+            if (split && mo.axis == lay.twist) continue;
             if (!hasAxis(*c.mix, mo.axis)) continue;
-            const bool tilt = mo.axis == AX_RX || mo.axis == AX_RZ;
+            const bool tilt = mo.axis == lay.vTilt || mo.axis == lay.hTilt;
             const ChannelAction &a = !split ? *c.action : tilt ? c.split->tiltAction(*c.action) : c.split->pushAction(*c.action);
             out.push_back(rowFor(mo.id, mo.name, mo.how, a, c.vertical, c.twist, settings.zoom_modifier, s));
             found = true;
@@ -209,7 +211,7 @@ inline std::vector<MotionRow> motionSummary(const ModeDef &m, Settings settings,
 }
 
 // With the built-in channel mixes (no settings at hand).
-inline std::vector<MotionRow> motionSummary(const ModeDef &m, const StringProvider &s) { return motionSummary(m, Settings(), s); }
+inline std::vector<MotionRow> motionSummary(const ModeDef &m, const StringProvider &s) { return motionSummary(m, builtinSettings(), s); }
 
 // The text of one chip: "▬ ↕ Scroll" (motion marker, action symbol, word); a Keys or Step action shows its keys
 // instead of the word ("◢ ⌨ Left / Right", "▬ ⌨ Ctrl+Page up / Ctrl+Page down"), because "Keys" alone does not

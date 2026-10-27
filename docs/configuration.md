@@ -55,6 +55,13 @@ Axes (libspnav convention, measured on a SpaceMouse Pro): push forward or back i
 changed `spacenavd` settings (axis swap, inversion), adjust the mixes or run the axis assistant
 (Axes page of the interface, "Axis assistant...").
 
+With the official 3Dconnexion driver on Windows the axes are named differently: push forward or back
+is `y`, sideways is `x`, lift or press is `z`, tilt forward or back is `rx`, tilt sideways is `ry`,
+twist is `rz` (the Windows default uses `y + rx`, `x - ry` and `-rz`). The interface knows this: the
+axis names in the motion editor, the motion help, the Axes page hint and the lift/press warning
+follow the system it runs on (`src/ui/model/axis_layout.hpp`). The file format is the same everywhere;
+a profile copied between systems needs its mixes adjusted.
+
 ## Zoom, backend, buttons
 
 | Key | Default | Meaning |

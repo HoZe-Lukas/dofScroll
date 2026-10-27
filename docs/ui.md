@@ -72,9 +72,11 @@ profile, and the motion chips show the zoom key of the profile.
 
 **One component, used everywhere (what a joystick mode or a profile does).** The six motions of the
 SpaceMouse cap always appear in the same order with the same symbol and the same chip style, on every
-page that shows what a joystick mode or a profile does: vertical push (axis z, symbol shows the action),
+page that shows what a joystick mode or a profile does: vertical push (axis z on Linux, y on Windows; symbol shows the action),
 vertical tilt (rx), horizontal push (x), horizontal tilt (rz), lift / press (y, normally "Not used") and
-twist (ry). In the 3x2 panel the top row holds only pushes (vertical, horizontal, lift / press) and the bottom
+twist (ry). The axis names in this paragraph are the Linux ones; on Windows (official driver) they are
+vertical push y, vertical tilt rx, horizontal push x, horizontal tilt ry, lift / press z and twist rz, and the
+interface shows those. In the 3x2 panel the top row holds only pushes (vertical, horizontal, lift / press) and the bottom
 row only the tilts and the twist; the Joystick modes list shows the six symbols the same way, two lines of three. A chip starts with a marker for the kind of motion (a flat bar for a push, a
 wedge for a tilt, a turn arrow for the twist), then the symbol of the action and the word; a Keys or Tap action
 shows its keys instead of the word ("Left / Right", "Ctrl+Page up / Ctrl+Page down") and the Zoom action says

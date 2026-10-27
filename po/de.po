@@ -3053,13 +3053,13 @@ msgstr "Horizontal, Kippanteil: %1"
 
 #: src/ui/qt/pages/axes_page.cpp
 msgid ""
-"Push (z, x, y) and tilt (rx, rz) are the two parts of a scroll channel. A "
+"Push (%1, %2, %3) and tilt (%4, %5) are the two parts of a scroll channel. A "
 "joystick mode that splits a channel gives them different functions; twist "
-"(ry) is zoom by default."
+"(%6) is zoom by default."
 msgstr ""
-"Schieben (z, x, y) und Kippen (rx, rz) sind die beiden Anteile eines "
+"Schieben (%1, %2, %3) und Kippen (%4, %5) sind die beiden Anteile eines "
 "Scroll-Kanals. Ein Joystick-Modus, der einen Kanal trennt, gibt ihnen "
-"unterschiedliche Funktionen; Drehen (ry) ist standardmäßig Zoom."
+"unterschiedliche Funktionen; Drehen (%6) ist standardmäßig Zoom."
 
 #: src/ui/qt/pages/axes_page.cpp
 msgid "Which movement drives which part"
@@ -3965,8 +3965,8 @@ msgid "added to the vertical push as a mix term"
 msgstr "als Mix-Term zum vertikalen Schieben addiert"
 
 #: src/ui/qt/pages/motion_editor.cpp
-msgid "a term of a channel mix, for example SCROLL_V_MIX = z + rx + y"
-msgstr "ein Term eines Kanal-Mix, zum Beispiel SCROLL_V_MIX = z + rx + y"
+msgid "a term of a channel mix, for example %1"
+msgstr "ein Term eines Kanal-Mix, zum Beispiel %1"
 
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "The motion does what the profile says: scroll for push and tilt, zoom for the twist. In the file: default."

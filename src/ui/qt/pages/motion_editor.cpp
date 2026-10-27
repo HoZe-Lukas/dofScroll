@@ -916,7 +916,7 @@ void MotionEditor::buildLiftInspector(QVBoxLayout *col) {
     for (int i = 0; i < 3; ++i) {
         const Mix &mix = motion_map_detail::mixOf(eff, order[i]);
         for (const Term &t : mix.terms)
-            if (t.axis == AX_Y && t.weight != 0.0) {
+            if (t.axis == motionAxis(Motion::Lift) && t.weight != 0.0) {
                 where = i + 1;
                 weight = t.weight;
             }

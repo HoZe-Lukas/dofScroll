@@ -145,22 +145,22 @@ inline HelpTopic helpTopic(const std::string &id, const StringProvider &s) {
         t.body = format(s.tr("%1 (axis %2). Example: %3. In the file: %4."), {how, axis, example, key});
     };
     if (id == "motion:v_push")
-        motion(s.tr("Vertical push"), s.tr("Pushing the cap away from you and toward you"), "z", s.tr("scroll up and down"),
+        motion(s.tr("Vertical push"), s.tr("Pushing the cap away from you and toward you"), axisName(motionAxis(Motion::VPush)), s.tr("scroll up and down"),
                s.tr("V_ACTION, or V_PUSH_ACTION when push and tilt have different actions"));
     else if (id == "motion:v_tilt")
-        motion(s.tr("Vertical tilt"), s.tr("Tilting the cap forward and back"), "rx", s.tr("press Page up and Page down"),
+        motion(s.tr("Vertical tilt"), s.tr("Tilting the cap forward and back"), axisName(motionAxis(Motion::VTilt)), s.tr("press Page up and Page down"),
                s.tr("V_ACTION, or V_TILT_ACTION when push and tilt have different actions"));
     else if (id == "motion:h_push")
-        motion(s.tr("Horizontal push"), s.tr("Pushing the cap to the left and to the right"), "x", s.tr("scroll sideways"),
+        motion(s.tr("Horizontal push"), s.tr("Pushing the cap to the left and to the right"), axisName(motionAxis(Motion::HPush)), s.tr("scroll sideways"),
                s.tr("H_ACTION, or H_PUSH_ACTION when push and tilt have different actions"));
     else if (id == "motion:h_tilt")
-        motion(s.tr("Horizontal tilt"), s.tr("Tilting the cap to the left and to the right"), "rz", s.tr("press Left and Right"),
+        motion(s.tr("Horizontal tilt"), s.tr("Tilting the cap to the left and to the right"), axisName(motionAxis(Motion::HTilt)), s.tr("press Left and Right"),
                s.tr("H_ACTION, or H_TILT_ACTION when push and tilt have different actions"));
     else if (id == "motion:twist")
-        motion(s.tr("Twist"), s.tr("Twisting the cap around its vertical axis"), "ry", s.tr("zoom"), "TWIST_ACTION");
+        motion(s.tr("Twist"), s.tr("Twisting the cap around its vertical axis"), axisName(motionAxis(Motion::Twist)), s.tr("zoom"), "TWIST_ACTION");
     else if (id == "motion:lift")
-        motion(s.tr("Lift / press"), s.tr("Pulling the cap up or pressing it down"), "y", s.tr("added to the vertical push as a mix term"),
-               s.tr("a term of a channel mix, for example SCROLL_V_MIX = z + rx + y"));
+        motion(s.tr("Lift / press"), s.tr("Pulling the cap up or pressing it down"), axisName(motionAxis(Motion::Lift)), s.tr("added to the vertical push as a mix term"),
+               format(s.tr("a term of a channel mix, for example %1"), {"SCROLL_V_MIX = " + builtinMixText(currentAxisLayout(), LayoutChannel::V) + " + " + axisName(motionAxis(Motion::Lift))}));
     else if (id == "action:default")
         t = {s.tr("Default behavior"), s.tr("The motion does what the profile says: scroll for push and tilt, zoom for the twist. In the file: default.")};
     else if (id == "action:none")
@@ -284,7 +284,7 @@ inline std::vector<MotionHint> motionHints(const ModeForm &form, const Settings 
         {MotionChannel::V, "Vertical"}, {MotionChannel::H, "Horizontal"}, {MotionChannel::Twist, "Twist"}};
     for (const auto &ch : chans) {
         if (!form.overrideValue(mixKey(ch.c))) continue;
-        if (sameMix(withoutAxis(mixOf(eff, ch.c), AX_Y), withoutAxis(mixOf(base, ch.c), AX_Y))) continue;
+        if (sameMix(withoutAxis(mixOf(eff, ch.c), motionAxis(Motion::Lift)), withoutAxis(mixOf(base, ch.c), motionAxis(Motion::Lift)))) continue;
         out.push_back({std::string("mix:") + mixKey(ch.c),
                        format(s.tr("This joystick mode replaces the channel mix of the profile (%1)"), {mixKey(ch.c)}),
                        s.tr("Show in Settings tab"), "tab:overrides"});

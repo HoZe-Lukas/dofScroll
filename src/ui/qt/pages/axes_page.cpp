@@ -22,6 +22,7 @@
 #include <unordered_map>
 
 #include "config.hpp"
+#include "ui/model/axis_layout.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/split_parts_model.hpp"
 #include "ui/model/suspend_heartbeat.hpp"
@@ -247,8 +248,11 @@ void AxesPage::buildLivePage(QWidget *page) {
     l->addWidget(connHint_);
     bars_ = new LiveBarsWidget(&session_->view(), false, page);
     l->addWidget(bars_, 1);
-    auto *parts = new QLabel(T("Push (z, x, y) and tilt (rx, rz) are the two parts of a scroll channel. A joystick mode "
-                               "that splits a channel gives them different functions; twist (ry) is zoom by default."));
+    const AxisLayout lay = currentAxisLayout();  // the axis names of this system (issue #186)
+    auto qn = [](Axis a) { return QString::fromLatin1(axisName(a)); };
+    auto *parts = new QLabel(T("Push (%1, %2, %3) and tilt (%4, %5) are the two parts of a scroll channel. A joystick mode "
+                               "that splits a channel gives them different functions; twist (%6) is zoom by default.")
+                                 .arg(qn(lay.vPush), qn(lay.hPush), qn(lay.lift), qn(lay.vTilt), qn(lay.hTilt), qn(lay.twist)));
     parts->setWordWrap(true);
     parts->setAccessibleName(T("Which movement drives which part"));
     l->addWidget(parts);
