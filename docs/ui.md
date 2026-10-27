@@ -341,7 +341,7 @@ itself and tells the daemon to reload:
   never a loss. If you edited a profile file by hand while the window was about to write it, the window says so
   and reads your file instead of overwriting it. A defective profile file (wrong header, several sections, too
   big, unreadable) is marked "defective" in the profile list with the reason, and is never overwritten while
-  the error stands. A second file with the same header name is shown with a warning and ignored. There is no
+  the error stands. A second file with the same header name is shown with a warning and ignored. The profile list shows the order of overlapping profiles of one kind (the `PRIORITY` key) and has **Move up** and **Move down**, which renumber it. There is no
   lock file, so hand editing keeps working.
 - The first start of the new version converts an existing single `dofscroll.conf` into this layout once, with a
   backup (`backup/dofscroll.conf.pre-split`) and a read-back check, see

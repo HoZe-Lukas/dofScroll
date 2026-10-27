@@ -79,8 +79,8 @@ The settings window names a file after the profile name (the "slug"):
 - the Windows device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1` to `COM9`, `LPT1` to `LPT9`) get a `_` appended;
 - the name is at most 80 bytes (cut between two characters, never in the middle of one);
 - when a name is cut, or two profiles would get the same file name (also names that differ only in
-  upper and lower case, which Windows and macOS cannot keep apart), `-` and 8 hexadecimal characters
-  are appended. The characters come from the lower-cased name, so the file name is the same on every
+  upper and lower case, which Windows and macOS cannot keep apart), `-` and a short hash
+  are appended. The hash is taken from the lower-cased name, so the file name is the same on every
   operating system and a copied configuration stays portable.
 
 Examples: `SpaceMouse Pro` becomes `devices/spacemouse pro.conf`; `Q/A: notes` becomes `apps/q_a_ notes.conf`.
@@ -172,6 +172,7 @@ systems needs its mixes adjusted.
 | `INPUT` | `auto` | `auto`, `driver` or `hid`. **Windows and macOS only; ignored on Linux**, where spacenavd is the driver. How the SpaceMouse is read: `driver` through the interface of the installed official 3Dconnexion driver (loaded at run time from the installed driver, nothing bundled; see [legal-notes.md](legal-notes.md)), `hid` directly as raw HID, `auto` by a built-in table (macOS: driver first when installed, otherwise HID; Windows: HID first, the driver as the fallback when HID cannot be opened). With `driver` or `hid` exactly that path is used and nothing else is tried; an invalid value is reported and `auto` applies. Read from `[global]` only, applied on reload without a restart (switching takes a few seconds). The active path is shown as `input=driver` or `input=hid` in the status file and as "Input: 3Dconnexion driver" or "Input: direct (HID)" in the interface and in the log. The defaults of `auto` are unverified guesses until tested on hardware. |
 | `TICK_HZ` | `250` | Tick rate 30 to 1000. Can differ per profile. |
 | `ENABLED` | `1` | `0` switches all output off (scroll, zoom, keys, clicks) and releases held keys. |
+| `PRIORITY` | `0` | Only in `[device:*]` and `[app:*]` profiles (split layout): integer, ascending order in which overlapping profiles of one kind are applied, the highest wins; ties by file name. See "Order of overlapping profiles". |
 | `MODE` | `normal` | Active joystick mode, see [modes.md](modes.md). Can be set in `[global]` (the joystick mode of everything that does not choose its own), `[device:*]` and `[app:*]`. |
 | `LIVE_FEED` | `1` | `0` disables the live data feed to the UI (axes view, axis assistant); with `1` it only runs while a UI is connected. See `security.md`. |
 | `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | **Deprecated**, use `BUTTON_<n> = nav`. Button (0-based index) that turns X/Y into arrow keys while held. |
@@ -232,9 +233,40 @@ A profile holds only the keys it overrides. `BACKEND` is read from `[global]` at
 ### Precedence
 
 Lowest to highest: `[global]` < matching `[device:*]` < overrides of the active joystick mode < matching
-`[app:*]`. All device profiles are applied before all app profiles, each in the order of the file names (legacy
-sections: in file order), so a later matching profile wins. The joystick mode is chosen by `MODE` from the resolved profile (global, device or
+`[app:*]`. All device profiles are applied before all app profiles, each in the order of their `PRIORITY` (see
+"Order of overlapping profiles" below), so a later matching profile wins. The joystick mode is chosen by `MODE` from the resolved profile (global, device or
 app), so an app section can select a joystick mode and still has the last word over the joystick mode's overrides.
+
+### Order of overlapping profiles
+
+Matching is by substring, so several profiles of one kind can match at once (`[app:fire]` and `[app:firefox]` both
+match the window class `firefox`). They are all applied, device profiles before program profiles, and the
+later one wins for every key both set. The order inside one kind is:
+
+- **Single file (legacy):** the order of the sections in `dofscroll.conf`.
+- **Split layout:** the optional key `PRIORITY` in the profile, an integer, default 0, ascending (the profile with the
+  highest number is applied last and wins). Profiles with the same `PRIORITY` are applied in the order of their file
+  names. `PRIORITY` is read only from the profile itself; a `PRIORITY` line in `[global]` has no effect. It exists because
+  files have no order of their own and a file name is a poor place for it.
+
+Example: both match Firefox; `fire` sets the zoom for all programs whose name contains "fire", `firefox` refines it.
+
+    # apps/fire.conf
+    [app:fire]
+    PRIORITY = 10
+    ZOOM_SENS = 8
+    SCROLL_V_SENS = 4
+
+    # apps/firefox.conf
+    [app:firefox]
+    PRIORITY = 20            # applied after "fire": ZOOM_SENS 12 wins, SCROLL_V_SENS 4 is inherited from it
+    ZOOM_SENS = 12
+
+The upgrade keeps your old behavior: when a kind has more than one profile, the migration gives them `PRIORITY` 10, 20,
+30 ... in the order they had in the old file, so the split layout resolves exactly like the old file. A kind with one
+profile gets no `PRIORITY` line. To change the order by hand, change the numbers (leave gaps such as 10, 20, 30 so you
+can insert one later). The settings window shows the order in the profile list and offers "Move up" and "Move down",
+which renumber the `PRIORITY` lines for you.
 
 ### Inheritance
 

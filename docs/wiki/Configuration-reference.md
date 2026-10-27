@@ -51,6 +51,7 @@ The seeded config uses different values than these built-in defaults; it is a st
 | `INPUT` | `auto` | `auto`, `driver` or `hid`. Windows and macOS only (ignored on Linux): read the SpaceMouse through the installed 3Dconnexion driver's interface or directly as raw HID; read from `[global]` only |
 | `TICK_HZ` | `250` | Tick rate 30 to 1000 |
 | `ENABLED` | `1` | `0` switches all output off and releases held keys |
+| `PRIORITY` | `0` | Only in device and program profile files: integer, order in which overlapping profiles of one kind are applied (ascending, the highest wins; ties by file name) |
 | `MODE` | `normal` | Active joystick mode, see [Joystick modes](Modes) |
 | `LIVE_FEED` | `1` | `0` disables the live data feed to the interface (axes view, axis assistant) |
 | `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | Deprecated (use `BUTTON_<n> = nav`; the interface migrates them): raw 0-based button index that turns X/Y into arrow keys while held |
