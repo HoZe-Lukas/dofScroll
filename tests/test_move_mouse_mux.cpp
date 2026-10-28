@@ -19,7 +19,7 @@ using namespace spn;
 
 namespace {
 // Records the raw arguments and sums the clamped ones, as a backend does.
-struct Rec : Output {
+struct MuxRec : Output {
     std::vector<std::pair<int, int>> raw;
     long sx = 0, sy = 0;
     int releases = 0;
@@ -38,7 +38,7 @@ struct Rec : Output {
         sy += clampMouseDelta(dy);
     }
 };
-struct NoPointer : Rec {  // a backend without pointer support: the base default
+struct NoPointer : MuxRec {  // a backend without pointer support: the base default
     void moveMouse(int dx, int dy) override { Output::moveMouse(dx, dy); }
 };
 }  // namespace
@@ -49,7 +49,7 @@ int main() {
     assert(clampMouseDelta(126) == 126 && clampMouseDelta(-126) == -126 && clampMouseDelta(1) == 1 && clampMouseDelta(-1) == -1);
     static_assert(clampMouseDelta(kMaxMouseStep + 1) == kMaxMouseStep && clampMouseDelta(-kMaxMouseStep - 1) == -kMaxMouseStep, "constexpr");
 
-    Rec real;
+    MuxRec real;
     OutputMux mux(&real);
     Output *a = mux.addView(), *b = mux.addView();
     assert(a && b && a != b);

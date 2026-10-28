@@ -17,7 +17,7 @@
 
 using namespace spn;
 
-struct Rec : Output {
+struct PrecedenceRec : Output {
     std::vector<std::string> ev;
     const char *name() const override { return "rec"; }
     bool init(std::string *) override { return true; }
@@ -200,7 +200,7 @@ static void testButtons() {
     {  // device beats global (no mode binding)
         Conf c;
         c.g("BUTTON_2", "rightclick").dev("Pro", "BUTTON_2", "middleclick");
-        Rec o;
+        PrecedenceRec o;
         ModeRunner r(&o);
         tickButtons(r, c.resolve("x"), 2u);
         assert(o.count("+m2") == 1 && o.count("+m3") == 0);
@@ -208,18 +208,18 @@ static void testButtons() {
     {  // the device does not beat the mode, the program does
         Conf c;
         c.dev("Pro", "BUTTON_1", "click");
-        Rec o;
+        PrecedenceRec o;
         ModeRunner r(&o);
         r.setMode(m);
         tickButtons(r, c.resolve("x", &m), 1u);
         assert(o.count("+space") == 1 && o.count("+m1") == 0);
         c.app("x", "BUTTON_1", "rightclick");
-        Rec o2;
+        PrecedenceRec o2;
         ModeRunner r2(&o2);
         r2.setMode(m);
         tickButtons(r2, c.resolve("x", &m), 1u);
         assert(o2.count("+space") == 0 && o2.count("+m3") == 1 && o2.count("+m1") == 0);
-        Rec o3;  // another program: the mode again
+        PrecedenceRec o3;  // another program: the mode again
         ModeRunner r3(&o3);
         r3.setMode(m);
         tickButtons(r3, c.resolve("y", &m), 1u);
@@ -228,7 +228,7 @@ static void testButtons() {
     {  // a program binding on a button the mode does not use, and "none" on one the mode binds
         Conf c;
         c.app("x", "BUTTON_3", "middleclick").app("x", "BUTTON_1", "none");
-        Rec o;
+        PrecedenceRec o;
         ModeRunner r(&o);
         r.setMode(m);
         tickButtons(r, c.resolve("x", &m), 5u);  // buttons 1 and 3
@@ -243,17 +243,17 @@ static void testButtons() {
         sw.buttons = {s1};
         Conf c;
         c.app("x", "BUTTON_1", "mode:other").app("z", "BUTTON_1", "none");
-        Rec o;
+        PrecedenceRec o;
         ModeRunner r(&o);
         r.setMode(sw);
         tickButtons(r, c.resolve("x", &sw), 1u);
         assert(r.takeSwitchRequest() == "other");
-        Rec o2;
+        PrecedenceRec o2;
         ModeRunner r2(&o2);
         r2.setMode(sw);
         tickButtons(r2, c.resolve("z", &sw), 1u);
         assert(r2.takeSwitchRequest().empty());
-        Rec o3;
+        PrecedenceRec o3;
         ModeRunner r3(&o3);
         r3.setMode(sw);
         tickButtons(r3, c.resolve("y", &sw), 1u);
