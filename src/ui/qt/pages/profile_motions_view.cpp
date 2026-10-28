@@ -183,9 +183,16 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
     // (motion_edit_model.hpp: Clear writes the action "none" of this motion into this profile only, "Use the inherited setting" removes it again).
     const MotionEdit edit = motionEdit(*ctx_.settings, section_, motionId.toStdString(), strings);
     if (edit.editable) {
-        auto *state = new QGroupBox(section_ == 0 ? T("In Global") : T("In this profile"), inspector_);
+        // A group box title cannot wrap and sets a minimum width of its own: the title is a wrapping label inside the box.
+        const QString stateTitle = section_ == 0 ? T("In Global") : T("In this profile");
+        auto *state = new QGroupBox(inspector_);
+        state->setAccessibleName(stateTitle);
         state->setObjectName(QStringLiteral("motionState"));
         auto *sl = new QVBoxLayout(state);
+        auto *stateHead = new QLabel(QStringLiteral("<b>") + stateTitle.toHtmlEscaped() + QStringLiteral("</b>"), state);
+        stateHead->setTextFormat(Qt::RichText);
+        stateHead->setWordWrap(true);
+        sl->addWidget(stateHead);
         auto *words = new QLabel(qs8(edit.words), state);
         words->setObjectName(QStringLiteral("motionStateWords"));
         words->setWordWrap(true);
@@ -357,12 +364,17 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
 
     const std::string prefix = channelPrefix(motionId.toStdString());
     if (prefix.empty()) return;
-    auto *box = new QGroupBox(T("Tuning in this profile"), inspector_);
+    auto *box = new QGroupBox(inspector_);
+    box->setAccessibleName(T("Tuning in this profile"));
     auto *g = new QGridLayout(box);
     g->setColumnStretch(1, 1);
+    auto *boxHead = new QLabel(QStringLiteral("<b>") + T("Tuning in this profile").toHtmlEscaped() + QStringLiteral("</b>"), box);
+    boxHead->setTextFormat(Qt::RichText);
+    boxHead->setWordWrap(true);
+    g->addWidget(boxHead, 0, 0, 1, 3);
     static const char *const fields[][2] = {{"SENS", "Sensitivity"}, {"DEADZONE", "Dead zone"}, {"SIGN", "Direction (sign)"},
                                             {"CURVE", "Curve"}, {"SMOOTH_MS", "Smoothing (ms)"}};
-    int r = 0;
+    int r = 1;
     for (const auto &f : fields) {
         const std::string key = prefix + f[0];
         SettingsModel::Value v;
@@ -380,6 +392,8 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         }
         auto *reset = new QPushButton(section_ == 0 ? T("Reset") : T("Inherit"), box);
         reset->setEnabled(v.overridden);
+        reset->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        reset->setMinimumWidth(80);
         reset->setAccessibleName(T(f[1]) + QStringLiteral(": ") + reset->text());
         // the label above its field (and wrapping): a wide font must not widen the inspector
         label->setWordWrap(true);
