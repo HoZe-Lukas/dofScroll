@@ -184,6 +184,90 @@ int main() {
         assert(!self);
     }
 
+    // ---- also take over the tuning (#253): off = action only; on = the five keys of the motion, effective, explicit ----
+    {
+        assert(m.setValue(code, "V_TILT_ACTION", "zoom", &err));
+        assert(m.setValue(code, "SCROLL_V_TILT_SENS", "8", &err));  // a tuned part (the key is valid in a profile)
+        assert(m.setValue(code, "SCROLL_V_TILT_DEADZONE", "50", &err));
+        assert(m.setValue(code, "SCROLL_V_TILT_SIGN", "-1", &err));
+        assert(m.setValue(code, "SCROLL_V_TILT_CURVE", "2", &err));
+        assert(m.setValue(code, "SCROLL_V_TILT_SMOOTH_MS", "40", &err));
+        assert(m.setValue(code, "ZOOM_SENS", "3", &err));
+        assert(m.setValue(code, "SCROLL_H_PUSH_SENS", "0", &err));  // tuned off
+        assert(m.clearOverride(video, "V_TILT_ACTION"));
+        // default: the action only, no tuning key
+        assert(borrowMotion(m, video, "v_tilt", profile(code), &err));
+        assert(has(sectionText(m, video), "V_TILT_ACTION=zoom") && !has(sectionText(m, video), "SCROLL_V_TILT_"));
+        // on: the action and the five keys of that motion, nothing of the other motions
+        assert(borrowMotion(m, video, "v_tilt", profile(code), &err, "", true));
+        {
+            const std::string t = sectionText(m, video);
+            assert(has(t, "V_TILT_ACTION=zoom") && has(t, "SCROLL_V_TILT_SENS=8;") && has(t, "SCROLL_V_TILT_DEADZONE=50;"));
+            assert(has(t, "SCROLL_V_TILT_SIGN=-1;") && has(t, "SCROLL_V_TILT_CURVE=2;") && has(t, "SCROLL_V_TILT_SMOOTH_MS=40;"));
+            assert(!has(t, "SCROLL_V_PUSH_") && !has(t, "SCROLL_H_") && !has(t, "ZOOM_SENS"));
+        }
+        // a part the source does not tune: the effective value of its channel, explicit
+        assert(borrowMotion(m, video, "v_push", profile(code), &err, "", true));
+        assert(has(sectionText(m, video), "SCROLL_V_PUSH_SENS=5;") && has(sectionText(m, video), "SCROLL_V_PUSH_DEADZONE=30;"));
+        // the twist uses ZOOM_*; another motion of the source can be the model of this one
+        assert(borrowMotion(m, video, "twist", profile(code), &err, "", true));
+        assert(has(sectionText(m, video), "ZOOM_SENS=3;") && has(sectionText(m, video), "ZOOM_SIGN=1;"));
+        assert(borrowMotion(m, video, "h_tilt", profile(code), &err, "v_tilt", true));
+        assert(has(sectionText(m, video), "SCROLL_H_TILT_SENS=8;") && has(sectionText(m, video), "SCROLL_H_TILT_SIGN=-1;"));
+        // a source that tuned the motion off is copied as an explicit nothing
+        assert(borrowMotion(m, video, "h_push", profile(code), &err, "", true));
+        assert(has(sectionText(m, video), "H_PUSH_ACTION=none") && has(sectionText(m, video), "SCROLL_H_PUSH_SENS=0;"));
+        // the words say what the tuning is
+        assert(has(borrowedMotionWords(m, profile(code), "v_tilt", id, true), "sensitivity 8, dead zone 50, direction reversed"));
+        assert(!has(borrowedMotionWords(m, profile(code), "v_tilt", id), "dead zone"));
+        // the source keeps what it had; the copy is explicit and does not follow
+        assert(has(sectionText(m, code), "SCROLL_V_TILT_SENS=8;"));
+        assert(m.setValue(code, "SCROLL_V_TILT_SENS", "9", &err));
+        assert(has(sectionText(m, video), "SCROLL_V_TILT_SENS=8;"));
+        // refused: nothing is written (a profile below its mode, lift, an unknown source)
+        const std::string devNow = sectionText(m, dev), videoNow = sectionText(m, video);
+        assert(!borrowMotion(m, dev, "twist", profile(code), &err, "", true) && has(err, "joystick mode"));
+        assert(sectionText(m, dev) == devNow);
+        assert(!borrowMotion(m, video, "lift", profile(code), &err, "", true));
+        assert(!borrowMotion(m, video, "v_tilt", profile(99), &err, "", true));
+        assert(!borrowMotion(m, video, "v_tilt", joystickMode("nope"), &err, "", true));
+        assert(!borrowMotion(m, video, "v_tilt", buttonMode("latch-nav"), &err, "", true));
+        assert(sectionText(m, video) == videoNow);
+        // a joystick mode as the source: Global plus the mode's own overrides
+        assert(m.setValue(0, "SCROLL_V_SENS", "6", &err));
+        assert(borrowMotion(m, video, "v_push", joystickMode("photo"), &err, "", true));
+        assert(has(sectionText(m, video), "SCROLL_V_PUSH_SENS=6;"));
+        assert(m.clearOverride(0, "SCROLL_V_SENS"));
+
+        // into a joystick mode: the same function, written as overrides of the form
+        ModeForm f;
+        const Settings base;
+        assert(borrowMotionIntoMode(m, f, base, Motion::VTilt, profile(code), &err));
+        assert(f.overrides.empty());  // default: the action only
+        ModeForm g;
+        assert(borrowMotionIntoMode(m, g, base, Motion::VTilt, profile(code), &err, Motion::Lift, true));
+        assert(actionOf(g, base, Motion::VTilt).type == ChannelActionType::Zoom);
+        assert(g.overrides.size() == 5 && g.overrideValue("SCROLL_V_TILT_SENS") && *g.overrideValue("SCROLL_V_TILT_SENS") == "9");
+        assert(*g.overrideValue("SCROLL_V_TILT_SIGN") == "-1" && *g.overrideValue("SCROLL_V_TILT_SMOOTH_MS") == "40");
+        ModeForm h;
+        assert(borrowMotionIntoMode(m, h, base, Motion::Twist, profile(code), &err, Motion::Lift, true));
+        assert(h.overrideValue("ZOOM_SENS") && *h.overrideValue("ZOOM_SENS") == "3");
+        ModeForm k;
+        assert(!borrowMotionIntoMode(m, k, base, Motion::Lift, profile(code), &err, Motion::Lift, true) && k.overrides.empty());
+        assert(!borrowMotionIntoMode(m, k, base, Motion::VTilt, profile(99), &err, Motion::Lift, true) && k.overrides.empty());
+        // the shared function itself, with a sink of its own
+        std::vector<KV> got;
+        assert(copyMotionSettings(m, profile(code), [&](const std::string &key, const std::string &v, std::string *) { got.emplace_back(key, v); return true; },
+                                  "v_push", &err, "v_tilt"));
+        assert(got.size() == 5 && got[0].first == "SCROLL_V_PUSH_SENS" && got[0].second == "9");
+        assert(!copyMotionSettings(m, profile(code), [](const std::string &, const std::string &, std::string *) { return true; }, "lift", &err));
+        // back to what the builder tests below expect of the program "code"
+        assert(m.setValue(code, "V_TILT_ACTION", "wheel_h", &err));
+        for (const char *key : {"SCROLL_V_TILT_SENS", "SCROLL_V_TILT_DEADZONE", "SCROLL_V_TILT_SIGN", "SCROLL_V_TILT_CURVE", "SCROLL_V_TILT_SMOOTH_MS", "ZOOM_SENS",
+                                "SCROLL_H_PUSH_SENS"})
+            assert(m.clearOverride(code, key));
+    }
+
     // ---- the builder ----
     const size_t before = m.sectionCount();
     ProfileBuild b;

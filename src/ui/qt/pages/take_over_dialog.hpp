@@ -12,6 +12,7 @@
 #include "ui/model/borrow_model.hpp"
 #include "ui/model/strings.hpp"
 
+class QCheckBox;
 class QComboBox;
 class QLabel;
 
@@ -23,9 +24,17 @@ public:
                    std::function<std::string(size_t)> words, const spn::ui::StringProvider &strings, QWidget *parent = nullptr);
     int selected() const;  // index into the sources given (valid after exec() == Accepted), -1 = none
     void select(int index);
+    // The check box "Also take over the tuning" (off: the action only), for a motion. words(i, tuning) then says what would be
+    // copied with or without the tuning; it replaces the words function of the constructor.
+    void offerTuning(std::function<std::string(size_t, bool)> words);
+    bool tuning() const;  // the box is shown and checked
+    void setTuning(bool on);
 
 private:
     QComboBox *combo_ = nullptr;
     QLabel *words_ = nullptr;
+    QCheckBox *tuning_ = nullptr;
+    std::function<std::string(size_t, bool)> tuningWordsFn_;
+    void refresh();
     std::function<std::string(size_t)> wordsFn_;
 };
