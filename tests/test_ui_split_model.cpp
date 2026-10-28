@@ -6,6 +6,7 @@
 // directories only.
 #undef NDEBUG
 #include <cassert>
+#include <cstdio>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -495,7 +496,7 @@ static void testHostileImportAndDisplay() {
     assert(has(p.risks[0] + p.risks[1], "very short") && has(p.risks[0] + p.risks[1], "chords"));
     assert(applyProfileImport(m, p, ImportChoice::Replace, id).done);
     const size_t e = m.profiles().find(Section::APP, "e");
-    assert(m.priority(e) == 0 && m.priority(m.profiles().find(Section::APP, "mine")) == 50);
+    assert(m.priority(e) == 40 && m.priority(m.profiles().find(Section::APP, "mine")) == 50);
     assert(order(m, Section::APP) == "e,mine");  // never applied after (above) the user's own profile
     assert(m.save(id).saved && !has(get(d + "/apps/e.conf"), "ENABLED") && !has(get(d + "/apps/e.conf"), "TICK_HZ"));
     assert(!m.chordNote(e, id).empty() && m.chordNote(m.profiles().find(Section::APP, "mine"), id).empty());
@@ -528,6 +529,183 @@ static void testStateAcrossEdits() {
     tu::removeAll(d);
 }
 
+// Writes a one-profile file and plans its import into m.
+static ImportPlan planOf(const SettingsModel &m, const std::string &dir, const std::string &body) {
+    put(dir + "/imp.conf", body);
+    return planProfileImport(m, dir + "/imp.conf", id);
+}
+
+static void testImportRiskUsesParser() {
+    const std::string d = makeDir("split-model-risk");
+    put(d + "/dofscroll.conf", "[global]\n");
+    SettingsModel m = load(d);
+    ModeSet ms;
+    ModeDef normal;
+    normal.id = "normal";
+    normal.builtin = true;
+    ModeDef own;
+    own.id = "custom";
+    ms.modes = {normal, own};
+    m.setModes(ms, "");
+    // the parser trims around '+': none of these is harmless
+    for (const char *line : {"BUTTON_1 = key:ctrl +w", "BUTTON_1 = key:alt + f4", "V_ACTION = keys:ctrl +w,ctrl +t",
+                             "BUTTON_1 = key:shift+delete", "BUTTON_1 = key:delete", "BUTTON_1 = key:f4", "BUTTON_1 = key:super",
+                             "BUTTON_1 = key:enter", "BUTTON_1 = key:esc", "BUTTON_2 = click", "BUTTON_2 = RightClick",
+                             "BUTTON_2 = middleclick", "CLICK_BUTTON = 3", "MODE = custom", "BUTTON_3 = mode:custom"}) {
+        const ImportPlan p = planOf(m, d, std::string("[app:programname]\n") + line + "\n");
+        if (!p.ok || p.risks.empty()) {
+            fprintf(stderr, "not flagged: %s\n", line);
+            assert(false);
+        }
+    }
+    for (const char *line : {"BUTTON_1 = key:space", "BUTTON_1 = nav", "BUTTON_1 = key:ctrl+pageup", "SCROLL_V_SENS = 3", "MODE = normal",
+                             "V_ACTION = keys:ctrl+pageup,ctrl+pagedown", "BUTTON_1 = none"}) {
+        const ImportPlan p = planOf(m, d, std::string("[app:programname]\n") + line + "\n");
+        if (!p.ok || !p.risks.empty()) {
+            fprintf(stderr, "flagged: %s\n", line);
+            assert(false);
+        }
+    }
+    // the canonical value is written, not the raw text
+    ImportPlan p = planOf(m, d, "[app:programname]\nBUTTON_1 = key:ctrl +w\nV_ACTION = keys:ctrl +w,ctrl +t\n");
+    assert(p.ok && applyProfileImport(m, p, ImportChoice::Replace, id).done && m.save(id).saved);
+    const std::string f = get(d + "/apps/programname.conf");
+    assert(has(f, "BUTTON_1 = key:ctrl+w") && !has(f, "ctrl +w"));
+    // and the profile note sees it
+    assert(!m.chordNote(m.profiles().find(Section::APP, "programname"), id).empty());
+    tu::removeAll(d);
+}
+
+static void testNewAndImportedPriority() {
+    const std::string d = makeDir("split-model-newprio");
+    put(d + "/dofscroll.conf", "[global]\n");
+    put(d + "/apps/neg1.conf", "[app:neg1]\nPRIORITY = -30\n");
+    put(d + "/apps/neg2.conf", "[app:neg2]\nPRIORITY = -10\n");
+    put(d + "/devices/solo.conf", "[device:solo]\nZOOM_SENS = 2\n");
+    SettingsModel m = load(d);
+    std::string err;
+    // a new profile of the user is applied last, also when every priority is negative or there is one profile
+    size_t n = m.addSection(Section::APP, "newone", &err);
+    assert(n != ProfileSet::npos && m.priority(n) == 0 && order(m, Section::APP) == "neg1,neg2,newone");
+    assert(m.priority(m.profiles().find(Section::APP, "neg2")) < m.priority(n));
+    n = m.addSection(Section::DEVICE, "second", &err);
+    assert(m.priority(n) > m.priority(m.profiles().find(Section::DEVICE, "solo")) && order(m, Section::DEVICE) == "solo,second");
+    // an imported one is applied before every profile of the user
+    ImportPlan p = planOf(m, d, "[app:imported]\nZOOM_SENS = 3\n");
+    assert(applyProfileImport(m, p, ImportChoice::Replace, id).done);
+    assert(order(m, Section::APP) == "imported,neg1,neg2,newone" && m.priority(m.profiles().find(Section::APP, "imported")) == -40);
+    assert(m.save(id).saved);
+    assert(order(load(d), Section::APP) == "imported,neg1,neg2,newone");
+    // all priorities 0 (hand-written): import goes first, new goes last
+    tu::removeAll(d + "/apps");
+    std::filesystem::create_directories(d + "/apps");
+    put(d + "/apps/b.conf", "[app:b]\n");
+    put(d + "/apps/c.conf", "[app:c]\n");
+    m = load(d);
+    p = planOf(m, d, "[app:a]\nPRIORITY = 1000\n");
+    assert(applyProfileImport(m, p, ImportChoice::Replace, id).done && order(m, Section::APP) == "a,b,c");
+    n = m.addSection(Section::APP, "z0", &err);
+    assert(order(m, Section::APP) == "a,b,c,z0" && m.save(id).saved && order(load(d), Section::APP) == "a,b,c,z0");
+    // the range ends: the kind is numbered again instead of overflowing
+    tu::removeAll(d + "/apps");
+    std::filesystem::create_directories(d + "/apps");
+    put(d + "/apps/hi.conf", "[app:hi]\nPRIORITY = 995\n");
+    put(d + "/apps/lo.conf", "[app:lo]\nPRIORITY = -995\n");
+    m = load(d);
+    n = m.addSection(Section::APP, "last", &err);
+    assert(order(m, Section::APP) == "lo,hi,last");
+    assert(m.priority(m.profiles().find(Section::APP, "last")) > m.priority(m.profiles().find(Section::APP, "hi")));
+    p = planOf(m, d, "[app:first]\n");
+    assert(applyProfileImport(m, p, ImportChoice::Replace, id).done && order(m, Section::APP) == "first,lo,hi,last");
+    assert(m.priority(m.profiles().find(Section::APP, "first")) < m.priority(m.profiles().find(Section::APP, "lo")));
+    for (const SettingsModel::SectionInfo &si : m.sections())
+        if (si.index) assert(m.priority(si.index) >= kMinPriority && m.priority(si.index) <= kMaxPriority);
+    // the UI order agrees with the loader on equal priorities (legacy first, then the file name)
+    tu::removeAll(d + "/apps");
+    std::filesystem::create_directories(d + "/apps");
+    put(d + "/dofscroll.conf", "[global]\n[app:legacy]\n");
+    put(d + "/apps/m.conf", "[app:m]\nPRIORITY = 5\n");
+    put(d + "/apps/k.conf", "[app:k]\nPRIORITY = 5\n");
+    m = load(d);
+    assert(m.renameSection(m.profiles().find(Section::APP, "m"), "a-first", &err));
+    // the text about the order is the order of the daemon, also before anything is saved or sorted
+    assert(has(m.orderText(m.profiles().find(Section::APP, "k"), id), "Applied after \"a-first\""));
+    assert(m.save(id).saved);
+    n = m.addSection(Section::APP, "zz", &err);  // sorts the model
+    assert(order(m, Section::APP) == "legacy,a-first,k,zz" && order(m, Section::APP) == order(load(d), Section::APP) + ",zz");
+    tu::removeAll(d);
+}
+
+static void testStaleImportPlan() {
+    const std::string d = makeDir("split-model-stale");
+    put(d + "/dofscroll.conf", "[global]\n");
+    put(d + "/apps/mine.conf", "[app:mine]\nZOOM_SENS = 7\n");
+    SettingsModel m = load(d);
+    std::string err;
+    // planned without a collision, then a profile of this name appears (reload during the dialog)
+    ImportPlan p = planOf(m, d, "[app:other]\nZOOM_SENS = 9\n");
+    assert(p.ok && !p.collision);
+    put(d + "/apps/other.conf", "[app:other]\nZOOM_SENS = 2\n");
+    assert(m.load(d + "/dofscroll.conf", nullptr, &err));
+    ImportResult r = applyProfileImport(m, p, ImportChoice::Replace, id);
+    assert(!r.done && !r.message.empty() && !m.dirty());
+    assert(m.profiles().find(Section::APP, "other") != ProfileSet::npos && m.profiles().find(Section::APP, "mine") != ProfileSet::npos);
+    assert(m.effective(m.profiles().find(Section::APP, "other")).zoom.sensitivity == 2);
+    // planned with a collision, then the profile is gone: nothing else is touched
+    p = planOf(m, d, "[app:other]\nZOOM_SENS = 9\n");
+    assert(p.ok && p.collision);
+    std::filesystem::remove(d + "/apps/other.conf");
+    assert(m.load(d + "/dofscroll.conf", nullptr, &err));
+    r = applyProfileImport(m, p, ImportChoice::Replace, id);
+    assert(!r.done && !m.dirty() && m.profiles().find(Section::APP, "other") == ProfileSet::npos);
+    assert(m.effective(m.profiles().find(Section::APP, "mine")).zoom.sensitivity == 7);
+    // an unchanged plan still works; so does one whose section index moved
+    p = planOf(m, d, "[app:aaa]\nZOOM_SENS = 4\n");
+    assert(applyProfileImport(m, p, ImportChoice::Replace, id).done);
+    p = planOf(m, d, "[app:MINE]\nZOOM_SENS = 5\n");
+    assert(p.collision);
+    r = applyProfileImport(m, p, ImportChoice::Replace, id);
+    assert(r.done && m.effective(m.profiles().find(Section::APP, "mine")).zoom.sensitivity == 5 &&
+           m.profiles().find(Section::APP, "aaa") != ProfileSet::npos);
+    tu::removeAll(d);
+}
+
+static void testImportNameChecks() {
+    const std::string d = makeDir("split-model-names");
+    put(d + "/dofscroll.conf", "[global]\n");
+    SettingsModel m = load(d);
+    for (const char *nm : {"a\xE2\x80\xAE" "b" "longname", "zero\xE2\x80\x8Bwidth", "bom\xEF\xBB\xBFname", "ctl\x01name",
+                           "bidi\xE2\x81\xA7" "name"}) {
+        const ImportPlan p = planOf(m, d, std::string("[app:") + nm + "]\nZOOM_SENS = 3\n");
+        if (p.ok) fprintf(stderr, "accepted: %s\n", nm);
+        assert(!p.ok && !p.error.empty());
+    }
+    assert(planOf(m, d, "[app:firefox]\n").ok);
+    // four code points or fewer: the warning; five: none
+    assert(!planOf(m, d, "[app:abcd]\n").risks.empty());
+    assert(planOf(m, d, "[app:abcde]\n").risks.empty());
+    assert(!planOf(m, d, "[app:\xC3\xA4\xC3\xB6\xC3\xBC\xC3\x9F]\n").risks.empty());
+    tu::removeAll(d);
+}
+
+static void testRenameOntoRemoved() {
+    const std::string d = makeDir("split-model-rename-removed");
+    put(d + "/dofscroll.conf", "[global]\n");
+    put(d + "/apps/vlc.conf", "[app:vlc]\nZOOM_SENS = 4\n");
+    put(d + "/apps/foo.conf", "[app:foo]\nZOOM_SENS = 6\n");
+    SettingsModel m = load(d);
+    std::string err;
+    assert(m.removeSection(m.profiles().find(Section::APP, "vlc"), &err));
+    assert(m.renameSection(m.profiles().find(Section::APP, "foo"), "vlc", &err));
+    const SettingsModel::SaveResult r = m.save(id);
+    assert(r.saved && !r.conflict);
+    assert(tu::exists(d + "/apps/vlc.conf") && !tu::exists(d + "/apps/foo.conf"));
+    assert(has(get(d + "/apps/vlc.conf"), "[app:vlc]") && has(get(d + "/apps/vlc.conf"), "ZOOM_SENS = 6"));
+    const SettingsModel m2 = load(d);
+    assert(m2.profiles().find(Section::APP, "vlc") != ProfileSet::npos && m2.profiles().find(Section::APP, "foo") == ProfileSet::npos);
+    tu::removeAll(d);
+}
+
 int main() {
     testLoadSaveOnlyChanged();
     testConflict();
@@ -542,5 +720,10 @@ int main() {
     testFirstStartAndFirstDevice();
     testStateAcrossEdits();
     testHostileImportAndDisplay();
+    testImportRiskUsesParser();
+    testNewAndImportedPriority();
+    testStaleImportPlan();
+    testImportNameChecks();
+    testRenameOntoRemoved();
     return 0;
 }

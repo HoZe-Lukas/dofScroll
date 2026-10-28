@@ -234,25 +234,66 @@ public:
                            "file is not touched; fix or remove it to use the profile file again."),
                       {baseName(d->path)});
     }
-    // A key binding with Ctrl, Alt or Super (or Cmd) in this profile.
-    static bool isRiskyChord(const std::string &value) {
-        const std::string v = utf8::lowerAscii(value);
-        for (const char *m : {"ctrl+", "alt+", "super+", "cmd+", "meta+", "win+", "control+"})
-            if (v.find(m) != std::string::npos) return true;
+    // A binding that can do harm when it comes from a file of someone else, decided with the parsers of the daemon
+    // (so "key:ctrl +w" is seen like "key:ctrl+w"): a chord that chordNeedsWarning flags, a modifier or a destructive
+    // key (Delete, Backspace, Enter, Esc, F4) as a plain key or channel key, a mouse click as button action (also the
+    // legacy CLICK_BUTTON), and a pointer to a joystick mode of the user's own (a mode file can bind anything).
+    bool bindingIsRisky(const std::string &key, const std::string &value) const {
+        const std::string k = upper(utf8::trim(key));
+        auto plainRisky = [](Key kk) {
+            switch (kk) {
+                case Key::Ctrl: case Key::Alt: case Key::Shift: case Key::Super: case Key::Delete: case Key::Backspace:
+                case Key::Enter: case Key::KpEnter: case Key::Esc: case Key::F4:
+                    return true;
+                default:
+                    return false;
+            }
+        };
+        auto ownMode = [&](const std::string &mid) {
+            const ModeDef *md = modes_.find(utf8::lowerAscii(utf8::trim(mid)));
+            return md && !md->builtin;
+        };
+        if (k == "CLICK_BUTTON") return true;
+        if (k == "MODE") return ownMode(value);
+        if (k.compare(0, 7, "BUTTON_") == 0) {
+            ButtonActionType t;
+            Key kk = Key::Space;
+            ChordMods mods;
+            std::string mode;
+            if (!parseButtonAction(value, &t, &kk, nullptr, &mode, &mods)) return false;
+            switch (t) {
+                case ButtonActionType::Click: case ButtonActionType::RightClick: case ButtonActionType::MiddleClick:
+                    return true;
+                case ButtonActionType::Key:
+                    return mods.n == 0 ? plainRisky(kk) : chordNeedsWarning(kk, mods);
+                case ButtonActionType::ModeSwitch: case ButtonActionType::ToggleMode: case ButtonActionType::HoldMode:
+                    return ownMode(mode);
+                default:
+                    return false;
+            }
+        }
+        if (k.size() > 7 && k.compare(k.size() - 7, 7, "_ACTION") == 0) {
+            ChannelAction a;
+            if (!parseChannelAction(value, &a, nullptr) || !a.usesKeys()) return false;
+            const struct { Key key; const ChordMods &mods; } args[2] = {{a.neg, a.negMods}, {a.pos, a.posMods}};
+            for (const auto &arg : args)
+                if (arg.mods.n == 0 ? plainRisky(arg.key) : chordNeedsWarning(arg.key, arg.mods)) return true;
+        }
         return false;
     }
     bool bindsRiskyChord(size_t i) const {
         if (i == 0 || i >= ps_.sections.size()) return false;
         for (const KV &kv : ps_.sections[i].kv)
-            if (isRiskyChord(kv.second)) return true;
+            if (bindingIsRisky(kv.first, kv.second)) return true;
         return false;
     }
     // The risk wording for a profile that binds such a chord ("" if it does not); the same idea as the note of the
     // joystick mode editor.
     std::string chordNote(size_t i, const StringProvider &s) const {
         if (!bindsRiskyChord(i)) return std::string();
-        return s.tr("This profile presses shortcut chords (Ctrl, Alt, Super) when a button is pressed or the mouse is "
-                    "moved. Only keep profile files from sources you trust and read the file first.");
+        return s.tr("This profile presses shortcut chords or keys that can do harm (Ctrl, Alt, Super, Delete, ...) or clicks, "
+                    "or uses a Joystick mode of your own, when a button is pressed or the mouse is moved. Only keep profile "
+                    "files from sources you trust and read the file first.");
     }
     // What the last save or load found about this profile (a refused write, a changed file, ...): "" if nothing.
     std::string profileProblem(size_t i) const {
@@ -530,14 +571,25 @@ public:
         for (const Removed &r : removed_)
             if (r.file.kind == kind && fold(r.file.name) == fold(norm)) old = &r.file;
         const FileDiag oldFile = old ? *old : FileDiag();
-        // A new profile is applied last when the profiles of its kind have an explicit order.
-        int maxPrio = 0;
-        size_t same = 0;
-        for (const Section &s : ps_.sections)
-            if (s.kind == kind) {
-                ++same;
-                maxPrio = std::max(maxPrio, sectionPriority(s));
-            }
+        // appliedLast (a profile of the user): after every other profile of its kind, whatever their numbers (also
+        // all negative, all 0 or a single one). !appliedLast (an imported profile): before all of them, so it never
+        // wins over the user's own. The kind is numbered again when the number would leave the range.
+        int newPrio = 0;
+        for (int round = 0; round < 2; ++round) {
+            size_t same = 0;
+            int lo = 0, hi = 0;
+            for (const Section &s : ps_.sections)
+                if (s.kind == kind) {
+                    const int p = sectionPriority(s);
+                    lo = same == 0 ? p : std::min(lo, p);
+                    hi = same == 0 ? p : std::max(hi, p);
+                    ++same;
+                }
+            if (same == 0) break;
+            newPrio = appliedLast ? hi + 10 : lo - 10;
+            if (newPrio <= kMaxPriority && newPrio >= kMinPriority) break;
+            if (round == 1 || !renumberKind(kind, err)) return fail(err, "the order of the profiles cannot be extended");
+        }
         idx = ps_.findOrAdd(kind, norm);
         if (idx == ProfileSet::npos) return fail(err, "invalid profile name (empty, ']' or line break)");
         st_.resize(ps_.sections.size());
@@ -553,9 +605,7 @@ public:
         }
         t.dirty = true;
         problems_.erase(keyOf(kind, norm));
-        if (appliedLast && same > 0 && maxPrio > 0) {
-            if (maxPrio + 10 <= kMaxPriority) ps_.sections[idx].kv.emplace_back("PRIORITY", std::to_string(maxPrio + 10));
-        }
+        if (newPrio != 0) ps_.sections[idx].kv.emplace_back("PRIORITY", std::to_string(newPrio));
         resort();
         return ps_.find(kind, norm);
     }
@@ -572,6 +622,20 @@ public:
         if (ps_.sections[i].pattern == norm) return true;
         if (const FileDiag *d = defectiveFor(ps_.sections[i].kind, norm))
             return failb(err, "the file " + baseName(d->path) + " has this name and is defective; repair or remove it first");
+        // The new name is the one of a profile that was removed in the same autosave window and whose file is still
+        // there: the profile takes that file over (as addSection does) and its own old file is removed instead, so
+        // the delete of the removed profile cannot hit the file that was just written.
+        for (size_t k = 0; k < removed_.size(); ++k) {
+            if (removed_[k].file.kind != ps_.sections[i].kind || fold(removed_[k].file.name) != fold(norm)) continue;
+            const FileDiag taken = removed_[k].file;
+            removed_.erase(removed_.begin() + long(k));
+            if (st_[i].home == SecState::FILE) removed_.push_back({st_[i].file});
+            else if (st_[i].home == SecState::LEGACY) globalDirty_ = true;  // the profile leaves dofscroll.conf
+            st_[i].home = SecState::FILE;
+            st_[i].file = taken;
+            st_[i].file.section = i;
+            break;
+        }
         ps_.sections[i].pattern = norm;
         reindex();
         touch(i);  // the file is written under the new name first, then the old one is removed
@@ -582,18 +646,21 @@ public:
     bool setProfileKeys(size_t i, const std::vector<KV> &kv, std::string *err) {
         if (i == 0 || i >= ps_.sections.size()) return failb(err, "this profile cannot be replaced");
         if (kv.size() > kMaxKeysPerSection) return failb(err, "too many settings in this profile");
-        Settings t;
-        for (const KV &p : kv) {
-            std::string e;
-            if (upper(p.first) == "PRIORITY") continue;
-            if (!applyKey(t, p.first, p.second, &e)) return failb(err, p.first + " = " + p.second + ": " + e);
-        }
-        std::vector<KV> keep;
+        // Every value is stored in its canonical form, as setValue does (what the parser accepts, not the raw text).
+        std::vector<KV> next;
         for (const KV &p : ps_.sections[i].kv)
-            if (upper(p.first) == "PRIORITY") keep.push_back(p);
-        std::vector<KV> next = keep;
-        for (const KV &p : kv)
-            if (upper(p.first) != "PRIORITY") next.emplace_back(p.first, p.second);
+            if (upper(p.first) == "PRIORITY") next.push_back(p);
+        for (const KV &p : kv) {
+            const std::string k = upper(p.first);
+            if (k == "PRIORITY") continue;
+            std::string e;
+            Settings t;
+            if (!applyKeyLayer(t, k, p.second, layerOfSection(ps_.sections[i].kind), &e))
+                return failb(err, p.first + " = " + p.second + ": " + e);
+            const std::vector<KV> tk = allKeys(t);
+            const std::string *cp = lookup(tk, k);
+            next.emplace_back(cp ? k : p.first, cp ? *cp : p.second);
+        }
         ps_.sections[i].kv = next;
         touch(i);
         return true;
@@ -1093,11 +1160,27 @@ private:
         return nullptr;
     }
     // Section indexes of the kind of section i, in applied order (empty for [global] or a bad index).
+    // Applied order of two profiles of one kind, as the loader breaks ties: PRIORITY, then the profiles of
+    // dofscroll.conf (file order), then the file name (the one the profile has, or gets at the next save).
+    bool appliedBefore(size_t a, size_t b) const {
+        const int pa = sectionPriority(ps_.sections[a]), pb = sectionPriority(ps_.sections[b]);
+        if (pa != pb) return pa < pb;
+        if (a >= st_.size() || b >= st_.size()) return false;
+        const bool la = st_[a].home == SecState::LEGACY, lb = st_[b].home == SecState::LEGACY;
+        if (la != lb) return la;
+        if (la) return false;
+        auto name = [&](size_t k) {
+            if (st_[k].home == SecState::FILE && !st_[k].dirty) return baseName(st_[k].file.path);
+            return profileSlug(ps_.sections[k].pattern) + ".conf";
+        };
+        return name(a) < name(b);
+    }
     std::vector<size_t> kindOrder(size_t i) const {
         std::vector<size_t> o;
         if (i == 0 || i >= ps_.sections.size()) return o;
         for (size_t k = 1; k < ps_.sections.size(); ++k)
             if (ps_.sections[k].kind == ps_.sections[i].kind) o.push_back(k);
+        std::stable_sort(o.begin(), o.end(), [&](size_t a, size_t b) { return appliedBefore(a, b); });
         return o;
     }
     void touch(size_t i) {
@@ -1114,7 +1197,23 @@ private:
         fresh.sections = ps_.sections;
         ps_ = fresh;
     }
-    // Keeps the profiles of each kind in applied order (PRIORITY ascending, ties keep their order). The slots of
+    // Numbers the profiles of a kind 10, 20, 30, ... in their applied order (a smaller step for very many, as in the
+    // migration), leaving room below and above for one more.
+    bool renumberKind(Section::Kind kind, std::string *err) {
+        std::vector<size_t> o;
+        for (size_t k = 1; k < ps_.sections.size(); ++k)
+            if (ps_.sections[k].kind == kind) o.push_back(k);
+        const int step = std::max(1, std::min(10, int(kMaxPriority) / int(o.size() + 2)));
+        for (size_t k = 0; k < o.size(); ++k) {
+            const int want = int(k + 1) * step;
+            if (want == sectionPriority(ps_.sections[o[k]])) continue;
+            if (!store(o[k], "PRIORITY", std::to_string(want), err)) return false;
+        }
+        resort();
+        return true;
+    }
+    // Keeps the profiles of each kind in applied order (PRIORITY ascending; ties as the loader breaks them: profiles
+    // of dofscroll.conf first, then by file name, so the order shown is the order the daemon uses). The slots of
     // the two kinds stay where they are (the daemon applies all devices before all programs whatever their index).
     void resort() {
         std::vector<size_t> idx(ps_.sections.size());
@@ -1124,9 +1223,8 @@ private:
             for (size_t k = 1; k < idx.size(); ++k)
                 if (ps_.sections[k].kind == kind) places.push_back(k);
             std::vector<size_t> sorted = places;
-            std::stable_sort(sorted.begin(), sorted.end(), [&](size_t a, size_t b) {
-                return sectionPriority(ps_.sections[a]) < sectionPriority(ps_.sections[b]);
-            });
+            st_.resize(ps_.sections.size());
+            std::stable_sort(sorted.begin(), sorted.end(), [&](size_t a, size_t b) { return appliedBefore(a, b); });
             for (size_t k = 0; k < places.size(); ++k) idx[places[k]] = sorted[k];
         }
         std::vector<Section> ns;

@@ -6,7 +6,9 @@
 // (applyProfileImport) to the SettingsModel, whose autosave writes the new profile file. A profile with the same
 // name (ASCII case-insensitive, same kind) is never overwritten unless the caller says Replace after asking the
 // user once; Keep leaves the existing profile alone and says so. The PRIORITY of the file is not imported (the
-// order belongs to this configuration): a new profile is applied last, a replaced one keeps its place. No toolkit.
+// order belongs to this configuration): a new profile is applied first (10 below the lowest PRIORITY, never above
+// the user's own), a replaced one keeps its place. A plan is bound to the profile list it was made on: apply looks
+// the profile up again and refuses a plan whose collision flag changed meanwhile. No toolkit.
 #pragma once
 #include <string>
 #include <vector>
@@ -71,7 +73,14 @@ inline ImportPlan planProfileImport(const SettingsModel &m, const std::string &f
     const Section &sec = ps.sections[1];
     p.kind = sec.kind;
     p.name = sec.pattern;
+    // A name that is not shown as it is (control, zero-width, direction-changing or BOM characters) could pose as
+    // another profile in every list and question.
+    if (displayText(p.name, p.name.size() + 16) != p.name) {
+        p.error = s.tr("The profile name contains control, invisible or direction-changing characters and cannot be imported.");
+        return p;
+    }
     Settings t;
+    bool chordRisk = false;
     for (const KV &kv : sec.kv) {
         const std::string uk = utf8::upperAscii(kv.first);
         if (uk == "PRIORITY") {
@@ -82,8 +91,11 @@ inline ImportPlan planProfileImport(const SettingsModel &m, const std::string &f
             p.notes.push_back(format(s.tr("%1 was not imported (an imported profile does not switch the output off or change how events are sent)."), {uk}));
             continue;
         }
-        if (SettingsModel::isRiskyChord(kv.second) && p.risks.empty())
-            p.risks.push_back(s.tr("It presses shortcut chords (Ctrl, Alt, Super) when a button is pressed or the mouse is moved."));
+        if (!chordRisk && m.bindingIsRisky(kv.first, kv.second)) {
+            chordRisk = true;
+            p.risks.push_back(s.tr("It presses shortcut chords or keys that can do harm (Ctrl, Alt, Super, Delete, ...) or clicks, "
+                                   "or uses a Joystick mode of your own, when a button is pressed or the mouse is moved."));
+        }
         std::string e;
         if (!applyKey(t, kv.first, kv.second, &e)) {
             p.error = format(s.tr("The setting %1 = %2 is not valid: %3"), {kv.first, kv.second, e});
@@ -93,7 +105,7 @@ inline ImportPlan planProfileImport(const SettingsModel &m, const std::string &f
     }
     size_t chars = 0;
     for (unsigned char c : p.name) chars += (c & 0xc0) != 0x80;
-    if (chars < 3)
+    if (chars <= 4)
         p.risks.push_back(format(s.tr("Its name \"%1\" is very short, so it matches almost every %2."), {p.name, p.kind == Section::APP ? s.tr("program") : s.tr("device")}));
     p.existing = m.profiles().find(p.kind, p.name);
     p.collision = p.existing != ProfileSet::npos;
@@ -109,13 +121,20 @@ inline ImportResult applyProfileImport(SettingsModel &m, const ImportPlan &p, Im
         return r;
     }
     std::string err;
+    // The model may have been reloaded while the question was open: look the profile up again and refuse a plan
+    // whose collision flag no longer matches (nothing is changed, the user imports again).
+    const size_t existing = m.profiles().find(p.kind, p.name);
+    if ((existing != ProfileSet::npos) != p.collision) {
+        r.message = format(s.tr("The profiles changed while the import was waiting; the profile \"%1\" was not imported. Import the file again."), {p.name});
+        return r;
+    }
     if (p.collision) {
-        r.section = p.existing;
+        r.section = existing;
         if (choice == ImportChoice::Keep) {
             r.message = format(s.tr("The existing profile \"%1\" was kept; the imported file was not used."), {p.name});
             return r;
         }
-        if (!m.setProfileKeys(p.existing, p.keys, &err)) {
+        if (!m.setProfileKeys(existing, p.keys, &err)) {
             r.message = format(s.tr("The profile \"%1\" could not be imported: %2"), {p.name, err});
             return r;
         }
