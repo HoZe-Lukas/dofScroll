@@ -6,6 +6,7 @@
 // A mouse button takes no modifier (the check boxes are greyed and cleared while one is chosen); "none" greys the whole side.
 #pragma once
 #include <QCheckBox>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -31,7 +32,7 @@ inline QWidget *sidePicker(QWidget *parent, QObject *owner, std::string *side, c
     w->setObjectName(QStringLiteral("sidePickerBox"));
     auto *v = new QVBoxLayout(w);
     v->setContentsMargins(0, 0, 0, 0);
-    auto *mods = new QHBoxLayout;
+    auto *mods = new QGridLayout;  // two by two: four boxes in a row are wider than a narrow inspector with a wide font
     mods->setContentsMargins(0, 0, 0, 0);
     std::vector<std::string> sel;
     std::string key;
@@ -49,10 +50,10 @@ inline QWidget *sidePicker(QWidget *parent, QObject *owner, std::string *side, c
         cb->setEnabled(!none && !isMouse);
         cb->setAccessibleName(accessible + QStringLiteral(": ") + label);
         cb->setMinimumHeight(24);
-        mods->addWidget(cb);
+        mods->addWidget(cb, int(boxes.size()) / 2, int(boxes.size()) % 2);
         boxes.push_back(cb);
     }
-    mods->addStretch(1);
+    mods->setColumnStretch(2, 1);
     v->addLayout(mods);
     auto *kc = new KeyTreePicker(none ? QString() : QString::fromStdString(key), w, spn::ui::buildKeyTree(opt));
     kc->setObjectName(QStringLiteral("sidePickerKey"));

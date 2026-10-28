@@ -968,6 +968,8 @@ void MotionEditor::buildLiftInspector(QVBoxLayout *col) {
         kind->setAccessibleName(T("What lift / press does in this joystick mode"));
         kind->setAccessibleDescription(T("Action for lift / press"));  // a combo box reports its current text as its name
         kindLabel->setBuddy(kind);
+        kind->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+        kind->setMinimumContentsLength(12);
         ChannelForm &lift = env_.form->lift;
         const ChannelActionType shown = lift.type == ChannelActionType::Off ? ChannelActionType::Default : lift.type;
         int current = 0;

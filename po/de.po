@@ -5651,6 +5651,10 @@ msgid "Mute"
 msgstr "Stumm"
 
 #: src/ui/qt/key_engine_box.hpp
+msgid "Analog"
+msgstr "Analog"
+
+#: src/ui/qt/key_engine_box.hpp
 msgid "Analog (the key repeats faster the further you push)"
 msgstr "Analog (die Taste wiederholt sich schneller, je weiter du drückst)"
 

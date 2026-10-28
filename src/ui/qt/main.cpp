@@ -2328,11 +2328,15 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                       "from a click back to analog keys: the sides start with up and down, never an analog click");
                 const QFont baseFont = QApplication::font();
                 const QSize baseSize = w.size();
-                for (double scale : {1.0, 1.5, 2.0}) {
+                // letter spacing 100 = the font as it is; 140 widens every glyph like a wide font of another platform would
+                const struct { double scale; int spacing; } fontCases[] = {{1.0, 100}, {1.5, 100}, {2.0, 100}, {1.0, 140}, {1.5, 140}, {2.0, 160}};
+                for (const auto &fc : fontCases) {
+                    const double scale = fc.scale;
                     QApplication::setFont(baseFont);
                     applyTheme(spn::ui::Theme::Light);  // our own style sheet: its lengths are in em, so it follows the font
                     QFont f = QApplication::font();
                     f.setPointSizeF(f.pointSizeF() * scale);
+                    f.setLetterSpacing(QFont::PercentageSpacing, fc.spacing);
                     QApplication::setFont(f);
                     // 1100 px at the normal font; someone with a larger font also uses a wider window (up to a 1920 px screen)
                     w.resize(std::min(int(scale * 1100), 1920), 900);
@@ -2345,7 +2349,20 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                     for (QWidget *p = mv->inspector(); p; p = p->parentWidget())
                         if (auto *sa = qobject_cast<QAbstractScrollArea *>(p))
                             if (sa->horizontalScrollBar() && sa->horizontalScrollBar()->isVisible()) fits = false;
-                    check(fits, scale == 1.0 ? "1100 px, 100% font: no horizontal scroll bar" : scale == 1.5 ? "150% font: no horizontal scroll bar" : "200% font: no horizontal scroll bar");
+                    check(fits, fc.spacing != 100 ? (scale == 1.0 ? "1100 px, wide glyphs: no horizontal scroll bar" : "150% font, wide glyphs: no horizontal scroll bar")
+                                : scale == 1.0 ? "1100 px, 100% font: no horizontal scroll bar" : scale == 1.5 ? "150% font: no horizontal scroll bar" : "200% font: no horizontal scroll bar");
+                    if (!fits) {  // which controls reach beyond the visible width (for the log of a failing run)
+                        QAbstractScrollArea *sa = nullptr;
+                        for (QWidget *p = mv->inspector(); p && !sa; p = p->parentWidget()) sa = qobject_cast<QAbstractScrollArea *>(p);
+                        for (QWidget *c : mv->inspector()->findChildren<QWidget *>()) {
+                            const int right = c->mapTo(w.window(), QPoint(c->width(), 0)).x();
+                            const int limit = sa ? sa->viewport()->mapTo(w.window(), QPoint(sa->viewport()->width(), 0)).x() : w.width();
+                            if (c->isVisibleTo(mv->inspector()) && right > limit)
+                                std::fprintf(stderr, "  too wide: %s \"%s\" min %dx%d hint %dx%d right %d limit %d\n", c->metaObject()->className(),
+                                             qPrintable(c->objectName()), c->minimumSizeHint().width(), c->minimumSizeHint().height(), c->sizeHint().width(),
+                                             c->sizeHint().height(), right, limit);
+                        }
+                    }
                     bool wrapped = true;
                     for (QLabel *l : mv->inspector()->findChildren<QLabel *>())
                         if (!l->isHidden() && !l->wordWrap() && l->text().size() > 40 && l->textFormat() != Qt::RichText && !l->text().endsWith(QLatin1Char(':'))) wrapped = false;  // field labels of a form row move above their field instead
