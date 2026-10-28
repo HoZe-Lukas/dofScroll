@@ -27,13 +27,14 @@ These are goals, not guarantees: there is no service-level agreement and no bug 
 
 ## Supported versions
 
-Only the latest release and the current `main` branch receive security fixes. The project is
-pre-1.0 (0.x); older 0.x releases are not patched, please update.
+Only the latest release and the current `main` branch receive security fixes. Older releases
+(for example earlier 1.x versions) are not patched, please update to the latest release.
 
 ## Scope
 
-In scope: the `dofscroll` daemon, the tray application, the packaging files (systemd units,
-the optional udev rule, install scripts) and the CI workflows in this repository. The project's threat model
+In scope: the `dofscroll` daemon, the `dofscroll-ui` interface (tray icon and settings window), the
+packaging files (systemd units, the optional udev rule, install scripts, the Windows installer, the macOS
+package) and the CI workflows in this repository. The project's threat model
 and hardening measures are described in `docs/security.md`.
 
 Out of scope: vulnerabilities in third-party components (`spacenavd`, `libspnav`, the Qt libraries,
