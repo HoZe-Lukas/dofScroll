@@ -88,7 +88,10 @@ jobs:
           retry() { for i in 1 2 3; do "$@" && return 0; echo "::warning::attempt $i/3 failed: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
           python3 -m venv "$RUNNER_TEMP/aqt-venv"
           retry "$RUNNER_TEMP/aqt-venv/bin/pip" install --require-hashes --no-deps -r packaging/ci/aqt-requirements.txt
-          retry "$RUNNER_TEMP/aqt-venv/bin/aqt" install-qt linux desktop "$QT_VERSION" linux_gcc_64 -O "$RUNNER_TEMP/Qt"
+          # kept and checked against our own SHA-256 list (packaging/ci/qt-archives.sha256, issue #265)
+          retry "$RUNNER_TEMP/aqt-venv/bin/aqt" install-qt linux desktop "$QT_VERSION" linux_gcc_64 -O "$RUNNER_TEMP/Qt" --keep --archive-dest "$RUNNER_TEMP/qt-archives"
+          sh packaging/ci/qt-archive-hashes.sh verify "$RUNNER_TEMP/qt-archives"
+          rm -rf "$RUNNER_TEMP/qt-archives"
       - name: Configure and build the UI target
         run: |
           cmake -S . -B build -G Ninja -DDOFSCROLL_UI=ON -DDOFSCROLL_CORE_ONLY=ON \

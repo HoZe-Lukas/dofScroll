@@ -142,7 +142,8 @@ Checks:
   report that there is no display).
 - `ui.yml`: `ui-linux` builds with the Qt of Ubuntu (6.4, the oldest Qt the sources support; building from source with
   a system Qt must keep working), `ui-linux-pinned`, `ui-windows` and `ui-macos` with the Qt of `packaging/qt.env`.
-- `qt-update-check.yml` runs weekly and warns when a newer patch release of the pinned minor version exists.
+- `qt-update-check.yml` runs weekly and warns when a newer patch release of the pinned minor version exists;
+  `bundled-libs-advisories.yml` warns about security advisories of the bundled system libraries.
 - Not verifiable in CI (needs a real desktop): the tray icon, the look under KDE Plasma and GNOME, and a native
   Wayland session. The bundled Qt has no KDE or GNOME style plugin: the interface uses Qt's Fusion style with the
   colours of the desktop portal.
@@ -161,7 +162,21 @@ is a non-LTS branch: its patch releases stop some months after the next minor ve
 the then current LTS branch (6.8 or a later LTS) or the next minor version when the weekly check shows that 6.9
 gets no more patch releases. The weekly `qt-update-check` workflow warns about new patch releases; the
 bundled system libraries (glib, freetype, libpng, ...) come from Rocky Linux 9 or Debian 12 at build time and are updated
-by rebuilding in the refreshed images (the CI image is rebuilt weekly).
+by rebuilding in the refreshed images (the CI image is rebuilt weekly). The weekly `bundled-libs-advisories` workflow
+reads `bundled-libraries.txt` of the newest release (TGZ), asks the pinned Rocky Linux 9 image for its security
+advisories and warns when an advisory fixes a bundled package in a newer version (`scripts/check-bundled-advisories.sh`;
+the version comparison is `sort -V`, an approximation of rpm's; the DEB's Debian libraries are not covered).
+
+**Qt archive hashes.** aqtinstall checks every downloaded Qt archive against a hash from the same server
+(download.qt.io). `packaging/ci/qt-archives.sha256` holds our own SHA-256 of every archive of the pinned Qt version, and
+every build that installs Qt (the CI image, the DEB build, the Windows and macOS installers, the pinned UI job) keeps the
+archives (`aqt install-qt ... --keep --archive-dest`) and runs `packaging/ci/qt-archive-hashes.sh verify` before it goes
+on: an archive that is not listed, or whose hash differs, fails the build. **While the file has no line for the pinned
+`QT_VERSION` the check only warns** ("NOT verified"); set `QT_ARCHIVES_REQUIRED=1` in the build steps to make it fail
+instead, once the file is filled. To record the hashes after a Qt bump: start the workflow `qt-archive-hashes` (Actions
+tab), compare its output with a second source if you can, and commit the artifact `qt-archives.sha256` as
+`packaging/ci/qt-archives.sha256` in the same pull request as the `QT_VERSION` change (the CI image is rebuilt from `main`,
+so merge that pull request first). `scripts/check-ci-pins.sh` fails if an `aqt install-qt` has no check.
 
 ## Windows installer
 

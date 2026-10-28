@@ -370,6 +370,12 @@ if(BUILD_TESTING)
     add_test(NAME release_gate
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_release_gate.sh ${CMAKE_SOURCE_DIR})
   endif()
+  if(SH_EXECUTABLE)  # own SHA-256 list of the Qt archives, and the advisory check of the bundled libraries (#265)
+    add_test(NAME qt_archive_hashes
+             COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_qt_archive_hashes.sh ${CMAKE_SOURCE_DIR})
+    add_test(NAME bundled_advisories
+             COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_bundled_advisories.sh ${CMAKE_SOURCE_DIR})
+  endif()
   if(SH_EXECUTABLE)  # the six-motion table of the built-in joystick modes must match the definitions
     add_test(NAME docs_motions
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_docs_motions.sh ${CMAKE_SOURCE_DIR})

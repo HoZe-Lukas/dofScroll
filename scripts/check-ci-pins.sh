@@ -74,5 +74,14 @@ n="$(grep -c 'environment:' .github/workflows/ci.yml)"
 grep -q -E '^      checks: read ' .github/workflows/ci.yml || bad "ci.yml: the release job needs 'checks: read' for the gate"
 grep -q 'creation' .github/rulesets/tags.json || bad ".github/rulesets/tags.json: the creation rule is missing"
 
+# 6. Qt archives: every aqt install-qt keeps its archives and is followed by the hash check (issue #265)
+inst="$( { grep -rn -E 'aqt"?( |/aqt")? ?install-qt |aqt install-qt ' .github/workflows packaging/ci/rocky9.Dockerfile packaging/ci/debian12-qt.sh 2>/dev/null || true; } \
+  | grep -v -E '^[^:]*:[0-9]+: *#' | grep -v -e 'qt-update-check' -e 'qt-archive-hashes.yml' || true)"
+n_inst="$(printf '%s\n' "$inst" | grep -c 'install-qt ' || true)"
+n_keep="$(printf '%s\n' "$inst" | grep -c -e '--keep --archive-dest' || true)"
+n_ver="$(grep -rn -E 'qt-archive-hashes\.sh"? verify' .github/workflows packaging/ci/rocky9.Dockerfile packaging/ci/debian12-qt.sh | grep -v -E ':[0-9]+: *#' | grep -c . || true)"
+[ "$n_inst" -gt 0 ] && [ "$n_inst" = "$n_keep" ] && [ "$n_inst" = "$n_ver" ] \
+  || bad "every 'aqt install-qt' needs '--keep --archive-dest' and a 'qt-archive-hashes.sh verify' (found $n_inst installs, $n_keep with --keep, $n_ver checks)"
+
 [ "$fail" -eq 0 ] || exit 1
 echo "check-ci-pins: ok"

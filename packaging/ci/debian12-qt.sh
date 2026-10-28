@@ -24,6 +24,9 @@ retry apt-get install -y --no-install-recommends python3-venv python3-pip patche
 
 python3 -m venv /opt/aqt-venv
 retry /opt/aqt-venv/bin/pip install --no-cache-dir --require-hashes --no-deps -r "$root/packaging/ci/aqt-requirements.txt"
-retry /opt/aqt-venv/bin/aqt install-qt linux desktop "${QT_VERSION}" linux_gcc_64 -O /opt/qt
+# The archives are kept and checked against our own SHA-256 list (packaging/ci/qt-archives.sha256, issue #265).
+retry /opt/aqt-venv/bin/aqt install-qt linux desktop "${QT_VERSION}" linux_gcc_64 -O /opt/qt --keep --archive-dest /opt/qt-archives
+sh "$root/packaging/ci/qt-archive-hashes.sh" verify /opt/qt-archives
+rm -rf /opt/qt-archives
 ln -sfn "/opt/qt/${QT_VERSION}/gcc_64" /opt/qt/current
 echo "Qt ${QT_VERSION} in /opt/qt/current"

@@ -1045,8 +1045,12 @@ CI supply chain (issue #149), status after the fix:
   `attestations` write permissions only on the release job); verify with `gh attestation verify <file> -R
   HoZe-Lukas/dofScroll` (readme, `docs/releasing.md`). A checksum file made in the same pipeline is still no
   provenance by itself: the attestation is.
-- Remains: aqtinstall verifies each Qt archive against a SHA-256 that it fetches from download.qt.io too, so a
-  compromised Qt server could serve both; there is no independent per-archive hash of our own. The one source
+- Qt archives: aqtinstall verifies each archive against a SHA-256 that it fetches from download.qt.io too, so a
+  compromised Qt server could serve both. Our own list `packaging/ci/qt-archives.sha256` (checked by
+  `packaging/ci/qt-archive-hashes.sh` in every build that installs Qt, issue #265) closes that once it is filled; **until
+  the file has lines for the pinned Qt version the check only warns** (`docs/release-process.md`, "Qt archive hashes").
+  The weekly `bundled-libs-advisories` workflow compares the bundled Rocky libraries with the distribution's security
+  advisories. Remains: the one source
   distribution in the aqtinstall closure (`patch`) is built by pip with an unpinned build backend (setuptools),
   which `--require-hashes` does not cover. The pins are refreshed monthly by a reviewed PR (`refresh-ci-pins.yml`, never auto-merged; the generators run in a read-only job on a copy without `.git`, the job with the write token only commits three named files from the artifact; a
   tampered image published before a refresh would be pinned as it is, so review that PR and the monthly image build). The jobs of `ci.yml` and CodeQL use the same pinned images; only
