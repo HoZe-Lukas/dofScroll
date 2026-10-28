@@ -141,8 +141,11 @@ before happens by itself:
   private runtime directory on Linux and macOS, a named mutex on Windows).
 - **The first start shows the setup guide** with the settings window (a new installation only): a few
   steps with live checks, "dofscroll is running", "SpaceMouse found", "Start at login" (a check box,
-  on by default), on macOS the two permissions, and "Try it". See [ui.md](ui.md#the-setup-guide). Skip
-  it, finish it, or open it again later with **Show setup guide** on the Overview.
+  ticked by default), on macOS the two permissions, and "Try it". See [ui.md](ui.md#the-setup-guide). Skip
+  it, finish it, or open it again later with **Show setup guide** on the Overview. **The guide changes nothing
+  in your system while it is open, and not when you skip or close it.** The box only records your choice; when you
+  press **Finish**, "Start at login" is switched on (or off, if you unticked a box that was on) and the guide
+  closes. If that fails, the guide stays open and says why.
 - **Linux packages never enable the SpaceMouse driver service.** `spacenavd` is a system service that an
   administrator may have disabled on purpose, so the RPM and DEB leave it alone. When its unit exists but it is
   not running, the install or upgrade prints how to start it:

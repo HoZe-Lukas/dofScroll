@@ -5901,3 +5901,15 @@ msgstr "Profil „%1“ entfernt. Rückgängig mit der Schaltfläche „Rückgä
 #: src/ui/qt/pages/profiles_page.cpp
 msgid "Undo with the Undo button or %1. Dismiss closes the bar."
 msgstr "Rückgängig mit der Schaltfläche „Rückgängig“ oder %1. „Schließen“ schließt die Leiste."
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Nothing is changed until you press Finish."
+msgstr "Nichts wird geändert, bevor du auf „Fertig“ drückst."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "dofscroll will start when you log in. This is switched on when you press Finish; untick the box to leave it off."
+msgstr "dofscroll startet, wenn du dich anmeldest. Das wird eingeschaltet, wenn du auf „Fertig“ drückst; nimm das Häkchen weg, um es auszulassen."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Start at login will be switched off when you press Finish; tick the box to keep it on."
+msgstr "„Beim Anmelden starten“ wird ausgeschaltet, wenn du auf „Fertig“ drückst; setze das Häkchen, um es eingeschaltet zu lassen."
