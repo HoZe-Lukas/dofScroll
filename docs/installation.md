@@ -450,7 +450,7 @@ interface without the installer.
 
 **Uninstall:** Settings > Apps > dofscroll, or the Start menu entry "Uninstall dofscroll". It stops
 the daemon and removes the program folder, the Start menu entries and the autostart value; your
-configuration in `%APPDATA%\dofscroll` stays. Silent install: `setup.exe /S /AUTOSTART=1`.
+configuration in `%APPDATA%\dofscroll` stays. Silent install: `setup.exe /S /AUTOSTART=1`. With `/D=<folder>` (last argument) the folder must be empty or already hold a dofscroll install; otherwise the silent installer stops with exit code 2 and writes nothing, because the uninstaller removes the whole folder.
 The ZIP needs no installation: unpack it, start `dofscroll.exe`, and use
 `scripts\install-autostart.ps1` if you want autostart. Installer and ZIP both contain
 `dofscroll-hidprobe.exe` and `scripts\test-driver-coexistence.ps1`.
