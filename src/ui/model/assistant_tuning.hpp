@@ -16,9 +16,12 @@ struct AxisAssistantTuning {
     int rest_ms = 400;                          // rest after the movement that ends a step
     int max_s = 8;                              // longest step (also: no movement -> hint)
     int auto_skip_s = 5;                        // no movement before an optional step is skipped
+    // "Don't advance automatically" (check box in the assistant): a detected step stays until Next is pressed and an
+    // optional step is not skipped by itself. For slow, keyboard-only or screen reader use. Default off.
+    bool manual_advance = false;
     bool operator==(const AxisAssistantTuning &o) const {
         return start_threshold == o.start_threshold && rest_ms == o.rest_ms && max_s == o.max_s &&
-               auto_skip_s == o.auto_skip_s;
+               auto_skip_s == o.auto_skip_s && manual_advance == o.manual_advance;
     }
     int64_t restNs() const { return int64_t(rest_ms) * 1000000; }
     int64_t maxNs() const { return int64_t(max_s) * 1000000000; }

@@ -189,7 +189,37 @@ static void testAdvanceAfterResult() {
     assert(!f.canBack() && !f.back() && f.step() == 0 && !f.canNext() && !f.next());
 }
 
+// The automatic skip counts from the last movement: a user who is still moving (not armed yet, or too short to start
+// a measurement) is not skipped past an optional step; "Don't advance automatically" never skips or advances.
+static void testSkipTimerFollowsMovement() {
+    WizardController w;
+    int64_t t = completeStep(w, 0, AX_Z, 1);
+    assert(w.next() && w.step() == 1);
+    const int64_t as = w.tuning().autoSkipNs();
+    RawAxes big = z(0);
+    big[AX_RX] = 300;
+    // one movement sample just before the timer would end (not armed: the cap has not rested): the timer restarts
+    w.onSample(big, t + as - 1);
+    assert(!w.tick(t + as) && w.step() == 1 && !w.skipped(1));
+    assert(!w.tick(t + as - 1 + as - 1) && w.step() == 1);
+    assert(w.tick(t + as - 1 + as) && w.skipped(1));
+    {  // manual advance: a result stays, an optional step is never skipped by itself
+        WizardController m;
+        AxisAssistantTuning tu;
+        tu.manual_advance = true;
+        m.setTuning(tu);
+        int64_t u = completeStep(m, 0, AX_Z, 1);
+        m.tick(u + 1000 * S);
+        assert(m.step() == 0 && m.canNext());
+        assert(m.next() && m.step() == 1);
+        m.tick(u + 2000 * S);  // may add the "no movement" note, never skips
+        assert(m.step() == 1 && !m.skipped(1) && m.canSkip());
+        assert(m.skip() && m.step() == 2);
+    }
+}
+
 int main() {
+    testSkipTimerFollowsMovement();
     testStartThresholdAndArming();
     testLongestStep();
     testSampleBound();

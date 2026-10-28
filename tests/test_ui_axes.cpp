@@ -12,6 +12,7 @@
 
 #include "testutil.hpp"
 #include "ui/model/axes_model.hpp"
+#include "ui/model/fresh_state.hpp"
 #include "ui/model/ui_settings.hpp"
 
 using namespace spn;
@@ -585,7 +586,63 @@ static void testWizardTuning() {
     assert(y.assistant.rest_ms == 700 && y.language == Language::German && y.theme == Theme::Dark);
 }
 
+// Apply shows "now -> new" first and can be undone; the plain words, the lift fallback and the new assistant setting.
+static void testApplyPreviewUndoAndWords() {
+    FakeFeed f;
+    LiveFeedClient client(f.connector());
+    AxesSession s(client);
+    int64_t t = 0;
+    s.poll(t);
+    f.push(ax(0, 0, 0, 0, 0, 0));
+    s.poll(t += 33 * MS);
+    WizardController &w = s.wizard();
+    measure(f, s, t, AX_Z, +1);
+    assert(w.next() && w.skip());
+    measure(f, s, t, AX_X, -1, 150);
+    assert(w.next() && w.skip());
+    measure(f, s, t, AX_RY, +1, 250);
+    assert(w.next() && w.onResultPage());
+
+    SettingsModel m;
+    m.setProfiles(ProfileSet(), "unused.conf");
+    std::string err;
+    assert(m.setValue(0, "SCROLL_V_SIGN", "-1", &err));
+    const std::vector<WizardChangeRow> rows = wizardChangeRows(m, w);
+    assert(rows.size() == 4 && std::string(rows[0].label) == "Scroll V" && rows[0].next == "z" && rows[0].changed());
+    assert(std::string(rows[3].label) == "Reversed directions" && rows[3].now == "SCROLL_V_SIGN");
+    SettingsModel::Value v;
+    assert(m.value(0, "SCROLL_V_MIX", &v) && v.text != "z");  // nothing was written by the preview
+    const GlobalSnapshot before = snapshotGlobal(m);
+    assert(before.valid() && w.applyTo(m, &err));
+    assert(m.value(0, "SCROLL_V_MIX", &v) && v.text == "z" && m.value(0, "SCROLL_V_SIGN", &v) && v.text == "1");
+    assert(restoreGlobal(m, before, &err));
+    assert(m.value(0, "SCROLL_V_MIX", &v) && v.text != "z" && m.value(0, "SCROLL_V_SIGN", &v) && v.text == "-1");
+    assert(!restoreGlobal(m, GlobalSnapshot(), &err));
+    // a plain-word name for the axes the configuration names; none for an unknown pattern
+    const AxisRoles roles = deriveAxisRoles(freshSettings());
+    const auto words = axisPlainWords(roles);
+    if (roles.matched) assert(words[size_t(roles.axis(Motion::Twist))] != nullptr);
+    Settings odd;
+    assert(axisPlainWords(deriveAxisRoles(odd))[0] == nullptr || deriveAxisRoles(odd).matched);
+    // the lift fallback follows the input path of the settings: Windows driver order, but HID uses the Linux order
+    Settings g;
+    g.input = "auto";
+    assert(wizardFallbackLiftAxis(g, "windows") == AX_Z && wizardFallbackLiftAxis(g, "linux") == AX_Y);
+    g.input = "hid";
+    assert(wizardFallbackLiftAxis(g, "windows") == AX_Y && wizardInputPath(g) == "hid");
+    g.input = "driver";
+    assert(wizardFallbackLiftAxis(g, "windows") == AX_Z);
+    // "Don't advance automatically" is remembered in ui.conf and off by default
+    UiSettings u;
+    assert(!u.assistant.manual_advance && serializeUiSettings(u).find("manual_advance") == std::string::npos);
+    u.assistant.manual_advance = true;
+    const UiSettings back = parseUiSettings(serializeUiSettings(u));
+    assert(back.assistant.manual_advance && back == u);
+    assert(!parseUiSettings("axis_assistant_manual_advance = 7\n").assistant.manual_advance == false);  // clamped to 1
+}
+
 int main() {
+    testApplyPreviewUndoAndWords();
     testUtf8();
     testScaling();
     testPeakHoldAndPause();

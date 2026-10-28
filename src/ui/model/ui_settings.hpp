@@ -188,6 +188,8 @@ inline UiSettings parseUiSettings(const std::string &text) {
             s.assistant.rest_ms = clampedIntOr(value, kRestMsMin, kRestMsMax, AxisAssistantTuning().rest_ms);
         else if (key == "axis_assistant_max_s")
             s.assistant.max_s = clampedIntOr(value, kMaxSMin, kMaxSMax, AxisAssistantTuning().max_s);
+        else if (key == "axis_assistant_manual_advance")
+            s.assistant.manual_advance = clampedIntOr(value, 0, 1, 0) != 0;
         else if (key == "axis_assistant_auto_skip_s")
             s.assistant.auto_skip_s = clampedIntOr(value, kAutoSkipSMin, kAutoSkipSMax, AxisAssistantTuning().auto_skip_s);
     }
@@ -206,6 +208,7 @@ inline std::string serializeUiSettings(const UiSettings &s) {
         out += "axis_assistant_start_threshold = " + std::to_string(s.assistant.start_threshold) + "\n";
     if (s.assistant.rest_ms != d.rest_ms) out += "axis_assistant_rest_ms = " + std::to_string(s.assistant.rest_ms) + "\n";
     if (s.assistant.max_s != d.max_s) out += "axis_assistant_max_s = " + std::to_string(s.assistant.max_s) + "\n";
+    if (s.assistant.manual_advance != d.manual_advance) out += "axis_assistant_manual_advance = 1\n";
     if (s.assistant.auto_skip_s != d.auto_skip_s)
         out += "axis_assistant_auto_skip_s = " + std::to_string(s.assistant.auto_skip_s) + "\n";
     return out;

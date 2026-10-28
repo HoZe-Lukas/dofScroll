@@ -516,7 +516,13 @@ the warnings. The warning "lift/press was strongest - probably pressed down too 
 is lift/press in the configuration shown (the axis the channel mixes leave out: `y` on Linux, `z` with the
 3Dconnexion driver on Windows); where the configuration does not say, the assistant falls back to a table per
 system (`src/axis_convention.hpp`: Linux order, Windows driver order; macOS and the direct HID path use the
-Linux order until they are measured, issue #186). **Apply** is the default button (Enter), **Cancel** and Esc leave without writing. Apply
+Linux order until they are measured, issue #186). **Apply** is the default button (Enter), **Cancel** and Esc leave without writing. The result page lists what
+Apply changes in the Global profile ("now ..., new ..." for each mix) before anything is written, and after Apply
+the Axes page offers **Undo** for 15 seconds, which puts the old values of the same keys back. The check box
+**Don't advance automatically** (off by default, remembered in `ui.conf`) keeps a detected step on screen until you
+press Next and never skips an optional step by itself. The axis rows show a plain second name ("z: Push forward /
+back") where the configuration says what the axis is; the Device selector exists only with two or more devices;
+the Pause, Reset peaks and Axis assistant buttons are in the top row, so a low window does not cut them off. Apply
 writes exactly the keys it always wrote (`SCROLL_V_MIX`, `SCROLL_H_MIX`, `ZOOM_MIX`, the three
 `*_SIGN` switches and `ZOOM_LATERAL`). The state is always text ("Waiting...", "Measuring...",
 "Detected"), the whole page works with the keyboard (Tab order: Apply, Next, Start/Measure again, Skip,
@@ -532,7 +538,8 @@ range is pulled to the nearest limit. The interface keeps your lines when it sav
 | `axis_assistant_start_threshold` | `40` | 10 to 200 | Raw deflection above which the cap counts as moving (starts a step, and counts the movements) |
 | `axis_assistant_rest_ms` | `400` | 100 to 3000 | Rest in milliseconds after out and back that ends a step |
 | `axis_assistant_max_s` | `8` | 3 to 60 | Longest step in seconds; also the time after which a waiting step says that no movement was seen |
-| `axis_assistant_auto_skip_s` | `5` | 2 to 60 | Seconds without movement after which an optional tilt step is skipped |
+| `axis_assistant_auto_skip_s` | `5` | 2 to 60 | Seconds without movement (counted from the last movement) after which an optional tilt step is skipped |
+| `axis_assistant_manual_advance` | `0` | 0 or 1 | 1: a detected step stays until Next and no step is skipped by itself (the check box "Don't advance automatically" writes it) |
 
 The keys are read when the assistant is opened. The analysis (`analyzeStep`, `evaluate` in
 `src/axis_wizard.hpp`) and the written keys did not change; the flow is in `WizardController`
@@ -697,7 +704,9 @@ profile applies to while all its settings stay, for example when a program's nam
 file is written first, then the old one is removed; the profile keeps its place in the order); **Move up** and
 **Move down** change the order (below); **Export...** saves the profile as a `.conf` file (a copy of its profile
 file; for Global the `[global]` keys the file holds); **Remove** deletes the profile (and its file) after asking
-once, nothing asks about unsaved changes. Global has no program or device and cannot be removed, it has only Export.
+once (Cancel is the default button, the destructive button is called "Remove profile"), nothing asks about unsaved
+changes; for 8 seconds afterwards **Undo** under the list brings the profile back with all its settings and its place in
+the order. Results and errors that appear in the status bar are also announced to screen readers. Global has no program or device and cannot be removed, it has only Export.
 **Import profile...** takes such a `.conf` file: the header of the file decides the kind (`[device:...]` becomes a
 device profile, `[app:...]` a program profile); the file is checked completely before anything changes, and a
 Global file, a file with several profiles or with an invalid value is refused with a message. If a profile of that

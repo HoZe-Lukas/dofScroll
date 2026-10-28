@@ -18,6 +18,7 @@
 #include "ui/model/split_parts_model.hpp"
 #include "ui/model/suspend_heartbeat.hpp"
 
+class QCheckBox;
 class QComboBox;
 class QLabel;
 class QProgressBar;
@@ -49,6 +50,13 @@ public:
     bool wizardVisible() const;
     bool wantsSuspend() const;
     const spn::ui::SuspendHeartbeat &suspend() const { return *suspend_; }
+    int deviceListRebuilds() const { return devRebuilds_; }
+    bool deviceRowVisible() const;
+    bool undoAvailable() const { return undo_.valid(); }
+    QString noteText() const { return savedNote_; }
+    QString resultText() const;  // the assistant's result text (self-test)
+    bool applyForTest() { applyWizard(); return !wizardVisible(); }
+    bool undoForTest() { undoWizard(); return !undo_.valid(); }
     void openWizard();
     void cancelWizard();
 
@@ -65,6 +73,8 @@ private:
     QWidget *makeDeviceRow(QComboBox *&combo, QLabel *&label);
     void refreshWizard(int64_t nowNs);
     void applyWizard();
+    void undoWizard();  // the Global values as they were before Apply
+    void dropUndo();
     void refreshPartsHint();  // the sentence under the live bars: the axes of the shown configuration
     QLabel *partsHint_ = nullptr;
     int64_t now() const { return clock_.nsecsElapsed(); }
@@ -85,7 +95,8 @@ private:
     QWidget *devRow_[2] = {nullptr, nullptr};
     QLabel *devLabel_[2] = {nullptr, nullptr};
     std::vector<int> devShown_;  // ids the combos list now (to rebuild only on a change)
-    int devSelShown_ = -2;
+    bool devFilled_ = false;
+    int devRebuilds_ = 0;  // how often the lists were filled (the self-test: not on every poll)
     LiveBarsWidget *bars_ = nullptr, *wizBars_ = nullptr;
     QPushButton *pause_ = nullptr, *openWiz_ = nullptr;
 
@@ -97,6 +108,11 @@ private:
     QPushButton *bStart_ = nullptr, *bSkip_ = nullptr, *bBack_ = nullptr, *bNext_ = nullptr,
                 *bApply_ = nullptr, *bCancel_ = nullptr;
     QString applyNote_, savedNote_;
+    QCheckBox *manualAdvance_ = nullptr;           // "Don't advance automatically" (ui.conf: axis_assistant_manual_advance)
+    QWidget *undoBar_ = nullptr;                   // Undo of the last Apply, for a while
+    QPushButton *undoApply_ = nullptr;
+    QTimer *undoTimer_ = nullptr;
+    spn::ui::GlobalSnapshot undo_;
 };
 
 QWidget *createAxesPage(const UiContext &ctx);

@@ -16,9 +16,11 @@
 #include <string>
 #include <vector>
 
+#include "axis_convention.hpp"
 #include "axis_wizard.hpp"
 #include "live_feed/live_feed.hpp"
 #include "ui/model/assistant_tuning.hpp"
+#include "ui/model/axis_roles_model.hpp"
 #include "ui/model/live_feed_model.hpp"
 #include "ui/model/settings_model.hpp"
 
@@ -255,6 +257,24 @@ inline const char *connectionHint(ConnState s, HostOs os) {
     return "";
 }
 
+// A plain-word second name for each raw axis (x, y, z, rx, ry, rz) where the configuration says what the axis is
+// (axis_roles_model.hpp; the words follow the driver of this system, never a fixed table). nullptr = no word known,
+// the view then shows the axis name alone. English source text (N_), the view translates it.
+inline std::array<const char *, AX_COUNT> axisPlainWords(const AxisRoles &r) {
+    std::array<const char *, AX_COUNT> out{};
+    if (!r.matched) return out;
+    struct Row {
+        Motion m;
+        const char *words;
+    };
+    const Row rows[] = {{Motion::VPush, N_("Push forward / back")}, {Motion::VTilt, N_("Tilt forward / back")},
+                        {Motion::HPush, N_("Push sideways")},       {Motion::HTilt, N_("Tilt sideways")},
+                        {Motion::Twist, N_("Twist the cap")},       {Motion::Lift, N_("Push down / pull up")}};
+    for (const Row &row : rows)
+        if (r.has(row.m)) out[size_t(r.axis(row.m))] = row.words;
+    return out;
+}
+
 // ---- axis assistant -----------------------------------------------------------------------------
 //
 // Flow of one step (all by movement, no click needed):
@@ -264,7 +284,8 @@ inline const char *connectionHint(ConnState s, HostOs os) {
 //              a hint after `max_s`.
 //   Measuring  ends when the cap moved out and back (two half-movements) and has been at rest for
 //              `rest_ms`; or after a single half-movement and a long rest; or after `max_s`.
-//   Detected   a valid result is shown for kAdvanceNs, then the next step starts by itself.
+//   Detected   a valid result is shown for kAdvanceNs, then the next step starts by itself (not with
+//              tuning.manual_advance: it stays until Next, and no optional step is skipped by itself).
 //   Review     a step that is revisited with Back: result shown, nothing starts by itself.
 // An invalid result goes back to Waiting on the same step (the message stays visible), so the
 // next movement measures it again.
@@ -401,6 +422,7 @@ public:
         const bool active = maxAbs(a) > tuning_.start_threshold;
         if (phase_ == WizardPhase::Waiting) {
             if (active) {
+                waitSince_ = nowNs;  // still moving (even if not armed yet): the automatic skip counts from the last movement
                 if (above_ > 0 || armed(nowNs)) {
                     recent_.push_back(a);
                     if (++above_ >= wiz::MIN_RUN) {
@@ -433,7 +455,7 @@ public:
                 return false;
             }
             const int64_t idle = nowNs - waitSince_;
-            if (wiz::roleOptional(step_) && !done_[size_t(step_)] && idle >= tuning_.autoSkipNs()) {
+            if (!tuning_.manual_advance && wiz::roleOptional(step_) && !done_[size_t(step_)] && idle >= tuning_.autoSkipNs()) {
                 const std::string title = wiz::tr(wiz::roleTitle(step_));
                 skipped_[size_t(step_)] = true;
                 goTo(step_ + 1);
@@ -465,7 +487,7 @@ public:
             return false;
         }
         case WizardPhase::Detected:
-            if (nowNs - detectedAt_ >= kAdvanceNs) {
+            if (!tuning_.manual_advance && nowNs - detectedAt_ >= kAdvanceNs) {
                 goTo(step_ + 1);
                 return true;
             }
@@ -658,6 +680,77 @@ inline std::string wizardStateText(const WizardController &w, bool connected) {
         return wiz::tr(w.skipped(w.step()) ? N_("Skipped") : N_("Detected"));
     default: return std::string();
     }
+}
+
+// The input path the convention is chosen by: the INPUT setting when it names one ("driver", "hid"), else "" (not
+// known: the platform's usual path applies). The daemon's reported path would be better but the page has none.
+inline std::string wizardInputPath(const Settings &g) { return g.input == "driver" || g.input == "hid" ? g.input : std::string(); }
+// Lift/press axis when the configuration does not tell: the table of the platform and input path.
+inline Axis wizardFallbackLiftAxis(const Settings &g, const std::string &osName) {
+    return conventionLiftAxis(conventionFor(osName, wizardInputPath(g)));
+}
+
+// ---- what Apply changes, and Undo -----------------------------------------------------------------
+//
+// The keys of the Global profile that WizardController::applyTo writes. The result page lists them as "now ->
+// new" before anything is written, and a snapshot taken just before Apply lets one click bring the old values back.
+inline const std::vector<std::string> &wizardGlobalKeys() {
+    static const std::vector<std::string> k = {"SCROLL_V_MIX",  "SCROLL_H_MIX",  "ZOOM_MIX",    "SCROLL_V_SIGN",
+                                               "SCROLL_H_SIGN", "ZOOM_SIGN",     "ZOOM_LATERAL"};
+    return k;
+}
+
+struct WizardChangeRow {
+    const char *label;  // English source text, the view translates it
+    std::string now, next;
+    bool changed() const { return now != next; }
+};
+// The three axis mixes of a finished mapping against the values of the Global profile now (empty when the
+// mapping is incomplete). The direction switches are reset to normal by Apply; that is a fourth row when any of
+// them is not normal now.
+inline std::vector<WizardChangeRow> wizardChangeRows(const SettingsModel &m, const WizardController &w) {
+    std::vector<WizardChangeRow> rows;
+    if (!w.final().ok) return rows;
+    auto now = [&m](const char *key) {
+        SettingsModel::Value v;
+        return m.value(0, key, &v) ? v.text : std::string();
+    };
+    const wiz::WizardResult &f = w.final();
+    rows.push_back({N_("Scroll V"), now("SCROLL_V_MIX"), f.mix_v});
+    rows.push_back({N_("Scroll H"), now("SCROLL_H_MIX"), f.mix_h});
+    rows.push_back({N_("Zoom"), now("ZOOM_MIX"), f.mix_zoom});
+    std::string reversed;
+    for (const char *k : {"SCROLL_V_SIGN", "SCROLL_H_SIGN", "ZOOM_SIGN"}) {
+        const std::string v = now(k);
+        if (!v.empty() && v != "1") reversed += (reversed.empty() ? "" : ", ") + std::string(k);
+    }
+    if (!reversed.empty()) rows.push_back({N_("Reversed directions"), reversed, "none"});
+    return rows;
+}
+
+struct GlobalSnapshot {
+    std::vector<std::pair<std::string, std::string>> values;  // key, value of the Global profile
+    bool valid() const { return !values.empty(); }
+};
+inline GlobalSnapshot snapshotGlobal(const SettingsModel &m) {
+    GlobalSnapshot snap;
+    for (const std::string &k : wizardGlobalKeys()) {
+        SettingsModel::Value v;
+        if (m.value(0, k, &v)) snap.values.emplace_back(k, v.text);
+    }
+    return snap;
+}
+// Puts the values back; all or nothing (on a failure the model is unchanged). Does not save.
+inline bool restoreGlobal(SettingsModel &m, const GlobalSnapshot &snap, std::string *err) {
+    if (!snap.valid()) {
+        if (err) *err = "nothing to restore";
+        return false;
+    }
+    SettingsModel tmp = m;
+    for (const auto &kv : snap.values)
+        if (!tmp.setValue(0, kv.first, kv.second, err)) return false;
+    m = tmp;
+    return true;
 }
 
 // ---- session: one client, all models ------------------------------------------------------------

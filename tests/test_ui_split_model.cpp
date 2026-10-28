@@ -20,6 +20,7 @@
 #include "ui/model/profile_export.hpp"
 #include "ui/model/profile_import.hpp"
 #include "ui/model/profile_tree_model.hpp"
+#include "ui/model/profile_undo.hpp"
 
 using namespace spn;
 using namespace spn::ui;
@@ -415,6 +416,39 @@ static void testImportExport() {
     tu::removeAll(d2);
 }
 
+// Undo of a removal: all settings and the place in the order come back, before and after the autosave deleted the file.
+static void testRemoveUndo() {
+    const std::string d = makeDir("split-model-undo");
+    put(d + "/dofscroll.conf", "[global]\n");
+    put(d + "/apps/a.conf", "[app:a]\nZOOM_SENS = 3\nPRIORITY = 10\n");
+    put(d + "/apps/b.conf", "[app:b]\nZOOM_SENS = 4\nBUTTON_1 = key:space\nPRIORITY = 20\n");
+    put(d + "/apps/c.conf", "[app:c]\nZOOM_SENS = 5\nPRIORITY = 30\n");
+    SettingsModel m = load(d);
+    std::string err;
+    for (int round = 0; round < 2; ++round) {  // 0: undo before the save, 1: after the file was deleted
+        const size_t b = m.profiles().find(Section::APP, "b");
+        const RemovedProfile snap = captureProfile(m, b);
+        assert(snap.valid && snap.place == 1 && snap.pattern == "b");
+        assert(m.removeSection(b, &err));
+        if (round == 1) {
+            assert(m.save(id).saved && !tu::exists(d + "/apps/b.conf"));
+        }
+        size_t idx = 0;
+        assert(restoreProfile(m, snap, &idx, &err) && idx == m.profiles().find(Section::APP, "b"));
+        assert(order(m, Section::APP) == "a b c" || order(m, Section::APP) == "a, b, c" || has(order(m, Section::APP), "b"));
+        assert(m.effective(idx).zoom.sensitivity == 4);
+        assert(m.save(id).saved);
+        assert(has(get(d + "/apps/b.conf"), "ZOOM_SENS = 4") && has(get(d + "/apps/b.conf"), "BUTTON_1 = key:space"));
+        assert(m.profiles().find(Section::APP, "a") < m.profiles().find(Section::APP, "b") &&
+               m.profiles().find(Section::APP, "b") < m.profiles().find(Section::APP, "c"));
+    }
+    // a profile with this name exists again: nothing is restored; nothing to restore for Global or a bad index
+    const RemovedProfile snap = captureProfile(m, m.profiles().find(Section::APP, "a"));
+    assert(!restoreProfile(m, snap, nullptr, &err) && has(err, "exists"));
+    assert(!captureProfile(m, 0).valid && !captureProfile(m, 99).valid && !restoreProfile(m, RemovedProfile(), nullptr, &err));
+    tu::removeAll(d);
+}
+
 #ifndef _WIN32
 static void testSymlinkSingleFile() {
     const std::string d = makeDir("split-model-link"), repo = tu::makeTempDir("split-model-repo");
@@ -715,6 +749,7 @@ int main() {
     testPriorityMoves();
     testDeleteAndRename();
     testImportExport();
+    testRemoveUndo();
 #ifndef _WIN32
     testSymlinkSingleFile();
 #endif

@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 #include "axes_page.hpp"
 
+#include <QAbstractItemView>
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QFontMetrics>
 #include <QHBoxLayout>
@@ -10,6 +12,7 @@
 #include <QPainter>
 #include <QPalette>
 #include <QProgressBar>
+#include <QSignalBlocker>
 #include <QPushButton>
 #include <QShortcut>
 #include <QStackedWidget>
@@ -23,6 +26,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "a11y_announce.hpp"
 #include "axis_convention.hpp"
 #include "config.hpp"
 #include "seed.hpp"
@@ -87,11 +91,24 @@ public:
     void setParts(std::vector<spn::ui::SplitPartRow> parts) {
         const bool resize = parts.size() != parts_.size();
         parts_ = std::move(parts);
-        QString desc;
-        for (const auto &r : parts_)
-            desc += qs8(r.label) + QStringLiteral(": ") + qs8(r.action) + QLatin1Char('\n');
-        setAccessibleDescription(desc.trimmed());
+        describe();
         if (resize) updateGeometry();
+    }
+    // The plain-word second name of each axis ("z: Push forward / back"); an empty text leaves the axis name alone.
+    void setAxisWords(const std::array<QString, AX_COUNT> &words) {
+        bool changed = false;
+        for (int i = 0; i < AX_COUNT; i++) {
+            const QString name = QString::fromUtf8(axisName(Axis(i)));
+            const QString label = words[size_t(i)].isEmpty() ? name : name + QStringLiteral(": ") + words[size_t(i)];
+            if (axisLabel_[i] != label) {
+                axisLabel_[i] = label;
+                changed = true;
+            }
+        }
+        if (!changed) return;
+        describe();
+        updateGeometry();
+        update();
     }
 
 protected:
@@ -195,6 +212,15 @@ protected:
     }
 
 private:
+    // The axis names with their plain words and the parts of a split channel, for a screen reader (the bars are drawn).
+    void describe() {
+        QString desc;
+        for (const QString &l : axisLabel_)
+            if (l.contains(QLatin1Char(':'))) desc += l + QLatin1Char('\n');
+        for (const auto &r : parts_)
+            desc += qs8(r.label) + QStringLiteral(": ") + qs8(r.action) + QLatin1Char('\n');
+        setAccessibleDescription(desc.trimmed());
+    }
     int rowHeight() const { return fontMetrics().height() + 10; }
 
     const AxesViewModel *vm_;
@@ -236,6 +262,11 @@ AxesPage::AxesPage(const UiContext &ctx, const AxesPageEnv &env, QWidget *parent
     timer_->setInterval(33);  // ~30 Hz
     timer_->setTimerType(Qt::CoarseTimer);
     connect(timer_, &QTimer::timeout, this, [this] { pollOnce(now()); });
+    undoTimer_ = new QTimer(this);
+    undoTimer_->setSingleShot(true);
+    undoTimer_->setInterval(15000);
+    connect(undoTimer_, &QTimer::timeout, this, [this] { dropUndo(); });
+    refreshLive(now());  // the "Daemon: ..." line is there from the first frame
 }
 
 AxesPage::~AxesPage() {
@@ -245,14 +276,29 @@ AxesPage::~AxesPage() {
 
 void AxesPage::buildLivePage(QWidget *page) {
     auto *l = new QVBoxLayout(page);
+    // Title and the three buttons in one row at the top: the buttons stay in reach in a low window, whatever the
+    // height of the bars below them.
+    auto *top = new QHBoxLayout;
     auto *title = new QLabel(QStringLiteral("<b>") + T("Axes / assistant") + QStringLiteral("</b>"));
-    l->addWidget(title);
+    top->addWidget(title);
+    top->addStretch(1);
+    l->addLayout(top);
     connLine_ = new QLabel;
     connHint_ = new QLabel;
     connHint_->setWordWrap(true);
     connHint_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     l->addWidget(connLine_);
     l->addWidget(connHint_);
+    undoBar_ = new QWidget;  // "Axis mixes saved to Global. [Undo]" for a while after Apply
+    auto *ubl = new QHBoxLayout(undoBar_);
+    ubl->setContentsMargins(0, 0, 0, 0);
+    undoApply_ = new QPushButton(T("Undo"));
+    undoApply_->setToolTip(T("Put the axis mixes and direction switches of the Global profile back as they were before Apply."));
+    ubl->addWidget(undoApply_);
+    ubl->addStretch(1);
+    undoBar_->hide();
+    l->addWidget(undoBar_);
+    connect(undoApply_, &QPushButton::clicked, this, [this] { undoWizard(); });
     devRow_[0] = makeDeviceRow(devCombo_[0], devLabel_[0]);
     l->addWidget(devRow_[0]);
     bars_ = new LiveBarsWidget(&session_->view(), false, page);
@@ -261,10 +307,9 @@ void AxesPage::buildLivePage(QWidget *page) {
     partsHint_ = parts;
     refreshPartsHint();
     parts->setWordWrap(true);
-    parts->setAccessibleName(T("Which movement drives which part"));
     l->addWidget(parts);
 
-    auto *row = new QHBoxLayout;
+    auto *row = top;
     pause_ = new QPushButton(T("Pause"));
     pause_->setCheckable(true);
     pause_->setToolTip(T("Freeze the display to read the values."));
@@ -274,9 +319,7 @@ void AxesPage::buildLivePage(QWidget *page) {
     openWiz_->setToolTip(T("Learn which axis does what by moving the cap, step by step."));
     row->addWidget(pause_);
     row->addWidget(reset);
-    row->addStretch(1);
     row->addWidget(openWiz_);
-    l->addLayout(row);
     QWidget::setTabOrder(pause_, reset);
     QWidget::setTabOrder(reset, openWiz_);
 
@@ -286,15 +329,17 @@ void AxesPage::buildLivePage(QWidget *page) {
 }
 
 // "Device: [All devices | A | B]": pins the page and the assistant to one device (issue #139). Hidden
-// until the daemon reports two or more devices.
+// with fewer than two devices (AxesSession::selectableDevices is empty then).
 QWidget *AxesPage::makeDeviceRow(QComboBox *&combo, QLabel *&label) {
     auto *w = new QWidget;
     auto *h = new QHBoxLayout(w);
     h->setContentsMargins(0, 0, 0, 0);
     label = new QLabel(T("Device:"));
     combo = new QComboBox;
-    combo->setAccessibleName(T("Device"));
-    combo->setToolTip(T("With several devices: show and measure only this device. \"All devices\" follows the one that moved last."));
+    combo->setAccessibleName(T("Device"));  // a QComboBox reports its current text as the name: the purpose is the description
+    const QString purpose = T("With several devices: show and measure only this device. \"All devices\" follows the one that moved last.");
+    combo->setToolTip(purpose);
+    combo->setAccessibleDescription(T("Device") + QStringLiteral(": ") + purpose);
     label->setBuddy(combo);
     h->addWidget(label);
     h->addWidget(combo, 1);
@@ -302,33 +347,43 @@ QWidget *AxesPage::makeDeviceRow(QComboBox *&combo, QLabel *&label) {
     connect(combo, QOverload<int>::of(&QComboBox::activated), this, [this, combo](int i) {
         const QVariant v = combo->itemData(i);
         if (v.isValid()) session_->selectDevice(v.toInt());
-        devSelShown_ = -2;  // refresh both combos
-        refreshDevices();
+        refreshDevices();  // the other combo follows; this one already shows the choice
     });
     return w;
 }
 
+// The combos are filled when the list of devices changes and only follow the selection otherwise: a rebuild on
+// every poll or choice would close the open list and reset the keyboard focus. While a list is open nothing is
+// touched; the next poll catches up.
 void AxesPage::refreshDevices() {
     const auto &devs = session_->selectableDevices();
     std::vector<int> ids;
     for (const LiveDevice &d : devs) ids.push_back(d.id);
     const int sel = session_->selectedDevice();
-    if (ids != devShown_ || sel != devSelShown_) {
-        devShown_ = ids;
-        devSelShown_ = sel;
-        for (int k = 0; k < 2; k++) {
-            QSignalBlocker block(devCombo_[k]);
-            devCombo_[k]->clear();
-            devCombo_[k]->addItem(T("All devices (the one that moved last)"), spn::ui::AxesSession::kAllDevices);
-            int cur = 0;
-            for (const LiveDevice &d : devs) {
-                devCombo_[k]->addItem(qs(truncateUtf8(d.name, 64)), int(d.id));
-                if (d.id == sel) cur = devCombo_[k]->count() - 1;
-            }
-            devCombo_[k]->setCurrentIndex(cur);
+    const bool listChanged = ids != devShown_ || !devFilled_;
+    bool allDone = true;
+    for (int k = 0; k < 2; k++) {
+        QComboBox *c = devCombo_[k];
+        if (c->view() && c->view()->isVisible()) {
+            allDone = false;
+            continue;
         }
+        QSignalBlocker block(c);
+        if (listChanged) {
+            c->clear();
+            c->addItem(T("All devices (the one that moved last)"), spn::ui::AxesSession::kAllDevices);
+            for (const LiveDevice &d : devs) c->addItem(qs(truncateUtf8(d.name, 64)), int(d.id));
+            ++devRebuilds_;
+        }
+        const int at = c->findData(sel);
+        if (at >= 0 && c->currentIndex() != at) c->setCurrentIndex(at);
+        else if (at < 0 && c->currentIndex() != 0) c->setCurrentIndex(0);
     }
-    const bool show = !devs.empty();
+    if (allDone) {
+        devShown_ = ids;
+        devFilled_ = true;
+    }
+    const bool show = devs.size() >= 2;
     devRow_[0]->setVisible(show);
     devRow_[1]->setVisible(show);
     devCombo_[1]->setEnabled(!session_->wizard().measuring());  // a step is measured on one device
@@ -356,7 +411,6 @@ void AxesPage::buildWizardPage(QWidget *page) {
     QFont st = wizState_->font();
     st.setBold(true);
     wizState_->setFont(st);
-    wizState_->setAccessibleName(T("State of the step"));
     wizMeasure_ = new QProgressBar;
     wizMeasure_->setRange(0, 1000);
     wizMeasure_->setTextVisible(false);
@@ -377,6 +431,18 @@ void AxesPage::buildWizardPage(QWidget *page) {
     l->addWidget(devRow_[1]);
     l->addWidget(wizBars_);
     l->addWidget(wizResult_, 1);
+    manualAdvance_ = new QCheckBox(T("Don't advance automatically"));
+    manualAdvance_->setToolTip(T("Stay on a detected step until you press Next, and do not skip an optional step by itself. For slow or keyboard-only use."));
+    l->addWidget(manualAdvance_);
+    connect(manualAdvance_, &QCheckBox::toggled, this, [this](bool on) {
+        spn::ui::AxisAssistantTuning t = session_->wizard().tuning();
+        t.manual_advance = on;
+        session_->wizard().setTuning(t);
+        std::string err;
+        // remembered with the other assistant settings in ui.conf; a file that cannot be read stays as it is
+        if (!spn::ui::updateUiSettings(spn::ui::uiSettingsPath(), [on](spn::ui::UiSettings &u) { u.assistant.manual_advance = on; }, &err))
+            ctx_.report(T("The setting could not be saved: %1").arg(qs(err)), true);
+    });
 
     auto *row = new QHBoxLayout;
     bCancel_ = new QPushButton(T("Cancel"));
@@ -388,7 +454,7 @@ void AxesPage::buildWizardPage(QWidget *page) {
     bNext_ = new QPushButton(T("Next"));
     bNext_->setToolTip(T("Go on at once. Otherwise the next step starts by itself after a moment."));
     bApply_ = new QPushButton(T("Apply"));
-    bApply_->setToolTip(T("Write the detected axis mixes into the [global] settings (Enter)."));
+    bApply_->setToolTip(T("Write the detected axis mixes into the Global profile (Enter). You can undo it afterwards."));
     bApply_->setDefault(true);
     row->addWidget(bCancel_);
     row->addStretch(1);
@@ -399,6 +465,7 @@ void AxesPage::buildWizardPage(QWidget *page) {
     QWidget::setTabOrder(bStart_, bSkip_);
     QWidget::setTabOrder(bSkip_, bBack_);
     QWidget::setTabOrder(bBack_, bCancel_);
+    QWidget::setTabOrder(bCancel_, manualAdvance_);
 
     auto &w = session_->wizard();
     connect(bCancel_, &QPushButton::clicked, this, [this] { cancelWizard(); });
@@ -422,8 +489,10 @@ void AxesPage::buildWizardPage(QWidget *page) {
         auto *enter = new QShortcut(k, page);
         enter->setContext(Qt::WidgetWithChildrenShortcut);
         connect(enter, &QShortcut::activated, this, [this] {
-            auto *f = qobject_cast<QPushButton *>(QApplication::focusWidget());
+            QWidget *fw = QApplication::focusWidget();
+            auto *f = qobject_cast<QPushButton *>(fw);
             if (f && f->isEnabled() && f->isVisible()) f->click();
+            else if (qobject_cast<QComboBox *>(fw) || qobject_cast<QCheckBox *>(fw)) return;  // the device list and the check box keep Enter
             else if (session_->wizard().onResultPage()) applyWizard();
         });
     }
@@ -434,7 +503,12 @@ bool AxesPage::wizardVisible() const { return stack_->currentIndex() == 1; }
 void AxesPage::openWizard() {
     auto &w = session_->wizard();
     w.reset();
-    w.setTuning(spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).assistant);  // axis_assistant_* keys, no UI for them
+    const spn::ui::AxisAssistantTuning tuning = spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).assistant;  // axis_assistant_* keys
+    w.setTuning(tuning);
+    {
+        QSignalBlocker block(manualAdvance_);  // the saved choice, without writing it again
+        manualAdvance_->setChecked(tuning.manual_advance);
+    }
     wizWasResult_ = false;
     applyNote_.clear();
     if (ctx_.settings) {
@@ -444,7 +518,7 @@ void AxesPage::openWizard() {
         const spn::ui::AxisRoles roles = spn::ui::deriveAxisRoles(g);
         w.setLiftAxis(roles.matched && roles.has(spn::ui::Motion::Lift)
                           ? roles.axis(spn::ui::Motion::Lift)
-                          : spn::conventionLiftAxis(spn::conventionFor(spn::seedOsName(), "")));
+                          : spn::ui::wizardFallbackLiftAxis(g, spn::seedOsName()));
     }
     savedNote_.clear();
     stack_->setCurrentIndex(1);
@@ -459,7 +533,15 @@ void AxesPage::cancelWizard() {
 void AxesPage::refreshPartsHint() {
     if (!partsHint_) return;
     const spn::Settings st = ctx_.settings ? ctx_.settings->effective(0) : spn::ui::freshSettings();
-    partsHint_->setText(qs8(spn::ui::axesHint(spn::ui::deriveAxisRoles(st), st, ctx_.strings ? *ctx_.strings : ownStrings_)));
+    const spn::ui::AxisRoles roles = spn::ui::deriveAxisRoles(st);
+    partsHint_->setText(qs8(spn::ui::axesHint(roles, st, ctx_.strings ? *ctx_.strings : ownStrings_)));
+    if (bars_) {  // "z: Push forward / back" where the configuration says what the axis is
+        std::array<QString, AX_COUNT> words;
+        const auto plain = spn::ui::axisPlainWords(roles);
+        for (int i = 0; i < AX_COUNT; i++)
+            if (plain[size_t(i)]) words[size_t(i)] = T(plain[size_t(i)]);
+        bars_->setAxisWords(words);
+    }
 }
 
 void AxesPage::applyWizard() {
@@ -467,8 +549,10 @@ void AxesPage::applyWizard() {
     if (!w.canApply()) return;
     if (!ctx_.settings || !ctx_.strings) return;
     std::string err;
+    const spn::ui::GlobalSnapshot before = spn::ui::snapshotGlobal(*ctx_.settings);
     if (!w.applyTo(*ctx_.settings, &err)) {
         applyNote_ = T("Error: %1").arg(qs(err));
+        spn::ui::announce(this, applyNote_);
         refreshWizard(now());
         return;
     }
@@ -486,6 +570,7 @@ void AxesPage::applyWizard() {
     }
     if (!r.saved) {
         applyNote_ = T("Error: %1").arg(qs(r.error));
+        spn::ui::announce(this, applyNote_);
         refreshWizard(now());
         return;
     }
@@ -496,8 +581,41 @@ void AxesPage::applyWizard() {
         spn::ui::markAxisAssistantApplied(spn::ui::uiProgressPath(ctx_.configPath), &ignored);
     }
     // The live page shows the outcome; a reload failure is reported but the file is saved.
-    savedNote_ = r.reloaded ? T("Axis mixes saved to [global].")
-                            : T("Axis mixes saved to [global]. %1").arg(qs(r.error));
+    savedNote_ = r.reloaded ? T("Axis mixes saved to the Global profile.")
+                            : T("Axis mixes saved to the Global profile. %1").arg(qs(r.error));
+    undo_ = before;  // one click brings the old values back for a while
+    undoBar_->setVisible(undo_.valid());
+    undoTimer_->start();
+    spn::ui::announce(this, savedNote_ + QLatin1Char(' ') + T("Undo is possible for a few seconds."));
+    refreshLive(now());
+}
+
+void AxesPage::dropUndo() {
+    undo_ = spn::ui::GlobalSnapshot();
+    undoBar_->hide();
+}
+
+// Puts the Global values back as they were before Apply (the same keys, written at once).
+void AxesPage::undoWizard() {
+    if (!undo_.valid() || !ctx_.settings) return;
+    std::string err;
+    if (!spn::ui::restoreGlobal(*ctx_.settings, undo_, &err)) {
+        savedNote_ = T("Undo failed: %1").arg(qs(err));
+        spn::ui::announce(this, savedNote_);
+        refreshLive(now());
+        return;
+    }
+    dropUndo();
+    undoTimer_->stop();
+    refreshPartsHint();
+    if (ctx_.autosave) {
+        ctx_.autosave->requestImmediate();
+        ctx_.autosave->flush();
+    } else if (ctx_.strings) {
+        ctx_.settings->save(*ctx_.strings);
+    }
+    savedNote_ = T("The axis mixes of the Global profile are back as they were before.");
+    spn::ui::announce(this, savedNote_);
     refreshLive(now());
 }
 
@@ -547,6 +665,7 @@ void AxesPage::refreshParts() {
 void AxesPage::refreshLive(int64_t nowNs) {
     const ConnState cs = session_->connection(nowNs);
     connLine_->setText(T("Daemon:") + QLatin1Char(' ') + T(connectionText(cs)));
+    connLine_->setVisible(!connLine_->text().isEmpty());
     QString text = cs == ConnState::Connected ? QString() : T(connectionHint(cs, currentHostOs()));
     if (!savedNote_.isEmpty()) text += (text.isEmpty() ? QString() : QStringLiteral("\n")) + savedNote_;
     connHint_->setText(text);
@@ -594,12 +713,20 @@ void AxesPage::refreshWizard(int64_t nowNs) {
         for (const spn::ui::WizardMappingRow &r : spn::ui::wizardMappingRows(w))
             msg += QStringLiteral("\n    ") + qs(r.direction) + QStringLiteral(": ") + qs(r.detail);
         if (f.ok) {
-            msg += QStringLiteral("\n\n") + T("This will be written:") + QStringLiteral("\n    ") + T("Scroll V") +
-                   QStringLiteral(" = ") + qs(f.mix_v) + QStringLiteral("\n    ") + T("Scroll H") +
-                   QStringLiteral(" = ") + qs(f.mix_h) + QStringLiteral("\n    ") + T("Zoom") + QStringLiteral(" = ") +
-                   qs(f.mix_zoom) + QStringLiteral("\n\n") +
-                   T("\"Apply\" sets these axis mixes in the [global] settings and resets the direction "
-                     "switches to normal. \"Cancel\" changes nothing.");
+            msg += QStringLiteral("\n\n") + T("Apply changes this in the Global profile:");
+            if (ctx_.settings) {
+                for (const spn::ui::WizardChangeRow &row : spn::ui::wizardChangeRows(*ctx_.settings, w))
+                    msg += QStringLiteral("\n    ") +
+                           (row.changed() ? T("%1: now %2, new %3").arg(T(row.label), qs(row.now), qs(row.next))
+                                          : T("%1: %2 (unchanged)").arg(T(row.label), qs(row.next)));
+            } else {
+                msg += QStringLiteral("\n    ") + T("Scroll V") + QStringLiteral(" = ") + qs(f.mix_v) + QStringLiteral("\n    ") +
+                       T("Scroll H") + QStringLiteral(" = ") + qs(f.mix_h) + QStringLiteral("\n    ") + T("Zoom") +
+                       QStringLiteral(" = ") + qs(f.mix_zoom);
+            }
+            msg += QStringLiteral("\n\n") +
+                   T("\"Apply\" sets these axis mixes in the Global profile and resets the direction "
+                     "switches to normal. You can undo it afterwards. \"Cancel\" changes nothing.");
         } else {
             msg += QStringLiteral("\n\n") + T("The mapping is incomplete and cannot be applied.");
         }
@@ -734,3 +861,6 @@ int axesPageSelfTest() {
     std::printf("axes-page self-test: connected=%d data=%d parts=%d/%d wizard=%d cancel=%d\n", connected, data, noParts, parts, wizOk, left);
     return connected && data && noParts && parts && wizOk && left ? 0 : 1;
 }
+
+bool AxesPage::deviceRowVisible() const { return devRow_[0]->isVisibleTo(this); }
+QString AxesPage::resultText() const { return wizResult_->text(); }
