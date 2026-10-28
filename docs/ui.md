@@ -225,7 +225,7 @@ to the picture shows the selected item:
   swap them, hold Ctrl (Cmd on macOS) while dropping to copy (a dashed frame marks the motion the drop would
   land on). Lift / press and the buttons cannot be dragged; the two lists are the way without a mouse. "Tune this motion" (closed until used) edits sensitivity, dead zone, curve and
   smoothing of that motion as overrides of the joystick mode.
-- **Analog or digital.** Every motion that presses keys (the "Keys" box) has the check box **Analog (the key repeats faster the
+- **Analog or digital.** Every motion that presses keys (the "Keys" box) has the check box **Analog** (accessible name: "Analog (the key repeats faster the
   further you push)**: checked is `keys:`, unchecked is `step:` (one press per push, like a click); it only switches the
   prefix of the stored action, the keys stay. Two more check boxes, "No key for the negative / positive direction", write
   `none` for a side. Below: the fields "Lowest rate" and "Highest rate" (presses per second, analog) and the "Trigger level"

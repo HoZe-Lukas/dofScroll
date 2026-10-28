@@ -44,7 +44,7 @@ inline QWidget *keyEngineBox(QWidget *parent, QObject *owner, const KeyEngineEnv
     const QString forMotion = env.motionName.isEmpty() ? QString() : env.motionName + QStringLiteral(": ");
     const bool mouseOrHold = choice.hold || env.form->anyMouse();  // a side may be a mouse button: the words say "nothing", not "no key"
 
-    auto *analog = new QCheckBox(T("Analog (the key repeats faster the further you push)"), box);
+    auto *analog = new QCheckBox(T("Analog"), box);  // short: a check box does not wrap, the words below say what it does
     analog->setObjectName(QStringLiteral("keyAnalog"));
     analog->setProperty("look", QStringLiteral("box"));
     analog->setChecked(choice.analog);

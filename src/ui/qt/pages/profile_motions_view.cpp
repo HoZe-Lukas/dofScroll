@@ -201,6 +201,8 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         // A combo box reports its current text as its name: the purpose is the description, and the visible label is its buddy.
         kind->setAccessibleDescription(T("Action for %1").arg(qs8(row->name)));
         kindLabel->setBuddy(kind);
+        kind->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);  // long entries are elided, never widen the inspector
+        kind->setMinimumContentsLength(12);
         int current = 0;
         const bool isLift = motionId == QLatin1String("lift");
         // Lift / press: nothing is its default and a pinned "none" shows as that entry; no analog keys in its list.
