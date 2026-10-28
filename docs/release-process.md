@@ -40,7 +40,7 @@ cannot be installed the job fails, `build-dmg.sh` and `build-installer.ps1` refu
 `dofscroll-ui`, the image and installer tests require it, and the `release` job publishes nothing unless all six
 files (RPM, DEB, TGZ, Windows setup and ZIP, macOS DMG) exist and none has `daemon-only` in its name. (Version 1.2.0
 shipped a macOS image without the interface because that step used to be allowed to fail.) The Qt version is the one of `packaging/qt.env` (the same on
-Windows, macOS and Linux; Windows kit `win64_msvc2022_64`), installed with a pinned `aqtinstall` instead of `install-qt-action` (that action uses an unpinned `setup-python`, which the repository action policy rejects); all actions are pinned to commit SHAs.
+Windows, macOS and Linux; Windows kit `win64_msvc2022_64`), installed with a pinned `aqtinstall` instead of `install-qt-action` (that action calls `setup-python` by tag, which the setting `sha_pinning_required` would reject, and it installs aqtinstall without hashes; the CI-only jobs of `ui.yml` still use it, see `docs/repo-settings.md`); all actions are pinned to commit SHAs.
 
 Both jobs test their package before uploading: the Windows job installs silently with autostart
 selected, runs `dofscroll.exe --version` and `dofscroll-ui.exe --self-test` from the install folder

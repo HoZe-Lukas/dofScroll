@@ -45,8 +45,8 @@ build or install the Linguist tools. The build never fails because of a missing 
 | OS | Development / CI | Users |
 |---|---|---|
 | Linux | distribution packages (`qt6-base-dev`, `qt6-tools-dev-tools`, `libqt6svg6-dev` on Debian/Ubuntu; `qt6-qtbase-devel`, `qt6-qtsvg-devel`, `qt6-linguist` on Fedora/EPEL 9 family if available) | the distribution's Qt6 libraries (dynamic) |
-| Windows | `jurplel/install-qt-action` (SHA-pinned) with a pinned Qt version (aqtinstall), MSVC | Qt DLLs bundled next to the program (`windeployqt`, later installer package) |
-| macOS | same action, pinned Qt version | Qt frameworks bundled in the app (`macdeployqt`, later installer package) |
+| Windows | CI build: `jurplel/install-qt-action` (SHA-pinned); release installer: hash-pinned `aqtinstall`; Qt version from `packaging/qt.env`, MSVC | Qt DLLs bundled next to the program (`windeployqt`, later installer package) |
+| macOS | same as Windows, Qt version from `packaging/qt.env` | Qt frameworks bundled in the app (`macdeployqt`, later installer package) |
 
 The EPEL/Rocky availability of Qt6 was not verified; CI uses `ubuntu-latest` for Linux.
 
