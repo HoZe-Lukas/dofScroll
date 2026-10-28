@@ -118,6 +118,8 @@ Every change is saved by itself (switches and drop-downs at once, typed text abo
 
 ## Keyboard and accessibility
 
+Keys are chosen from a tree in columns, like the Finder column view: click the key button, pick a category (Keyboard, Media) in the first column, then a subcategory (for example Navigation) and the key. Up and Down move, Right opens a category, Left goes back, Enter chooses, Esc closes the popup.
+
 The whole interface works with the keyboard: Tab order follows the layout, the sidebar moves with Up, Down, Home and End and has a focus ring, every control has an accessible name for screen readers. State is never shown by colour alone (origin, "Done:" and "To do:", errors and warnings carry words and a symbol). Targets are at least 24 x 24 px and the layout follows the system font size, tested up to 200 %. A window that is too small scrolls instead of cutting things off; at the default size no page needs a horizontal scroll bar. Contrast is at least 7:1 for text (4.5:1 for hints) in both themes.
 
 ## Several SpaceMice

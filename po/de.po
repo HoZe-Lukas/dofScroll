@@ -5433,3 +5433,239 @@ msgstr "Aus (der eingebaute Standard): Das Anheben der Kappe tut nichts."
 #: src/ui/model/motion_edit_model.hpp
 msgid "On."
 msgstr "An."
+
+#: src/ui/qt/key_tree_picker.cpp
+msgid "Choose a key..."
+msgstr "Taste wählen ..."
+
+#: src/ui/qt/key_tree_picker.cpp
+msgid "Choose a key from the list of categories"
+msgstr "Wähle eine Taste aus den Kategorien"
+
+#: src/ui/qt/key_tree_picker.cpp
+msgid "Key list"
+msgstr "Tastenliste"
+
+#: src/ui/qt/key_tree_picker.cpp
+msgid "Columns: choose a category, then a key. Right arrow opens a category, Enter chooses, Escape closes."
+msgstr "Spalten: erst eine Kategorie wählen, dann eine Taste. Pfeil rechts öffnet eine Kategorie, Eingabe wählt, Esc schließt."
+
+#: src/ui/qt/key_tree_picker.cpp
+msgid "Stored as"
+msgstr "Gespeichert als"
+
+#: src/ui/qt/key_tree_picker.cpp
+msgid "Stored as:"
+msgstr "Gespeichert als:"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Keyboard"
+msgstr "Tastatur"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Media"
+msgstr "Medien"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Mouse"
+msgstr "Maus"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Letters"
+msgstr "Buchstaben"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Digits"
+msgstr "Ziffern"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Function keys"
+msgstr "Funktionstasten"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Editing"
+msgstr "Bearbeiten"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Modifiers"
+msgstr "Umschalttasten"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Volume"
+msgstr "Lautstärke"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Playback"
+msgstr "Wiedergabe"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Ctrl"
+msgstr "Strg"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Shift"
+msgstr "Umschalt"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Alt"
+msgstr "Alt"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Super"
+msgstr "Super"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Up arrow"
+msgstr "Pfeil nach oben"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Down arrow"
+msgstr "Pfeil nach unten"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Left arrow"
+msgstr "Pfeil nach links"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Right arrow"
+msgstr "Pfeil nach rechts"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Home"
+msgstr "Pos1"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "End"
+msgstr "Ende"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Page up"
+msgstr "Bild auf"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Page down"
+msgstr "Bild ab"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Enter"
+msgstr "Eingabe"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Tab"
+msgstr "Tabulator"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Space"
+msgstr "Leertaste"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Backspace"
+msgstr "Rücktaste"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Escape"
+msgstr "Escape"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Insert"
+msgstr "Einfügen"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Plus"
+msgstr "Plus"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Minus"
+msgstr "Minus"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Multiply"
+msgstr "Multiplizieren"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Divide"
+msgstr "Dividieren"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Decimal point"
+msgstr "Dezimalpunkt"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Comma"
+msgstr "Komma"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Period"
+msgstr "Punkt"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Slash"
+msgstr "Schrägstrich"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Backslash"
+msgstr "Umgekehrter Schrägstrich"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Semicolon"
+msgstr "Semikolon"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Apostrophe"
+msgstr "Apostroph"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Left bracket"
+msgstr "Eckige Klammer auf"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Right bracket"
+msgstr "Eckige Klammer zu"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Grave accent"
+msgstr "Gravis"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Equal sign"
+msgstr "Gleichheitszeichen"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Caps Lock"
+msgstr "Feststelltaste"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Print Screen"
+msgstr "Druck"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Scroll Lock"
+msgstr "Rollen"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Menu"
+msgstr "Menü"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Num Lock"
+msgstr "Num-Feststelltaste"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Play / Pause"
+msgstr "Wiedergabe / Pause"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Next track"
+msgstr "Nächster Titel"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Previous track"
+msgstr "Vorheriger Titel"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Stop"
+msgstr "Stopp"
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Mute"
+msgstr "Stumm"

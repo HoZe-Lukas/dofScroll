@@ -79,6 +79,9 @@
 #include "pages/editor_page.hpp"
 #include "pages/motion_editor.hpp"
 #include "key_capture.hpp"
+#include "key_combo.hpp"
+#include "key_tree_picker.hpp"
+#include <QColumnView>
 #include "pages/profile_motions_view.hpp"
 #include "pages/button_use_widget.hpp"
 #include "autosaver.hpp"
@@ -507,6 +510,79 @@ static bool targetSizeSelfTest(MainWindow &w) {
     applyTheme(spn::ui::Theme::System);
     settle();
     std::printf("target size self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
+// Key picker (tree in columns): the popup opens with the current key chosen, arrows move like in the Finder column
+// view, Enter chooses and emits the stored value, Esc closes without a choice; the chord editor keeps its text.
+static bool keyTreePickerSelfTest(QWidget *host) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "key tree picker self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    auto *picker = makeKeyTreePicker(QStringLiteral("pageup"), host);
+    picker->setAccessibleName(QStringLiteral("Test key"));
+    picker->show();
+    QStringList emitted;
+    QObject::connect(picker, &KeyTreePicker::valueChosen, [&emitted](const QString &v) { emitted << v; });
+    check(picker->text() == T("Page up") && picker->value() == QStringLiteral("pageup"), "the button shows the current choice");
+    check(!picker->accessibleName().isEmpty() && picker->accessibleDescription().contains(QStringLiteral(">")), "accessible name and path");
+    KeyTreePicker *active = picker;  // the picker whose popup gets the keys
+    auto press = [&](int key) {
+        QWidget *target = active->popupView();  // the column view has the focus; Esc bubbles up to the popup
+        QKeyEvent down(QEvent::KeyPress, key, Qt::NoModifier);
+        QApplication::sendEvent(target, &down);
+        QKeyEvent up(QEvent::KeyRelease, key, Qt::NoModifier);
+        QApplication::sendEvent(target, &up);
+    };
+    auto currentText = [&]() { return active->popupView() ? active->popupView()->currentIndex().data().toString() : QString(); };
+    picker->openPopup();
+    check(picker->popupOpen() && picker->popupView() != nullptr, "the popup opens");
+    if (!picker->popupOpen() || !picker->popupView()) return false;
+    check(currentText() == T("Page up"), "the current choice is preselected");
+    press(Qt::Key_Down);
+    check(currentText() == T("Page down"), "Down moves in the column");
+    press(Qt::Key_Return);
+    check(!picker->popupOpen() && emitted == QStringList{QStringLiteral("pagedown")} && picker->value() == QStringLiteral("pagedown") &&
+              picker->text() == T("Page down"),
+          "Enter chooses, closes and emits the stored value");
+    // Left goes back to the subcategory, Up/Down change it, Right opens it again
+    picker->openPopup();
+    press(Qt::Key_Left);
+    check(currentText() == T("Navigation"), "Left goes back to the category column");
+    press(Qt::Key_Up);
+    check(currentText() == T("Function keys"), "Up moves to the previous subcategory");
+    press(Qt::Key_Right);
+    check(currentText() == T("F1"), "Right opens the subcategory");
+    press(Qt::Key_Return);
+    check(emitted.size() == 2 && emitted.last() == QStringLiteral("f1") && !picker->popupOpen(), "Enter on a leaf of another subcategory");
+    // Esc closes without a choice; Enter on a branch only opens it
+    picker->openPopup();
+    press(Qt::Key_Escape);
+    check(!picker->popupOpen() && emitted.size() == 2, "Esc closes without a choice");
+    picker->openPopup();
+    press(Qt::Key_Left);
+    press(Qt::Key_Return);
+    check(emitted.size() == 2, "Enter on a branch chooses nothing");
+    picker->closePopup();
+    // the chord editor: same stored text as before
+    std::string chord = "ctrl+shift+pageup";
+    int changes = 0;
+    QWidget *cp = chordPicker(host, host, &chord, QStringLiteral("Chord"), [&changes] { ++changes; });
+    cp->show();
+    auto *kp = cp->findChild<KeyTreePicker *>();
+    check(kp != nullptr && kp->value() == QStringLiteral("pageup"), "the chord editor shows the key of the chord");
+    if (kp) {
+        active = kp;
+        kp->openPopup();
+        press(Qt::Key_Down);
+        press(Qt::Key_Return);
+        check(chord == "ctrl+shift+pagedown" && changes == 1, "the chord editor stores modifiers and key as before");
+    }
+    delete cp;
+    delete picker;
+    std::printf("key tree picker self-test: %s\n", ok ? "ok" : "failed");
     return ok;
 }
 
@@ -4116,6 +4192,7 @@ int main(int argc, char **argv) {
         if (!extensionsSelfTest(ctx, tmp.path())) return 1;
         if (!modeLibrarySelfTest(ctx, tmp.path())) return 1;
         if (!modeEditorTabsSelfTest(ctx)) return 1;
+        if (!keyTreePickerSelfTest(&w)) return 1;
         ModesPage modes(ctx);  // standalone (own catalog): built-in normal, off, timeline + the file mode
         modes.show();
         Tray tray(&w, icon, ctx);

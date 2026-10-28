@@ -2844,3 +2844,239 @@ msgstr ""
 #: src/ui/model/motion_edit_model.hpp
 msgid "On."
 msgstr ""
+
+#: src/ui/qt/key_tree_picker.cpp
+msgid "Choose a key..."
+msgstr ""
+
+#: src/ui/qt/key_tree_picker.cpp
+msgid "Choose a key from the list of categories"
+msgstr ""
+
+#: src/ui/qt/key_tree_picker.cpp
+msgid "Key list"
+msgstr ""
+
+#: src/ui/qt/key_tree_picker.cpp
+msgid "Columns: choose a category, then a key. Right arrow opens a category, Enter chooses, Escape closes."
+msgstr ""
+
+#: src/ui/qt/key_tree_picker.cpp
+msgid "Stored as"
+msgstr ""
+
+#: src/ui/qt/key_tree_picker.cpp
+msgid "Stored as:"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Keyboard"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Media"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Mouse"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Letters"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Digits"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Function keys"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Editing"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Modifiers"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Volume"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Playback"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Ctrl"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Shift"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Alt"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Super"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Up arrow"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Down arrow"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Left arrow"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Right arrow"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Home"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "End"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Page up"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Page down"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Enter"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Tab"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Space"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Backspace"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Escape"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Insert"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Plus"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Minus"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Multiply"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Divide"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Decimal point"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Comma"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Period"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Slash"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Backslash"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Semicolon"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Apostrophe"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Left bracket"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Right bracket"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Grave accent"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Equal sign"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Caps Lock"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Print Screen"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Scroll Lock"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Menu"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Num Lock"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Play / Pause"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Next track"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Previous track"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Stop"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgid "Mute"
+msgstr ""
