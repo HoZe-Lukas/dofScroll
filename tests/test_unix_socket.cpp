@@ -36,8 +36,12 @@ int main() {
             if (c < 0) failed = true; else fds.push_back(c);
         }
         assert(failed);  // the listener never accepts: the backlog fills and connectTo reports an error
-        // a second listener on the same path refuses to take over a live (full) socket
+#ifdef __linux__
+        // a second listener on the same path refuses to take over a live (full) socket. Linux only:
+        // on macOS/BSD a full accept queue answers ECONNREFUSED, the same as a socket file without a
+        // listener, so the probe cannot tell the two apart (documented in docs/security.md).
         assert(usock::listenAt(path, backlog, &err) < 0 && err.find("already listening") != std::string::npos);
+#endif
         for (int c : fds) ::close(c);
         ::close(lfd);
     }
@@ -50,6 +54,8 @@ int main() {
     assert(c1 >= 0 && !(::fcntl(c1, F_GETFL) & O_NONBLOCK));
     const int c2 = usock::connectTo(path, true, &err);
     assert(c2 >= 0 && (::fcntl(c2, F_GETFL) & O_NONBLOCK));
+    // an accepting listener is detected as alive on every OS
+    assert(usock::listenAt(path, 4, &err) < 0 && err.find("already listening") != std::string::npos);
     const int a = usock::acceptCloexec(lfd);
     assert(a >= 0 && (::fcntl(a, F_GETFD) & FD_CLOEXEC));
     ::close(a);

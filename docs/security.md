@@ -850,7 +850,12 @@ the daemon owns the device exclusively, so the UI cannot read it directly.
   directory that is verified to be a real directory of the current user without group/other write
   access (same code as the macOS reload socket, `src/platform/unix_socket.cpp`); the peer uid is
   checked on accept (`SO_PEERCRED` / `getpeereid`), and the client refuses a socket or server of
-  another user. Windows: outbound-only named pipe `\\.\pipe\dofscroll-live-<user sid>` with a DACL
+  another user. Limitation: before taking over an existing socket file the daemon probes it with a
+  non-blocking connect (500 ms). On Linux a full accept queue (EAGAIN) counts as "alive"; on macOS a
+  full accept queue answers ECONNREFUSED like a file without a listener, so a daemon whose accept
+  queue is full can look stale to a second instance. Only the same user can create that situation,
+  and the daemon's single-instance lock normally stops a second instance before this point.
+  Windows: outbound-only named pipe `\\.\pipe\dofscroll-live-<user sid>` with a DACL
   that grants only the current user, `PIPE_REJECT_REMOTE_CLIENTS`, `FILE_FLAG_FIRST_PIPE_INSTANCE`
   (a squatted name makes the daemon fail instead of serving); the client verifies that the pipe
   server runs as the same user.
