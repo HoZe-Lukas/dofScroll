@@ -461,7 +461,7 @@ static void testInProfilesAndModes() {
     // a joystick mode file: the same keys as overrides, validated by applyKey
     const std::string dir = tu::makeTempDir("dofscroll-key-engine");
     {
-        std::ofstream f(dir + "/keyed.conf");
+        std::ofstream f(dir + "/keyed.conf", std::ios::binary);
         f << "H_ACTION = keys:ctrl+pageup,ctrl+pagedown\nSCROLL_H_PUSH_KEY_RATE_MAX = 8\nZOOM_KEY_RATE_MIN = 2\nLIFT_TRIGGER = 70\n"
              "V_ACTION = keys:j,l\nTWIST_ACTION = step:j,l\nSCROLL_V_TILT_TRIGGER = nope\n";
     }

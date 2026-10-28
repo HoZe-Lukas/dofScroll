@@ -167,7 +167,7 @@ static const char *kMode =
 
 static void testModeEditor() {
     const std::string dir = tu::makeTempDir("dofscroll-key-engine-mode");
-    std::ofstream(dir + "/demo.conf") << kMode;
+    std::ofstream(dir + "/demo.conf", std::ios::binary) << kMode;
     const ModeSet ms = loadModes(dir, nullptr);
     const ModeDef *def = ms.find("demo");
     assert(def && def->lift.type == ChannelActionType::Step);
