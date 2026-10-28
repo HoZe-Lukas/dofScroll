@@ -45,6 +45,13 @@ echo "systemctl \$*" >> "$T/log"
 case "\$*" in *is-active*) exit \${FAKE_ACTIVE:-0} ;; *is-enabled*) exit \${FAKE_ENABLED:-0} ;; esac
 exit 0
 EOF
+# runuser -u <user> -- <command>: runs the command (the real one drops privileges; here the call is recorded)
+cat > "$T/bin/runuser" <<EOF
+#!/bin/sh
+echo "runuser \$*" >> "$T/log"
+shift 3
+exec "\$@"
+EOF
 cat > "$T/bin/timeout" <<EOF
 #!/bin/sh
 shift
@@ -77,6 +84,7 @@ M="systemctl --user --machine=alice@.host"
 setup 1 1
 FAKE_ACTIVE=0 run 2
 [ ! -L "$link" ] || fail "dangling tray link was not removed"
+grep -q "^runuser -u alice -- rm -f" "$T/log" || fail "the dangling link was not removed as the user"
 grep -q "^$M stop dofscroll-tray.service" "$T/log" || fail "tray not stopped"
 grep -q "^$M disable dofscroll-tray.service" "$T/log" || fail "tray not disabled"
 grep -q "^$M enable dofscroll-ui.service" "$T/log" || fail "ui not enabled"

@@ -1,0 +1,42 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+# Package removal step (RPM %preun and DEB prerm, same file). Before the files are removed, the dofscroll user
+# units (the interface first, then the daemon) of every logged-in user are stopped and disabled, so no process keeps
+# running a deleted binary and no dangling enable link stays behind. Only dofscroll.service and
+# dofscroll-ui.service are touched, through that user's own systemd (`systemctl --user --machine=<user>@.host`),
+# never the configuration, never another unit or service. An UPGRADE does nothing here (preinst and postinst
+# handle it). Users who are not logged in keep an enable link that systemd ignores once the unit file is gone.
+# Best effort: never fails the package transaction (always exit 0), every call is time-limited.
+#   RPM: $1 = number of instances left after this one (0 = the package is removed, 1+ = an upgrade)
+#   DEB: $1 = remove (also called with upgrade, deconfigure, failed-upgrade: nothing is done then)
+
+case "$1" in
+    remove | 0) ;;
+    *) exit 0 ;;
+esac
+
+command -v loginctl >/dev/null 2>&1 || exit 0
+command -v systemctl >/dev/null 2>&1 || exit 0
+command -v timeout >/dev/null 2>&1 || exit 0
+
+# Runs a command with a time limit; callers ignore failures.
+limited() {
+    timeout 30 "$@"
+}
+
+users=$(limited loginctl list-users --no-legend 2>/dev/null | while read -r _uid name _rest; do
+    printf '%s\n' "$name"
+done)
+
+for name in $users; do
+    case "$name" in
+        '' | -* | *[!A-Za-z0-9._@-]*) continue ;;
+    esac
+    m="$name@.host"
+    for unit in dofscroll-ui.service dofscroll.service; do
+        limited systemctl --user --machine="$m" stop "$unit" >/dev/null 2>&1 || true
+        limited systemctl --user --machine="$m" disable "$unit" >/dev/null 2>&1 || true
+    done
+done
+exit 0

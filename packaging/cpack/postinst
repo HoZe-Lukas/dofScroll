@@ -3,11 +3,11 @@
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 # Package step after the files are installed (RPM %post and DEB postinst, same file). Never fails the
 # package transaction (always exit 0), every call is time-limited, nothing in the users' configuration is touched.
-# 1. On every install AND upgrade (fresh install included), best effort: if the system service
-#    spacenavd.service exists and is not enabled, `systemctl enable --now spacenavd.service` runs (as root, this
-#    is the one step a user would otherwise need sudo for): the SpaceMouse driver service must run before
-#    dofscroll can see the device. A fresh install does NOT start the user's dofscroll units: the interface
-#    starts the daemon at the first start (the user opens dofscroll from the application menu).
+# 1. On every install and upgrade: if the system service spacenavd.service exists but is not running, only a
+#    message is printed (how to enable it). The package NEVER enables or starts spacenavd itself: an
+#    administrator who disabled it on purpose must not get it back, and the setup guide of the interface shows the
+#    same command. A fresh install does NOT start the user's dofscroll units either: the interface starts the
+#    daemon at the first start (the user opens dofscroll from the application menu).
 # 2. Upgrade step 2 of 2: packaging/cpack/preinst stopped the dofscroll user units before the files were
 #    replaced: here, for every logged-in user, the daemon and then the interface are started again, whether
 #    they were running before or not, so the new binaries are used without a re-login. Only after an
@@ -18,19 +18,21 @@
 #   RPM: $1 = number of installed instances after this one (1 = fresh install, 2+ = upgrade)
 #   DEB: $1 = configure, $2 = previous version (empty on a fresh install)
 
-# 1. spacenavd: before the upgrade gate below, so a fresh install gets it too. Needs a running systemd (not a
-# chroot or an image build), `timeout` (every call is time-limited) and an existing, not yet enabled unit.
-enable_spacenavd() {
+# 1. spacenavd: before the upgrade gate below, so a fresh install gets the message too. Needs a running systemd
+# (not a chroot or an image build), `timeout` (every call is time-limited) and an existing unit. Changes nothing.
+tell_spacenavd() {
     [ -d /run/systemd/system ] || return 0
     command -v systemctl >/dev/null 2>&1 || return 0
     command -v timeout >/dev/null 2>&1 || return 0
     timeout 20 systemctl cat spacenavd.service >/dev/null 2>&1 || return 0
-    timeout 20 systemctl is-enabled --quiet spacenavd.service >/dev/null 2>&1 && return 0
-    timeout 60 systemctl enable --now spacenavd.service >/dev/null 2>&1 || true
+    timeout 20 systemctl is-active --quiet spacenavd.service >/dev/null 2>&1 && return 0
+    echo "dofscroll: the SpaceMouse driver service spacenavd is installed but not running."
+    echo "dofscroll: dofscroll cannot see the device until it runs. To start it now and at every boot, run:"
+    echo "dofscroll:     sudo systemctl enable --now spacenavd.service"
     return 0
 }
 case "$1" in
-    configure | [0-9]*) enable_spacenavd || true ;;  # RPM: a number; DEB: configure (not abort-upgrade and the like)
+    configure | [0-9]*) tell_spacenavd || true ;;  # RPM: a number; DEB: configure (not abort-upgrade and the like)
 esac
 
 # 2. Upgrade only.
@@ -77,11 +79,14 @@ migrate_user() {
         >/dev/null 2>&1 && was_active=1
     limited systemctl --user --machine="$m" stop dofscroll-tray.service >/dev/null 2>&1 || true
     limited systemctl --user --machine="$m" disable dofscroll-tray.service >/dev/null 2>&1 || true
-    # Still there (systemctl cannot disable a unit without a unit file on some versions): remove
-    # only the dangling enable links of that one unit.
-    for l in "$home"/.config/systemd/user/*.wants/dofscroll-tray.service; do
-        [ -L "$l" ] && [ ! -e "$l" ] && rm -f "$l" 2>/dev/null
-    done
+    # Still there (systemctl cannot disable a unit without a unit file on some versions): remove only the
+    # dangling enable links of that one unit. The home directory belongs to the user, so root must not delete in
+    # it (a link swapped between the check and the removal could point anywhere): the removal runs as the user.
+    if command -v runuser >/dev/null 2>&1; then
+        for l in "$home"/.config/systemd/user/*.wants/dofscroll-tray.service; do
+            [ -L "$l" ] && [ ! -e "$l" ] && limited runuser -u "$1" -- rm -f -- "$l" >/dev/null 2>&1
+        done
+    fi
     limited systemctl --user --machine="$m" enable dofscroll-ui.service >/dev/null 2>&1 || true
     if [ "$was_active" = 1 ]; then
         limited systemctl --user --machine="$m" start dofscroll-ui.service >/dev/null 2>&1 || true
