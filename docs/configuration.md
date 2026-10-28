@@ -342,7 +342,7 @@ Details: by default only the **action** of a motion is copied (`V_PUSH_ACTION` .
 channel. Tick **Also take over the tuning** in the dialog to copy the tuning too: the effective sensitivity, dead zone,
 direction, curve and smoothing of that motion of the source (all layers merged) become explicit keys of the target,
 `SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>` and `ZOOM_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>` for the
-twist. A tuned-off source gives `SENS = 0`. The keys of a push or tilt act while the target splits that channel (as the
+twist. The key engine keys of that motion (`<P>KEY_RATE_MIN`, `<P>KEY_RATE_MAX`, `<P>TRIGGER`, with `<P>` the same prefix as above and `LIFT_`) are copied too where the source sets them; a key the source does not set is left as the target has it. A tuned-off source gives `SENS = 0`. The keys of a push or tilt act while the target splits that channel (as the
 action keys do). A motion that is off in the source (action `none`, or sensitivity 0) is copied as
 cleared (`none`); a button the source does not bind is copied as an explicit nothing (`BUTTON_<n> = none`). The
 joystick mode editor has the same button for its motions and buttons (it copies into the mode file).
