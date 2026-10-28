@@ -37,7 +37,10 @@ jobs:
           retry() { for i in 1 2 3; do "$@" && return 0; echo "::warning::attempt $i/3 failed: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
           . packaging/qt.env
           retry python -m pip install --require-hashes --no-deps -r packaging/ci/aqt-requirements.txt
-          retry python -m aqt install-qt windows desktop "${QT_VERSION}" win64_msvc2022_64 -O "$RUNNER_TEMP/Qt"
+          # kept and checked against our own SHA-256 list (packaging/ci/qt-archives.sha256, issue #265)
+          retry python -m aqt install-qt windows desktop "${QT_VERSION}" win64_msvc2022_64 -O "$RUNNER_TEMP/Qt" --keep --archive-dest "$RUNNER_TEMP/qt-archives"
+          sh packaging/ci/qt-archive-hashes.sh verify "$RUNNER_TEMP/qt-archives"
+          rm -rf "$RUNNER_TEMP/qt-archives"
           root="$RUNNER_TEMP/Qt/${QT_VERSION}/msvc2022_64"
           test -f "$root/bin/windeployqt.exe"
           echo "QT_ROOT_DIR=$root" >> "$GITHUB_ENV"
@@ -177,7 +180,10 @@ jobs:
           retry() { for i in 1 2 3; do "$@" && return 0; echo "::warning::attempt $i/3 failed: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
           . packaging/qt.env   # Qt 6.8.x links the AGL framework, which the macOS 15 SDK dropped
           retry "$RUNNER_TEMP/aqt-venv/bin/python" -m pip install --require-hashes --no-deps -r packaging/ci/aqt-requirements.txt
-          retry "$RUNNER_TEMP/aqt-venv/bin/python" -m aqt install-qt mac desktop "${QT_VERSION}" clang_64 -O "$RUNNER_TEMP/Qt"
+          # kept and checked against our own SHA-256 list (packaging/ci/qt-archives.sha256, issue #265)
+          retry "$RUNNER_TEMP/aqt-venv/bin/python" -m aqt install-qt mac desktop "${QT_VERSION}" clang_64 -O "$RUNNER_TEMP/Qt" --keep --archive-dest "$RUNNER_TEMP/qt-archives"
+          sh packaging/ci/qt-archive-hashes.sh verify "$RUNNER_TEMP/qt-archives"
+          rm -rf "$RUNNER_TEMP/qt-archives"
           root="$RUNNER_TEMP/Qt/${QT_VERSION}/macos"
           test -x "$root/bin/macdeployqt"
           echo "QT_ROOT_DIR=$root" >> "$GITHUB_ENV"
