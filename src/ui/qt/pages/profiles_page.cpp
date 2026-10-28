@@ -302,7 +302,8 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
             QWidget *area = motions_->parentWidget();  // the viewport of the scroll area
             QWidget *rightPane = tabs_->parentWidget();
             const int overhead = (area && rightPane && area->width() > 0) ? rightPane->width() - area->width() : 80;
-            return motions_->minimumSizeHint().width() + std::max(overhead, 40) + tk::kSpaceMd;
+            const int bar = style()->pixelMetric(QStyle::PM_ScrollBarExtent);  // the vertical bar may come with the content
+            return motions_->minimumSizeHint().width() + std::max(overhead, 40) + bar + tk::kSpaceMd;
         },
         120 + tk::kSpaceMd);
     motions_->inspectorBuilt = [defaults] { defaults->fit(); };

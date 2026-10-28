@@ -13,6 +13,7 @@
 #include <QStandardItemModel>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <algorithm>
 #include <memory>
 #include <set>
 
@@ -72,14 +73,21 @@ ProfileMotionsView::ProfileMotionsView(const UiContext &ctx, ButtonRowFn addButt
     });
 }
 
-// Picture and inspector side by side while both have room (a text line of the inspector needs about 40 character heights);
-// below that (a narrow window, a large font) the inspector goes under the picture and uses the whole width, so no text is
-// cut off and no horizontal scroll bar is needed.
+// Picture and inspector side by side only while both fit with what they really need (their minimum widths, which depend on
+// the font and its glyph widths, not on the line height); otherwise the inspector goes under the picture and uses the whole
+// width, so no text is cut off and no horizontal scroll bar is needed. Also called after the inspector was rebuilt: its
+// minimum width changes with its content and with the font, without any resize.
+void ProfileMotionsView::updateDirection() {
+    if (!root_ || root_->count() < 2) return;
+    const int em = fontMetrics().height();
+    const int need = root_->itemAt(0)->minimumSize().width() + std::max(root_->itemAt(1)->minimumSize().width(), 28 * em) + root_->spacing() + 16;
+    const QBoxLayout::Direction want = width() >= need ? QBoxLayout::LeftToRight : QBoxLayout::TopToBottom;
+    if (root_->direction() != want) root_->setDirection(want);
+}
+
 void ProfileMotionsView::resizeEvent(QResizeEvent *e) {
     QWidget::resizeEvent(e);
-    const int em = fontMetrics().height();
-    const QBoxLayout::Direction want = width() >= 62 * em ? QBoxLayout::LeftToRight : QBoxLayout::TopToBottom;
-    if (root_ && root_->direction() != want) root_->setDirection(want);
+    updateDirection();
 }
 
 QString ProfileMotionsView::selectedId() const { return picture_->current(); }
@@ -156,10 +164,10 @@ void ProfileMotionsView::rebuildInspector() {
     if (id.startsWith(QLatin1String("m:"))) buildMotion(col_, id.mid(2));
     else if (id.startsWith(QLatin1String("b:"))) buildButton(col_, id.mid(2).toInt());
     col_->addStretch(1);
-    if (inspectorBuilt)
-        QTimer::singleShot(0, this, [this] {
-            if (inspectorBuilt) inspectorBuilt();
-        });
+    QTimer::singleShot(0, this, [this] {
+        updateDirection();
+        if (inspectorBuilt) inspectorBuilt();
+    });
 }
 
 void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) {

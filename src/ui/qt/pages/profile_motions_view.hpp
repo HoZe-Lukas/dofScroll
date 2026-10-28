@@ -51,6 +51,7 @@ public:
 
 protected:
     void resizeEvent(QResizeEvent *e) override;
+    void updateDirection();
 
 private:
     void rebuild();
