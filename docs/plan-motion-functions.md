@@ -145,8 +145,8 @@ Replaces the earlier `seq` idea (stage 7b). A macro is a recorded or typed list 
 - Digital only: one run per trigger; further triggers during a run are ignored until it is done. The analog / digital
   check box is greyed with the reason ("a macro always runs once per trigger"). Valid on a device button and on a
   motion direction (digital trigger as in "Model").
-- Steps: key DOWN, key UP (separate steps), PAUSE (milliseconds). "Tap" (down plus up) is only an editing shortcut of the
-  dialog; the stored form is always the single steps. Pauses are editable afterwards.
+- Steps: key DOWN, key UP (separate steps), PAUSE (milliseconds). There is no "tap" step: pressing and releasing a key
+  is simply two steps. Pauses are editable afterwards.
 - Release guarantee: at the END of every macro, and on abort, mode switch, reload, suspend, `ENABLED=0` and device
   removal, ALL keys still held by the macro are released (through `releaseAll`). A press-only macro (for example `+ctrl`
   or `+shift`) is therefore valid, and there is no "never released" warning.
@@ -166,7 +166,6 @@ daemons reject the line with the existing warning).
 |---|---|
 | `+<chord>` | key down (a chord presses its modifiers and key, for example `+ctrl+c`), stays held |
 | `-<chord>` | key up (releases it) |
-| `<chord>` | editing shorthand in hand-written text only: down plus up; the interface always stores `+` and `-` steps |
 | `wait:<ms>` | pause, 1 to 60000 ms |
 
 A key name is from the closed list in `src/keys.hpp`, as everywhere. Example (select all, copy, then type "ab" with shift
