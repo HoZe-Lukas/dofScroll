@@ -125,6 +125,9 @@ private:
     Channel ch_part_[PART_COUNT];                     // sub-channels of split V / H channels
     StepAccumulator acc_part_[PART_COUNT];
     ZoomDetector zoom_;
+    bool custom_ = false;                  // the last tick ran on the custom path (its slots may hold state)
+    double hold_time_[KM_COUNT] = {0, 0, 0, 0, 0, 0};  // seconds the hold: of a motion has been held
+    bool hold_logged_[KM_COUNT] = {false, false, false, false, false, false};
     std::bitset<kKeyCount> keys_held_;
     uint8_t mouse_held_ = 0;  // bit n = mouse button n (1 left, 2 middle, 3 right)
     Info info_;
@@ -142,6 +145,7 @@ private:
     void syncMouse(uint8_t want);
     void syncKeys(const std::bitset<kKeyCount> &want);
     void resetState();
+    void resetCustomState();  // the state only the custom path uses (lift, key slots, split parts, holds)
     void tapKeys(Key neg, Key pos, int n);
     void tapChord(Key key, const ChordMods &mods);
     void tickLegacy(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh, double dt);

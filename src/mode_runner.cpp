@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <iostream>
 
 namespace spn {
 
@@ -24,6 +25,9 @@ int stepOrReset(StepAccumulator &acc, double rate, double dt) {
     return acc.add(rate, dt);
 }
 
+const char *const LOG = "[dofscroll] ";
+constexpr double kHoldLogSeconds = 60.0;  // a hold longer than this is logged once (never released by the runner)
+
 constexpr size_t idx(Key k) { return static_cast<size_t>(k); }
 
 }  // namespace
@@ -33,23 +37,32 @@ ModeRunner::ModeRunner(Output *out) : out_(out) {
     mode_.label = "normal";
 }
 
-void ModeRunner::resetState() {
-    ch_v_.reset();
-    ch_h_.reset();
-    ch_zoom_.reset();
+// What only the custom path uses: the lift's filter and accumulator, the key slots (repeater, digital trigger and with it a
+// hold:), the split parts. Called whenever the runner leaves the custom path, so a stale filter or an armed / fired step
+// flag cannot act when the custom path comes back.
+void ModeRunner::resetCustomState() {
     ch_lift_.reset();
-    acc_v_.reset();
-    acc_h_.reset();
-    acc_zoom_.reset();
     acc_lift_.reset();
     for (int i = 0; i < KM_COUNT; ++i) {
         rep_[i].reset();
         trig_[i].reset();
+        hold_time_[i] = 0.0;
+        hold_logged_[i] = false;
     }
     for (int i = 0; i < PART_COUNT; ++i) {
         ch_part_[i].reset();
         acc_part_[i].reset();
     }
+}
+
+void ModeRunner::resetState() {
+    ch_v_.reset();
+    ch_h_.reset();
+    ch_zoom_.reset();
+    acc_v_.reset();
+    acc_h_.reset();
+    acc_zoom_.reset();
+    resetCustomState();
     zoom_.reset();
 }
 
@@ -229,6 +242,10 @@ void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, b
 // Legacy path: same logic as before modes existed, plus the mode's button bindings.
 void ModeRunner::tickLegacy(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh,
                             double dt) {
+    if (custom_) {  // coming back from the custom path: nothing of its state may linger
+        resetCustomState();
+        custom_ = false;
+    }
     Wanted w = bindings(s, buttons);
     const bool nav_active =
         fresh && ((s.nav_button_enabled && buttonHeld(buttons, s.nav_button)) || w.nav);
@@ -283,9 +300,9 @@ void ModeRunner::tickLegacy(const Settings &s, const RawAxes &raw, uint32_t butt
 // in = wheel up, so wheel actions on the twist are inverted on the vertical wheel.
 void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const RawAxes &raw, uint32_t buttons, bool fresh,
                             double dt) {
+    custom_ = true;
     Wanted w = bindings(s, buttons);
     const bool nav_active = fresh && w.nav;
-    syncMouse(w.mouse);
 
     const ChannelAction &av = ca.v, &ah = ca.h, &at = ca.twist, &al = ca.lift;
     auto eff = [](const ChannelAction &a, ChannelActionType dflt) {
@@ -344,6 +361,23 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
     else zoom_.reset();
     double rate_zoom = ch_zoom_.processValue(s.zoom, zoom_mixed, dt);
 
+    // The key engine slots: what each motion runs (the type, the action and the value u it is fed with).
+    struct Slot {
+        ChannelActionType t = ChannelActionType::Off;
+        const ChannelAction *a = nullptr;
+        double rate = 0.0;
+    } slot[KM_COUNT];
+    for (int c = 0; c < 2; ++c) {
+        if (split[c]) {
+            for (int k = 0; k < 2; ++k) slot[c * 2 + k] = {part_t[c * 2 + k], part_a[c * 2 + k], part_rate[c * 2 + k]};
+        } else {
+            slot[c * 2] = {c == 0 ? tv : th, c == 0 ? &av : &ah, c == 0 ? rate_v : rate_h};
+        }
+    }
+    slot[KM_TWIST] = {tt, &at, rate_zoom};
+    slot[KM_LIFT] = {tl, &al, rate_lift};
+    auto triggerOf = [&](int km) { return (s.key_tuning[km].set & KeyTuning::F_TRIGGER) ? s.key_tuning[km].trigger : s.step_trigger; };
+
     int nv = 0, nh = 0, nt = 0, nl = 0;
     int np[PART_COUNT] = {0, 0, 0, 0};
     if (zooming) {
@@ -352,7 +386,14 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
         acc_lift_.reset();
         for (int i = 0; i < KM_COUNT; ++i) {
             rep_[i].reset();
-            trig_[i].reset();
+            if (slot[i].t == ChannelActionType::Hold || (i == KM_LIFT && slot[i].t == ChannelActionType::Step)) {
+                // A hold keeps following its motion while the twist zooms (it is released when the motion falls back). The
+                // lift follows it too, its presses discarded: the zoom suppresses them, and a cap that is held beyond the
+                // trigger when the zoom ends must not fire a step at that moment (the lift fires when the cap is grabbed).
+                trig_[i].step(slot[i].rate, triggerOf(i));
+            } else {
+                trig_[i].reset();
+            }
         }
         for (int i = 0; i < PART_COUNT; ++i) acc_part_[i].reset();
         nt = acc_zoom_.add(rate_zoom, dt);
@@ -360,11 +401,12 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
         // keys: runs the repeater and step: the digital trigger of the motion's key slot (key_engine.hpp); the wheels use the
         // accumulator. A slot that is not in use is kept at rest.
         auto channel = [&](ChannelActionType t, StepAccumulator &acc, int km, double rate) {
-            if (t == ChannelActionType::Step) {
+            if (t == ChannelActionType::Step || t == ChannelActionType::Hold) {
                 acc.reset();
                 rep_[km].reset();
-                const double trigger = (s.key_tuning[km].set & KeyTuning::F_TRIGGER) ? s.key_tuning[km].trigger : s.step_trigger;
-                return trig_[km].step(rate, trigger);
+                // A hold presses nothing: its state (trig_[km].state()) decides what is held below.
+                const int n = trig_[km].step(rate, triggerOf(km));
+                return t == ChannelActionType::Hold ? 0 : n;
             }
             trig_[km].reset();
             if (t == ChannelActionType::Keys) {
@@ -394,6 +436,34 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
     }
 
     std::bitset<kKeyCount> keys = w.keys;
+    uint8_t mouse = w.mouse;
+    // hold:<neg>,<pos>: the key, chord or mouse button of the deflected side is held; the union with the buttons' bindings and
+    // with the zoom modifier below (ctrl stays down until every one of them lets go).
+    for (int i = 0; i < KM_COUNT; ++i) {
+        const bool isHold = slot[i].t == ChannelActionType::Hold;
+        const int st = isHold ? trig_[i].state() : 0;
+        if (st == 0) {
+            hold_time_[i] = 0.0;
+            hold_logged_[i] = false;
+            continue;
+        }
+        hold_time_[i] += dt;
+        if (hold_time_[i] > kHoldLogSeconds && !hold_logged_[i]) {
+            hold_logged_[i] = true;  // logged once, not released: a long drag is legitimate
+            std::cerr << LOG << "a hold: action has been held for more than 60 s (" << keyTuningPrefix(i)
+                      << "), it is released when the motion falls back" << std::endl;
+        }
+        const ChannelAction &a = *slot[i].a;
+        const bool pos = st > 0;
+        if (pos ? a.posNone : a.negNone) continue;
+        if (const uint8_t m = pos ? a.posMouse : a.negMouse) {
+            mouse |= static_cast<uint8_t>(1u << m);
+            continue;
+        }
+        const ChordMods &mods = pos ? a.posMods : a.negMods;
+        for (uint8_t j = 0; j < mods.n; ++j) keys[idx(mods.k[j])] = true;
+        keys[idx(pos ? a.pos : a.neg)] = true;
+    }
     bool part_zoom = false;
     for (int i = 0; i < PART_COUNT; ++i)
         if (split[i / 2] && part_t[i] == ChannelActionType::Zoom && part_rate[i] != 0.0) part_zoom = true;
@@ -416,6 +486,7 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
     if (zooming || (!split[0] && tv == ChannelActionType::Zoom && rate_v != 0.0) ||
         (!split[1] && th == ChannelActionType::Zoom && rate_h != 0.0) || part_zoom)
         addZoomKeys(keys, s);
+    syncMouse(mouse);
     syncKeys(keys);
 
     int pressBudget = kMaxPressesPerTick;  // key presses of all functions together in this tick
@@ -433,9 +504,20 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
             if (nav_active) tapKeys(Key::Left, Key::Right, n);
             else out_->wheelH(n);
             break;
+        case ChannelActionType::Hold: break;  // held through the state above, never tapped
         case ChannelActionType::Step:
         case ChannelActionType::Keys:
             if (n > 0 ? a.posNone : a.negNone) break;  // "none" for this side: nothing is pressed
+            if (const uint8_t m = n > 0 ? a.posMouse : a.negMouse) {
+                // One click per press. A mouse button that is held by a binding or a hold is not clicked: its release would end
+                // that drag.
+                if ((mouse_held_ >> m) & 1) break;
+                for (int i = std::abs(n); i > 0 && pressBudget > 0; --i, --pressBudget) {
+                    out_->mouseButton(m, true);
+                    out_->mouseButton(m, false);
+                }
+                break;
+            }
             for (int i = std::abs(n); i > 0 && pressBudget > 0; --i, --pressBudget)
                 tapChord(n > 0 ? a.pos : a.neg, n > 0 ? a.posMods : a.negMods);
             break;

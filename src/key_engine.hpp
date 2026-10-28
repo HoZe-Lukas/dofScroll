@@ -10,7 +10,8 @@
 //                   below it, and it rests again at half of it.
 //   DigitalTrigger  digital (`step:<neg>,<pos>`): one press when |u| reaches the trigger on a side while that side is
 //                   armed, re-armed when |u| has fallen to half the trigger; the opposite side is another key and re-arms on
-//                   its own.
+//                   its own. The same state drives hold:<neg>,<pos> (stage 4): the key, chord or mouse button of the side is held
+//                   from the press until the re-arm at half the trigger.
 //
 // With the default parameters (no limit, no trigger set) both reproduce what ModeRunner did before this stage (the golden
 // master tests/test_golden_motions.cpp is the proof), except that the press count per tick is capped at 4 (it was 200).
@@ -97,6 +98,9 @@ public:
         return 0;
     }
     void reset() { state_ = 0; }
+    // 0 armed (rest), +1 / -1 deflected beyond the trigger on that side since the last press, not yet back at half of it.
+    // hold:<neg>,<pos> holds its key or button exactly while this is not 0.
+    int state() const { return state_; }
 
 private:
     int8_t state_ = 0;  // 0 armed, +1 / -1 fired on that side
