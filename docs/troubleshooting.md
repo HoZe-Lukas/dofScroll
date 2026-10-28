@@ -51,7 +51,7 @@ says "could not be started", the log (`journalctl --user -u dofscroll.service`, 
 the reason. A second daemon exits at once with "another dofscroll daemon is already running": that is
 the single-instance lock, not an error (stop the first one, or use it).
 
-1. Is `spacenavd` running? (The Linux packages enable it themselves; the guide shows the command if it is off.) `systemctl status spacenavd`. If not:
+1. Is `spacenavd` running? (The Linux packages do not enable it; they print the command, and the guide shows it if the service is off.) `systemctl status spacenavd`. If not:
    `sudo systemctl enable --now spacenavd`. The daemon starts without it and reconnects with a
    backoff of up to 5 s, so you need no restart.
 2. Does `spacenavd` see the device? Check `journalctl -u spacenavd` and that the device is

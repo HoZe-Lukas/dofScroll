@@ -2,8 +2,9 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # macOS packaging (experimental)
 
-Files for running the dofscroll daemon as a per-user LaunchAgent. There is no installer, `.pkg`
-or signed app bundle yet (work package W4); everything here works from a local build.
+Files for running the dofscroll daemon as a per-user LaunchAgent from a local build. CI also builds an
+unsigned, not notarized disk image for Apple silicon (`build-dmg.sh`, ad-hoc signed; first run:
+`README-first-run.txt`); there is no `.pkg` and no Developer ID signature yet.
 
 | File | Purpose |
 |---|---|

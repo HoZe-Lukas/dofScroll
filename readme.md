@@ -38,7 +38,7 @@ It consists of two programs. The Qt interface is the only tray and settings wind
 | Program | Task |
 |---|---|
 | `dofscroll` | Background daemon. Reads the SpaceMouse, produces the input events. |
-| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Overview, Profiles (tabs General, Channels, Motions and buttons, Overrides), Editor and Joystick modes with a visual editor (a picture of the cap: click a motion or button and choose what it does), Button modes, User modes, Device, Axes, Settings). Writes the same config file and tells the daemon to reload. See [docs/ui.md](docs/ui.md). |
+| `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Overview, Profiles (tabs General, Channels, Motions and buttons, Overrides), Editor and Joystick modes with a visual editor (a picture of the cap: click a motion or button and choose what it does), Button modes, User modes, Device, Axes, Settings). Writes the configuration files (`dofscroll.conf` and one file per profile in `devices/` and `apps/`) and tells the daemon to reload. See [docs/ui.md](docs/ui.md). |
 
 ## Design principle
 

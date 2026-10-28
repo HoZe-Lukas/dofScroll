@@ -99,8 +99,12 @@
 #include "pages/profiles_page.hpp"
 #include "pages/overview_page.hpp"
 #include "qt_action_runner.hpp"
+#include "signal_flush.hpp"
 #include "theme.hpp"
 #include "tray.hpp"
+#ifdef Q_OS_UNIX
+#include <signal.h>
+#endif
 #include "ui/model/tray_controller.hpp"
 #include "ui_i18n.hpp"
 #include "ui/model/design_tokens.hpp"
@@ -443,6 +447,21 @@ static bool modeLibrarySelfTest(UiContext ctx, const QString &tmpPath) {
     }
     const QString out = tmpPath + QStringLiteral("/exported-mine.conf");
     check(page.exportModeTo(QStringLiteral("mine"), out) && QFile::exists(out), "export writes a copy");
+    // issue #273: "replace" on export is an atomic overwrite; the old file stays when it cannot be replaced
+    check(!page.exportModeTo(QStringLiteral("mine"), out), "export does not overwrite by itself");
+    {
+        QFile old(out);
+        check(old.open(QIODevice::WriteOnly | QIODevice::Truncate) && old.write("old content\n") > 0, "write the old export");
+        old.close();
+        check(page.exportModeTo(QStringLiteral("mine"), out, true), "export replaces the file when the user confirmed");
+        QFile now(out);
+        check(now.open(QIODevice::ReadOnly) && !now.readAll().contains("old content"), "the new export has the new content");
+        const QString dirDest = tmpPath + QStringLiteral("/export-is-a-folder.conf");
+        QDir().mkpath(dirDest);
+        check(!page.exportModeTo(QStringLiteral("mine"), dirDest, true) && QDir(dirDest).exists(),
+              "a failed replace removes nothing");
+        QDir().rmdir(dirDest);
+    }
     // a dropped file goes through the same loader as Import; the id comes from the file name
     const int before = page.modeCount();
     check(page.importPath(out, false) && page.modeCount() == before + 1 && page.selectMode(QStringLiteral("exported-mine")),
@@ -463,6 +482,17 @@ static bool modeLibrarySelfTest(UiContext ctx, const QString &tmpPath) {
               QFile::exists(tmpPath + QStringLiteral("/modes/dropped-two.conf")),
           "rename moves the file and the id");
     check(!page.renameMode(QStringLiteral("normal"), QStringLiteral("Other")), "a built-in cannot be renamed");
+    // renaming a mode that is open in the editor writes its edits first and opens the editor on the new file
+    check(page.selectMode(QStringLiteral("dropped-two")) && page.openEditor(), "open the editor on a file mode");
+    check(page.renameMode(QStringLiteral("dropped-two"), QStringLiteral("Dropped Three")) &&
+              QFile::exists(tmpPath + QStringLiteral("/modes/dropped-three.conf")) &&
+              !QFile::exists(tmpPath + QStringLiteral("/modes/dropped-two.conf")),
+          "rename with the editor open moves the file");
+    check(qs8(page.editorWidget()->editor().form().id) == QStringLiteral("dropped-three"),
+          "the editor is open on the renamed mode");
+    page.flushEditor();
+    check(!QFile::exists(tmpPath + QStringLiteral("/modes/dropped-two.conf")), "nothing brings the old id back");
+    QFile::remove(tmpPath + QStringLiteral("/modes/dropped-three.conf"));
     // clean up what this test added
     for (const char *f : {"/modes/dropped-two.conf", "/modes/exported-mine.conf"})
         QFile::remove(tmpPath + QString::fromLatin1(f));
@@ -2842,6 +2872,31 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         std::optional<std::string> v = diskKey(rig, Section::GLOBAL, "", "ZOOM_MIX");
         check(v && *v == "rx", "the text is on disk after the flush of the quit path");
     }
+#ifdef Q_OS_UNIX
+    // SIGTERM (systemctl --user stop|restart, logout) flushes what is typed before the process ends (issue #273)
+    w.showPage(QStringLiteral("profiles"));
+    if (auto *e4 = qobject_cast<QLineEdit *>(ch->editorFor("ZOOM_MIX"))) {
+        typeInto(e4, QStringLiteral("ry"));
+        check(rig.saver()->pending(), "typed text pending before SIGTERM");
+        int seen = 0;
+        {
+            SignalFlush sf([&](int signo) {
+                seen = signo;
+                w.flushPending();
+            });
+            check(sf.active(), "the signal handler is installed");
+            ::raise(SIGTERM);
+            ::raise(SIGHUP);  // a burst is one call
+            settle();
+        }
+        check(seen == SIGTERM, "SIGTERM reached the event loop (and the process is still alive)");
+        check(!rig.saver()->pending(), "SIGTERM flushed the pending edit");
+        std::optional<std::string> v = diskKey(rig, Section::GLOBAL, "", "ZOOM_MIX");
+        check(v && *v == "ry", "the text is on disk after SIGTERM");
+        struct sigaction cur;
+        check(::sigaction(SIGTERM, nullptr, &cur) == 0 && cur.sa_handler == SIG_DFL, "the previous handler is restored");
+    }
+#endif
     std::printf("profile editor self-test: %s\n", ok ? "ok" : "failed");
     return ok;
 }
@@ -4016,23 +4071,31 @@ static bool setupGuideSelfTest(const QString &tmpPath) {
     d.show();
     d.waitIdle();
     settle();
-    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 1 && rec.calls.front().enable,
-          "the first run switches Start at login on through the runner");
-    check(d.autostartBox() && d.autostartBox()->isChecked() && d.autostartBox()->isEnabled(), "the check box is on by default");
+    // issue #276: opening the guide changes nothing in the system; the box shows the default and the step says what will happen
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 0, "no system change at construction");
+    check(d.autostartBox() && d.autostartBox()->isChecked() && d.autostartBox()->isEnabled(), "the check box is ticked by default and usable");
+    check(!d.autostartBox()->accessibleDescription().isEmpty(), "the check box says that nothing changes before Finish");
     const spn::ui::SetupStep *autoStep = d.step(QStringLiteral("autostart"));
-    check(autoStep && autoStep->state == spn::ui::StepState::Done, "Start at login is done");
+    check(autoStep && autoStep->state == spn::ui::StepState::Todo && autoStep->text.find("Finish") != std::string::npos,
+          "Start at login is not done yet: it will be switched on with Finish");
     const spn::ui::SetupStep *daemonStep = d.step(QStringLiteral("daemon"));
     check(daemonStep && daemonStep->state == spn::ui::StepState::Problem, "no heartbeat: the daemon step needs attention");
     check(d.actionButtonOf(QStringLiteral("daemon")) != nullptr, "...with a Start now button");
     d.actionButtonOf(QStringLiteral("daemon"))->click();
     check(rec.count(spn::ui::RecordingActionRunner::Kind::StartDaemon) == 1, "Start now asks the runner to start the daemon");
     check(d.step(QStringLiteral("tryit")) && d.step(QStringLiteral("tryit"))->state == spn::ui::StepState::Info, "Try it is information");
-    // unticking switches it off at once
+    // clicking the box only records a choice: still no system change, in both directions
     d.autostartBox()->click();
     d.waitIdle();
-    check(rec.calls.back().kind == spn::ui::RecordingActionRunner::Kind::SetAutostart && !rec.calls.back().enable &&
-              !d.autostartBox()->isChecked() && d.step(QStringLiteral("autostart"))->state == spn::ui::StepState::Todo,
-          "unticking Start at login switches it off");
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 0 && !d.autostartBox()->isChecked() &&
+              d.step(QStringLiteral("autostart"))->state == spn::ui::StepState::Todo,
+          "unticking Start at login changes nothing in the system");
+    d.autostartBox()->click();
+    d.waitIdle();
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 0 && d.autostartBox()->isChecked(),
+          "ticking it again changes nothing either");
+    // the box can be operated with the keyboard (Space) and is reachable by Tab
+    check(d.autostartBox()->focusPolicy() & Qt::TabFocus, "the check box takes the keyboard focus");
     // a live heartbeat without a device: the daemon is done, the device is not (spacenavd off: the command)
     rec.spacenavd = spn::ui::ServiceState::Inactive;
     st.update(guideStatusText(QString()).toStdString(), true, std::time(nullptr));
@@ -4060,12 +4123,73 @@ static bool setupGuideSelfTest(const QString &tmpPath) {
     // Skip and Finish: once each, the dialog hides
     d.skipButton()->click();
     check(skipped == 1 && finished == 0 && !d.isVisible(), "Skip closes the guide");
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 0, "Skip changes nothing in the system");
     d.show();
-    d.finishButton()->click();
+    d.finishButton()->click();  // ticked: the system is changed now, and only now
+    d.waitIdle();
+    settle();
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 1 && rec.calls.back().enable,
+          "Finish with the box ticked switches Start at login on, once");
     check(skipped == 1 && finished == 1 && !d.isVisible(), "Finish closes the guide");
     d.show();
     d.close();  // the close button (Escape does the same through reject)
     check(skipped == 2 && !d.isVisible(), "the close button counts as Skip, once");
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 1, "closing changes nothing in the system");
+    {
+        // a first run that is cancelled with the box ticked (the default): the system stays as it was
+        GuideRunner r7;
+        UiContext c7 = c;
+        c7.runner = &r7;
+        auto reader7 = [&r7](std::string *) { return static_cast<spn::autostart::AutostartState>(r7.autostart.load()); };
+        SetupGuideDialog d7(c7, nullptr, true, nullptr, reader7);
+        d7.show();
+        d7.waitIdle();
+        d7.close();
+        d7.waitIdle();
+        check(r7.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 0 && r7.autostart.load() == static_cast<int>(spn::autostart::AutostartState::Disabled),
+              "Escape or the close button on a first run does not enable Start at login");
+        // already on, the user unticks and confirms: switched off; opened later without a click: nothing
+        GuideRunner r8;
+        r8.autostart = static_cast<int>(spn::autostart::AutostartState::Enabled);
+        UiContext c8 = c;
+        c8.runner = &r8;
+        auto reader8 = [&r8](std::string *) { return static_cast<spn::autostart::AutostartState>(r8.autostart.load()); };
+        {
+            SetupGuideDialog d8(c8, nullptr, false, nullptr, reader8);
+            d8.show();
+            d8.waitIdle();
+            check(d8.autostartBox()->isChecked(), "opened later: the box shows the state of the system");
+            d8.finishButton()->click();
+            d8.waitIdle();
+            check(r8.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 0, "Finish without a click changes nothing");
+        }
+        {
+            SetupGuideDialog d9(c8, nullptr, true, nullptr, reader8);
+            d9.show();
+            d9.waitIdle();
+            d9.autostartBox()->click();
+            d9.finishButton()->click();
+            d9.waitIdle();
+            settle();
+            check(r8.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 1 && !r8.calls.back().enable,
+                  "unticked and confirmed: Start at login is switched off");
+        }
+        // a change that fails keeps the guide open and says why
+        GuideRunner r9;
+        r9.result = false;
+        UiContext c9 = c;
+        c9.runner = &r9;
+        auto reader9 = [&r9](std::string *) { return static_cast<spn::autostart::AutostartState>(r9.autostart.load()); };
+        SetupGuideDialog d10(c9, nullptr, true, nullptr, reader9);
+        int fin10 = 0;
+        QObject::connect(&d10, &SetupGuideDialog::finishRequested, [&] { ++fin10; });
+        d10.show();
+        d10.waitIdle();
+        d10.finishButton()->click();
+        d10.waitIdle();
+        settle();
+        check(fin10 == 0 && d10.isVisible(), "a failed change keeps the guide open");
+    }
 
     // ---- in the window: shown at the first start, remembered, shown again from the Overview
     {
@@ -4269,7 +4393,8 @@ int main(int argc, char **argv) {
         w.show();
         // Light at three sizes, dark at the medium size (the layout does not depend on the colours).
         static const struct { const char *theme; const char *name; int w, h; } shots[] = {
-            {"light", "small", 720, 480}, {"light", "medium", 960, 560}, {"light", "wide", 1500, 820}, {"dark", "medium", 960, 560}};
+            {"light", "small", 720, 480}, {"light", "medium", 960, 560}, {"light", "wide", 1500, 820}, {"dark", "medium", 960, 560},
+            {"light", "default", spn::ui::tokens::kDefaultWindowWidth, spn::ui::tokens::kDefaultWindowHeight}, {"dark", "default", spn::ui::tokens::kDefaultWindowWidth, spn::ui::tokens::kDefaultWindowHeight}};
         int written = 0;
         for (const auto &sz : shots) {
             applyTheme(spn::ui::themeFromId(sz.theme));
@@ -4592,6 +4717,13 @@ int main(int argc, char **argv) {
     }
     Tray tray(&window, icon, ctx);
     tray.show();
+    // SIGTERM, SIGINT, SIGHUP (systemctl --user stop|restart, logout, Ctrl-C): the pending edits are written, the
+    // window state is saved, then the program quits (issue #273).
+    SignalFlush signalFlush([&](int) {
+        window.flushPending();
+        window.saveWindowState();
+        app.quit();
+    });
     // The daemon is started from here when none runs (after the grace period of a login autostart,
     // src/ui/model/daemon_autostart.hpp): the first start after installing is "open dofscroll from the menu".
     DaemonStarter starter(runner, ctx.runtimeDir);

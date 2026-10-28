@@ -6005,3 +6005,16 @@ msgstr "Halten"
 #: src/ui/model/motion_summary_model.hpp
 msgid "One click per push: %1 / %2"
 msgstr "Ein Klick pro Schub: %1 / %2"
+
+#: src/ui/qt/pages/setup_guide_dialog.cpp
+msgid "Nothing is changed until you press Finish."
+msgstr "Nichts wird geändert, bevor du auf „Fertig“ drückst."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "dofscroll will start when you log in. This is switched on when you press Finish; untick the box to leave it off."
+msgstr "dofscroll startet, wenn du dich anmeldest. Das wird eingeschaltet, wenn du auf „Fertig“ drückst; nimm das Häkchen weg, um es auszulassen."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Start at login will be switched off when you press Finish; tick the box to keep it on."
+msgstr "„Beim Anmelden starten“ wird ausgeschaltet, wenn du auf „Fertig“ drückst; setze das Häkchen, um es eingeschaltet zu lassen."
+

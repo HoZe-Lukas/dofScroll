@@ -17,7 +17,8 @@ This build is NOT signed with an Apple Developer ID and NOT notarized. It is sig
 3. That is the whole first start: opening dofscroll starts the daemon by itself and shows a short setup
    guide. You do not run a script or a command. The guide
    - checks live that dofscroll is running and that the SpaceMouse is found,
-   - has "Start at login" (switched on by default; a per-user LaunchAgent, no administrator rights),
+   - has "Start at login" (a check box, ticked by default; a per-user LaunchAgent, no administrator rights; it is
+     switched on only when you press Finish, nothing changes before that or when you skip the guide),
    - has one row for each permission (System Settings > Privacy & Security), with a button that opens the
      matching pane and a note while macOS does not accept the events:
        Input Monitoring: needed to read the SpaceMouse.

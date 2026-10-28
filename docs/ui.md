@@ -100,7 +100,7 @@ button with `setProperty("primary", true)`, a check box that is one of several c
 
 Every page sits in a scroll area: in a small window text stays readable and controls keep their
 size, and the page scrolls (horizontally only as a last resort) instead of squashing. Info,
-status and help labels wrap. The default window is 1560x1040 (clamped to the screen); the saved
+status and help labels wrap. The default window is 1800x1100 (clamped to 92 % of the available screen; the list | editor splitters of the Profiles, Joystick modes and Button modes pages start proportional, with at least 65 % of the width for the editor side); the saved
 geometry (saved a moment after every resize or move, and when the window closes) wins, the smallest size is 720x480.
 
 The mouse wheel never changes a combo box, spin box or slider, anywhere (also in dialogs): one
@@ -168,7 +168,7 @@ With one lane per device (Windows and macOS, direct HID; [multi-device.md](multi
   profile list on the Profiles page shows the same number after the name). The tooltip of a card
   lists all its settings, not only the first ones shown in the summary.
 - On a very wide window the Overview and the Channels tab stop at a maximum content width
-  (`kMaxContentWidth` in `src/ui/model/design_tokens.hpp`) and stay centered.
+  (1500 px, `kMaxContentWidth` in `src/ui/model/design_tokens.hpp`) and stay centered.
 
 
 ## Editing a joystick mode
@@ -458,7 +458,7 @@ toolkit-free (colour tokens in `src/ui/model/theme_colors.hpp`); the Qt checks a
 | Colour alone | Every error, warning and success message starts with a symbol (error, warning sign, check mark; `src/ui/model/status_text.hpp`) and keeps its words ("Could not save: ...", "Invalid value: ...", "Warning: ...", "Saved"): the hint under a field, the problem lists of the joystick mode and button mode editors, the Settings messages and the footer, which also uses the status colours (red, orange, green). "Inherited from ..." and "Set in this profile" are words; on/off is a switch with a knob position, not only a colour | `test_ui_status_text`, `--self-test` (problem next to the field has its symbol), review rule |
 | Colour-vision deficiencies | Status, accent, focus and border colours keep 3:1 luminance contrast after a protanopia, deuteranopia and tritanopia simulation (Machado matrices); selected text keeps 7:1 | `test_ui_theme` (`simulateCvd`) |
 | Operating system | System follows the platform palette (light or dark). A high-contrast request (the Qt contrast preference where Qt provides it, Windows high-contrast mode) switches the style sheet off so that the platform palette is shown unchanged. On other systems or older Qt nothing is detected | code review; needs a human on the platform |
-| Font size | The base font is the system font (plus 8%); the interface has no fixed pixel font sizes. The lengths of the style sheet (padding, heights, radii, indicator sizes) are in em, converted from the design pixels at a reference font of 14 px (`src/ui/model/qss_scale.hpp`), so the geometry follows the font size of the system; border widths stay in pixels. At 150% and 200% font size and in a window of 560 px, in the System theme and in the Light theme, no label or button is cut off: a page that is too narrow scrolls (the scroll bar appears only then); at the normal font size in the normal window no page shows a horizontal scroll bar (the normal window is the first-start size of 1560 x 1040 px; on a smaller screen it is cut to 90 % of the screen and a page may scroll, as it may in a window you made smaller) | `test_ui_qss_scale`, self-test "font scale" |
+| Font size | The base font is the system font (plus 8%); the interface has no fixed pixel font sizes. The lengths of the style sheet (padding, heights, radii, indicator sizes) are in em, converted from the design pixels at a reference font of 14 px (`src/ui/model/qss_scale.hpp`), so the geometry follows the font size of the system; border widths stay in pixels. At 150% and 200% font size and in a window of 560 px, in the System theme and in the Light theme, no label or button is cut off: a page that is too narrow scrolls (the scroll bar appears only then); at the normal font size in the normal window no page shows a horizontal scroll bar (the normal window is the first-start size of 1800 x 1100 px; on a smaller screen it is cut to 92 % of the screen and a page may scroll, as it may in a window you made smaller) | `test_ui_qss_scale`, self-test "font scale" |
 | Motion | The interface has no animations, so there is nothing to reduce | none needed |
 | Screen readers, keyboard | Every input has an accessible name; the tab order follows the layout (no jump back up inside a column); the arrow keys, Home and End move between the left categories (the current one shows the focus ring); every "i" info button takes Tab focus and opens its popover with Space or Enter, the popover has an accessible name and Esc closes it; Escape closes dialogs | `accessibility`, `keyboard` and `sidebar focus` self-tests |
 

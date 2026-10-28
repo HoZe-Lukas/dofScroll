@@ -19,11 +19,13 @@ A release is built and published by GitHub Actions when a tag `v<version>` is pu
    `docs/release-notes-x.y.z.md` (see "Release notes" below) and merge both to `main`; wait for CI to be green.
 4. Tag and push: `git tag v<x.y.z> && git push origin v<x.y.z>`
    (a suffix such as `v0.2.0-rc1` is allowed; the tag must start with the CMake version).
+   (With the `creation` rule of "Protecting the release" below, only an administrator and the `tag-release` workflow can create the tag.)
    Without a shell (for example on a phone), run the workflow `tag-release` from the Actions tab or the GitHub
    app on branch `main` with the version (for example `1.2.2`): it checks the version against `CMakeLists.txt`
    and that the checks of the tip of `main` are green, creates the tag there and starts the `ci` run on it.
 5. The workflow `.github/workflows/ci.yml` runs all checks, builds RPM, DEB and TGZ packages,
-   writes `SHA256SUMS.txt`, attests the build provenance of every file (signed with Sigstore, needs
+   the `release` job waits for the approval of the environment `release` and runs the release gate (the tagged commit is on
+   `main`, the required checks are green), writes `SHA256SUMS.txt`, attests the build provenance of every file (signed with Sigstore, needs
    no secret) and creates the GitHub Release with generated notes. Versions `0.x` and
    tags with a suffix are marked as pre-release.
 6. Users download the files from the repository's **Releases** page
@@ -38,6 +40,55 @@ Windows and macOS installers (unsigned) are built by the same workflow; see
 
 If the tag does not match the CMake version the release job fails before publishing anything.
 A failed release can be repeated by deleting the tag and the draft release and tagging again.
+
+## Protecting the release (set by the maintainer, by hand)
+
+The workflow side is in the repository: the `release` job of `ci.yml` has `environment: release`, and its first step
+`scripts/release-gate.sh` refuses to publish unless the tagged commit is an ancestor of `origin/main` and every status
+check that the ruleset `main branch` requires (`.github/rulesets/main.json`) is green on that commit (the newest finished
+run of each name must be `success`; a skipped or missing check is not green). A tag pushed on a side branch, or on a
+commit whose checks failed, therefore never produces a release. The gate cannot stop a person from pushing the tag; the
+repository settings below do that. **They are repository settings and are not changed by any workflow or script
+of the repository; the maintainer sets them once, by hand** (`scripts/configure-repo.sh --apply` would also apply
+`.github/rulesets/tags.json`; read the notes below before running it).
+
+1. **Environment `release` with a required reviewer and a tag rule.** Settings > Environments > New environment, name
+   `release`; tick **Required reviewers** and add the maintainer; under **Deployment branches and tags** choose
+   *Selected branches and tags* and add a rule of type **Tag** with the pattern `v*`. With one maintainer leave
+   **Prevent self-review** off (otherwise nobody can approve). From then on the release job waits for an approval in the
+   Actions run before it publishes. The same with the CLI (`26377753` is the numeric id of the maintainer's account;
+   check it with `gh api users/HoZe-Lukas --jq .id`):
+
+        gh api -X PUT repos/HoZe-Lukas/dofScroll/environments/release \
+          -F 'reviewers[][type]=User' -F 'reviewers[][id]=26377753' \
+          -F 'deployment_branch_policy[protected_branches]=false' \
+          -F 'deployment_branch_policy[custom_branch_policies]=true'
+        gh api -X POST repos/HoZe-Lukas/dofScroll/environments/release/deployment-branch-policies \
+          -f name='v*' -f type=tag
+
+2. **Only the maintainer and the release workflow may create `v*` tags.** Settings > Rules > Rulesets > `release tags`:
+   tick **Restrict creations** and put **two** actors on the **Bypass list**, both with mode *Always*: *Repository admin*
+   (the maintainer) and the *GitHub Actions* app (so `tag-release.yml` keeps working). Nobody else can create a `v*`
+   tag. The checked-in copy `.github/rulesets/tags.json` documents exactly that (rules `creation`, `deletion`,
+   `non_fast_forward`; bypass actors: role id 5 = repository admin, and the integration `github-actions`, app id
+   15368). It is documentation of the live ruleset; to apply it by hand:
+
+        id=$(gh api repos/HoZe-Lukas/dofScroll/rulesets --jq '.[] | select(.name == "release tags") | .id')
+        gh api -X PUT repos/HoZe-Lukas/dofScroll/rulesets/$id --input .github/rulesets/tags.json
+
+   The Actions app bypass is deliberate: `tag-release` creates the tag with the repository token, which the `creation`
+   rule would otherwise block. The real protection is not the tag creation but the release job: its gate (tagged
+   commit is an ancestor of `main`, required checks green) and the approval of the `release` environment (step 1)
+   must both pass before anything is published.
+
+3. **Immutable releases.** Settings > General > Releases > **Enable release immutability** (also reachable as "Immutable
+   releases" in the repository settings). A release published afterwards cannot get files added or changed, and its
+   tag cannot be moved or deleted. The `release` job therefore creates the release as a draft, attaches all files, and
+   only then publishes it (`gh release edit --draft=false`).
+
+Check after setting them: push a test tag such as `v0.0.0-test1` from a non-admin account (it must be refused), and
+run the release workflow on a tag that is not on `main` (the job must stop at the release gate, after you approved the
+environment). Delete the test tag with an admin account.
 
 ## Release notes
 

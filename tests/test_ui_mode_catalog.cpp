@@ -6,6 +6,10 @@
 #include <iterator>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 #include <string>
 
 #include "builtin_counts.hpp"
@@ -222,6 +226,35 @@ int main() {
         assert(c.exportTo("exp", out).ok && tu::exists(out));
         assert(!c.exportTo("exp", out).ok);  // never overwrites
         assert(!c.exportTo("nope", root + "/x.conf").ok && !c.exportTo("exp", "").ok);
+        // overwrite (the user confirmed "replace"): atomic, the old file is never removed first (issue #273)
+        put(out, "old content that must be replaced\n");
+        assert(!c.exportTo("exp", out).ok);  // still the default: never overwrites
+        {
+            std::string t;
+            assert(spn::fs::readFileBounded(out, 4096, spn::fs::ReadOptions(), &t).ok() && t.find("old content") != std::string::npos);
+        }
+        assert(c.exportTo("exp", out, true).ok);
+        {
+            std::string t;
+            assert(spn::fs::readFileBounded(out, 4096, spn::fs::ReadOptions(), &t).ok() && t.find("BUTTON_1") != std::string::npos &&
+                   t.find("old content") == std::string::npos);
+        }
+        // a failing overwrite keeps the old file: a directory at the destination is refused, nothing is removed
+        const std::string odir = root + "/is-a-dir.conf";
+        std::filesystem::create_directories(odir);
+        assert(!c.exportTo("exp", odir, true).ok && tu::exists(odir));
+#ifndef _WIN32
+        // a link at the destination is not followed, the file behind it is not touched
+        const std::string target = root + "/link-target.conf";
+        put(target, "target\n");
+        const std::string lnk = root + "/link.conf";
+        assert(::symlink(target.c_str(), lnk.c_str()) == 0);
+        assert(!c.exportTo("exp", lnk, true).ok);
+        {
+            std::string t;
+            assert(spn::fs::readFileBounded(target, 4096, spn::fs::ReadOptions(), &t).ok() && t == "target\n");
+        }
+#endif
         // the export is a valid mode file for the importer
         assert(c.inspectImport(out, "exp-again").ok);
         // a built-in is exported as its template

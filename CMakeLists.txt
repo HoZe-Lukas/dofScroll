@@ -336,7 +336,7 @@ add_custom_target(install-udev COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_SOURCE_DIR
                   -P ${CMAKE_SOURCE_DIR}/cmake/InstallUdev.cmake USES_TERMINAL VERBATIM)
 add_custom_target(uninstall COMMAND ${CMAKE_COMMAND}
                   -DMANIFEST=${CMAKE_BINARY_DIR}/install_manifest.txt
-                  -P ${CMAKE_SOURCE_DIR}/cmake/Uninstall.cmake USES_TERMINAL VERBATIM)
+                  -DPREFIX=${CMAKE_INSTALL_PREFIX} -P ${CMAKE_SOURCE_DIR}/cmake/Uninstall.cmake USES_TERMINAL VERBATIM)
 
 # ---- install ----------------------------------------------------------------
 if(NOT DOFSCROLL_CORE_ONLY)
@@ -365,6 +365,16 @@ if(BUILD_TESTING)
   if(SH_EXECUTABLE)  # upgrade: stop before the files are replaced, start the same units again afterwards
     add_test(NAME preinst_postinst_upgrade
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_preinst_upgrade.sh ${CMAKE_SOURCE_DIR})
+  endif()
+  if(SH_EXECUTABLE)  # release gate of the tag build: ancestor of main, required checks green (fake gh)
+    add_test(NAME release_gate
+             COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_release_gate.sh ${CMAKE_SOURCE_DIR})
+  endif()
+  if(SH_EXECUTABLE)  # own SHA-256 list of the Qt archives, and the advisory check of the bundled libraries (#265)
+    add_test(NAME qt_archive_hashes
+             COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_qt_archive_hashes.sh ${CMAKE_SOURCE_DIR})
+    add_test(NAME bundled_advisories
+             COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_bundled_advisories.sh ${CMAKE_SOURCE_DIR})
   endif()
   if(SH_EXECUTABLE)  # the six-motion table of the built-in joystick modes must match the definitions
     add_test(NAME docs_motions

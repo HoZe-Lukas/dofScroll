@@ -3,8 +3,9 @@
 // The first-run setup guide (src/ui/model/setup_guide_model.hpp): a dialog with a few steps and live
 // checks (daemon running, SpaceMouse found, Start at login, on macOS the two permissions, Try it).
 // Shown with the settings window at the first start, and again from the Overview ("Show setup guide").
-// Nothing is saved by a button: "Skip" and "Finish" only close it (the model remembers that it was
-// seen); the check box "Start at login" is applied at once.
+// "Skip" and "Finish" close it (the model remembers that it was seen). Nothing in the system is changed while the
+// dialog is open or when it is skipped: the check box "Start at login" only records a wish (AutostartConsent,
+// src/ui/model/setup_guide_model.hpp), and "Finish" applies it (issue #276).
 #pragma once
 #include <QDialog>
 #include <QPointer>
@@ -34,7 +35,8 @@ class SetupGuideDialog : public QDialog {
 public:
     using AutostartReader = std::function<spn::autostart::AutostartState(std::string *detail)>;
 
-    // firstRun: switch "Start at login" on now (the default of the guide); otherwise only read its state.
+    // firstRun: the check box "Start at login" starts ticked (the default of the guide); otherwise it shows the state
+    // of the system. Either way nothing is changed before "Finish" is pressed.
     // `starter` (may be null) tells whether the daemon is still being started. ctx and starter must outlive the dialog.
     // `reader`: where the state of "Start at login" is read from (default: the platform's queryAutostart; tests).
     SetupGuideDialog(const UiContext &ctx, const DaemonStarter *starter, bool firstRun, QWidget *parent = nullptr,
@@ -79,7 +81,8 @@ private:
     };
     void build(const std::vector<spn::ui::SetupStep> &first);
     void runAction(spn::ui::StepAction a);
-    void runAutostart(bool change, bool enable);
+    void runAutostart(bool change, bool enable);  // reads the state; with `change` first applies it (only from Finish)
+    void finishNow();
     void onAutostartDone(const AutoResult &r);
     void update(const std::vector<spn::ui::SetupStep> &steps);
 
@@ -94,7 +97,8 @@ private:
     QTimer *timer_ = nullptr;
     QPointer<QThread> thread_;
     AutostartReader reader_;
-    bool busy_ = false, closing_ = false;
+    bool busy_ = false, closing_ = false, finishing_ = false;
+    spn::ui::AutostartConsent consent_;
     // the last state read for "Start at login"
     bool autostartKnown_ = false, autostartOn_ = false;
     std::string autostartDetail_;

@@ -8,7 +8,7 @@
 #  2. aqtinstall is installed with hashes only, and packaging/ci/aqt-requirements.txt pins the
 #     AQT_VERSION of packaging/qt.env, every package with at least one hash;
 #  3. refresh-ci-pins.yml keeps code from registries away from the write token (two jobs, no `git add -A`);
-#  4. the release job attests the artifacts with a commit-pinned action and has the permissions for it.
+#  4. the release job has the environment "release", runs scripts/release-gate.sh (checks: read) and attests the artifacts with a commit-pinned action and has the permissions for it.
 # Usage: scripts/check-ci-pins.sh
 set -eu
 cd "$(dirname "$0")/.."
@@ -63,6 +63,26 @@ for p in 'id-token: write' 'attestations: write'; do
   n="$(grep -c "$p" .github/workflows/ci.yml)"
   [ "$n" = 1 ] || bad "ci.yml: '$p' must appear exactly once (only the release job), found $n"
 done
+
+# 5. release gate: environment, gate step and the read permission, only in the release job (issue #263)
+grep -q -E '^    environment: release$' .github/workflows/ci.yml \
+  || bad "ci.yml: the release job must have 'environment: release'"
+grep -q -E 'run: sh scripts/release-gate\.sh "\$GITHUB_SHA"' .github/workflows/ci.yml \
+  || bad "ci.yml: the release job must run scripts/release-gate.sh"
+n="$(grep -c 'environment:' .github/workflows/ci.yml)"
+[ "$n" = 1 ] || bad "ci.yml: 'environment:' must appear exactly once (only the release job), found $n"
+grep -q -E '^      checks: read ' .github/workflows/ci.yml || bad "ci.yml: the release job needs 'checks: read' for the gate"
+grep -q 'creation' .github/rulesets/tags.json || bad ".github/rulesets/tags.json: the creation rule is missing"
+grep -q '"Integration"' .github/rulesets/tags.json || bad ".github/rulesets/tags.json: the GitHub Actions app must be a bypass actor (tag-release.yml)"
+
+# 6. Qt archives: every aqt install-qt keeps its archives and is followed by the hash check (issue #265)
+inst="$( { grep -rn -E 'aqt"?( |/aqt")? ?install-qt |aqt install-qt ' .github/workflows packaging/ci/rocky9.Dockerfile packaging/ci/debian12-qt.sh 2>/dev/null || true; } \
+  | grep -v -E '^[^:]*:[0-9]+: *#' | grep -v -e 'qt-update-check' -e 'qt-archive-hashes.yml' || true)"
+n_inst="$(printf '%s\n' "$inst" | grep -c 'install-qt ' || true)"
+n_keep="$(printf '%s\n' "$inst" | grep -c -e '--keep --archive-dest' || true)"
+n_ver="$(grep -rn -E 'qt-archive-hashes\.sh"? verify' .github/workflows packaging/ci/rocky9.Dockerfile packaging/ci/debian12-qt.sh | grep -v -E ':[0-9]+: *#' | grep -c . || true)"
+[ "$n_inst" -gt 0 ] && [ "$n_inst" = "$n_keep" ] && [ "$n_inst" = "$n_ver" ] \
+  || bad "every 'aqt install-qt' needs '--keep --archive-dest' and a 'qt-archive-hashes.sh verify' (found $n_inst installs, $n_keep with --keep, $n_ver checks)"
 
 [ "$fail" -eq 0 ] || exit 1
 echo "check-ci-pins: ok"

@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#
+# Weekly check (issue #265): the Linux packages bundle libraries of the build distribution (libpng, libxml2, freetype,
+# harfbuzz, fontconfig, glib, dbus, libxcb, libX11, ...), frozen at build time. This job reads the inventory
+# bundled-libraries.txt of the newest release (the TGZ), asks the pinned Rocky Linux 9 image for its security
+# advisories (`dnf updateinfo list --security --all`) and warns when an advisory fixes a bundled package in a newer
+# version (scripts/check-bundled-advisories.sh). Informational: it never fails the build; a warning means "rebuild and
+# release" (docs/release-process.md). Covers the RPM and TGZ (Rocky); the DEB bundles Debian libraries and is not covered.
+name: bundled-libs-advisories
+
+on:
+  schedule:
+    - cron: "43 5 * * 1"   # weekly, Monday 05:43 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Third-party actions are pinned to full commit SHAs (tag in the comment).
+#   actions/checkout = v7.0.1
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Inventory of the newest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p rel
+          if ! gh release download --repo "$GITHUB_REPOSITORY" --pattern 'dofscroll-*-Linux.tar.gz' --dir rel; then
+            echo "::notice::no release with a Linux TGZ yet: nothing to check"
+            echo "No release with a Linux TGZ yet." >> "$GITHUB_STEP_SUMMARY"
+            echo "skip=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          tar -xzf rel/dofscroll-*-Linux.tar.gz -C rel --wildcards '*/bundled-libraries.txt'
+          cp "$(find rel -name bundled-libraries.txt | head -n 1)" bundled-libraries.txt
+          echo "Release: $(basename rel/dofscroll-*-Linux.tar.gz)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Security advisories of the build distribution (pinned image)
+        if: env.skip != '1'
+        run: |
+          . packaging/ci/images.env
+          docker run --rm "$ROCKY9_IMAGE" sh -c 'dnf -y -q updateinfo list --security --all 2>/dev/null' > updateinfo.txt || true
+          echo "advisory lines: $(wc -l < updateinfo.txt)"
+      - name: Compare
+        if: env.skip != '1'
+        run: |
+          if [ ! -s updateinfo.txt ]; then
+            echo "::warning::could not read the security advisories of the build image"
+            exit 0
+          fi
+          rc=0
+          sh scripts/check-bundled-advisories.sh bundled-libraries.txt updateinfo.txt > findings.txt || rc=$?
+          if [ "$rc" = 3 ]; then
+            while IFS= read -r l; do echo "::warning::bundled library with a newer security fix: $l"; done < findings.txt
+            { echo "### Bundled libraries with a newer security fix"; echo; sed 's/^/- /' findings.txt; echo; echo "Rebuild and release (docs/release-process.md)."; } >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$rc" = 0 ]; then
+            echo "No bundled library has a newer security advisory." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::the advisory check failed (exit $rc)"
+          fi

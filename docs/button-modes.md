@@ -92,7 +92,8 @@ in that file":
 
 It works wherever `BUTTON_<n>` works: in `[global]`, `[device:*]`, `[app:*]` and in joystick mode
 files. **The precedence does not change**: a binding in the active joystick mode file wins over `BUTTON_<n>`
-of the resolved profile, and the profile order is global < device < joystick mode overrides < app.
+of `[global]` and `[device:*]`, but a `BUTTON_<n>` of an `[app:*]` profile wins over the joystick mode; the profile order is
+global < device < joystick mode overrides < app.
 
 The daemon replaces the reference by the action of the file when it applies a profile; this
 happens at runtime only. The configuration and the joystick mode files keep the text `buttonmode:<id>`, and the

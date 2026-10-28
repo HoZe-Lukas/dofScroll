@@ -34,6 +34,7 @@
 #include "ui/model/mode_info_model.hpp"
 #include "motion_view.hpp"
 #include "ui/model/motion_summary_model.hpp"
+#include "split_defaults.hpp"
 #include "theme.hpp"
 #include "ui/model/design_tokens.hpp"
 #include "platform/fs.hpp"
@@ -221,7 +222,8 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     split->setStretchFactor(0, 1);
     split->setStretchFactor(1, 2);
     split->setChildrenCollapsible(false);
-    split->setSizes({380, 560});
+    split->setSizes({380, 760});
+    new spn::ui::SplitDefaults(split, 30, 300);
     connect(split, &QSplitter::splitterMoved, this, [this] { list_->doItemsLayout(); });
     row->addWidget(split, 1);
 
@@ -688,8 +690,9 @@ void ModesPage::onDelete() {
     populate(id);  // an overridden built-in is selected again, else the first entry
 }
 
-bool ModesPage::exportModeTo(const QString &id, const QString &dest) {
-    const ModeCatalog::Result r = catalog_.exportTo(id.toStdString(), dest.toStdString());
+bool ModesPage::exportModeTo(const QString &id, const QString &dest, bool overwrite) {
+    flushEditor();  // the copy holds the last change (issue #273)
+    const ModeCatalog::Result r = catalog_.exportTo(id.toStdString(), dest.toStdString(), overwrite);
     lastError_ = QString::fromStdString(r.error);
     return r.ok;
 }
@@ -698,20 +701,25 @@ void ModesPage::onExport() {
     const ModeCatalog::ModeEntry *m = current();
     if (!m) return;
     const QString id = QString::fromStdString(m->id);
-    // The dialog asks before replacing; the model never overwrites, so an existing file is removed first.
+    // The dialog asks before replacing; a file that exists then is replaced atomically by the export itself, so a failed
+    // export leaves the old file as it was (it is never removed first).
     const QString file = QFileDialog::getSaveFileName(this, T("Export joystick mode file"),
                                                       QDir::homePath() + QLatin1Char('/') + id + QStringLiteral(".conf"),
                                                       T("Joystick mode files (*.conf);;All files (*)"));
     if (file.isEmpty()) return;
-    if (QFileInfo::exists(file) && !QFile::remove(file)) return showError(T("Could not export the joystick mode."), file.toStdString());
-    if (!exportModeTo(id, file)) showError(T("Could not export the joystick mode."), lastError_.toStdString());
+    if (!exportModeTo(id, file, QFileInfo::exists(file))) showError(T("Could not export the joystick mode."), lastError_.toStdString());
 }
 
 bool ModesPage::renameMode(const QString &id, const QString &newName) {
+    // The edits of the editor go into the file that is renamed; an editor that shows this mode is opened again on the
+    // new file afterwards, so it never writes to the old path (which would bring the old id back, issue #273).
+    flushEditor();
+    const bool editing = right_->currentWidget() == editor_ && qs8(editor_->editor().form().id) == id;
     const ModeCatalog::Result r = catalog_.rename(id.toStdString(), newName.toStdString());
     lastError_ = QString::fromStdString(r.error);
     if (!r.ok) return false;
     populate(QString::fromStdString(r.id));
+    if (editing && !openEditor()) right_->setCurrentWidget(detail_);
     return true;
 }
 

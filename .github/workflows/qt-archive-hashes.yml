@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#
+# Records our own SHA-256 of every Qt archive that the release builds download (issue #265): start it by hand
+# (Actions > qt-archive-hashes > Run workflow) after changing QT_VERSION in packaging/qt.env, review the result, and
+# commit the artifact `qt-archives.sha256` as packaging/ci/qt-archives.sha256. The builds then check every archive against
+# that list (packaging/ci/qt-archive-hashes.sh). It writes nothing to the repository; the token is read only.
+# Trust: the hashes are taken from what download.qt.io serves NOW. Compare them with a second source if you can (another
+# network, the Qt mirror list) before you commit them; a reviewed commit is the point, not the download.
+name: qt-archive-hashes
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Third-party actions are pinned to full commit SHAs (tag in the comment).
+#   actions/checkout = v7.0.1, actions/upload-artifact = v7.0.2, actions/download-artifact = v8.0.2
+
+jobs:
+  hashes:
+    name: archives of ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux, os: ubuntu-24.04, host: linux, arch: linux_gcc_64 }
+          - { name: windows, os: windows-latest, host: windows, arch: win64_msvc2022_64 }
+          - { name: macos, os: macos-latest, host: mac, arch: clang_64 }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download the Qt archives (aqtinstall, hash-pinned) and hash them
+        env:
+          HOST: ${{ matrix.host }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          . packaging/qt.env
+          python3 -m venv "$RUNNER_TEMP/aqt-venv" || python -m venv "$RUNNER_TEMP/aqt-venv"
+          py="$RUNNER_TEMP/aqt-venv/bin/python"; [ -x "$py" ] || py="$RUNNER_TEMP/aqt-venv/Scripts/python.exe"
+          "$py" -m pip install --require-hashes --no-deps -r packaging/ci/aqt-requirements.txt
+          "$py" -m aqt install-qt "$HOST" desktop "$QT_VERSION" "$ARCH" -O "$RUNNER_TEMP/Qt" --keep --archive-dest "$RUNNER_TEMP/qt-archives"
+          mkdir -p out
+          sh packaging/ci/qt-archive-hashes.sh generate "$RUNNER_TEMP/qt-archives" > "out/${{ matrix.name }}.txt"
+          cat "out/${{ matrix.name }}.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: hashes-${{ matrix.name }}
+          path: out/${{ matrix.name }}.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  collect:
+    name: qt-archives.sha256
+    needs: hashes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          path: parts
+          merge-multiple: true
+      - name: Merge into the manifest
+        run: |
+          . packaging/qt.env
+          mkdir -p out
+          # the comment header of the committed file, then the new lines (only lines of the pinned Qt version)
+          grep '^#' packaging/ci/qt-archives.sha256 > out/qt-archives.sha256
+          cat parts/*.txt | grep -E "^[0-9a-f]{64}  ${QT_VERSION}-" | LC_ALL=C sort -u -k2 >> out/qt-archives.sha256
+          cat out/qt-archives.sha256
+          {
+            echo "### Qt archive hashes for Qt $QT_VERSION"
+            echo
+            echo "Commit the artifact \`qt-archives.sha256\` as \`packaging/ci/qt-archives.sha256\` after review."
+            echo
+            echo '```'
+            grep -v '^#' out/qt-archives.sha256
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$(grep -vc '^#' out/qt-archives.sha256)" -gt 0 ] || { echo "::error::no archive of Qt $QT_VERSION found"; exit 1; }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: qt-archives.sha256
+          path: out/qt-archives.sha256
+          if-no-files-found: error
+          retention-days: 14
