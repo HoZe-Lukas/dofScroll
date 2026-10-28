@@ -2878,10 +2878,10 @@ static bool profileFilesSelfTest() {
           "the other profile stays in dofscroll.conf, the moved one is gone from it");
     const QByteArray firefoxFile = text(QStringLiteral("apps/firefox.conf")).toUtf8();
 
-    // Import: a new profile gets a file of its own, its PRIORITY is not taken over
+    // Import: a new profile gets a file of its own, its PRIORITY is not taken over (it is applied before the others)
     check(put(QStringLiteral("import-gimp.conf"), "[app:gimp]\nZOOM_SENS = 2\nPRIORITY = 500\n") &&
               page->importFrom(path(QStringLiteral("import-gimp.conf")), false) && wait() && exists(QStringLiteral("apps/gimp.conf")) &&
-              !text(QStringLiteral("apps/gimp.conf")).contains(QStringLiteral("PRIORITY")),
+              !text(QStringLiteral("apps/gimp.conf")).contains(QStringLiteral("PRIORITY = 500")),
           "Import writes apps/gimp.conf");
     check(text(QStringLiteral("apps/firefox.conf")).toUtf8() == firefoxFile, "an import writes no other file");
     // a name that exists: kept unless the user chooses Replace
@@ -2903,28 +2903,29 @@ static bool profileFilesSelfTest() {
           "Export copies the profile file");
 
     // the order: the list follows it, Move up and Move down change PRIORITY, the words say it
-    check(labelIndex(QStringLiteral("firefox")) < labelIndex(QStringLiteral("vlc")) &&
-              labelIndex(QStringLiteral("vlc")) < labelIndex(QStringLiteral("gimp")),
-          "the list shows the profiles in the order they are applied");
-    check(selectByName(QStringLiteral("gimp")) && page->orderNote().contains(QStringLiteral("Applied after \"vlc\"")),
-          "the order is said in words");
-    check(page->moveSelected(true) && wait() && !rig.saver()->failed(), "Move up");
+    // (vlc still lives in dofscroll.conf and ties with firefox on 0: the profiles of the old file come first)
     check(labelIndex(QStringLiteral("gimp")) < labelIndex(QStringLiteral("vlc")) &&
-              labelIndex(QStringLiteral("firefox")) < labelIndex(QStringLiteral("gimp")),
+              labelIndex(QStringLiteral("vlc")) < labelIndex(QStringLiteral("firefox")),
+          "the list shows the profiles in the order they are applied (an imported profile first)");
+    check(selectByName(QStringLiteral("gimp")) && page->orderNote().contains(QStringLiteral("Applied first")),
+          "the order is said in words");
+    check(page->moveSelected(false) && wait() && !rig.saver()->failed(), "Move down");
+    check(labelIndex(QStringLiteral("vlc")) < labelIndex(QStringLiteral("gimp")) &&
+              labelIndex(QStringLiteral("gimp")) < labelIndex(QStringLiteral("firefox")),
           "the profile moved in the list");
     check(page->selectedSection() != 0 && page->headerName() == QStringLiteral("gimp") &&
-              page->orderNote().contains(QStringLiteral("Applied after \"firefox\"")),
+              page->orderNote().contains(QStringLiteral("Applied after \"vlc\"")),
           "the moved profile stays selected");
     {
         const spn::ui::SettingsModel disk = rig.disk();
         const size_t g = disk.profiles().find(Section::APP, "gimp"), f = disk.profiles().find(Section::APP, "firefox"),
                      v = disk.profiles().find(Section::APP, "vlc");
         check(g != spn::ProfileSet::npos && f != spn::ProfileSet::npos && v != spn::ProfileSet::npos &&
-                  disk.priority(f) < disk.priority(g) && disk.priority(g) < disk.priority(v) && !disk.inSingleFile(v),
+                  disk.priority(v) < disk.priority(g) && disk.priority(g) < disk.priority(f) && !disk.inSingleFile(v),
               "the new order is on disk (PRIORITY), vlc moved into its file");
     }
     check(page->moveSelected(false) && wait() && labelIndex(QStringLiteral("vlc")) < labelIndex(QStringLiteral("gimp")),
-          "Move down");
+          "Move down again");
 
     // rename: the new file is written, the old one removed, the order stays
     check(selectByName(QStringLiteral("vlc")) && page->renameSelected(QStringLiteral("VLC media player")) && wait() &&

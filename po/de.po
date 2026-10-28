@@ -4916,8 +4916,8 @@ msgid "could not read the folder %1: nothing is written until it can be read aga
 msgstr "konnte den Ordner %1 nicht lesen: Es wird nichts geschrieben, bis er wieder lesbar ist"
 
 #: src/ui
-msgid "This profile presses shortcut chords (Ctrl, Alt, Super) when a button is pressed or the mouse is moved. Only keep profile files from sources you trust and read the file first."
-msgstr "Dieses Profil drückt Tastenkombinationen (Strg, Alt, Super), wenn eine Taste gedrückt oder die Maus bewegt wird. Behalte Profildateien nur aus Quellen, denen du vertraust, und lies die Datei vorher."
+msgid "This profile presses shortcut chords or keys that can do harm (Ctrl, Alt, Super, Delete, ...) or clicks, or uses a Joystick mode of your own, when a button is pressed or the mouse is moved. Only keep profile files from sources you trust and read the file first."
+msgstr "Dieses Profil drückt Tastenkombinationen oder Tasten, die Schaden anrichten können (Strg, Alt, Super, Entf, ...), oder klickt, oder nutzt einen eigenen Joystick-Modus, wenn eine Taste gedrückt oder die Maus bewegt wird. Behalte Profildateien nur aus Quellen, denen du vertraust, und lies die Datei vorher."
 
 #: src/ui
 msgid "PRIORITY was not imported: the order of your profiles stays as it is."
@@ -4928,8 +4928,16 @@ msgid "%1 was not imported (an imported profile does not switch the output off o
 msgstr "%1 wurde nicht importiert (ein importiertes Profil schaltet die Ausgabe nicht ab und ändert nicht, wie Ereignisse gesendet werden)."
 
 #: src/ui
-msgid "It presses shortcut chords (Ctrl, Alt, Super) when a button is pressed or the mouse is moved."
-msgstr "Es drückt Tastenkombinationen (Strg, Alt, Super), wenn eine Taste gedrückt oder die Maus bewegt wird."
+msgid "It presses shortcut chords or keys that can do harm (Ctrl, Alt, Super, Delete, ...) or clicks, or uses a Joystick mode of your own, when a button is pressed or the mouse is moved."
+msgstr "Es drückt Tastenkombinationen oder Tasten, die Schaden anrichten können (Strg, Alt, Super, Entf, ...), oder klickt, oder nutzt einen eigenen Joystick-Modus, wenn eine Taste gedrückt oder die Maus bewegt wird."
+
+#: src/ui
+msgid "The profile name contains control, invisible or direction-changing characters and cannot be imported."
+msgstr "Der Profilname enthält Steuerzeichen, unsichtbare oder die Schreibrichtung ändernde Zeichen und kann nicht importiert werden."
+
+#: src/ui
+msgid "The profiles changed while the import was waiting; the profile \"%1\" was not imported. Import the file again."
+msgstr "Die Profile haben sich geändert, während der Import wartete; das Profil „%1“ wurde nicht importiert. Importiere die Datei noch einmal."
 
 #: src/ui
 msgid "Its name \"%1\" is very short, so it matches almost every %2."

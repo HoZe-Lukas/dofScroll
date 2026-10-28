@@ -671,12 +671,19 @@ device profile, `[app:...]` a program profile); the file is checked completely b
 Global file, a file with several profiles or with an invalid value is refused with a message. If a profile of that
 name exists already you are asked once in words: "Replace the existing profile" or "Keep the existing profile"
 (nothing is ever overwritten without that choice; the footer says what happened). The `PRIORITY` of the imported
-file is not taken over and an imported profile is never applied after (above) your own ones; `ENABLED`, `BACKEND`,
-`TICK_HZ` and `INPUT` are dropped too (the dialog lists what was dropped). A very short name (fewer than 3 characters,
-it matches almost every program or device) and key chords with Ctrl, Alt or Super are shown in words and need your
-confirmation before the profile is added; a profile that binds such chords shows the same warning in its header
-("Only keep profile files from sources you trust ..."). Names, file names and messages from files are shown without
-control, zero-width and bidirectional characters. If a profile folder cannot be read, the list says "Could not read the
+file is not taken over: a new imported profile gets a `PRIORITY` below all of your own (10 below the lowest), so it
+is applied first and never wins over one of yours; a replaced one keeps its place. `ENABLED`, `BACKEND`,
+`TICK_HZ` and `INPUT` are dropped too (the dialog lists what was dropped). A very short name (4 characters or fewer,
+it matches almost every program or device) and bindings that can do harm are shown in words and need your
+confirmation before the profile is added: key chords with Ctrl, Alt or Super (however they are spaced, as the daemon
+reads them), other chords with a key that is not a navigation key (for example Shift+Delete), plain Delete, Backspace,
+Enter, Esc, F4 or a modifier key, mouse clicks as button action (also the old `CLICK_BUTTON`) and a `MODE` or
+`mode:` binding that points to a Joystick mode of your own. The values are written in their canonical form (what the
+editor would write), not as typed in the file. A profile that binds such things shows the same warning in its header
+("Only keep profile files from sources you trust ..."). A file whose profile name contains control, zero-width,
+bidirectional or BOM characters is refused. If the profiles change while the question is open (the configuration was
+reloaded), nothing is imported and the footer asks you to import again. Names, file names and messages from files are
+shown without control, zero-width and bidirectional characters. If a profile folder cannot be read, the list says "Could not read the
 folder ..." and nothing is written until it can be read again. Joystick modes and button modes have their own Import.
 
 If a profile file was changed by hand while the window had an edit of that profile, the file is not overwritten:
@@ -693,8 +700,9 @@ file names (the profiles of an old single file first, in file order). The list s
 "This profile" says it in words: "Applied after "x", so it wins over "x" where both match. "y" is applied after it and
 wins over it." **Move up** applies the profile earlier, **Move down** later. The buttons change the `PRIORITY` of the
 two profiles and leave the gaps; only when the order would stay ambiguous (equal numbers, hand-written numbers) the
-profiles of that kind are numbered again (10, 20, 30, ...). A new profile is applied last when the others have an
-explicit order.
+profiles of that kind are numbered again (10, 20, 30, ...). A profile you add is always applied last (its number is
+10 above the highest one, also when all numbers are negative or 0); an imported profile is applied first (see
+Import). When a number would leave the range -1000 to 1000, the kind is numbered again first.
 
 ### Inheritance
 
