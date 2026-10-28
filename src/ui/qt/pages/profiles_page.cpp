@@ -169,7 +169,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     defectNote_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     defectNote_->hide();
     ll->addWidget(defectNote_);
-    // Undo of a removal: a line with a button for a few seconds (the removal is written at once, undo writes it back)
+    // Undo of a removal: a line with buttons, no time limit (the removal is written at once, undo writes it back)
     undoBar_ = new QWidget(left);
     undoBar_->setObjectName(QStringLiteral("undoBar"));
     auto *ul = new QHBoxLayout(undoBar_);
@@ -1265,7 +1265,7 @@ void ProfilesPage::removeProfile() {
 }
 
 // Removes the profile: its file goes with the next autosave (only when it was not changed by hand meanwhile).
-// A copy is kept for a few seconds: "Undo" puts it back.
+// A copy is kept until something else changes: "Undo" puts it back.
 bool ProfilesPage::removeSelected() {
     const size_t s = currentSection();
     if (s == 0) return false;

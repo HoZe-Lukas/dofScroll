@@ -83,7 +83,7 @@ public:
     // The actions of the profile list without a dialog (the buttons call them after their dialogs; the self-test
     // calls them directly). All of them go through the settings model and the autosave.
     bool moveSelected(bool up);                           // Move up / Move down in the order of the profiles of its kind
-    bool removeSelected();                                // Remove (the button asks first); Undo is offered for a few seconds
+    bool removeSelected();                                // Remove (the button asks first); Undo stays offered until something else changes (no time limit)
     bool undoRemove();                                    // Undo of the last removal (the profile with all its settings)
     bool undoAvailable() const { return removed_.valid; }
     void dismissUndo() { clearRemovedUndo(); }
@@ -162,7 +162,7 @@ private:
     ChannelsEditor *channels_ = nullptr;
     QPushButton *add_app_, *add_dev_, *import_, *new_profile_;
     QLabel *defectNote_ = nullptr;  // defective profile files, in words, under the list
-    QWidget *undoBar_ = nullptr;    // "Profile removed. Undo" for a few seconds under the list
+    QWidget *undoBar_ = nullptr;    // "Profile removed. Undo" under the list, no time limit
     QLabel *undoLabel_ = nullptr;
     bool keepUndo_ = false;  // rebuildTree() drops the offer, except while a removal itself rebuilds it
     spn::ui::RemovedProfile removed_;
