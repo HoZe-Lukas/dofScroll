@@ -282,8 +282,12 @@ profile and then belongs to it; later changes in the source do not follow, and y
     [app:video]
     TWIST_ACTION = keys:ctrl+minus,ctrl+plus
 
-Details: only the **action** of a motion is copied (`V_PUSH_ACTION` ... `TWIST_ACTION`), not the tuning of its channel
-(sensitivity, direction, curve); a motion that is off in the source (action `none`, or sensitivity 0) is copied as
+Details: by default only the **action** of a motion is copied (`V_PUSH_ACTION` ... `TWIST_ACTION`), not the tuning of its
+channel. Tick **Also take over the tuning** in the dialog to copy the tuning too: the effective sensitivity, dead zone,
+direction, curve and smoothing of that motion of the source (all layers merged) become explicit keys of the target,
+`SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>` and `ZOOM_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>` for the
+twist. A tuned-off source gives `SENS = 0`. The keys of a push or tilt act while the target splits that channel (as the
+action keys do). A motion that is off in the source (action `none`, or sensitivity 0) is copied as
 cleared (`none`); a button the source does not bind is copied as an explicit nothing (`BUTTON_<n> = none`). The
 joystick mode editor has the same button for its motions and buttons (it copies into the mode file).
 

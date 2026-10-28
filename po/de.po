@@ -5175,6 +5175,22 @@ msgid "%1 does: %2. Taking it over copies this action into the profile; later ch
 msgstr "%1 macht: %2. Beim Übernehmen wird diese Aktion in das Profil kopiert; spätere Änderungen in der Quelle folgen nicht. Die Abstimmung (Empfindlichkeit, Richtung) bleibt hier, wie sie ist."
 
 #: src/ui
+msgid "%1 does: %2. Taking it over copies this action and its tuning (%3) into the profile; later changes in the source do not follow."
+msgstr "%1 macht: %2. Beim Übernehmen werden diese Aktion und ihre Abstimmung (%3) in das Profil kopiert; spätere Änderungen in der Quelle folgen nicht."
+
+#: src/ui
+msgid "sensitivity %1, dead zone %2, direction %3, curve %4, smoothing %5 ms"
+msgstr "Empfindlichkeit %1, Totzone %2, Richtung %3, Kurve %4, Glättung %5 ms"
+
+#: src/ui
+msgid "Also take over the tuning"
+msgstr "Auch die Abstimmung übernehmen"
+
+#: src/ui
+msgid "Also copies sensitivity, dead zone, direction, curve and smoothing of this motion. Off: only the action is copied and the tuning stays as it is here."
+msgstr "Kopiert auch Empfindlichkeit, Totzone, Richtung, Kurve und Glättung dieser Bewegung. Aus: Nur die Aktion wird kopiert, die Abstimmung bleibt hier, wie sie ist."
+
+#: src/ui
 msgid "In %1 this button does: %2. Taking it over copies this binding into the profile; later changes in the source do not follow."
 msgstr "In %1 macht diese Taste: %2. Beim Übernehmen wird diese Belegung in das Profil kopiert; spätere Änderungen in der Quelle folgen nicht."
 
@@ -5371,8 +5387,8 @@ msgid "Take over a motion"
 msgstr "Bewegung übernehmen"
 
 #: src/ui
-msgid "Copy what this motion does in another profile or joystick mode into this profile. It is a copy: later changes in the source do not follow, and you can change it here afterwards."
-msgstr "Kopiere, was diese Bewegung in einem anderen Profil oder Joystick-Modus macht, in dieses Profil. Es ist eine Kopie: spätere Änderungen in der Quelle folgen nicht, und du kannst sie hier danach ändern."
+msgid "Copy what this motion does in another profile or joystick mode into this profile. By default only the action is copied; the check box adds the tuning. It is a copy: later changes in the source do not follow, and you can change it here afterwards."
+msgstr "Kopiere, was diese Bewegung in einem anderen Profil oder Joystick-Modus macht, in dieses Profil. Standardmäßig wird nur die Aktion kopiert; das Kontrollkästchen nimmt die Abstimmung mit. Es ist eine Kopie: spätere Änderungen in der Quelle folgen nicht, und du kannst sie hier danach ändern."
 
 #: src/ui
 msgid "Take over a button"
@@ -5399,8 +5415,8 @@ msgid "Copy the binding of this button in a profile, another joystick mode or a 
 msgstr "Kopiert die Belegung dieser Taste aus einem Profil, anderen Joystick-Modus oder Tastenmodus in diesen Joystick-Modus"
 
 #: src/ui
-msgid "Copy what this motion does in a profile or another joystick mode into this joystick mode. It is a copy: later changes in the source do not follow."
-msgstr "Kopiere, was diese Bewegung in einem Profil oder anderen Joystick-Modus macht, in diesen Joystick-Modus. Es ist eine Kopie: spätere Änderungen in der Quelle folgen nicht."
+msgid "Copy what this motion does in a profile or another joystick mode into this joystick mode. By default only the action is copied; the check box adds the tuning. It is a copy: later changes in the source do not follow."
+msgstr "Kopiere, was diese Bewegung in einem Profil oder anderen Joystick-Modus macht, in diesen Joystick-Modus. Standardmäßig wird nur die Aktion kopiert; das Kontrollkästchen nimmt die Abstimmung mit. Es ist eine Kopie: spätere Änderungen in der Quelle folgen nicht."
 
 #: src/ui
 msgid "Copy the binding of this button in a profile, another joystick mode or a button mode into this joystick mode. It is a copy: later changes in the source do not follow."

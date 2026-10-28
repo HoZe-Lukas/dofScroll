@@ -402,11 +402,12 @@ bool ProfileMotionsView::takeOverMotion(const QString &motionId) {
     const StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
     const std::string motion = motionId.toStdString();
     const std::vector<BorrowSource> sources = motionSources(*ctx_.settings, section_);
-    TakeOverDialog dlg(T("Take over a motion"), T("Copy what this motion does in another profile or joystick mode into this profile. It is a copy: later changes in the source do not follow, and you can change it here afterwards."),
+    TakeOverDialog dlg(T("Take over a motion"), T("Copy what this motion does in another profile or joystick mode into this profile. By default only the action is copied; the check box adds the tuning. It is a copy: later changes in the source do not follow, and you can change it here afterwards."),
                        sources, [&](size_t i) { return borrowedMotionWords(*ctx_.settings, sources[i], motion, strings); }, strings, this);
+    dlg.offerTuning([&](size_t i, bool tuning) { return borrowedMotionWords(*ctx_.settings, sources[i], motion, strings, tuning); });
     if (dlg.exec() != QDialog::Accepted || dlg.selected() < 0) return false;
     std::string err;
-    if (!borrowMotion(*ctx_.settings, section_, motion, sources[size_t(dlg.selected())], &err)) {
+    if (!borrowMotion(*ctx_.settings, section_, motion, sources[size_t(dlg.selected())], &err, std::string(), dlg.tuning())) {
         showRefusal(inspector_, err);
         return false;
     }

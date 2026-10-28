@@ -735,7 +735,10 @@ colour alone), and gives every row a per-row **Reset** (Reset to inherited):
 (Global, device, program) and in the inspector of the joystick mode editor. It asks for a source (any other profile, any
 joystick mode; for a button also a button mode), says in words what would be copied and then copies it. It is a copy: the
 effective assignment of the source becomes explicit keys of the target, later changes in the source do not follow. Push and
-tilt are separate motions. A source that is off is copied as "cleared". A refused copy (a profile below its joystick mode
+tilt are separate motions. A source that is off is copied as "cleared". For a motion the dialog has the check box **Also take
+over the tuning** (off by default: only the action is copied); on, it also copies the effective sensitivity, dead zone,
+direction, curve and smoothing of that motion as explicit keys, and the sentence in the dialog lists them. Profiles and
+joystick modes use the same copy. A refused copy (a profile below its joystick mode
 cannot beat the mode) says why and writes nothing. Like every edit it is saved by itself.
 
 The list of actions of a motion offers every action for every motion, zoom for a tilt included; the words under the list say

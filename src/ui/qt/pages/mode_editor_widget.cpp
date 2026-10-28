@@ -328,12 +328,13 @@ void ModeEditorWidget::rebuild() {
                 const StringProvider &str = ctx_.strings ? *ctx_.strings : static_cast<const StringProvider &>(ownStrings_);
                 const std::vector<BorrowSource> src = motionSources(*ctx_.settings, ProfileSet::npos, selfId);
                 const std::string mid = motionId(m);
-                TakeOverDialog dlg(T("Take over a motion"), T("Copy what this motion does in a profile or another joystick mode into this joystick mode. It is a copy: later changes in the source do not follow."),
+                TakeOverDialog dlg(T("Take over a motion"), T("Copy what this motion does in a profile or another joystick mode into this joystick mode. By default only the action is copied; the check box adds the tuning. It is a copy: later changes in the source do not follow."),
                                    src, [&](size_t i) { return borrowedMotionWords(*ctx_.settings, src[i], mid, str); }, str, this);
+                dlg.offerTuning([&](size_t i, bool tuning) { return borrowedMotionWords(*ctx_.settings, src[i], mid, str, tuning); });
                 if (dlg.exec() != QDialog::Accepted || dlg.selected() < 0) return;
                 std::string err;
                 const Settings base = ctx_.settings->effective(0);
-                if (!borrowMotionIntoMode(*ctx_.settings, editor_.form(), base, m, src[size_t(dlg.selected())], &err)) {
+                if (!borrowMotionIntoMode(*ctx_.settings, editor_.form(), base, m, src[size_t(dlg.selected())], &err, Motion::Lift, dlg.tuning())) {
                     ctx_.report(T(err.c_str()), true);
                     return;
                 }

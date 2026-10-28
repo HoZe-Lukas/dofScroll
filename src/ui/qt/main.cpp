@@ -2797,7 +2797,7 @@ static bool borrowBuildSelfTest() {
         ok = ok && cond;
     };
     EditorRig rig("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\n\n"
-                  "[app:blender]\nV_TILT_ACTION = zoom\nBUTTON_2 = key:space\n");
+                  "[app:blender]\nV_TILT_ACTION = zoom\nSCROLL_V_TILT_SENS = 8\nSCROLL_V_TILT_SIGN = -1\nBUTTON_2 = key:space\n");
     MainWindow &w = *rig.win;
     w.showPage(QStringLiteral("profiles"));
     settle();
@@ -2832,6 +2832,8 @@ static bool borrowBuildSelfTest() {
         check(pick >= 0 && src, "the sources list the other profiles");
         if (src && pick >= 0) src->setCurrentIndex(pick);
         words = wl ? wl->text() : QString();
+        QCheckBox *tune = d->findChild<QCheckBox *>(QStringLiteral("takeOverTuning"));
+        check(tune && !tune->isChecked(), "a motion's dialog has 'Also take over the tuning', off by default");
         d->accept();
     });
     check(opened && listed, "the dialog lists the joystick modes too");
@@ -2846,6 +2848,37 @@ static bool borrowBuildSelfTest() {
         check(!keyIn(sectionOf(disk, Section::APP, "blender"), "V_PUSH_ACTION"), "the source is not touched");
     }
     check(itemText("m:v_tilt").startsWith(QStringLiteral("Zoom")), "the tilt of the program now zooms, in the picture");
+    {
+        const spn::ui::SettingsModel disk = rig.disk();
+        check(!keyIn(sectionOf(disk, Section::APP, "firefox"), "SCROLL_V_TILT_SENS"), "by default the tuning is not copied");
+    }
+
+    // A with the tuning: the check box copies sensitivity, dead zone, direction, curve and smoothing of that motion as well
+    QString tuneWords;
+    const bool openedTuned = withModal([&] { if (find("motionTakeOver")) find("motionTakeOver")->click(); }, [&](QDialog *d) {
+        QComboBox *src = d->findChild<QComboBox *>(QStringLiteral("takeOverSource"));
+        QLabel *wl = d->findChild<QLabel *>(QStringLiteral("takeOverWords"));
+        QCheckBox *tune = d->findChild<QCheckBox *>(QStringLiteral("takeOverTuning"));
+        for (int i = 0; src && i < src->count(); ++i)
+            if (src->itemText(i) == QStringLiteral("Program profile: blender")) src->setCurrentIndex(i);
+        check(tune != nullptr, "the check box is there");
+        if (tune) tune->setChecked(true);
+        tuneWords = wl ? wl->text() : QString();
+        d->accept();
+    });
+    check(openedTuned && tuneWords.contains(QStringLiteral("sensitivity 8")) && tuneWords.contains(QStringLiteral("reversed")),
+          "with the check box the dialog lists the tuning in words");
+    settle();
+    check(rig.waitSaved(), "taking a motion over with its tuning is saved by itself");
+    {
+        const spn::ui::SettingsModel disk = rig.disk();
+        const auto *sec = sectionOf(disk, Section::APP, "firefox");
+        const std::string *sens = keyIn(sec, "SCROLL_V_TILT_SENS"), *sign = keyIn(sec, "SCROLL_V_TILT_SIGN");
+        check(sens && *sens == "8" && sign && *sign == "-1" && keyIn(sec, "SCROLL_V_TILT_DEADZONE") && keyIn(sec, "SCROLL_V_TILT_SMOOTH_MS"),
+              "the tuning of the tilt is copied as explicit keys");
+        check(!keyIn(sec, "SCROLL_V_PUSH_SENS") && !keyIn(sectionOf(disk, Section::APP, "blender"), "SCROLL_V_TILT_DEADZONE"),
+              "other motions and the source are not touched");
+    }
 
     // B: the list of actions of any motion offers Zoom, with the words about what it does from a tilt
     check(mv->select(QStringLiteral("m:h_tilt")), "select the horizontal tilt");
