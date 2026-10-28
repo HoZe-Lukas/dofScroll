@@ -28,8 +28,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      # install-qt-action is not used here: it pulls in an unpinned actions/setup-python, which the
-      # repository's action policy rejects (the whole job would fail). aqtinstall is pinned instead.
+      # install-qt-action is not used for the release builds: it calls actions/setup-python by tag, which the
+      # setting sha_pinning_required (docs/repo-settings.md) would reject, and it does not install aqtinstall with
+      # hashes. aqtinstall is pinned by version and hash instead. The CI-only jobs of ui.yml still use the action.
       - name: Install Qt6 (aqtinstall, pinned version)
         # No fallback: if Qt cannot be installed the job fails (an installer without the interface is never published).
         shell: bash

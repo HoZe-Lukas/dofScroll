@@ -336,7 +336,7 @@ add_custom_target(install-udev COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_SOURCE_DIR
                   -P ${CMAKE_SOURCE_DIR}/cmake/InstallUdev.cmake USES_TERMINAL VERBATIM)
 add_custom_target(uninstall COMMAND ${CMAKE_COMMAND}
                   -DMANIFEST=${CMAKE_BINARY_DIR}/install_manifest.txt
-                  -P ${CMAKE_SOURCE_DIR}/cmake/Uninstall.cmake USES_TERMINAL VERBATIM)
+                  -DPREFIX=${CMAKE_INSTALL_PREFIX} -P ${CMAKE_SOURCE_DIR}/cmake/Uninstall.cmake USES_TERMINAL VERBATIM)
 
 # ---- install ----------------------------------------------------------------
 if(NOT DOFSCROLL_CORE_ONLY)

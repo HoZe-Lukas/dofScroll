@@ -49,6 +49,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Check dependencies
         run: cmake -P cmake/CheckDeps.cmake
       - name: Configure (-Werror)
@@ -58,7 +60,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - name: Hardening check
-        run: sh scripts/check-hardening.sh build/dofscroll
+        run: sh scripts/check-hardening.sh build/dofscroll build/dofscroll-hidprobe
 
   sanitizers:
     name: ASan/UBSan (Rocky Linux 9)
@@ -68,6 +70,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Configure (ASan/UBSan)
         run: cmake -S . -B build-asan -DDOFSCROLL_SANITIZE=ON
       - name: Build
@@ -90,6 +94,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Static analysis
         run: |
           cppcheck --enable=warning,performance,portability --error-exitcode=1 \
@@ -102,6 +108,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
       # Same patterns as the pre-commit hook (scripts/secret-scan.sh). The whole tree is
       # diffed against the empty tree, so every committed line is scanned, not only new ones.

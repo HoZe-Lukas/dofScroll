@@ -3,7 +3,8 @@
 ;
 ; Per-user installer (NSIS 3, no administrator rights). Built by packaging/windows/build-installer.ps1:
 ;   makensis /DVERSION=1.2.3 /DSTAGE=<staged folder> /DOUTFILE=<setup.exe> /DHAS_UI [/DAPP_ICO=<ico>] installer.nsi
-; Silent use:  setup.exe /S [/AUTOSTART=1] [/D=C:\target\folder]   (the /D= argument must come last)
+; Silent use:  setup.exe /S [/AUTOSTART=1] [/D=C:\target\folder]   (the /D= argument must come last; a folder that is
+;              not empty and holds no dofscroll install is refused with exit code 2)
 ; Uninstall:   <install dir>\uninstall.exe  (also from Settings > Apps); it removes the autostart value.
 !ifndef HAS_UI
   !error "HAS_UI must be defined: every installer contains the interface and the daemon (no daemon-only installer)"
@@ -79,22 +80,39 @@ Function OpenUiFromFinish
 FunctionEnd
 
 ; The uninstaller removes the whole install folder: refuse a folder that is not empty and not a dofscroll
-; install (no uninstall.exe), such as Documents, so the folder picker cannot lead to data loss.
-Function .onVerifyInstDir
-  IfFileExists "$INSTDIR\uninstall.exe" verifyOk
+; install (no uninstall.exe), such as Documents, so neither the folder picker nor /D=<dir> of a silent install
+; can lead to data loss. CheckInstDir leaves "1" (usable) or "0" on the stack.
+Function CheckInstDir
+  Push $0
+  Push $1
+  IfFileExists "$INSTDIR\uninstall.exe" 0 checkScan
+    StrCpy $0 "1"
+    Goto checkDone
+  checkScan:
   FindFirst $0 $1 "$INSTDIR\*.*"
-  verifyLoop:
-    StrCmp $1 "" verifyDone
-    StrCmp $1 "." verifyNext
-    StrCmp $1 ".." verifyNext
+  checkLoop:
+    StrCmp $1 "" checkEmpty
+    StrCmp $1 "." checkNext
+    StrCmp $1 ".." checkNext
     FindClose $0
-    Abort
-  verifyNext:
+    StrCpy $0 "0"
+    Goto checkDone
+  checkNext:
     FindNext $0 $1
-    Goto verifyLoop
-  verifyDone:
+    Goto checkLoop
+  checkEmpty:
     FindClose $0
-  verifyOk:
+    StrCpy $0 "1"
+  checkDone:
+  Pop $1
+  Exch $0
+FunctionEnd
+
+Function .onVerifyInstDir
+  Call CheckInstDir
+  Pop $0
+  StrCmp $0 "1" +2
+    Abort
 FunctionEnd
 
 Function .onInit
@@ -102,6 +120,15 @@ Function .onInit
   ${GetParameters} $0
   ${GetOptions} $0 "/AUTOSTART=" $1
   StrCpy $AutostartFlag $1
+  ; A silent install has no directory page, so the check of .onVerifyInstDir would never run for /D=<dir>.
+  ${If} ${Silent}
+    Call CheckInstDir
+    Pop $0
+    ${If} $0 != "1"
+      SetErrorLevel 2
+      Abort
+    ${EndIf}
+  ${EndIf}
 FunctionEnd
 
 Section "dofscroll (required)" SecMain
