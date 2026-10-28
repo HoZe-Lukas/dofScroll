@@ -138,14 +138,23 @@ jobs:
     needs: [linux-packages, installers]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The environment "release" (Settings > Environments) holds the required reviewer and the deployment tag
+    # rule v*; the job waits for the approval of the maintainer before anything is published (docs/releasing.md).
+    environment: release
     permissions:
       contents: write       # create the release and upload assets; only this job gets write access
+      checks: read          # the release gate reads the check runs of the tagged commit
       id-token: write       # sign the build provenance attestation (Sigstore); only this job
       attestations: write   # store the attestation with the repository; only this job
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false  # the write token must not stay in .git/config
+          fetch-depth: 0              # the whole history, so that "ancestor of origin/main" can be decided
+      - name: Release gate - the tagged commit is on main and its required checks are green
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: sh scripts/release-gate.sh "$GITHUB_SHA"
       - name: Tag must match the CMake project version
         run: |
           ver="$(sed -n 's/^project(dofscroll VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt)"
@@ -199,6 +208,9 @@ jobs:
         run: |
           flags=""
           case "$GITHUB_REF_NAME" in v0.*|*-*) flags="--prerelease";; esac
+          # A draft first, published after the files are attached: a release that is immutable (repository
+          # setting, docs/releasing.md) cannot get files after it is published.
           gh release create "$GITHUB_REF_NAME" dist/* \
-            --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --draft \
             --title "dofscroll ${GITHUB_REF_NAME#v}" $flags
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false
