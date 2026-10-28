@@ -247,7 +247,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     tabs_->setDocumentMode(true);
     rl->addWidget(tabs_, 1);
     tabs_->setMinimumWidth(260);  // the editor never gets squashed, and the page fits the smallest window
-    right->setMinimumWidth(260 + tk::kSpaceMd);  // an explicit floor: nothing inside (header, filter) widens the page
+    right_ = right;
     split->setChildrenCollapsible(false);
 
     // The tabs exist once; they stay when another profile is selected (only their content changes).
@@ -635,6 +635,7 @@ void ProfilesPage::setCompactList(bool on) {
     tree_->setMinimumWidth(on ? w : 170);
     for (QPushButton *b : {add_app_, add_dev_, import_, new_profile_}) b->setMinimumWidth(w);
     list_->setMinimumWidth(on ? w + tk::kSpaceMd : 0);
+    right_->setMinimumWidth(on ? 260 + tk::kSpaceMd : 0);  // an explicit floor: nothing inside (header, filter) widens the page
     headerName_->setMinimumWidth(on ? 40 : 0);
     headerKind_->setMinimumWidth(on ? 40 : 0);
     undoLabel_->setMinimumWidth(on ? 40 : 0);

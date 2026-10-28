@@ -161,7 +161,8 @@ private:
     QLabel *headerIcon_ = nullptr, *headerName_ = nullptr, *headerKind_ = nullptr, *headerNote_ = nullptr;
     QTabWidget *tabs_;
     QSplitter *split_ = nullptr;
-    QWidget *list_ = nullptr;  // the left pane: profile list and buttons
+    QWidget *list_ = nullptr;   // the left pane: profile list and buttons
+    QWidget *right_ = nullptr;  // the right pane: header, search box and tabs
     bool compactList_ = false;
     static constexpr int kCompactListWidth = 90;
     void setCompactList(bool on);
