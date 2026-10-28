@@ -167,6 +167,7 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
     if (!row) return;
     title_ = new QLabel(QStringLiteral("<b>") + qs8(row->name).toHtmlEscaped() + QStringLiteral("</b>"), inspector_);
     title_->setTextFormat(Qt::RichText);
+    title_->setWordWrap(true);
     col->addWidget(title_);
     auto *how = new QLabel(qs8(row->how), inspector_);
     how->setWordWrap(true);
@@ -201,6 +202,7 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         // A combo box reports its current text as its name: the purpose is the description, and the visible label is its buddy.
         kind->setAccessibleDescription(T("Action for %1").arg(qs8(row->name)));
         kindLabel->setBuddy(kind);
+        kindLabel->setWordWrap(true);
         kind->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);  // long entries are elided, never widen the inspector
         kind->setMinimumContentsLength(12);
         kind->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
