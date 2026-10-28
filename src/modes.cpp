@@ -132,6 +132,10 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
             ChannelAction a;
             if (!parseChannelAction(value, &a, &err)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
             (key == "V_ACTION" ? out->v : key == "H_ACTION" ? out->h : out->twist) = a;
+        } else if (key == "LIFT_ACTION") {
+            ChannelAction a;
+            if (!parseLiftAction(value, &a, &err)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
+            out->lift = a;
         } else if (key == "V_PUSH_ACTION" || key == "V_TILT_ACTION" || key == "H_PUSH_ACTION" || key == "H_TILT_ACTION") {
             ChannelAction a;
             if (!parseChannelAction(value, &a, &err)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
@@ -198,7 +202,7 @@ std::string chordRisk(const ModeDef &m) {
         else if (b.type == ButtonActionType::Key && chordNeedsWarning(b.key, b.mods))
             why.push_back("BUTTON_" + std::to_string(b.button) + " presses " + keyActionText(b.key, b.mods).substr(4));
     bool hasRiskyKeys = false, hasZoom = false;
-    for (const ChannelAction *a : {&m.v, &m.h, &m.twist, &m.vSplit.push, &m.vSplit.tilt, &m.hSplit.push, &m.hSplit.tilt}) {
+    for (const ChannelAction *a : {&m.v, &m.h, &m.twist, &m.lift, &m.vSplit.push, &m.vSplit.tilt, &m.hSplit.push, &m.hSplit.tilt}) {
         if (a->type == ChannelActionType::Zoom) hasZoom = true;
         if (!a->usesKeys()) continue;
         const std::string what = a->type == ChannelActionType::Step ? "a step: channel presses " : "a keys: channel presses ";
@@ -355,6 +359,15 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
     } else {
         return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos> | step:<neg>,<pos> (keys may be chords like ctrl+pageup)");
     }
+    if (out) *out = a;
+    return true;
+}
+
+bool parseLiftAction(const std::string &text, ChannelAction *out, std::string *err) {
+    ChannelAction a;
+    if (!parseChannelAction(text, &a, err)) return false;
+    if (a.type == ChannelActionType::Keys)
+        return fail(err, "an analog keys: action cannot be used on the lift (it fires when the cap is grabbed); use step:<neg>,<pos>");
     if (out) *out = a;
     return true;
 }

@@ -12,8 +12,9 @@
 //   vertical push V_PUSH_ACTION   vertical tilt V_TILT_ACTION   horizontal push H_PUSH_ACTION
 //   horizontal tilt H_TILT_ACTION   twist TWIST_ACTION   (V_ACTION / H_ACTION set both parts of a channel)
 // Only what the profile changes is written; "Use the inherited setting" removes the key. A legacy `<CH>_SENS = 0`
-// (channel off) is read as "cleared" too and removed again by "Use the inherited setting". Lift / press has no
-// action of its own.
+// (channel off) is read as "cleared" too and removed again by "Use the inherited setting". Lift / press has its own
+// key LIFT_ACTION (and LIFT_SENS ...); its default action is none, it takes the analog-free choices only
+// (liftActionChoices: no analog keys) and says in words that lifting fires when the cap is grabbed.
 //
 //   const MotionEdit e = motionEdit(model, section, "twist", strings);        // state, words, which buttons make sense
 //   setMotionAction(model, section, "twist", form, &err);                       // another action, validated
@@ -41,8 +42,8 @@ enum class MotionState { Inherited, SetHere, Cleared };
 
 struct MotionEdit {
     std::string id;       // "v_push" ... "twist", "lift"
-    std::string prefix;   // channel keys "SCROLL_V_", "SCROLL_H_", "ZOOM_"; "" for lift / press
-    std::string key;      // the action key of the motion ("V_PUSH_ACTION"); "" for lift / press
+    std::string prefix;   // channel keys "SCROLL_V_", "SCROLL_H_", "ZOOM_", "LIFT_"
+    std::string key;      // the action key of the motion ("V_PUSH_ACTION", "LIFT_ACTION")
     bool editable = false;
     MotionState state = MotionState::Inherited;
     bool on = true;            // the motion does something in this profile
@@ -63,6 +64,7 @@ inline std::string prefixOf(const std::string &motionId) {
     if (motionId == "v_push" || motionId == "v_tilt") return "SCROLL_V_";
     if (motionId == "h_push" || motionId == "h_tilt") return "SCROLL_H_";
     if (motionId == "twist") return "ZOOM_";
+    if (motionId == "lift") return "LIFT_";
     return std::string();
 }
 // The action key of the motion itself, and the key of its whole channel.
@@ -72,17 +74,22 @@ inline std::string partKeyOf(const std::string &id) {
     if (id == "h_push") return "H_PUSH_ACTION";
     if (id == "h_tilt") return "H_TILT_ACTION";
     if (id == "twist") return "TWIST_ACTION";
+    if (id == "lift") return "LIFT_ACTION";
     return std::string();
 }
 inline std::string channelKeyOf(const std::string &id) {
     if (id == "v_push" || id == "v_tilt") return "V_ACTION";
     if (id == "h_push" || id == "h_tilt") return "H_ACTION";
     if (id == "twist") return "TWIST_ACTION";
+    if (id == "lift") return "LIFT_ACTION";
     return std::string();
 }
 
 inline int sensOf(const Settings &s, const std::string &prefix) {
-    return prefix == "SCROLL_V_" ? s.scroll_v.sensitivity : prefix == "SCROLL_H_" ? s.scroll_h.sensitivity : s.zoom.sensitivity;
+    return prefix == "SCROLL_V_" ? s.scroll_v.sensitivity
+           : prefix == "SCROLL_H_" ? s.scroll_h.sensitivity
+           : prefix == "LIFT_"     ? s.lift.sensitivity
+                                   : s.zoom.sensitivity;
 }
 
 // The factory sensitivity of the channel (config.hpp defaults).
@@ -111,6 +118,7 @@ inline ChannelAction effectiveAction(const SettingsModel &m, size_t section, con
     if (!def) def = &normal;
     const ChannelActions ca = effectiveChannelActions(*def, s);
     if (id == "twist") return ca.twist;
+    if (id == "lift") return ca.lift;
     const bool v = id[0] == 'v';
     const SplitChannel &sp = v ? ca.vSplit : ca.hSplit;
     const ChannelAction &parent = v ? ca.v : ca.h;
@@ -118,7 +126,8 @@ inline ChannelAction effectiveAction(const SettingsModel &m, size_t section, con
 }
 
 inline bool effectiveOn(const SettingsModel &m, size_t section, const std::string &id) {
-    if (effectiveAction(m, section, id).type == ChannelActionType::Off) return false;
+    const ChannelActionType t = effectiveAction(m, section, id).type;
+    if (t == ChannelActionType::Off || (id == "lift" && t == ChannelActionType::Default)) return false;  // the lift's default is none
     return sensOf(m.effectiveWithMode(section), prefixOf(id)) != 0;
 }
 
@@ -174,7 +183,7 @@ inline MotionEdit motionEdit(const SettingsModel &m, size_t section, const std::
     e.state = clearedHere ? MotionState::Cleared : (hasPart || hasChan || tuned) ? MotionState::SetHere : MotionState::Inherited;
     e.canClear = !clearedHere;
     e.canInherit = hasPart || hasChan || tuned;
-    e.canSwitchOn = !e.on;
+    e.canSwitchOn = !e.on && motionId != "lift";  // the lift is off by default: it is switched on by choosing an action
 
     const bool inh = inheritedOn(m, section, motionId);
     const std::string inhWord = inh ? s.tr("on") : s.tr("off");
@@ -182,6 +191,7 @@ inline MotionEdit motionEdit(const SettingsModel &m, size_t section, const std::
     if (section == 0) {
         if (clearedHere) e.words = s.tr("Cleared in Global: nothing happens for this motion unless a profile sets it again.");
         else if (hasPart || hasChan || tuned) e.words = format(s.tr("%1. Set in Global."), {onOff});
+        else if (motionId == "lift") e.words = e.on ? s.tr("On.") : s.tr("Off (the built-in default): lifting the cap does nothing.");
         else e.words = e.on ? s.tr("On (the built-in default).") : s.tr("Off: the sensitivity is 0.");
         return e;
     }
@@ -209,7 +219,7 @@ inline bool setMotionAction(SettingsModel &m, size_t section, const std::string 
     using namespace motion_edit_detail;
     const std::string key = partKeyOf(motionId);
     if (key.empty() || section >= m.sectionCount()) {
-        if (err) *err = "lift / press has no action of its own";
+        if (err) *err = "unknown motion";
         return false;
     }
     return writeAction(m, section, motionId, key, form.text(), err);
@@ -308,7 +318,11 @@ inline MotionChoiceCheck motionChoiceCheck(const SettingsModel &m, size_t sectio
     const std::string key = partKeyOf(motionId);
     if (key.empty() || section >= m.sectionCount()) {
         c.works = false;
-        c.note = s.tr("Lift / press has no action of its own.");
+        return c;
+    }
+    if (motionId == "lift" && type == ChannelActionType::Keys) {  // the parser would refuse it as well (parseLiftAction)
+        c.works = false;
+        c.note = s.tr("An analog key repeat is not offered for lift / press: it fires when you grab the cap. Use one key tap per push.");
         return c;
     }
     SettingsModel tmp = m;
@@ -320,12 +334,14 @@ inline MotionChoiceCheck motionChoiceCheck(const SettingsModel &m, size_t sectio
         c.note = s.tr("The joystick mode of this profile sets this motion; only a program profile can change it, or change it in the joystick mode.");
         return c;
     }
+    if (motionId == "lift" && type != ChannelActionType::Default && type != ChannelActionType::Off)
+        c.note = s.tr("Lift / press can fire when you grab or let go of the cap. Raise the dead zone (LIFT_DEADZONE) if it does.") + " ";
     if (type == ChannelActionType::Zoom && motionId != "twist") {
-        c.note = s.tr("Zoom from this motion holds the zoom keys and sends the wheel while the motion is moved. It uses the sensitivity, dead zone and direction (sign) of its own channel, not those of the twist; flip the direction there if it zooms the wrong way. While it zooms, the other wheel motions of this profile pause. The twist keeps its own zoom.");
+        c.note += s.tr("Zoom from this motion holds the zoom keys and sends the wheel while the motion is moved. It uses the sensitivity, dead zone and direction (sign) of its own channel, not those of the twist; flip the direction there if it zooms the wrong way. While it zooms, the other wheel motions of this profile pause. The twist keeps its own zoom.");
         if (m.effectiveWithMode(section).zoom_modifier == 0)
             c.note += " " + s.tr("The zoom keys are set to none for this profile, so the plain wheel is sent and it scrolls instead of zooming.");
     } else if (type == ChannelActionType::Zoom && m.effectiveWithMode(section).zoom_modifier == 0) {
-        c.note = s.tr("The zoom keys are set to none for this profile, so the plain wheel is sent and it scrolls instead of zooming.");
+        c.note += s.tr("The zoom keys are set to none for this profile, so the plain wheel is sent and it scrolls instead of zooming.");
     }
     return c;
 }
@@ -343,6 +359,16 @@ inline const std::vector<MotionActionChoice> &motionActionChoices() {
                                                       {ChannelActionType::Keys, "Keys (one key per direction)"},
                                                       {ChannelActionType::Step, "One key tap per push"},
                                                       {ChannelActionType::Off, "Nothing"}};
+    return c;
+}
+// Lift / press: nothing is its default, then the functions that make sense on a motion that can fire when the cap is
+// grabbed: scroll, zoom and one key tap per push. No analog keys (parseLiftAction refuses them).
+inline const std::vector<MotionActionChoice> &liftActionChoices() {
+    static const std::vector<MotionActionChoice> c = {{ChannelActionType::Default, "Nothing (the default)"},
+                                                      {ChannelActionType::WheelV, "Scroll"},
+                                                      {ChannelActionType::WheelH, "Scroll sideways"},
+                                                      {ChannelActionType::Zoom, "Zoom"},
+                                                      {ChannelActionType::Step, "One key tap per push"}};
     return c;
 }
 

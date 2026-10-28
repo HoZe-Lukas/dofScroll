@@ -111,8 +111,39 @@ int main() {
     assert(motionEdit(m, code, "h_push", id).state == MotionState::Inherited && motionEdit(m, code, "h_tilt", id).action.type == ChannelActionType::Step);
     for (const char *id3 : {"v_push", "h_tilt"}) assert(inheritMotion(m, code, id3, &mem));
     assert(sectionText(m, code).empty());
-    assert(!motionEdit(m, code, "lift", id).editable && !clearMotion(m, code, "lift", &mem, &err));
-    assert(!setMotionAction(m, code, "lift", form(ChannelActionType::Off), &err));
+
+    // ---- lift / press: its own key LIFT_ACTION, off by default, no analog keys ----
+    {
+        MotionEdit l = motionEdit(m, code, "lift", id);
+        assert(l.editable && l.key == "LIFT_ACTION" && l.prefix == "LIFT_" && !l.on && !l.canSwitchOn && l.state == MotionState::Inherited);
+        assert(row(profileAssignment(m, code, id), "lift")->kind == MotionKind::NotUsed);
+        assert(!setMotionAction(m, code, "lift", form(ChannelActionType::Keys, "left", "right"), &err) && has(err, "step:"));
+        assert(sectionText(m, code).empty());
+        assert(setMotionAction(m, code, "lift", form(ChannelActionType::WheelV), &err));
+        assert(sectionText(m, code) == "LIFT_ACTION=wheel_v;");
+        l = motionEdit(m, code, "lift", id);
+        assert(l.on && l.state == MotionState::SetHere && l.canInherit && l.action.type == ChannelActionType::WheelV);
+        const ProfileAssignment pa = profileAssignment(m, code, id);
+        const MotionRow *lr = row(pa, "lift");
+        assert(lr->kind == MotionKind::Active && lr->action == "Scroll" && lr->source == "set in this profile");
+        assert(setMotionAction(m, code, "lift", form(ChannelActionType::Step, "pageup", "pagedown"), &err));
+        assert(sectionText(m, code) == "LIFT_ACTION=step:pageup,pagedown;");
+        assert(m.setValue(code, "LIFT_DEADZONE", "120", &err) && m.setValue(code, "LIFT_SENS", "7", &err));
+        // clear pins none, "use the inherited setting" removes the key again (and the tuning of the lift)
+        assert(clearMotion(m, code, "lift", &mem, &err) && sectionText(m, code).find("LIFT_ACTION=none;") != std::string::npos);
+        assert(motionEdit(m, code, "lift", id).state == MotionState::Cleared && row(profileAssignment(m, code, id), "lift")->kind == MotionKind::Off);
+        assert(inheritMotion(m, code, "lift", &mem));
+        assert(m.isOverridden(code, "LIFT_ACTION") == false);
+        for (const char *k : {"LIFT_MIX", "LIFT_SENS", "LIFT_DEADZONE", "LIFT_SIGN", "LIFT_CURVE", "LIFT_SMOOTH_MS"}) m.clearOverride(code, k);
+        assert(sectionText(m, code).empty());
+        // Global sets it, a profile inherits it; the profile's own none beats it (precedence global < device < program)
+        assert(setMotionAction(m, 0, "lift", form(ChannelActionType::Zoom), &err));
+        assert(motionEdit(m, code, "lift", id).on && motionEdit(m, code, "lift", id).action.type == ChannelActionType::Zoom);
+        assert(clearMotion(m, code, "lift", &mem, &err) && !motionEdit(m, code, "lift", id).on);
+        assert(inheritMotion(m, code, "lift", &mem) && motionEdit(m, code, "lift", id).on);
+        assert(inheritMotion(m, 0, "lift", &mem) && !motionEdit(m, 0, "lift", id).on);
+        assert(sectionText(m, code).empty() && sectionText(m, 0).find("LIFT_ACTION") == std::string::npos);
+    }
 
     // ---- a legacy <CH>_SENS = 0 is read as cleared and goes with "Use the inherited setting" ----
     assert(m.setValue(code, "ZOOM_SENS", "0", &err));
@@ -214,12 +245,12 @@ int main() {
         f.sections[fa].kv = {{"BUTTON_1", "key:ctrl+s"}, {"BUTTON_2", "none"}, {"TWIST_ACTION", "none"}, {"H_ACTION", "wheel_h"}};
         const Settings plain = f.resolve("SpaceMouse Pro", "firefox");
         assert(plain.buttons.at(1) == "rightclick" && plain.buttons.at(2) == "middleclick" && plain.buttons.at(3) == "click");
-        assert(plain.app_buttons.empty() && plain.actions[1].any() == false);
-        assert(plain.actions[0].chanSet[ProfileActions::H] && plain.actions[0].partSet[PART_V_TILT]);
+        assert(plain.app_buttons.empty() && plain.actions[kLayerApp].any() == false);
+        assert(plain.actions[kLayerGlobal].chanSet[ProfileActions::H] && plain.actions[kLayerDevice].partSet[PART_V_TILT]);
         const Settings vs = f.resolve("SpaceMouse Pro", "Code");
         assert(vs.buttons.at(1) == "key:ctrl+s" && vs.buttons.at(2) == "none" && vs.buttons.at(3) == "click");
         assert(vs.app_buttons.count(1) && vs.app_buttons.count(2) && !vs.app_buttons.count(3));
-        assert(vs.actions[1].chanSet[ProfileActions::TWIST] && vs.actions[1].chanSet[ProfileActions::H]);
+        assert(vs.actions[kLayerApp].chanSet[ProfileActions::TWIST] && vs.actions[kLayerApp].chanSet[ProfileActions::H]);
         const ChannelActions ca = effectiveChannelActions(ModeDef(), vs);
         assert(ca.twist.type == ChannelActionType::Off && ca.h.type == ChannelActionType::WheelH);
         assert(ca.vSplit.tiltSet && ca.vSplit.tilt.type == ChannelActionType::WheelV && !ca.vSplit.pushSet);

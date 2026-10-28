@@ -380,7 +380,7 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
         std::string canon = lower(trim(value));
         if (bt == ButtonActionType::Key) canon = keyActionText(bk, bmods);
         s.buttons[static_cast<int>(bn)] = canon;
-        if (s.action_layer) s.app_buttons[static_cast<int>(bn)] = canon;
+        if (s.action_layer == kLayerApp) s.app_buttons[static_cast<int>(bn)] = canon;
         else s.app_buttons.erase(static_cast<int>(bn));  // a later [global]/[device:*] value is below the joystick mode again
         return true;
     }
@@ -421,14 +421,16 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
     {
         static const struct { const char *name; int chan; int part; } actionKeys[] = {
             {"V_ACTION", ProfileActions::V, -1},        {"H_ACTION", ProfileActions::H, -1},
-            {"TWIST_ACTION", ProfileActions::TWIST, -1}, {"V_PUSH_ACTION", -1, PART_V_PUSH},
+            {"TWIST_ACTION", ProfileActions::TWIST, -1}, {"LIFT_ACTION", ProfileActions::LIFT, -1},
+            {"V_PUSH_ACTION", -1, PART_V_PUSH},
             {"V_TILT_ACTION", -1, PART_V_TILT},         {"H_PUSH_ACTION", -1, PART_H_PUSH},
             {"H_TILT_ACTION", -1, PART_H_TILT}};
         for (const auto &k : actionKeys) {
             if (key != k.name) continue;
             ChannelAction a;
-            if (!parseChannelAction(value, &a, err)) return false;
-            ProfileActions &pa = s.actions[s.action_layer ? 1 : 0];
+            if (!(k.chan == ProfileActions::LIFT ? parseLiftAction(value, &a, err) : parseChannelAction(value, &a, err)))
+                return false;
+            ProfileActions &pa = s.actions[std::clamp(s.action_layer, 0, kLayerCount - 1)];
             if (k.chan >= 0) {
                 pa.chan[k.chan] = a;
                 pa.chanSet[k.chan] = true;
@@ -467,7 +469,8 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
     struct Pref { const char *name; ChannelCfg Settings::*cfg; };
     static const Pref prefs[] = {{"SCROLL_V_", &Settings::scroll_v},
                                  {"SCROLL_H_", &Settings::scroll_h},
-                                 {"ZOOM_", &Settings::zoom}};
+                                 {"ZOOM_", &Settings::zoom},
+                                 {"LIFT_", &Settings::lift}};
     for (const Pref &p : prefs) {
         size_t len = std::strlen(p.name);
         if (key.compare(0, len, p.name) != 0) continue;
@@ -602,6 +605,13 @@ Settings::Settings() {
     zoom.deadzone = 40;
     zoom.sign = 1;
 
+    // Lift / press: the translation axis that neither scroll channel uses (y with spacenavd; the Windows and macOS
+    // seeds say z). A high dead zone: lifting fires when the cap is grabbed. Its action defaults to none.
+    lift.mix.terms = {{AX_Y, 1.0}};
+    lift.sensitivity = 5;
+    lift.deadzone = 80;
+    lift.sign = 1;
+
     // cppcheck-suppress useInitializationList
     zoom_lateral = {AX_X, AX_Z, AX_RX, AX_RZ};
 }
@@ -624,7 +634,8 @@ bool applyKey(Settings &s, const std::string &key, const std::string &value, std
 std::vector<KV> allKeys(const Settings &s) {
     std::vector<KV> kv;
     struct Pref { const char *name; const ChannelCfg *c; };
-    const Pref prefs[] = {{"SCROLL_V_", &s.scroll_v}, {"SCROLL_H_", &s.scroll_h}, {"ZOOM_", &s.zoom}};
+    const Pref prefs[] = {{"SCROLL_V_", &s.scroll_v}, {"SCROLL_H_", &s.scroll_h}, {"ZOOM_", &s.zoom},
+                         {"LIFT_", &s.lift}};
     for (const Pref &p : prefs) {
         std::string pre = p.name;
         kv.emplace_back(pre + "MIX", mixToString(p.c->mix));
@@ -651,17 +662,24 @@ std::vector<KV> allKeys(const Settings &s) {
     kv.emplace_back("CLICK_BUTTON", std::to_string(s.click_button));
     kv.emplace_back("CLICK_BUTTON_ENABLED", s.click_button_enabled ? "1" : "0");
     for (const auto &b : s.buttons) kv.emplace_back("BUTTON_" + std::to_string(b.first), b.second);
-    // Channel actions of profiles: only the keys that were set (nothing for a config without them); the program layer wins.
+    // Channel actions of profiles: only the keys that were set (nothing for a config without them). The collapsed text
+    // is what the layers give together: the highest layer wins per key, and a channel key of a higher layer drops
+    // the split keys of the layers below it (so the text reads back as the same actions at a single layer).
     {
-        static const char *const chanNames[3] = {"V_ACTION", "H_ACTION", "TWIST_ACTION"};
+        static const char *const chanNames[ProfileActions::kChanCount] = {"V_ACTION", "H_ACTION", "TWIST_ACTION", "LIFT_ACTION"};
         static const char *const partNames2[PART_COUNT] = {"V_PUSH_ACTION", "V_TILT_ACTION", "H_PUSH_ACTION", "H_TILT_ACTION"};
-        for (int c = 0; c < 3; ++c) {
-            const int l = s.actions[1].chanSet[c] ? 1 : s.actions[0].chanSet[c] ? 0 : -1;
-            if (l >= 0) kv.emplace_back(chanNames[c], channelActionText(s.actions[l].chan[c]));
+        int chanLayer[ProfileActions::kChanCount];
+        for (int c = 0; c < ProfileActions::kChanCount; ++c) {
+            chanLayer[c] = -1;
+            for (int l = kLayerCount - 1; l >= 0 && chanLayer[c] < 0; --l)
+                if (s.actions[l].chanSet[c]) chanLayer[c] = l;
+            if (chanLayer[c] >= 0) kv.emplace_back(chanNames[c], channelActionText(s.actions[chanLayer[c]].chan[c]));
         }
         for (int i = 0; i < PART_COUNT; ++i) {
-            const int l = s.actions[1].partSet[i] ? 1 : s.actions[0].partSet[i] ? 0 : -1;
-            if (l >= 0) kv.emplace_back(partNames2[i], channelActionText(s.actions[l].part[i]));
+            int l = kLayerCount - 1;
+            while (l >= 0 && !s.actions[l].partSet[i]) --l;
+            const int ownChan = chanLayer[i / 2];  // V_ACTION for parts 0 and 1, H_ACTION for 2 and 3
+            if (l >= 0 && l >= ownChan) kv.emplace_back(partNames2[i], channelActionText(s.actions[l].part[i]));
         }
     }
     // Per-part tuning of split channels: only the values that were set (nothing for a config without them).
@@ -697,11 +715,11 @@ std::vector<KV> diffKeys(const Settings &base, const Settings &s) {
 
 ProfileSet::ProfileSet() { sections.push_back(Section()); }
 
-int layerOfSection(Section::Kind kind) { return kind == Section::APP ? 1 : 0; }
+int layerOfSection(Section::Kind kind) { return kind == Section::APP ? kLayerApp : kind == Section::DEVICE ? kLayerDevice : kLayerGlobal; }
 
 bool applyKeyLayer(Settings &s, const std::string &key, const std::string &value, int layer, std::string *err) {
     const int saved = s.action_layer;
-    s.action_layer = layer ? 1 : 0;
+    s.action_layer = std::clamp(layer, 0, kLayerCount - 1);
     const bool ok = applyKey(s, key, value, err);
     s.action_layer = saved;
     return ok;
@@ -712,7 +730,7 @@ void applyKvList(Settings &s, const std::vector<KV> &kv, int layer) {
 }
 
 static bool sameActions(const ProfileActions &a, const ProfileActions &b) {
-    for (int c = 0; c < 3; ++c) {
+    for (int c = 0; c < ProfileActions::kChanCount; ++c) {
         if (a.chanSet[c] != b.chanSet[c]) return false;
         if (a.chanSet[c] && channelActionText(a.chan[c]) != channelActionText(b.chan[c])) return false;
     }
@@ -724,14 +742,15 @@ static bool sameActions(const ProfileActions &a, const ProfileActions &b) {
 }
 
 bool sameSettings(const Settings &a, const Settings &b) {
-    return allKeys(a) == allKeys(b) && a.app_buttons == b.app_buttons && sameActions(a.actions[0], b.actions[0]) &&
-           sameActions(a.actions[1], b.actions[1]);
+    return allKeys(a) == allKeys(b) && a.app_buttons == b.app_buttons && sameActions(a.actions[kLayerGlobal], b.actions[kLayerGlobal]) &&
+           sameActions(a.actions[kLayerDevice], b.actions[kLayerDevice]) &&
+           sameActions(a.actions[kLayerApp], b.actions[kLayerApp]);
 }
 
 Settings ProfileSet::sectionSettings(size_t i) const {
     Settings s;
     if (sections.empty()) return s;
-    applyKvList(s, sections[0].kv, 0);
+    applyKvList(s, sections[0].kv, kLayerGlobal);
     if (i > 0 && i < sections.size()) applyKvList(s, sections[i].kv, layerOfSection(sections[i].kind));
     return s;
 }
@@ -744,15 +763,15 @@ Settings ProfileSet::resolve(const std::string &device_name, const std::string &
                              const std::vector<KV> *mode_overrides) const {
     Settings s;
     if (sections.empty()) return s;
-    applyKvList(s, sections[0].kv, 0);
+    applyKvList(s, sections[0].kv, kLayerGlobal);
     for (size_t i = 1; i < sections.size(); i++)
         if (sections[i].kind == Section::DEVICE && containsCI(device_name, sections[i].pattern))
-            applyKvList(s, sections[i].kv, 0);
-    if (mode_overrides) applyKvList(s, *mode_overrides, 0);
-    // The program layer (1): its channel actions and buttons beat the joystick mode's.
+            applyKvList(s, sections[i].kv, kLayerDevice);
+    if (mode_overrides) applyKvList(s, *mode_overrides, kLayerDevice);
+    // The program layer: its channel actions and buttons beat the joystick mode's.
     for (size_t i = 1; i < sections.size(); i++)
         if (sections[i].kind == Section::APP && containsCI(wm_class, sections[i].pattern))
-            applyKvList(s, sections[i].kv, 1);
+            applyKvList(s, sections[i].kv, kLayerApp);
     return s;
 }
 
@@ -802,8 +821,8 @@ void ProfileSet::setSectionFromSettingsKeys(size_t i, const Settings &s) {
         for (size_t j = 1; j < sections.size(); j++) {
             if (sections[j].kind != Section::DEVICE) continue;
             Settings d = base;
-            applyKvList(d, sections[j].kv, 0);
-            applyKvList(all, sections[j].kv, 0);
+            applyKvList(d, sections[j].kv, kLayerDevice);
+            applyKvList(all, sections[j].kv, kLayerDevice);
             devs.push_back(toMap(allKeys(d)));
         }
         devs.push_back(toMap(allKeys(all)));

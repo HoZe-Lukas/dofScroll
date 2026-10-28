@@ -4000,10 +4000,6 @@ msgid "What this motion does belongs to the joystick mode %1. Change it on the J
 msgstr "Was diese Bewegung tut, gehört zum Joystick-Modus %1. Ändere es auf der Seite Joystick-Modi."
 
 #: src/ui/qt/pages/profile_motions_view.cpp
-msgid "Lift / press has no settings of its own."
-msgstr "Heben/Drücken hat keine eigenen Einstellungen."
-
-#: src/ui/qt/pages/profile_motions_view.cpp
 msgid "Tuning in this profile"
 msgstr "Feineinstellung in diesem Profil"
 
@@ -5179,10 +5175,6 @@ msgid "In %1 this button does: %2. Taking it over copies this binding into the p
 msgstr "In %1 macht diese Taste: %2. Beim Übernehmen wird diese Belegung in das Profil kopiert; spätere Änderungen in der Quelle folgen nicht."
 
 #: src/ui
-msgid "Lift / press has no action of its own."
-msgstr "Anheben / Drücken hat keine eigene Aktion."
-
-#: src/ui
 msgid "The joystick mode of this profile sets this motion; only a program profile can change it, or change it in the joystick mode."
 msgstr "Der Joystick-Modus dieses Profils legt diese Bewegung fest; nur ein Programmprofil kann sie ändern, oder du änderst sie im Joystick-Modus."
 
@@ -5405,3 +5397,23 @@ msgstr "Kopiere, was diese Bewegung in einem Profil oder anderen Joystick-Modus 
 #: src/ui
 msgid "Copy the binding of this button in a profile, another joystick mode or a button mode into this joystick mode. It is a copy: later changes in the source do not follow."
 msgstr "Kopiere die Belegung dieser Taste aus einem Profil, anderen Joystick-Modus oder Tastenmodus in diesen Joystick-Modus. Es ist eine Kopie: spätere Änderungen in der Quelle folgen nicht."
+
+#: src/ui/model/motion_edit_model.hpp
+msgid "Nothing (the default)"
+msgstr "Nichts (Standard)"
+
+#: src/ui/model/motion_edit_model.hpp
+msgid "An analog key repeat is not offered for lift / press: it fires when you grab the cap. Use one key tap per push."
+msgstr "Für Heben/Drücken gibt es keine analoge Tastenwiederholung: Sie löst aus, wenn du die Kappe anfasst. Nimm einen Tastendruck pro Schub."
+
+#: src/ui/model/motion_edit_model.hpp
+msgid "Lift / press can fire when you grab or let go of the cap. Raise the dead zone (LIFT_DEADZONE) if it does."
+msgstr "Heben/Drücken kann auslösen, wenn du die Kappe anfasst oder loslässt. Erhöhe in dem Fall die Totzone (LIFT_DEADZONE)."
+
+#: src/ui/model/motion_edit_model.hpp
+msgid "Off (the built-in default): lifting the cap does nothing."
+msgstr "Aus (der eingebaute Standard): Das Anheben der Kappe tut nichts."
+
+#: src/ui/model/motion_edit_model.hpp
+msgid "On."
+msgstr "An."

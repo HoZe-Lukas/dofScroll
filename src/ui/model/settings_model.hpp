@@ -688,9 +688,9 @@ public:
         if (!m || m->overrides.empty()) return s;
         std::vector<KV> ov;
         for (const auto &kv : m->overrides) ov.emplace_back(upper(kv.first), kv.second);
-        applyKvList(s, ov, 0);
-        // The program layer (1) beats the mode's channel actions and buttons, as in ProfileSet::resolve.
-        if (ps_.sections[i].kind == Section::APP) applyKvList(s, ps_.sections[i].kv, 1);
+        applyKvList(s, ov, kLayerDevice);
+        // The program layer beats the mode's channel actions and buttons, as in ProfileSet::resolve.
+        if (ps_.sections[i].kind == Section::APP) applyKvList(s, ps_.sections[i].kv, kLayerApp);
         return s;
     }
 
@@ -1304,7 +1304,7 @@ private:
     // V_ACTION and friends (the channel actions of a profile) are written only when a profile sets them, so they are
     // not in allKeys(Settings()).
     static bool isActionKey(const std::string &k) {
-        return k == "V_ACTION" || k == "H_ACTION" || k == "TWIST_ACTION" || k == "V_PUSH_ACTION" || k == "V_TILT_ACTION" ||
+        return k == "V_ACTION" || k == "H_ACTION" || k == "TWIST_ACTION" || k == "LIFT_ACTION" || k == "V_PUSH_ACTION" || k == "V_TILT_ACTION" ||
                k == "H_PUSH_ACTION" || k == "H_TILT_ACTION";
     }
     static bool isEditableKey(const std::string &k) {

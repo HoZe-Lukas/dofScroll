@@ -1100,13 +1100,13 @@ static void testProfileActionKeys() {
     assert(loadProfiles(p, &ps, &w));
     assert(w.size() == 1 && w[0].find("H_TILT_ACTION") != std::string::npos);  // the invalid line: a warning, not stored
     const Settings s = ps.resolve("SpaceMouse Pro", "code");
-    assert(s.actions[0].chanSet[ProfileActions::H] && s.actions[0].chan[ProfileActions::H].type == ChannelActionType::Off);
-    assert(s.actions[0].partSet[PART_V_PUSH] && s.actions[0].part[PART_V_PUSH].type == ChannelActionType::WheelV);
-    assert(s.actions[1].chanSet[ProfileActions::TWIST] && s.actions[1].chan[ProfileActions::TWIST].type == ChannelActionType::Keys);
-    assert(s.actions[1].partSet[PART_V_TILT] && !s.actions[1].partSet[PART_H_TILT]);
+    assert(s.actions[kLayerGlobal].chanSet[ProfileActions::H] && s.actions[kLayerGlobal].chan[ProfileActions::H].type == ChannelActionType::Off);
+    assert(s.actions[kLayerDevice].partSet[PART_V_PUSH] && s.actions[kLayerDevice].part[PART_V_PUSH].type == ChannelActionType::WheelV);
+    assert(s.actions[kLayerApp].chanSet[ProfileActions::TWIST] && s.actions[kLayerApp].chan[ProfileActions::TWIST].type == ChannelActionType::Keys);
+    assert(s.actions[kLayerApp].partSet[PART_V_TILT] && !s.actions[kLayerApp].partSet[PART_H_TILT]);
     assert(s.app_buttons.count(2) && s.buttons.at(2) == "none");
     const Settings other = ps.resolve("SpaceMouse Pro", "firefox");
-    assert(!other.actions[1].any() && other.app_buttons.empty());
+    assert(!other.actions[kLayerApp].any() && other.app_buttons.empty());
     // canonical text, round trip
     std::string err;
     assert(saveProfiles(p, ps, &err));

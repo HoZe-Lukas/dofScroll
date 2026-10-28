@@ -227,7 +227,8 @@ to the picture shows the selected item:
   smoothing of that motion as overrides of the joystick mode.
 - **A channel mix written by hand** (an override such as `SCROLL_V_MIX = z`) is never changed by the
   picture: a motion it does not use says "Not used: custom channel mix" and offers "Show in Settings tab".
-- **Lift / press** has no key of its own. The inspector adds it as a term to the mix of one channel
+- **Lift / press** has no action list in the joystick mode editor yet (a `LIFT_ACTION` line in the file works and is kept).
+  On the Profiles page it has its own action, see below. The inspector adds it as a term to the mix of one channel
   (`SCROLL_V_MIX = z + rx + y`, with a weight) and says in words that it is prone to false triggers when
   the cap is grabbed or released. No built-in joystick mode uses it (`tests/test_no_lift_press.cpp`).
 - **A button:** the same button row as on the Buttons tab (the actions, the button modes, "Unbind").
@@ -249,6 +250,15 @@ button has the same three states: its row (the action drop-down, "Inherit") and 
 happens although Global, the device or the joystick mode binds the button), with "Set in this profile", "Inherited from
 Global: ..." and "device X sets ..." in words, and a note when the joystick mode binds the button too (a program profile's
 binding wins). Everything is saved at once; there is no Save button; an invalid value is shown and not written.
+
+**Lift / press in a profile.** The sixth motion is edited like the others, with a shorter list because its default is
+nothing and it fires when the cap is grabbed: "Nothing (the default)", scroll, scroll sideways, zoom and one key tap per
+push; an analog key repeat is not offered (greyed with the reason). The note under the list says that lifting can fire when
+you grab or let go of the cap and that the dead zone (`LIFT_DEADZONE`, default 80, shown under "Tuning in this profile")
+is the remedy. **Clear** pins nothing for this profile (`LIFT_ACTION = none`), **Use the inherited setting** removes the
+key; "Switch on" and "Take over from ..." are not offered for the lift. Which axis it is comes from `LIFT_MIX` (`y` with
+spacenavd, `z` in the Windows and macOS seeds), not from the program. A lift without an action is "Not used", a cleared one
+"Off". The joystick mode editor has no lift list yet; a `LIFT_ACTION` line in a joystick mode file works and is kept.
 
 **Help where you work.** The line under the picture says in plain words what the selected item does, with
 the real rate from the channel processing at full deflection ("Vertical tilt: presses Page up or Page

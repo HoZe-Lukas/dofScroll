@@ -8,7 +8,7 @@
 // Two paths:
 //  - legacy: all three channel actions are "default". Identical to the behavior before
 //    modes existed (dominance-based zoom, NAV_BUTTON / CLICK_BUTTON from the settings).
-//  - custom: at least one channel action differs from "default". The channels follow the
+//  - custom: at least one channel action differs from "default" (the lift counts only when it does something). The channels follow the
 //    mode's actions; NAV_BUTTON / CLICK_BUTTON are ignored (the mode's button bindings
 //    replace them).
 //    A mode that splits the V and/or H channel into push and tilt (modes.hpp, SplitChannel) runs the
@@ -86,6 +86,7 @@ public:
         double rate_h = 0, rate_v = 0, twist = 0, lateral = 0;
         bool zooming = false, nav = false;
         double rate_zoom = 0;
+        double rate_lift = 0;  // the lift / press motion (0 while its action is none)
         // Rates of the four sub-channels (SplitPart order), 0 for a part that does not run. For a split
         // channel rate_v / rate_h hold the part rate with the larger magnitude (signed), so that the live
         // feed and the debug output still show the channel's output.
@@ -101,7 +102,7 @@ public:
         for (double r : info_.rate_part)
             if (std::fabs(r) > kRateEpsilon) return true;
         return std::fabs(info_.rate_h) > kRateEpsilon || std::fabs(info_.rate_v) > kRateEpsilon ||
-               std::fabs(info_.rate_zoom) > kRateEpsilon || info_.zooming;
+               std::fabs(info_.rate_zoom) > kRateEpsilon || std::fabs(info_.rate_lift) > kRateEpsilon || info_.zooming;
     }
 
 private:
@@ -114,9 +115,9 @@ private:
     int hold_button_ = 0;  // button (1-based) that started a hold:mode:, 0 = none
     bool hold_release_pending_ = false;
 
-    Channel ch_v_, ch_h_, ch_zoom_;
-    StepAccumulator acc_v_, acc_h_, acc_zoom_;
-    int8_t step_v_ = 0, step_h_ = 0, step_zoom_ = 0;  // step: channels: 0 armed, +1/-1 fired on that side
+    Channel ch_v_, ch_h_, ch_zoom_, ch_lift_;
+    StepAccumulator acc_v_, acc_h_, acc_zoom_, acc_lift_;
+    int8_t step_v_ = 0, step_h_ = 0, step_zoom_ = 0, step_lift_ = 0;  // step: channels: 0 armed, +1/-1 fired on that side
     Channel ch_part_[PART_COUNT];                     // sub-channels of split V / H channels
     StepAccumulator acc_part_[PART_COUNT];
     int8_t step_part_[PART_COUNT] = {0, 0, 0, 0};

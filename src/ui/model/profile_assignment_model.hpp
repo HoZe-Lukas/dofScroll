@@ -45,6 +45,7 @@ inline ProfileAssignment profileAssignment(const SettingsModel &m, size_t sectio
         run.v = ca.v;
         run.h = ca.h;
         run.twist = ca.twist;
+        run.lift = ca.lift;
         run.vSplit = ca.vSplit;
         run.hSplit = ca.hSplit;
     }
@@ -54,7 +55,7 @@ inline ProfileAssignment profileAssignment(const SettingsModel &m, size_t sectio
         // a motion the profile clears says so, one it gives another action says that; never the action it would have
         const MotionEdit e = motionEdit(m, section, r.id, s);
         if (e.editable && e.state == MotionState::Cleared) r.source = s.tr("cleared in this profile");
-        else if (e.editable && (m.isOverridden(section, e.key) || m.isOverridden(section, e.prefix.empty() ? "" : r.id[0] == 'v' ? "V_ACTION" : "H_ACTION")))
+        else if (e.editable && (m.isOverridden(section, e.key) || m.isOverridden(section, r.id[0] == 'v' ? "V_ACTION" : r.id[0] == 'h' ? "H_ACTION" : "")))
             r.source = s.tr("set in this profile");
     }
     // buttons 1..32: a binding of the joystick mode wins over BUTTON_<n> of [global] and [device:*]; BUTTON_<n> of a

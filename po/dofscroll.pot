@@ -2824,3 +2824,23 @@ msgstr ""
 #: src/ui/qt/pages/axes_page.cpp
 msgid "All devices (the one that moved last)"
 msgstr ""
+
+#: src/ui/model/motion_edit_model.hpp
+msgid "Nothing (the default)"
+msgstr ""
+
+#: src/ui/model/motion_edit_model.hpp
+msgid "An analog key repeat is not offered for lift / press: it fires when you grab the cap. Use one key tap per push."
+msgstr ""
+
+#: src/ui/model/motion_edit_model.hpp
+msgid "Lift / press can fire when you grab or let go of the cap. Raise the dead zone (LIFT_DEADZONE) if it does."
+msgstr ""
+
+#: src/ui/model/motion_edit_model.hpp
+msgid "Off (the built-in default): lifting the cap does nothing."
+msgstr ""
+
+#: src/ui/model/motion_edit_model.hpp
+msgid "On."
+msgstr ""

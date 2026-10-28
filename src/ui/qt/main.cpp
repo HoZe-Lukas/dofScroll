@@ -1950,9 +1950,26 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
             }
             check(mv->select(QStringLiteral("m:lift")), "select lift / press");
             settle();
-            bool noSettings = false;
-            for (QLabel *l : mv->inspector()->findChildren<QLabel *>()) noSettings = noSettings || l->text().contains(QStringLiteral("no settings of its own"));
-            check(noSettings, "lift / press has no tuning");
+            // lift / press has its own action list (nothing by default, no analog keys) and its LIFT_* tuning fields
+            QComboBox *liftAct = mv->inspector()->findChild<QComboBox *>(QStringLiteral("motionAction"));
+            check(liftAct != nullptr && liftAct->findData(int(spn::ChannelActionType::Keys)) < 0 &&
+                      liftAct->findData(int(spn::ChannelActionType::Step)) >= 0 && liftAct->currentData().toInt() == int(spn::ChannelActionType::Default),
+                  "lift / press offers its own choices: nothing is the default, no analog keys");
+            bool liftTuning = false;
+            for (QLineEdit *e : mv->inspector()->findChildren<QLineEdit *>()) liftTuning = liftTuning || e->toolTip() == QStringLiteral("LIFT_DEADZONE");
+            check(liftTuning, "lift / press has its dead zone field");
+            if (liftAct) {
+                const int idx = liftAct->findData(int(spn::ChannelActionType::WheelV));
+                liftAct->setCurrentIndex(idx);
+                emit liftAct->activated(idx);
+                settle();
+                QLabel *words = mv->inspector()->findChild<QLabel *>(QStringLiteral("motionStateWords"));
+                check(words && words->text().contains(QStringLiteral("Set in Global")), "lift / press can be given an action in Global and says so");
+                QPushButton *back = mv->inspector()->findChild<QPushButton *>(QStringLiteral("motionInherit"));
+                check(back && back->isEnabled(), "a lift set here has Use the default");
+                if (back) back->click();
+                settle();
+            }
 
             // Every motion and button of a program profile can be changed on its own: another action, Clear, Switch on and the way
             // back to inheriting (motion_edit_model.hpp); the actions are written as V_PUSH_ACTION ... TWIST_ACTION of the profile.

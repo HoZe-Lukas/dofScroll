@@ -62,6 +62,33 @@ interface does not assume either order: it reads what your mixes say (see "Where
 axis meaning" in [ui.md](ui.md)). The file format is the same everywhere; a profile copied between
 systems needs its mixes adjusted.
 
+### Lift / press
+
+The sixth motion, pulling the cap up or pressing it down, has its own channel and its own action. It does **nothing by
+default** (grabbing or letting go of the cap lifts it a little, so a function on it can fire by accident); a profile or a
+joystick mode gives it one with `LIFT_ACTION`. Which axis it is comes from the configuration, never from the program:
+`LIFT_MIX` is `y` with spacenavd, the seeded Windows and macOS files say `z` (the official driver names the axes
+differently, see above).
+
+| Key | Default | Meaning |
+|---|---|---|
+| `LIFT_ACTION` | `none` | What the lift does, **in a profile or a joystick mode**: `none` (or `default`, the same), `wheel_v`, `wheel_h`, `zoom` or `step:<neg>,<pos>` (one key tap per push, digital). An analog `keys:<neg>,<pos>` is rejected on the lift (a key repeat would type by accident while you grab the cap); use `step:`. Allowed in `[global]`, `[device:*]` and `[app:*]`, written only when set. |
+| `LIFT_MIX` | `y` | Axis expression of the lift (the seeded Windows and macOS files: `z`). |
+| `LIFT_SENS` | `5` | Sensitivity 0 to 255; `0` switches the lift off. |
+| `LIFT_DEADZONE` | `80` | Dead zone in raw sensor units, higher than the other channels so that grabbing the cap stays below it. Raise it if the lift still fires when you grab or let go. |
+| `LIFT_SIGN`, `LIFT_CURVE`, `LIFT_SMOOTH_MS` | `1`, `1.0`, `0` | As the keys of the other channels. |
+
+The lift keys are valid in profiles and in joystick mode files (the tuning keys as overrides, `LIFT_ACTION` as the action
+key). Precedence is that of the other motions: `[global]` < `[device:*]` < joystick mode < `[app:*]`.
+
+    [app:player]
+    LIFT_ACTION = step:volume_up,volume_down   # one tap per lift: see the note about hardware below
+    LIFT_DEADZONE = 120
+
+While the lift zooms (`zoom`), the other wheel motions pause, as for a push or tilt that zooms. Only a person with a device
+can judge the feel and the false triggers of the lift; start with the default action `none`, switch it on in one program and
+raise `LIFT_DEADZONE` until grabbing the cap does not fire it.
+
 ## Zoom, backend, buttons
 
 | Key | Default | Meaning |
@@ -141,12 +168,15 @@ Lowest to highest: `[global]` < matching `[device:*]` < overrides of the active 
 matching section wins. The joystick mode is chosen by `MODE` from the resolved profile (global, device or
 app), so an app section can select a joystick mode and still has the last word over the joystick mode's overrides.
 
-The channel actions (`V_ACTION`, `H_ACTION`, `TWIST_ACTION` and the four push/tilt keys) and `BUTTON_<n>` follow the same
+The channel actions (`V_ACTION`, `H_ACTION`, `TWIST_ACTION`, `LIFT_ACTION` and the four push/tilt keys) and `BUTTON_<n>` follow the same
 order with the joystick mode's own actions and bindings in the middle: `[global]` and `[device:*]` sit below the
 joystick mode (a mode that sets a channel or a button keeps it; a mode that says nothing about it leaves the
-profile's value in force), an `[app:*]` section sits above it and wins. A joystick mode counts as setting a channel when
+profile's value in force), an `[app:*]` section sits above it and wins. `[global]` and `[device:*]` are two layers
+(global < device < joystick mode < program). A joystick mode counts as setting a channel when
 its action is not `default`. A profile that sets the whole channel (`V_ACTION`) makes both parts that action and
-drops a split of the layers below; a profile that sets one part (`V_TILT_ACTION`) changes only that part, the other
+drops a split of **every** layer below, a `[global]` split included when the profile is a `[device:*]` section
+(`[global] V_PUSH_ACTION = none` plus `[device:Pro] V_ACTION = wheel_v` gives a plain `wheel_v`, the push is not left
+off); a profile that sets one part (`V_TILT_ACTION`) changes only that part, the other
 keeps what the layers below say.
 
 **Compatibility.** A configuration without these keys behaves exactly as before; no existing key changed meaning (one
