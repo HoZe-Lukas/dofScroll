@@ -9,6 +9,12 @@
 # release, so that the release uses the newest tested versions. The GitHub Actions SHAs are
 # refreshed by Dependabot (.github/dependabot.yml).
 #
+# Two jobs, so that no code from PyPI or a registry runs where a write token exists: `refresh` has a read-only
+# token and no stored credentials, works on a copy of the tree without .git (the checkout itself is never
+# mounted into a container) and hands over only the generated files as an artifact; `propose` has the write
+# token, never runs the generator, accepts exactly three files and commits those, never
+# `git add -A` (issue #262).
+#
 # The pins are only needed at a release, so the job runs once a month and can be started by hand before a
 # release (Actions > refresh-ci-pins > Run workflow). It changes only files under packaging/ci (the image
 # digests live in packaging/ci/images.env, not in the workflow files), so the default GITHUB_TOKEN may push
@@ -38,6 +44,41 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Refresh image digests and aqtinstall hashes (on a copy without .git)
+        run: |
+          work="$RUNNER_TEMP/work"
+          mkdir -p "$work"
+          git archive HEAD | tar -x -C "$work"
+          cd "$work"
+          sh scripts/pin-ci-images.sh
+          # Python 3.10: the oldest Python of the builds decides which versions can be resolved. The container runs
+          # unprivileged and sees only the copy; pip installs wheels only (the one sdist-only package, patch, is built inside the container).
+          docker run --rm --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
+            -e HOME=/tmp -v "$work":/w -w /w python:3.10-slim sh scripts/update-aqt-requirements.sh
+          sh scripts/check-ci-pins.sh
+          mkdir -p "$RUNNER_TEMP/out"
+          for f in packaging/ci/images.env packaging/ci/aqt-requirements.txt packaging/ci/rocky9.Dockerfile; do
+            mkdir -p "$RUNNER_TEMP/out/$(dirname "$f")"
+            cp "$f" "$RUNNER_TEMP/out/$f"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: ci-pins
+          path: ${{ runner.temp }}/out
+          if-no-files-found: error
+          retention-days: 3
+
+  propose:
+    name: open or update the pull request
+    needs: refresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
       contents: write        # push the branch ci/refresh-pins; only this job
       pull-requests: write   # open or update the pull request; only this job
       actions: write         # approve the checks of the PR (action_required); only this job
@@ -45,12 +86,30 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - name: Refresh image digests and aqtinstall hashes
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: ci-pins
+          path: ${{ runner.temp }}/in
+      - name: Take over exactly the generated files
         run: |
-          sh scripts/pin-ci-images.sh
-          # Python 3.10: the oldest Python of the builds decides which versions can be resolved
-          docker run --rm -v "$PWD":/w -w /w python:3.10-slim sh scripts/update-aqt-requirements.sh
+          set -- packaging/ci/images.env packaging/ci/aqt-requirements.txt packaging/ci/rocky9.Dockerfile
+          in="$RUNNER_TEMP/in"
+          # nothing but the expected files, as regular files
+          expected="$(printf '%s\n' "$@" | sort)"
+          found="$(cd "$in" && find . -mindepth 1 \( -type f -o -type l -o -type d \) | sed 's|^\./||' | grep -v -x -e packaging -e packaging/ci | sort)"
+          [ "$expected" = "$found" ] || { echo "unexpected artifact content:"; echo "$found"; exit 1; }
+          for f in "$@"; do
+            [ -f "$in/$f" ] && [ ! -L "$in/$f" ] || { echo "$f is not a regular file"; exit 1; }
+            cp "$in/$f" "$f"
+          done
+          # the pin check of the trusted checkout judges the result; besides, only digest and hash lines may differ
           sh scripts/check-ci-pins.sh
+          git diff -U0 -- packaging/ci/images.env packaging/ci/rocky9.Dockerfile \
+            | grep -E '^[-+][^-+]' | grep -v -F '@sha256:' && { echo "a changed line is not a digest"; exit 1; }
+          git diff -U0 -- packaging/ci/aqt-requirements.txt | grep -E '^[-+][^-+]' \
+            | grep -v -E '^[-+](aqtinstall|[A-Za-z0-9_.-]+)==[^ ]+( ; python_version < "[0-9.]+")? \\$|^[-+] +--hash=sha256:[0-9a-f]{64}( \\)?$' \
+            && { echo "a changed line of aqt-requirements.txt is not a pin or a hash"; exit 1; }
+          true
       - name: Open or update the pull request
         env:
           GH_TOKEN: ${{ secrets.REFRESH_PINS_TOKEN || github.token }}
@@ -64,7 +123,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -B ci/refresh-pins
-          git add -A packaging/ci
+          git add -- packaging/ci/images.env packaging/ci/aqt-requirements.txt packaging/ci/rocky9.Dockerfile
           git commit -m "Refresh CI pins: image digests and aqtinstall hashes"
           git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci/refresh-pins
           if [ -n "$(gh pr list --head ci/refresh-pins --state open --json number --jq '.[].number')" ]; then

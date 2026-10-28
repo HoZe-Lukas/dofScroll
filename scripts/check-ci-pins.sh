@@ -7,7 +7,8 @@
 #     and the workflows take every `container:` image from there, never from a tag;
 #  2. aqtinstall is installed with hashes only, and packaging/ci/aqt-requirements.txt pins the
 #     AQT_VERSION of packaging/qt.env, every package with at least one hash;
-#  3. the release job attests the artifacts with a commit-pinned action and has the permissions for it.
+#  3. refresh-ci-pins.yml keeps code from registries away from the write token (two jobs, no `git add -A`);
+#  4. the release job attests the artifacts with a commit-pinned action and has the permissions for it.
 # Usage: scripts/check-ci-pins.sh
 set -eu
 cd "$(dirname "$0")/.."
@@ -38,7 +39,24 @@ if grep -rn -E 'pip3? install' .github/workflows packaging/ci scripts 2>/dev/nul
 fi
 grep -rn -E 'pip3? install.*"?aqtinstall==' .github/workflows packaging/ci && bad "aqtinstall pinned by version only"
 
-# 3. attestation of the release
+# 3. refresh-ci-pins.yml: the job that runs the generators has a read-only token, the job with the write token
+#    never runs them and commits named files only
+wf=.github/workflows/refresh-ci-pins.yml
+for p in 'contents: write' 'pull-requests: write' 'actions: write'; do
+  n="$(grep -c "^      $p" "$wf")"
+  [ "$n" = 1 ] || bad "$wf: '$p' must appear exactly once (only the job propose), found $n"
+done
+grep -v -E '^ *#' "$wf" | grep -i -E 'git add +(-A|--all|\.)' && bad "$wf: commit named files only, never git add -A"
+split="$(grep -n -E '^  propose:' "$wf" | cut -d: -f1)"
+[ -n "$split" ] || bad "$wf: job propose is missing"
+if [ -n "$split" ]; then
+  tail -n "+$split" "$wf" | grep -v -E '^ *#' | grep -E 'sh scripts/(pin-ci-images|update-aqt-requirements)\.sh|docker run|pip3? ' \
+    && bad "$wf: the generators run in the read-only job only"
+  head -n "$((split - 1))" "$wf" | grep -v -E '^ *#' | grep -E 'GH_TOKEN|github\.token|REFRESH_PINS_TOKEN' \
+    && bad "$wf: no token in the read-only job"
+fi
+
+# 4. attestation of the release
 grep -q -E 'uses: actions/attest-build-provenance@[0-9a-f]{40} ' .github/workflows/ci.yml \
   || bad "ci.yml: release job has no commit-pinned actions/attest-build-provenance step"
 for p in 'id-token: write' 'attestations: write'; do
