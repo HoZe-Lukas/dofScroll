@@ -2381,6 +2381,8 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                             if (sa->horizontalScrollBar() && sa->horizontalScrollBar()->isVisible()) fits = false;
                     // the inspector needs well under 450 px at the normal font whatever the glyphs: it never forces a scroll bar
                     if (scale == 1.0 && mv->inspector()->minimumSizeHint().width() > 450) fits = false;
+                    // picture and inspector side by side only when the inspector really has the width it needs
+                    if (mv->inspector()->width() < mv->inspector()->minimumSizeHint().width()) fits = false;
                     check(fits, fc.spacing != 100 ? (scale == 1.0 ? "1100 px, wide glyphs: no horizontal scroll bar" : "150% font, wide glyphs: no horizontal scroll bar")
                                 : scale == 1.0 ? "1100 px, 100% font: no horizontal scroll bar" : scale == 1.5 ? "150% font: no horizontal scroll bar" : "200% font: no horizontal scroll bar");
                     if (!fits) {  // which controls reach beyond the visible width (for the log of a failing run)
