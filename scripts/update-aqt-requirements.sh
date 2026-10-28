@@ -23,7 +23,8 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 python3 -m venv "$tmp/venv"
-"$tmp/venv/bin/pip" install --quiet "aqtinstall==${AQT_VERSION}"
+# Wheels only, so that no build script of a dependency runs; "patch" is the one package that has only an sdist
+"$tmp/venv/bin/pip" install --quiet --only-binary=:all: --no-binary=patch "aqtinstall==${AQT_VERSION}"
 "$tmp/venv/bin/pip" freeze --all | grep -v -i -E '^(pip|setuptools|wheel)==' > "$tmp/pins.txt"
 grep -q -i "^aqtinstall==${AQT_VERSION}\$" "$tmp/pins.txt"
 

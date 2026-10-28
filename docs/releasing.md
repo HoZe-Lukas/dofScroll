@@ -86,7 +86,9 @@ The release builds do not take their inputs from moving tags:
   `ci-image` has published. `scripts/pin-ci-images.sh --check` only reports. Normally you do not do
   this by hand: the monthly `refresh-ci-pins.yml` (or a manual start of it) runs both scripts and opens (or updates) the pull request
   "Refresh CI pins", never merged automatically. The refresh PR is merged before a release so the release
-  uses the newest tested versions. The job changes only files under `packaging/ci`, so the default token
+  uses the newest tested versions. The workflow has two jobs: `refresh` (read-only token, runs the two scripts on a copy of the tree without `.git`
+  and uploads `images.env`, `aqt-requirements.txt` and `rocky9.Dockerfile` as an artifact) and `propose` (the write token; it never
+  runs the scripts, takes over exactly those three files and commits them by name). The job changes only files under `packaging/ci`, so the default token
   suffices. The checks of a PR opened by the bot wait for an approval (`action_required`), so the job approves them
   itself and they count as the checks of the PR (a dispatch would not: its runs belong to the commit, not to the PR,
   and do not satisfy the required checks). If the approval ever fails, approve the runs in the Actions tab or via the
