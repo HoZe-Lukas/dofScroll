@@ -2396,12 +2396,14 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                     check(fits, fc.spacing != 100 ? (scale == 1.0 ? "1100 px, wide glyphs: no horizontal scroll bar" : "150% font, wide glyphs: no horizontal scroll bar")
                                 : scale == 1.0 ? "1100 px, 100% font: no horizontal scroll bar" : scale == 1.5 ? "150% font: no horizontal scroll bar" : "200% font: no horizontal scroll bar");
                     if (!fits) {  // which controls reach beyond the visible width (for the log of a failing run)
+                        std::fprintf(stderr, "  motions view min %d, picture min %d, inspector min %d, width %d\n", mv->minimumSizeHint().width(), mv->picture()->minimumSizeHint().width(),
+                                     mv->inspector()->minimumSizeHint().width(), mv->width());
                         QAbstractScrollArea *sa = nullptr;
                         for (QWidget *p = mv->inspector(); p && !sa; p = p->parentWidget()) sa = qobject_cast<QAbstractScrollArea *>(p);
-                        for (QWidget *c : mv->inspector()->findChildren<QWidget *>()) {
+                        for (QWidget *c : mv->findChildren<QWidget *>()) {
                             const int right = c->mapTo(w.window(), QPoint(c->width(), 0)).x();
                             const int limit = sa ? sa->viewport()->mapTo(w.window(), QPoint(sa->viewport()->width(), 0)).x() : w.width();
-                            if (c->isVisibleTo(mv->inspector()) && (right > limit || c->minimumSizeHint().width() > 300))
+                            if (c->isVisibleTo(mv) && (right > limit || c->minimumSizeHint().width() > 300))
                                 std::fprintf(stderr, "  too wide (x%g/%d): %s \"%s\" min %dx%d hint %dx%d right %d limit %d\n", scale, fc.spacing, c->metaObject()->className(),
                                              qPrintable(qobject_cast<QLabel *>(c) ? qobject_cast<QLabel *>(c)->text().left(40) : qobject_cast<QAbstractButton *>(c) ? qobject_cast<QAbstractButton *>(c)->text().left(40) : c->objectName()), c->minimumSizeHint().width(), c->minimumSizeHint().height(), c->sizeHint().width(),
                                              c->sizeHint().height(), right, limit);
