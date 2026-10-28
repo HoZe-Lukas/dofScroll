@@ -157,3 +157,9 @@ Settings page, `input=` in the status file and the log lines "Input: ...".
       dofscroll's `Connect` / `Disconnect`; after quitting dofscroll its settings are unchanged.
 - [ ] The Settings page: the **Input path** drop-down, the "Active input" line and the About box (Qt
       and the 3Dconnexion note) look right; German text.
+
+Axis names (issue #186): the official driver names the axes differently from spacenavd. Measured on a SpaceMouse
+Pro: push forward/back `y`, tilt forward/back `rx`, push sideways `x`, tilt sideways `ry`, twist `rz`; lift/press
+`z` is expected but not measured. Check on Windows that the Channels page shows no lift/press warning for `y`, that
+the axis assistant warns about lift/press only when you press the cap down (`z`), and report the measured axes of
+the direct HID path (input `hid`) and of macOS here.

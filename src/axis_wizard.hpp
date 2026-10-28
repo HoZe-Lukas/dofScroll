@@ -293,7 +293,7 @@ struct WizardResult {
 // Merges the step results. skipped[r] = step deliberately skipped
 // (allowed only for optional steps).
 inline WizardResult evaluate(const std::array<StepResult, ROLE_COUNT> &res,
-                             const std::array<bool, ROLE_COUNT> &skipped) {
+                             const std::array<bool, ROLE_COUNT> &skipped, Axis liftAxis = AX_Y) {
     WizardResult w;
     std::array<bool, ROLE_COUNT> used{};
     for (int r = 0; r < ROLE_COUNT; ++r) {
@@ -334,8 +334,8 @@ inline WizardResult evaluate(const std::array<StepResult, ROLE_COUNT> &res,
                         an, tr(roleTitle(a)), tr(roleTitle(b))));
             }
     for (int r = 0; r < ROLE_COUNT; ++r)
-        if (used[r] && res[r].axis == AX_Y)
-            w.warnings.push_back(wfmt(N_("For \"%s\" lift/press (y) was strongest - probably "
+        if (used[r] && res[r].axis == int(liftAxis))
+            w.warnings.push_back(wfmt(N_("For \"%s\" lift/press was strongest - probably "
                                          "pressed down too hard."),
                                       tr(roleTitle(r))));
 
