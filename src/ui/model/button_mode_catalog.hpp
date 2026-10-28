@@ -36,9 +36,12 @@ public:
         bool builtin = false;           // from the built-in library, no file (path is empty)
         bool overridesBuiltin = false;  // a file that replaces a built-in button mode (removing it restores it)
         std::vector<std::string> warnings;  // loader warnings of this file
+        std::string fileStamp;              // identity of the file as read (fileStamp()); "" for a built-in
     };
     struct Result {
         bool ok = false;
+        bool changedOnDisk = false;         // save: refused, the file is not the one the caller read (expectedStamp)
+        std::string stamp;                  // save: fileStamp() of the file just written
         std::string id, path, error;
         std::vector<std::string> warnings;  // import: loader warnings of the checked file
         std::string text;                   // import: the content that was inspected (importInspected() writes exactly this)
@@ -61,6 +64,14 @@ public:
     }
 
     std::string stamp() const { return buttonModesStamp(dir_); }
+    // Identity of a file (time, size, file id): "" when it cannot be read. save() compares it with what the caller
+    // saw when it showed the file.
+    static std::string fileStamp(const std::string &path) {
+        fs::FileInfo fi;
+        if (path.empty() || !fs::statPath(path, &fi)) return "";
+        return std::to_string(static_cast<long long>(fi.mtimeNs)) + ":" + std::to_string(static_cast<long long>(fi.size)) + ":" +
+               std::to_string(static_cast<unsigned long long>(fi.fileId));
+    }
     bool refreshIfChanged() {
         if (stamp() == stamp_) return false;
         refresh();
@@ -81,6 +92,7 @@ public:
             e.cycle = b.cycle;
             e.action = b.cycle.empty() ? b.action : (b.target.compare(0, 4, "prev") == 0 ? "mode:prev" : "mode:next");
             e.path = b.path;
+            e.fileStamp = b.builtin ? std::string() : fileStamp(b.path);
             e.builtin = b.builtin;
             e.overridesBuiltin = !b.builtin && library.find(b.id) != nullptr;
             entries_.push_back(e);
@@ -211,10 +223,13 @@ public:
     }
 
     // Rewrites the file of `id`: the leading comment block stays, then NAME, DESCRIPTION (if not
-    // empty) and ACTION. The id (file name) never changes. Atomic.
+    // empty), ACTION and CYCLE; every other line of the file (comments after the first key, keys this version does
+    // not know) is kept after them. The id (file name) never changes. Atomic. With `expectedStamp` (the fileStamp()
+    // the caller showed) a file that changed since is not overwritten: Result::changedOnDisk.
     Result save(const std::string &id, const std::string &name, const std::string &description,
                 const std::string &action,
-                const std::vector<std::string> &cycle = std::vector<std::string>()) {
+                const std::vector<std::string> &cycle = std::vector<std::string>(),
+                const std::string &expectedStamp = std::string()) {
         Result r;
         const Entry *e = find(id);
         if (!e) return fail(r, "no such button mode");
@@ -229,6 +244,10 @@ public:
             if (!validModeId(c)) return fail(r, "invalid mode id in the cycle list");
         const std::string label = ModeCatalog::cleanLabel(name);
         const std::string desc = ModeCatalog::cleanLabel(description);
+        if (!expectedStamp.empty() && fileStamp(e->path) != expectedStamp) {
+            r.changedOnDisk = true;
+            return fail(r, "the file changed on disk");
+        }
         std::string old;
         fs::readFileBounded(e->path, kMaxImportBytes, fs::ReadOptions(), &old);
         std::string out;
@@ -246,11 +265,28 @@ public:
         if (!desc.empty()) out += "DESCRIPTION = " + desc + "\n";
         out += "ACTION = " + act + "\n";
         if (!cycle.empty()) out += "CYCLE = " + ModeCycleList(cycle).toText() + "\n";
+        // the rest of the old file: everything that is not one of the four lines written above
+        while (pos < old.size()) {
+            size_t nl = old.find('\n', pos);
+            if (nl == std::string::npos) nl = old.size();
+            std::string line = old.substr(pos, nl - pos);
+            pos = nl + 1;
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            const std::string t = utf8::trim(line);
+            const size_t eq = t.find('=');
+            if (!t.empty() && t[0] != '#' && t[0] != ';' && eq != std::string::npos) {
+                const std::string key = utf8::upperAscii(utf8::trim(t.substr(0, eq)));
+                if (key == "NAME" || key == "DESCRIPTION" || key == "ACTION" || key == "CYCLE") continue;
+            }
+            if (t.empty() && out.size() > 1 && out[out.size() - 2] == '\n') continue;  // no doubled blank lines
+            out += line + "\n";
+        }
         if (!fs::writeFileReplace(e->path, out, &err)) return fail(r, "cannot write " + e->path + ": " + err);
         r.ok = true;
         r.id = id;
         r.path = e->path;
         refresh();
+        r.stamp = fileStamp(r.path);
         return r;
     }
 

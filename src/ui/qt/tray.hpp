@@ -24,6 +24,8 @@ public:
     Tray(MainWindow *window, const QIcon &baseIcon, const UiContext &ctx, QObject *parent = nullptr);
     void show();
     int modeMenuCount() const;   // radio items in the Mode submenu
+    // Menu text of a label from a file or the daemon: "&" is doubled (a QMenu reads a single one as a mnemonic).
+    static QString menuText(const std::string &text);
     int menuEntryCount() const;  // visible top-level actions and submenus
     QStringList modeMenuToolTips() const;  // the tooltip of each entry of the joystick mode submenu (self-test)
     spn::ui::TrayController &controller() { return controller_; }

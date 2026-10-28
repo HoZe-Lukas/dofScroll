@@ -343,9 +343,24 @@ static void testDeleteAndRename() {
     assert(order(m, Section::APP) == "keep,NewName");
     assert(m.renameSection(m.profiles().find(Section::APP, "keep"), "zzz", &err) && m.save(id).saved);
     assert(order(load(d), Section::APP) == "zzz,NewName");
+    // a rename re-sorts at once (ties of PRIORITY go by file name) and the caller finds the profile by its name
+    put(d + "/apps/keep.conf", "[app:keep]\n");
+    put(d + "/apps/zzz.conf", "[app:zzz]\n");
+    std::filesystem::remove(d + "/apps/newname.conf");
+    m = load(d);
+    assert(order(m, Section::APP) == "keep,zzz");
+    size_t moved = ProfileSet::npos;
+    assert(spn::ui::ProfileTreeModel::rename(m, m.profiles().find(Section::APP, "keep"), "zzzz", &err, &moved));
+    assert(order(m, Section::APP) == "zzz,zzzz");
+    assert(moved == m.profiles().find(Section::APP, "zzzz") && m.sections()[moved].pattern == "zzzz");
+    assert(spn::ui::ProfileTreeModel::resolve(m, Section::APP, "keep") == ProfileSet::npos &&
+           spn::ui::ProfileTreeModel::resolve(m, Section::APP, "ZZZ") == m.profiles().find(Section::APP, "zzz"));
+    std::filesystem::remove(d + "/apps/keep.conf");  // back to the state the next checks expect
+    put(d + "/apps/zzz.conf", "[app:zzz]\nPRIORITY = 10\n");
+    put(d + "/apps/newname.conf", "[app:NewName]\nPRIORITY = 20\n");
     // the old file was changed by hand in between: it is left in place and the user is told
     m = load(d);
-    const size_t z = m.profiles().find(Section::APP, "zzz");
+    const size_t z =m.profiles().find(Section::APP, "zzz");
     assert(m.renameSection(z, "yyy", &err));
     put(d + "/apps/zzz.conf", "[app:zzz]\nPRIORITY = 10\n# hand\n");
     r = m.save(id);

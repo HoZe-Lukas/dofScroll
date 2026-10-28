@@ -33,6 +33,18 @@ bool isReservedWindowsName(const std::string &stem) {
     return isReservedDeviceName(stem);
 }
 
+// Bidirectional controls, zero-width and other invisible format characters: a file name with one of them reads as
+// another name in a file manager (an RLO reverses the end of "apps/<RLO>rtl.conf"). They are dropped from slugs.
+bool isInvisibleFormat(const std::string &s, size_t i, size_t n) {
+    auto b = [&](size_t k) { return static_cast<unsigned char>(s[i + k]); };
+    if (n == 2) return (b(0) == 0xC2 && b(1) == 0xAD) || (b(0) == 0xD8 && b(1) == 0x9C);          // U+00AD, U+061C
+    if (n != 3) return false;
+    if (b(0) == 0xE2 && b(1) == 0x80) return (b(2) >= 0x8B && b(2) <= 0x8F) || (b(2) >= 0xAA && b(2) <= 0xAE);  // U+200B-200F, 202A-202E
+    if (b(0) == 0xE2 && b(1) == 0x81) return (b(2) >= 0xA0 && b(2) <= 0xA4) || (b(2) >= 0xA6 && b(2) <= 0xA9);  // U+2060-2064, 2066-2069
+    if (b(0) == 0xEF && b(1) == 0xBB && b(2) == 0xBF) return true;                                              // U+FEFF
+    return b(0) == 0xE1 && b(1) == 0xA0 && b(2) == 0x8E;                                                         // U+180E
+}
+
 // Replaces forbidden characters etc.; the input is the ASCII-folded name.
 std::string sanitizeStem(const std::string &folded) {
     std::string out;
@@ -50,6 +62,8 @@ std::string sanitizeStem(const std::string &folded) {
                 out += '_';
             else
                 out += static_cast<char>(c);
+        } else if (isInvisibleFormat(folded, i, n)) {
+            // dropped
         } else if (n == 2 && c == 0xC2 && static_cast<unsigned char>(folded[i + 1]) < 0xA0) {
             out += '_';  // C1 control character U+0080..U+009F
         } else {

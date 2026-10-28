@@ -49,6 +49,7 @@ AddDeviceDialog::AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::
 
     list_ = new QTreeWidget(this);
     list_->setColumnCount(3);
+    list_->setAccessibleName(T("Connected devices"));
     list_->setHeaderLabels({T("Name"), T("Vendor:product"), T("Status")});
     list_->setRootIsDecorated(false);
     list_->setAlternatingRowColors(true);

@@ -4235,6 +4235,7 @@ static bool setupGuideSelfTest(const QString &tmpPath) {
     rec.spacenavd = spn::ui::ServiceState::Inactive;
     st.update(guideStatusText(QString()).toStdString(), true, std::time(nullptr));
     d.refresh();
+    d.waitIdle();  // the state of spacenavd is asked on a worker thread: the answer arrives a moment later
     check(d.step(QStringLiteral("daemon"))->state == spn::ui::StepState::Done, "a heartbeat: dofscroll is running");
     check(d.step(QStringLiteral("device"))->state != spn::ui::StepState::Done, "no device yet");
     if (spn::ui::hostOs() == spn::ui::Os::Linux)
@@ -4770,6 +4771,10 @@ int main(int argc, char **argv) {
         const int expectedModes = static_cast<int>(spn::loadModes("", nullptr).modes.size()) + 1;
         bool tipsOk = static_cast<int>(tray.modeMenuToolTips().size()) == expectedModes;
         for (const QString &tip : tray.modeMenuToolTips()) tipsOk = tipsOk && !tip.isEmpty();
+        if (Tray::menuText("Tom & Jerry && more") != QStringLiteral("Tom && Jerry &&&& more")) {
+            std::fprintf(stderr, "self-test failed: a label with & must not become a mnemonic in the tray menu\n");
+            return 1;
+        }
         if (!tipsOk) std::fprintf(stderr, "self-test failed: every entry of the tray's joystick mode menu carries the description as tooltip\n");
         const bool ok = tipsOk && w.pageCount() == 9 && w.categoryCount() == 5 && w.profileCount() >= 0 &&
                         modes.modeCount() == expectedModes && tray.modeMenuCount() == expectedModes && tray.menuEntryCount() >= 8;

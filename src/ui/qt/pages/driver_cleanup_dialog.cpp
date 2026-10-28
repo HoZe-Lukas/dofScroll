@@ -115,7 +115,8 @@ DriverCleanupDialog::DriverCleanupDialog(const std::string &dir, QWidget *parent
 
 bool DriverCleanupDialog::scan() {
     std::string err;
-    const bool ok = spn::ui::scanDriverConfigs(dir_, &apps_, &err);
+    bool truncated = false;
+    const bool ok = spn::ui::scanDriverConfigs(dir_, &apps_, &err, &truncated);
     refreshList();
     if (!ok) {
         note_->setText(T("The settings folder of the 3Dconnexion driver was not found. Is the driver installed?"));
@@ -126,6 +127,8 @@ bool DriverCleanupDialog::scan() {
                          "3Dconnexion driver or sign out and in again.")
                            .arg(int(apps_.size())));
     }
+    if (ok && truncated)
+        note_->setText(note_->text() + QLatin1Char('\n') + T("The folder holds more files than are listed here; the list is not complete."));
     return ok;
 }
 

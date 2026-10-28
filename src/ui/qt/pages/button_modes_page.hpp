@@ -105,6 +105,7 @@ private:
     QString lastError_;
     QTimer *timer_ = nullptr;
     spn::ui::Binding binding_;  // the action as the editor shows it
+    std::string shownStamp_;  // ButtonModeCatalog::fileStamp of the file as the form read it
     QString shownId_;  // the button mode the form shows (the list may be moved back to it)
     bool dirty_ = false;  // the form holds a change that is not written yet
     bool loading_ = false;

@@ -331,21 +331,35 @@ void MainWindow::addFirstDeviceProfile() {
     spn::ui::UiProgress p = spn::ui::loadUiProgress(pp);
     if (!p.firstDevicePending) return;
     std::string err;
+    bool failed = false;  // a write or a reload went wrong: the profile is tried again at the next status update
     if (settings_.splitLayout()) {
         // the split layout: the profile is written as devices/<slug>.conf and the model reads it back
         if (spn::ui::writeFirstDeviceProfileFile(spn::configDirOf(ctx_.configPath), status_.status().device, &err)) {
             std::vector<std::string> warnings;
-            if (settings_.load(ctx_.configPath, &warnings, &err)) {
+            if (!settings_.load(ctx_.configPath, &warnings, &err)) {
+                failed = true;
+            } else {
                 settings_.setModes(modes_.modeSet(), ctx_.modesDir);
                 noteConfigStamp();
                 std::string rerr;
                 if (ctx_.reload) ctx_.reload(&rerr);
                 if (auto *pg = qobject_cast<ProfilesPage *>(profilesPage_)) pg->reloadFromModel();
             }
+        } else {
+            failed = !err.empty();  // false without a reason: nothing to add (a device profile exists already)
         }
     } else if (spn::ui::addFirstDeviceProfile(settings_, status_.status().device, &err)) {
         ctx_.saveSoon();
         if (auto *pg = qobject_cast<ProfilesPage *>(profilesPage_)) pg->reloadFromModel();
+    } else {
+        failed = !err.empty();
+    }
+    if (failed) {  // not marked as done; the reason is shown once, not at every status update
+        if (!firstDeviceErrorShown_) {
+            firstDeviceErrorShown_ = true;
+            autosave_.report(T("The profile of your device could not be added: %1").arg(QString::fromUtf8(err.c_str())), true);
+        }
+        return;
     }
     p.firstDevicePending = false;  // once: also when the configuration already had a device profile
     spn::ui::saveUiProgress(pp, p, &err);

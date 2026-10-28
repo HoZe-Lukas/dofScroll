@@ -24,6 +24,7 @@
 #include <QSignalBlocker>
 #include <QSplitter>
 #include <QStyle>
+#include <QPointer>
 #include <QTimer>
 #include <QVBoxLayout>
 
@@ -609,10 +610,21 @@ void ModesPage::dragEnterEvent(QDragEnterEvent *e) {
 
 // Dropped files are only read as mode files (same checks and confirmation as Import); nothing is run.
 void ModesPage::dropEvent(QDropEvent *e) {
+    QStringList paths;
     for (const QUrl &u : e->mimeData()->urls())
         if (u.isLocalFile() && u.toLocalFile().endsWith(QStringLiteral(".conf"), Qt::CaseInsensitive))
-            importPath(u.toLocalFile());
+            paths << u.toLocalFile();
     e->acceptProposedAction();
+    // The import asks questions in modal dialogs: they run after the drop is finished (a nested event loop inside
+    // the handler would leave the drag and drop session of the platform open).
+    QPointer<ModesPage> self(this);
+    QTimer::singleShot(0, this, [self, paths] {
+        if (!self) return;
+        for (const QString &p : paths) {
+            if (!self) return;  // closed while a question was open
+            self->importPath(p);
+        }
+    });
 }
 
 bool ModesPage::selectMode(const QString &id) {

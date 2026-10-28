@@ -162,6 +162,21 @@ static void testLiftWatch() {
     assert(!none.known() && !none.usesLift("y"));
 }
 
+// The words of the Motion help and of the Axes page hint never carry axis names of their own: an unusual
+// configuration shows its own names (issue #249).
+static void testNamesOnlyFromConfiguration() {
+    IdentityStrings s;
+    const Settings odd = fromMixes("rx", "ry", "x");
+    const AxisRoles r = deriveAxisRoles(odd);
+    const std::string hint = axesHint(r, odd, s);
+    assert(has(hint, "rx") && has(hint, "ry") && has(hint, "zoom x"));
+    assert(!has(hint, "rz") && !has(hint, " y") && !has(hint, "axes z") && !has(hint, "(y"));
+    for (const char *id : {"motion:v_push", "motion:v_tilt", "motion:h_push", "motion:h_tilt", "motion:twist", "motion:lift"}) {
+        const std::string body = helpTopic(id, s, &r).body;
+        assert(!has(body, "axis rz") && !has(body, "axis y") && !has(body, "axis z"));
+    }
+}
+
 static void testFreshState() {
     // the fresh state is a fixture here, not the file of the host system
     setFreshSettings(settingsOfFile("examples/default/windows/dofscroll.conf"));
@@ -217,6 +232,7 @@ int main() {
     testUserChangesFollow();
     testDeviceProfile();
     testLiftWatch();
+    testNamesOnlyFromConfiguration();
     testFreshState();
     testSplitMix();
     std::puts("axis roles tests passed");

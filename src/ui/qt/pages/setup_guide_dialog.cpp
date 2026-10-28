@@ -113,6 +113,14 @@ SetupGuideDialog::SetupGuideDialog(const UiContext &ctx, const DaemonStarter *st
 
 SetupGuideDialog::~SetupGuideDialog() {
     if (thread_) thread_->wait();  // the worker only reads and changes the autostart entries
+    if (probeThread_) probeThread_->wait();
+}
+
+void SetupGuideDialog::onSpacenavdProbed(spn::ui::ServiceState state) {
+    probeBusy_ = false;
+    if (state == spacenavd_) return;
+    spacenavd_ = state;
+    refresh();  // the answer changes what the device step says
 }
 
 void SetupGuideDialog::build(const std::vector<spn::ui::SetupStep> &first) {
@@ -220,11 +228,20 @@ void SetupGuideDialog::refresh() {
     in.waitingForDaemon = !in.daemonRunning && starter_ && starter_->waiting();
     in.daemonStartFailed = !in.daemonRunning && starter_ && starter_->failed();
     if (spn::ui::hostOs() == spn::ui::Os::Linux && in.daemonRunning && !in.deviceSeen && ctx_.runner) {
-        // asked at most every few seconds: systemctl is a process
+        // asked at most every few seconds, on a worker thread: systemctl is a process (up to 10 s) and the window
+        // shows the last answer meanwhile
         const qint64 now = QDateTime::currentMSecsSinceEpoch();
-        if (spacenavdAskedAt_ < 0 || now - spacenavdAskedAt_ > 4000 || now < spacenavdAskedAt_) {
-            spacenavd_ = ctx_.runner->spacenavdState();
+        if (!probeBusy_ && (spacenavdAskedAt_ < 0 || now - spacenavdAskedAt_ > 4000 || now < spacenavdAskedAt_)) {
             spacenavdAskedAt_ = now;
+            probeBusy_ = true;
+            spn::ui::ActionRunner *runner = ctx_.runner;
+            QThread *t = QThread::create([this, runner] {
+                const spn::ui::ServiceState st = runner->spacenavdState();
+                QMetaObject::invokeMethod(this, [this, st] { onSpacenavdProbed(st); }, Qt::QueuedConnection);
+            });
+            probeThread_ = t;
+            connect(t, &QThread::finished, t, &QObject::deleteLater);
+            t->start();
         }
         in.spacenavd = spacenavd_;
     }
@@ -347,7 +364,7 @@ void SetupGuideDialog::finishNow() {
 void SetupGuideDialog::waitIdle() {
     QElapsedTimer t;
     t.start();
-    while (busy_ && t.elapsed() < 10000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    while ((busy_ || probeBusy_) && t.elapsed() < 10000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
 }
 
 bool SetupGuideDialog::hasHorizontalScrollBar() const {

@@ -84,6 +84,7 @@ private:
     void runAutostart(bool change, bool enable);  // reads the state; with `change` first applies it (only from Finish)
     void finishNow();
     void onAutostartDone(const AutoResult &r);
+    void onSpacenavdProbed(spn::ui::ServiceState state);
     void update(const std::vector<spn::ui::SetupStep> &steps);
 
     UiContext ctx_;
@@ -96,6 +97,8 @@ private:
     class QScrollArea *scroll_ = nullptr;
     QTimer *timer_ = nullptr;
     QPointer<QThread> thread_;
+    QPointer<QThread> probeThread_;  // asks the runner whether spacenavd runs (a process: not on the GUI thread)
+    bool probeBusy_ = false;
     AutostartReader reader_;
     bool busy_ = false, closing_ = false, finishing_ = false;
     spn::ui::AutostartConsent consent_;

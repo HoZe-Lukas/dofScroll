@@ -105,6 +105,32 @@ int main() {
     assert(!c.save("my-latch", "", "", "key:ctrl+shift+alt+super+ctrl+a").ok);
     assert(c.save("my-latch", "", "", "key:Space").ok);
 
+    // save keeps what it does not write: comments after the first key and keys of a newer version (issue #275 L1)
+    put(dir + "/my-latch.conf", get(dir + "/my-latch.conf") + "# my note\nFUTURE_KEY = 1\n\n# last words\n");
+    c.refresh();
+    r = c.save("my-latch", "Latch nav", "", "key:Enter");
+    assert(r.ok);
+    {
+        const std::string t = get(dir + "/my-latch.conf");
+        assert(t.find("# my note\nFUTURE_KEY = 1\n") != std::string::npos && t.find("# last words\n") != std::string::npos);
+        assert(t.find("\nACTION = key:enter\n") != std::string::npos && t.find("key:space") == std::string::npos);
+        assert(t.find("# Button mode \"my-latch\"") == 0);
+    }
+    // saving twice does not grow the file
+    const std::string once = get(dir + "/my-latch.conf");
+    assert(c.save("my-latch", "Latch nav", "", "key:Enter").ok && get(dir + "/my-latch.conf") == once);
+    // a file that changed since the caller showed it is not overwritten
+    const std::string shown = c.find("my-latch")->fileStamp;
+    assert(!shown.empty() && r.stamp.empty() == false);
+    put(dir + "/my-latch.conf", once + "# edited elsewhere\n");
+    r = c.save("my-latch", "Latch nav", "", "key:Tab", std::vector<std::string>(), shown);
+    assert(!r.ok && r.changedOnDisk && get(dir + "/my-latch.conf") == once + "# edited elsewhere\n");
+    c.refresh();
+    r = c.save("my-latch", "Latch nav", "", "key:Tab", std::vector<std::string>(), c.find("my-latch")->fileStamp);
+    assert(r.ok && !r.changedOnDisk && r.stamp == c.find("my-latch")->fileStamp &&
+           get(dir + "/my-latch.conf").find("# edited elsewhere") != std::string::npos);
+    assert(c.save("my-latch", "", "", "key:Space").ok);
+
     // duplicate: new id, same action and description
     assert(c.save("my-latch", "Latch nav", "Press to latch", "toggle:nav").ok);
     r = c.duplicate("my-latch", "Copy of it");
