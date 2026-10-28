@@ -438,6 +438,150 @@ static void testSplitPartReloadMidMotion() {
     r.expectQuiet("reload while a split part zooms");
 }
 
+// --- every button action x every way the cause can disappear ----------------------------------------
+// Each action that holds something while the button is down (key, modifier key, the three mouse buttons) or taps
+// (chord) must leave nothing held when the binding goes away through a reload, ENABLED = 0, a program profile that
+// unbinds the button, a suspend, an unplugged device or a joystick mode switch.
+struct ActionCase {
+    const char *binding;
+    bool holds;  // something stays pressed while the button is down (a chord is tapped once)
+};
+static const ActionCase kActions[] = {
+    {"key:up", true},    {"key:shift", true},      {"key:ctrl", true},       {"key:alt", true},
+    {"key:super", true}, {"click", true},          {"rightclick", true},     {"middleclick", true},
+    {"key:ctrl+0", false}, {"key:ctrl+shift+t", false},
+};
+
+static std::string actionConf(const char *binding) {
+    return std::string("[global]\nTICK_HZ = 250\nBUTTON_1 = ") + binding +
+           "\n[app:off]\nENABLED = 0\n[app:unb]\nBUTTON_1 = none\n";
+}
+
+static void checkHeld(StuckRig &r, const ActionCase &a, const char *when) {
+    if (a.holds) CHECK(r.rec.held(), "%s: %s must be held while the button is down", when, a.binding);
+}
+
+static void testEveryActionEveryTransition() {
+    for (const ActionCase &a : kActions) {
+        for (int tr = 0; tr < 6; ++tr) {
+            static const char *const names[] = {"reload", "ENABLED=0", "program unbinds", "suspend", "unplugged", "mode switch"};
+            char what[160];
+            std::snprintf(what, sizeof what, "%s / %s", a.binding, names[tr]);
+            const bool viaMode = tr == 5;
+            StuckRig r(viaMode ? "[global]\nTICK_HZ = 250\nMODE = alpha\n" : actionConf(a.binding),
+                       viaMode ? std::vector<std::pair<std::string, std::string>>{
+                                     {"alpha.conf", std::string("BUTTON_1 = ") + a.binding + "\nBUTTON_2 = mode:next\n"},
+                                     {"beta.conf", "BUTTON_2 = mode:next\n"}}
+                               : std::vector<std::pair<std::string, std::string>>{});
+            r.run(0.1);
+            r.src.pushButton(0, 0, true);
+            r.run(0.15);
+            checkHeld(r, a, what);
+            switch (tr) {
+            case 0:
+                writeFile(r.conf, "[global]\nTICK_HZ = 250\n");
+                r.reload.pending = true;
+                break;
+            case 1: r.win.cls = "off"; break;
+            case 2: r.win.cls = "unb"; break;
+            case 3: r.suspend = true; break;
+            case 4:
+                r.devicesChanged();
+                r.src.list.clear();
+                break;
+            case 5: r.src.pushButton(0, 1, true); break;
+            }
+            r.run(0.3);
+            CHECK(!r.rec.held(), "%s: still held after the transition (%zu keys, %zu mouse)", what, r.rec.keys.size(),
+                  r.rec.mouse.size());
+            if (viaMode) r.src.pushButton(0, 1, false);
+            r.src.pushButton(0, 0, false);
+            r.run(0.1);
+            if (tr == 3) r.suspend = false;
+            r.win.cls = "";
+            r.expectQuiet(what);
+        }
+    }
+}
+
+// The zoom modifier keys (ZOOM_MODIFIER, one to three keys) are released by every transition, not only by a silent source.
+static void testZoomModifiersEveryTransition() {
+    static const char *const mods[] = {"ctrl", "shift", "alt", "super", "ctrl+shift", "ctrl+alt+shift"};
+    for (const char *m : mods) {
+        for (int tr = 0; tr < 6; ++tr) {
+            static const char *const names[] = {"reload", "ENABLED=0", "ZOOM_MODIFIER none", "suspend", "unplugged", "mode switch"};
+            char what[160];
+            std::snprintf(what, sizeof what, "zoom %s / %s", m, names[tr]);
+            const std::string conf = std::string("[global]\nTICK_HZ = 250\nZOOM_MODIFIER = ") + m +
+                                     "\n[app:off]\nENABLED = 0\n[app:nomod]\nZOOM_MODIFIER = none\n";
+            StuckRig r(tr == 5 ? std::string("[global]\nTICK_HZ = 250\nMODE = alpha\nZOOM_MODIFIER = ") + m + "\n" : conf,
+                       tr == 5 ? std::vector<std::pair<std::string, std::string>>{{"alpha.conf", "BUTTON_2 = mode:next\n"},
+                                                                                  {"beta.conf", "BUTTON_2 = mode:next\nZOOM_SENS = 0\n"}}
+                               : std::vector<std::pair<std::string, std::string>>{});
+            r.run(0.1);
+            r.src.pushMotion(0, 82, 144, 90, 35, 350, 111);  // twist
+            r.run(0.2);
+            CHECK(r.rec.keys.size() >= 1 && r.rec.wheels > 0, "%s: zoom must hold its modifier", what);
+            switch (tr) {
+            case 0:
+                writeFile(r.conf, "[global]\nTICK_HZ = 250\nZOOM_MODIFIER = none\n");
+                r.reload.pending = true;
+                break;
+            case 1: r.win.cls = "off"; break;
+            case 2: r.win.cls = "nomod"; break;
+            case 3: r.suspend = true; break;
+            case 4:
+                r.devicesChanged();
+                r.src.list.clear();
+                break;
+            case 5: r.src.pushButton(0, 1, true); break;
+            }
+            r.run(0.3);
+            CHECK(!r.rec.held(), "%s: modifier still held (%zu keys)", what, r.rec.keys.size());
+            if (tr == 5) r.src.pushButton(0, 1, false);
+            r.stop();
+            if (tr == 3) r.suspend = false;
+            r.win.cls = "";
+            r.expectQuiet(what);
+        }
+    }
+}
+
+// The toggle:nav latch must not survive what the header of ModeRunner::clearToggles lists (reload, disabled, suspend).
+// After each, scrolling is back to the wheel and no arrow keys are tapped.
+static void testNavLatchCleared() {
+    static const char *const names[] = {"reload", "ENABLED=0", "suspend"};
+    for (int tr = 0; tr < 3; ++tr) {
+        StuckRig r("[global]\nTICK_HZ = 250\nBUTTON_1 = toggle:nav\n[app:off]\nENABLED = 0\n");
+        r.run(0.1);
+        r.src.pushButton(0, 0, true);
+        r.run(0.05);
+        r.src.pushButton(0, 0, false);
+        r.run(0.05);
+        r.move();
+        r.run(0.2);
+        CHECK(r.rec.taps > 0 && r.rec.wheels == 0, "%s: latched nav taps arrows", names[tr]);
+        r.stop();
+        r.run(0.1);
+        switch (tr) {
+        case 0: r.reload.pending = true; break;
+        case 1: r.win.cls = "off"; break;
+        case 2: r.suspend = true; break;
+        }
+        r.run(0.3);
+        if (tr == 1) r.win.cls = "";
+        if (tr == 2) r.suspend = false;
+        r.run(0.3);
+        r.rec.taps = r.rec.wheels = 0;
+        r.move();
+        r.run(0.2);
+        CHECK(r.rec.taps == 0 && r.rec.wheels > 0, "%s: the nav latch must be cleared (taps %d, wheels %d)", names[tr], r.rec.taps,
+              r.rec.wheels);
+        r.stop();
+        r.expectQuiet(names[tr]);
+    }
+}
+
 int main() {
     testDevicesChangedMidMotion();
     testDevicesChangedMidButtonHold();
@@ -460,6 +604,9 @@ int main() {
     testSplitPartDeviceUnplugged();
     testSplitPartModeSwitchMidMotion();
     testSplitPartReloadMidMotion();
+    testEveryActionEveryTransition();
+    testZoomModifiersEveryTransition();
+    testNavLatchCleared();
     if (failures) {
         std::fprintf(stderr, "%d check(s) failed\n", failures);
         return 1;
