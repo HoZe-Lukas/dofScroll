@@ -60,6 +60,8 @@ inline QWidget *sidePicker(QWidget *parent, QObject *owner, std::string *side, c
     kc->setAccessibleName(accessible);
     kc->setEnabled(!none);
     kc->setMinimumHeight(24);
+    kc->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);  // a long key name must not widen the inspector
+    kc->setMinimumWidth(120);
     v->addWidget(kc);
     if (picker) *picker = kc;
     for (int i = 1; i < int(boxes.size()); ++i) QWidget::setTabOrder(boxes[size_t(i) - 1], boxes[size_t(i)]);

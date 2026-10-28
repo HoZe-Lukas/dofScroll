@@ -5651,6 +5651,10 @@ msgid "Mute"
 msgstr "Stumm"
 
 #: src/ui/qt/key_engine_box.hpp
+msgid "No key"
+msgstr "Keine Taste"
+
+#: src/ui/qt/key_engine_box.hpp
 msgid "Analog"
 msgstr "Analog"
 

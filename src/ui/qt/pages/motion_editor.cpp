@@ -970,6 +970,8 @@ void MotionEditor::buildLiftInspector(QVBoxLayout *col) {
         kindLabel->setBuddy(kind);
         kind->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
         kind->setMinimumContentsLength(12);
+        kind->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        kind->setMinimumWidth(120);
         ChannelForm &lift = env_.form->lift;
         const ChannelActionType shown = lift.type == ChannelActionType::Off ? ChannelActionType::Default : lift.type;
         int current = 0;

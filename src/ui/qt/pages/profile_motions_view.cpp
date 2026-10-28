@@ -203,6 +203,9 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         kindLabel->setBuddy(kind);
         kind->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);  // long entries are elided, never widen the inspector
         kind->setMinimumContentsLength(12);
+        kind->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        kind->setMinimumWidth(120);
+        kind->setToolTip(T("Action for %1").arg(qs8(row->name)));
         int current = 0;
         const bool isLift = motionId == QLatin1String("lift");
         // Lift / press: nothing is its default and a pinned "none" shows as that entry; no analog keys in its list.
@@ -321,8 +324,10 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         takeOver->setToolTip(T("Copy what this motion does in another profile or joystick mode into this profile"));
         takeOver->setVisible(!isLift);  // taking the lift over is not offered yet
         connect(takeOver, &QPushButton::clicked, this, [this, motionId] { takeOverMotion(motionId); });
-        for (QPushButton *b : {clear, on, inherit}) {
+        for (QPushButton *b : {clear, on, inherit, takeOver}) {
             b->setMinimumHeight(24);
+            b->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);  // a long text must not widen the inspector
+            b->setMinimumWidth(120);
             buttons->addWidget(b, 0, Qt::AlignLeft);
         }
         sl->addLayout(buttons);
@@ -374,11 +379,16 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         auto *reset = new QPushButton(section_ == 0 ? T("Reset") : T("Inherit"), box);
         reset->setEnabled(v.overridden);
         reset->setAccessibleName(T(f[1]) + QStringLiteral(": ") + reset->text());
-        g->addWidget(label, r, 0);
-        g->addWidget(lineEdit, r, 1);
-        g->addWidget(reset, r, 2);
-        g->addWidget(origin, r + 1, 1, 1, 2);
-        r += 2;
+        // the label above its field (and wrapping): a wide font must not widen the inspector
+        label->setWordWrap(true);
+        label->setBuddy(lineEdit);
+        lineEdit->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        lineEdit->setMinimumWidth(80);
+        g->addWidget(label, r, 0, 1, 3);
+        g->addWidget(lineEdit, r + 1, 0, 1, 2);
+        g->addWidget(reset, r + 1, 2);
+        g->addWidget(origin, r + 2, 0, 1, 3);
+        r += 3;
         const std::string value = v.text;
         connect(lineEdit, &QLineEdit::textEdited, this, [this, key, origin, box](const QString &t) {
             std::string err;
