@@ -235,7 +235,7 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
         settle();
         int ticked = 0;
         for (QCheckBox *cb : page.findChildren<QCheckBox *>())
-            if (cb->text() == QLatin1String("ctrl") && cb->isChecked()) ++ticked;
+            if (cb->property("chordMod").toString() == QLatin1String("ctrl") && cb->isChecked()) ++ticked;
         check(ticked == 1, "the ctrl box is ticked for key:ctrl+0");
     }
     check(page.editCurrent(QStringLiteral("Edited"), QStringLiteral("Changed"), QStringLiteral("key:space")), "back to a plain key");
@@ -3170,7 +3170,7 @@ static bool borrowBuildSelfTest() {
             check(create->isEnabled(), "a new name can be created");
             int photo = -1;
             for (int i = 1; i < mode->count(); ++i)
-                if (mode->itemText(i).contains(QStringLiteral("(photo)"))) photo = i;
+                if (mode->itemData(i).toString() == QStringLiteral("photo")) photo = i;
             check(photo > 0, "the joystick modes are listed");
             check(!copy->isEnabled(), "no copy without a joystick mode");
             mode->setCurrentIndex(photo);

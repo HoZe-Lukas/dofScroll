@@ -3080,3 +3080,87 @@ msgstr ""
 #: src/ui/model/key_tree_model.hpp
 msgid "Mute"
 msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "Build a profile from parts that already exist. Afterwards it is a normal profile."
+msgstr ""
+
+#: src/ui/qt/key_combo.hpp
+msgid "Choose a key"
+msgstr ""
+
+#: src/ui/qt/key_combo.hpp
+msgid "Cmd"
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "Copy single motions or buttons from another profile or a joystick mode, whatever they are set to there. A copy: later changes in the source do not follow. The lift is not offered yet."
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "Copy the settings of"
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "Enter the name of the program or device"
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "For example firefox"
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "For example SpaceMouse Pro"
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "Joystick mode of the profile"
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "Name of the device"
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "Name of the program"
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "Remove the button mode of button %1"
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "Remove the motion %1"
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "Remove the taken-over button %1"
+msgstr ""
+
+#: src/ui/qt/key_combo.hpp
+msgid "Super key"
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "Take a joystick mode, button modes and single motions or buttons of other profiles. Change the profile on its Motions and buttons tab whenever you like."
+msgstr ""
+
+#: src/ui/model/borrow_model.hpp
+msgid "Take over is not offered for the lift yet"
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "The profile is used for the device with this name. Choose ... lists the devices that are connected now."
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "The profile is used for the program with this name. Choose ... lists the programs that are running now."
+msgstr ""
+
+#: src/ui/qt/pages/profile_builder_dialog.cpp
+msgid "There are no button modes yet. Make one on the Button modes page first."
+msgstr ""
+
+#: src/ui/qt/key_combo.hpp
+msgid "Windows key"
+msgstr ""

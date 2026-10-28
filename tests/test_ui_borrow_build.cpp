@@ -7,6 +7,7 @@
 #undef NDEBUG
 #include <cassert>
 #include <cstdio>
+#include <set>
 #include <string>
 
 #include "config.hpp"
@@ -44,6 +45,17 @@ static BorrowSource buttonMode(const std::string &id) {
 }
 
 int main() {
+    // the form's helpers: the next unused motion or button, plain names
+    assert(nextUnusedId({"a", "b", "c"}, {}) == "a");
+    assert(nextUnusedId({"a", "b", "c"}, {"a", "b"}) == "c");
+    assert(nextUnusedId({"a"}, {"a"}).empty());
+    assert(nextFreeButton({}, 4) == 1);
+    assert(nextFreeButton({1, 2, 4}, 4) == 3);
+    assert(nextFreeButton({1, 2}, 2) == 1);
+    {
+        const std::vector<std::string> n = plainChoiceNames({{"Timeline", "timeline"}, {"Twin", "a"}, {"Twin", "b"}, {"", "bare"}});
+        assert(n[0] == "Timeline" && n[1] == "Twin (a)" && n[2] == "Twin (b)" && n[3] == "bare");
+    }
     useFreshDefaultOf("linux");
     IdentityStrings id;
     const std::string root = tu::makeTempDir("dofscroll-borrow");
@@ -353,6 +365,52 @@ int main() {
         fail.motions.push_back({"twist", profile(99), ""});
         assert(!buildProfile(m, fail, &modes, &bmodes).ok);
         assert(modes.modes().size() == modeCount && bmodes.buttonModes().size() == btnCount);
+    }
+    // long profile names: the copy's id is cut at 26 characters, the numeric suffix must still make every copy unique
+    {
+        const char *names[] = {"org.mozilla.firefox", "org.mozilla.firefox-dev", "org.mozilla.firefox-nightly", "org.mozilla.firefox-esr"};
+        std::set<std::string> ids, bids;
+        for (const char *nm : names) {
+            ProfileBuild lb;
+            lb.name = nm;
+            lb.modeId = "timeline";
+            lb.modeOwnCopy = true;
+            lb.buttons.push_back({6, "latch-nav", true});
+            const ProfileBuildResult lr = buildProfile(m, lb, &modes, &bmodes);
+            assert(lr.ok && lr.createdModes.size() == 1 && lr.createdButtonModes.size() == 1);
+            assert(ids.insert(lr.createdModes[0]).second && bids.insert(lr.createdButtonModes[0]).second);
+        }
+        // a refused build after the copies were made leaves nothing behind
+        const size_t modeCount = modes.modes().size(), btnCount = bmodes.buttonModes().size(), sections = m.sectionCount();
+        ProfileBuild lf;
+        lf.name = "org.mozilla.firefox-beta";
+        lf.modeId = "timeline";
+        lf.modeOwnCopy = true;
+        lf.buttons.push_back({6, "latch-nav", true});
+        lf.motions.push_back({"twist", profile(99), ""});
+        assert(!buildProfile(m, lf, &modes, &bmodes).ok);
+        assert(modes.modes().size() == modeCount && bmodes.buttonModes().size() == btnCount && m.sectionCount() == sections);
+    }
+    // a hand-written base with odd BUTTON_ keys: skipped, no overflow, the build succeeds
+    {
+        const size_t base = m.addSection(Section::APP, "oddkeys", &err);
+        assert(base != ProfileSet::npos);
+        ProfileSet ps2 = m.profiles();
+        ps2.sections[base].kv.push_back({"BUTTON_abc", "key:space"});
+        ps2.sections[base].kv.push_back({"BUTTON_99999999999999999999", "key:space"});
+        ps2.sections[base].kv.push_back({"BUTTON_0", "key:space"});
+        m.setProfiles(ps2, "");
+        ProfileBuild ob;
+        ob.name = "from-odd";
+        ob.base = base;
+        const ProfileBuildResult orr = buildProfile(m, ob, &modes, &bmodes);
+        if (!orr.ok) std::fprintf(stderr, "odd: %s\n", orr.error.c_str());
+        assert(orr.ok);
+    }
+    // the lift is refused with a message that says it is not offered yet
+    {
+        std::string e2;
+        assert(!borrowMotion(m, 1, "lift", profile(0), &e2) && e2.find("not offered for the lift yet") != std::string::npos);
     }
     std::puts("test_ui_borrow_build: OK");
     return 0;
