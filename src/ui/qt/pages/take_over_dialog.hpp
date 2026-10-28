@@ -15,6 +15,8 @@
 class QCheckBox;
 class QComboBox;
 class QLabel;
+class QPushButton;
+class QShowEvent;
 
 class TakeOverDialog : public QDialog {
     Q_OBJECT
@@ -30,7 +32,12 @@ public:
     bool tuning() const;  // the box is shown and checked
     void setTuning(bool on);
 
+protected:
+    void showEvent(QShowEvent *e) override;
+
 private:
+    void fit();
+    QPushButton *ok_ = nullptr;
     QComboBox *combo_ = nullptr;
     QLabel *words_ = nullptr;
     QCheckBox *tuning_ = nullptr;

@@ -9,6 +9,7 @@
 #include <QDialog>
 #include <QList>
 #include <QPointer>
+#include <set>
 #include <vector>
 
 #include "pages/profiles_env.hpp"
@@ -45,21 +46,27 @@ private:
         QSpinBox *number = nullptr;
         QComboBox *mode = nullptr;
         QCheckBox *copy = nullptr;
+        QPushButton *remove = nullptr;
     };
     struct MotionTakeRow {
         QWidget *box = nullptr;
         QComboBox *motion = nullptr, *source = nullptr;
+        QPushButton *remove = nullptr;
     };
     struct TakeButtonRow {
         QWidget *box = nullptr;
         QSpinBox *number = nullptr;
         QComboBox *source = nullptr;
+        QPushButton *remove = nullptr;
     };
     void addButtonRow();
     void addMotionRow();
     void addTakeButtonRow();
     void validate();
     void choosePattern();
+    void updateTabOrder();
+    std::set<int> usedButtons() const;
+    static void focusNeighbour(QWidget *next, QWidget *previous, QWidget *fallback);
 
     const UiContext &ctx_;
     const ProfilesEnv &env_;
@@ -69,7 +76,8 @@ private:
     QCheckBox *modeCopy_ = nullptr;
     QLabel *modeWords_ = nullptr, *problem_ = nullptr, *summary_ = nullptr;
     QVBoxLayout *buttonRows_ = nullptr, *motionRows_ = nullptr, *takeButtonRows_ = nullptr;
-    QPushButton *ok_ = nullptr;
+    QPushButton *ok_ = nullptr, *cancel_ = nullptr, *choose_ = nullptr, *addButton_ = nullptr, *addMotion_ = nullptr, *addTakeButton_ = nullptr;
+    QLabel *nameLabel_ = nullptr, *nameHelp_ = nullptr;
     std::vector<spn::ui::BorrowSource> motionSources_, buttonSources_;
     std::vector<ButtonRow> buttons_;
     std::vector<MotionTakeRow> motions_;

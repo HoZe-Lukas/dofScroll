@@ -5,6 +5,9 @@
 #include <QApplication>
 #include <QColumnView>
 #include <QFrame>
+#include <QListView>
+#include <QScrollBar>
+#include <QStyle>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QScreen>
@@ -72,6 +75,8 @@ protected:
     QAbstractItemView *createColumn(const QModelIndex &root) override {
         QAbstractItemView *col = QColumnView::createColumn(root);
         col->setFocusPolicy(Qt::NoFocus);
+        col->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);  // a bar only where the column is longer than the popup
+        col->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         col->installEventFilter(this);
         return col;
     }
@@ -90,7 +95,10 @@ void addNodes(QStandardItem *parent, const std::vector<spn::ui::KeyTreeNode> &no
         auto *item = new QStandardItem(T(n.title.c_str()));
         item->setEditable(false);
         item->setAccessibleText(item->text());
-        if (n.isLeaf()) item->setData(qs8(n.value), kValueRole);
+        if (n.isLeaf()) {
+            item->setData(qs8(n.value), kValueRole);
+            item->setToolTip(T("Stored as:") + QLatin1Char(' ') + qs8(n.value));  // the file syntax only here, not in the window
+        }
         else addNodes(item, n.children);
         parent->appendRow(item);
     }
@@ -163,49 +171,53 @@ void KeyTreePicker::buildModel() {
     view_->setAccessibleDescription(T("Columns: choose a category, then a key. Right arrow opens a category, Enter chooses, Escape closes."));
     view_->setFrameShape(QFrame::NoFrame);
     view_->setResizeGripsVisible(false);
-    // right of a leaf: the text that is stored in the file, for people who know the file
-    auto *preview = new QLabel(view_);
-    preview->setAlignment(Qt::AlignTop | Qt::AlignLeft);
-    preview->setMargin(8);
-    preview->setWordWrap(true);
-    preview->setTextFormat(Qt::PlainText);
-    preview->setAccessibleName(T("Stored as"));
-    view_->setPreviewWidget(preview);
-    connect(view_, &QColumnView::updatePreviewWidget, preview, [preview](const QModelIndex &i) {
-        preview->setText(T("Stored as:") + QLatin1Char(' ') + i.data(kValueRole).toString());
-    });
     popup_->setFocusProxy(view_);
     lay->addWidget(view_);
     // single click on a leaf chooses (as in a drop-down); Enter chooses the selected leaf
     connect(view_, &QColumnView::clicked, this, [this](const QModelIndex &i) { choose(i); });
 
-    // column widths follow the font: the widest label of each level plus room for the arrow and the scroll bar
+    // Column widths follow the font and the style: the widest delegate size hint of each level (it includes the item
+    // padding of the polished style) plus the arrow, the scroll bar and the frame; never narrower than kMinColumn.
+    view_->ensurePolished();
     const QFontMetrics fm(view_->font());
-    QList<int> widths;
-    int depthMax = 1;
+    int sb = view_->style()->pixelMetric(QStyle::PM_ScrollBarExtent, nullptr, view_);
+    int rowH = fm.height() + 8;  // the arrow of a branch is as wide as a row is high
     std::vector<int> w;
-    auto measure = [&](auto &&self, const std::vector<spn::ui::KeyTreeNode> &nodes, size_t depth) -> void {
+    auto measure = [&](auto &&self, const QModelIndex &parent, size_t depth) -> void {
         if (w.size() <= depth) w.resize(depth + 1, 0);
-        depthMax = std::max(depthMax, int(depth) + 1);
-        for (const spn::ui::KeyTreeNode &n : nodes) {
-            w[depth] = std::max(w[depth], fm.horizontalAdvance(T(n.title.c_str())));
-            if (!n.isLeaf()) self(self, n.children, depth + 1);
+        QListView probe(view_);
+        probe.setModel(model_);
+        probe.setRootIndex(parent);
+        probe.ensurePolished();
+        w[depth] = std::max(w[depth], probe.sizeHintForColumn(0));
+        rowH = std::max(rowH, probe.sizeHintForRow(0));
+        sb = std::max(sb, probe.verticalScrollBar()->sizeHint().width());
+        for (int r = 0; r < model_->rowCount(parent); ++r) {
+            const QModelIndex i = model_->index(r, 0, parent);
+            if (model_->hasChildren(i)) self(self, i, depth + 1);
         }
     };
-    measure(measure, tree_.roots, 0);
-    const int pad = fm.height() * 2 + 24;
+    measure(measure, QModelIndex(), 0);
+    constexpr int kMinColumn = 120;
+    const int arrow = rowH;
+    const int extra = arrow + sb + 2 * view_->frameWidth() + 16;
+    QList<int> widths;
     int total = 4;
     for (int x : w) {
-        widths << x + pad;
-        total += x + pad;
+        const int cw = std::max(kMinColumn, x + extra);
+        widths << cw;
+        total += cw;
     }
-    const int previewW = fm.horizontalAdvance(T("Stored as:") + QStringLiteral(" bracket_right")) + 24;
-    widths << previewW;
-    total += previewW;
     view_->setColumnWidths(widths);
     const int rows = 12;
-    const int h = rows * (fm.height() + 8) + 8;
-    popup_->setFixedSize(total + 8, h);
+    int h = rows * rowH + 8;
+    // never larger than the screen: the columns scroll (vertically, and sideways when the popup is narrower)
+    const QRect avail = screen() ? screen()->availableGeometry() : QRect(0, 0, 1920, 1080);
+    h = std::min(h, std::max(160, avail.height() - 48));
+    const int wantW = total + 8 + 2 * popup_->frameWidth() + 8, maxW = std::max(240, avail.width() - 16);
+    // a bar for the sideways scroll only when the screen is narrower than the columns
+    view_->setHorizontalScrollBarPolicy(wantW > maxW ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff);
+    popup_->setFixedSize(std::min(wantW, maxW), h);
 }
 
 void KeyTreePicker::openPopup() {

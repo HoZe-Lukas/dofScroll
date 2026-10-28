@@ -130,7 +130,7 @@ struct BorrowedMotion {
 inline BorrowedMotion borrowedMotion(const SettingsModel &m, const BorrowSource &src, const std::string &motionId) {
     BorrowedMotion r;
     if (!borrow_detail::motionIdOk(motionId)) {
-        r.error = "lift / press has no action of its own";
+        r.error = "Take over is not offered for the lift yet";
         return r;
     }
     if (src.kind == BorrowSource::Kind::Profile) {
@@ -191,7 +191,7 @@ inline std::string tuningPrefix(const std::string &id) {
 // The effective tuning of one motion of the source as explicit key / value pairs in the canonical config form (five keys).
 inline bool motionTuning(const SettingsModel &m, const BorrowSource &src, const std::string &motionId, std::vector<KV> *out, std::string *err) {
     if (!borrow_detail::motionIdOk(motionId)) {
-        if (err) *err = "lift / press has no action of its own";
+        if (err) *err = "Take over is not offered for the lift yet";
         return false;
     }
     Settings s;
@@ -226,7 +226,7 @@ inline bool copyMotionSettings(const SettingsModel &m, const BorrowSource &src, 
     const std::string fromId = fromMotion.empty() ? motionId : fromMotion;
     std::vector<KV> from;
     if (!borrow_detail::motionIdOk(motionId)) {
-        if (err) *err = "lift / press has no action of its own";
+        if (err) *err = "Take over is not offered for the lift yet";
         return false;
     }
     if (!motionTuning(m, src, fromId, &from, err)) return false;
@@ -290,7 +290,7 @@ inline bool borrowMotion(SettingsModel &m, size_t target, const std::string &mot
         return false;
     };
     if (target >= m.sectionCount()) return fail("no such profile");
-    if (!borrow_detail::motionIdOk(motionId)) return fail("lift / press has no action of its own");
+    if (!borrow_detail::motionIdOk(motionId)) return fail("Take over is not offered for the lift yet");
     if (src.kind == BorrowSource::Kind::Profile && src.section == target) return fail("take it over from another profile");
     const BorrowedMotion b = borrowedMotion(m, src, fromMotion.empty() ? motionId : fromMotion);
     if (!b.ok) return fail(b.error);

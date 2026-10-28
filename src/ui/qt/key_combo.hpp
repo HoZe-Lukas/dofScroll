@@ -5,6 +5,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <algorithm>
 #include <functional>
 #include <string>
@@ -53,6 +54,20 @@ inline std::string joinChord(const std::vector<std::string> &mods, const std::st
     return out + key;
 }
 
+// The label of a modifier for the people: translated, capitalised, the super key by the platform's name.
+inline QString modifierLabel(const std::string &mod) {
+    if (mod == "ctrl") return T("Ctrl");
+    if (mod == "shift") return T("Shift");
+    if (mod == "alt") return T("Alt");
+#if defined(Q_OS_MACOS)
+    return T("Cmd");
+#elif defined(Q_OS_WIN)
+    return T("Windows key");
+#else
+    return T("Super key");
+#endif
+}
+
 // Modifier check boxes and the key picker of one side of a keys:/step: action.
 inline QWidget *chordPicker(QWidget *parent, QObject *owner, std::string *chord, const QString &accessible,
                      const std::function<void()> &changed) {
@@ -63,20 +78,35 @@ inline QWidget *chordPicker(QWidget *parent, QObject *owner, std::string *chord,
     std::string key;
     splitChord(*chord, &mods, &key);
     for (const char *m : kModNames) {
-        auto *cb = new QCheckBox(QString::fromLatin1(m), w);
+        const QString label = modifierLabel(m);
+        auto *cb = new QCheckBox(label, w);
         cb->setProperty("look", QStringLiteral("box"));
+        cb->setProperty("chordMod", QString::fromLatin1(m));  // the stored name; the text is for the people
         cb->setChecked(std::find(mods.begin(), mods.end(), m) != mods.end());
-        cb->setAccessibleName(accessible + QStringLiteral(" ") + QString::fromLatin1(m));
+        cb->setAccessibleName(accessible + QStringLiteral(" ") + label);
         h->addWidget(cb);
     }
     auto *kc = makeKeyTreePicker(QString::fromStdString(key), w);
     kc->setAccessibleName(accessible);
     h->addWidget(kc, 1);
-    auto update = [w, chord, kc, changed] {
+    // a modifier is ticked and no key chosen yet: nothing is written until there is one, and the line says so
+    auto *hint = new QLabel(T("Choose a key"), w);
+    hint->setObjectName(QStringLiteral("chordHint"));
+    hint->setTextFormat(Qt::PlainText);
+    hint->setVisible(false);
+    h->addWidget(hint);
+    auto showHint = [w, kc, hint] {
+        bool any = false;
+        for (QCheckBox *cb : w->findChildren<QCheckBox *>()) any = any || cb->isChecked();
+        hint->setVisible(any && kc->value().isEmpty());
+    };
+    showHint();
+    auto update = [w, chord, kc, changed, showHint] {
         std::vector<std::string> sel;
         const auto boxes = w->findChildren<QCheckBox *>();
         for (QCheckBox *cb : boxes)
-            if (cb->isChecked()) sel.push_back(cb->text().toStdString());
+            if (cb->isChecked()) sel.push_back(cb->property("chordMod").toString().toStdString());
+        showHint();
         if (kc->value().isEmpty()) return;
         *chord = joinChord(sel, kc->value().toStdString());
         changed();
