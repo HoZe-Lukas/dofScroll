@@ -25,6 +25,7 @@
 #include "ui/model/overview_model.hpp"
 #include "ui/model/ui_links.hpp"
 #include "ui/model/ui_progress.hpp"
+#include "plain_text.hpp"
 #include "ui_i18n.hpp"
 
 namespace {
@@ -33,6 +34,7 @@ constexpr int kCardMinWidth = 260;  // cards wrap to the next row when a column 
 
 QLabel *note(const QString &text = QString()) {
     auto *l = new QLabel(text);
+    l->setTextFormat(Qt::PlainText);  // the text can hold names from files and from the device
     l->setWordWrap(true);
     l->setForegroundRole(QPalette::PlaceholderText);
     return l;
@@ -61,6 +63,7 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     auto *statusBox = new QGroupBox(T("Status"));
     auto *sl = new QVBoxLayout(statusBox);
     statusLine_ = new QLabel;
+    statusLine_->setTextFormat(Qt::PlainText);
     statusLine_->setWordWrap(true);
     QFont bold = statusLine_->font();
     bold.setBold(true);
@@ -68,6 +71,7 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     statusLine_->setAccessibleName(T("Daemon status"));
     infoLine_ = note();
     warningLine_ = new QLabel;
+    warningLine_->setTextFormat(Qt::PlainText);
     warningLine_->setWordWrap(true);
     sl->addWidget(statusLine_);
     sl->addWidget(infoLine_);
@@ -130,6 +134,7 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     layoutQuickActions();
     auto *modeRow = new QHBoxLayout;
     auto *modeLabel = new QLabel(T("Active joystick mode:"));
+    modeLabel->setTextFormat(Qt::PlainText);
     mode_ = new QComboBox;
     mode_->setAccessibleName(T("Active joystick mode"));
     // The longest entry decides AdjustToContents: with the five new joystick modes the page no longer fit at
@@ -171,6 +176,7 @@ OverviewPage::OverviewPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     auto *el = new QVBoxLayout(emptyState_);
     auto *emptyText = new QLabel(T("No program or device has its own profile yet. A profile changes the joystick mode or single "
                                    "settings for one program or one device."));
+    emptyText->setTextFormat(Qt::PlainText);
     emptyText->setWordWrap(true);
     auto *emptyButton = new QPushButton(T("Add a profile..."));
     connect(emptyButton, &QPushButton::clicked, this, [this] { emit openPage(QStringLiteral("profiles")); });
@@ -258,7 +264,7 @@ void OverviewPage::rebuildModes(const spn::ui::OverviewData &d) {
         if (ctx_.modes && ctx_.strings) {  // the description of the joystick mode is the tooltip of its entry
             const spn::ModeDef *def = ctx_.modes->modeSet().find(e.id);
             mode_->setItemData(mode_->count() - 1,
-                               def ? qs8(spn::ui::joystickModeTooltip(*def, *ctx_.strings)) : T("This joystick mode is not installed"),
+                               spn::ui::qt::plainToolTip(def ? qs8(spn::ui::joystickModeTooltip(*def, *ctx_.strings)) : T("This joystick mode is not installed")),
                                Qt::ToolTipRole);
         }
         if (e.active) current = mode_->count() - 1;
@@ -298,7 +304,7 @@ void OverviewPage::rebuildCards(const spn::ui::OverviewData &d, const std::vecto
         auto *card = new QFrame(cardHost_);
         card->setFrameShape(QFrame::StyledPanel);
         card->setProperty("card", true);  // rounded, tinted inset card (theme.cpp)
-        card->setToolTip(qs8(p.details));  // every setting of the profile, the summary shows the first ones
+        spn::ui::qt::setPlainToolTip(card, qs8(p.details));  // every setting of the profile, the summary shows the first ones
         auto *cl = new QVBoxLayout(card);
         cl->setContentsMargins(kCardPadding, kCardPadding, kCardPadding, kCardPadding);
         cl->setSpacing(kSpaceSm);
@@ -360,6 +366,7 @@ void OverviewPage::rebuildGettingStarted(const std::vector<spn::ui::GettingStart
         if (!st.done && !st.hint.empty()) text += QLatin1Char(' ') + qs8(st.hint);
         gettingTexts_ << text;
         auto *label = new QLabel(text, gettingBox_);
+        label->setTextFormat(Qt::PlainText);
         label->setWordWrap(true);
         row->addWidget(label, 1);
         if (!st.page.empty() && !st.done) {

@@ -35,6 +35,7 @@ DevicePage::DevicePage(const UiContext &ctx, QWidget *parent) : QWidget(parent),
 
     auto *intro = new QLabel(T("The connected 3D mouse and how many buttons a profile offers for it. Live axes and the axis "
                                "assistant are on the Axes tab."));
+    intro->setTextFormat(Qt::PlainText);
     intro->setWordWrap(true);
     intro->setForegroundRole(QPalette::PlaceholderText);
     col->addWidget(intro);
@@ -44,6 +45,7 @@ DevicePage::DevicePage(const UiContext &ctx, QWidget *parent) : QWidget(parent),
     auto *bl = new QVBoxLayout(box);
     bl->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
     none_ = new QLabel(T("No device found. Start spacenavd and plug in the device."));
+    none_->setTextFormat(Qt::PlainText);
     none_->setWordWrap(true);
     bl->addWidget(none_);
     listHost_ = new QWidget;
@@ -54,6 +56,7 @@ DevicePage::DevicePage(const UiContext &ctx, QWidget *parent) : QWidget(parent),
     col->addWidget(box);
 
     state_ = new QLabel;
+    state_->setTextFormat(Qt::PlainText);
     state_->setWordWrap(true);
     state_->setForegroundRole(QPalette::PlaceholderText);
     col->addWidget(state_);

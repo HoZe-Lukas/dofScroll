@@ -50,6 +50,7 @@
 #include <QTreeView>
 #include <QItemSelectionModel>
 #include <QTreeWidget>
+#include <QTextDocument>
 #include <QTimer>
 #include <QTranslator>
 #include <algorithm>
@@ -65,6 +66,7 @@
 #include "main_window.hpp"
 #include "ui/model/display_text.hpp"
 #include "motion_view.hpp"
+#include "plain_text.hpp"
 #include "vertical_tabs.hpp"
 #include "pages/add_app_dialog.hpp"
 #include "pages/add_device_dialog.hpp"
@@ -1625,6 +1627,121 @@ static bool overviewSelfTest(MainWindow &w) {
     return ok;
 }
 
+// Foreign strings (profile and device names, mode names and descriptions, the daemon status) are data, not markup
+// (issues #240, #274): every label that shows one is plain text, and no tooltip hands one to Qt's rich text.
+static bool plainTextSelfTest(const QString &tmpPath) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const QString &what) {
+        if (!cond) std::fprintf(stderr, "plain text self-test failed: %s\n", qPrintable(what));
+        ok = ok && cond;
+    };
+    // the helpers
+    {
+        const QString raw = QStringLiteral("<b>HOSTILE</b><a href=\"file:///x\">l</a> & <img src=file:///x>\nsecond  line");
+        const QString tip = spn::ui::qt::plainToolTip(raw);
+        check(Qt::mightBeRichText(tip), QStringLiteral("the wrapped tooltip is rich text, so Qt guesses nothing"));
+        QTextDocument doc;
+        doc.setHtml(tip);
+        check(doc.toPlainText() == raw, QStringLiteral("a wrapped tooltip shows exactly the original characters"));
+        check(!tip.contains(QStringLiteral("<b>")) && !tip.contains(QStringLiteral("<img")),
+              QStringLiteral("no tag of the data survives in the tooltip"));
+        check(spn::ui::qt::plainToolTip(QString()).isEmpty(), QStringLiteral("an empty tooltip stays empty"));
+    }
+    const QString dir = tmpPath + QStringLiteral("/plain");
+    QDir().mkpath(dir + QStringLiteral("/modes"));
+    QDir().mkpath(dir + QStringLiteral("/buttons"));
+    QDir().mkpath(dir + QStringLiteral("/run"));
+    auto write = [](const QString &path, const char *text) {
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly)) return false;
+        f.write(text);
+        return true;
+    };
+    check(write(dir + QStringLiteral("/modes/hostile.conf"),
+                "NAME = <b>HOSTILE</b>\nDESCRIPTION = <h1>HOSTILE</h1><img src=file:///x>\nBUTTON_1 = key:space\n"),
+          QStringLiteral("write the joystick mode"));
+    check(write(dir + QStringLiteral("/buttons/hostile.conf"), "NAME = <b>HOSTILE</b>\nDESCRIPTION = <i>HOSTILE</i>\nACTION = toggle:nav\n"),
+          QStringLiteral("write the button mode"));
+    check(write(dir + QStringLiteral("/dofscroll.conf"),
+                "[global]\n\n[device:<img src=file:///x>HOSTILE Pro]\nSCROLL_V_SENS = 9\n\n"
+                "[app:<b>HOSTILE</b><a href=file:///x>l</a>]\nMODE = hostile\nBUTTON_1 = buttonmode:hostile\n\n[app:second]\nMODE = hostile\n"),
+          QStringLiteral("write the configuration"));
+    spn::ui::RecordingActionRunner recorder;
+    UiContext ctx;
+    ctx.runner = &recorder;
+    ctx.reload = spn::ui::reloadVia(recorder);
+    ctx.configPath = (dir + QStringLiteral("/dofscroll.conf")).toStdString();
+    ctx.modesDir = (dir + QStringLiteral("/modes")).toStdString();
+    ctx.buttonModesDir = (dir + QStringLiteral("/buttons")).toStdString();
+    ctx.runtimeDir = (dir + QStringLiteral("/run")).toStdString();
+    MainWindow w(ctx);
+    {
+        QFile sf(QString::fromStdString(spn::statusFilePathIn(ctx.runtimeDir)));
+        if (sf.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            sf.write(QString::fromLatin1("profile=<b>HOSTILE</b>\ndevice=<b>HOSTILE</b><img src=file:///x>\napp=<h1>HOSTILE</h1>\nmode=hostile\n"
+                                         "enabled=1\npaused=0\ndevices_seen=1\nupdated=%1\n")
+                         .arg(QString::number(static_cast<qlonglong>(std::time(nullptr))))
+                         .toUtf8());
+        }
+    }
+    w.show();
+    w.refreshStatusNow();
+    settle();
+    const QString marker = QStringLiteral("HOSTILE");
+    auto rawTag = [](const QString &t) {
+        return t.contains(QStringLiteral("<b>HOSTILE")) || t.contains(QStringLiteral("<h1>HOSTILE")) ||
+               t.contains(QStringLiteral("<i>HOSTILE")) || t.contains(QStringLiteral("<img src")) || t.contains(QStringLiteral("<a href"));
+    };
+    int seenLabels = 0, seenTips = 0;
+    auto scan = [&](const QString &where) {
+        auto tip = [&](const QString &t, const QString &what) {
+            if (!t.contains(marker)) return;
+            ++seenTips;
+            check(!rawTag(t), where + QStringLiteral(": ") + what + QStringLiteral(" holds foreign markup"));
+        };
+        for (QWidget *c : w.findChildren<QWidget *>()) {
+            if (auto *l = qobject_cast<QLabel *>(c)) {
+                if (l->text().contains(marker)) {
+                    ++seenLabels;
+                    check(l->textFormat() == Qt::PlainText || !rawTag(l->text()), where + QStringLiteral(": label \"") + l->text().left(40) +
+                                                                QStringLiteral("\" is not plain text and holds markup"));
+                }
+            }
+            tip(c->toolTip(), QStringLiteral("a tooltip of ") + QString::fromLatin1(c->metaObject()->className()));
+            if (auto *cb = qobject_cast<QComboBox *>(c))
+                for (int i = 0; i < cb->count(); ++i) tip(cb->itemData(i, Qt::ToolTipRole).toString(), QStringLiteral("a combo box entry tooltip"));
+            if (auto *lw = qobject_cast<QListWidget *>(c))
+                for (int i = 0; i < lw->count(); ++i) tip(lw->item(i)->toolTip(), QStringLiteral("a list entry tooltip"));
+            if (auto *tw = qobject_cast<QTreeWidget *>(c)) {
+                QTreeWidgetItemIterator it(tw);
+                for (; *it; ++it)
+                    for (int col = 0; col < tw->columnCount(); ++col) tip((*it)->toolTip(col), QStringLiteral("a tree entry tooltip"));
+            }
+        }
+    };
+    scan(QStringLiteral("window"));
+    for (const std::string &id : w.pageIds()) {
+        w.showPage(QString::fromStdString(id));
+        settle();
+        scan(QString::fromStdString(id));
+        if (id == "profiles" || id == "overview")
+            for (int section = 1; section <= 3; ++section) {
+                w.openOverviewProfile(section);
+                settle();
+                for (QTabWidget *tabs : w.findChildren<QTabWidget *>())
+                    for (int i = 0; i < tabs->count(); ++i) {
+                        tabs->setCurrentIndex(i);
+                        settle();
+                        scan(QString::fromStdString(id) + QStringLiteral(" profile ") + QString::number(section));
+                    }
+            }
+    }
+    check(seenLabels > 0, QStringLiteral("no label with a foreign string was found (the data does not reach the interface)"));
+    check(seenTips > 0, QStringLiteral("no tooltip with a foreign string was found"));
+    std::printf("plain text self-test: %s (%d labels, %d tooltips)\n", ok ? "ok" : "failed", seenLabels, seenTips);
+    return ok;
+}
+
 // Window state: size, position and page survive a close and a new window; a geometry that is off all
 // screens is ignored and the minimum size holds; a hidden window comes back on the saved page; closing
 // hides the window with a tray and quits without one.
@@ -2297,7 +2414,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
             check(!button.isEmpty() && uw->select(button), "a button can be selected in the picture");
             for (const MotionPicture::Item &it : uw->picture()->items()) check(!it.id.startsWith(QLatin1String("m:")), "no motions on the Button modes page");
             settle();
-            check(uw->useButton()->isEnabled() && uw->useButton()->toolTip().startsWith(QStringLiteral("Use \"")), "Use <button mode> on button n is offered");
+            check(uw->useButton()->isEnabled() && uw->useButton()->toolTip().contains(QStringLiteral("Use &quot;")), "Use <button mode> on button n is offered");
             uw->useButton()->click();
             settle();
             check(uw->status().startsWith(QStringLiteral("Used on buttons: ")) && uw->status().endsWith(QStringLiteral("(Global profile)")), "binding it is said in words");
@@ -2473,7 +2590,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
             }
             check(allTips, "every entry of the joystick mode drop-down has a tooltip");
             check(sawOff, "the tooltip of a built-in entry is its description");
-            check(mode->itemData(0, Qt::ToolTipRole).toString().startsWith(QStringLiteral("Uses the joystick mode of Global")),
+            check(mode->itemData(0, Qt::ToolTipRole).toString().contains(QStringLiteral("Uses the joystick mode of Global")),
                   "'Same as Global' says which joystick mode it is");
         }
         QToolButton *info = findNamed<QToolButton>(page, QStringLiteral("About this joystick mode"));
@@ -4479,6 +4596,7 @@ int main(int argc, char **argv) {
                         modes.modeCount() == expectedModes && tray.modeMenuCount() == expectedModes && tray.menuEntryCount() >= 8;
         if (!ok) return 1;
         if (!overviewSelfTest(w)) return 1;
+        if (!plainTextSelfTest(tmp.path())) return 1;
         if (!quickActionsSelfTest(ctx, tmp.path())) return 1;
         if (!accessibilitySelfTest(w)) return 1;
         if (!sidebarFocusSelfTest(w)) return 1;

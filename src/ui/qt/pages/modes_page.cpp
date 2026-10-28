@@ -43,6 +43,7 @@
 #include "seed.hpp"
 #include "ui/model/examples_model.hpp"
 #include "ui/model/ui_terms.hpp"
+#include "plain_text.hpp"
 
 using spn::ui::ModeCatalog;
 using Origin = ModeCatalog::Origin;
@@ -176,6 +177,7 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     root->addWidget(title);
     auto *intro = new QLabel(T("Each joystick mode says what the six motions of the cap and the buttons do. Pick one for a "
                                "profile on the Profiles page."), this);
+    intro->setTextFormat(Qt::PlainText);
     intro->setWordWrap(true);
     intro->setForegroundRole(QPalette::PlaceholderText);
     root->addWidget(intro);
@@ -357,7 +359,7 @@ void ModesPage::populate(const QString &selectId) {
         if (!m.warnings.empty()) it->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
         QString motionLines = motionText;
         motionLines.replace(QStringLiteral("; "), QStringLiteral("\n"));
-        it->setToolTip(desc + QLatin1Char('\n') + originText(m.origin) + QStringLiteral("\n\n") + motionLines);
+        spn::ui::qt::setPlainToolTip(it, desc + QLatin1Char('\n') + originText(m.origin) + QStringLiteral("\n\n") + motionLines);
         list_->addItem(it);
         if (id == selectId) select = n;
         ++n;
@@ -502,7 +504,7 @@ QStringList ModesPage::usedByLines(const QString &id) const {
 }
 
 void ModesPage::showError(const QString &what, const std::string &detail) {
-    QMessageBox::warning(this, T(spn::ui::terms::kJoystickModes), what + QStringLiteral("\n\n") + QString::fromStdString(detail));
+    spn::ui::qt::plainBox(QMessageBox::Warning, this, T(spn::ui::terms::kJoystickModes), what + QStringLiteral("\n\n") + QString::fromStdString(detail));
 }
 
 bool ModesPage::openInEditor(const std::string &path) {
@@ -580,6 +582,7 @@ bool ModesPage::importPath(const QString &file, bool interactive) {
             text += QStringLiteral("\n\n") + T("The file has no loader warnings.");
         }
         QMessageBox box(QMessageBox::Warning, T("Import joystick mode file"), text, QMessageBox::NoButton, this);
+        box.setTextFormat(Qt::PlainText);
         box.setInformativeText(QString::fromStdString(ModeCatalog::importSafetyNote(QtStrings())));
         QPushButton *yes = box.addButton(T("Import"), QMessageBox::AcceptRole);
         QPushButton *no = box.addButton(QMessageBox::Cancel);
@@ -650,7 +653,7 @@ void ModesPage::onEdit() {
     }
     // A built-in mode has no file: offer an editable copy with the same id that replaces it.
     const QString id = QString::fromStdString(sid);
-    const QMessageBox::StandardButton a = QMessageBox::question(
+    const QMessageBox::StandardButton a = spn::ui::qt::plainBox(QMessageBox::Question, 
         this, T("Edit"),
         T("The built-in joystick mode \"%1\" is not a file. Create an editable file with the same id? It replaces the "
           "built-in joystick mode until you delete the file. To keep the original, use Duplicate instead.")
@@ -675,6 +678,7 @@ void ModesPage::onDelete() {
         text += QStringLiteral("\n\n") + T("This file replaces the built-in joystick mode \"%1\"; the built-in one comes back.").arg(id);
     text += QStringLiteral("\n\n") + T("This cannot be undone.");
     QMessageBox box(QMessageBox::Question, T("Delete"), text, QMessageBox::NoButton, this);
+    box.setTextFormat(Qt::PlainText);
     QPushButton *yes = box.addButton(T("Delete"), QMessageBox::DestructiveRole);
     QPushButton *no = box.addButton(QMessageBox::Cancel);
     box.setDefaultButton(no);
@@ -738,6 +742,7 @@ void ModesPage::onRename() {
                                  .arg(id, QString::fromStdString(nid)) +
                              QStringLiteral("\n\n - ") + uses.join(QStringLiteral("\n - "));
         QMessageBox box(QMessageBox::Warning, T("Rename"), text, QMessageBox::NoButton, this);
+        box.setTextFormat(Qt::PlainText);
         QPushButton *yes = box.addButton(T("Rename"), QMessageBox::AcceptRole);
         QPushButton *no = box.addButton(QMessageBox::Cancel);
         box.setDefaultButton(no);
@@ -759,7 +764,7 @@ void ModesPage::onOpenFolder() {
 void ModesPage::onNewFromExample() {
     const std::vector<spn::ui::Example> ex = spn::ui::availableModeExamples(catalog_, spn::examplesDir());
     if (ex.empty()) {
-        QMessageBox::information(this, T("New from example"),
+        spn::ui::qt::plainBox(QMessageBox::Information, this, T("New from example"),
                                  T("All examples are already in your joystick modes folder, or none ships with this installation."));
         return;
     }

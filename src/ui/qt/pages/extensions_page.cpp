@@ -45,15 +45,18 @@ ExtensionsPage::ExtensionsPage(const UiContext &ctx, QWidget *parent) : QWidget(
     auto *intro = new QLabel(T("Your joystick mode files and button mode files are plain files in your configuration folders. dofscroll reads them with its own "
                                "checks and never runs them. Switch a file off to keep it without using it; a switched-off file "
                                "with the id of a built-in joystick mode or button mode lets the built-in one apply again."));
+    intro->setTextFormat(Qt::PlainText);
     intro->setWordWrap(true);
     intro->setForegroundRole(QPalette::PlaceholderText);
     col->addWidget(intro);
     auto *safety = new QLabel(T("Joystick mode files can press any key. Only use joystick mode files from trusted sources."));
+    safety->setTextFormat(Qt::PlainText);
     safety->setWordWrap(true);
     safety->setForegroundRole(QPalette::PlaceholderText);
     col->addWidget(safety);
 
     message_ = new QLabel;
+    message_->setTextFormat(Qt::PlainText);
     message_->setWordWrap(true);
     message_->setAccessibleName(T("Problem"));
     message_->setVisible(false);
@@ -249,6 +252,7 @@ bool ExtensionsPage::removeEntry(const QString &kind, const QString &id, bool as
             text += QStringLiteral("\n\n") + T("It is still used by: %1").arg(uses.join(QStringLiteral(", ")));
         }
         QMessageBox box(QMessageBox::Warning, T("Remove"), text, QMessageBox::NoButton, this);
+        box.setTextFormat(Qt::PlainText);
         QPushButton *yes = box.addButton(T("Remove"), QMessageBox::AcceptRole);
         QPushButton *no = box.addButton(QMessageBox::Cancel);
         box.setDefaultButton(no);

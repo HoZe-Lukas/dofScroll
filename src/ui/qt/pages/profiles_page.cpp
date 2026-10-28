@@ -64,6 +64,7 @@
 #include "theme.hpp"
 #include "ui/model/undo_rules.hpp"
 #include "ui_i18n.hpp"
+#include "plain_text.hpp"
 
 using namespace spn;
 using namespace spn::ui;
@@ -211,6 +212,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     hl->setContentsMargins(0, 0, 0, 0);
     hl->setSpacing(tk::kSpaceMd);
     headerIcon_ = new QLabel(header);
+    headerIcon_->setTextFormat(Qt::PlainText);
     headerIcon_->setFixedSize(tk::kIconSize * 3 / 2, tk::kIconSize * 3 / 2);
     headerIcon_->setScaledContents(true);
     headerIcon_->setAccessibleName(T("Icon of the edited profile"));
@@ -221,6 +223,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     headerName_->setProperty("heading", QStringLiteral("section"));
     headerName_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     headerKind_ = new QLabel(header);
+    headerKind_->setTextFormat(Qt::PlainText);
     headerKind_->setForegroundRole(QPalette::PlaceholderText);
     hl->addWidget(headerIcon_);
     hl->addWidget(headerName_);
@@ -228,6 +231,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     hl->addStretch(1);
     rl->addWidget(header);
     headerNote_ = new QLabel(right);
+    headerNote_->setTextFormat(Qt::PlainText);
     headerNote_->setWordWrap(true);
     headerNote_->setForegroundRole(QPalette::PlaceholderText);
     rl->addWidget(headerNote_);
@@ -323,7 +327,7 @@ void ProfilesPage::refreshTreeLabels() {
         const int s = (*it)->data(0, kRoleSection).toInt();
         if (s <= 0 || size_t(s) >= ctx_.settings->sectionCount()) continue;
         (*it)->setText(0, treeLabel(size_t(s)));
-        (*it)->setToolTip(0, qs8(spn::ui::profileOverrideCountText(ctx_.settings->overrideCount(size_t(s)), strings) + "\n" +
+        spn::ui::qt::setPlainToolTip(*it, 0, qs8(spn::ui::profileOverrideCountText(ctx_.settings->overrideCount(size_t(s)), strings) + "\n" +
                                  ctx_.settings->orderText(size_t(s), strings)));
     }
 }
@@ -391,12 +395,12 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
                 group->setExpanded(true);
             }
             it = new QTreeWidgetItem(group, QStringList(e.directory ? T("%1 (cannot be read)").arg(qs8(e.file)) : T("%1 (defective)").arg(qs8(e.file))));
-            it->setToolTip(0, defectText(e));
+            spn::ui::qt::setPlainToolTip(it, 0, defectText(e));
             it->setFlags(Qt::ItemIsEnabled);
             defects << defectText(e);
         } else if (e.isDefault) {
             it = new QTreeWidgetItem(tree_, QStringList(T("Global")));
-            it->setToolTip(0, qs8(headerExplanation(0, Section::GLOBAL, *sp)));
+            spn::ui::qt::setPlainToolTip(it, 0, qs8(headerExplanation(0, Section::GLOBAL, *sp)));
         } else {
             QTreeWidgetItem *&group = e.kind == Section::DEVICE ? dev : app;
             if (!group) {
@@ -407,7 +411,7 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
             }
             const size_t n = ctx_.settings->overrideCount(e.section);
             it = new QTreeWidgetItem(group, QStringList(qs8(profileListLabel(spn::ui::displayText(e.pattern), n))));
-            it->setToolTip(0, qs8(profileOverrideCountText(n, *sp) + "\n" + ctx_.settings->orderText(e.section, *sp)));
+            spn::ui::qt::setPlainToolTip(it, 0, qs8(profileOverrideCountText(n, *sp) + "\n" + ctx_.settings->orderText(e.section, *sp)));
         }
         it->setIcon(0, themedIcon(iconResource(e.kind), iconColor, tk::kIconSize));
         it->setData(0, kRoleSection, int(e.section));
@@ -732,7 +736,7 @@ QWidget *ProfilesPage::buildModeSelector(size_t section) {
         } else {
             tip = o.description.empty() ? qs8(spn::ui::noDescriptionText(strs)) : qs8(o.description);
         }
-        combo->setItemData(combo->count() - 1, tip, Qt::ToolTipRole);
+        combo->setItemData(combo->count() - 1, spn::ui::qt::plainToolTip(tip), Qt::ToolTipRole);
     }
     combo->setCurrentIndex(std::max(0, ctx_.settings->selectedModeOption(section)));
     // do not ask for the width of the longest entry: with large fonts the page must not need a horizontal scroll bar
@@ -753,7 +757,7 @@ QWidget *ProfilesPage::buildModeSelector(size_t section) {
     connect(infoButton, &QToolButton::clicked, this, [infoButton, infoFor] { InfoPopup::open(infoButton, infoFor()); });
     auto describe = [combo, infoFor] {
         const QString info = infoFor();
-        combo->setToolTip(info);
+        spn::ui::qt::setPlainToolTip(combo, info);
         combo->setAccessibleDescription(T("Joystick mode") + QStringLiteral(": ") + T("What the axes do while this profile is active") +
                                         QStringLiteral("\n") + info);
     };
@@ -787,7 +791,7 @@ QWidget *ProfilesPage::buildModeSelector(size_t section) {
         if (!text.empty()) {
             auto *badge = noteLabel(qs8(text));
             badge->setObjectName(QStringLiteral("modeOrigin"));
-            badge->setToolTip(tip);
+            spn::ui::qt::setPlainToolTip(badge, tip);
             l->addWidget(badge);
         }
     }
@@ -873,6 +877,7 @@ QWidget *ProfilesPage::buildEnabled(size_t section) {
     check->setToolTip(T("Switch this off for a program that reads the SpaceMouse itself") + QStringLiteral("\n") +
                       T("Config key: %1").arg(QStringLiteral("ENABLED")));
     auto *origin = new QLabel;
+    origin->setTextFormat(Qt::PlainText);
     origin->setForegroundRole(QPalette::PlaceholderText);
     auto *reset = new QToolButton;
     reset->setText(T("Reset"));
@@ -892,6 +897,7 @@ QWidget *ProfilesPage::buildEnabled(size_t section) {
     refresh();
     l->addWidget(check, 0, 0, 1, 2);
     auto *what = new QLabel(T("Send scroll, zoom and key events while this profile is active"));
+    what->setTextFormat(Qt::PlainText);
     what->setWordWrap(true);
     what->setForegroundRole(QPalette::PlaceholderText);
     l->addWidget(what, 1, 0, 1, 2);
@@ -1065,6 +1071,7 @@ QWidget *ProfilesPage::buildModeInfo(size_t section) {
     grid->setMotions(a.motions);
     l->addWidget(grid);
     auto *buttonsTitle = new QLabel(T("Buttons"), box);
+    buttonsTitle->setTextFormat(Qt::PlainText);
     QFont bf = buttonsTitle->font();
     bf.setBold(true);
     buttonsTitle->setFont(bf);
@@ -1127,6 +1134,7 @@ QWidget *ProfilesPage::buildOverrides(size_t section) {
         edit->setToolTip(T("Inherited value:") + QLatin1Char(' ') + qs8(val.inherited));
         edit->setAccessibleName(qs8(key));
         auto *hint = new QLabel(row);
+        hint->setTextFormat(Qt::PlainText);
         hint->setProperty("error", true);
         hint->setVisible(false);
         auto *rm = new QToolButton(row);
@@ -1262,6 +1270,7 @@ void ProfilesPage::removeProfile() {
     // Cancel is the default (Enter does not delete); the destructive choice has its own name.
     QMessageBox box(QMessageBox::Warning, T("Remove profile"),
                     T("Remove the profile \"%1\" and all its settings?").arg(name), QMessageBox::NoButton, this);
+    box.setTextFormat(Qt::PlainText);
     box.setInformativeText(T("You can undo this afterwards."));
     QPushButton *go = box.addButton(T("Remove profile"), QMessageBox::DestructiveRole);
     QPushButton *keep = box.addButton(T("Cancel"), QMessageBox::RejectRole);
@@ -1389,6 +1398,7 @@ void ProfilesPage::importProfile() {
             text += QStringLiteral("\n\n") + T("Only keep profile files from sources you trust and read the file first.");
         for (const std::string &n : p.notes) text += QStringLiteral("\n") + qs8(n);
         QMessageBox box(QMessageBox::Question, T("Import profile"), text, QMessageBox::NoButton, this);
+        box.setTextFormat(Qt::PlainText);
         QPushButton *go = box.addButton(p.collision ? T("Replace the existing profile") : T("Import the profile"),
                                         p.collision ? QMessageBox::DestructiveRole : QMessageBox::AcceptRole);
         QPushButton *keep = box.addButton(p.collision ? T("Keep the existing profile") : T("Cancel"), QMessageBox::RejectRole);

@@ -48,6 +48,7 @@
 #include "ui/model/motion_map_model.hpp"
 #include "ui/model/ui_progress.hpp"
 #include "ui_i18n.hpp"
+#include "plain_text.hpp"
 
 using namespace spn;
 using namespace spn::ui;
@@ -1084,7 +1085,7 @@ void MotionEditor::buildTop(QVBoxLayout *left, QHBoxLayout *tools) {
     const std::vector<MotionTemplate> all = motionTemplates(*env_.strings);
     for (size_t i = 0; i < all.size(); ++i) {
         templates_->addItem(qs8(all[i].title), int(i));
-        templates_->setItemData(int(templates_->count()) - 1, qs8(all[i].description), Qt::ToolTipRole);
+        templates_->setItemData(int(templates_->count()) - 1, spn::ui::qt::plainToolTip(qs8(all[i].description)), Qt::ToolTipRole);
     }
     tourBtn_ = new QPushButton(T("Show me how"), this);
     templates_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);

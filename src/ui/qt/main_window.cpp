@@ -43,6 +43,7 @@
 #include "ui/model/ui_settings.hpp"
 #include "ui_i18n.hpp"
 #include "vertical_tabs.hpp"
+#include "plain_text.hpp"
 
 // First start: a roomy window, clamped to 92% of the screen, never below the minimum.
 QSize MainWindow::defaultWindowSize() {
@@ -171,6 +172,7 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
 
     // Bottom: the daemon state, the same line as the tray's first entry.
     statusLabel_ = new QLabel(this);
+    statusLabel_->setTextFormat(Qt::PlainText);  // the device name in the status comes from the USB descriptor
     statusLabel_->setAccessibleName(T("Daemon status"));
     statusLabel_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);  // a long state is cut, never squeezes the window
     statusBar()->addWidget(statusLabel_, 1);
@@ -315,7 +317,7 @@ void MainWindow::updateStatus() {
     if (statusLabel_) {
         const QString line = QString::fromStdString(status_.mainLine(strings_));
         statusLabel_->setText(line);
-        statusLabel_->setToolTip(line);  // the full text when the window is too narrow for it
+        spn::ui::qt::setPlainToolTip(statusLabel_, line);  // the full text when the window is too narrow for it
     }
     addFirstDeviceProfile();
     if (auto *overview = qobject_cast<OverviewPage *>(overviewPage_)) overview->refresh();

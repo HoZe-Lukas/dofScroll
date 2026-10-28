@@ -101,6 +101,7 @@ public:
         auto *lookBox = new QGroupBox(T("Language and appearance"));
         auto *lg = new QVBoxLayout(lookBox);
         auto *langLabel = new QLabel(T("Language"));
+        langLabel->setTextFormat(Qt::PlainText);
         language_ = new QComboBox;
         langLabel->setBuddy(language_);
         language_->addItem(T("System default"), int(Language::System));
@@ -117,6 +118,7 @@ public:
         QObject::connect(language_, QOverload<int>::of(&QComboBox::activated), this, [this](int) { onLanguage(); });
 
         auto *themeLabel = new QLabel(T("Appearance"));
+        themeLabel->setTextFormat(Qt::PlainText);
         theme_ = new QComboBox;
         themeLabel->setBuddy(theme_);
         theme_->addItem(T("System default"), int(Theme::System));
@@ -144,6 +146,7 @@ public:
         tick_->setToolTip(T("How many times per second the daemon generates events (30..1000)") + QStringLiteral("\n") +
                           T("Config key: %1").arg(QStringLiteral("TICK_HZ")));
         auto *tickLabel = new QLabel(T("Tick rate (Hz)"));
+        tickLabel->setTextFormat(Qt::PlainText);
         tickLabel->setBuddy(tick_);
         dl->addWidget(tickLabel, drow, 0);
         dl->addWidget(tick_, drow, 1);
@@ -164,6 +167,7 @@ public:
         backend_->setToolTip(T("auto: Wayland -> uinput, otherwise X11 (with fallback). Takes effect after the daemon is "
                                "restarted.") + QStringLiteral("\n") + T("Config key: %1").arg(QStringLiteral("BACKEND")));
         auto *beLabel = new QLabel(T("Output backend"));
+        beLabel->setTextFormat(Qt::PlainText);
         beLabel->setBuddy(backend_);
         dl->addWidget(beLabel, drow, 0);
         dl->addWidget(backend_, drow, 1);
@@ -185,6 +189,7 @@ public:
         input_->setToolTip(qs8(inputExplanation(*ctx_.strings)) + QStringLiteral("\n") +
                            T("Config key: %1").arg(QStringLiteral("INPUT")));
         auto *inLabel = new QLabel(T("Input path"));
+        inLabel->setTextFormat(Qt::PlainText);
         inLabel->setBuddy(input_);
         dl->addWidget(inLabel, drow, 0);
         dl->addWidget(input_, drow, 1);
@@ -217,6 +222,7 @@ public:
         auto *statusBox = new QGroupBox(T("Status"));
         auto *sl = new QVBoxLayout(statusBox);
         statusLabel_ = new QLabel;
+        statusLabel_->setTextFormat(Qt::PlainText);
         statusLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
         statusLabel_->setWordWrap(true);
         sl->addWidget(statusLabel_);
@@ -330,6 +336,7 @@ protected:
 private:
     QLabel *makeNote() {
         auto *l = new QLabel;
+        l->setTextFormat(Qt::PlainText);
         l->setWordWrap(true);
         l->setForegroundRole(QPalette::PlaceholderText);
         return l;

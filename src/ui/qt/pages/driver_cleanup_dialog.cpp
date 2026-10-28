@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "ui_i18n.hpp"
+#include "plain_text.hpp"
 
 namespace {
 
@@ -68,6 +69,7 @@ DriverCleanupDialog::DriverCleanupDialog(const std::string &dir, QWidget *parent
                                "(CAD, 3D) are not ticked: leave them as they are. Every changed file is saved first and can "
                                "be restored."),
                              this);
+    intro->setTextFormat(Qt::PlainText);
     intro->setWordWrap(true);
     col->addWidget(intro);
     list_ = new QListWidget(this);
@@ -91,6 +93,7 @@ DriverCleanupDialog::DriverCleanupDialog(const std::string &dir, QWidget *parent
     connect(all, &QPushButton::clicked, this, [this] { tickAll(true); });
     connect(none, &QPushButton::clicked, this, [this] { tickAll(false); });
     note_ = new QLabel(this);
+    note_->setTextFormat(Qt::PlainText);
     note_->setWordWrap(true);
     note_->setForegroundRole(QPalette::PlaceholderText);
     col->addWidget(note_);
@@ -155,7 +158,7 @@ bool DriverCleanupDialog::cleanUp(bool confirm) {
         note_->setText(T("Tick at least one program."));
         return false;
     }
-    if (confirm && QMessageBox::question(this, windowTitle(),
+    if (confirm && spn::ui::qt::plainBox(QMessageBox::Question, this, windowTitle(),
                                          T("Switch off the driver axes of %1 programs? The files are saved first and can be restored.")
                                              .arg(picked)) != QMessageBox::Yes)
         return false;
@@ -179,7 +182,7 @@ bool DriverCleanupDialog::restoreLast(bool confirm) {
         note_->setText(T("There is no backup."));
         return false;
     }
-    if (confirm && QMessageBox::question(this, windowTitle(), T("Put the files of the backup %1 back?").arg(qs8(backups.front()))) !=
+    if (confirm && spn::ui::qt::plainBox(QMessageBox::Question, this, windowTitle(), T("Put the files of the backup %1 back?").arg(qs8(backups.front()))) !=
                        QMessageBox::Yes)
         return false;
     spn::ui::DriverCleanupReport rep;

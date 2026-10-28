@@ -24,6 +24,7 @@
 #include "ui/model/profile_assignment_model.hpp"
 #include "ui/model/profile_tree_model.hpp"
 #include "ui_i18n.hpp"
+#include "plain_text.hpp"
 
 using namespace spn;
 using namespace spn::ui;
@@ -64,8 +65,8 @@ void shrinkable(QComboBox *c, int chars) {
     c->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     c->setMinimumContentsLength(chars);
     c->view()->setTextElideMode(Qt::ElideMiddle);
-    QObject::connect(c, &QComboBox::currentIndexChanged, c, [c] { c->setToolTip(c->currentText()); });
-    c->setToolTip(c->currentText());
+    QObject::connect(c, &QComboBox::currentIndexChanged, c, [c] { spn::ui::qt::setPlainToolTip(c, c->currentText()); });
+    spn::ui::qt::setPlainToolTip(c, c->currentText());
 }
 }  // namespace
 

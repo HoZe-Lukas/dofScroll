@@ -9,6 +9,8 @@
 #include <string>
 
 #include "ui/model/autosave.hpp"
+#include "ui/model/display_text.hpp"
+#include "ui/model/status_model.hpp"
 #include "ui/model/status_text.hpp"
 
 using namespace spn::ui;
@@ -41,6 +43,21 @@ int main() {
     b.request(Autosave::Urgency::Immediate, 0);
     b.flush(1);
     assert(footerKind(b.statusText(2, id), true, id) == StatusKind::Error);
+
+    // Foreign names (device, program, joystick mode from the status file) lose bidirectional and zero-width
+    // controls, so a name cannot reorder or hide the text around it; markup stays as literal characters (the
+    // labels show it as plain text, see the Qt self-test).
+    {
+        StatusModel m;
+        const std::string bidi = "\xe2\x80\xae" "evil\xe2\x80\x8b" "\xe2\x81\xa6" "x\xef\xbb\xbf";
+        m.update("profile=" + bidi + "\ndevice=<b>" + bidi + "</b><img src=file:///x>\nmode=" + bidi + "\nenabled=1\nupdated=5\n", true, 5);
+        const std::string line = m.mainLine(id) + m.infoLine(id) + m.title(id);
+        assert(line.find("\xe2\x80\xae") == std::string::npos && line.find("\xe2\x80\x8b") == std::string::npos);
+        assert(line.find("\xe2\x81\xa6") == std::string::npos && line.find("\xef\xbb\xbf") == std::string::npos);
+        assert(line.find("evilx") != std::string::npos);
+        assert(line.find("<b>") != std::string::npos);  // not interpreted here, shown literally by the label
+        assert(displayText("a\xe2\x80\xae" "b") == "ab");
+    }
     std::puts("test_ui_status_text: ok");
     return 0;
 }

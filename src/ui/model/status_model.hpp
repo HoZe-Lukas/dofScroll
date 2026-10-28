@@ -21,6 +21,7 @@
 
 #include "log_sanitize.hpp"
 #include "platform/input_diag.hpp"
+#include "ui/model/display_text.hpp"
 #include "ui/model/strings.hpp"
 
 namespace spn::ui {
@@ -204,7 +205,9 @@ public:
     std::string title(const StringProvider &s) const { return "dofscroll - " + mainLine(s); }
 
 private:
-    static std::string clean(const std::string &in, size_t maxLen) { return sanitizeForLog(in, maxLen); }
+    // Names from the daemon status file (device, program, joystick mode): control characters become '?' and the
+    // characters that can reorder or hide text (bidirectional controls, zero-width characters) are dropped.
+    static std::string clean(const std::string &in, size_t maxLen) { return displayText(sanitizeForLog(in, maxLen), maxLen + 3); }
     DaemonStatus status_;
     State state_ = State::NoStatus;
 };

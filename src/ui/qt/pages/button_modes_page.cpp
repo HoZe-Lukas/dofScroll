@@ -44,6 +44,7 @@
 #include "seed.hpp"
 #include "ui/model/examples_model.hpp"
 #include "ui/model/ui_terms.hpp"
+#include "plain_text.hpp"
 
 using spn::ui::Binding;
 using spn::ui::BindingKind;
@@ -138,6 +139,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     form->addRow(T("Description:"), description_);
     form->addRow(T("Action:"), actionRow);
     fileLabel_ = new QLabel(right);
+    fileLabel_->setTextFormat(Qt::PlainText);
     fileLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     fileLabel_->setWordWrap(true);
     form->addRow(T("File:"), fileLabel_);
@@ -153,6 +155,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
         rl->addWidget(useBox);
     }
     problem_ = new QLabel(right);
+    problem_->setTextFormat(Qt::PlainText);
     problem_->setWordWrap(true);
     problem_->setProperty("error", true);
     problem_->setVisible(false);
@@ -305,7 +308,7 @@ void ButtonModesPage::populate(const QString &selectId) {
             if (!b.warnings.empty()) it->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
             QString tip = b.description.empty() ? qs8(spn::ui::noDescriptionText(QtStrings())) : qs(b.description);
             if (!b.cycle.empty()) tip += QLatin1Char('\n') + qs8(spn::ui::CycleEditorModel::cyclesText(b.cycle, QtStrings()));
-            it->setToolTip(tip);
+            spn::ui::qt::setPlainToolTip(it, tip);
             list_->addItem(it);
             if (id == selectId) select = n;
             ++n;
@@ -428,7 +431,7 @@ void ButtonModesPage::showProblem(const QString &text) {
 std::string ButtonModesPage::composedAction() const { return spn::ui::composeBinding(binding_); }
 
 void ButtonModesPage::showError(const QString &what, const std::string &detail) {
-    QMessageBox::warning(this, T(spn::ui::terms::kButtonModes), what + QStringLiteral("\n\n") + qs(detail));
+    spn::ui::qt::plainBox(QMessageBox::Warning, this, T(spn::ui::terms::kButtonModes), what + QStringLiteral("\n\n") + qs(detail));
 }
 
 bool ButtonModesPage::openInEditor(const std::string &path) {
@@ -536,7 +539,7 @@ void ButtonModesPage::onEditableCopy() {
     const ButtonModeCatalog::Entry *e = current();
     if (!e || !e->builtin) return;
     const std::string id = e->id;  // copy: the timer may rebuild the catalog while the dialog runs
-    const QMessageBox::StandardButton a = QMessageBox::question(
+    const QMessageBox::StandardButton a = spn::ui::qt::plainBox(QMessageBox::Question, 
         this, T("Create editable copy"),
         T("The built-in button mode \"%1\" is not a file. Create an editable file with the same id? It replaces the "
           "built-in button mode until you delete the file. To keep the original, use Duplicate instead.")
@@ -584,6 +587,7 @@ void ButtonModesPage::onImport() {
         text += QStringLiteral("\n\n") + T("The file has no loader warnings.");
     }
     QMessageBox box(QMessageBox::Warning, T("Import button mode file"), text, QMessageBox::NoButton, this);
+    box.setTextFormat(Qt::PlainText);
     box.setInformativeText(qs(ButtonModeCatalog::importSafetyNote(QtStrings())));
     QPushButton *yes = box.addButton(T("Import"), QMessageBox::AcceptRole);
     QPushButton *no = box.addButton(QMessageBox::Cancel);
@@ -614,6 +618,7 @@ void ButtonModesPage::onDelete() {
     }
     text += QStringLiteral("\n\n") + T("This cannot be undone.");
     QMessageBox box(QMessageBox::Question, T("Delete"), text, QMessageBox::NoButton, this);
+    box.setTextFormat(Qt::PlainText);
     QPushButton *yes = box.addButton(T("Delete"), QMessageBox::DestructiveRole);
     QPushButton *no = box.addButton(QMessageBox::Cancel);
     box.setDefaultButton(no);
@@ -644,7 +649,7 @@ void ButtonModesPage::onOpenInEditor() {
 void ButtonModesPage::onNewFromExample() {
     const std::vector<spn::ui::Example> ex = spn::ui::availableButtonModeExamples(catalog_, spn::examplesDir());
     if (ex.empty()) {
-        QMessageBox::information(this, T("New from example"),
+        spn::ui::qt::plainBox(QMessageBox::Information, this, T("New from example"),
                                  T("All examples are already in your button modes folder, or none ships with this installation."));
         return;
     }
