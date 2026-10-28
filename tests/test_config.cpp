@@ -13,6 +13,7 @@
 
 #include <chrono>
 #include <filesystem>
+#include <iterator>
 
 #include <cassert>
 #include <cmath>
@@ -323,6 +324,14 @@ static void testSaveLoad() {
         std::string first;
         std::getline(f, first);
         assert(!first.empty() && first[0] == '#');
+    }
+    {  // the header says where the profiles live now (devices/ and apps/), not the one-file layout (#244)
+        std::ifstream f(p);
+        std::string head((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        head = head.substr(0, head.find("\n[global]\n"));
+        assert(head.find("devices/<name>.conf") != std::string::npos);
+        assert(head.find("apps/<name>.conf") != std::string::npos);
+        assert(head.find("Sections:") == std::string::npos);
     }
     // the temp file must not be left over
     std::string tmp = p + ".tmp." + std::to_string(tu::pid());
