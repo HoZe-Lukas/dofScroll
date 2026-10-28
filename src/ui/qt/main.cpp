@@ -4052,10 +4052,14 @@ int main(int argc, char **argv) {
     const std::string lang = spn::ui::languageLocaleName(spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).language);
     QTranslator translator;
     // The self-test checks English texts: it never loads the catalog of the user's language setting.
-    if (lang != "en" && !selfTest &&
-        translator.load(lang.empty() ? QLocale() : QLocale(QString::fromStdString(lang)),
-                        QStringLiteral("dofscroll"), QStringLiteral("_"), QApplication::applicationDirPath()))
-        QApplication::installTranslator(&translator);
+    // In the macOS app the catalog sits in Contents/Resources (a data file in Contents/MacOS breaks the code signature).
+    if (lang != "en" && !selfTest) {
+        const QLocale loc = lang.empty() ? QLocale() : QLocale(QString::fromStdString(lang));
+        const QString exeDir = QApplication::applicationDirPath();
+        if (translator.load(loc, QStringLiteral("dofscroll"), QStringLiteral("_"), exeDir) ||
+            translator.load(loc, QStringLiteral("dofscroll"), QStringLiteral("_"), exeDir + QStringLiteral("/../Resources")))
+            QApplication::installTranslator(&translator);
+    }
 
     const QIcon icon(QStringLiteral(":/dofscroll-tray.svg"));
     QtActionRunner runner;

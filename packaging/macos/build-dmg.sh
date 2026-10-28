@@ -48,9 +48,10 @@ APP="$STAGE/dofscroll.app"
 RES="$APP/Contents/Resources"
 mkdir -p "$APP/Contents/MacOS" "$RES"
 cp "$BUILD/dofscroll-ui" "$APP/Contents/MacOS/dofscroll-ui"
-# German catalog: dofscroll-ui looks for dofscroll_<lang>.qm next to its executable.
+# German catalog: dofscroll-ui looks for dofscroll_<lang>.qm next to its executable and in Contents/Resources. In the
+# app it must be in Resources: a data file in Contents/MacOS is "not signed at all" for codesign.
 for qm in "$BUILD"/dofscroll_*.qm; do
-    [ -f "$qm" ] && cp "$qm" "$APP/Contents/MacOS/"
+    [ -f "$qm" ] && cp "$qm" "$RES/"
 done
 sed "s|@VERSION@|$VERSION|g" "$HERE/Info.plist.in" > "$APP/Contents/Info.plist"
 DAEMON_DIR="$RES/daemon"
