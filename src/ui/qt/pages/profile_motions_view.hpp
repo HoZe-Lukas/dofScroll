@@ -46,6 +46,7 @@ public:
     // reason is shown in the inspector).
     bool takeOverMotion(const QString &motionId);
     bool takeOverButton(int n);
+    std::function<void()> inspectorBuilt;  // the inspector was rebuilt: its width need may have changed
     std::function<void()> changed;  // a value was written; the page queues a rebuild of the other tabs
 
 protected:

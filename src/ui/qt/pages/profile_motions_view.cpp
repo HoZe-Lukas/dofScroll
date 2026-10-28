@@ -11,6 +11,7 @@
 #include <QPushButton>
 #include <QResizeEvent>
 #include <QStandardItemModel>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <memory>
 #include <set>
@@ -155,6 +156,10 @@ void ProfileMotionsView::rebuildInspector() {
     if (id.startsWith(QLatin1String("m:"))) buildMotion(col_, id.mid(2));
     else if (id.startsWith(QLatin1String("b:"))) buildButton(col_, id.mid(2).toInt());
     col_->addStretch(1);
+    if (inspectorBuilt)
+        QTimer::singleShot(0, this, [this] {
+            if (inspectorBuilt) inspectorBuilt();
+        });
 }
 
 void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) {

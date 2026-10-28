@@ -2359,7 +2359,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                 const QFont baseFont = QApplication::font();
                 const QSize baseSize = w.size();
                 // letter spacing 100 = the font as it is; 140 widens every glyph like a wide font of another platform would
-                const struct { double scale; int spacing; } fontCases[] = {{1.0, 100}, {1.5, 100}, {2.0, 100}, {1.0, 140}, {1.5, 140}, {1.0, 180}, {2.0, 180}, {1.0, 250}, {1.0, 400}};
+                const struct { double scale; int spacing; } fontCases[] = {{1.0, 100}, {1.5, 100}, {2.0, 100}, {1.0, 140}, {1.5, 140}, {1.0, 180}, {2.0, 180}, {1.0, 250}, {1.0, 400}, {1.0, 700}, {1.0, 900}};
                 for (const auto &fc : fontCases) {
                     const double scale = fc.scale;
                     QApplication::setFont(baseFont);
@@ -2380,7 +2380,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                         if (auto *sa = qobject_cast<QAbstractScrollArea *>(p))
                             if (sa->horizontalScrollBar() && sa->horizontalScrollBar()->isVisible()) fits = false;
                     // the inspector needs well under 450 px at the normal font whatever the glyphs: it never forces a scroll bar
-                    if (scale == 1.0 && mv->inspector()->minimumSizeHint().width() > 450) fits = false;
+                    if (scale == 1.0 && fc.spacing <= 400 && mv->inspector()->minimumSizeHint().width() > 450) fits = false;
                     // picture and inspector side by side only when the inspector really has the width it needs
                     if (mv->inspector()->width() < mv->inspector()->minimumSizeHint().width()) fits = false;
                     check(fits, fc.spacing != 100 ? (scale == 1.0 ? "1100 px, wide glyphs: no horizontal scroll bar" : "150% font, wide glyphs: no horizontal scroll bar")

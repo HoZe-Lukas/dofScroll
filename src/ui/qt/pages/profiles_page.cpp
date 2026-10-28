@@ -144,12 +144,12 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     profileFilter_->setAccessibleName(T("Search profiles"));
     profileFilter_->setToolTip(T("Show only the programs and devices whose name contains this text"));
     ll->addWidget(profileFilter_);
-    // The pane has a small floor of its own (list 170 px, the buttons below 120 px): with wide glyphs (Windows fonts
+    // The pane has a small floor of its own (list and buttons 120 px): with wide glyphs (Windows fonts
     // are about 1.6 times wider than Linux ones) the texts of the buttons must not push the splitter handle to the
     // right and squeeze the editor, which would force a horizontal scroll bar. A narrow button clips its text; the
     // tooltip and the accessible description carry the full name.
     tree_ = new QTreeWidget(left);
-    tree_->setMinimumWidth(170);
+    tree_->setMinimumWidth(120);
     tree_->setMinimumHeight(160);
     tree_->setHeaderHidden(true);
     tree_->setTextElideMode(Qt::ElideMiddle);  // a long program name keeps its beginning and its end
@@ -255,7 +255,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     rl->addWidget(tabs_, 1);
     tabs_->setMinimumWidth(260);  // the editor never gets squashed, and the page fits the smallest window
     right->setMinimumWidth(260 + tk::kSpaceMd);  // an explicit floor: nothing inside (header, filter) widens the page
-    left->setMinimumWidth(170 + tk::kSpaceMd);
+    left->setMinimumWidth(120 + tk::kSpaceMd);
     split->setChildrenCollapsible(false);
 
     // The tabs exist once; they stay when another profile is selected (only their content changes).
@@ -294,7 +294,18 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     split->setStretchFactor(0, 0);
     split->setStretchFactor(1, 1);
     split->setSizes({300, 900});
-    new spn::ui::SplitDefaults(split, 24, 280);  // proportional on the first resize: the editor gets 65% or more
+    auto *defaults = new spn::ui::SplitDefaults(split, 24, 280);  // proportional on the first resize: the editor gets 65% or more
+    // ... and more when the inspector of the motions needs it (wide glyphs): the list gives up width down to its floor
+    defaults->setRightNeed(
+        [this] {
+            if (!motions_ || !motions_->isVisibleTo(tabs_)) return 0;
+            QWidget *area = motions_->parentWidget();  // the viewport of the scroll area
+            QWidget *rightPane = tabs_->parentWidget();
+            const int overhead = (area && rightPane && area->width() > 0) ? rightPane->width() - area->width() : 80;
+            return motions_->minimumSizeHint().width() + std::max(overhead, 40) + tk::kSpaceMd;
+        },
+        120 + tk::kSpaceMd);
+    motions_->inspectorBuilt = [defaults] { defaults->fit(); };
     outer->addWidget(split, 1);
 
     setTabOrder(profileFilter_, tree_);
