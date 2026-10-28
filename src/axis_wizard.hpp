@@ -5,8 +5,9 @@
 // Header-only and deliberately free of any GUI toolkit and libspnav so that it can be tested in
 // tests/test_axis_wizard.cpp without a GUI and without hardware.
 //
-// Principle: in each step the user moves the cap for ~3 s in an announced
-// direction (first in the stated direction, then back). The peak value
+// Principle: in each step the user moves the cap in an announced
+// direction (first in the stated direction, then back); the assistant starts and ends the
+// measurement by the movement itself (WizardController). The peak value
 // (magnitude) per raw axis is measured. Because the SpaceMouse can show strong
 // crosstalk (example SpaceMouse Pro, "push sideways": x 350, y 293 ...), the
 // ABSOLUTELY strongest axis is always chosen - after smoothing (median over 3
@@ -192,6 +193,30 @@ inline int firstExcursionSign(const std::vector<RawAxes> &samples, int axis, int
     return sum > 0 ? 1 : (sum < 0 ? -1 : 0);
 }
 
+// Number of sustained half-movements of 'axis': runs of at least MIN_RUN consecutive samples with
+// the same sign and a magnitude above 'threshold', counted when the sign differs from the run
+// before (two pushes the same way count once). 2 = moved out and back. Used by the axis assistant
+// to know when a step is complete; the analysis itself does not depend on it.
+inline int countHalfMovements(const std::vector<RawAxes> &samples, int axis, int threshold) {
+    if (axis < 0 || axis >= AX_COUNT) return 0;
+    int halves = 0, last_sign = 0, run = 0, run_sign = 0;
+    for (const auto &s : samples) {
+        const int v = s[axis];
+        const int sg = std::abs(v) > threshold ? (v > 0 ? 1 : -1) : 0;
+        if (sg != 0 && sg == run_sign) {
+            ++run;
+        } else {
+            run = sg != 0 ? 1 : 0;
+            run_sign = sg;
+        }
+        if (run == MIN_RUN && sg != last_sign) {
+            ++halves;
+            last_sign = sg;
+        }
+    }
+    return halves;
+}
+
 inline StepResult analyzeStep(const std::vector<RawAxes> &samples,
                               int sign_threshold = SIGN_THRESHOLD, int min_peak = MIN_PEAK) {
     StepResult r;
@@ -205,7 +230,7 @@ inline StepResult analyzeStep(const std::vector<RawAxes> &samples,
         r.message = strongestAxis(raw) >= 0
                         ? wfmt(N_("No sustained movement detected (only short deflections) - "
                                   "please move steadily and a little longer."))
-                        : wfmt(N_("No movement detected - please move the cap after \"Start\"."));
+                        : wfmt(N_("No movement detected - please move the cap."));
         return r;
     }
     r.peak = r.peaks[r.axis];

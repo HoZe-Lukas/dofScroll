@@ -463,6 +463,54 @@ While the Axes page is open the daemon pauses its output, so moving the cap does
 window you look at. The page shows as many button cells as the factory button count of the
 device (see below), or the highest button it has seen when no device information is available.
 
+### Axis assistant
+
+"Axis assistant..." on the Axes page detects the five motions (push forward/back, tilt forward/back,
+push sideways, tilt sideways, twist) with the cap in your hand: **no click is needed**. The page
+shows the motion to make as one short line in direction words with an arrow for the first movement
+(never axis names), the five motions as chips with their state in words, and the live bars of the six
+axes so you see the movement being picked up. Each step goes like this:
+
+1. **Waiting for you to move the cap...** The step starts by itself when the cap, after a short rest,
+   moves clearly (a single spike or a movement that is still going on from the step before does not
+   count). **Start now** starts it at once.
+2. **Measuring.** The step ends when the cap has moved out and back and has been at rest for a
+   moment (400 ms by default). After only one movement it ends after a longer rest (2 s); the
+   longest step is 8 s.
+3. **Detected.** A valid result is shown for about a second ("Detected: Push forward/back"), then the
+   next step starts by itself. **Next** goes on at once, **Back** returns to a step to look at it and
+   **Measure again** throws the result away and waits for a new movement.
+
+A result that is too weak or not clear stays on the step and says what to change in words; the
+next movement measures the step again. A required step never gives up by itself (after the longest
+time the page only says that no movement was seen). The two optional tilt steps skip themselves
+after 5 s without movement ("skipped, no movement") and can be done later: **Back** from the result
+page, or run the assistant again. The result page lists what was detected per direction ("Push
+forward/back: z, positive"; the axis names appear only here, because they are what is written) and
+the warnings; **Apply** is the default button (Enter), **Cancel** and Esc leave without writing. Apply
+writes exactly the keys it always wrote (`SCROLL_V_MIX`, `SCROLL_H_MIX`, `ZOOM_MIX`, the three
+`*_SIGN` switches and `ZOOM_LATERAL`). The state is always text ("Waiting...", "Measuring...",
+"Detected"), the whole page works with the keyboard (Tab order: Apply, Next, Start/Measure again, Skip,
+Back, Cancel), and the daemon output stays paused while the assistant is open.
+
+The thresholds and times are keys in `ui.conf` (next to `language`, `theme`); there is no control
+for them in the interface. They are for people whose device needs other values: delete a line to get
+the default back. A value that is not a number is ignored (the default stays); a number outside the
+range is pulled to the nearest limit. The interface keeps your lines when it saves another setting.
+
+| Key | Default | Range | Meaning |
+|---|---|---|---|
+| `axis_assistant_start_threshold` | `40` | 10 to 200 | Raw deflection above which the cap counts as moving (starts a step, and counts the movements) |
+| `axis_assistant_rest_ms` | `400` | 100 to 3000 | Rest in milliseconds after out and back that ends a step |
+| `axis_assistant_max_s` | `8` | 3 to 60 | Longest step in seconds; also the time after which a waiting step says that no movement was seen |
+| `axis_assistant_auto_skip_s` | `5` | 2 to 60 | Seconds without movement after which an optional tilt step is skipped |
+
+The keys are read when the assistant is opened. The analysis (`analyzeStep`, `evaluate` in
+`src/axis_wizard.hpp`) and the written keys did not change; the flow is in `WizardController`
+(`src/ui/model/axes_model.hpp`) and tested with synthetic samples and a fake clock
+(`tests/test_ui_axes.cpp`). The feel of the defaults on a real SpaceMouse (does a step start too
+early on a touch, end too early on a pause) needs a person with a device.
+
 ## User modes
 
 The User modes page (category Modes, fourth tab) lists the mode files of yours: the joystick mode files

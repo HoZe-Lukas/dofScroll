@@ -289,6 +289,29 @@ static void testTranslationHook() {
     assert(de.message.find(" auf z, noetig 80)") != std::string::npos);
 }
 
+static void testHalfMovements() {
+    std::vector<RawAxes> s;
+    auto push = [&](int v, int n) {
+        for (int i = 0; i < n; i++) {
+            RawAxes a{};
+            a[AX_Z] = v;
+            s.push_back(a);
+        }
+    };
+    assert(countHalfMovements(s, AX_Z, 40) == 0);
+    push(200, 5);
+    assert(countHalfMovements(s, AX_Z, 40) == 1);
+    push(0, 5);
+    push(200, 5);  // the same way again is still one half-movement
+    assert(countHalfMovements(s, AX_Z, 40) == 1);
+    push(-200, 5);
+    assert(countHalfMovements(s, AX_Z, 40) == 2);
+    assert(countHalfMovements(s, AX_X, 40) == 0 && countHalfMovements(s, -1, 40) == 0);
+    std::vector<RawAxes> spike(1);
+    spike[0][AX_Z] = 300;  // a single sample is no half-movement
+    assert(countHalfMovements(spike, AX_Z, 40) == 0);
+}
+
 int main() {
     testTranslationHook();
     testSignRobust();
@@ -300,6 +323,7 @@ int main() {
     testTooWeak();
     testBuildMix();
     testEvaluate();
+    testHalfMovements();
     printf("test_axis_wizard: all tests passed\n");
     return 0;
 }
