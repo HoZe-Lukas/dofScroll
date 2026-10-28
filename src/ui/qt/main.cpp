@@ -2359,7 +2359,11 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                 const QFont baseFont = QApplication::font();
                 const QSize baseSize = w.size();
                 // letter spacing 100 = the font as it is; 140 widens every glyph like a wide font of another platform would
-                const struct { double scale; int spacing; } fontCases[] = {{1.0, 100}, {1.5, 100}, {2.0, 100}, {1.0, 140}, {1.5, 140}, {1.0, 180}, {2.0, 180}, {1.0, 250}, {1.0, 400}, {1.0, 900}};
+                const struct { double scale; int spacing; } fontCases[] = {{1.0, 100}, {1.5, 100}, {2.0, 100}, {1.0, 140}, {1.5, 140}, {1.0, 180}, {2.0, 180}, {1.0, 250}, {1.0, 400},
+#ifndef Q_OS_WIN
+                                                                              {1.0, 900},  // beyond what a Windows font needs; covers the compact list on a narrow font
+#endif
+                                                                             };
                 for (const auto &fc : fontCases) {
                     const double scale = fc.scale;
                     QApplication::setFont(baseFont);
