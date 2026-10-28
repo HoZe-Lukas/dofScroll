@@ -79,6 +79,7 @@ private:
         void setKey(Key k, bool down) override { m_->setKey(slot_, k, down); }
         void tapKey(Key k) override { m_->real_->tapKey(k); }
         void mouseButton(int b, bool down) override { m_->mouseButton(slot_, b, down); }
+        void moveMouse(int dx, int dy) override { m_->real_->moveMouse(dx, dy); }
         void releaseAll() override { m_->releaseSlot(slot_); }
         void flush() override { m_->real_->flush(); }
 

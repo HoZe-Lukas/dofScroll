@@ -126,6 +126,30 @@ public:
         postMouse(spec, down);
     }
 
+    // Relative pointer movement as a mouse-moved event, clipped to the main display. Untested on hardware.
+    void moveMouse(int dx, int dy) override {
+        dx = clampMouseDelta(dx);
+        dy = clampMouseDelta(dy);
+        if (dx == 0 && dy == 0) return;
+        std::lock_guard<std::mutex> lk(m_);
+        if (!src_) return;
+        CGPoint p = cursorPosition();
+        const CGRect r = CGDisplayBounds(CGMainDisplayID());
+        p.x += dx;
+        p.y += dy;
+        if (p.x < r.origin.x) p.x = r.origin.x;
+        if (p.y < r.origin.y) p.y = r.origin.y;
+        if (p.x > r.origin.x + r.size.width - 1) p.x = r.origin.x + r.size.width - 1;
+        if (p.y > r.origin.y + r.size.height - 1) p.y = r.origin.y + r.size.height - 1;
+        CGEventRef e = CGEventCreateMouseEvent(src_, kCGEventMouseMoved, p, kCGMouseButtonLeft);
+        if (!e) return;
+        CGEventSetIntegerValueField(e, kCGMouseEventDeltaX, dx);
+        CGEventSetIntegerValueField(e, kCGMouseEventDeltaY, dy);
+        CGEventSetFlags(e, static_cast<CGEventFlags>(heldFlags_));
+        CGEventPost(kCGHIDEventTap, e);
+        CFRelease(e);
+    }
+
     void releaseAll() override {
         std::lock_guard<std::mutex> lk(m_);
         doReleaseAll();

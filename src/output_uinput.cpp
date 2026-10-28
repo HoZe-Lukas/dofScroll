@@ -75,7 +75,7 @@ public:
         for (size_t i = 0; i < kKeyCount; ++i) bit(UI_SET_KEYBIT, keyCode(static_cast<Key>(i)));
         bit(UI_SET_RELBIT, REL_WHEEL);
         bit(UI_SET_RELBIT, REL_HWHEEL);
-        // REL_X/REL_Y only so compositors recognise the device as a mouse.
+        // REL_X/REL_Y: pointer movement (moveMouse) and lets compositors recognise a mouse.
         bit(UI_SET_RELBIT, REL_X);
         bit(UI_SET_RELBIT, REL_Y);
 #if defined(REL_WHEEL_HI_RES) && defined(REL_HWHEEL_HI_RES)
@@ -182,6 +182,13 @@ public:
         if (st == down) return;
         st = down;
         push(EV_KEY, code, down ? 1 : 0);
+    }
+
+    void moveMouse(int dx, int dy) override {
+        dx = clampMouseDelta(dx);
+        dy = clampMouseDelta(dy);
+        if (dx != 0) push(EV_REL, REL_X, dx);
+        if (dy != 0) push(EV_REL, REL_Y, dy);
     }
 
     void releaseAll() override { doReleaseAll(); }
