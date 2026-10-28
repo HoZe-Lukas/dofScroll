@@ -2367,7 +2367,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                     }
                     bool wrapped = true;
                     for (QLabel *l : mv->inspector()->findChildren<QLabel *>())
-                        if (!l->isHidden() && !l->wordWrap() && l->text().size() > 40 && l->textFormat() != Qt::RichText && !l->text().endsWith(QLatin1Char(':'))) wrapped = false;  // field labels of a form row move above their field instead
+                        if (!l->isHidden() && !l->wordWrap() && !l->text().isEmpty() && l->objectName() != QStringLiteral("chordHint")) { wrapped = false; std::fprintf(stderr, "  does not wrap: \"%s\"\n", qPrintable(l->text().left(50))); }  // every text of the inspector wraps: a label that does not has the width of its text
                     check(wrapped, "long texts of the inspector wrap");
                     if (!qEnvironmentVariableIsEmpty("DOFSCROLL_SELFTEST_A11Y_SHOTS"))
                         w.grab().save(QString::fromLocal8Bit(qgetenv("DOFSCROLL_SELFTEST_A11Y_SHOTS")) + QStringLiteral("/motions-%1.png").arg(int(scale * 100)));
