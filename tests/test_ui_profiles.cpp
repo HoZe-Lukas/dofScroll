@@ -146,15 +146,15 @@ static void testTree() {
     assert(e.size() == 4);
     assert(e[0].isDefault && ProfileTreeModel::label(e[0]) == "Global");
     assert(e[1].kind == Section::DEVICE && e[1].pattern == "Some Mouse");
-    assert(e[2].pattern == "Alpha" && e[3].pattern == "zeta app");
+    assert(e[2].pattern == "zeta app" && e[3].pattern == "Alpha");  // the list shows the order the profiles are applied in (added order, no PRIORITY)
     assert(ProfileTreeModel::patterns(sm, Section::APP).size() == 2);
 
     // rename: validation, duplicates, [global]
-    assert(ProfileTreeModel::rename(sm, e[2].section, "Beta", &err));
-    assert(!ProfileTreeModel::rename(sm, e[2].section, "ZETA APP", &err));  // duplicate, case-insensitive
-    assert(!ProfileTreeModel::rename(sm, e[2].section, "", &err));
+    assert(ProfileTreeModel::rename(sm, e[3].section, "Beta", &err));
+    assert(!ProfileTreeModel::rename(sm, e[3].section, "ZETA APP", &err));  // duplicate, case-insensitive
+    assert(!ProfileTreeModel::rename(sm, e[3].section, "", &err));
     assert(!ProfileTreeModel::rename(sm, 0, "x", &err));
-    assert(sm.profiles().find(Section::APP, "Beta") == e[2].section);
+    assert(sm.profiles().find(Section::APP, "Beta") == e[3].section);
     assert(sm.profiles().find(Section::APP, "Alpha") == ProfileSet::npos);
     assert(ProfileTreeModel::add(sm, Section::APP, "alpha", &err) != ProfileSet::npos);  // name is free again
 

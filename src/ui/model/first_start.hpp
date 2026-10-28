@@ -14,10 +14,10 @@
 
 namespace spn::ui {
 
-// Switch for the split layout in the interface. The settings model still reads and writes one dofscroll.conf
-// (stage 4 of docs/plan-config-split.md makes it per-file); turning the migration on before that would show
-// an empty profile list. Stage 4 sets this to true.
-constexpr bool kSplitLayoutInUi = false;
+// Switch for the split layout in the interface (docs/plan-config-split.md). The settings model reads and writes
+// one file per profile (devices/, apps/) and dofscroll.conf for [global]; the migration of an old single file
+// runs at the first start (under the instance lock) and the seeding writes the new layout.
+constexpr bool kSplitLayoutInUi = true;
 
 struct FirstStart {
     bool migrated = false;  // a legacy configuration was moved over

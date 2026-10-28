@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Entries of the "Profiles" tree: "Global" ([global]) first, then the device profiles and
-// then the application profiles, each group sorted by name. Add/remove/rename go through the
-// SettingsModel; the section index is the identity of an entry until the next rebuild.
+// then the application profiles, each group in the order the daemon applies them (PRIORITY ascending, ties in the
+// order the model holds them), then the defective profile files of the group (own entries with the file name, never overwritten).
+// Add/remove/rename/move go through the SettingsModel; the section index is the identity of an entry until
+// the next rebuild.
 #pragma once
 #include <algorithm>
 #include <string>
@@ -15,10 +17,21 @@
 namespace spn::ui {
 
 struct ProfileEntry {
+    ProfileEntry() = default;
+    ProfileEntry(size_t sec, Section::Kind k, std::string pat, bool def)
+        : section(sec), kind(k), pattern(std::move(pat)), isDefault(def) {}
     size_t section = 0;      // index in the SettingsModel
     Section::Kind kind = Section::GLOBAL;
     std::string pattern;     // empty for the default mode
     bool isDefault = false;  // [global]: no mode selector, cannot be removed or renamed
+    int priority = 0;        // PRIORITY (the order inside the group)
+    // A profile file that is not loaded: `section` is meaningless (npos), `file` is its name and `message` the reason.
+    bool defective = false;
+    bool directory = false;  // a whole folder that cannot be read (file = its name)
+    bool duplicate = false;  // defective because another file holds the same profile
+    bool legacyActive = false;  // the profile of this name is still read from dofscroll.conf
+    std::string file;        // base name of the defective file
+    std::string message;
 };
 
 class ProfileTreeModel {
@@ -28,16 +41,37 @@ public:
         out.push_back({0, Section::GLOBAL, "", true});
         for (const SettingsModel::SectionInfo &s : m.sections()) {
             if (s.index == 0) continue;
-            (s.kind == Section::DEVICE ? dev : app).push_back({s.index, s.kind, s.pattern, false});
+            ProfileEntry e{s.index, s.kind, s.pattern, false};
+            e.priority = m.priority(s.index);
+            (s.kind == Section::DEVICE ? dev : app).push_back(e);
         }
-        auto byName = [](const ProfileEntry &a, const ProfileEntry &b) {
-            return lowerAscii(a.pattern) < lowerAscii(b.pattern);
-        };
-        std::stable_sort(dev.begin(), dev.end(), byName);
-        std::stable_sort(app.begin(), app.end(), byName);
+        // The model keeps the profiles of a kind in applied order already (PRIORITY, ties in load order); the list shows
+        // exactly that order, so Move up / Move down and "applied after ..." match what is on screen.
+        auto byOrder = [](const ProfileEntry &a, const ProfileEntry &b) { return a.priority < b.priority; };
+        std::stable_sort(dev.begin(), dev.end(), byOrder);
+        std::stable_sort(app.begin(), app.end(), byOrder);
+        for (const SettingsModel::Defect &d : m.defects()) {
+            ProfileEntry e{ProfileSet::npos, d.kind, d.name, false};
+            e.defective = true;
+            e.duplicate = d.duplicate;
+            e.directory = d.directory;
+            e.legacyActive = d.legacyActive;
+            const size_t k = d.file.find_last_of('/');
+            e.file = k == std::string::npos ? d.file : d.file.substr(k + 1);
+            e.message = d.message;
+            (d.kind == Section::DEVICE ? dev : app).push_back(e);
+        }
         out.insert(out.end(), dev.begin(), dev.end());
         out.insert(out.end(), app.begin(), app.end());
         return out;
+    }
+    // The text of a defective entry in the list: the file name and that it is defective (English source; the view
+    // translates the parts).
+    static std::string defectLabel(const ProfileEntry &e) { return e.file; }
+    // Delete a profile: its file is removed by the next save (after checking it is unchanged), nothing is asked
+    // about unsaved changes. Rename: the new file is written first, then the old one removed.
+    static bool move(SettingsModel &m, size_t section, bool up, size_t *newIndex, std::string *err) {
+        return m.moveProfile(section, up, newIndex, err);
     }
 
     // Search box of the profile list: the entries whose name contains the text (ASCII
@@ -45,7 +79,7 @@ public:
     static std::vector<ProfileEntry> filter(const std::vector<ProfileEntry> &in, const std::string &text) {
         std::vector<ProfileEntry> out;
         for (const ProfileEntry &e : in)
-            if (e.isDefault || filterMatches(text, e.pattern)) out.push_back(e);
+            if (e.isDefault || filterMatches(text, e.pattern, e.file)) out.push_back(e);
         return out;
     }
     // Does a search text match any of the given strings (labels, keys)? An empty text matches.

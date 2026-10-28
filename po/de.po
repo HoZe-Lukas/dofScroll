@@ -2806,10 +2806,6 @@ msgid "Same as Global"
 msgstr "Wie Global"
 
 #: src/ui
-msgid "Save this profile (its section) as a .conf file"
-msgstr "Dieses Profil (seinen Abschnitt) als .conf-Datei speichern"
-
-#: src/ui
 msgid "Send events"
 msgstr "Ereignisse senden"
 
@@ -4852,3 +4848,195 @@ msgstr "Der Joystick-Modus %1 gibt dieser Bewegung ihre Aktion. Unten kannst du 
 #: src/ui
 msgid "Nothing happens for this motion in this profile; everything else stays inherited"
 msgstr "Für diese Bewegung passiert in diesem Profil nichts; alles andere bleibt geerbt"
+
+#: src/ui/model/settings_model.hpp
+msgid "This profile is still read from dofscroll.conf because its own file %1 is defective. The file is not touched; fix or remove it to use the profile file again."
+msgstr "Dieses Profil wird weiterhin aus dofscroll.conf gelesen, weil seine eigene Datei %1 defekt ist. Die Datei wird nicht angefasst; repariere oder entferne sie, damit wieder die Profildatei gilt."
+
+#: src/ui/model/settings_model.hpp
+msgid "This is the only program profile, so there is no order to think about."
+msgstr "Dies ist das einzige Programmprofil, deshalb spielt die Reihenfolge keine Rolle."
+
+#: src/ui/model/settings_model.hpp
+msgid "This is the only device profile, so there is no order to think about."
+msgstr "Dies ist das einzige Geräteprofil, deshalb spielt die Reihenfolge keine Rolle."
+
+#: src/ui/model/settings_model.hpp
+msgid "Applied after %1, so it wins over %1 where both match."
+msgstr "Wird nach %1 angewendet und gewinnt deshalb gegen %1, wo beide passen."
+
+#: src/ui/model/settings_model.hpp
+msgid "Applied first, so every other profile of this kind wins over it where both match."
+msgstr "Wird als Erstes angewendet; jedes andere Profil dieser Art gewinnt deshalb gegen dieses, wo beide passen."
+
+#: src/ui/model/settings_model.hpp
+msgid "%1 is applied after it and wins over it."
+msgstr "%1 wird danach angewendet und gewinnt gegen dieses Profil."
+
+#: src/ui/model/settings_model.hpp
+msgid "Nothing is applied after it."
+msgstr "Danach wird nichts mehr angewendet."
+
+#: src/ui/model/settings_model.hpp
+msgid "Profiles with the same priority are applied in the order of their file names; use Move up or Move down to fix the order."
+msgstr "Profile mit gleicher Priorität werden in der Reihenfolge ihrer Dateinamen angewendet; lege die Reihenfolge mit Nach oben oder Nach unten fest."
+
+#: src/ui/model/settings_model.hpp
+msgid "the file %1 was changed outside the settings window, so it was not overwritten; the profile was reloaded from it. Repeat your change if you still want it."
+msgstr "die Datei %1 wurde außerhalb des Einstellungsfensters geändert und deshalb nicht überschrieben; das Profil wurde daraus neu geladen. Wiederhole deine Änderung, falls du sie noch möchtest."
+
+#: src/ui/model/settings_model.hpp
+msgid "cannot write the profile file"
+msgstr "die Profildatei kann nicht geschrieben werden"
+
+#: src/ui/model/settings_model.hpp
+msgid "the file %1 was changed outside the settings window, so it was not removed; the profile was reloaded from it."
+msgstr "die Datei %1 wurde außerhalb des Einstellungsfensters geändert und deshalb nicht entfernt; das Profil wurde daraus neu geladen."
+
+#: src/ui/model/settings_model.hpp
+msgid "%1 was changed outside the settings window, so it was not overwritten; it was reloaded. Repeat your change if you still want it."
+msgstr "%1 wurde außerhalb des Einstellungsfensters geändert und deshalb nicht überschrieben; sie wurde neu geladen. Wiederhole deine Änderung, falls du sie noch möchtest."
+
+#: src/ui/model/profile_import.hpp
+msgid "%1 cannot be read as a profile file (not a regular file, too large or unreadable)."
+msgstr "%1 kann nicht als Profildatei gelesen werden (keine normale Datei, zu groß oder nicht lesbar)."
+
+#: src/ui/model/profile_import.hpp
+msgid "This file holds Global settings. Import takes a device or program profile ([device:...] or [app:...])."
+msgstr "Diese Datei enthält globale Einstellungen. Der Import nimmt ein Geräte- oder Programmprofil ([device:...] oder [app:...])."
+
+#: src/ui/model/profile_import.hpp
+msgid "This file holds no device or program profile ([device:...] or [app:...])."
+msgstr "Diese Datei enthält kein Geräte- oder Programmprofil ([device:...] oder [app:...])."
+
+#: src/ui/model/profile_import.hpp
+msgid "This file holds several profiles; a profile file holds exactly one."
+msgstr "Diese Datei enthält mehrere Profile; eine Profildatei enthält genau eines."
+
+#: src/ui/model/profile_import.hpp
+msgid "The setting %1 = %2 is not valid: %3"
+msgstr "Die Einstellung %1 = %2 ist ungültig: %3"
+
+#: src/ui/model/profile_import.hpp
+msgid "The existing profile \"%1\" was kept; the imported file was not used."
+msgstr "Das vorhandene Profil „%1“ wurde behalten; die importierte Datei wurde nicht verwendet."
+
+#: src/ui/model/profile_import.hpp
+msgid "The profile \"%1\" could not be imported: %2"
+msgstr "Das Profil „%1“ konnte nicht importiert werden: %2"
+
+#: src/ui/model/profile_import.hpp
+msgid "The profile \"%1\" was replaced by the imported one."
+msgstr "Das Profil „%1“ wurde durch das importierte ersetzt."
+
+#: src/ui/model/profile_import.hpp
+msgid "Profile \"%1\" imported."
+msgstr "Profil „%1“ importiert."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Import profile..."
+msgstr "Profil importieren..."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Add a profile from a .conf file (an exported profile): a device or a program profile, by its header"
+msgstr "Ein Profil aus einer .conf-Datei hinzufügen (ein exportiertes Profil): Geräte- oder Programmprofil, je nach Kopfzeile"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Defective profile files"
+msgstr "Defekte Profildateien"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "%1 (defective)"
+msgstr "%1 (defekt)"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "The file %1 is ignored: another file already holds this profile. It is never overwritten: %2"
+msgstr "Die Datei %1 wird ignoriert: Dieses Profil steht schon in einer anderen Datei. Sie wird nie überschrieben: %2"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "The file %1 is defective and is not used. It is never overwritten while the problem stands: %2"
+msgstr "Die Datei %1 ist defekt und wird nicht verwendet. Solange das Problem besteht, wird sie nie überschrieben: %2"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "The profile of the same name is still read from dofscroll.conf instead."
+msgstr "Stattdessen wird das gleichnamige Profil weiterhin aus dofscroll.conf gelesen."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Apply this profile earlier: the profile above it wins over it where both match"
+msgstr "Dieses Profil früher anwenden: Das Profil darüber gewinnt gegen dieses, wo beide passen"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Apply this profile later: it wins over the profile above it where both match"
+msgstr "Dieses Profil später anwenden: Es gewinnt gegen das Profil darüber, wo beide passen"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Save this profile as a .conf file (a copy of its profile file); Import profile takes it again"
+msgstr "Dieses Profil als .conf-Datei speichern (eine Kopie seiner Profildatei); „Profil importieren“ nimmt sie wieder auf"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Import profile"
+msgstr "Profil importieren"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "A profile \"%1\" exists already. Replace its settings with the imported ones, or keep the existing profile and drop the imported file?"
+msgstr "Ein Profil „%1“ gibt es schon. Soll es durch die importierten Einstellungen ersetzt werden, oder behältst du das vorhandene Profil und verwirfst die importierte Datei?"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Replace the existing profile"
+msgstr "Vorhandenes Profil ersetzen"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Keep the existing profile"
+msgstr "Vorhandenes Profil behalten"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Lines that could not be read were left out."
+msgstr "Zeilen, die sich nicht lesen ließen, wurden weggelassen."
+
+#: src/ui/qt/main.cpp
+msgid "Your profiles are now one file each. The old configuration file is kept as backup/dofscroll.conf.pre-split."
+msgstr "Deine Profile liegen jetzt in je einer Datei. Die alte Konfigurationsdatei ist als backup/dofscroll.conf.pre-split gesichert."
+
+#: src/ui
+msgid "could not read the folder %1: nothing is written until it can be read again"
+msgstr "konnte den Ordner %1 nicht lesen: Es wird nichts geschrieben, bis er wieder lesbar ist"
+
+#: src/ui
+msgid "This profile presses shortcut chords (Ctrl, Alt, Super) when a button is pressed or the mouse is moved. Only keep profile files from sources you trust and read the file first."
+msgstr "Dieses Profil drückt Tastenkombinationen (Strg, Alt, Super), wenn eine Taste gedrückt oder die Maus bewegt wird. Behalte Profildateien nur aus Quellen, denen du vertraust, und lies die Datei vorher."
+
+#: src/ui
+msgid "PRIORITY was not imported: the order of your profiles stays as it is."
+msgstr "PRIORITY wurde nicht importiert: Die Reihenfolge deiner Profile bleibt, wie sie ist."
+
+#: src/ui
+msgid "%1 was not imported (an imported profile does not switch the output off or change how events are sent)."
+msgstr "%1 wurde nicht importiert (ein importiertes Profil schaltet die Ausgabe nicht ab und ändert nicht, wie Ereignisse gesendet werden)."
+
+#: src/ui
+msgid "It presses shortcut chords (Ctrl, Alt, Super) when a button is pressed or the mouse is moved."
+msgstr "Es drückt Tastenkombinationen (Strg, Alt, Super), wenn eine Taste gedrückt oder die Maus bewegt wird."
+
+#: src/ui
+msgid "Its name \"%1\" is very short, so it matches almost every %2."
+msgstr "Sein Name „%1“ ist sehr kurz und passt deshalb auf fast jedes %2."
+
+#: src/ui
+msgid "Could not read the folder %1: %2 Nothing is written until it can be read again."
+msgstr "Der Ordner %1 konnte nicht gelesen werden: %2 Es wird nichts geschrieben, bis er wieder lesbar ist."
+
+#: src/ui
+msgid "%1 (cannot be read)"
+msgstr "%1 (nicht lesbar)"
+
+#: src/ui
+msgid "Add the profile \"%1\"?"
+msgstr "Das Profil „%1“ hinzufügen?"
+
+#: src/ui
+msgid "Only keep profile files from sources you trust and read the file first."
+msgstr "Behalte Profildateien nur aus Quellen, denen du vertraust, und lies die Datei vorher."
+
+#: src/ui
+msgid "Import the profile"
+msgstr "Profil importieren"

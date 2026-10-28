@@ -40,6 +40,7 @@ public:
     explicit MainWindow(const UiContext &base, QWidget *parent = nullptr);
     ~MainWindow() override;  // destroys the pages before the models they reference
     void bringToFront();                      // show, un-minimize, raise and activate (every OS)
+    void showStartupInfo(const QString &text);  // a line for the footer at the first start (the migration to one file per profile)
     // Writes every pending edit now, synchronously (page switch, window close, quit). Nothing is
     // ever asked: all edits are saved by themselves, this only makes sure the last one is on disk.
     // False if a write failed (the footer says why).

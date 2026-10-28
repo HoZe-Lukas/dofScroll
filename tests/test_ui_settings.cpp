@@ -254,7 +254,7 @@ int main() {
         assert(okl && warn.empty());
         assert(back.sectionCount() == 3 && back.effective(0).scroll_v.sensitivity == 8);
         assert(back.effective(0).buttons.at(1) == "key:space" && back.effective(0).zoom.sign == -1);
-        assert(back.sections()[2].kind == Section::DEVICE);
+        assert(back.sections()[1].kind == Section::DEVICE && back.sections()[2].kind == Section::APP);  // the files load devices first
         // Reading never needs a reload callback.
         assert(back.save(id).reloaded);
     }

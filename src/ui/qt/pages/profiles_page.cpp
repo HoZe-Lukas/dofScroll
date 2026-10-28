@@ -53,6 +53,7 @@
 #include "ui/model/profile_assignment_model.hpp"
 #include "ui/model/key_list.hpp"
 #include "ui/model/profile_export.hpp"
+#include "ui/model/profile_import.hpp"
 #include "ui/model/profile_tree_model.hpp"
 #include "platform_hooks.hpp"
 #include "theme.hpp"
@@ -102,7 +103,7 @@ QStringList ProfilesPage::profileListLabels() const {
 
 QString ProfilesPage::treeLabel(size_t section) const {
     const SettingsModel::SectionInfo info = ctx_.settings->sections()[section];
-    return section == 0 ? T("Global") : qs8(spn::ui::profileListLabel(info.pattern, ctx_.settings->overrideCount(section)));
+    return section == 0 ? T("Global") : qs8(spn::ui::profileListLabel(spn::ui::displayText(info.pattern), ctx_.settings->overrideCount(section)));
 }
 
 ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(parent), ctx_(ctx) {
@@ -149,7 +150,18 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     add_app_->setToolTip(T("Create a profile for a program, matched by its window class or name"));
     add_dev_ = new QPushButton(T("Add device..."), left);
     add_dev_->setToolTip(T("Create a profile for a connected device"));
-    for (QPushButton *b : {add_app_, add_dev_}) ll->addWidget(b);
+    import_ = new QPushButton(T("Import profile..."), left);
+    import_->setToolTip(T("Add a profile from a .conf file (an exported profile): a device or a program profile, by its header"));
+    for (QPushButton *b : {add_app_, add_dev_, import_}) ll->addWidget(b);
+    // defective profile files, in words (never hidden: the file is not used and not overwritten)
+    defectNote_ = new QLabel(left);
+    defectNote_->setWordWrap(true);
+    defectNote_->setTextFormat(Qt::PlainText);
+    defectNote_->setForegroundRole(QPalette::PlaceholderText);
+    defectNote_->setAccessibleName(T("Defective profile files"));
+    defectNote_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    defectNote_->hide();
+    ll->addWidget(defectNote_);
 
     // Right: who is edited, the search box of the settings and the tabs.
     auto *right = new QWidget(split);
@@ -232,7 +244,8 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     setTabOrder(profileFilter_, tree_);
     setTabOrder(tree_, add_app_);
     setTabOrder(add_app_, add_dev_);
-    setTabOrder(add_dev_, settingsFilter_);
+    setTabOrder(add_dev_, import_);
+    setTabOrder(import_, settingsFilter_);
     setTabOrder(settingsFilter_, tabs_);
 
     connect(tree_, &QTreeWidget::currentItemChanged, this,
@@ -245,9 +258,15 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     connect(tabs_, &QTabWidget::currentChanged, this, [this] { ctx_.saveNow(); });
     connect(add_app_, &QPushButton::clicked, this, &ProfilesPage::addApplication);
     connect(add_dev_, &QPushButton::clicked, this, &ProfilesPage::addDevice);
+    connect(import_, &QPushButton::clicked, this, &ProfilesPage::importProfile);
 
     // the numbers of overrides in the list follow the edits
-    if (ctx_.autosave) connect(ctx_.autosave, &Autosaver::written, this, [this] { refreshTreeLabels(); });
+    // (a save that found a file changed on disk reloaded the model: the list is built again)
+    if (ctx_.autosave)
+        connect(ctx_.autosave, &Autosaver::written, this, [this] {
+            if (ctx_.settings && ctx_.settings->takeReloaded()) rebuildTree(currentSection());
+            else refreshTreeLabels();
+        });
 
     rebuildTree(0);
 }
@@ -260,11 +279,40 @@ void ProfilesPage::refreshTreeLabels() {
         const int s = (*it)->data(0, kRoleSection).toInt();
         if (s <= 0 || size_t(s) >= ctx_.settings->sectionCount()) continue;
         (*it)->setText(0, treeLabel(size_t(s)));
-        (*it)->setToolTip(0, qs8(spn::ui::profileOverrideCountText(ctx_.settings->overrideCount(size_t(s)), strings)));
+        (*it)->setToolTip(0, qs8(spn::ui::profileOverrideCountText(ctx_.settings->overrideCount(size_t(s)), strings) + "\n" +
+                                 ctx_.settings->orderText(size_t(s), strings)));
     }
 }
 
-int ProfilesPage::profileCount() const { return int(ProfileTreeModel::entries(*ctx_.settings).size()) - 1; }
+int ProfilesPage::profileCount() const {
+    int n = 0;
+    for (const ProfileEntry &e : ProfileTreeModel::entries(*ctx_.settings)) n += (e.isDefault || e.defective) ? 0 : 1;
+    return n;
+}
+
+const spn::ui::StringProvider &ProfilesPage::strings() const {
+    static const spn::ui::IdentityStrings fallback;
+    return ctx_.strings ? *ctx_.strings : fallback;
+}
+
+// The words about a defective profile file: it is not used, it is never overwritten while the problem stands.
+QString ProfilesPage::defectText(const ProfileEntry &e) const {
+    if (e.directory)
+        return T("Could not read the folder %1: %2 Nothing is written until it can be read again.").arg(qs8(e.file), qs8(e.message));
+    QString t = e.duplicate ? T("The file %1 is ignored: another file already holds this profile. It is never overwritten: %2")
+                                  .arg(qs8(e.file), qs8(e.message))
+                            : T("The file %1 is defective and is not used. It is never overwritten while the problem stands: %2")
+                                  .arg(qs8(e.file), qs8(e.message));
+    if (e.legacyActive) t += QLatin1Char(' ') + T("The profile of the same name is still read from dofscroll.conf instead.");
+    return t;
+}
+
+QString ProfilesPage::defectNotes() const { return defectNote_->isHidden() ? QString() : defectNote_->text(); }
+
+QString ProfilesPage::orderNote() const {
+    const size_t s = currentSection();
+    return s == 0 ? QString() : qs8(ctx_.settings->orderText(s, strings()));
+}
 
 size_t ProfilesPage::currentSection() const {
     const QTreeWidgetItem *it = tree_->currentItem();
@@ -281,9 +329,22 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
     const spn::ui::StringProvider *sp = ctx_.strings ? ctx_.strings : &fallbackStrings;
     QTreeWidgetItem *dev = nullptr, *app = nullptr, *select = nullptr;
     const QColor iconColor = palette().color(QPalette::WindowText);
+    QStringList defects;
     for (const ProfileEntry &e : ProfileTreeModel::entries(*ctx_.settings)) {
         QTreeWidgetItem *it;
-        if (e.isDefault) {
+        if (e.defective) {  // a file that is not used: an entry of its own, not selectable, explained in words
+            QTreeWidgetItem *&group = e.kind == Section::DEVICE ? dev : app;
+            if (!group) {
+                group = new QTreeWidgetItem(tree_, QStringList(T(ProfileTreeModel::groupTitle(e.kind))));
+                group->setData(0, kRoleSection, -1);
+                group->setFlags(Qt::ItemIsEnabled);
+                group->setExpanded(true);
+            }
+            it = new QTreeWidgetItem(group, QStringList(e.directory ? T("%1 (cannot be read)").arg(qs8(e.file)) : T("%1 (defective)").arg(qs8(e.file))));
+            it->setToolTip(0, defectText(e));
+            it->setFlags(Qt::ItemIsEnabled);
+            defects << defectText(e);
+        } else if (e.isDefault) {
             it = new QTreeWidgetItem(tree_, QStringList(T("Global")));
             it->setToolTip(0, qs8(headerExplanation(0, Section::GLOBAL, *sp)));
         } else {
@@ -295,8 +356,8 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
                 group->setExpanded(true);
             }
             const size_t n = ctx_.settings->overrideCount(e.section);
-            it = new QTreeWidgetItem(group, QStringList(qs8(profileListLabel(e.pattern, n))));
-            it->setToolTip(0, qs8(profileOverrideCountText(n, *sp)));
+            it = new QTreeWidgetItem(group, QStringList(qs8(profileListLabel(spn::ui::displayText(e.pattern), n))));
+            it->setToolTip(0, qs8(profileOverrideCountText(n, *sp) + "\n" + ctx_.settings->orderText(e.section, *sp)));
         }
         it->setIcon(0, themedIcon(iconResource(e.kind), iconColor, tk::kIconSize));
         it->setData(0, kRoleSection, int(e.section));
@@ -304,6 +365,8 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
     }
     if (!select) select = tree_->topLevelItem(0);
     tree_->setCurrentItem(select);
+    defectNote_->setText(defects.join(QLatin1Char('\n')));
+    defectNote_->setVisible(!defects.isEmpty());
     block.unblock();
     applyProfileFilter();
     rebuildContent();
@@ -349,7 +412,8 @@ int ProfilesPage::visibleProfileCount() const {
     for (int g = 0; g < tree_->topLevelItemCount(); ++g) {
         const QTreeWidgetItem *top = tree_->topLevelItem(g);
         if (top->data(0, kRoleSection).toInt() >= 0) continue;
-        for (int c = 0; c < top->childCount(); ++c) n += top->child(c)->isHidden() ? 0 : 1;
+        for (int c = 0; c < top->childCount(); ++c)
+            n += (top->child(c)->isHidden() || !(top->child(c)->flags() & Qt::ItemIsSelectable)) ? 0 : 1;
     }
     return n;
 }
@@ -466,9 +530,14 @@ void ProfilesPage::rebuildHeader() {
     const int px = tk::kIconSize * 3 / 2;
     const QIcon ic = themedIcon(iconResource(info.kind), palette().color(QPalette::WindowText), px);
     headerIcon_->setPixmap(ic.pixmap(px, px));
-    headerName_->setText(section == 0 ? T("Global") : qs8(info.pattern));
+    headerName_->setText(section == 0 ? T("Global") : qs8(spn::ui::displayText(info.pattern)));
     const spn::ui::IdentityStrings fallback;
-    headerNote_->setText(qs8(spn::ui::headerExplanation(section, info.kind, ctx_.strings ? *ctx_.strings : fallback)));
+    std::string note = spn::ui::headerExplanation(section, info.kind, ctx_.strings ? *ctx_.strings : fallback);
+    // what the last save or load found about this profile, and a profile kept in dofscroll.conf because its file is defective
+    for (const std::string &extra : {ctx_.settings->legacyHint(section, strings()), ctx_.settings->profileProblem(section),
+                                     ctx_.settings->chordNote(section, strings())})
+        if (!extra.empty()) note += "\n" + extra;
+    headerNote_->setText(qs8(note));
     headerKind_->setText(section == 0                   ? T("Global profile")
                          : info.kind == Section::DEVICE ? T("Device profile")
                                                         : T("Program profile"));
@@ -689,8 +758,31 @@ QWidget *ProfilesPage::buildProfileActions(size_t section) {
         connect(change, &QPushButton::clicked, this, &ProfilesPage::renameProfile, Qt::QueuedConnection);
         l->addWidget(change, 0, Qt::AlignLeft);
     }
+    if (section != 0) {  // the order of the profiles of this kind: later wins where two match
+        auto *order = noteLabel(qs8(ctx_.settings->orderText(section, strings())));
+        order->setObjectName(QStringLiteral("profileOrder"));
+        l->addWidget(order);
+        auto *row = new QWidget;
+        auto *rl = new QHBoxLayout(row);
+        rl->setContentsMargins(0, 0, 0, 0);
+        auto *up = new QPushButton(T("Move up"));
+        up->setToolTip(T("Apply this profile earlier: the profile above it wins over it where both match"));
+        up->setEnabled(ctx_.settings->canMove(section, true));
+        auto *down = new QPushButton(T("Move down"));
+        down->setToolTip(T("Apply this profile later: it wins over the profile above it where both match"));
+        down->setEnabled(ctx_.settings->canMove(section, false));
+        up->setObjectName(QStringLiteral("moveUp"));
+        down->setObjectName(QStringLiteral("moveDown"));
+        // queued: the move rebuilds this tab, which deletes the button that is still emitting the signal
+        connect(up, &QPushButton::clicked, this, [this] { moveSelected(true); }, Qt::QueuedConnection);
+        connect(down, &QPushButton::clicked, this, [this] { moveSelected(false); }, Qt::QueuedConnection);
+        rl->addWidget(up);
+        rl->addWidget(down);
+        rl->addStretch(1);
+        l->addWidget(row);
+    }
     auto *exp = new QPushButton(T("Export..."));
-    exp->setToolTip(T("Save this profile (its section) as a .conf file"));
+    exp->setToolTip(T("Save this profile as a .conf file (a copy of its profile file); Import profile takes it again"));
     connect(exp, &QPushButton::clicked, this, &ProfilesPage::exportProfile, Qt::QueuedConnection);
     l->addWidget(exp, 0, Qt::AlignLeft);
     if (section != 0) {
@@ -1075,13 +1167,21 @@ void ProfilesPage::renameProfile() {
         chosen = dlg.deviceName();
     }
     if (chosen.toUtf8().toStdString() == cur) return;
+    renameSelected(chosen);
+}
+
+// The new name goes into the model; the autosave writes the new file first and removes the old one.
+bool ProfilesPage::renameSelected(const QString &name) {
+    const size_t s = currentSection();
+    if (s == 0) return false;
     std::string err;
-    if (!ProfileTreeModel::rename(*ctx_.settings, s, chosen.toUtf8().toStdString(), &err)) {
+    if (!ProfileTreeModel::rename(*ctx_.settings, s, name.toUtf8().toStdString(), &err)) {
         problem(qs8(err));
-        return;
+        return false;
     }
     ctx_.saveSoon();
     rebuildTree(s);
+    return true;
 }
 
 void ProfilesPage::removeProfile() {
@@ -1091,29 +1191,107 @@ void ProfilesPage::removeProfile() {
     if (QMessageBox::question(this, T("Remove profile"),
                               T("Remove the profile \"%1\" and all its settings?").arg(name)) != QMessageBox::Yes)
         return;
+    removeSelected();
+}
+
+// Removes the profile: its file goes with the next autosave (only when it was not changed by hand meanwhile).
+bool ProfilesPage::removeSelected() {
+    const size_t s = currentSection();
+    if (s == 0) return false;
     std::string err;
     if (!ProfileTreeModel::remove(*ctx_.settings, s, &err)) {
         problem(qs8(err));
-        return;
+        return false;
     }
     ctx_.saveSoon();
     rebuildTree(0);
+    return true;
+}
+
+bool ProfilesPage::moveSelected(bool up) {
+    const size_t s = currentSection();
+    if (s == 0) return false;
+    size_t idx = s;
+    std::string err;
+    if (!ProfileTreeModel::move(*ctx_.settings, s, up, &idx, &err)) {
+        problem(qs8(err));
+        return false;
+    }
+    ctx_.saveSoon();
+    rebuildTree(idx);
+    return true;
 }
 
 bool ProfilesPage::exportSelected(const QString &file) {
     lastError_.clear();
     const size_t s = currentSection();
-    const std::string text = profileExportText(*ctx_.settings, s);
-    if (text.empty()) {
+    if (profileExportText(*ctx_.settings, s).empty()) {
         lastError_ = T("No such profile.");
         return false;
     }
     std::string err;
-    if (!spn::fs::writeFileReplace(file.toStdString(), text, &err)) {
+    if (!spn::ui::exportProfileTo(*ctx_.settings, s, file.toUtf8().toStdString(), &err)) {
         lastError_ = qs8(err);
         return false;
     }
     return true;
+}
+
+// The file is read and checked completely before the model changes; the autosave then writes the new profile file.
+bool ProfilesPage::doImport(const QString &file, const std::function<int(const spn::ui::ImportPlan &)> &ask) {
+    const spn::ui::ImportPlan plan = spn::ui::planProfileImport(*ctx_.settings, file.toUtf8().toStdString(), strings());
+    if (!plan.ok) {
+        problem(qs8(plan.error));
+        return false;
+    }
+    int choice = 1;
+    if (plan.needsConfirm()) choice = ask(plan);
+    if (choice < 0) return false;
+    const spn::ui::ImportResult r = spn::ui::applyProfileImport(
+        *ctx_.settings, plan, choice == 1 ? spn::ui::ImportChoice::Replace : spn::ui::ImportChoice::Keep, strings());
+    if (r.done) ctx_.saveSoon();
+    if (r.section != ProfileSet::npos) rebuildTree(r.section);
+    if (r.done || plan.collision) {
+        QString text = qs8(r.message);
+        for (const std::string &n : plan.notes) text += QLatin1Char(' ') + qs8(n);
+        if (!plan.warnings.empty()) text += QLatin1Char(' ') + T("Lines that could not be read were left out.");
+        ctx_.report(text, false);
+    } else {
+        problem(qs8(r.message));
+    }
+    return r.done;
+}
+
+bool ProfilesPage::importFrom(const QString &file, bool replaceOnCollision) {
+    return doImport(file, [replaceOnCollision](const spn::ui::ImportPlan &p) { return p.collision && !replaceOnCollision ? 0 : 1; });
+}
+
+void ProfilesPage::importProfile() {
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    const QString file = QFileDialog::getOpenFileName(this, T("Import profile"), dir,
+                                                      T("Configuration files (*.conf);;All files (*)"));
+    if (file.isEmpty()) return;
+    doImport(file, [this](const spn::ui::ImportPlan &p) {
+        // asked once, in words, with everything the file would do: nothing is added or overwritten without this choice
+        const QString name = qs8(spn::ui::displayText(p.name));
+        QString text;
+        if (p.collision)
+            text = T("A profile \"%1\" exists already. Replace its settings with the imported ones, or keep the existing "
+                     "profile and drop the imported file?").arg(name);
+        else
+            text = T("Add the profile \"%1\"?").arg(name);
+        for (const std::string &r : p.risks) text += QStringLiteral("\n\n") + qs8(r);
+        if (!p.risks.empty())
+            text += QStringLiteral("\n\n") + T("Only keep profile files from sources you trust and read the file first.");
+        for (const std::string &n : p.notes) text += QStringLiteral("\n") + qs8(n);
+        QMessageBox box(QMessageBox::Question, T("Import profile"), text, QMessageBox::NoButton, this);
+        QPushButton *go = box.addButton(p.collision ? T("Replace the existing profile") : T("Import the profile"),
+                                        p.collision ? QMessageBox::DestructiveRole : QMessageBox::AcceptRole);
+        QPushButton *keep = box.addButton(p.collision ? T("Keep the existing profile") : T("Cancel"), QMessageBox::RejectRole);
+        box.setDefaultButton(keep);
+        box.exec();
+        return box.clickedButton() == go ? 1 : (p.collision ? 0 : -1);
+    });
 }
 
 void ProfilesPage::exportProfile() {

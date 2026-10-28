@@ -15,6 +15,18 @@
 //   m.setValue(i, "MODE", "timeline", &err);   // the MODE key like any other (also in [global])
 //   m.validate(strings) -> error strings; m.save() -> atomic write, then the reload callback.
 //
+// Layout (docs/plan-config-split.md): load() reads dofscroll.conf plus devices/ and apps/ (loadProfileTreeAt)
+// and remembers the file every profile came from. save() writes only what changed: one file per changed
+// profile (saveProfileFile with the FileDiag it was read from, so a hand edit in between is a Conflict and
+// nothing is overwritten), the removed profiles (deleteProfileFile with the stamp), and dofscroll.conf only when
+// [global] or a profile that still lives in it changed (saveGlobalFile). A profile of an old single file that is
+// edited moves into its own file, unless a defective file of the same name exists (then it stays where it is, and
+// the defective file is never touched). When dofscroll.conf is a symlink (or has another name) new and edited
+// profiles stay in the single file as before. A Conflict or a refused write is reported next to the profile
+// (profileProblem) and, for a Conflict, the model is reloaded from disk (SaveResult::conflict).
+// The profiles of a kind are kept in the order the daemon applies them (PRIORITY ascending, later wins);
+// moveProfile changes PRIORITY, orderText says the order in words.
+//
 // Mode rules (the settings page is mode-aware):
 //  * MODE can be chosen in every profile, [global] included, as a dropdown: modeOptions(i) is the
 //    ordered option list (for [device:*] and [app:*] entry 0 "Default mode" = MODE not set,
@@ -55,6 +67,7 @@
 #include <algorithm>
 #include <cctype>
 #include <functional>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -64,7 +77,10 @@
 #include "device_db.hpp"
 #include "mode_list.hpp"
 #include "modes.hpp"
+#include "platform/fs.hpp"
+#include "profile_files.hpp"
 #include "ui/model/action_runner.hpp"
+#include "ui/model/display_text.hpp"
 #include "ui/model/strings.hpp"
 
 namespace spn::ui {
@@ -91,6 +107,7 @@ public:
     struct SaveResult {
         bool saved = false;     // file written
         bool reloaded = false;  // reload callback called and succeeded (true also without callback)
+        bool conflict = false;  // a file was changed outside (or refused): the model was reloaded from disk
         std::string error;      // validation errors (joined), write error or reload error
     };
     struct Group {
@@ -127,27 +144,192 @@ public:
 
     void setReloadCallback(ReloadFn f) { reload_ = std::move(f); }
 
-    // Loads the file (missing file = defaults). false + *err if it cannot be read.
+    // Loads dofscroll.conf and the profile files next to it (missing file = defaults). false + *err if it
+    // cannot be read. *warnings gets every parser warning and the reason of every defective file.
     bool load(const std::string &path, std::vector<std::string> *warnings, std::string *err) {
-        ProfileSet ps;
-        if (!loadProfiles(path, &ps, warnings)) {
-            if (err) *err = "cannot read " + path;
-            return false;
-        }
-        ps_ = ps;
-        path_ = path;
-        dirty_ = false;
-        return true;
+        return loadImpl(path, warnings, err, false);
     }
-    // Takes an already loaded set (tests, other sources).
+    // Takes an already loaded set (tests, other sources). The next save() writes everything (no profile has
+    // a file yet); dirty() stays false until the first edit.
     void setProfiles(const ProfileSet &ps, const std::string &path) {
         ps_ = ps;
         path_ = path;
-        dirty_ = false;
+        diags_.clear();
+        st_.assign(ps_.sections.size(), SecState());
+        removed_.clear();
+        problems_.clear();
+        globalDirty_ = false;
+        forceAll_ = true;
+        globalStamp_.clear();
+        newInFiles_ = filesAllowed(path);
     }
     const ProfileSet &profiles() const { return ps_; }
     const std::string &path() const { return path_; }
-    bool dirty() const { return dirty_; }
+    // Something is waiting to be written (an edit, a removed profile, or a write that failed earlier).
+    bool dirty() const {
+        if (globalDirty_ || !removed_.empty()) return true;
+        for (const SecState &t : st_)
+            if (t.dirty) return true;
+        return false;
+    }
+    // True when new profiles get their own file (dofscroll.conf is a regular file): the split layout. False for
+    // a symlinked dofscroll.conf or a differently named file: the old single-file format stays in use.
+    bool splitLayout() const { return newInFiles_; }
+    // The file profile i lives in ("" for [global], a profile of the single file or a new one).
+    std::string profileFile(size_t i) const {
+        return i > 0 && i < st_.size() && st_[i].home == SecState::FILE ? st_[i].file.path : std::string();
+    }
+    // The profile is still read from dofscroll.conf (an old single file or a symlink), not from a file of its own.
+    bool inSingleFile(size_t i) const { return i > 0 && i < st_.size() && st_[i].home == SecState::LEGACY; }
+    // True once after a save reloaded the model from disk (a Conflict): the view must show the profiles again.
+    bool takeReloaded() {
+        const bool r = reloadedByConflict_;
+        reloadedByConflict_ = false;
+        return r;
+    }
+    // The profile has edits that are not written yet.
+    bool profileDirty(size_t i) const { return i < st_.size() && (i == 0 ? globalDirty_ : st_[i].dirty); }
+
+    // ---- defective profile files ----
+    // A profile file that is not loaded (and never overwritten while the error stands), or a second file with the
+    // name of a profile that is loaded (duplicate), or a directory problem.
+    struct Defect {
+        Section::Kind kind = Section::DEVICE;
+        std::string name;      // profile name from the header, "" if unusable
+        std::string file;      // full path
+        std::string message;   // why (English, from the loader)
+        bool duplicate = false;      // another file holds the same profile and wins
+        bool legacyActive = false;   // a section of dofscroll.conf with this name is active instead
+        bool directory = false;      // a whole directory (too many files, cannot be opened)
+    };
+    std::vector<Defect> defects() const {
+        std::vector<Defect> out;
+        for (const FileDiag &d : diags_) {
+            if (!d.fatal || (d.origin != FileDiag::PROFILE_FILE && d.origin != FileDiag::DIRECTORY)) continue;
+            Defect x;
+            x.kind = d.kind;
+            x.name = displayText(d.name);
+            x.file = displayText(d.path, 400);
+            for (const std::string &w : d.warnings) x.message += (x.message.empty() ? "" : "; ") + displayText(w, 400);
+            x.directory = d.origin == FileDiag::DIRECTORY;
+            if (!x.directory) {
+                for (size_t i = 1; i < ps_.sections.size() && i < st_.size(); ++i) {
+                    if (ps_.sections[i].kind != d.kind) continue;
+                    if (!d.name.empty() && fold(ps_.sections[i].pattern) == fold(d.name) && st_[i].home == SecState::FILE)
+                        x.duplicate = true;
+                    if (st_[i].home == SecState::LEGACY && defectiveFor(d.kind, ps_.sections[i].pattern) == &d)
+                        x.legacyActive = true;
+                }
+            }
+            out.push_back(x);
+        }
+        return out;
+    }
+    // Words next to a profile that is read from dofscroll.conf only because its own file is defective ("" if not).
+    std::string legacyHint(size_t i, const StringProvider &s) const {
+        if (i == 0 || i >= ps_.sections.size() || st_[i].home != SecState::LEGACY) return std::string();
+        const FileDiag *d = defectiveFor(ps_.sections[i].kind, ps_.sections[i].pattern);
+        if (!d) return std::string();
+        return format(s.tr("This profile is still read from dofscroll.conf because its own file %1 is defective. The "
+                           "file is not touched; fix or remove it to use the profile file again."),
+                      {baseName(d->path)});
+    }
+    // A key binding with Ctrl, Alt or Super (or Cmd) in this profile.
+    static bool isRiskyChord(const std::string &value) {
+        const std::string v = utf8::lowerAscii(value);
+        for (const char *m : {"ctrl+", "alt+", "super+", "cmd+", "meta+", "win+", "control+"})
+            if (v.find(m) != std::string::npos) return true;
+        return false;
+    }
+    bool bindsRiskyChord(size_t i) const {
+        if (i == 0 || i >= ps_.sections.size()) return false;
+        for (const KV &kv : ps_.sections[i].kv)
+            if (isRiskyChord(kv.second)) return true;
+        return false;
+    }
+    // The risk wording for a profile that binds such a chord ("" if it does not); the same idea as the note of the
+    // joystick mode editor.
+    std::string chordNote(size_t i, const StringProvider &s) const {
+        if (!bindsRiskyChord(i)) return std::string();
+        return s.tr("This profile presses shortcut chords (Ctrl, Alt, Super) when a button is pressed or the mouse is "
+                    "moved. Only keep profile files from sources you trust and read the file first.");
+    }
+    // What the last save or load found about this profile (a refused write, a changed file, ...): "" if nothing.
+    std::string profileProblem(size_t i) const {
+        if (i == 0 || i >= ps_.sections.size()) return std::string();
+        auto it = problems_.find(keyOf(ps_.sections[i].kind, ps_.sections[i].pattern));
+        return it == problems_.end() ? std::string() : it->second;
+    }
+
+    // ---- order of the profiles of a kind ----
+    // The profiles of a kind are applied in ascending PRIORITY (later wins); sections() lists them in that order.
+    int priority(size_t i) const { return i > 0 && i < ps_.sections.size() ? sectionPriority(ps_.sections[i]) : 0; }
+    bool canMove(size_t i, bool up) const {
+        const std::vector<size_t> o = kindOrder(i);
+        if (o.empty()) return false;
+        const size_t pos = size_t(std::find(o.begin(), o.end(), i) - o.begin());
+        return up ? pos > 0 : pos + 1 < o.size();
+    }
+    // Moves a profile one place earlier (up: applied before its neighbour, loses where both match) or later
+    // (down: wins). Changes the PRIORITY of the two profiles (the gaps stay); only when the order would otherwise
+    // stay ambiguous (equal values, hand-written numbers) the whole kind is numbered again. *newIndex = the
+    // profile's section index afterwards (the indexes of others change).
+    bool moveProfile(size_t i, bool up, size_t *newIndex, std::string *err) {
+        const std::vector<size_t> o = kindOrder(i);
+        const size_t pos = size_t(std::find(o.begin(), o.end(), i) - o.begin());
+        if (newIndex) *newIndex = i;
+        if (o.empty() || pos >= o.size() || (up ? pos == 0 : pos + 1 >= o.size()))
+            return failb(err, "this profile cannot be moved any further");
+        const size_t j = up ? pos - 1 : pos + 1;
+        std::vector<size_t> want = o;
+        std::swap(want[pos], want[j]);
+        std::map<size_t, int> np;
+        for (size_t k : o) np[k] = sectionPriority(ps_.sections[k]);
+        if (np[o[pos]] != np[o[j]]) std::swap(np[o[pos]], np[o[j]]);
+        const size_t lo = std::min(pos, j), hi = std::max(pos, j);
+        bool strict = true;  // the new order must not depend on ties around the two profiles
+        for (size_t k = lo == 0 ? 0 : lo - 1; k <= hi && k + 1 < want.size(); ++k)
+            strict = strict && np[want[k]] < np[want[k + 1]];
+        if (!strict) {
+            const int step = std::max(1, std::min(10, int(kMaxPriority) / int(want.size() + 1)));
+            for (size_t k = 0; k < want.size(); ++k) np[want[k]] = int(k + 1) * step;
+        }
+        const Section::Kind kind = ps_.sections[i].kind;
+        const std::string name = ps_.sections[i].pattern;
+        for (size_t k : o) {
+            if (np[k] == sectionPriority(ps_.sections[k])) continue;
+            if (np[k] == 0) {
+                eraseKey(ps_.sections[k], "PRIORITY");
+                touch(k);
+            } else if (!store(k, "PRIORITY", std::to_string(np[k]), err)) {
+                return false;
+            }
+        }
+        resort();
+        if (newIndex) *newIndex = ps_.find(kind, name);
+        return true;
+    }
+    // The order of profile i in words ("" for [global]): which profile it is applied after (and therefore wins
+    // over where both match) and which one is applied after it.
+    std::string orderText(size_t i, const StringProvider &s) const {
+        const std::vector<size_t> o = kindOrder(i);
+        if (o.empty()) return std::string();
+        const size_t pos = size_t(std::find(o.begin(), o.end(), i) - o.begin());
+        if (o.size() == 1)
+            return ps_.sections[i].kind == Section::APP
+                       ? s.tr("This is the only program profile, so there is no order to think about.")
+                       : s.tr("This is the only device profile, so there is no order to think about.");
+        auto nm = [&](size_t k) { return "\"" + displayText(ps_.sections[o[k]].pattern) + "\""; };
+        std::string t;
+        if (pos > 0) t += format(s.tr("Applied after %1, so it wins over %1 where both match."), {nm(pos - 1)});
+        else t += s.tr("Applied first, so every other profile of this kind wins over it where both match.");
+        if (pos + 1 < o.size()) t += " " + format(s.tr("%1 is applied after it and wins over it."), {nm(pos + 1)});
+        else if (pos > 0) t += " " + s.tr("Nothing is applied after it.");
+        if ((pos > 0 && priority(o[pos - 1]) == priority(i)) || (pos + 1 < o.size() && priority(o[pos + 1]) == priority(i)))
+            t += " " + s.tr("Profiles with the same priority are applied in the order of their file names; use Move up or "
+                            "Move down to fix the order.");
+        return t;
+    }
 
     // ---- device / button limit ----
     // Number of editable buttons: factoryButtonCount(name, reported) if plausible (1..kMaxButtons),
@@ -332,15 +514,50 @@ public:
     size_t sectionCount() const { return ps_.sections.size(); }
     // Adds (or finds) a DEVICE/APP section. npos + *err for an invalid pattern, kind GLOBAL or
     // too many sections.
-    size_t addSection(Section::Kind kind, const std::string &pattern, std::string *err) {
+    size_t addSection(Section::Kind kind, const std::string &pattern, std::string *err, bool appliedLast = true) {
         if (kind == Section::GLOBAL) return fail(err, "[global] already exists");
         size_t idx = ps_.find(kind, pattern);
         if (idx != ProfileSet::npos) return idx;
         if (ps_.sections.size() >= kMaxSections) return fail(err, "too many profiles");
-        idx = ps_.findOrAdd(kind, pattern);
+        std::string norm;
+        if (!ProfileSet::normalizePattern(pattern, &norm)) return fail(err, "invalid profile name (empty, ']' or line break)");
+        if (const FileDiag *d = defectiveFor(kind, norm)) {
+            if (err) *err = "the file " + baseName(d->path) + " has this name and is defective; repair or remove it first";
+            return ProfileSet::npos;
+        }
+        // The profile of a removed one whose file is still there: the new profile takes that file over.
+        const FileDiag *old = nullptr;
+        for (const Removed &r : removed_)
+            if (r.file.kind == kind && fold(r.file.name) == fold(norm)) old = &r.file;
+        const FileDiag oldFile = old ? *old : FileDiag();
+        // A new profile is applied last when the profiles of its kind have an explicit order.
+        int maxPrio = 0;
+        size_t same = 0;
+        for (const Section &s : ps_.sections)
+            if (s.kind == kind) {
+                ++same;
+                maxPrio = std::max(maxPrio, sectionPriority(s));
+            }
+        idx = ps_.findOrAdd(kind, norm);
         if (idx == ProfileSet::npos) return fail(err, "invalid profile name (empty, ']' or line break)");
-        dirty_ = true;
-        return idx;
+        st_.resize(ps_.sections.size());
+        SecState &t = st_[idx];
+        t = SecState();
+        if (old) {
+            t.home = SecState::FILE;
+            t.file = oldFile;
+            t.file.section = idx;
+            removed_.erase(std::remove_if(removed_.begin(), removed_.end(),
+                                          [&](const Removed &r) { return r.file.path == oldFile.path; }),
+                           removed_.end());
+        }
+        t.dirty = true;
+        problems_.erase(keyOf(kind, norm));
+        if (appliedLast && same > 0 && maxPrio > 0) {
+            if (maxPrio + 10 <= kMaxPriority) ps_.sections[idx].kv.emplace_back("PRIORITY", std::to_string(maxPrio + 10));
+        }
+        resort();
+        return ps_.find(kind, norm);
     }
     // Renames a device/app profile (changes its match string). Fails for [global], for an invalid
     // pattern and when another profile of the same kind already uses it (case-insensitive).
@@ -349,26 +566,46 @@ public:
         std::string norm;
         if (!ProfileSet::normalizePattern(pattern, &norm))
             return failb(err, "invalid profile name (empty, ']' or line break)");
-        auto low = [](std::string s) {
-            for (char &c : s) c = char(std::tolower(static_cast<unsigned char>(c)));
-            return s;
-        };
         for (size_t k = 1; k < ps_.sections.size(); ++k)
-            if (k != i && ps_.sections[k].kind == ps_.sections[i].kind &&
-                low(ps_.sections[k].pattern) == low(norm))
+            if (k != i && ps_.sections[k].kind == ps_.sections[i].kind && fold(ps_.sections[k].pattern) == fold(norm))
                 return failb(err, "a profile with this name already exists");
         if (ps_.sections[i].pattern == norm) return true;
+        if (const FileDiag *d = defectiveFor(ps_.sections[i].kind, norm))
+            return failb(err, "the file " + baseName(d->path) + " has this name and is defective; repair or remove it first");
         ps_.sections[i].pattern = norm;
-        ProfileSet fresh;  // drops the stale search index
-        fresh.sections = ps_.sections;
-        ps_ = fresh;
-        dirty_ = true;
+        reindex();
+        touch(i);  // the file is written under the new name first, then the old one is removed
         return true;
     }
+    // Replaces every setting of a device/app profile by `kv` (each key and value is validated first; nothing changes
+    // when one is invalid). The profile keeps its own PRIORITY (the order is not part of what Import brings).
+    bool setProfileKeys(size_t i, const std::vector<KV> &kv, std::string *err) {
+        if (i == 0 || i >= ps_.sections.size()) return failb(err, "this profile cannot be replaced");
+        if (kv.size() > kMaxKeysPerSection) return failb(err, "too many settings in this profile");
+        Settings t;
+        for (const KV &p : kv) {
+            std::string e;
+            if (upper(p.first) == "PRIORITY") continue;
+            if (!applyKey(t, p.first, p.second, &e)) return failb(err, p.first + " = " + p.second + ": " + e);
+        }
+        std::vector<KV> keep;
+        for (const KV &p : ps_.sections[i].kv)
+            if (upper(p.first) == "PRIORITY") keep.push_back(p);
+        std::vector<KV> next = keep;
+        for (const KV &p : kv)
+            if (upper(p.first) != "PRIORITY") next.emplace_back(p.first, p.second);
+        ps_.sections[i].kv = next;
+        touch(i);
+        return true;
+    }
+    // Removes a profile; its file is deleted by the next save (after checking that it is unchanged).
     bool removeSection(size_t i, std::string *err) {
         if (i == 0 || i >= ps_.sections.size()) return failb(err, "this profile cannot be removed");
+        if (st_[i].home == SecState::FILE) removed_.push_back({st_[i].file});
+        else if (st_[i].home == SecState::LEGACY) globalDirty_ = true;
+        problems_.erase(keyOf(ps_.sections[i].kind, ps_.sections[i].pattern));
         ps_.remove(i);
-        dirty_ = true;
+        st_.erase(st_.begin() + long(i));
         return true;
     }
 
@@ -416,7 +653,14 @@ public:
     }
     // Number of settings (keys, buttons included) the profile sets itself; [global] counts what the
     // file holds.
-    size_t overrideCount(size_t i) const { return i < ps_.sections.size() ? ps_.sections[i].kv.size() : 0; }
+    // PRIORITY (the order of the profiles) is not a setting and is not counted.
+    size_t overrideCount(size_t i) const {
+        if (i >= ps_.sections.size()) return 0;
+        size_t n = 0;
+        for (const KV &kv : ps_.sections[i].kv)
+            if (upper(kv.first) != "PRIORITY") ++n;
+        return n;
+    }
 
     // Value the effective mode of section i sets for key, else fallback.
     std::string modeOverrideValue(size_t i, const std::string &key, const std::string &fallback) const {
@@ -481,7 +725,7 @@ public:
         if (i >= ps_.sections.size() || !(isEditableKey(k) || isButtonKey(k))) return false;
         const std::string before = effectiveMode(i);
         if (!eraseKey(ps_.sections[i], k)) return true;
-        dirty_ = true;
+        touch(i);
         if (layoutChanged) *layoutChanged = effectiveMode(i) != before;
         return true;
     }
@@ -609,13 +853,12 @@ public:
                 if (on && !(gOn && gN == n)) bind(i, n, kd.action);
                 if (gOn && !(on && gN == n)) bind(i, gN, "none");  // this profile turned the global one off
             }
-            for (Section &sec : ps_.sections) {
-                eraseKey(sec, keyNum);
-                eraseKey(sec, keyOn);
+            for (size_t i = 0; i < ps_.sections.size(); ++i) {
+                const bool a = eraseKey(ps_.sections[i], keyNum), b = eraseKey(ps_.sections[i], keyOn);
+                if (a || b) touch(i);
             }
             r.changed = true;
         }
-        if (r.changed) dirty_ = true;
         return r;
     }
 
@@ -661,8 +904,11 @@ public:
         return out;
     }
 
-    // validate(), saveProfiles (atomic replace), then the reload callback. Nothing is written if
-    // validation fails. dirty() is cleared once the file is written.
+    // validate(), then the changed files (see the layout notes at the top; atomic replace per file), then one
+    // call of the reload callback. Nothing is written if validation fails. A file that was changed on disk since
+    // it was read is never overwritten or removed: the problem is reported in words (SaveResult::error and
+    // profileProblem) and the model is reloaded from disk (SaveResult::conflict). saved is true only when every
+    // planned write went through.
     SaveResult save(const StringProvider &s) {
         SaveResult r;
         const std::vector<std::string> errs = validate(s);
@@ -670,15 +916,137 @@ public:
             for (size_t i = 0; i < errs.size(); ++i) r.error += (i ? "\n" : "") + errs[i];
             return r;
         }
-        std::string e;
-        if (!saveProfiles(path_, ps_, &e)) {
-            r.error = e.empty() ? s.tr("cannot write the configuration") : e;
-            return r;
+        // A profile folder that could not be read: nothing is written (the profiles in it are unknown, a write could
+        // replace or duplicate them).
+        for (const FileDiag &d : diags_)
+            if (d.fatal && d.origin == FileDiag::DIRECTORY) {
+                r.error = format(s.tr("could not read the folder %1: nothing is written until it can be read again"),
+                                 {displayText(d.path, 400)});
+                return r;
+            }
+        const std::string dir = configDirOf(path_);
+        std::vector<std::string> msgs;
+        bool wrote = false, attempted = false;
+        auto problem = [&](const Section &sec, const std::string &m) {
+            problems_[keyOf(sec.kind, sec.pattern)] = m;
+            msgs.push_back("\"" + displayText(sec.pattern) + "\": " + m);
+        };
+        // 1. one file per changed profile (a profile of the single file moves into its own file once it is edited)
+        std::vector<size_t> toSingle;
+        for (size_t i = 1; i < ps_.sections.size() && i < st_.size(); ++i) {
+            SecState &t = st_[i];
+            if (!(forceAll_ || t.dirty)) continue;
+            const Section &sec = ps_.sections[i];
+            const bool file = t.home == SecState::FILE ||
+                              (newInFiles_ && !defectiveFor(sec.kind, sec.pattern));
+            if (!file) {
+                if (t.home == SecState::NEW) t.home = SecState::LEGACY;
+                toSingle.push_back(i);
+                globalDirty_ = true;
+                continue;
+            }
+            attempted = true;
+            const WriteResult w = saveProfileFile(dir, sec, t.home == SecState::FILE ? &t.file : nullptr);
+            if (w.ok()) {
+                const bool fromSingle = t.home == SecState::LEGACY;
+                t.file = FileDiag();
+                t.file.origin = FileDiag::PROFILE_FILE;
+                t.file.kind = sec.kind;
+                t.file.name = sec.pattern;
+                t.file.path = w.path;
+                t.file.stamp = w.stamp;
+                t.file.section = i;
+                t.home = SecState::FILE;
+                t.dirty = false;
+                problems_.erase(keyOf(sec.kind, sec.pattern));
+                if (fromSingle) globalDirty_ = true;  // the old section leaves dofscroll.conf
+                if (!w.warning.empty()) problems_[keyOf(sec.kind, sec.pattern)] = w.warning;
+                wrote = true;
+                continue;
+            }
+            r.conflict = r.conflict || w.status == WriteStatus::Conflict || w.status == WriteStatus::Refused;
+            problem(sec, w.status == WriteStatus::Conflict
+                             ? format(s.tr("the file %1 was changed outside the settings window, so it was not "
+                                           "overwritten; the profile was reloaded from it. Repeat your change if you "
+                                           "still want it."),
+                                      {baseName(w.path)})
+                             : w.error.empty() ? s.tr("cannot write the profile file") : displayText(w.error, 400));
         }
-        r.saved = true;
-        dirty_ = false;
+        // 2. profiles that were removed: their files go (only when unchanged since they were read)
+        for (size_t k = 0; k < removed_.size();) {
+            const FileDiag &f = removed_[k].file;
+            attempted = true;
+            const WriteResult w = deleteProfileFile(dir, f.kind, f.path, f.stamp);
+            if (w.ok()) {
+                wrote = true;
+                removed_.erase(removed_.begin() + long(k));
+                continue;
+            }
+            Section ghost;
+            ghost.kind = f.kind;
+            ghost.pattern = f.name;
+            if (w.status == WriteStatus::Failed) {
+                problem(ghost, displayText(w.error, 400));
+                ++k;
+                continue;
+            }
+            r.conflict = true;  // the file stays, so the profile comes back after the reload
+            problem(ghost, w.status == WriteStatus::Conflict
+                               ? format(s.tr("the file %1 was changed outside the settings window, so it was not "
+                                             "removed; the profile was reloaded from it."),
+                                        {baseName(w.path)})
+                               : displayText(w.error, 400));
+            removed_.erase(removed_.begin() + long(k));
+        }
+        // 3. dofscroll.conf: [global] plus the profiles that still live in it (only when something there changed)
+        if (forceAll_ || globalDirty_) {
+            attempted = true;
+            ProfileSet g;
+            g.sections[0] = ps_.sections[0];
+            for (size_t i = 1; i < ps_.sections.size() && i < st_.size(); ++i) {
+                if (st_[i].home != SecState::LEGACY) continue;
+                const size_t idx = g.findOrAdd(ps_.sections[i].kind, ps_.sections[i].pattern);
+                if (idx != ProfileSet::npos) g.sections[idx].kv = ps_.sections[i].kv;
+            }
+            WriteResult w;
+            if (isGlobalName(path_)) {
+                w = saveGlobalFile(dir, g, globalStamp_);
+            } else {
+                std::string e;
+                w.path = path_;
+                if (!saveProfiles(path_, g, &e)) {
+                    w.status = WriteStatus::Failed;
+                    w.error = e.empty() ? s.tr("cannot write the configuration") : e;
+                }
+                w.stamp = profileFileStamp(path_, true);
+            }
+            if (w.ok()) {
+                globalStamp_ = w.stamp;
+                globalDirty_ = false;
+                wrote = true;
+                for (size_t i : toSingle) st_[i].dirty = false;
+                for (SecState &t : st_)
+                    if (t.home == SecState::LEGACY) t.dirty = false;
+            } else {
+                r.conflict = r.conflict || w.status == WriteStatus::Conflict;
+                msgs.push_back(w.status == WriteStatus::Conflict
+                                   ? format(s.tr("%1 was changed outside the settings window, so it was not overwritten; "
+                                                 "it was reloaded. Repeat your change if you still want it."),
+                                            {baseName(w.path)})
+                                   : w.error.empty() ? s.tr("cannot write the configuration") : displayText(w.error, 400));
+            }
+        }
+        forceAll_ = false;
+        for (size_t i = 0; i < msgs.size(); ++i) r.error += (i ? "\n" : "") + msgs[i];
+        r.saved = msgs.empty();
         r.reloaded = true;
-        if (reload_ && !reload_(&e)) {
+        std::string e;
+        if (r.conflict) {
+            std::string le;
+            loadImpl(path_, nullptr, &le, true);  // what is on disk wins; the problems stay visible
+            reloadedByConflict_ = true;
+        }
+        if ((wrote || !attempted) && reload_ && !reload_(&e) && r.saved) {
             r.reloaded = false;
             r.error = e.empty() ? s.tr("saved, but the daemon could not be notified") : e;
         }
@@ -686,6 +1054,147 @@ public:
     }
 
 private:
+    // Where a profile lives and whether it has edits that are not written. Parallel to ps_.sections.
+    struct SecState {
+        enum Home { NEW, FILE, LEGACY } home = NEW;  // NEW: no file yet; FILE: devices/ or apps/; LEGACY: dofscroll.conf
+        bool dirty = false;
+        FileDiag file;  // FILE: the file as read or as last written (path and stamp for the writer)
+    };
+    struct Removed {
+        FileDiag file;
+    };
+    static std::string baseName(const std::string &p0) {
+        const std::string p = displayText(p0, 400);
+        const size_t k = p.find_last_of('/');
+        return k == std::string::npos ? p : p.substr(k + 1);
+    }
+    static std::string fold(const std::string &s) { return spn::utf8::lowerAscii(s); }
+    static std::string keyOf(Section::Kind k, const std::string &name) {
+        return std::string(k == Section::DEVICE ? "d:" : "a:") + fold(name);
+    }
+    // dofscroll.conf in the configuration directory (the profile files need that name)?
+    static bool isGlobalName(const std::string &path) { return baseName(path) == "dofscroll.conf"; }
+    // New profiles get their own file only when dofscroll.conf is a regular file called dofscroll.conf.
+    static bool filesAllowed(const std::string &path) {
+        if (path.empty() || !isGlobalName(path)) return false;
+        fs::FileInfo fi;
+        return !(fs::lstatPath(path, &fi) && fi.isLink);
+    }
+    // The defective file with this profile name, if the profile is not loaded from another file.
+    const FileDiag *defectiveFor(Section::Kind kind, const std::string &name) const {
+        for (const SecState &t : st_)
+            if (t.home == SecState::FILE && t.file.kind == kind && fold(t.file.name) == fold(name)) return nullptr;
+        // by the header name, or - when the header could not be read - by the file name the profile would get
+        const std::string f1 = profileSlug(name) + ".conf", f2 = profileSlugHashed(name) + ".conf";
+        for (const FileDiag &d : diags_) {
+            if (!d.fatal || d.origin != FileDiag::PROFILE_FILE || d.kind != kind) continue;
+            if (!d.name.empty() ? fold(d.name) == fold(name) : (baseName(d.path) == f1 || baseName(d.path) == f2)) return &d;
+        }
+        return nullptr;
+    }
+    // Section indexes of the kind of section i, in applied order (empty for [global] or a bad index).
+    std::vector<size_t> kindOrder(size_t i) const {
+        std::vector<size_t> o;
+        if (i == 0 || i >= ps_.sections.size()) return o;
+        for (size_t k = 1; k < ps_.sections.size(); ++k)
+            if (ps_.sections[k].kind == ps_.sections[i].kind) o.push_back(k);
+        return o;
+    }
+    void touch(size_t i) {
+        if (i == 0) {
+            globalDirty_ = true;
+            return;
+        }
+        if (i >= st_.size()) return;
+        st_[i].dirty = true;
+        if (st_[i].home == SecState::LEGACY) globalDirty_ = true;
+    }
+    void reindex() {
+        ProfileSet fresh;  // drops the stale search index
+        fresh.sections = ps_.sections;
+        ps_ = fresh;
+    }
+    // Keeps the profiles of each kind in applied order (PRIORITY ascending, ties keep their order). The slots of
+    // the two kinds stay where they are (the daemon applies all devices before all programs whatever their index).
+    void resort() {
+        std::vector<size_t> idx(ps_.sections.size());
+        for (size_t k = 0; k < idx.size(); ++k) idx[k] = k;
+        for (Section::Kind kind : {Section::DEVICE, Section::APP}) {
+            std::vector<size_t> places;
+            for (size_t k = 1; k < idx.size(); ++k)
+                if (ps_.sections[k].kind == kind) places.push_back(k);
+            std::vector<size_t> sorted = places;
+            std::stable_sort(sorted.begin(), sorted.end(), [&](size_t a, size_t b) {
+                return sectionPriority(ps_.sections[a]) < sectionPriority(ps_.sections[b]);
+            });
+            for (size_t k = 0; k < places.size(); ++k) idx[places[k]] = sorted[k];
+        }
+        std::vector<Section> ns;
+        std::vector<SecState> nt;
+        st_.resize(ps_.sections.size());
+        for (size_t k : idx) {
+            ns.push_back(ps_.sections[k]);
+            nt.push_back(st_[k]);
+        }
+        ps_.sections = ns;
+        st_ = nt;
+        reindex();
+        for (size_t k = 1; k < st_.size(); ++k) st_[k].file.section = k;
+    }
+    bool loadImpl(const std::string &path, std::vector<std::string> *warnings, std::string *err, bool keepProblems) {
+        ProfileSet ps;
+        std::vector<FileDiag> dg;
+        if (isGlobalName(path)) {
+            if (!loadProfileTreeAt(path, &ps, &dg)) {
+                if (err) *err = "cannot read " + path;
+                return false;
+            }
+        } else {  // a differently named file is a single file: no devices/ and apps/ beside it
+            FileDiag g;
+            g.origin = FileDiag::GLOBAL_FILE;
+            g.path = path;
+            g.stamp = profileFileStamp(path, true);
+            g.section = 0;
+            if (!loadLegacyProfileFile(path, &ps, &g.warnings)) {
+                if (err) *err = "cannot read " + path;
+                return false;
+            }
+            dg.push_back(g);
+            for (size_t i = 1; i < ps.sections.size(); ++i) {
+                FileDiag d;
+                d.origin = FileDiag::LEGACY_SECTION;
+                d.kind = ps.sections[i].kind;
+                d.name = ps.sections[i].pattern;
+                d.path = path;
+                d.section = i;
+                dg.push_back(d);
+            }
+        }
+        ps_ = ps;
+        path_ = path;
+        diags_ = dg;
+        st_.assign(ps_.sections.size(), SecState());
+        removed_.clear();
+        if (!keepProblems) problems_.clear();
+        globalDirty_ = false;
+        forceAll_ = false;
+        globalStamp_.clear();
+        for (const FileDiag &d : dg) {
+            if (warnings)
+                for (const std::string &w : d.warnings) warnings->push_back(w);
+            if (d.origin == FileDiag::GLOBAL_FILE) globalStamp_ = d.stamp;
+            if (d.fatal || d.section == ProfileSet::npos || d.section == 0 || d.section >= st_.size()) continue;
+            if (d.origin == FileDiag::PROFILE_FILE) {
+                st_[d.section].home = SecState::FILE;
+                st_[d.section].file = d;
+            } else if (d.origin == FileDiag::LEGACY_SECTION) {
+                st_[d.section].home = SecState::LEGACY;
+            }
+        }
+        newInFiles_ = filesAllowed(path);
+        return true;
+    }
+
     static std::string upper(std::string s) {
         for (char &c : s) c = char(spn::utf8::upperChar(c));
         return s;
@@ -744,7 +1253,7 @@ private:
             if (sec.kv.size() >= kMaxKeysPerSection) return failb(err, "too many settings in this profile");
             sec.kv.emplace_back(k, v);
         }
-        dirty_ = true;
+        touch(i);
         return true;
     }
     SectionInfo info(size_t i) const {
@@ -765,7 +1274,15 @@ private:
 
     ProfileSet ps_;
     std::string path_;
-    bool dirty_ = false;
+    std::vector<SecState> st_;        // parallel to ps_.sections
+    std::vector<FileDiag> diags_;     // what the loader said about every file (defective ones, stamps)
+    std::vector<Removed> removed_;    // profile files to delete at the next save
+    std::map<std::string, std::string> problems_;  // keyOf(profile) -> what went wrong with it
+    bool globalDirty_ = false;        // [global] or a profile of dofscroll.conf changed
+    bool reloadedByConflict_ = false;
+    bool forceAll_ = false;           // setProfiles: the next save writes everything
+    bool newInFiles_ = true;          // new profiles get their own file (split layout)
+    std::string globalStamp_;         // stamp of dofscroll.conf as read or written
     int limit_ = int(kMaxButtons);
     ReloadFn reload_;
     ModeSet modes_;
