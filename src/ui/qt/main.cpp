@@ -4169,7 +4169,8 @@ int main(int argc, char **argv) {
         w.show();
         // Light at three sizes, dark at the medium size (the layout does not depend on the colours).
         static const struct { const char *theme; const char *name; int w, h; } shots[] = {
-            {"light", "small", 720, 480}, {"light", "medium", 960, 560}, {"light", "wide", 1500, 820}, {"dark", "medium", 960, 560}};
+            {"light", "small", 720, 480}, {"light", "medium", 960, 560}, {"light", "wide", 1500, 820}, {"dark", "medium", 960, 560},
+            {"light", "default", spn::ui::tokens::kDefaultWindowWidth, spn::ui::tokens::kDefaultWindowHeight}, {"dark", "default", spn::ui::tokens::kDefaultWindowWidth, spn::ui::tokens::kDefaultWindowHeight}};
         int written = 0;
         for (const auto &sz : shots) {
             applyTheme(spn::ui::themeFromId(sz.theme));
