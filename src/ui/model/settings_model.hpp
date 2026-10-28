@@ -382,12 +382,11 @@ public:
         if (i >= ps_.sections.size()) return s;
         const ModeDef *m = modes_.find(effectiveMode(i));
         if (!m || m->overrides.empty()) return s;
-        for (const auto &kv : m->overrides) applyKey(s, upper(kv.first), kv.second, nullptr);
-        if (ps_.sections[i].kind == Section::APP) {
-            s.action_layer = 1;  // the program layer: its channel actions and buttons beat the mode's
-            for (const KV &kv : ps_.sections[i].kv) applyKey(s, upper(kv.first), kv.second, nullptr);
-            s.action_layer = 0;
-        }
+        std::vector<KV> ov;
+        for (const auto &kv : m->overrides) ov.emplace_back(upper(kv.first), kv.second);
+        applyKvList(s, ov, 0);
+        // The program layer (1) beats the mode's channel actions and buttons, as in ProfileSet::resolve.
+        if (ps_.sections[i].kind == Section::APP) applyKvList(s, ps_.sections[i].kv, 1);
         return s;
     }
 
@@ -465,8 +464,7 @@ public:
         if (i >= ps_.sections.size()) return failb(err, "no such profile");
         if (!isEditableKey(k)) return failb(err, "unknown setting " + key);
         Settings t = ps_.sectionSettings(i);
-        t.action_layer = ps_.sections[i].kind == Section::APP ? 1 : 0;  // the layer the section's own keys live in
-        if (!applyKey(t, k, text, err)) return false;
+        if (!applyKeyLayer(t, k, text, layerOfSection(ps_.sections[i].kind), err)) return false;
         const std::vector<KV> tk = allKeys(t);
         const std::string *cp = lookup(tk, k);
         if (!cp) return failb(err, "unknown setting " + key);

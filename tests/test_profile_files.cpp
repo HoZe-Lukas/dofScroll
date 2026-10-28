@@ -133,10 +133,10 @@ static void testLoadBasics(const std::string &d) {
     ProfileSet p2;
     assert(loadProfileTree(e, &p2, &diag) && p2.sections.size() == 1 && !anyFatal(diag));
     tu::removeAll(e);
-    // loadProfileTreeAt with a legacy file name looks next to it
+    // loadProfileTreeAt with a legacy file name does not look at devices/ and apps/ next to it
     put(d + "/old.conf", "[global]\nTICK_HZ = 100\n");
     ProfileSet p3;
-    assert(loadProfileTreeAt(d + "/old.conf", &p3, &diag) && p3.sections.size() == 3);
+    assert(loadProfileTreeAt(d + "/old.conf", &p3, &diag) && p3.sections.size() == 1);  // legacy name: devices/ and apps/ are not read
     assert(configDirOf(d + "/old.conf") == d && configDirOf("x.conf") == "." && configDirOf("/x.conf") == "/");
     // the single-file reader is unchanged and does not look at devices/
     ProfileSet p4;
@@ -604,6 +604,46 @@ static void testPartialWritesOnlyChangedFiles(const std::string &d) {
     assert(profileFileStamp(d + "/devices/a.conf", false) == sa && profileFileStamp(d + "/dofscroll.conf", true) == sg);
 }
 
+// A repeated header of the same name: the file still loads as one profile (keys merged) but says so.
+static void testRepeatedHeader(const std::string &d) {
+    put(d + "/dofscroll.conf", "[global]\n");
+    put(d + "/devices/c.conf", "[device:C]\nSCROLL_V_SENS = 1\n[device:C]\nZOOM_SENS = 3\n");
+    put(d + "/devices/ok.conf", "[device:Ok]\n# [device:Ok] in a comment is no header\nSCROLL_V_SENS = 2\n");
+    ProfileSet ps;
+    std::vector<FileDiag> diag;
+    assert(loadProfileTree(d, &ps, &diag));
+    const FileDiag *c = findDiag(diag, d + "/devices/c.conf"), *ok = findDiag(diag, d + "/devices/ok.conf");
+    assert(c && !c->fatal && c->section != ProfileSet::npos);
+    bool said = false;
+    for (const std::string &w : c->warnings) said = said || w.find("repeated") != std::string::npos;
+    assert(said);
+    assert(ok && ok->warnings.empty());
+    assert(ps.resolve("C", "").scroll_v.sensitivity == 1 && ps.resolve("C", "").zoom.sensitivity == 3);
+}
+
+// More files than kMaxProfileFiles and more entries than the old cap: the first kMaxProfileFiles in sort order are
+// read, whatever order the file system lists them in.
+static void testDeterministicCap(const std::string &d) {
+    put(d + "/dofscroll.conf", "[global]\n");
+    stdfs::create_directories(d + "/apps");
+    const size_t total = 4400;
+    for (size_t i = 0; i < total; i++) {
+        char n[32];
+        std::snprintf(n, sizeof n, "q%05zu", i);
+        put(d + "/apps/" + n + ".conf", std::string("[app:") + n + "]\n");
+    }
+    ProfileSet ps;
+    std::vector<FileDiag> diag;
+    assert(loadProfileTree(d, &ps, &diag));
+    assert(ps.sections.size() == 1 + kMaxProfileFiles);
+    for (size_t i = 0; i < kMaxProfileFiles; i++) {
+        char n[32];
+        std::snprintf(n, sizeof n, "q%05zu", i);
+        assert(ps.find(Section::APP, n) != ProfileSet::npos);
+    }
+    assert(ps.find(Section::APP, "q04399") == ProfileSet::npos);
+}
+
 int main() {
     const std::string root = tu::makeTempDir("dofscroll-pf-test");
     int n = 0;
@@ -612,7 +652,7 @@ int main() {
     struct T { void (*f)(const std::string &); };
     for (auto f : {testLoadBasics, testIsolation, testDuplicates, testLegacyAndPrecedence, testPriorityAndMigrationOrder, testLimits, testUnreadableGlobal,
                    testSymlinksRefused, testStamps, testWriter, testCollisions, testDeleteAndRename,
-                   testWriterRefusesLinks, testGlobalAndSplitWrite, testPartialWritesOnlyChangedFiles}) {
+                   testWriterRefusesLinks, testGlobalAndSplitWrite, testPartialWritesOnlyChangedFiles, testRepeatedHeader, testDeterministicCap}) {
         const std::string d = fresh();
         f(d);
         tu::removeAll(d);

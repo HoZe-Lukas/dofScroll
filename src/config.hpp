@@ -201,6 +201,17 @@ using KV = std::pair<std::string, std::string>;
 // false + *err on an unknown key or invalid value (Settings stays unchanged then).
 bool applyKey(Settings &s, const std::string &key, const std::string &value, std::string *err);
 
+// Like applyKey, but writes the channel actions and BUTTON_<n> to the given layer (0: [global]/[device:*],
+// below the joystick mode; 1: [app:*], above it). The single place that knows the layers; Settings::action_layer
+// is only the transport of this parameter into applyKey and is 0 outside these calls.
+bool applyKeyLayer(Settings &s, const std::string &key, const std::string &value, int layer, std::string *err);
+// Applies a key list at the given layer; invalid entries are skipped.
+void applyKvList(Settings &s, const std::vector<KV> &kv, int layer);
+
+// Complete equality of two resolved Settings: allKeys plus what allKeys reports only in collapsed form
+// (the two action layers and the program buttons). Used to decide that a profile change changes nothing.
+bool sameSettings(const Settings &a, const Settings &b);
+
 // All keys in canonical order (new names), for the [global] section.
 std::vector<KV> allKeys(const Settings &s);
 // Only keys where s differs from base (for [device:*]/[app:*] sections).
@@ -211,6 +222,8 @@ struct Section {
     std::string pattern;              // for DEVICE/APP; empty for GLOBAL
     std::vector<KV> kv;               // raw keys as in the file (order preserved)
 };
+// The layer of the keys of a section kind (1 for [app:*], else 0).
+int layerOfSection(Section::Kind kind);
 
 // PRIORITY of a profile section (integer key, default 0, kMinPriority..kMaxPriority, no effect in [global]).
 // Profiles of one kind are applied in ascending PRIORITY, later wins; see profile_files.hpp for the order.

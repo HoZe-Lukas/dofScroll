@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include "config.hpp"
+#include "log_sanitize.hpp"
 #include "modes.hpp"
 #include "platform/fs.hpp"
 #include "profile_files.hpp"
@@ -17,7 +18,7 @@ int main(int argc, char **argv) {
         // Every warning of the loader (unknown key, bad action, bad value of a per-part key, ...) fails.
         std::vector<std::string> warnings;
         const spn::ModeSet set = spn::loadModes(argv[2], &warnings);
-        for (const auto &w : warnings) std::cerr << "WARNING: " << w << "\n";
+        for (const auto &w : warnings) std::cerr << "WARNING: " << spn::sanitizeForLog(w, 512) << "\n";
         if (!warnings.empty()) return 1;
         std::cout << "OK: " << argv[2] << " (" << set.modes.size() << " modes)\n";
         return 0;
@@ -35,12 +36,12 @@ int main(int argc, char **argv) {
         std::vector<spn::FileDiag> diag;
         if (!spn::loadProfileTree(path, &ps, &diag)) {
             for (const auto &d : diag)
-                for (const auto &w : d.warnings) std::cerr << "ERROR: " << w << "\n";
+                for (const auto &w : d.warnings) std::cerr << "ERROR: " << spn::sanitizeForLog(w, 512) << "\n";
             return 1;
         }
         bool bad = false;
         for (const auto &d : diag) {
-            for (const auto &w : d.warnings) std::cerr << "WARNING: " << w << "\n";
+            for (const auto &w : d.warnings) std::cerr << "WARNING: " << spn::sanitizeForLog(w, 512) << "\n";
             if (d.fatal || !d.warnings.empty()) bad = true;
         }
         if (bad) return 1;
@@ -51,7 +52,7 @@ int main(int argc, char **argv) {
         std::cerr << "ERROR: '" << path << "' could not be loaded\n";
         return 1;
     }
-    for (const auto &w : warnings) std::cerr << "WARNING: " << w << "\n";
+    for (const auto &w : warnings) std::cerr << "WARNING: " << spn::sanitizeForLog(w, 512) << "\n";
     if (!warnings.empty()) return 1;
     std::cout << "OK: " << path << " (" << ps.sections.size() << " sections)\n";
     return 0;

@@ -37,8 +37,10 @@ void fill(const struct stat &st, FileInfo *out) {
     out->size = static_cast<int64_t>(st.st_size);
 #ifdef __APPLE__
     out->mtimeNs = static_cast<int64_t>(st.st_mtimespec.tv_sec) * 1'000'000'000 + st.st_mtimespec.tv_nsec;
+    out->ctimeNs = static_cast<int64_t>(st.st_ctimespec.tv_sec) * 1'000'000'000 + st.st_ctimespec.tv_nsec;
 #else
     out->mtimeNs = static_cast<int64_t>(st.st_mtim.tv_sec) * 1'000'000'000 + st.st_mtim.tv_nsec;
+    out->ctimeNs = static_cast<int64_t>(st.st_ctim.tv_sec) * 1'000'000'000 + st.st_ctim.tv_nsec;
 #endif
     out->fileId = static_cast<uint64_t>(st.st_ino);
 }

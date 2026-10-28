@@ -309,6 +309,77 @@ static void testDeviceAndWindowProfiles() {
           r.core->matchDesc().c_str());
 }
 
+// A program profile has the last word over the joystick mode, also when the collapsed values (allKeys) of the
+// profile before and after the switch are equal: the program layer (app_buttons, actions[1]) is part of the comparison.
+static void testProgramLayerSwitch() {
+    {   // button: the mode binds button 1 to middleclick, [device] and [app] both say click
+        Rig r(std::string(BASE_CONF) + "MODE = mymode\n[device:Test Mouse A]\nBUTTON_1 = click\n[app:ed]\nBUTTON_1 = click\n",
+              {{"mymode.conf", "BUTTON_1 = middleclick\n"}});
+        r.run(0.1);
+        r.src.pushButton(0, 0, true);
+        r.run(0.1);
+        r.src.pushButton(0, 0, false);
+        r.run(0.1);
+        CHECK((r.rec.mouse == std::vector<std::string>{"+2", "-2"}), "mode binding wins over the device profile (%zu events)",
+              r.rec.mouse.size());
+        r.rec = DaemonRec();
+        r.win.cls = "ed";
+        r.run(0.3);
+        r.src.pushButton(0, 0, true);
+        r.run(0.1);
+        r.src.pushButton(0, 0, false);
+        r.run(0.1);
+        CHECK((r.rec.mouse == std::vector<std::string>{"+1", "-1"}), "the program's click wins after the switch (%zu events)",
+              r.rec.mouse.size());
+    }
+    {   // channel action: device zoom, mode wheel_h, program zoom
+        Rig r(std::string(BASE_CONF) + "MODE = mymode\n[device:Test Mouse A]\nV_ACTION = zoom\n[app:ed]\nV_ACTION = zoom\n",
+              {{"mymode.conf", "V_ACTION = wheel_h\n"}});
+        r.run(0.1);
+        r.src.pushMotion(0, 69, 286, 350, 145, 56, 155);
+        r.run(1.0);
+        CHECK(r.rec.ctrl_presses == 0 && r.rec.wh != 0, "mode action wins over the device profile (wh=%d)", r.rec.wh);
+        r.src.pushMotion(0, 0, 0, 0, 0, 0, 0);
+        r.run(0.3);
+        r.rec = DaemonRec();
+        r.win.cls = "ed";
+        r.run(0.3);
+        r.src.pushMotion(0, 69, 286, 350, 145, 56, 155);
+        r.run(1.0);
+        CHECK(r.rec.ctrl_presses >= 1 && r.rec.abs_zoom > 0, "the program's zoom wins after the switch (zoom=%d)", r.rec.abs_zoom);
+    }
+}
+
+// The same through an edit of the file (no forced mode reload): the matching sections (and so the profile description) stay the same, the collapsed
+// values stay equal, only the program layer changes.
+static void testProgramLayerReload() {
+    auto click = [](Rig &r) {
+        r.rec = DaemonRec();
+        r.src.pushButton(0, 0, true);
+        r.run(0.1);
+        r.src.pushButton(0, 0, false);
+        r.run(0.1);
+        return r.rec.mouse;
+    };
+    const std::string head = std::string(BASE_CONF) + "MODE = mymode\n[device:Test Mouse A]\nBUTTON_1 = click\nV_ACTION = zoom\n";
+    Rig r(head + "[app:ed]\nTICK_HZ = 250\n", {{"mymode.conf", "BUTTON_1 = middleclick\nV_ACTION = wheel_h\n"}});
+    r.win.cls = "ed";
+    r.run(0.3);
+    CHECK((click(r) == std::vector<std::string>{"+2", "-2"}), "mode binding wins over the device profile");
+    r.src.pushMotion(0, 69, 286, 350, 145, 56, 155);
+    r.run(1.0);
+    CHECK(r.rec.ctrl_presses == 0 && r.rec.wh != 0, "mode action wins over the device profile");
+    r.src.pushMotion(0, 0, 0, 0, 0, 0, 0);
+    r.run(0.3);
+    writeFile(r.conf, head + "[app:ed]\nTICK_HZ = 250\nBUTTON_1 = click\nV_ACTION = zoom\n");
+    r.run(3.0);  // the file stamp is polled about once a second: an edit of the file, not a reload request
+    CHECK((click(r) == std::vector<std::string>{"+1", "-1"}), "the program's click wins after the edit");
+    r.rec = DaemonRec();
+    r.src.pushMotion(0, 69, 286, 350, 145, 56, 155);
+    r.run(1.0);
+    CHECK(r.rec.ctrl_presses >= 1 && r.rec.abs_zoom > 0, "the program's zoom wins after the edit (zoom=%d)", r.rec.abs_zoom);
+}
+
 static void testDeviceRemovedReleasesState() {
     Rig r("[global]\nCLICK_BUTTON = 1\nCLICK_BUTTON_ENABLED = 1\n");
     r.src.pushButton(0, 1, true);
@@ -902,6 +973,8 @@ int main() {
     testModeRequest();
     testAutoReload();
     testDeviceAndWindowProfiles();
+    testProgramLayerSwitch();
+    testProgramLayerReload();
     testDeviceRemovedReleasesState();
     if (failures) {
         std::fprintf(stderr, "%d failure(s)\n", failures);

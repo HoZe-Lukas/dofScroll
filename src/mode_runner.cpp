@@ -65,7 +65,7 @@ void ModeRunner::setMode(const ModeDef &mode) {
     releaseAll();
     nav_latched_ = false;
     mode_ = mode;
-    legacy_ = mode_.allDefaultChannels();
+    legacy_ = mode_.allDefaultChannels();  // until the first tick; tick() then follows the effective actions (profile layers)
 }
 
 void ModeRunner::releaseAll() {

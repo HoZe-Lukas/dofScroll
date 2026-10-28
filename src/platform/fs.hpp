@@ -20,6 +20,7 @@ struct FileInfo {
     bool isLink = false;     // symlink (Windows: any reparse point); only set by lstatPath
     int64_t size = 0;
     int64_t mtimeNs = 0;     // modification time, ns since the epoch (Windows: 100 ns resolution)
+    int64_t ctimeNs = 0;     // inode change time (POSIX; 0 on Windows): a same-size rewrite within one mtime tick still shows
     uint64_t fileId = 0;     // inode / file index; changes when a file is replaced by a rename
 };
 // false when the path does not exist (or cannot be examined). statPath follows links, lstatPath
