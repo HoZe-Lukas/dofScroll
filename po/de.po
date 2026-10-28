@@ -5901,3 +5901,99 @@ msgstr "Profil „%1“ entfernt. Rückgängig mit der Schaltfläche „Rückgä
 #: src/ui/qt/pages/profiles_page.cpp
 msgid "Undo with the Undo button or %1. Dismiss closes the bar."
 msgstr "Rückgängig mit der Schaltfläche „Rückgängig“ oder %1. „Schließen“ schließt die Leiste."
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "What this motion does:"
+msgstr "Was diese Bewegung tut:"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Action for %1"
+msgstr "Aktion für %1"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "What lift / press does:"
+msgstr "Was Heben/Drücken tut:"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Action for lift / press"
+msgstr "Aktion für Heben/Drücken"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Key or mouse button held for the negative direction"
+msgstr "Taste oder Maustaste, die in der negativen Richtung gehalten wird"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Key or mouse button held for the positive direction"
+msgstr "Taste oder Maustaste, die in der positiven Richtung gehalten wird"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Key or mouse click for the negative direction"
+msgstr "Taste oder Mausklick für die negative Richtung"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Key or mouse click for the positive direction"
+msgstr "Taste oder Mausklick für die positive Richtung"
+
+#: src/ui/qt/key_engine_box.hpp
+msgid "Nothing for the negative direction"
+msgstr "Nichts für die negative Richtung"
+
+#: src/ui/qt/key_engine_box.hpp
+msgid "Nothing for the positive direction"
+msgstr "Nichts für die positive Richtung"
+
+#: src/ui/qt/key_engine_box.hpp
+msgid "Switches between a repeating key and one press per push"
+msgstr "Wechselt zwischen einer sich wiederholenden Taste und einem Tastendruck pro Schub"
+
+#: src/ui/model/motion_edit_model.hpp
+msgid "Mouse click per push"
+msgstr "Ein Mausklick pro Schub"
+
+#: src/ui/model/motion_edit_model.hpp
+msgid "Hold a key or button while pushed"
+msgstr "Taste oder Maustaste halten, solange du schiebst"
+
+#: src/ui/model/action_preset_model.hpp
+msgid "One mouse click for each push or tilt"
+msgstr "Ein Mausklick für jedes Schieben oder Kippen"
+
+#: src/ui/model/action_preset_model.hpp
+msgid "Holds a key, a key combination or a mouse button while you push, and lets go when you ease back"
+msgstr "Hält eine Taste, eine Tastenkombination oder eine Maustaste, solange du schiebst, und lässt sie los, wenn du zurückgehst"
+
+#: src/ui/model/key_engine_model.hpp
+msgid "Holding is always digital: the key or button is held while you push past the trigger level and let go when you ease back to half of it."
+msgstr "Halten ist immer digital: Die Taste oder Maustaste wird gehalten, solange du über die Auslöseschwelle schiebst, und losgelassen, wenn du auf die Hälfte davon zurückgehst."
+
+#: src/ui/model/key_engine_model.hpp
+msgid "A mouse click can only be used digitally: one click per push."
+msgstr "Ein Mausklick geht nur digital: ein Klick pro Schub."
+
+#: src/ui/model/key_engine_model.hpp
+msgid "Hold: the key or button is held down while you push past the trigger level and let go when you ease back to half of it. It is never let go on a timer, so a long drag works."
+msgstr "Halten: Die Taste oder Maustaste bleibt gedrückt, solange du über die Auslöseschwelle schiebst, und wird losgelassen, wenn du auf die Hälfte davon zurückgehst. Es gibt keine Zeitgrenze, ein langes Ziehen funktioniert also."
+
+#: src/ui/model/borrow_model.hpp
+msgid "hold %1 / %2 while pushed"
+msgstr "%1 / %2 halten, solange geschoben wird"
+
+#: src/ui/model/mode_info_model.hpp
+msgid "holds %1 or %2 while pushed"
+msgstr "hält %1 oder %2, solange du schiebst"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Held while pushed: %1 / %2"
+msgstr "Gehalten beim Schieben: %1 / %2"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Hold"
+msgstr "Halten"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "One click per push: %1 / %2"
+msgstr "Ein Klick pro Schub: %1 / %2"

@@ -57,7 +57,10 @@ a chord or `none` per side. Three keys per motion tune them: `<P>KEY_RATE_MIN` a
 `LIFT_`. They are valid in profiles and in joystick mode files, are not written unless set, and a channel that is not split
 uses the push keys. At most 4 presses per tick and function and 8 per tick in total are sent. An analog `keys:` with a key
 that is not safe to repeat (a letter, digit, Enter, Delete, Esc, Alt or Super chord, play/pause) is refused ("this key can
-only be used digitally, use `step:`"), `step:` takes any key. Details and the tier rule: [modes.md](modes.md#the-key-engine-analog-and-digital).
+only be used digitally, use `step:`"), `step:` takes any key. Per side `step:` also takes `click`, `rightclick` and `middleclick`
+(one mouse click per push), and `hold:<neg>,<pos>` holds a key, a chord or a mouse button while the motion is deflected
+(`hold:click,none` drags while you push) and lets go at half of the trigger. Details and the tier rule:
+[modes.md](modes.md#the-key-engine-analog-and-digital), [mouse clicks and holds](modes.md#mouse-clicks-and-holds).
 
 Axes (libspnav convention, measured on a SpaceMouse Pro): push forward or back is `z`, sideways is
 `x`, lift or press is `y`, tilt forward or back is `rx`, tilt sideways is `rz`, twist is `ry`. If you

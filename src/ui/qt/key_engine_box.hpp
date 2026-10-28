@@ -19,6 +19,7 @@
 
 struct KeyEngineEnv {
     std::string motionId;                     // "v_push" ... "lift"
+    QString motionName;                       // "Vertical push": named in the accessible descriptions of the controls
     spn::ui::ChannelForm *form = nullptr;     // the function that is edited in place (keys: or step:)
     spn::Settings effective;                  // what applies now (for the words and the placeholders)
     // The text the motion itself holds for a key ("" when it holds none), and the writer ("" removes the key).
@@ -39,7 +40,9 @@ inline QWidget *keyEngineBox(QWidget *parent, QObject *owner, const KeyEngineEnv
     auto *col = new QVBoxLayout(box);
     col->setContentsMargins(0, 0, 0, 0);
     const AnalogChoice choice = analogChoice(env.motionId, *env.form, strings);
-    const KeyEngineWords words = keyEngineWords(choice.analog, env.effective, env.motionId, strings);
+    const KeyEngineWords words = keyEngineWords(choice.analog, env.effective, env.motionId, strings, choice.hold);
+    const QString forMotion = env.motionName.isEmpty() ? QString() : env.motionName + QStringLiteral(": ");
+    const bool mouseOrHold = choice.hold || env.form->anyMouse();  // a side may be a mouse button: the words say "nothing", not "no key"
 
     auto *analog = new QCheckBox(T("Analog (the key repeats faster the further you push)"), box);
     analog->setObjectName(QStringLiteral("keyAnalog"));
@@ -47,6 +50,8 @@ inline QWidget *keyEngineBox(QWidget *parent, QObject *owner, const KeyEngineEnv
     analog->setChecked(choice.analog);
     analog->setEnabled(choice.allowed);
     analog->setAccessibleName(T("Analog (the key repeats faster the further you push)"));
+    analog->setAccessibleDescription(forMotion + (choice.allowed ? T("Switches between a repeating key and one press per push") : qs8(choice.reason)));
+    analog->setMinimumHeight(24);
     if (!choice.allowed) analog->setToolTip(qs8(choice.reason));
     col->addWidget(analog);
     if (!choice.allowed) {
@@ -66,16 +71,20 @@ inline QWidget *keyEngineBox(QWidget *parent, QObject *owner, const KeyEngineEnv
     for (int side = 0; side < 2; ++side) {
         std::string ChannelForm::*chord = side == 0 ? &ChannelForm::neg : &ChannelForm::pos;
         const bool none = env.form->*chord == "none";
-        auto *cb = new QCheckBox(side == 0 ? T("No key for the negative direction") : T("No key for the positive direction"), box);
+        auto *cb = new QCheckBox(mouseOrHold ? (side == 0 ? T("Nothing for the negative direction") : T("Nothing for the positive direction"))
+                                             : (side == 0 ? T("No key for the negative direction") : T("No key for the positive direction")),
+                                 box);
         cb->setObjectName(side == 0 ? QStringLiteral("keyNoNeg") : QStringLiteral("keyNoPos"));
         cb->setProperty("look", QStringLiteral("box"));
         cb->setChecked(none);
         const std::string other = env.form->*(side == 0 ? &ChannelForm::pos : &ChannelForm::neg);
         cb->setEnabled(none || other != "none");  // at least one side keeps a key
         cb->setAccessibleName(cb->text());
+        cb->setAccessibleDescription(forMotion + cb->text());
+        cb->setMinimumHeight(24);
         col->addWidget(cb);
-        QObject::connect(cb, &QCheckBox::clicked, owner, [env, chord](bool on) {
-            env.form->*chord = on ? "none" : (chord == &ChannelForm::neg ? "up" : "down");
+        QObject::connect(cb, &QCheckBox::clicked, owner, [env, chord, mouseOrHold](bool on) {
+            env.form->*chord = on ? "none" : mouseOrHold ? "click" : (chord == &ChannelForm::neg ? "up" : "down");
             if (env.commit) env.commit();
         });
     }
@@ -84,11 +93,14 @@ inline QWidget *keyEngineBox(QWidget *parent, QObject *owner, const KeyEngineEnv
     auto *fieldsHost = new QWidget(box);  // a widget of its own: the layouts around are emptied by takeAt()
     auto *fields = new QFormLayout(fieldsHost);
     fields->setContentsMargins(0, 0, 0, 0);
+    fields->setRowWrapPolicy(QFormLayout::WrapLongRows);  // a long label goes above its field instead of widening the inspector
     auto addField = [&](KeyField f, const QString &label, const char *objectName) {
         const std::string key = keyEngineKey(env.motionId, f);
         auto *edit = new QLineEdit(qs8(env.get ? env.get(key) : std::string()), box);
         edit->setObjectName(QString::fromLatin1(objectName));
         edit->setAccessibleName(label);
+        edit->setAccessibleDescription(forMotion + qs8(key));
+        edit->setMinimumHeight(24);
         edit->setToolTip(qs8(key));
         const int km = keyMotionOf(env.motionId);
         if (km >= 0) {

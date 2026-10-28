@@ -28,9 +28,18 @@ namespace spn::ui {
 
 struct ChannelForm {
     ChannelActionType type = ChannelActionType::Default;
-    std::string neg = "up", pos = "down";  // keys or chords ("ctrl+pageup"); only for Keys and Step
+    // keys or chords ("ctrl+pageup"), "none", and for Step and Hold also the mouse buttons "click", "rightclick", "middleclick"
+    std::string neg = "up", pos = "down";
 
-    bool usesKeys() const { return type == ChannelActionType::Keys || type == ChannelActionType::Step; }
+    bool usesKeys() const {
+        return type == ChannelActionType::Keys || type == ChannelActionType::Step || type == ChannelActionType::Hold;
+    }
+    static bool isMouseWord(const std::string &side) { return side == "click" || side == "rightclick" || side == "middleclick"; }
+    bool anyMouse() const { return usesKeys() && (isMouseWord(neg) || isMouseWord(pos)); }
+    // A side that presses a key or chord (not none, not a mouse button).
+    bool anyKeySide() const {
+        return usesKeys() && ((neg != "none" && !isMouseWord(neg)) || (pos != "none" && !isMouseWord(pos)));
+    }
     // The action text of the file, as parseChannelAction reads it.
     std::string text() const {
         switch (type) {
@@ -41,6 +50,7 @@ struct ChannelForm {
             case ChannelActionType::Zoom: return "zoom";
             case ChannelActionType::Keys: return "keys:" + neg + "," + pos;
             case ChannelActionType::Step: return "step:" + neg + "," + pos;
+            case ChannelActionType::Hold: return "hold:" + neg + "," + pos;
         }
         return "default";
     }

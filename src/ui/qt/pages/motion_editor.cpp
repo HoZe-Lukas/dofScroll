@@ -37,6 +37,7 @@
 
 #include "info_popup.hpp"
 #include "key_capture.hpp"
+#include "side_picker.hpp"
 #include "key_combo.hpp"
 #include "key_engine_box.hpp"
 #include "ui/model/action_preset_model.hpp"
@@ -793,9 +794,17 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
             };
             const Dir dirs[2] = {{"Negative:", &ChannelForm::neg, "negative"}, {"Positive:", &ChannelForm::pos, "positive"}};
             int row = 0;
+            // step: and hold: take a mouse click per side as well (side_picker.hpp); the analog keys: do not
+            const bool mouseSides = cur.type != ChannelActionType::Keys;
             for (const Dir &d : dirs) {
-                kg->addWidget(new QLabel(T(d.label), keys), row, 0, Qt::AlignRight);
-                kg->addWidget(chordPicker(keys, this, &(ref->*d.chord), qs8(l.name) + QStringLiteral(" ") + T(d.accessible), committed), row, 1);
+                auto *dirLabel = new QLabel(T(d.label), keys);
+                kg->addWidget(dirLabel, row, 0, Qt::AlignRight);
+                const QString accessible = qs8(l.name) + QStringLiteral(" ") + T(d.accessible);
+                QWidget *picker = nullptr;
+                KeyTreePicker *kc = nullptr;
+                picker = sidePicker(keys, this, &(ref->*d.chord), accessible, committed, &kc, mouseSides);
+                dirLabel->setBuddy(kc);
+                kg->addWidget(picker, row, 1);
                 auto *capture = new KeyCaptureButton(qs8(l.name) + QStringLiteral(" ") + T(d.accessible) + QStringLiteral(": ") + T("Press a key..."),
                                                      [this, ref, d](const std::string &chord) {
                                                          ref->*d.chord = chord;
@@ -878,6 +887,7 @@ KeyEngineEnv MotionEditor::keyEngineEnv(ChannelForm *ref, Motion m) {
     std::string id = motionId(m);
     if (isTilt(m) && !placeOf(*env_.form, env_.base, m).split) id = m == Motion::VTilt ? "v_push" : "h_push";
     env.motionId = id;
+    env.motionName = qs8(motionLabel(*env_.form, env_.base, m, *env_.strings).name);
     env.form = ref;
     env.effective = effectiveSettings(*env_.form, env_.base);
     ModeForm *form = env_.form;
@@ -952,32 +962,44 @@ void MotionEditor::buildLiftInspector(QVBoxLayout *col) {
     {   // what it does: the same choices as the profile's Motions page (liftActionChoices: nothing, scroll, zoom, one key tap per push)
         auto *what = new QGroupBox(T("What it does"), inspectorBox_);
         auto *wl = new QVBoxLayout(what);
+        auto *kindLabel = new QLabel(T("What lift / press does:"), what);
         auto *kind = new QComboBox(what);
         kind->setObjectName(QStringLiteral("liftAction"));
         kind->setAccessibleName(T("What lift / press does in this joystick mode"));
+        kind->setAccessibleDescription(T("Action for lift / press"));  // a combo box reports its current text as its name
+        kindLabel->setBuddy(kind);
         ChannelForm &lift = env_.form->lift;
         const ChannelActionType shown = lift.type == ChannelActionType::Off ? ChannelActionType::Default : lift.type;
         int current = 0;
         for (const MotionActionChoice &c : liftActionChoices()) {
-            if (c.type == shown) current = kind->count();
-            kind->addItem(T(c.label), int(c.type));
+            if (c.key() == choiceIdOf(ChannelForm{shown, lift.neg, lift.pos})) current = kind->count();
+            kind->addItem(T(c.label), c.key());
         }
         kind->setCurrentIndex(current);
+        wl->addWidget(kindLabel);
         wl->addWidget(kind);
         if (lift.usesKeys()) {
             auto committed = [this] {
                 if (env_.committed) env_.committed();
             };
-            wl->addWidget(new QLabel(T("Key for the negative direction"), what));
-            wl->addWidget(chordPicker(what, this, &lift.neg, T("Lift / press") + QStringLiteral(" ") + T("negative"), committed));
-            wl->addWidget(new QLabel(T("Key for the positive direction"), what));
-            wl->addWidget(chordPicker(what, this, &lift.pos, T("Lift / press") + QStringLiteral(" ") + T("positive"), committed));
+            const bool holds = lift.type == ChannelActionType::Hold;  // lift never takes the analog keys: every side may be a click
+            for (int side = 0; side < 2; ++side) {
+                const QString text = side == 0 ? (holds ? T("Key or mouse button held for the negative direction") : T("Key or mouse click for the negative direction"))
+                                                : (holds ? T("Key or mouse button held for the positive direction") : T("Key or mouse click for the positive direction"));
+                auto *label = new QLabel(text, what);
+                label->setWordWrap(true);
+                wl->addWidget(label);
+                KeyTreePicker *kc = nullptr;
+                wl->addWidget(sidePicker(what, this, side == 0 ? &lift.neg : &lift.pos,
+                                         T("Lift / press") + QStringLiteral(": ") + text, committed, &kc));
+                label->setBuddy(kc);
+            }
             if (QWidget *engine = keyEngineBox(what, this, keyEngineEnv(&lift, Motion::Lift), *env_.strings)) wl->addWidget(engine);
         }
         connect(kind, &QComboBox::activated, this, [this, kind](int idx) {
             ChannelForm &f = env_.form->lift;
-            f.type = ChannelActionType(kind->itemData(idx).toInt());
-            if (f.usesKeys() && (f.neg.empty() || f.pos.empty() || f.neg == "none" || f.pos == "none")) {
+            applyChoice(&f, kind->itemData(idx).toInt());
+            if (f.usesKeys() && f.type != ChannelActionType::Hold && !f.anyMouse() && (f.neg == "none" || f.pos == "none")) {
                 f.neg = "up";
                 f.pos = "down";
             }

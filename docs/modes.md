@@ -128,7 +128,8 @@ For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`), `TWIST_ACTION` (`Z
 | `wheel_v`, `wheel_h` | Vertical or horizontal mouse wheel. |
 | `zoom` | Hold the zoom modifier (`ZOOM_MODIFIER`, default Ctrl) and send the mouse wheel. |
 | `keys:<neg>,<pos>` | Analog key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection (limits: [key engine](#the-key-engine-analog-and-digital)). Dead zone, curve, smoothing and sensitivity of the channel apply. Each argument can be a chord or `none`, see below. Only for keys that are safe to repeat (tier A, see below): a letter, digit, Enter, Delete, Esc, Alt or Super chord is refused with "this key can only be used digitally, use step:". |
-| `step:<neg>,<pos>` | One key tap per push instead of a rate, with hysteresis (digital); see below. Any key. |
+| `step:<neg>,<pos>` | One key tap per push instead of a rate, with hysteresis (digital); see below. Any key. A side can also be `click`, `rightclick` or `middleclick` (one mouse click per push). |
+| `hold:<neg>,<pos>` | A key, a chord or a mouse button is held while the motion is deflected beyond the trigger and let go when it has fallen back to half of it (digital); see [Mouse clicks and holds](#mouse-clicks-and-holds). |
 
 The same keys (`V_ACTION`, `H_ACTION`, `TWIST_ACTION`, `LIFT_ACTION` and the four split keys) are also allowed **in a profile**
 (`[global]`, `[device:*]`, `[app:*]` of `dofscroll.conf`) for one program or device, for example `TWIST_ACTION = none`
@@ -338,6 +339,33 @@ and previous. Everything else (letters, digits, function keys, Enter, Delete, Ba
 chords, play/pause, a lone modifier) is tier B: `keys:` is refused with "this key can only be used digitally, use step:",
 `step:` is allowed with the load warning of the chord rules below. The lift never takes an analog key. The built-in `media`
 mode therefore uses `step:j,l` for the twist (one jump per twist instead of a rate).
+
+### Mouse clicks and holds
+
+Every motion (both directions, in a joystick mode and in a profile) can click the mouse or hold something while it is
+deflected. Per side the value of `step:` is a key, a chord, `none` or a mouse button word; `hold:` takes the same, with the
+difference that a key or a chord may be only modifiers (`hold:ctrl+shift,none`).
+
+| Text | What happens |
+|---|---|
+| `step:click,none` | One left click each time the motion is pushed past the trigger on the negative side, nothing on the other side. `rightclick` and `middleclick` are the other two buttons. |
+| `hold:click,none` | The left button goes down when the motion is pushed past the trigger and comes up when it has fallen back to half of it: a drag while you hold the cap. |
+| `hold:ctrl,alt` | Ctrl is held while the motion is deflected to the negative side, Alt while it is deflected to the positive side. |
+
+The trigger is the one of the key engine (`<P>TRIGGER`, default `STEP_TRIGGER`), the re-arm happens at half of it, and each
+side re-arms on its own, exactly as for `step:`. A click is one press and release of the button per crossing; a held button
+is never clicked by another motion (its release would end the drag). `keys:` (analog) with a click is refused ("a mouse click
+can only be used digitally"), and so is any analog key that is not safe to repeat.
+
+Everything a hold keeps down is the **union** with what else wants it: a hold of `ctrl` on a tilt while the twist zooms (zoom
+holds `ZOOM_MODIFIER`, default Ctrl) keeps Ctrl down until both have let go; two holds that share a modifier do the same, and a
+button binding that holds the same key or mouse button joins them. A hold keeps following its motion while the twist zooms.
+Nothing is let go on a timer: a hold longer than 60 seconds is logged once and stays, because a long drag is legitimate.
+Everything a hold keeps down is released on a joystick mode change, a reload, suspend, `ENABLED = 0`, an unplugged device,
+a source that goes silent (stale watchdog), the safety net and when a program profile unbinds the motion.
+
+Mouse clicks and holds are tier B (they act on whatever has the focus): the plain load warning applies, there is no gate.
+How click and hold feel on a real device, and a drag with a hold on macOS, are not verified.
 
 ### Key chords in `keys:`
 
