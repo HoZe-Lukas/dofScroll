@@ -1247,6 +1247,10 @@ bool parseProfilesText(const std::string &data, const std::string &path, Profile
             if (parseChannelAction(value, &act, nullptr) && act.usesKeys() &&
                 ((act.negMods.n > 0 && chordNeedsWarning(act.neg, act.negMods)) || (act.posMods.n > 0 && chordNeedsWarning(act.pos, act.posMods))))
                 warn(lineno, key + ": presses a shortcut chord with Alt/Super or a non-navigation key - loaded anyway");
+            else if (act.usesKeys() && (act.negMouse || act.posMouse))
+                warn(lineno, key + ": clicks or holds a mouse button - loaded anyway");
+            else if (act.type == ChannelActionType::Hold)
+                warn(lineno, key + ": holds a key or chord while the motion is deflected - loaded anyway");
         }
         std::vector<KV> &kv = ps.sections[static_cast<size_t>(cur)].kv;
         // Merge duplicates: last value wins, position of the last occurrence.
