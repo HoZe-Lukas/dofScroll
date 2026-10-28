@@ -27,6 +27,7 @@
 #include <QStandardPaths>
 #include <QStyle>
 #include <QTabWidget>
+#include <QShortcut>
 #include <QTimer>
 #include <QToolButton>
 #include <QTreeWidget>
@@ -57,7 +58,10 @@
 #include "ui/model/profile_import.hpp"
 #include "ui/model/profile_tree_model.hpp"
 #include "platform_hooks.hpp"
+#include "a11y_announce.hpp"
+#include "undo_focus.hpp"
 #include "theme.hpp"
+#include "ui/model/undo_rules.hpp"
 #include "ui_i18n.hpp"
 
 using namespace spn;
@@ -162,10 +166,38 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     defectNote_->setWordWrap(true);
     defectNote_->setTextFormat(Qt::PlainText);
     defectNote_->setForegroundRole(QPalette::PlaceholderText);
-    defectNote_->setAccessibleName(T("Defective profile files"));
     defectNote_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     defectNote_->hide();
     ll->addWidget(defectNote_);
+    // Undo of a removal: a line with buttons, no time limit (the removal is written at once, undo writes it back)
+    undoBar_ = new QWidget(left);
+    undoBar_->setObjectName(QStringLiteral("undoBar"));
+    auto *ul = new QHBoxLayout(undoBar_);
+    ul->setContentsMargins(0, 0, 0, 0);
+    undoLabel_ = new QLabel(undoBar_);
+    undoLabel_->setWordWrap(true);
+    undoLabel_->setTextFormat(Qt::PlainText);
+    auto *undoButton = new QPushButton(T("Undo"), undoBar_);
+    undoButton->setObjectName(QStringLiteral("undoRemove"));
+    undoButton->setToolTip(T("Bring the removed profile back with all its settings") + QStringLiteral(" (") +
+                           QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText) + QLatin1Char(')'));
+    auto *dismiss = new QPushButton(T("Dismiss"), undoBar_);
+    dismiss->setObjectName(QStringLiteral("undoDismiss"));
+    dismiss->setToolTip(T("Close this bar; the profile stays removed"));
+    ul->addWidget(undoLabel_, 1);
+    ul->addWidget(undoButton);
+    ul->addWidget(dismiss);
+    undoBar_->hide();
+    ll->addWidget(undoBar_);
+    // No time limit: the offer stays until the profile list changes again, the configuration is reloaded from disk
+    // or Dismiss is pressed. Ctrl+Z (Cmd+Z) does the same as Undo, except while a text field has the focus.
+    connect(undoButton, &QPushButton::clicked, this, [this] { undoRemove(); });
+    connect(dismiss, &QPushButton::clicked, this, [this] { clearRemovedUndo(); });
+    auto *undoKey = new QShortcut(QKeySequence::Undo, this);
+    undoKey->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(undoKey, &QShortcut::activated, this, [this] {
+        if (spn::ui::undoShortcutApplies(removed_.valid, focusInTextInput())) undoRemove();
+    });
 
     // Right: who is edited, the search box of the settings and the tabs.
     auto *right = new QWidget(split);
@@ -181,14 +213,14 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     headerIcon_->setFixedSize(tk::kIconSize * 3 / 2, tk::kIconSize * 3 / 2);
     headerIcon_->setScaledContents(true);
     headerIcon_->setAccessibleName(T("Icon of the edited profile"));
+    // The labels of this header carry their own text as the accessible name: a name set by hand would replace
+    // the text for a screen reader (a QLabel with an accessible name has an empty value).
     headerName_ = new QLabel(header);
     headerName_->setTextFormat(Qt::PlainText);  // the match string of the profile
     headerName_->setProperty("heading", QStringLiteral("section"));
-    headerName_->setAccessibleName(T("Edited profile"));
     headerName_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     headerKind_ = new QLabel(header);
     headerKind_->setForegroundRole(QPalette::PlaceholderText);
-    headerKind_->setAccessibleName(T("Kind of the edited profile"));
     hl->addWidget(headerIcon_);
     hl->addWidget(headerName_);
     hl->addWidget(headerKind_);
@@ -197,7 +229,6 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     headerNote_ = new QLabel(right);
     headerNote_->setWordWrap(true);
     headerNote_->setForegroundRole(QPalette::PlaceholderText);
-    headerNote_->setAccessibleName(T("About inheritance"));
     rl->addWidget(headerNote_);
     settingsFilter_ = new QLineEdit(right);
     settingsFilter_->setClearButtonEnabled(true);
@@ -219,12 +250,16 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
         area->setFrameShape(QFrame::NoFrame);
         area->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
         area->setProperty("tabId", QString::fromLatin1(id));
+        // Not a stop of its own in the tab order: its content has the controls, and a scroll area without a name
+        // is an unnamed stop for a screen reader.
+        area->setFocusPolicy(Qt::NoFocus);
         return area;
     };
     general_ = makeArea("general");
     overrides_ = makeArea("overrides");
     channels_ = new ChannelsEditor(ctx_, tabs_);
     channels_->setProperty("tabId", QStringLiteral("channels"));
+    if (auto *cs = channels_->findChild<QScrollArea *>(QStringLiteral("channelsScroll"))) cs->setFocusPolicy(Qt::NoFocus);
     tabs_->addTab(general_, T("General"));
     tabs_->addTab(channels_, T("Channels"));
     motions_ = new ProfileMotionsView(
@@ -328,7 +363,13 @@ size_t ProfilesPage::currentSection() const {
 
 void ProfilesPage::problem(const QString &text) { ctx_.report(text, true); }
 
+void ProfilesPage::clearRemovedUndo() {
+    removed_ = spn::ui::RemovedProfile();
+    if (undoBar_) undoBar_->hide();
+}
+
 void ProfilesPage::rebuildTree(size_t selectSection) {
+    if (!keepUndo_) clearRemovedUndo();  // any other change of the list, or a reload from disk, makes the offer obsolete
     QSignalBlocker block(tree_);
     tree_->clear();
     const spn::ui::IdentityStrings fallbackStrings;
@@ -658,6 +699,7 @@ QWidget *ProfilesPage::buildModeSelector(size_t section) {
     auto *l = new QVBoxLayout(box);
     l->setContentsMargins(tk::kCardPadding, tk::kCardPadding, tk::kCardPadding, tk::kCardPadding);
     auto *combo = new QComboBox(box);
+    // A QComboBox always reports its current text as the name; the purpose goes into the description.
     combo->setAccessibleName(T("Joystick mode"));
     combo->setToolTip(T("What the axes do while this profile is active") + QStringLiteral("\n") +
                       T("Config key: %1").arg(QStringLiteral("MODE")));
@@ -701,8 +743,14 @@ QWidget *ProfilesPage::buildModeSelector(size_t section) {
     };
     auto *infoButton = makeInfoButton(box, T("About this joystick mode"), T("About this joystick mode: its description and what it does"));
     connect(infoButton, &QToolButton::clicked, this, [infoButton, infoFor] { InfoPopup::open(infoButton, infoFor()); });
-    connect(combo, &QComboBox::currentIndexChanged, this, [combo, infoButton, infoFor](int) { combo->setToolTip(infoFor()); });
-    combo->setToolTip(infoFor());
+    auto describe = [combo, infoFor] {
+        const QString info = infoFor();
+        combo->setToolTip(info);
+        combo->setAccessibleDescription(T("Joystick mode") + QStringLiteral(": ") + T("What the axes do while this profile is active") +
+                                        QStringLiteral("\n") + info);
+    };
+    connect(combo, &QComboBox::currentIndexChanged, this, [describe](int) { describe(); });
+    describe();
     auto *comboRow = new QHBoxLayout;
     comboRow->addWidget(combo, 1);
     comboRow->addWidget(infoButton);
@@ -1104,6 +1152,8 @@ QWidget *ProfilesPage::buildOverrides(size_t section) {
         auto *h = new QHBoxLayout;
         auto *combo = new QComboBox(inner);
         combo->setAccessibleName(T("Setting to override"));
+        combo->setAccessibleDescription(T("Setting to override") + QStringLiteral(": ") +
+                                        T("Choose the setting this profile should set itself, then press Add override"));
         for (const std::string &k : v.addableOverrides) combo->addItem(qs8(k), qs8(k));
         auto *add = new QPushButton(T("Add override"), inner);
         h->addWidget(combo, 1);
@@ -1200,24 +1250,57 @@ bool ProfilesPage::renameSelected(const QString &name) {
 void ProfilesPage::removeProfile() {
     const size_t s = currentSection();
     if (s == 0) return;
-    const QString name = qs8(ctx_.settings->sections()[s].pattern);
-    if (QMessageBox::question(this, T("Remove profile"),
-                              T("Remove the profile \"%1\" and all its settings?").arg(name)) != QMessageBox::Yes)
-        return;
+    const QString name = qs8(spn::ui::displayText(ctx_.settings->sections()[s].pattern));
+    // Cancel is the default (Enter does not delete); the destructive choice has its own name.
+    QMessageBox box(QMessageBox::Warning, T("Remove profile"),
+                    T("Remove the profile \"%1\" and all its settings?").arg(name), QMessageBox::NoButton, this);
+    box.setInformativeText(T("You can undo this afterwards."));
+    QPushButton *go = box.addButton(T("Remove profile"), QMessageBox::DestructiveRole);
+    QPushButton *keep = box.addButton(T("Cancel"), QMessageBox::RejectRole);
+    box.setDefaultButton(keep);
+    box.setEscapeButton(keep);
+    box.exec();
+    if (box.clickedButton() != go) return;
     removeSelected();
 }
 
 // Removes the profile: its file goes with the next autosave (only when it was not changed by hand meanwhile).
+// A copy is kept until something else changes: "Undo" puts it back.
 bool ProfilesPage::removeSelected() {
     const size_t s = currentSection();
     if (s == 0) return false;
+    const spn::ui::RemovedProfile copy = spn::ui::captureProfile(*ctx_.settings, s);
+    const QString name = qs8(spn::ui::displayText(ctx_.settings->sections()[s].pattern));
     std::string err;
     if (!ProfileTreeModel::remove(*ctx_.settings, s, &err)) {
         problem(qs8(err));
         return false;
     }
     ctx_.saveSoon();
+    keepUndo_ = true;
     rebuildTree(0);
+    keepUndo_ = false;
+    removed_ = copy;
+    undoLabel_->setText(T("Profile \"%1\" removed.").arg(name));
+    undoBar_->show();
+    ctx_.report(T("Profile \"%1\" removed. Undo with the Undo button or %2. Dismiss closes the bar.")
+                    .arg(name, QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)), false);
+    return true;
+}
+
+bool ProfilesPage::undoRemove() {
+    if (!removed_.valid) return false;
+    const QString name = qs8(spn::ui::displayText(removed_.pattern));
+    size_t idx = ProfileSet::npos;
+    std::string err;
+    if (!spn::ui::restoreProfile(*ctx_.settings, removed_, &idx, &err)) {
+        problem(T("The profile \"%1\" could not be brought back: %2").arg(name, qs8(err)));
+        return false;
+    }
+    clearRemovedUndo();
+    ctx_.saveSoon();
+    rebuildTree(idx);
+    ctx_.report(T("Profile \"%1\" is back.").arg(name), false);
     return true;
 }
 

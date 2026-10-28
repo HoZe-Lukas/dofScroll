@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "a11y_announce.hpp"
 #include "ui_i18n.hpp"
 
 namespace {
@@ -62,6 +63,7 @@ bool Autosaver::flush() {
 void Autosaver::afterWrite() {
     status_ = qs8(rule_.statusText(now(), strings_));
     emit statusChanged(status_, failed());
+    if (failed()) spn::ui::announce(nullptr, status_);  // a screen reader hears a failed write; "Saved" stays quiet
     emit written();
     if (!failed()) statusTimer_.start(static_cast<int>(spn::ui::Autosave::kStatusMs) + 50);
 }
@@ -69,6 +71,7 @@ void Autosaver::afterWrite() {
 void Autosaver::report(const QString &text, bool error) {
     status_ = text;
     emit statusChanged(status_, error);
+    spn::ui::announce(nullptr, text);  // results of import, export, take over and errors of an edit
     if (!error && !text.isEmpty()) statusTimer_.start(static_cast<int>(spn::ui::Autosave::kStatusMs) + 50);
 }
 

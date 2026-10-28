@@ -30,6 +30,7 @@
 #include "ui/model/live_feed_model.hpp"
 #include "ui/model/profile_import.hpp"
 #include "ui/model/profile_tree_model.hpp"
+#include "ui/model/profile_undo.hpp"
 #include "ui_context.hpp"
 
 class ChannelsEditor;
@@ -42,6 +43,7 @@ class QLineEdit;
 class QPushButton;
 class QScrollArea;
 class QTabWidget;
+class QTimer;
 class QTreeWidget;
 class QTreeWidgetItem;
 
@@ -81,7 +83,10 @@ public:
     // The actions of the profile list without a dialog (the buttons call them after their dialogs; the self-test
     // calls them directly). All of them go through the settings model and the autosave.
     bool moveSelected(bool up);                           // Move up / Move down in the order of the profiles of its kind
-    bool removeSelected();                                // Remove (the button asks first)
+    bool removeSelected();                                // Remove (the button asks first); Undo stays offered until something else changes (no time limit)
+    bool undoRemove();                                    // Undo of the last removal (the profile with all its settings)
+    bool undoAvailable() const { return removed_.valid; }
+    void dismissUndo() { clearRemovedUndo(); }
     bool renameSelected(const QString &name);             // Change application / device: the new name, same settings
     bool importFrom(const QString &file, bool replaceOnCollision);  // Import; a name that exists is replaced or kept
     QString defectNotes() const;                          // the words about defective profile files under the list
@@ -106,6 +111,7 @@ private slots:
 
 private:
     void rebuildTree(size_t selectSection);
+    void clearRemovedUndo();
     void applyProfileFilter();
     bool settingMatches(const QString &label, const std::string &key) const;
     void rebuildContent();
@@ -156,6 +162,10 @@ private:
     ChannelsEditor *channels_ = nullptr;
     QPushButton *add_app_, *add_dev_, *import_, *new_profile_;
     QLabel *defectNote_ = nullptr;  // defective profile files, in words, under the list
+    QWidget *undoBar_ = nullptr;    // "Profile removed. Undo" under the list, no time limit
+    QLabel *undoLabel_ = nullptr;
+    bool keepUndo_ = false;  // rebuildTree() drops the offer, except while a removal itself rebuilds it
+    spn::ui::RemovedProfile removed_;
     size_t shown_ = 0;  // section the tabs show
     int settingRows_ = 0;
     bool advancedOpen_ = false;

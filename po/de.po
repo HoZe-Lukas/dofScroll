@@ -689,14 +689,6 @@ msgstr "Anwenden"
 msgid "Error: %1"
 msgstr "Fehler: %1"
 
-#: src/ui/qt/pages/axes_page.cpp:339
-msgid "Axis mixes saved to [global]."
-msgstr "Achsen-Mixe in [global] gespeichert."
-
-#: src/ui/qt/pages/axes_page.cpp:340
-msgid "Axis mixes saved to [global]. %1"
-msgstr "Achsen-Mixe in [global] gespeichert. %1"
-
 #: src/ui/qt/pages/axes_page.cpp:373
 msgid "Daemon:"
 msgstr "Daemon:"
@@ -704,14 +696,6 @@ msgstr "Daemon:"
 #: src/ui/qt/pages/axes_page.cpp:387
 msgid "Step %1 of %2: %3%4"
 msgstr "Schritt %1 von %2: %3%4"
-
-#: src/ui/qt/pages/axes_page.cpp:407
-msgid ""
-"\"Apply\" sets these axis mixes in the [global] settings and resets the "
-"direction switches to normal. \"Cancel\" changes nothing."
-msgstr ""
-"„Anwenden“ setzt diese Achsen-Mixe in den [global]-Einstellungen und stellt "
-"die Richtungsschalter auf normal zurück. „Abbrechen“ ändert nichts."
 
 #: src/ui/qt/pages/axes_page.cpp:413
 msgid "Warning: %1"
@@ -5107,10 +5091,6 @@ msgid "Go on at once. Otherwise the next step starts by itself after a moment."
 msgstr "Sofort weiter. Sonst beginnt der nächste Schritt nach einem Moment von selbst."
 
 #: src/ui/qt/pages/axes_page.cpp
-msgid "Write the detected axis mixes into the [global] settings (Enter)."
-msgstr "Die erkannten Achsmischungen in die [global]-Einstellungen schreiben (Enter)."
-
-#: src/ui/qt/pages/axes_page.cpp
 msgid "skipped"
 msgstr "übersprungen"
 
@@ -5817,3 +5797,107 @@ msgstr "Es gibt noch keine Tasten-Modi. Lege zuerst auf der Seite Tasten-Modi ei
 #: src/ui/qt/key_combo.hpp
 msgid "Windows key"
 msgstr "Windows-Taste"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Undo"
+msgstr "Rückgängig"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Bring the removed profile back with all its settings"
+msgstr "Das entfernte Profil mit allen Einstellungen zurückholen"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Profile \"%1\" removed."
+msgstr "Profil „%1“ entfernt."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "The profile \"%1\" could not be brought back: %2"
+msgstr "Das Profil „%1“ konnte nicht zurückgeholt werden: %2"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Profile \"%1\" is back."
+msgstr "Profil „%1“ ist wieder da."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Choose the setting this profile should set itself, then press Add override"
+msgstr "Wähle die Einstellung, die dieses Profil selbst setzen soll, und drücke dann „Überschreibung hinzufügen“"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Put the axis mixes and direction switches of the Global profile back as they were before Apply."
+msgstr "Die Achsen-Mixe und Richtungsschalter des Profils Global so zurücksetzen, wie sie vor „Anwenden“ waren."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Don't advance automatically"
+msgstr "Nicht automatisch weitergehen"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Stay on a detected step until you press Next, and do not skip an optional step by itself. For slow or keyboard-only use."
+msgstr "Bei einem erkannten Schritt bleiben, bis du „Weiter“ drückst, und einen optionalen Schritt nicht von selbst überspringen. Für langsames Arbeiten oder reine Tastaturbedienung."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "The setting could not be saved: %1"
+msgstr "Die Einstellung konnte nicht gespeichert werden: %1"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Write the detected axis mixes into the Global profile (Enter). You can undo it afterwards."
+msgstr "Die erkannten Achsen-Mixe in das Profil Global schreiben (Enter). Du kannst das danach rückgängig machen."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Axis mixes saved to the Global profile."
+msgstr "Achsen-Mixe im Profil Global gespeichert."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Axis mixes saved to the Global profile. %1"
+msgstr "Achsen-Mixe im Profil Global gespeichert. %1"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Undo failed: %1"
+msgstr "Rückgängig machen fehlgeschlagen: %1"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "The axis mixes of the Global profile are back as they were before."
+msgstr "Die Achsen-Mixe des Profils Global sind wieder so wie vorher."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Apply changes this in the Global profile:"
+msgstr "„Anwenden“ ändert im Profil Global:"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "%1: now %2, new %3"
+msgstr "%1: jetzt %2, neu %3"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "%1: %2 (unchanged)"
+msgstr "%1: %2 (unverändert)"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "\"Apply\" sets these axis mixes in the Global profile and resets the direction switches to normal. You can undo it afterwards. \"Cancel\" changes nothing."
+msgstr "„Anwenden“ setzt diese Achsen-Mixe im Profil Global und stellt die Richtungsschalter auf normal zurück. Du kannst das danach rückgängig machen. „Abbrechen“ ändert nichts."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Reversed directions"
+msgstr "Umgekehrte Richtungen"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "You can undo this afterwards."
+msgstr "Du kannst das danach rückgängig machen."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Dismiss"
+msgstr "Schließen"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Close this bar; the profile stays removed"
+msgstr "Diese Leiste schließen; das Profil bleibt entfernt"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Close this bar; the axis mixes stay as Apply set them"
+msgstr "Diese Leiste schließen; die Achsen-Mixe bleiben so, wie „Anwenden“ sie gesetzt hat"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Profile \"%1\" removed. Undo with the Undo button or %2. Dismiss closes the bar."
+msgstr "Profil „%1“ entfernt. Rückgängig mit der Schaltfläche „Rückgängig“ oder %2. „Schließen“ schließt die Leiste."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Undo with the Undo button or %1. Dismiss closes the bar."
+msgstr "Rückgängig mit der Schaltfläche „Rückgängig“ oder %1. „Schließen“ schließt die Leiste."
