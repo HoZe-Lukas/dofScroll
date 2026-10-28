@@ -197,10 +197,8 @@ by rebuilding in the refreshed images (the CI image is rebuilt weekly).
   the arm64 binaries the signature the kernel requires to run them at all. The **hardened runtime** makes dyld ignore
   `DYLD_INSERT_LIBRARIES`, so another process of the user cannot inject code into a dofscroll process that holds the
   Accessibility and Input Monitoring grants (issue #269); the entitlement `allow-dyld-environment-variables` is
-  never set, and no program has an entitlement: with `com.apple.security.cs.disable-library-validation` the daemon
-  loaded the injected library in the CI test, so the daemon keeps library validation. Consequence: the optional
-  driver-interface input (`INPUT`, the vendor framework of another team loaded with `dlopen`) cannot load in this
-  image; the default HID input does not need it. `build-dmg.sh` checks the flags and the entitlements
+  never set. Only the daemon has `com.apple.security.cs.disable-library-validation` (`packaging/macos/daemon.entitlements`),
+  because it loads the vendor framework of another team at run time. `build-dmg.sh` checks the flags and the entitlements
   and the macOS job of `installers.yml` starts each program with `DYLD_INSERT_LIBRARIES` and fails if the library ran
   (with a program that is not hardened as positive control).
   Gatekeeper still treats the download as unidentified and unnotarized; the first-run steps are in

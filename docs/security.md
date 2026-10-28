@@ -983,10 +983,10 @@ is restricted, fixed and logged. Background and the legal side: [legal-notes.md]
 - **What these checks do not do:** they do not verify a signature or the identity of the vendor; they
   only keep a different, user-writable file from being loaded in place of the installed driver. An
   administrator or malware with administrator rights can replace the driver; so they can replace
-  dofscroll. On macOS a hardened-runtime build needs the entitlement
-  `com.apple.security.cs.disable-library-validation` to load a library signed by another team, and the CI test
-  showed that a daemon with that entitlement then also loads `DYLD_INSERT_LIBRARIES` code. The DMG therefore keeps
-  library validation and does not load the vendor framework (see `release-process.md`). Under the App Sandbox, registering with the driver fails (reported
+  dofscroll. On macOS a notarized, hardened-runtime build needs the entitlement
+  `com.apple.security.cs.disable-library-validation` to load a library signed by another team; this is
+  a trade-off to be decided when the DMG is signed (`release-process.md`), and the unsigned DMG
+  of today does not need it. Under the App Sandbox, registering with the driver fails (reported
   publicly); dofscroll is not sandboxed.
 - **Failure modes:** driver absent, library or class refused by the checks, interface member
   missing ("interface mismatch"), registration or `Connect` refused, driver stops answering. In every

@@ -94,17 +94,15 @@ macdeployqt "$APP" -always-overwrite
 # framework macdeployqt copied, then the daemon, the diagnostic tool and the main executable, the bundle last.
 # With the hardened runtime dyld ignores DYLD_INSERT_LIBRARIES and the other DYLD_* variables, so another process
 # of the user cannot start a dofscroll binary with its own code and use the Accessibility and Input Monitoring
-# grants (issue #269). No entitlement is set anywhere: the CI test showed that a daemon with
-# com.apple.security.cs.disable-library-validation still loads a library from DYLD_INSERT_LIBRARIES. The price is that
-# with library validation the optional driver-interface input (INPUT, dlopen of the vendor framework of another team)
-# cannot load in this ad-hoc signed image; the default HID input is not affected.
-# Ad-hoc is not an identity; a Developer ID signature needs a paid account (docs/release-process.md).
+# grants (issue #269). The entitlement allow-dyld-environment-variables is NOT set anywhere. Only the daemon gets
+# com.apple.security.cs.disable-library-validation (daemon.entitlements): it dlopens the vendor framework, which
+# another team signed. Ad-hoc is not an identity; a Developer ID signature needs a paid account (docs/release-process.md).
 SIGN="codesign --force --options runtime --sign -"
 find "$APP/Contents" -type f -name '*.dylib' | while IFS= read -r f; do $SIGN "$f"; done
 if [ -d "$APP/Contents/Frameworks" ]; then
     find "$APP/Contents/Frameworks" -maxdepth 1 -name '*.framework' | while IFS= read -r f; do $SIGN "$f"; done
 fi
-$SIGN "$DAEMON_DIR/dofscroll"
+$SIGN --entitlements "$HERE/daemon.entitlements" "$DAEMON_DIR/dofscroll"
 $SIGN "$DAEMON_DIR/dofscroll-hidprobe"
 $SIGN "$APP/Contents/MacOS/dofscroll-ui"
 $SIGN "$APP"
