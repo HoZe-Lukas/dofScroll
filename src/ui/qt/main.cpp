@@ -2303,7 +2303,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                     }
                 // "Nothing for this direction" is worded for a click or a hold
                 bool nothingBox = false;
-                for (QCheckBox *cb : mv->inspector()->findChildren<QCheckBox *>(QStringLiteral("keyNoNeg"))) nothingBox = cb->text().startsWith(QStringLiteral("Nothing for"));
+                for (QLabel *l : mv->inspector()->findChildren<QLabel *>(QStringLiteral("keyNoNegLabel"))) nothingBox = l->text().startsWith(QStringLiteral("Nothing for")) && l->wordWrap() && l->buddy() && l->buddy()->objectName() == QStringLiteral("keyNoNeg");
                 check(nothingBox, "the box that switches a direction off says Nothing, not No key");
                 mact = mv->inspector()->findChild<QComboBox *>(QStringLiteral("motionAction"));
                 if (mact) {
@@ -2329,7 +2329,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                 const QFont baseFont = QApplication::font();
                 const QSize baseSize = w.size();
                 // letter spacing 100 = the font as it is; 140 widens every glyph like a wide font of another platform would
-                const struct { double scale; int spacing; } fontCases[] = {{1.0, 100}, {1.5, 100}, {2.0, 100}, {1.0, 140}, {1.5, 140}, {2.0, 160}};
+                const struct { double scale; int spacing; } fontCases[] = {{1.0, 100}, {1.5, 100}, {2.0, 100}, {1.0, 140}, {1.5, 140}, {1.0, 180}, {2.0, 180}};
                 for (const auto &fc : fontCases) {
                     const double scale = fc.scale;
                     QApplication::setFont(baseFont);
@@ -2349,6 +2349,8 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                     for (QWidget *p = mv->inspector(); p; p = p->parentWidget())
                         if (auto *sa = qobject_cast<QAbstractScrollArea *>(p))
                             if (sa->horizontalScrollBar() && sa->horizontalScrollBar()->isVisible()) fits = false;
+                    // the inspector needs well under 450 px at the normal font whatever the glyphs: it never forces a scroll bar
+                    if (scale == 1.0 && mv->inspector()->minimumSizeHint().width() > 450) fits = false;
                     check(fits, fc.spacing != 100 ? (scale == 1.0 ? "1100 px, wide glyphs: no horizontal scroll bar" : "150% font, wide glyphs: no horizontal scroll bar")
                                 : scale == 1.0 ? "1100 px, 100% font: no horizontal scroll bar" : scale == 1.5 ? "150% font: no horizontal scroll bar" : "200% font: no horizontal scroll bar");
                     if (!fits) {  // which controls reach beyond the visible width (for the log of a failing run)
@@ -2357,9 +2359,9 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                         for (QWidget *c : mv->inspector()->findChildren<QWidget *>()) {
                             const int right = c->mapTo(w.window(), QPoint(c->width(), 0)).x();
                             const int limit = sa ? sa->viewport()->mapTo(w.window(), QPoint(sa->viewport()->width(), 0)).x() : w.width();
-                            if (c->isVisibleTo(mv->inspector()) && right > limit)
-                                std::fprintf(stderr, "  too wide: %s \"%s\" min %dx%d hint %dx%d right %d limit %d\n", c->metaObject()->className(),
-                                             qPrintable(c->objectName()), c->minimumSizeHint().width(), c->minimumSizeHint().height(), c->sizeHint().width(),
+                            if (c->isVisibleTo(mv->inspector()) && (right > limit || c->minimumSizeHint().width() > 300))
+                                std::fprintf(stderr, "  too wide (x%g/%d): %s \"%s\" min %dx%d hint %dx%d right %d limit %d\n", scale, fc.spacing, c->metaObject()->className(),
+                                             qPrintable(qobject_cast<QLabel *>(c) ? qobject_cast<QLabel *>(c)->text().left(40) : qobject_cast<QAbstractButton *>(c) ? qobject_cast<QAbstractButton *>(c)->text().left(40) : c->objectName()), c->minimumSizeHint().width(), c->minimumSizeHint().height(), c->sizeHint().width(),
                                              c->sizeHint().height(), right, limit);
                         }
                     }

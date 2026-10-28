@@ -71,16 +71,23 @@ inline QWidget *keyEngineBox(QWidget *parent, QObject *owner, const KeyEngineEnv
     for (int side = 0; side < 2; ++side) {
         std::string ChannelForm::*chord = side == 0 ? &ChannelForm::neg : &ChannelForm::pos;
         const bool none = env.form->*chord == "none";
-        auto *cb = new QCheckBox(mouseOrHold ? (side == 0 ? T("Nothing for the negative direction") : T("Nothing for the positive direction"))
-                                             : (side == 0 ? T("No key for the negative direction") : T("No key for the positive direction")),
-                                 box);
+        // The explanation is a label that wraps (a check box does not); the check box itself has a short text.
+        const QString longText = mouseOrHold ? (side == 0 ? T("Nothing for the negative direction") : T("Nothing for the positive direction"))
+                                             : (side == 0 ? T("No key for the negative direction") : T("No key for the positive direction"));
+        auto *sideLabel = new QLabel(longText, box);
+        sideLabel->setWordWrap(true);
+        sideLabel->setTextFormat(Qt::PlainText);
+        sideLabel->setObjectName(side == 0 ? QStringLiteral("keyNoNegLabel") : QStringLiteral("keyNoPosLabel"));
+        col->addWidget(sideLabel);
+        auto *cb = new QCheckBox(mouseOrHold ? T("Nothing") : T("No key"), box);
         cb->setObjectName(side == 0 ? QStringLiteral("keyNoNeg") : QStringLiteral("keyNoPos"));
         cb->setProperty("look", QStringLiteral("box"));
         cb->setChecked(none);
         const std::string other = env.form->*(side == 0 ? &ChannelForm::pos : &ChannelForm::neg);
         cb->setEnabled(none || other != "none");  // at least one side keeps a key
+        sideLabel->setBuddy(cb);
         cb->setAccessibleName(cb->text());
-        cb->setAccessibleDescription(forMotion + cb->text());
+        cb->setAccessibleDescription(forMotion + longText);
         cb->setMinimumHeight(24);
         col->addWidget(cb);
         QObject::connect(cb, &QCheckBox::clicked, owner, [env, chord, mouseOrHold](bool on) {
@@ -91,9 +98,8 @@ inline QWidget *keyEngineBox(QWidget *parent, QObject *owner, const KeyEngineEnv
 
     // the rate and trigger fields: empty = not set (the behavior of older versions)
     auto *fieldsHost = new QWidget(box);  // a widget of its own: the layouts around are emptied by takeAt()
-    auto *fields = new QFormLayout(fieldsHost);
+    auto *fields = new QVBoxLayout(fieldsHost);  // label above its field: a label that wraps, so a wide font never widens the inspector
     fields->setContentsMargins(0, 0, 0, 0);
-    fields->setRowWrapPolicy(QFormLayout::WrapLongRows);  // a long label goes above its field instead of widening the inspector
     auto addField = [&](KeyField f, const QString &label, const char *objectName) {
         const std::string key = keyEngineKey(env.motionId, f);
         auto *edit = new QLineEdit(qs8(env.get ? env.get(key) : std::string()), box);
@@ -110,7 +116,14 @@ inline QWidget *keyEngineBox(QWidget *parent, QObject *owner, const KeyEngineEnv
             const double shown = has ? v : f == KeyField::Trigger ? env.effective.step_trigger : -1.0;
             if (shown >= 0.0) edit->setPlaceholderText(QString::number(shown, 'g', 6));  // what applies when the field is empty
         }
-        fields->addRow(label + QLatin1Char(':'), edit);
+        auto *fieldLabel = new QLabel(label + QLatin1Char(':'), box);
+        fieldLabel->setWordWrap(true);
+        fieldLabel->setTextFormat(Qt::PlainText);
+        fieldLabel->setBuddy(edit);
+        fields->addWidget(fieldLabel);
+        edit->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        edit->setMinimumWidth(80);
+        fields->addWidget(edit);
         auto *note = new QLabel(box);
         note->setObjectName(QStringLiteral("keyFieldNote"));
         note->setWordWrap(true);
@@ -135,7 +148,7 @@ inline QWidget *keyEngineBox(QWidget *parent, QObject *owner, const KeyEngineEnv
         QObject::connect(edit, &QLineEdit::editingFinished, owner, [env] {
             if (env.flush) env.flush();
         });
-        fields->addRow(note);
+        fields->addWidget(note);
     };
     if (choice.analog) {
         addField(KeyField::RateMin, qs8(words.rateMin), "keyRateMin");
