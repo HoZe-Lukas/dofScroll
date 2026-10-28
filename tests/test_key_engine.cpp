@@ -27,7 +27,7 @@ static int failures = 0;
     std::fprintf(stderr, "FAIL %s:%d: %s -- ", __FILE__, __LINE__, #cond); \
     std::fprintf(stderr, __VA_ARGS__); std::fprintf(stderr, "\n"); } } while (0)
 
-struct Rec : Output {
+struct KeyRec : Output {
     std::vector<std::string> ev;
     const char *name() const override { return "rec"; }
     bool init(std::string *) override { return true; }
@@ -86,7 +86,7 @@ static void run(ModeRunner &r, const Settings &s, const RawAxes &raw, double sec
 
 // The taps of z held for `secs` with the given keys of the profile.
 static int tapsOf(const std::vector<KV> &kv, int z, double secs) {
-    Rec o;
+    KeyRec o;
     ModeRunner r(&o);
     r.setMode(normalMode());
     run(r, conf(kv), only(AX_Z, z), secs);
@@ -221,7 +221,7 @@ static void testScenarioAnalog() {
     CHECK(lifted >= 9 && lifted <= 11, "KEY_RATE_MIN 10 lifts a light push: %d presses", lifted);
     // the first press: at once with a lower limit, after the delay without
     {
-        Rec o;
+        KeyRec o;
         ModeRunner r(&o);
         r.setMode(normalMode());
         const Settings s = conf({{"V_ACTION", "keys:up,down"}, {"SCROLL_V_PUSH_KEY_RATE_MIN", "3"}});
@@ -229,7 +229,7 @@ static void testScenarioAnalog() {
         CHECK(o.count("tap:down") == 1, "first press in the first tick with KEY_RATE_MIN");
     }
     {
-        Rec o;
+        KeyRec o;
         ModeRunner r(&o);
         r.setMode(normalMode());
         r.tick(conf({{"V_ACTION", "keys:up,down"}}), only(AX_Z, 300), 0, true, DT);
@@ -237,7 +237,7 @@ static void testScenarioAnalog() {
     }
     // negative direction, split parts, the other motions: push and tilt separately, twist
     {
-        Rec o;
+        KeyRec o;
         ModeRunner r(&o);
         r.setMode(normalMode());
         const Settings s = conf({{"V_PUSH_ACTION", "keys:pageup,pagedown"}, {"V_TILT_ACTION", "keys:home,end"}, {"TWIST_ACTION", "keys:left,right"},
@@ -256,7 +256,7 @@ static void testScenarioAnalog() {
 static void testScenarioDigital() {
     // exactly one press per crossing, the trigger of the motion beats STEP_TRIGGER
     auto presses = [](const std::vector<int> &z, const std::vector<KV> &kv) {
-        Rec o;
+        KeyRec o;
         ModeRunner r(&o);
         r.setMode(normalMode());
         const Settings s = conf(kv);
@@ -281,7 +281,7 @@ static void testScenarioDigital() {
     CHECK(presses({300}, high) == 1 && presses({150}, high) == 0, "and raises it");
     // crosstalk push / tilt: each motion fires its own key once
     {
-        Rec o;
+        KeyRec o;
         ModeRunner r(&o);
         r.setMode(normalMode());
         const Settings s = conf({{"V_PUSH_ACTION", "step:left,right"}, {"V_TILT_ACTION", "step:up,down"}});
@@ -291,7 +291,7 @@ static void testScenarioDigital() {
 }
 
 static void testScenarioNone() {
-    Rec o;
+    KeyRec o;
     ModeRunner r(&o);
     r.setMode(normalMode());
     for (const char *kind : {"keys", "step"}) {
@@ -311,7 +311,7 @@ static void testScenarioNone() {
 
 static void testScenarioTickCaps() {
     // five functions deflected with a slow tick (huge dt): 4 presses each at most, 8 in all
-    Rec o;
+    KeyRec o;
     ModeRunner r(&o);
     r.setMode(normalMode());
     const Settings s = conf({{"V_PUSH_ACTION", "keys:up,down"}, {"V_TILT_ACTION", "keys:pageup,pagedown"}, {"H_PUSH_ACTION", "keys:left,right"},
@@ -321,7 +321,7 @@ static void testScenarioTickCaps() {
     for (const char *k : {"tap:up", "tap:down", "tap:left", "tap:right", "tap:pageup", "tap:pagedown", "tap:home", "tap:end"})
         CHECK(o.count(k) <= kMaxPressesPerFunction, "%s at most 4 per tick", k);
     // a single function: 4
-    Rec o2;
+    KeyRec o2;
     ModeRunner r2(&o2);
     r2.setMode(normalMode());
     r2.tick(conf({{"V_ACTION", "keys:up,down"}, {"TICK_HZ", "30"}}), only(AX_Z, 350), 0, true, 1.0);
