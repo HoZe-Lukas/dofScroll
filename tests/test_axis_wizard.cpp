@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <string>
 
+#include "axis_convention.hpp"
 #include "axis_wizard.hpp"
 #include "config.hpp"
 
@@ -203,8 +204,23 @@ static void testEvaluate() {
     res[ROLE_PUSH_V] = analyzeStep(sweep(P_LIFT, withMain(AX_Y, 1)));
     w = evaluate(res, none);
     bool hasY = false;
-    for (const auto &m : w.warnings) hasY = hasY || m.find("(y)") != std::string::npos;
+    for (const auto &m : w.warnings) hasY = hasY || m.find("lift/press") != std::string::npos;
     assert(hasY && w.mix_v == "y + rx");
+    // Windows driver convention: y is the vertical push (no warning), z is lift/press (warning, no axis name).
+    const Axis winLift = conventionLiftAxis(conventionFor("windows", "driver"));
+    assert(winLift == AX_Z);
+    w = evaluate(res, none, winLift);
+    for (const auto &m : w.warnings) assert(m.find("lift/press") == std::string::npos);
+    res = fullRun(1, 1, 1, -1, 1);
+    res[ROLE_PUSH_V] = analyzeStep(sweep(P_PUSH_V, withMain(AX_Z, 1)));
+    w = evaluate(res, none, winLift);
+    hasY = false;
+    for (const auto &m : w.warnings) {
+        hasY = hasY || m.find("lift/press") != std::string::npos;
+        assert(m.find("(z)") == std::string::npos && m.find("(y)") == std::string::npos);
+    }
+    assert(hasY);
+    res = fullRun(1, 1, 1, -1, 1);
 
     // parseMix must accept all generated mixes.
     w = evaluate(fullRun(1, 1, 1, -1, 1), none);

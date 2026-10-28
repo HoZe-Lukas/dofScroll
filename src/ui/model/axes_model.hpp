@@ -368,6 +368,8 @@ public:
 
     // Lateral axes of the zoom detection: warns on the result page if the twist axis is among them.
     void setZoomLateral(const std::vector<Axis> &lat) { lateral_ = lat; }
+    // Lift/press axis of the active convention (axis_convention.hpp, #186); the result page warns about it.
+    void setLiftAxis(Axis a) { liftAxis_ = a; }
     void setConnected(bool c) { connected_ = c; }
 
     // Starts measuring at once (the "Start now" button; the normal start is by movement).
@@ -594,7 +596,7 @@ private:
         }
     }
     void evaluateNow() {
-        final_ = wiz::evaluate(res_, skipped_);
+        final_ = wiz::evaluate(res_, skipped_, liftAxis_);
         if (!skipped_[wiz::ROLE_TWIST] && res_[wiz::ROLE_TWIST].valid)
             for (Axis l : lateral_)
                 if (int(l) == res_[wiz::ROLE_TWIST].axis)
@@ -617,6 +619,7 @@ private:
     std::array<bool, wiz::ROLE_COUNT> done_{}, skipped_{};
     wiz::WizardResult final_;
     std::vector<Axis> lateral_;
+    Axis liftAxis_ = AX_Y;
 };
 
 // The result page as a table by direction: what was detected for each motion, in the order of

@@ -117,9 +117,9 @@ msgstr ""
 #: src/axis_wizard.hpp:313
 #, c-format
 msgid ""
-"For \"%s\" lift/press (y) was strongest - probably pressed down too hard."
+"For \"%s\" lift/press was strongest - probably pressed down too hard."
 msgstr ""
-"Bei „%s“ war Heben/Drücken (y) am stärksten - vermutlich zu stark nach unten "
+"Bei „%s“ war Heben/Drücken am stärksten - vermutlich zu stark nach unten "
 "gedrückt."
 
 #: src/ui/qt/pages/axes_page.cpp:66

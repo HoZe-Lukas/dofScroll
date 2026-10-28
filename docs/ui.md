@@ -487,7 +487,11 @@ time the page only says that no movement was seen). The two optional tilt steps 
 after 5 s without movement ("skipped, no movement") and can be done later: **Back** from the result
 page, or run the assistant again. The result page lists what was detected per direction ("Push
 forward/back: z, positive"; the axis names appear only here, because they are what is written) and
-the warnings; **Apply** is the default button (Enter), **Cancel** and Esc leave without writing. Apply
+the warnings. The warning "lift/press was strongest - probably pressed down too hard" is about the axis that
+is lift/press in the configuration shown (the axis the channel mixes leave out: `y` on Linux, `z` with the
+3Dconnexion driver on Windows); where the configuration does not say, the assistant falls back to a table per
+system (`src/axis_convention.hpp`: Linux order, Windows driver order; macOS and the direct HID path use the
+Linux order until they are measured, issue #186). **Apply** is the default button (Enter), **Cancel** and Esc leave without writing. Apply
 writes exactly the keys it always wrote (`SCROLL_V_MIX`, `SCROLL_H_MIX`, `ZOOM_MIX`, the three
 `*_SIGN` switches and `ZOOM_LATERAL`). The state is always text ("Waiting...", "Measuring...",
 "Detected"), the whole page works with the keyboard (Tab order: Apply, Next, Start/Measure again, Skip,

@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "axis_convention.hpp"
 #include "ui/model/axis_roles_model.hpp"
 #include "ui/model/channels_page_model.hpp"
 #include "ui/model/fresh_state.hpp"
@@ -184,7 +185,33 @@ static void testSplitMix() {
     assert(mixToString(mp) == "y" && mixToString(mt) == "rx");
 }
 
+// The per-platform / per-input-path fallback table (axis_convention.hpp) agrees with the seeded defaults of the
+// systems that were measured, and the platform is a parameter so every row runs on Linux.
+static void testConvention() {
+    assert(conventionFor("linux", "") == AxisConvention::Linux);
+    assert(conventionFor("linux", "hid") == AxisConvention::Linux);
+    assert(conventionFor("windows", "driver") == AxisConvention::WindowsDriver);
+    assert(conventionFor("windows", "") == AxisConvention::WindowsDriver);
+    assert(conventionFor("windows", "hid") == AxisConvention::Linux);  // unmeasured: Linux order
+    assert(conventionFor("macos", "driver") == AxisConvention::Linux);  // unmeasured, not guessed
+    assert(conventionFor("macos", "hid") == AxisConvention::Linux);
+    const struct {
+        const char *os;
+        AxisConvention c;
+    } measured[] = {{"linux", AxisConvention::Linux}, {"windows", AxisConvention::WindowsDriver}};
+    for (const auto &m : measured) {
+        const AxisRoles r = deriveAxisRoles(settingsOfFile(std::string("examples/default/") + m.os + "/dofscroll.conf"));
+        assert(r.matched && r.complete());
+        for (int mo = 0; mo < kMotionCount; ++mo) {
+            assert(r.axisOf[size_t(mo)] == int(conventionAxis(m.c, mo)));
+            assert(conventionMotion(m.c, conventionAxis(m.c, mo)) == mo);
+        }
+    }
+    assert(conventionLiftAxis(AxisConvention::Linux) == AX_Y && conventionLiftAxis(AxisConvention::WindowsDriver) == AX_Z);
+}
+
 int main() {
+    testConvention();
     testTable();
     testNeutralWords();
     testUserChangesFollow();

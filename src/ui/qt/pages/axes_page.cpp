@@ -22,7 +22,9 @@
 #include <string>
 #include <unordered_map>
 
+#include "axis_convention.hpp"
 #include "config.hpp"
+#include "seed.hpp"
 #include "motion_view.hpp"
 #include "ui/model/axis_roles_model.hpp"
 #include "ui/model/fresh_state.hpp"
@@ -381,7 +383,15 @@ void AxesPage::openWizard() {
     w.setTuning(spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).assistant);  // axis_assistant_* keys, no UI for them
     wizWasResult_ = false;
     applyNote_.clear();
-    if (ctx_.settings) w.setZoomLateral(ctx_.settings->profiles().sectionSettings(0).zoom_lateral);
+    if (ctx_.settings) {
+        const spn::Settings &g = ctx_.settings->profiles().sectionSettings(0);
+        w.setZoomLateral(g.zoom_lateral);
+        // The lift/press axis: what the configuration leaves out of the channels, else the table of the platform.
+        const spn::ui::AxisRoles roles = spn::ui::deriveAxisRoles(g);
+        w.setLiftAxis(roles.matched && roles.has(spn::ui::Motion::Lift)
+                          ? roles.axis(spn::ui::Motion::Lift)
+                          : spn::conventionLiftAxis(spn::conventionFor(spn::seedOsName(), "")));
+    }
     savedNote_.clear();
     stack_->setCurrentIndex(1);
     refreshWizard(now());
