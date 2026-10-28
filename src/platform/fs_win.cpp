@@ -451,12 +451,16 @@ void randomHex16(char out[17]) {
     for (int k = 0; k < 8; k++) std::snprintf(out + 2 * k, 3, "%02x", r[k]);
 }
 
-bool writeFileReplace(const std::string &pathIn, const std::string &data, std::string *err) {
+static bool replaceFileImpl(const std::string &pathIn, const std::string &data, bool followLink, std::string *err) {
     std::string real = toSlashes(pathIn);
     if (!pathOk(real, err)) return false;
+    if (!followLink) {  // runtime files: a link at the final name is refused (untested on Windows)
+        FileInfo nl;
+        if (lstatPath(real, &nl) && (nl.isLink || !nl.isFile)) return setMsg(err, real + ": not a regular file");
+    }
     // A link at the target is followed once: the temp file goes next to the real file.
     FileInfo li;
-    if (lstatPath(real, &li) && li.isLink) {
+    if (followLink && lstatPath(real, &li) && li.isLink) {
         // Only a symbolic link is followed; junctions, mount points and every other reparse point
         // are refused.
         Handle t(::CreateFileW(native(real).c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
@@ -530,6 +534,14 @@ bool writeFileReplace(const std::string &pathIn, const std::string &data, std::s
         return setMsg(err, m);
     }
     return true;
+}
+
+bool writeFileReplace(const std::string &pathIn, const std::string &data, std::string *err) {
+    return replaceFileImpl(pathIn, data, true, err);
+}
+
+bool writeFileReplaceNoFollow(const std::string &pathIn, const std::string &data, std::string *err) {
+    return replaceFileImpl(pathIn, data, false, err);
 }
 
 std::string executablePath() {

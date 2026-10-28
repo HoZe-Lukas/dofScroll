@@ -48,9 +48,11 @@ public:
         const int di = match(vid, pid);
         if (di < 0) return 0;
         std::lock_guard<std::mutex> lk(mu_);
+        const int newId = allocId();
+        if (newId == 0) return 0;  // all 255 ids are in use: refuse instead of colliding
         Dev d;
         d.desc = di;
-        d.info.id = next_id_++;
+        d.info.id = newId;
         d.info.name = descs_[static_cast<size_t>(di)].name.empty() ? productName : descs_[static_cast<size_t>(di)].name;
         d.info.vendor = vid;
         d.info.product = pid;
@@ -165,6 +167,17 @@ private:
         InputEvent e;
         e.type = InputEventType::DevicesChanged;
         out->push_back(e);
+    }
+
+    // Next id in 1..255 (the live feed wire format carries the id in one byte) that no live device
+    // uses; ids are handed out in rising order and freed ones are reused after the wrap. 0 = none free.
+    int allocId() {
+        for (int tries = 0; tries < 255; ++tries) {
+            const int id = next_id_;
+            next_id_ = next_id_ >= 255 ? 1 : next_id_ + 1;
+            if (devs_.find(id) == devs_.end()) return id;
+        }
+        return 0;
     }
 
     std::vector<HidDescriptor> descs_;

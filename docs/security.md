@@ -844,7 +844,9 @@ The daemon publishes the current axes, buttons and its own interpretation (chann
 mode) to the UI at 30 Hz (`src/live_feed/`, protocol in `port-architecture.md`). On Windows and macOS
 the daemon owns the device exclusively, so the UI cannot read it directly.
 
-- **Transport.** POSIX: Unix domain socket `live.sock` in the runtime directory, created 0600 in a
+- **Transport.** POSIX: Unix domain socket `live.sock` in the runtime directory (if `XDG_RUNTIME_DIR`
+  is unset, or the path would not fit into `sun_path`, `socketPathFor` falls back to
+  `/tmp/dofscroll-<uid>/`, which is created 0700 and checked like any other socket directory), created 0600 in a
   directory that is verified to be a real directory of the current user without group/other write
   access (same code as the macOS reload socket, `src/platform/unix_socket.cpp`); the peer uid is
   checked on accept (`SO_PEERCRED` / `getpeereid`), and the client refuses a socket or server of
@@ -1000,8 +1002,9 @@ workflows). Nothing high or critical, no local privilege escalation. Fixed in 1.
 
 Fixed afterwards (issue #150): the interface, the autostart code and the reload request no longer start `systemctl` and
 `launchctl` through `PATH`. They use the same lookup as the daemon's helper programs (`findHelper()` in
-`src/platform/exec_lookup.hpp`: `/usr/bin`, `/usr/local/bin`, `/bin`, only absolute directories, only executable regular
-files); a helper that is not there is an error, never a `PATH` fallback. The argv plans in
+`src/platform/exec_lookup.hpp`: `/usr/bin`, `/bin`, `/usr/sbin`, `/sbin`, only absolute directories, only executable regular
+files that are root-owned and not group/other-writable; `/usr/local/bin` is searched last and only for the optional
+helper `kdotool`); a helper that is not there is an error, never a `PATH` fallback. The argv plans in
 `src/ui/model/restart_plan.hpp` stay plain names, `resolveHelperArgv()` (unit-tested) turns them into paths right before
 the start. Windows PowerShell is started by its full path in the installer, in the interface and in
 `scripts/test-driver-coexistence.ps1`.

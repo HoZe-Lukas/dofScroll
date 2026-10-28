@@ -249,11 +249,13 @@ void randomHex16(char out[17]) {
     for (int k = 0; k < 8; k++) std::snprintf(out + 2 * k, 3, "%02x", r[k]);
 }
 
-bool writeFileReplace(const std::string &path, const std::string &content, std::string *err) {
+static bool replaceFileImpl(const std::string &path, const std::string &content, bool followLink,
+                            std::string *err) {
     // Resolve symlink: temp next to the real target, so the link is preserved.
     std::string real = path;
     bool resolved = false;
     for (int depth = 0; depth <= 16; depth++) {
+        if (!followLink) { resolved = true; break; }  // runtime files: the final name is never resolved
         struct stat lst;
         if (::lstat(real.c_str(), &lst) != 0 || !S_ISLNK(lst.st_mode)) { resolved = true; break; }
         if (depth == 16) break;
@@ -324,6 +326,14 @@ bool writeFileReplace(const std::string &path, const std::string &content, std::
     }
     (void)::fsync(dfd);  // persist the directory entry (best effort)
     return true;
+}
+
+bool writeFileReplace(const std::string &path, const std::string &content, std::string *err) {
+    return replaceFileImpl(path, content, true, err);
+}
+
+bool writeFileReplaceNoFollow(const std::string &path, const std::string &content, std::string *err) {
+    return replaceFileImpl(path, content, false, err);
 }
 
 std::string executablePath() {

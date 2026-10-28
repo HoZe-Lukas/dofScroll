@@ -79,7 +79,8 @@ packaging and in the trust model around mode files, not in parsing.
   - Where the daemon uses the uinput backend (Wayland) the same events reach the lock screen and
     other sessions on the seat (see F3).
 - Limits (why this is High and not Critical): a mode file cannot type text sequences, cannot send
-  codes outside the list (no SysRq, no media/power keys), and every effect needs the physical
+  codes outside the list (the list does hold the media keys and `print`, which is the same key code as SysRq on Linux;
+  see `docs/security.md`), and every effect needs the physical
   device to be moved or pressed. It is a social-engineering vector for shared mode files (A4), the
   scenario `docs/security.md` section 7 explicitly invites ("modes may be shared").
   The doc's claim that this "does not exceed what A2 can do via XTest" is wrong for A4 (a stranger's

@@ -24,8 +24,11 @@ int newSocket();
 // binds (file mode 0600), listens and makes the socket non-blocking. Returns the fd or -1 + *err.
 int listenAt(const std::string &path, int backlog, std::string *err);
 // Connects to a socket after checking that it is a socket owned by the current user. Returns the
-// fd or -1 + *err. `nonblocking`: the returned fd is set non-blocking.
+// fd or -1 + *err. Never blocks longer than 500 ms (a full listener backlog is an error).
+// `nonblocking`: the returned fd is non-blocking, else blocking.
 int connectTo(const std::string &path, bool nonblocking, std::string *err);
+// accept() whose new fd is close-on-exec (accept4 on Linux, fcntl elsewhere); retries on EINTR.
+int acceptCloexec(int listenFd);
 // Effective uid of the peer (SO_PEERCRED / getpeereid).
 bool peerUid(int fd, uid_t *uid);
 // send() flag that suppresses SIGPIPE (0 where SO_NOSIGPIPE does that).

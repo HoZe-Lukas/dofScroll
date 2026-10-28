@@ -9,7 +9,7 @@ dofscroll: a C++17 bridge for a 3Dconnexion SpaceMouse, two processes. The daemo
 (`src/dofscroll.cpp`) reads the device through `spacenavd`/`libspnav` and produces scroll, zoom,
 key and mouse-button events through X11/XTest or uinput. The Qt6 interface
 (`src/ui/`, `dofscroll-ui`, tray icon and settings window) writes the same config file and triggers a
-live reload with SIGHUP, the same on all three systems. Windows and macOS daemons are built by CI,
+live reload: SIGHUP on Linux, the reload socket on macOS (there SIGHUP quits the daemon), a named event on Windows. Windows and macOS daemons are built by CI,
 not run on hardware (`docs/work-plan.md`).
 
 ## Layout

@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "fs.hpp"
 
@@ -54,6 +55,25 @@ inline SessionState parseLogindSession(const std::string &text) {
     return byActive != SessionState::Unknown ? byActive : byState;
 }
 
+// /run/systemd/users/<uid> (per-user state, used when XDG_SESSION_ID is missing): STATE=active means
+// the user has a session in the foreground, online/lingering/closing means none. No STATE = unknown.
+inline SessionState parseLogindUser(const std::string &text) {
+    size_t pos = 0;
+    while (pos < text.size()) {
+        size_t eol = text.find('\n', pos);
+        if (eol == std::string::npos) eol = text.size();
+        const std::string line = text.substr(pos, eol - pos);
+        pos = eol + 1;
+        if (line.compare(0, 6, "STATE=") == 0) {
+            const std::string v = line.substr(6);
+            if (v == "active") return SessionState::Active;
+            if (v == "online" || v == "lingering" || v == "closing") return SessionState::Inactive;
+            return SessionState::Unknown;
+        }
+    }
+    return SessionState::Unknown;
+}
+
 // XDG_SESSION_ID is used as a file name: accept only a short run of [A-Za-z0-9_-] (no separators,
 // no "..", so the variable can never point outside the sessions directory).
 inline bool validLogindSessionId(const std::string &id) {
@@ -72,8 +92,26 @@ inline bool validLogindSessionId(const std::string &id) {
 class LogindFileMonitor : public SessionMonitor {
 public:
     LogindFileMonitor(std::string dir, std::string id) : dir_(std::move(dir)), id_(std::move(id)) {}
+    // With `usersDir` (/run/systemd/users) and the uid, a missing or invalid session id falls back to
+    // the state of the user (active only while one of the user's sessions is in the foreground).
+    LogindFileMonitor(std::string dir, std::string id, std::string usersDir, uint32_t uid)
+        : dir_(std::move(dir)), id_(std::move(id)), usersDir_(std::move(usersDir)), uid_(uid) {}
     bool isActive(std::string *detail) override {
-        if (!validLogindSessionId(id_)) return note(detail, "no valid session id: assuming active", true);
+        if (!validLogindSessionId(id_)) {
+            if (usersDir_.empty()) return note(detail, "no valid session id: assuming active", true);
+            std::string text;
+            fs::ReadOptions uopt;
+            uopt.refuseLinks = true;
+            const fs::ReadResult ur = fs::readFileBounded(usersDir_ + "/" + std::to_string(uid_), 4096, uopt, &text);
+            const SessionState st = ur.ok() ? parseLogindUser(text) : SessionState::Unknown;
+            if (st == SessionState::Active) return note(detail, "logind user state active (no session id)", true);
+            if (st == SessionState::Inactive) return note(detail, "logind user state not active (no session id)", false);
+            if (!warned_) {
+                warned_ = true;
+                warnUnknown_ = true;
+            }
+            return note(detail, "no session id and no logind user state: assuming active", true);
+        }
         std::string text;
         fs::ReadOptions opt;
         opt.refuseLinks = true;
@@ -85,8 +123,16 @@ public:
         default: return note(detail, "logind state unknown: assuming active", true);
         }
     }
+    // True once, the first time the session could not be determined at all (for a log warning).
+    bool takeUnknownWarning() {
+        const bool w = warnUnknown_;
+        warnUnknown_ = false;
+        return w;
+    }
 private:
-    std::string dir_, id_;
+    std::string dir_, id_, usersDir_;
+    uint32_t uid_ = 0;
+    bool warned_ = false, warnUnknown_ = false;
     static bool note(std::string *detail, const char *text, bool active) {
         if (detail) *detail = text;
         return active;
