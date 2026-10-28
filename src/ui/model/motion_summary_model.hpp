@@ -212,6 +212,19 @@ inline std::vector<MotionRow> motionSummary(const ModeDef &m, Settings settings,
     std::vector<MotionRow> out;
     for (const Row &mo : motions) {
         bool found = false;
+        if (mo.motion == Motion::Lift) {
+            // The lift has its own channel (LIFT_ACTION, LIFT_*). A mix that still carries its axis (added to another
+            // motion, the older way) wins below; otherwise the row follows the lift action: "Not used" while it is
+            // the default, "Off" when a profile pinned it to none or switched its sensitivity to 0.
+            bool inMix = false;
+            if (roles.has(Motion::Lift))
+                for (const Chan &c : chans) inMix = inMix || hasAxis(*c.mix, roles.axis(Motion::Lift));
+            if (!inMix && m.lift.type != ChannelActionType::Default) {
+                if (m.lift.type == ChannelActionType::Off || settings.lift.sensitivity == 0) out.push_back(offRow(mo.id, mo.name, mo.how, s));
+                else out.push_back(rowFor(mo.id, mo.name, mo.how, m.lift, true, false, settings.zoom_modifier, s));
+                continue;
+            }
+        }
         if (!roles.has(mo.motion)) {  // the configuration assigns no axis to this movement
             out.push_back(unusedRow(mo.id, mo.name, mo.how, s));
             continue;

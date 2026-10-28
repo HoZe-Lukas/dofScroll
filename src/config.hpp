@@ -137,13 +137,18 @@ bool parseInvertAxes(const std::string &text, unsigned *out, std::string *err);
 // "z ry" (axis order), "none" for 0.
 std::string invertAxesToString(unsigned mask);
 
-// The channel actions a PROFILE can set (V_ACTION, H_ACTION, TWIST_ACTION and the split keys V_PUSH_ACTION,
+// The layers of the profile actions (Settings::actions), lowest first: [global], [device:*], [app:*]. The joystick mode
+// sits between the device and the program layer (profile_actions.hpp).
+constexpr int kLayerGlobal = 0, kLayerDevice = 1, kLayerApp = 2, kLayerCount = 3;
+
+// The channel actions a PROFILE can set (V_ACTION, H_ACTION, TWIST_ACTION, LIFT_ACTION and the split keys V_PUSH_ACTION,
 // V_TILT_ACTION, H_PUSH_ACTION, H_TILT_ACTION): the same keys, grammar and meaning as in a joystick mode file
 // (modes.hpp). A key that is not set leaves the action to the joystick mode (profile_actions.hpp merges them).
 struct ProfileActions {
-    enum Chan { V = 0, H = 1, TWIST = 2 };
-    ChannelAction chan[3];
-    bool chanSet[3] = {false, false, false};
+    enum Chan { V = 0, H = 1, TWIST = 2, LIFT = 3 };
+    static constexpr int kChanCount = 4;
+    ChannelAction chan[kChanCount];
+    bool chanSet[kChanCount] = {false, false, false, false};
     ChannelAction part[PART_COUNT];  // V push, V tilt, H push, H tilt
     bool partSet[PART_COUNT] = {false, false, false, false};
     bool any() const {
@@ -157,6 +162,7 @@ struct Settings {
     ChannelCfg scroll_v;
     ChannelCfg scroll_h;
     ChannelCfg zoom;
+    ChannelCfg lift;                  // LIFT_*: the lift / press motion (default mix "y", dead zone 80; LIFT_ACTION defaults to none)
     unsigned invert_axes = 0;         // INVERT_AXES: bit mask (bit = Axis) of the axes whose direction is flipped
     std::vector<Axis> zoom_lateral;   // default: x z rx rz
     unsigned zoom_modifier = kZoomModCtrl;  // ZOOM_MODIFIER: keys held while zooming
@@ -182,13 +188,13 @@ struct Settings {
     // toggle:mode:<id>).
     // Which n are valid for a given device is decided by the UI, not here.
     std::map<int, std::string> buttons;
-    // The channel actions set by profiles. Layer 0: [global] and [device:*] (below the joystick mode), layer 1:
-    // [app:*] (above it: the program has the last word, precedence global < device < mode < program).
-    ProfileActions actions[2];
+    // The channel actions set by profiles, per layer (kLayerGlobal, kLayerDevice below the joystick mode; kLayerApp
+    // above it: the program has the last word, precedence global < device < mode < program).
+    ProfileActions actions[kLayerCount];
     // BUTTON_<n> set by [app:*] sections (also in `buttons`): they win over the binding of the joystick mode.
     std::map<int, std::string> app_buttons;
-    // The layer applyKey writes the action keys and BUTTON_<n> to (ProfileSet::resolve sets 1 for [app:*]).
-    int action_layer = 0;
+    // The layer applyKey writes the action keys and BUTTON_<n> to (kLayerGlobal ... kLayerApp, see applyKeyLayer).
+    int action_layer = kLayerGlobal;
 
     Settings();  // sets the defaults (see config.cpp): scroll_v "z + rx" sens 5
                  // dz 30 sign 1; scroll_h "x - rz" sens 3 dz 20 sign 1;
@@ -201,15 +207,15 @@ using KV = std::pair<std::string, std::string>;
 // false + *err on an unknown key or invalid value (Settings stays unchanged then).
 bool applyKey(Settings &s, const std::string &key, const std::string &value, std::string *err);
 
-// Like applyKey, but writes the channel actions and BUTTON_<n> to the given layer (0: [global]/[device:*],
-// below the joystick mode; 1: [app:*], above it). The single place that knows the layers; Settings::action_layer
-// is only the transport of this parameter into applyKey and is 0 outside these calls.
+// Like applyKey, but writes the channel actions and BUTTON_<n> to the given layer (kLayerGlobal, kLayerDevice: below
+// the joystick mode; kLayerApp: above it). The single place that knows the layers; Settings::action_layer
+// is only the transport of this parameter into applyKey and is kLayerGlobal outside these calls.
 bool applyKeyLayer(Settings &s, const std::string &key, const std::string &value, int layer, std::string *err);
 // Applies a key list at the given layer; invalid entries are skipped.
 void applyKvList(Settings &s, const std::vector<KV> &kv, int layer);
 
 // Complete equality of two resolved Settings: allKeys plus what allKeys reports only in collapsed form
-// (the two action layers and the program buttons). Used to decide that a profile change changes nothing.
+// (the action layers and the program buttons). Used to decide that a profile change changes nothing.
 bool sameSettings(const Settings &a, const Settings &b);
 
 // All keys in canonical order (new names), for the [global] section.
@@ -222,7 +228,7 @@ struct Section {
     std::string pattern;              // for DEVICE/APP; empty for GLOBAL
     std::vector<KV> kv;               // raw keys as in the file (order preserved)
 };
-// The layer of the keys of a section kind (1 for [app:*], else 0).
+// The layer of the keys of a section kind.
 int layerOfSection(Section::Kind kind);
 
 // PRIORITY of a profile section (integer key, default 0, kMinPriority..kMaxPriority, no effect in [global]).

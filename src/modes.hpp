@@ -14,6 +14,7 @@
 //   V_ACTION = none                                 # vertical channel   (SCROLL_V)
 //   H_ACTION = keys:left,right                      # horizontal channel (SCROLL_H)
 //   TWIST_ACTION = keys:left,right                  # twist channel      (ZOOM)
+//   LIFT_ACTION = none                              # lift / press motion (LIFT_*, y with spacenavd); default none
 //   BUTTON_1 = key:space                            # button 1 holds the space bar
 //   BUTTON_2 = click
 //   SCROLL_H_SENS = 4                               # any settings key (applyKey)
@@ -33,6 +34,10 @@
 //   Each part uses the channel's sens, dead zone, curve, smoothing and sign; SCROLL_<V|H>_<PUSH|TILT>_<SENS|
 //   DEADZONE|SIGN|CURVE|SMOOTH_MS> override single values with absolute values (config.hpp, PartTuning).
 //   A mode without split keys behaves exactly as before.
+// Lift / press: LIFT_ACTION takes default | none | wheel_v | wheel_h | zoom | step:<neg>,<pos>; "default" is none (the
+//   cap is lifted when it is grabbed, so nothing fires unless a mode or profile asks for it). An analog keys:<neg>,<pos>
+//   is rejected, use step: (one tap per push). Tuning: LIFT_MIX (default y), LIFT_SENS, LIFT_DEADZONE (default 80),
+//   LIFT_SIGN, LIFT_CURVE, LIFT_SMOOTH_MS, valid in profiles and in mode files like the other channel keys.
 // Buttons are numbered from 1 (BUTTON_1 .. BUTTON_32), exactly like BUTTON_<n> in the main config;
 // BUTTON_0 is rejected. Internally button n is device bit n-1 (spnav_event_button.bnum).
 // Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | mode:prev |
@@ -66,7 +71,7 @@
 //   effect, else the mode of the profile). Any other mode switch during the hold ends it without
 //   restoring; a reload, suspend/disabled and an unplugged device end it too. "next" and "prev" are
 //   not valid; an unknown id is dropped with a warning when the modes are loaded.
-// A mode whose three channel actions are all "default" (and that sets no split key) runs on the normal path (incl.
+// A mode whose channel actions (V, H, twist, lift) are all "default" (and that sets no split key) runs on the normal path (incl.
 // dominance-based zoom, NAV_BUTTON/CLICK_BUTTON from the settings).
 //
 // Built in (overridable by a file of the same name): "normal" (all default, no buttons),
@@ -142,13 +147,16 @@ struct ModeDef {
     std::string description;  // optional
     std::vector<std::pair<std::string, std::string>> overrides;  // settings keys (validated)
     ChannelAction v, h, twist;
+    ChannelAction lift;           // LIFT_ACTION (the lift / press motion); "default" = none
     SplitChannel vSplit, hSplit;  // optional split of the V / H channel into push and tilt
     std::vector<ButtonBinding> buttons;
     bool builtin = false;
 
     bool allDefaultChannels() const {
         return v.type == ChannelActionType::Default && h.type == ChannelActionType::Default &&
-               twist.type == ChannelActionType::Default && !vSplit.active() && !hSplit.active();
+               twist.type == ChannelActionType::Default &&
+               (lift.type == ChannelActionType::Default || lift.type == ChannelActionType::Off) && !vSplit.active() &&
+               !hSplit.active();
     }
 };
 
@@ -163,6 +171,10 @@ struct ModeSet {
 bool validModeId(const std::string &id);
 
 bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err);
+// LIFT_ACTION: the grammar of parseChannelAction, but an analog "keys:<neg>,<pos>" is rejected (lifting the cap fires when
+// the cap is grabbed, so a key repeat on it would type by accident); the digital "step:<neg>,<pos>" is allowed.
+// "default" means none for the lift.
+bool parseLiftAction(const std::string &text, ChannelAction *out, std::string *err);
 // The canonical config text of a channel action ("default", "none", "wheel_v", "keys:ctrl+pageup,ctrl+pagedown", ...),
 // the inverse of parseChannelAction.
 std::string channelActionText(const ChannelAction &a);

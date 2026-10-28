@@ -698,9 +698,47 @@ static void testSecurityHardening() {
     assert(!applyKey(s, "SCROLL_V_SENS", std::string("3\0junk", 6), &err) && err.find("NUL") != std::string::npos);
 }
 
+// LIFT_ACTION in a mode file: the grammar without the analog keys:, the lift keys as overrides (stage 2 of #224).
+static void testLiftKeys() {
+    clearDir();
+    writeFile("l1.conf", "LIFT_ACTION = step:left,right\nLIFT_SENS = 7\nLIFT_DEADZONE = 120\nLIFT_MIX = z\nLIFT_SIGN = -1\n");
+    writeFile("l2.conf", "LIFT_ACTION = keys:left,right\n");
+    writeFile("l3.conf", "LIFT_ACTION = none\nLIFT_ACTION = zoom\n");
+    writeFile("l4.conf", "LIFT_SENS = 300x\nLIFT_MIX = q\nLIFT_ACTION = bogus\n");
+    std::vector<std::string> w;
+    const ModeSet ms = loadModes(g_dir, &w);
+    const ModeDef *l1 = ms.find("l1"), *l2 = ms.find("l2"), *l3 = ms.find("l3"), *l4 = ms.find("l4");
+    assert(l1 && l2 && l3 && l4);
+    assert(l1->lift.type == ChannelActionType::Step && l1->overrides.size() == 4 && !l1->allDefaultChannels());
+    assert(l2->lift.type == ChannelActionType::Default && l2->allDefaultChannels());
+    assert(hasWarning(w, "l2.conf:1") && hasWarning(w, "step:"));
+    assert(l3->lift.type == ChannelActionType::Zoom);  // the last line wins
+    assert(l4->lift.type == ChannelActionType::Default && l4->overrides.empty());
+    assert(hasWarning(w, "l4.conf:1") && hasWarning(w, "l4.conf:2") && hasWarning(w, "l4.conf:3"));
+    // a mode that says LIFT_ACTION = none stays on the normal path
+    writeFile("l5.conf", "LIFT_ACTION = none\n");
+    const ModeSet ms5 = loadModes(g_dir, nullptr);
+    assert(ms5.find("l5")->allDefaultChannels());
+    // the override keys are valid settings keys: the defaults and the ranges
+    Settings s;
+    std::string err;
+    assert(s.lift.deadzone == 80 && s.lift.sensitivity == 5 && s.lift.mix.terms.size() == 1 && s.lift.mix.terms[0].axis == AX_Y);
+    assert(applyKey(s, "LIFT_SENS", "300", &err) && s.lift.sensitivity == 255);
+    assert(applyKey(s, "LIFT_DEADZONE", "100", &err) && s.lift.deadzone == 100);
+    assert(applyKey(s, "LIFT_SIGN", "-1", &err) && s.lift.sign == -1 && !applyKey(s, "LIFT_SIGN", "2", &err));
+    assert(applyKey(s, "LIFT_CURVE", "2", &err) && applyKey(s, "LIFT_SMOOTH_MS", "10", &err) && s.lift.smooth_ms == 10);
+    assert(applyKey(s, "LIFT_MIX", "z", &err) && s.lift.mix.terms[0].axis == AX_Z && !applyKey(s, "LIFT_MIX", "q", &err));
+    assert(!applyKey(s, "LIFT_NOPE", "1", &err));
+    // allKeys round trip
+    Settings back;
+    for (const KV &kv : allKeys(s)) assert(applyKey(back, kv.first, kv.second, &err));
+    assert(back.lift.mix.terms[0].axis == AX_Z && back.lift.sensitivity == 255 && back.lift.sign == -1 && back.lift.deadzone == 100);
+}
+
 int main() {
     g_dir = tu::tmpRoot() + "/test_modes." + std::to_string(tu::pid());
     testIds();
+    testLiftKeys();
     testGrammar();
     testBuiltins();
     testParser();

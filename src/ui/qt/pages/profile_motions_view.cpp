@@ -30,11 +30,12 @@ using namespace spn;
 using namespace spn::ui;
 
 namespace {
-// SCROLL_V_, SCROLL_H_ or ZOOM_ for the motion of the picture ("" for lift).
+// SCROLL_V_, SCROLL_H_, ZOOM_ or LIFT_ for the motion of the picture.
 std::string channelPrefix(const std::string &motion) {
     if (motion == "v_push" || motion == "v_tilt") return "SCROLL_V_";
     if (motion == "h_push" || motion == "h_tilt") return "SCROLL_H_";
     if (motion == "twist") return "ZOOM_";
+    if (motion == "lift") return "LIFT_";
     return std::string();
 }
 }  // namespace
@@ -181,8 +182,11 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         kind->setObjectName(QStringLiteral("motionAction"));
         kind->setAccessibleName(T("What this motion does in this profile"));
         int current = 0;
-        for (const MotionActionChoice &c : motionActionChoices()) {
-            if (c.type == edit.action.type) current = kind->count();
+        const bool isLift = motionId == QLatin1String("lift");
+        // Lift / press: nothing is its default and a pinned "none" shows as that entry; no analog keys in its list.
+        const ChannelActionType shown = isLift && edit.action.type == ChannelActionType::Off ? ChannelActionType::Default : edit.action.type;
+        for (const MotionActionChoice &c : isLift ? liftActionChoices() : motionActionChoices()) {
+            if (c.type == shown) current = kind->count();
             kind->addItem(T(c.label), int(c.type));
         }
         kind->setCurrentIndex(current);
@@ -255,6 +259,7 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         auto *takeOver = new QPushButton(T("Take over from ..."), state);
         takeOver->setObjectName(QStringLiteral("motionTakeOver"));
         takeOver->setToolTip(T("Copy what this motion does in another profile or joystick mode into this profile"));
+        takeOver->setVisible(!isLift);  // taking the lift over is not offered yet
         connect(takeOver, &QPushButton::clicked, this, [this, motionId] { takeOverMotion(motionId); });
         buttons->addWidget(clear);
         buttons->addWidget(on);
@@ -284,12 +289,7 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
     }
 
     const std::string prefix = channelPrefix(motionId.toStdString());
-    if (prefix.empty()) {
-        auto *lift = new QLabel(T("Lift / press has no settings of its own."), inspector_);
-        lift->setWordWrap(true);
-        col->addWidget(lift);
-        return;
-    }
+    if (prefix.empty()) return;
     auto *box = new QGroupBox(T("Tuning in this profile"), inspector_);
     auto *g = new QGridLayout(box);
     g->setColumnStretch(1, 1);

@@ -28,11 +28,11 @@ A SpaceMouse cap moves in six ways. Every joystick mode says what each of them d
 | 3. Horizontal push | `x` | push sideways | `H_PUSH_ACTION` | `H_ACTION` |
 | 4. Horizontal tilt | `rz` | tilt sideways | `H_TILT_ACTION` | `H_ACTION` |
 | 5. Twist | `ry` | twist the cap | `TWIST_ACTION` | `TWIST_ACTION` |
-| 6. Lift / press | `y` | pull up / push down | none (only through a `y` term in a channel mix) | none |
+| 6. Lift / press | `y` | pull up / push down | `LIFT_ACTION` (default `none`) | `LIFT_ACTION` |
 
 - A key that is not split gives push and tilt of its channel the same action: `V_ACTION` covers motions 1 and 2, `H_ACTION` motions 3 and 4. Set a split key to give push and tilt different jobs ([Split push and tilt](#split-push-and-tilt)).
 - `default` is the channel's normal behavior: vertical = scroll, horizontal = scroll sideways, twist = zoom (the zoom modifier, by default Ctrl, plus the wheel).
-- Lift / press is not used by any built-in joystick mode ([Lift/press is unused](#liftpress-is-unused)).
+- Lift / press has one key, `LIFT_ACTION`, and no split. It does nothing by default and is not used by any built-in joystick mode ([Lift/press](#liftpress-is-unused)); it takes `none`, `wheel_v`, `wheel_h`, `zoom` and `step:<neg>,<pos>`, never an analog `keys:`.
 - A joystick mode that sets none of these keys behaves like `normal`: every motion does its default.
 
 The [table of the built-in joystick modes](#built-in-joystick-modes) lists what each of the six motions does in each of them.
@@ -119,7 +119,7 @@ started from a joystick mode of yours stops at the next built-in unless you give
 
 ## Channel actions
 
-For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`) and `TWIST_ACTION` (`ZOOM`):
+For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`), `TWIST_ACTION` (`ZOOM`) and `LIFT_ACTION` (`LIFT`; its default is `none`, and the analog `keys:` is rejected there, see [Lift/press](#liftpress-is-unused)):
 
 | Value | Effect |
 |---|---|
@@ -130,10 +130,10 @@ For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`) and `TWIST_ACTION` 
 | `keys:<neg>,<pos>` | Key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection. Dead zone, curve, smoothing and sensitivity of the channel apply. Each argument can be a chord, see below. |
 | `step:<neg>,<pos>` | One key tap per push instead of a rate, with hysteresis; see below. |
 
-The same keys (`V_ACTION`, `H_ACTION`, `TWIST_ACTION` and the four split keys) are also allowed **in a profile**
+The same keys (`V_ACTION`, `H_ACTION`, `TWIST_ACTION`, `LIFT_ACTION` and the four split keys) are also allowed **in a profile**
 (`[global]`, `[device:*]`, `[app:*]` of `dofscroll.conf`) for one program or device, for example `TWIST_ACTION = none`
 in `[app:code]`. A program profile wins over the joystick mode; `[global]` and `[device:*]` sit below it (a joystick mode
-that sets the channel keeps it). Details and precedence: [configuration.md](configuration.md#precedence). Likewise
+that sets the channel keeps it; `[global]` and `[device:*]` are two layers, so a device `V_ACTION` also drops a split set in `[global]`). Details and precedence: [configuration.md](configuration.md#precedence). Likewise
 `BUTTON_<n>` of a program profile wins over the binding of the joystick mode for the same button.
 
 ## Button actions
@@ -392,9 +392,12 @@ Validate a joystick mode file with `build/tests/check_config --modes <directory>
 
 ## Lift/press is unused
 
-Lift and press of the cap (axis `y`) are deliberately not used by any default or built-in joystick
-mode: grabbing or releasing the cap moves it up or down a little, and a function on `y` would fire
-by accident every time. The default mixes use push forward/back and tilt forward/back (`z`, `rx`)
+Lift and press of the cap (axis `y`) have an action of their own since the lift motion exists: `LIFT_ACTION`
+(`none`, `wheel_v`, `wheel_h`, `zoom`, `step:<neg>,<pos>`; no analog `keys:`), tuned by `LIFT_MIX` (default `y`; the
+Windows and macOS seeds say `z`), `LIFT_SENS`, `LIFT_DEADZONE` (default 80), `LIFT_SIGN`, `LIFT_CURVE` and
+`LIFT_SMOOTH_MS`, all valid in a joystick mode file and in a profile. It is still deliberately not used by any default
+or built-in joystick mode (the default action is `none`): grabbing or releasing the cap moves it up or down a little,
+and a function on `y` would fire by accident every time. See [configuration.md](configuration.md#lift--press). The default mixes use push forward/back and tilt forward/back (`z`, `rx`)
 for vertical scroll, both sideways movements (`x`, `rz`) for horizontal scroll and twist (`ry`)
 for zoom; `ZOOM_LATERAL` lists `x z rx rz`. A joystick mode file must not put `y` into a
 `*_MIX` or `ZOOM_LATERAL` override unless its `DESCRIPTION` says so (mention "lift/press").

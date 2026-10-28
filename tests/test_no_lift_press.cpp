@@ -42,7 +42,8 @@ static std::string upperAscii(std::string s) {
     return s;
 }
 
-static bool mixKey(const std::string &k) { return k.size() > 4 && k.compare(k.size() - 4, 4, "_MIX") == 0; }
+// LIFT_MIX is the lift / press motion's own mix (stage 2 of #224): it is the one mix that names the lift axis.
+static bool mixKey(const std::string &k) { return k != "LIFT_MIX" && k.size() > 4 && k.compare(k.size() - 4, 4, "_MIX") == 0; }
 
 // True if the value of a *_MIX / ZOOM_LATERAL key uses y.
 static bool usesY(const std::string &key, const std::string &value, std::string *parseErr) {
@@ -113,6 +114,10 @@ int main() {
         const AxisRoles r = deriveAxisRoles(settingsOfFile(f));
         assert(r.matched && r.has(Motion::Lift));
         assert(scanFile(f, r.axis(Motion::Lift) == AX_Y) >= 4);
+        // LIFT_MIX of each default file names exactly the axis the mixes leave over (Linux: the built-in default y)
+        const Settings ds = settingsOfFile(f);
+        assert(ds.lift.mix.terms.size() == 1 && ds.lift.mix.terms[0].axis == r.axis(Motion::Lift));
+        assert(ds.lift.deadzone == 80);
     }
 
     // 2. the built-in defaults of the program

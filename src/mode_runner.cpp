@@ -49,10 +49,12 @@ void ModeRunner::resetState() {
     ch_v_.reset();
     ch_h_.reset();
     ch_zoom_.reset();
+    ch_lift_.reset();
     acc_v_.reset();
     acc_h_.reset();
     acc_zoom_.reset();
-    step_v_ = step_h_ = step_zoom_ = 0;
+    acc_lift_.reset();
+    step_v_ = step_h_ = step_zoom_ = step_lift_ = 0;
     for (int i = 0; i < PART_COUNT; ++i) {
         ch_part_[i].reset();
         acc_part_[i].reset();
@@ -295,13 +297,14 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
     const bool nav_active = fresh && w.nav;
     syncMouse(w.mouse);
 
-    const ChannelAction &av = ca.v, &ah = ca.h, &at = ca.twist;
+    const ChannelAction &av = ca.v, &ah = ca.h, &at = ca.twist, &al = ca.lift;
     auto eff = [](const ChannelAction &a, ChannelActionType dflt) {
         return a.type == ChannelActionType::Default ? dflt : a.type;
     };
     const ChannelActionType tv = eff(av, ChannelActionType::WheelV);
     const ChannelActionType th = eff(ah, ChannelActionType::WheelH);
     const ChannelActionType tt = eff(at, ChannelActionType::Zoom);
+    const ChannelActionType tl = eff(al, ChannelActionType::Off);  // the lift does nothing unless asked to
 
     // A split channel runs its push and tilt parts as sub-channels (parent's settings + per-part
     // tuning, the part's share of the mix); the mixed channel then stays idle.
@@ -336,6 +339,11 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
         rate = std::fabs(a) >= std::fabs(b) ? a : b;
     }
 
+    // Lift / press (LIFT_*): runs only while it has an action, so its filter and accumulator stay at rest otherwise.
+    double rate_lift = 0.0;
+    if (tl != ChannelActionType::Off) rate_lift = ch_lift_.process(s.lift, raw, dt);
+    else ch_lift_.reset();
+
     // Twist with zoom keeps the dominance detection; all other actions are plain.
     double zoom_mixed = evalMix(s.zoom.mix, raw);
     double twist = std::fabs(zoom_mixed * s.zoom.sign);
@@ -346,12 +354,14 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
     else zoom_.reset();
     double rate_zoom = ch_zoom_.processValue(s.zoom, zoom_mixed, dt);
 
-    int nv = 0, nh = 0, nt = 0;
+    int nv = 0, nh = 0, nt = 0, nl = 0;
     int np[PART_COUNT] = {0, 0, 0, 0};
     if (zooming) {
         acc_v_.reset();
         acc_h_.reset();
         step_v_ = step_h_ = 0;
+        acc_lift_.reset();
+        step_lift_ = 0;
         for (int i = 0; i < PART_COUNT; ++i) {
             acc_part_[i].reset();
             step_part_[i] = 0;
@@ -383,12 +393,14 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
         } else {
             nh = channel(th, acc_h_, step_h_, rate_h);
         }
+        nl = channel(tl, acc_lift_, step_lift_, rate_lift);
     }
 
     std::bitset<kKeyCount> keys = w.keys;
     bool part_zoom = false;
     for (int i = 0; i < PART_COUNT; ++i)
         if (split[i / 2] && part_t[i] == ChannelActionType::Zoom && part_rate[i] != 0.0) part_zoom = true;
+    if (tl == ChannelActionType::Zoom && rate_lift != 0.0) part_zoom = true;  // lift zooms: same exclusion as a part
     if (part_zoom) {
         // A push or tilt part zooms (for example "tilt forward = zoom"): the zoom modifier is held, so a mouse wheel of any other
         // motion would zoom too. While the part zooms the other wheel motions pause (their remainders are dropped), the same
@@ -402,6 +414,7 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
         if (!split[0] && wheel(tv)) { nv = 0; acc_v_.reset(); }
         if (!split[1] && wheel(th)) { nh = 0; acc_h_.reset(); }
         if (wheel(tt)) { nt = 0; acc_zoom_.reset(); }
+        if (wheel(tl)) { nl = 0; acc_lift_.reset(); }
     }
     if (zooming || (!split[0] && tv == ChannelActionType::Zoom && rate_v != 0.0) ||
         (!split[1] && th == ChannelActionType::Zoom && rate_h != 0.0) || part_zoom)
@@ -434,7 +447,8 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
     emit(ah, th, nh, 1);
     for (int i = PART_H_PUSH; i <= PART_H_TILT; ++i) emit(*part_a[i], part_t[i], np[i], 1);
     emit(at, tt, nt, -1);
-    info_ = Info{rate_h, rate_v, twist, lateral, zooming, nav_active, rate_zoom};
+    emit(al, tl, nl, 1);
+    info_ = Info{rate_h, rate_v, twist, lateral, zooming, nav_active, rate_zoom, rate_lift};
     for (int i = 0; i < PART_COUNT; ++i) info_.rate_part[i] = split[i / 2] ? part_rate[i] : 0.0;
 }
 

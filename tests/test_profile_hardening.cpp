@@ -231,7 +231,7 @@ static void testUiAndResolveAgree(const std::string &root) {
         assert(sameSettings(profs.resolve("", name, &m1->overrides), m.effectiveWithMode(i)));
     }
     const Settings s = m.effectiveWithMode(app);
-    assert(s.app_buttons.count(1) && s.app_buttons.at(1) == "rightclick" && s.actions[1].chanSet[0]);
+    assert(s.app_buttons.count(1) && s.app_buttons.at(1) == "rightclick" && s.actions[kLayerApp].chanSet[0]);
 }
 
 // A chord with Alt/Super in a profile's channel action is loaded and noted.
@@ -240,7 +240,7 @@ static void testProfileChordNote() {
     std::vector<std::string> w;
     parseProfilesText("[app:x]\nV_ACTION = keys:alt+left,alt+right\nH_ACTION = keys:ctrl+pageup,ctrl+pagedown\n", "t", &profs, &w);
     assert(w.size() == 1 && has(w[0], "V_ACTION") && has(w[0], "chord"));
-    assert(profs.resolve("", "x").actions[1].chanSet[ProfileActions::V]);
+    assert(profs.resolve("", "x").actions[kLayerApp].chanSet[ProfileActions::V]);
 }
 
 int main() {

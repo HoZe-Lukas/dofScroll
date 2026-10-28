@@ -66,7 +66,7 @@ int main() {
     assert(borrowMotion(m, video, "h_tilt", profile(code), &err));  // the tilt of the other channel, from another motion's source
     assert(sectionText(m, video) == "H_TILT_ACTION=default;");       // what code does there: the normal action, explicit
     assert(borrowMotion(m, video, "v_tilt", profile(code), &err));
-    assert(m.effectiveWithMode(video).actions[1].partSet[1] && sectionText(m, video).find("V_TILT_ACTION=zoom") != std::string::npos);
+    assert(m.effectiveWithMode(video).actions[kLayerApp].partSet[1] && sectionText(m, video).find("V_TILT_ACTION=zoom") != std::string::npos);
     assert(!has(sectionText(m, video), "V_PUSH_ACTION"));  // push is not touched by taking the tilt over
     assert(borrowMotion(m, video, "twist", profile(code), &err));
     assert(has(sectionText(m, video), "TWIST_ACTION=keys:ctrl+minus,ctrl+plus"));
@@ -159,7 +159,12 @@ int main() {
         assert(k.works && k.note.empty());
         const MotionChoiceCheck pinned = motionChoiceCheck(m, dev, "twist", ChannelActionType::Keys, id);
         assert(!pinned.works && has(pinned.note, "joystick mode"));
-        assert(!motionChoiceCheck(m, video, "lift", ChannelActionType::Zoom, id).works);
+        // lift / press: zoom works (with the warning that lifting fires when the cap is grabbed), analog keys never do
+        const MotionChoiceCheck lz = motionChoiceCheck(m, video, "lift", ChannelActionType::Zoom, id);
+        assert(lz.works && has(lz.note, "grab"));
+        const MotionChoiceCheck lk = motionChoiceCheck(m, video, "lift", ChannelActionType::Keys, id);
+        assert(!lk.works && has(lk.note, "analog"));
+        assert(motionChoiceCheck(m, video, "lift", ChannelActionType::Step, id).works);
         assert(m.setValue(video, "ZOOM_MODIFIER", "none", &err));
         assert(has(motionChoiceCheck(m, video, "v_tilt", ChannelActionType::Zoom, id).note, "plain wheel"));
         m.clearOverride(video, "ZOOM_MODIFIER");
