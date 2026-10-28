@@ -1296,7 +1296,8 @@ bool saveProfiles(const std::string &path, const ProfileSet &ps, std::string *er
     std::ostringstream os;
     os << "# dofscroll configuration - written by the tray program.\n"
        << "# Note: comments in this file are NOT preserved when saving.\n"
-       << "# Sections: [global], [device:NAME], [app:NAME] - overridden keys only.\n\n";
+       << "# This file holds [global] (overridden keys only). Profiles live in devices/<name>.conf ([device:NAME])\n"
+       << "# and apps/<name>.conf ([app:NAME]); a [device:NAME] or [app:NAME] section left here is read as before.\n\n";
     os << "[global]\n";
     // Only the keys the section holds (what the file had plus what was changed), never the built-in
     // defaults: a save must not add lines the user never wrote.
