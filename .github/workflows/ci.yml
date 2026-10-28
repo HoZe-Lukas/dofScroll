@@ -74,6 +74,13 @@ jobs:
         run: cmake --build build-asan -j4
       - name: Test
         run: ctest --test-dir build-asan --output-on-failure
+      - name: Fuzz the profile loader and the migration (ASan/UBSan)
+        # tests/test_profile_fuzz.cpp: random and mutated config trees; the seed changes per run and is printed,
+        # a failure replays with --seed S --only K (see the header of the file)
+        run: build-asan/tests/test_profile_fuzz --iterations 300 --seed "${{ github.run_number }}"
+        env:
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+          ASAN_OPTIONS: halt_on_error=1:detect_leaks=1
 
   cppcheck:
     name: cppcheck (Rocky Linux 9)

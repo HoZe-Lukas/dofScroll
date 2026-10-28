@@ -677,6 +677,13 @@ capability is added, and command and path are fixed (no shell call). Checked: fr
 - CI should deliberately use the floating tag `rockylinux:9` (GitHub Actions workflow planned).
 - Not available locally: `cppcheck`, `clang-tidy`, `valgrind`, ThreadSanitizer runtime,
   `libasan` (CI runs `cppcheck` and ASAN).
+- Fuzzing of the profile loader (`src/config.cpp`, `src/profile_files.cpp`) and the migration
+  (`src/profile_migrate.cpp`): `tests/test_profile_fuzz.cpp` feeds random and mutated config trees to the parsers,
+  the writers and `migrateToSplit` and checks the invariants of the headers (a failed migration leaves `dofscroll.conf`
+  unchanged, a second run does nothing). A short deterministic pass is a ctest; the sanitizer job of `ci.yml` also runs
+  300 iterations with ASan/UBSan and a seed that changes per run. By hand:
+  `cmake -S . -B build-asan -DDOFSCROLL_SANITIZE=ON && cmake --build build-asan --target test_profile_fuzz &&
+  build-asan/tests/test_profile_fuzz --iterations 20000 --seed 1`; replay a failure with `--seed S --only K`.
 
 ---
 
