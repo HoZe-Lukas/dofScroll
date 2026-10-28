@@ -137,7 +137,7 @@ static void testRepeaterFirstPress() {
 static void testRepeaterRates() {
     KeyParams p;
     p.hard_cap = 100.0;
-    auto perSecond = [&](double u, KeyParams q) {
+    auto perSecond = [&](double u, const KeyParams &q) {
         KeyRepeater rep;
         int n = 0;
         for (int i = 0; i < 250; ++i) n += std::abs(rep.step(u, DT, q));
