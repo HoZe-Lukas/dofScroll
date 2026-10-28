@@ -60,6 +60,7 @@
 #include "platform_hooks.hpp"
 #include "a11y_announce.hpp"
 #include "undo_focus.hpp"
+#include "split_defaults.hpp"
 #include "theme.hpp"
 #include "ui/model/undo_rules.hpp"
 #include "ui_i18n.hpp"
@@ -273,11 +274,13 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     tabs_->addTab(overrides_, T("Overrides"));
     tabs_->setTabToolTip(tabs_->count() - 1, T("Advanced: every value this profile sets itself"));
 
+    split_ = split;
     split->addWidget(left);
     split->addWidget(right);
     split->setStretchFactor(0, 0);
     split->setStretchFactor(1, 1);
-    split->setSizes({260, 760});
+    split->setSizes({300, 900});
+    new spn::ui::SplitDefaults(split, 24, 280);  // proportional on the first resize: the editor gets 65% or more
     outer->addWidget(split, 1);
 
     setTabOrder(profileFilter_, tree_);
@@ -514,6 +517,11 @@ bool ProfilesPage::tabVisible(const QString &id) const {
 QString ProfilesPage::headerName() const { return headerName_->text(); }
 QString ProfilesPage::headerKind() const { return headerKind_->text(); }
 QString ProfilesPage::headerNote() const { return headerNote_->text(); }
+double ProfilesPage::editorShare() const {
+    if (!split_ || split_->width() <= 0 || split_->count() < 2) return 0.0;
+    return double(split_->widget(1)->width()) / split_->width();
+}
+
 bool ProfilesPage::headerHasIcon() const { return !headerIcon_->pixmap(Qt::ReturnByValue).isNull(); }
 
 // A palette change (theme) repaints the icons in the colour of the new palette.

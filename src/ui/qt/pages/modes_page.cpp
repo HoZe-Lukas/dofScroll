@@ -34,6 +34,7 @@
 #include "ui/model/mode_info_model.hpp"
 #include "motion_view.hpp"
 #include "ui/model/motion_summary_model.hpp"
+#include "split_defaults.hpp"
 #include "theme.hpp"
 #include "ui/model/design_tokens.hpp"
 #include "platform/fs.hpp"
@@ -221,7 +222,8 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     split->setStretchFactor(0, 1);
     split->setStretchFactor(1, 2);
     split->setChildrenCollapsible(false);
-    split->setSizes({380, 560});
+    split->setSizes({380, 760});
+    new spn::ui::SplitDefaults(split, 30, 300);
     connect(split, &QSplitter::splitterMoved, this, [this] { list_->doItemsLayout(); });
     row->addWidget(split, 1);
 

@@ -5,6 +5,8 @@
 # required checks green, failed, skipped, missing, rerun (the newest run counts).
 # Usage: sh tests/test_release_gate.sh <repo dir>
 set -u
+# run from a git hook, the repository variables point at the real repository: the throw-away one must not touch it
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX
 SRC=${1:?usage: test_release_gate.sh <repo dir>}
 command -v jq >/dev/null 2>&1 || { echo "test_release_gate: skipped (no jq)"; exit 0; }
 T=$(mktemp -d) || exit 1
