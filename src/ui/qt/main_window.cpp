@@ -37,18 +37,19 @@
 #include "pages/setup_guide_dialog.hpp"
 #include "platform/fs.hpp"
 #include "ui/model/runtime_files.hpp"
+#include "split_defaults.hpp"
 #include "theme.hpp"
 #include "ui/model/design_tokens.hpp"
 #include "ui/model/ui_settings.hpp"
 #include "ui_i18n.hpp"
 #include "vertical_tabs.hpp"
 
-// First start: a roomy window, clamped to 90% of the screen, never below the minimum.
+// First start: a roomy window, clamped to 92% of the screen, never below the minimum.
 QSize MainWindow::defaultWindowSize() {
     QSize size(spn::ui::tokens::kDefaultWindowWidth, spn::ui::tokens::kDefaultWindowHeight);
     if (const QScreen *screen = QGuiApplication::primaryScreen()) {
         const QRect avail = screen->availableGeometry();
-        size = size.boundedTo(QSize(avail.width() * 9 / 10, avail.height() * 9 / 10));
+        size = size.boundedTo(QSize(avail.width() * 92 / 100, avail.height() * 92 / 100));
     }
     return size.expandedTo(QSize(spn::ui::tokens::kMinWindowWidth, spn::ui::tokens::kMinWindowHeight));
 }

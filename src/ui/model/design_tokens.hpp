@@ -28,10 +28,10 @@ constexpr int kFontBoostPercent = 108;  // base font relative to the platform's
 constexpr int kIconSize = 20;        // icons on the tabs
 constexpr int kMinWindowWidth = 720; // smallest usable window (laptop with large fonts)
 constexpr int kMinWindowHeight = 480;
-constexpr int kDefaultWindowWidth = 1560;  // first start; the saved geometry of ui.conf wins
-constexpr int kDefaultWindowHeight = 1040;
+constexpr int kDefaultWindowWidth = 1800;  // first start; the saved geometry of ui.conf wins
+constexpr int kDefaultWindowHeight = 1100;
 // Pages made of cards and forms (Overview, Channels) stop growing at this width and stay centered
 // on a very wide window, so that lines and rows do not spread over the whole screen.
-constexpr int kMaxContentWidth = 1100;
+constexpr int kMaxContentWidth = 1500;
 
 }  // namespace spn::ui::tokens

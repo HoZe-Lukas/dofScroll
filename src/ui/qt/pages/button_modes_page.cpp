@@ -23,6 +23,8 @@
 #include <QSignalBlocker>
 #include <QScrollArea>
 #include <QSplitter>
+
+#include "split_defaults.hpp"
 #include <QStyle>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -167,7 +169,8 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     rl->addStretch(1);
     split->setStretchFactor(0, 1);
     split->setStretchFactor(1, 2);
-    split->setSizes({260, 520});  // the list would otherwise follow its longest description and squeeze the editor
+    split->setSizes({300, 700});
+    new spn::ui::SplitDefaults(split, 30, 260);  // the list would otherwise follow its longest description and squeeze the editor
     row->addWidget(split, 1);
 
     auto *buttons = new QVBoxLayout;
