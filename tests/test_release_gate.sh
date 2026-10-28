@@ -10,6 +10,8 @@ command -v jq >/dev/null 2>&1 || { echo "test_release_gate: skipped (no jq)"; ex
 T=$(mktemp -d) || exit 1
 [ -n "$T" ] && [ -d "$T" ] || exit 1
 trap 'rm -rf "$T"' EXIT
+# Under a git hook the GIT_* variables point at the real repository: the throw-away repo must not see them.
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
 fail() { echo "test_release_gate: FAIL: $*" >&2; exit 1; }
 
 mkdir -p "$T/w/scripts" "$T/w/.github/rulesets" "$T/bin"

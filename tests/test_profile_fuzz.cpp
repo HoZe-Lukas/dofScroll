@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -30,6 +31,7 @@
 #include <vector>
 
 #include "config.hpp"
+#include "utf8.hpp"
 #include "profile_files.hpp"
 #include "profile_migrate.hpp"
 #include "testutil.hpp"
@@ -66,15 +68,34 @@ struct Rng {
     bool chance(unsigned percent) { return below(100) < percent; }
 };
 
+// Builds a path from a (possibly fuzzed) name. On Windows a path is wide characters: a name that is not valid
+// UTF-8 cannot be converted and std::filesystem throws (MinGW libstdc++: "Illegal byte sequence"), so there
+// such a name means "not creatable here" and the caller skips the file. On Linux every byte string is a name.
+bool toPath(const std::string &name, stdfs::path *out) {
+    try {
+#ifdef _WIN32
+        if (!spn::utf8::isValid(name)) return false;
+        *out = stdfs::u8path(name);
+#else
+        *out = stdfs::path(name);
+#endif
+        return true;
+    } catch (const std::exception &) {
+        return false;
+    }
+}
+
 std::string readAll(const stdfs::path &p) {
     std::ifstream f(p, std::ios::binary);
     return std::string(std::istreambuf_iterator<char>(f), {});
 }
 
 void put(const std::string &p, const std::string &c) {
+    stdfs::path path;
+    if (!toPath(p, &path)) return;  // name not creatable here: skip, never abort
     std::error_code ec;
-    stdfs::create_directories(stdfs::path(p).parent_path(), ec);
-    std::ofstream f(p, std::ios::binary);
+    stdfs::create_directories(path.parent_path(), ec);
+    std::ofstream f(path, std::ios::binary);
     f << c;
 }
 
@@ -185,7 +206,10 @@ std::string pickText(Rng &r, const std::vector<std::string> &corpus, const std::
 
 // One random tree under `dir`: dofscroll.conf plus devices/ and apps/ with a few (possibly odd) entries.
 void buildTree(Rng &r, const std::string &dir, const std::vector<std::string> &corpus, const std::vector<std::string> &words) {
-    stdfs::create_directories(dir);
+    {
+        stdfs::path d;
+        if (toPath(dir, &d)) stdfs::create_directories(d);
+    }
     if (!r.chance(8)) put(dir + "/dofscroll.conf", pickText(r, corpus, words, false));
     for (const char *sub : {"devices", "apps"}) {
         if (r.chance(25)) continue;
@@ -197,11 +221,15 @@ void buildTree(Rng &r, const std::string &dir, const std::vector<std::string> &c
             if (r.chance(5)) name += "-" + std::to_string(r.below(9));
             const std::string file = dir + "/" + sub + "/" + name + (r.chance(90) ? ".conf" : ".txt");
             std::error_code ec;
+            stdfs::path filePath;
+            const bool creatable = toPath(file, &filePath);
             if (r.chance(4)) {
-                stdfs::create_directories(file, ec);  // a directory with a profile file name
+                if (creatable) stdfs::create_directories(filePath, ec);  // a directory with a profile file name
             } else if (r.chance(4)) {
-                stdfs::create_directories(stdfs::path(file).parent_path(), ec);
-                stdfs::create_symlink(r.chance(50) ? "../dofscroll.conf" : "nonexistent-target", file, ec);
+                if (creatable) {
+                    stdfs::create_directories(filePath.parent_path(), ec);
+                    stdfs::create_symlink(r.chance(50) ? "../dofscroll.conf" : "nonexistent-target", filePath, ec);
+                }
             } else {
                 std::string t = pickText(r, corpus, words, true);
                 if (r.chance(20)) t = std::string(sub) == "apps" ? "[device:x]\n" + t : "[app:x]\n" + t;  // wrong kind
@@ -211,7 +239,8 @@ void buildTree(Rng &r, const std::string &dir, const std::vector<std::string> &c
     }
     if (r.chance(3)) {  // devices as a plain file
         std::error_code ec;
-        stdfs::remove_all(dir + "/devices", ec);
+        stdfs::path devs;
+        if (toPath(dir + "/devices", &devs)) stdfs::remove_all(devs, ec);
         put(dir + "/devices", "not a directory");
     }
 }
@@ -269,7 +298,8 @@ void exerciseParser(const std::string &text) {
 
 // The migration: it never leaves a changed dofscroll.conf behind a failure, and a second run does nothing.
 void exerciseMigration(const std::string &dir) {
-    const stdfs::path conf = stdfs::path(dir) / "dofscroll.conf";
+    stdfs::path conf;
+    if (!toPath(dir + "/dofscroll.conf", &conf)) return;
     std::error_code ec;
     const bool regular = stdfs::is_regular_file(stdfs::symlink_status(conf, ec));
     const std::string before = regular ? readAll(conf) : std::string();
