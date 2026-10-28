@@ -144,12 +144,15 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     profileFilter_->setAccessibleName(T("Search profiles"));
     profileFilter_->setToolTip(T("Show only the programs and devices whose name contains this text"));
     ll->addWidget(profileFilter_);
-    // No explicit minimum width on the pane: an explicit minimum replaces the layout's own minimum, and the
-    // buttons below ("Add application...") would be squeezed at a larger font. The list sets the floor.
+    // The pane has a small floor of its own (list 170 px, the buttons below 120 px): with wide glyphs (Windows fonts
+    // are about 1.6 times wider than Linux ones) the texts of the buttons must not push the splitter handle to the
+    // right and squeeze the editor, which would force a horizontal scroll bar. A narrow button clips its text; the
+    // tooltip and the accessible description carry the full name.
     tree_ = new QTreeWidget(left);
     tree_->setMinimumWidth(170);
     tree_->setMinimumHeight(160);
     tree_->setHeaderHidden(true);
+    tree_->setTextElideMode(Qt::ElideMiddle);  // a long program name keeps its beginning and its end
     tree_->setAccessibleName(T("Profiles"));
     ll->addWidget(tree_, 1);
     add_app_ = new QPushButton(T("Add application..."), left);
@@ -161,7 +164,11 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     new_profile_ = new QPushButton(T("New profile..."), left);
     new_profile_->setObjectName(QStringLiteral("newProfile"));
     new_profile_->setToolTip(T("Build a profile from existing joystick modes, button modes and the motions and buttons of other profiles"));
-    for (QPushButton *b : {add_app_, add_dev_, import_, new_profile_}) ll->addWidget(b);
+    for (QPushButton *b : {add_app_, add_dev_, import_, new_profile_}) {
+        b->setMinimumWidth(120);
+        b->setAccessibleDescription(b->toolTip());
+        ll->addWidget(b);
+    }
     // defective profile files, in words (never hidden: the file is not used and not overwritten)
     defectNote_ = new QLabel(left);
     defectNote_->setWordWrap(true);
@@ -186,6 +193,9 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     dismiss->setObjectName(QStringLiteral("undoDismiss"));
     dismiss->setToolTip(T("Close this bar; the profile stays removed"));
     ul->addWidget(undoLabel_, 1);
+    undoLabel_->setMinimumWidth(40);
+    undoButton->setMinimumWidth(48);
+    dismiss->setMinimumWidth(48);
     ul->addWidget(undoButton);
     ul->addWidget(dismiss);
     undoBar_->hide();
@@ -222,6 +232,8 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     headerName_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     headerKind_ = new QLabel(header);
     headerKind_->setForegroundRole(QPalette::PlaceholderText);
+    headerName_->setMinimumWidth(40);  // a long name or wide glyphs never widen the page
+    headerKind_->setMinimumWidth(40);
     hl->addWidget(headerIcon_);
     hl->addWidget(headerName_);
     hl->addWidget(headerKind_);
@@ -242,6 +254,8 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     tabs_->setDocumentMode(true);
     rl->addWidget(tabs_, 1);
     tabs_->setMinimumWidth(260);  // the editor never gets squashed, and the page fits the smallest window
+    right->setMinimumWidth(260 + tk::kSpaceMd);  // an explicit floor: nothing inside (header, filter) widens the page
+    left->setMinimumWidth(170 + tk::kSpaceMd);
     split->setChildrenCollapsible(false);
 
     // The tabs exist once; they stay when another profile is selected (only their content changes).
