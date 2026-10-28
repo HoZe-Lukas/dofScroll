@@ -4065,6 +4065,8 @@ static bool setupGuideSelfTest(const QString &tmpPath) {
             check(w.setupGuideShown(), "Show setup guide opens the guide again");
             w.setupGuide()->waitIdle();
             w.setupGuide()->finishButton()->click();
+            w.setupGuide()->waitIdle();  // Finish applies Start at login on a worker thread and closes when it is done
+            settle();
             check(!w.setupGuideShown(), "Finish closes it");
         }
         {
