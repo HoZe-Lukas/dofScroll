@@ -14,7 +14,7 @@
 # Qt frameworks from macdeployqt (needs it in PATH), result dofscroll-<version>-macos-arm64.dmg.
 # The interface and the daemon are both required: there is no daemon-only image, a missing dofscroll-ui
 # or macdeployqt is an error.
-# Ad-hoc signing (codesign --sign -) is what lets arm64 code run; it is not a Developer ID signature.
+# Ad-hoc signing (codesign --sign -) with the hardened runtime is what lets arm64 code run; it is not a Developer ID signature.
 set -eu
 
 BUILD=build
@@ -89,11 +89,32 @@ rm -rf "$ICONSET" "$OUT/icon-src"
 
 macdeployqt "$APP" -always-overwrite
 
-# Ad-hoc signing, inside out: the daemon first, then the bundle (which seals the frameworks too).
-codesign --force --sign - "$DAEMON_DIR/dofscroll"
-codesign --force --sign - "$DAEMON_DIR/dofscroll-hidprobe"
-codesign --force --deep --sign - "$APP"
+# Ad-hoc signing with the hardened runtime (--options runtime), inside out and without --deep: every dylib and
+# framework macdeployqt copied, then the daemon, the diagnostic tool and the main executable, the bundle last.
+# With the hardened runtime dyld ignores DYLD_INSERT_LIBRARIES and the other DYLD_* variables, so another process
+# of the user cannot start a dofscroll binary with its own code and use the Accessibility and Input Monitoring
+# grants (issue #269). The entitlement allow-dyld-environment-variables is NOT set anywhere. Only the daemon gets
+# com.apple.security.cs.disable-library-validation (daemon.entitlements): it dlopens the vendor framework, which
+# another team signed. Ad-hoc is not an identity; a Developer ID signature needs a paid account (docs/release-process.md).
+SIGN="codesign --force --options runtime --sign -"
+find "$APP/Contents" -type f -name '*.dylib' | while IFS= read -r f; do $SIGN "$f"; done
+if [ -d "$APP/Contents/Frameworks" ]; then
+    find "$APP/Contents/Frameworks" -maxdepth 1 -name '*.framework' | while IFS= read -r f; do $SIGN "$f"; done
+fi
+$SIGN --entitlements "$HERE/daemon.entitlements" "$DAEMON_DIR/dofscroll"
+$SIGN "$DAEMON_DIR/dofscroll-hidprobe"
+$SIGN "$APP/Contents/MacOS/dofscroll-ui"
+$SIGN "$APP"
 codesign --verify --deep --strict "$APP"
+# Every program we ship is hardened, and nothing asks dyld to honour the environment variables.
+for f in "$DAEMON_DIR/dofscroll" "$DAEMON_DIR/dofscroll-hidprobe" "$APP/Contents/MacOS/dofscroll-ui" "$APP"; do
+    codesign -d --verbose=2 "$f" 2>&1 | grep -q 'flags=.*runtime' \
+        || { echo "build-dmg: $f is not signed with the hardened runtime" >&2; exit 1; }
+    if codesign -d --entitlements - "$f" 2>&1 | grep -q 'allow-dyld-environment-variables'; then
+        echo "build-dmg: $f has the entitlement allow-dyld-environment-variables" >&2
+        exit 1
+    fi
+done
 
 cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$STAGE/"
 sed "s|@VERSION@|$VERSION|g" "$HERE/README-first-run.txt" > "$STAGE/README-first-run.txt"

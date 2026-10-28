@@ -192,8 +192,15 @@ by rebuilding in the refreshed images (the CI image is rebuilt weekly).
 - The image also holds `README-first-run.txt` (Gatekeeper, Input Monitoring, Accessibility,
   LaunchAgent), `LICENSE`, `THIRD-PARTY-NOTICES.md` and an `Applications` link. A `.dmg` was chosen
   over a `.pkg` because nothing has to run as root and the app is dragged into place.
-- **Ad-hoc signing** (`codesign --sign -`) is applied to the daemon and the bundle. It is not an
-  identity: it only gives the arm64 binaries the signature the kernel requires to run them at all.
+- **Ad-hoc signing** (`codesign --force --options runtime --sign -`) is applied inside out: every dylib and framework,
+  the daemon, `dofscroll-hidprobe`, the interface and the bundle (no `--deep`). It is not an identity: it only gives
+  the arm64 binaries the signature the kernel requires to run them at all. The **hardened runtime** makes dyld ignore
+  `DYLD_INSERT_LIBRARIES`, so another process of the user cannot inject code into a dofscroll process that holds the
+  Accessibility and Input Monitoring grants (issue #269); the entitlement `allow-dyld-environment-variables` is
+  never set. Only the daemon has `com.apple.security.cs.disable-library-validation` (`packaging/macos/daemon.entitlements`),
+  because it loads the vendor framework of another team at run time. `build-dmg.sh` checks the flags and the entitlements
+  and the macOS job of `installers.yml` starts each program with `DYLD_INSERT_LIBRARIES` and fails if the library ran
+  (with a program that is not hardened as positive control).
   Gatekeeper still treats the download as unidentified and unnotarized; the first-run steps are in
   [installation.md](installation.md). Only Apple silicon is built (`macos-latest`).
 

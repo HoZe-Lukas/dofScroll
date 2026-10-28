@@ -842,7 +842,7 @@ Known gaps, stated plainly:
   first. The application manifest is `asInvoker`, long-path aware, UTF-8 code page. These flags are
   compile/link-checked by the CI runners only; the `-fstack-protector`/`-pie`/`relro` set of the
   Linux build is not applicable. The hardening check script is Linux-only.
-- macOS: the sandbox/entitlement story (hardened runtime, notarization) belongs to packaging
+- macOS: the ad-hoc signature has the hardened runtime since issue #269 (DYLD_* variables are ignored; see `docs/release-process.md`); notarization and the sandbox/entitlement story belong to packaging
   (package W4), not to this layer.
 - Profile file names come from the profile name through a slugger that follows the same reserved-name
   rule as the path layer (`isReservedDeviceStem`: CON, CONIN$, COM and LPT with the superscript digits,
