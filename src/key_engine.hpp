@@ -61,7 +61,11 @@ public:
         if (p.rate_max > 0.0) rate = std::min(rate, p.rate_max);
         if (p.rate_min > 0.0) rate = std::max(rate, std::min(p.rate_min, p.rate_max > 0.0 ? p.rate_max : p.hard_cap));
         rate = std::min(rate, p.hard_cap);
-        acc_ += sgn * rate * dt;
+        // Same two statements as StepAccumulator::add: a product kept in its own variable cannot be fused with the sum
+        // (fused multiply-add on arm64 gave other roundings), so the result is the same on every platform.
+        volatile double signedRate = sgn * rate;
+        volatile double add = signedRate * dt;
+        acc_ += add;
         const double whole = std::trunc(acc_);  // toward 0: the remainder keeps the sign
         acc_ -= whole;
         return static_cast<int>(std::max(-double(kMaxPressesPerFunction), std::min(double(kMaxPressesPerFunction), whole)));
