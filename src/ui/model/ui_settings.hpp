@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "platform/fs.hpp"
+#include "ui/model/assistant_tuning.hpp"
 
 namespace spn::ui {
 
@@ -41,8 +42,10 @@ struct UiSettings {
     Theme theme = Theme::System;
     WindowGeometry window;  // last size and position of the window
     std::string page;       // registry id of the last selected page ("" = none)
+    AxisAssistantTuning assistant;  // axis_assistant_* keys, edited by hand only (docs/ui.md)
     bool operator==(const UiSettings &o) const {
-        return language == o.language && theme == o.theme && window == o.window && page == o.page;
+        return language == o.language && theme == o.theme && window == o.window && page == o.page &&
+               assistant == o.assistant;
     }
 };
 
@@ -179,6 +182,14 @@ inline UiSettings parseUiSettings(const std::string &text) {
         else if (key == "theme") s.theme = themeFromId(value);
         else if (key == "window") s.window = parseWindowGeometry(value);
         else if (key == "page") s.page = validPageId(value) ? value : std::string();
+        else if (key == "axis_assistant_start_threshold")
+            s.assistant.start_threshold = clampedIntOr(value, kStartThresholdMin, kStartThresholdMax, AxisAssistantTuning().start_threshold);
+        else if (key == "axis_assistant_rest_ms")
+            s.assistant.rest_ms = clampedIntOr(value, kRestMsMin, kRestMsMax, AxisAssistantTuning().rest_ms);
+        else if (key == "axis_assistant_max_s")
+            s.assistant.max_s = clampedIntOr(value, kMaxSMin, kMaxSMax, AxisAssistantTuning().max_s);
+        else if (key == "axis_assistant_auto_skip_s")
+            s.assistant.auto_skip_s = clampedIntOr(value, kAutoSkipSMin, kAutoSkipSMax, AxisAssistantTuning().auto_skip_s);
     }
     return s;
 }
@@ -188,6 +199,15 @@ inline std::string serializeUiSettings(const UiSettings &s) {
                       "\ntheme = " + themeId(s.theme) + "\n";
     if (s.window.valid) out += "window = " + windowGeometryText(s.window) + "\n";
     if (validPageId(s.page)) out += "page = " + s.page + "\n";
+    // Only values that differ from the default are written, so the file stays as short as it was; a
+    // hand-set value survives when the interface saves another setting.
+    const AxisAssistantTuning d;
+    if (s.assistant.start_threshold != d.start_threshold)
+        out += "axis_assistant_start_threshold = " + std::to_string(s.assistant.start_threshold) + "\n";
+    if (s.assistant.rest_ms != d.rest_ms) out += "axis_assistant_rest_ms = " + std::to_string(s.assistant.rest_ms) + "\n";
+    if (s.assistant.max_s != d.max_s) out += "axis_assistant_max_s = " + std::to_string(s.assistant.max_s) + "\n";
+    if (s.assistant.auto_skip_s != d.auto_skip_s)
+        out += "axis_assistant_auto_skip_s = " + std::to_string(s.assistant.auto_skip_s) + "\n";
     return out;
 }
 

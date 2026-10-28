@@ -10,6 +10,7 @@
 #include <QPalette>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QShortcut>
 #include <QStackedWidget>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -22,10 +23,12 @@
 #include <unordered_map>
 
 #include "config.hpp"
+#include "motion_view.hpp"
 #include "ui/model/axis_roles_model.hpp"
 #include "ui/model/fresh_state.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/split_parts_model.hpp"
+#include "ui/model/ui_settings.hpp"
 #include "ui/model/suspend_heartbeat.hpp"
 #include "ui/model/ui_progress.hpp"
 #include "ui_i18n.hpp"
@@ -280,49 +283,66 @@ void AxesPage::buildLivePage(QWidget *page) {
 void AxesPage::buildWizardPage(QWidget *page) {
     auto *l = new QVBoxLayout(page);
     wizHead_ = new QLabel;
-    wizSteps_ = new QProgressBar;
-    wizSteps_->setRange(0, wiz::ROLE_COUNT);
-    wizSteps_->setTextVisible(false);
+    wizChips_ = new motionview::ChipFlow;
+    wizChips_->setAccessibleName(T("The five motions of the assistant"));
     wizInstr_ = new QLabel;
     wizInstr_->setWordWrap(true);
     QFont big = wizInstr_->font();
-    big.setPointSizeF(big.pointSizeF() * 1.2);
+    big.setPointSizeF(big.pointSizeF() * 1.3);
     wizInstr_->setFont(big);
+    wizArrow_ = new QLabel;
+    QFont arrow = wizArrow_->font();
+    arrow.setPointSizeF(arrow.pointSizeF() * 1.6);
+    arrow.setBold(true);
+    wizArrow_->setFont(arrow);
     wizMeaning_ = new QLabel;
     wizMeaning_->setWordWrap(true);
+    wizState_ = new QLabel;  // "Waiting", "Measuring", "Detected" as text, not only a bar
+    wizState_->setWordWrap(true);
+    QFont st = wizState_->font();
+    st.setBold(true);
+    wizState_->setFont(st);
+    wizState_->setAccessibleName(T("State of the step"));
     wizMeasure_ = new QProgressBar;
     wizMeasure_->setRange(0, 1000);
+    wizMeasure_->setTextVisible(false);
+    wizMeasure_->setAccessibleName(T("Time left for this step"));
     wizBars_ = new LiveBarsWidget(&session_->view(), true, page);
     wizResult_ = new QLabel;
     wizResult_->setWordWrap(true);
     wizResult_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     wizResult_->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     l->addWidget(wizHead_);
-    l->addWidget(wizSteps_);
+    l->addWidget(wizChips_);
     l->addWidget(wizInstr_);
+    l->addWidget(wizArrow_);
     l->addWidget(wizMeaning_);
+    l->addWidget(wizState_);
     l->addWidget(wizMeasure_);
     l->addWidget(wizBars_);
     l->addWidget(wizResult_, 1);
 
     auto *row = new QHBoxLayout;
     bCancel_ = new QPushButton(T("Cancel"));
-    bCancel_->setToolTip(T("Leave the assistant without changing anything."));
+    bCancel_->setToolTip(T("Leave the assistant without changing anything (Esc)."));
     bBack_ = new QPushButton(T("Back"));
     bSkip_ = new QPushButton(T("Skip"));
-    bStart_ = new QPushButton(T("Start"));
+    bStart_ = new QPushButton(T("Start now"));
+    bStart_->setToolTip(T("Normally a step starts when you move the cap. This starts it at once."));
     bNext_ = new QPushButton(T("Next"));
+    bNext_->setToolTip(T("Go on at once. Otherwise the next step starts by itself after a moment."));
     bApply_ = new QPushButton(T("Apply"));
-    bApply_->setToolTip(T("Write the detected axis mixes into the [global] settings."));
+    bApply_->setToolTip(T("Write the detected axis mixes into the [global] settings (Enter)."));
+    bApply_->setDefault(true);
     row->addWidget(bCancel_);
     row->addStretch(1);
     for (QPushButton *b : {bBack_, bSkip_, bStart_, bNext_, bApply_}) row->addWidget(b);
     l->addLayout(row);
-    QWidget::setTabOrder(bStart_, bNext_);
-    QWidget::setTabOrder(bNext_, bApply_);
-    QWidget::setTabOrder(bApply_, bBack_);
-    QWidget::setTabOrder(bBack_, bSkip_);
-    QWidget::setTabOrder(bSkip_, bCancel_);
+    QWidget::setTabOrder(bApply_, bNext_);
+    QWidget::setTabOrder(bNext_, bStart_);
+    QWidget::setTabOrder(bStart_, bSkip_);
+    QWidget::setTabOrder(bSkip_, bBack_);
+    QWidget::setTabOrder(bBack_, bCancel_);
 
     auto &w = session_->wizard();
     connect(bCancel_, &QPushButton::clicked, this, [this] { cancelWizard(); });
@@ -330,10 +350,27 @@ void AxesPage::buildWizardPage(QWidget *page) {
     connect(bSkip_, &QPushButton::clicked, this, [this, &w] { w.skip(); refreshWizard(now()); });
     connect(bNext_, &QPushButton::clicked, this, [this, &w] { w.next(); refreshWizard(now()); });
     connect(bStart_, &QPushButton::clicked, this, [this, &w] {
-        w.start(now(), session_->connected(now()));
+        // "Start now" before a movement, "Measure again" after a result (or a failed try)
+        if (w.waiting() && !w.done(w.step())) w.start(now(), session_->connected(now()));
+        else w.again(now());
         refreshWizard(now());
     });
     connect(bApply_, &QPushButton::clicked, this, [this] { applyWizard(); });
+
+    // Keyboard only: Esc leaves without writing; Enter presses the focused button, or Apply on the
+    // result page (a plain widget has no default button, so this is done by hand).
+    auto *esc = new QShortcut(QKeySequence(Qt::Key_Escape), page);
+    esc->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(esc, &QShortcut::activated, this, [this] { cancelWizard(); });
+    for (const QKeySequence &k : {QKeySequence(Qt::Key_Return), QKeySequence(Qt::Key_Enter)}) {
+        auto *enter = new QShortcut(k, page);
+        enter->setContext(Qt::WidgetWithChildrenShortcut);
+        connect(enter, &QShortcut::activated, this, [this] {
+            auto *f = qobject_cast<QPushButton *>(QApplication::focusWidget());
+            if (f && f->isEnabled() && f->isVisible()) f->click();
+            else if (session_->wizard().onResultPage()) applyWizard();
+        });
+    }
 }
 
 bool AxesPage::wizardVisible() const { return stack_->currentIndex() == 1; }
@@ -341,6 +378,8 @@ bool AxesPage::wizardVisible() const { return stack_->currentIndex() == 1; }
 void AxesPage::openWizard() {
     auto &w = session_->wizard();
     w.reset();
+    w.setTuning(spn::ui::loadUiSettings(spn::ui::uiSettingsPath()).assistant);  // axis_assistant_* keys, no UI for them
+    wizWasResult_ = false;
     applyNote_.clear();
     if (ctx_.settings) w.setZoomLateral(ctx_.settings->profiles().sectionSettings(0).zoom_lateral);
     savedNote_.clear();
@@ -452,6 +491,7 @@ void AxesPage::refreshLive(int64_t nowNs) {
 void AxesPage::refreshWizard(int64_t nowNs) {
     auto &w = session_->wizard();
     const bool result = w.onResultPage();
+    const bool connected = session_->connected(nowNs);
     const int s = std::min(w.step(), int(wiz::ROLE_COUNT) - 1);
     if (result) {
         wizHead_->setText(QStringLiteral("<b>") + T("Result") + QStringLiteral("</b>"));
@@ -463,23 +503,40 @@ void AxesPage::refreshWizard(int64_t nowNs) {
                                       wiz::roleOptional(w.step()) ? T(" (optional)") : QString());
         wizHead_->setText(QStringLiteral("<b>") + step.toHtmlEscaped() + QStringLiteral("</b>"));
     }
-    wizSteps_->setValue(w.step());
+    // The five motions: the current one solid, the others dashed, each with its state in words.
+    {
+        QList<motionview::Chip> chips;
+        for (int r = 0; r < wiz::ROLE_COUNT; ++r) {
+            motionview::Chip c;
+            QString state = w.skipped(r) ? T("skipped") : (w.done(r) && w.stepResult(r).valid) ? T("done") : QString();
+            c.text = T(wiz::roleTitle(r)) + (state.isEmpty() ? QString() : QStringLiteral(" - ") + state);
+            c.muted = result || r != w.step();
+            chips.append(c);
+        }
+        wizChips_->setChips(chips);
+        wizChips_->setVisible(true);
+    }
     for (QWidget *x : {static_cast<QWidget *>(wizInstr_), static_cast<QWidget *>(wizMeaning_),
-                       static_cast<QWidget *>(wizMeasure_), static_cast<QWidget *>(wizBars_)})
+                       static_cast<QWidget *>(wizState_), static_cast<QWidget *>(wizBars_)})
         x->setVisible(!result);
+    wizArrow_->setVisible(!result);
+    wizMeasure_->setVisible(!result && w.measuring());
 
     QString msg;
     if (result) {
         const wiz::WizardResult &f = w.final();
+        msg = T("Detected mapping:");
+        for (const spn::ui::WizardMappingRow &r : spn::ui::wizardMappingRows(w))
+            msg += QStringLiteral("\n    ") + qs(r.direction) + QStringLiteral(": ") + qs(r.detail);
         if (f.ok) {
-            msg = T("Detected mapping:") + QStringLiteral("\n    ") + T("Scroll V") + QStringLiteral(" = ") +
-                  qs(f.mix_v) + QStringLiteral("\n    ") + T("Scroll H") + QStringLiteral(" = ") + qs(f.mix_h) +
-                  QStringLiteral("\n    ") + T("Zoom") + QStringLiteral(" = ") + qs(f.mix_zoom) +
-                  QStringLiteral("\n\n") +
-                  T("\"Apply\" sets these axis mixes in the [global] settings and resets the direction "
-                    "switches to normal. \"Cancel\" changes nothing.");
+            msg += QStringLiteral("\n\n") + T("This will be written:") + QStringLiteral("\n    ") + T("Scroll V") +
+                   QStringLiteral(" = ") + qs(f.mix_v) + QStringLiteral("\n    ") + T("Scroll H") +
+                   QStringLiteral(" = ") + qs(f.mix_h) + QStringLiteral("\n    ") + T("Zoom") + QStringLiteral(" = ") +
+                   qs(f.mix_zoom) + QStringLiteral("\n\n") +
+                   T("\"Apply\" sets these axis mixes in the [global] settings and resets the direction "
+                     "switches to normal. \"Cancel\" changes nothing.");
         } else {
-            msg = T("The mapping is incomplete and cannot be applied.");
+            msg += QStringLiteral("\n\n") + T("The mapping is incomplete and cannot be applied.");
         }
         for (const auto &e : f.errors) msg += QStringLiteral("\n\n") + T("Error: %1").arg(qs(e));
         for (const auto &x : f.warnings) msg += QStringLiteral("\n\n") + T("Warning: %1").arg(qs(x));
@@ -487,25 +544,34 @@ void AxesPage::refreshWizard(int64_t nowNs) {
     } else {
         wizInstr_->setText(T(wizardStepText(s).instruction));
         wizMeaning_->setText(T(wizardStepText(s).meaning));
+        const spn::ui::WizardFirstMove &fm = spn::ui::wizardFirstMove(s);
+        const bool picked = w.measuring() && w.halves() >= 1;
+        wizArrow_->setText(qs8(fm.arrow) + QStringLiteral("  ") + T("First: %1").arg(T(fm.words)) +
+                           (picked ? QStringLiteral("  (") + T("picked up") + QLatin1Char(')') : QString()));
+        wizState_->setText(qs(spn::ui::wizardStateText(w, connected)));
         wizMeasure_->setValue(int(w.progress(nowNs) * 1000.0));
-        wizMeasure_->setFormat(w.measuring()
-                                   ? T("Measuring - move now! %1 s left").arg(w.secondsLeft(nowNs), 0, 'f', 1)
-                               : w.done(s) ? T("Measurement complete")
-                               : session_->connected(nowNs) ? T("Ready - click \"Start\", then move (3 s)")
-                                                            : T("No connection to the daemon"));
-        wizMeasure_->setTextVisible(true);
-        if (!w.note().empty()) msg = qs(w.note());
-        else if (w.done(s)) msg = qs(w.stepResult(s).message);
-        else if (w.skipped(s)) msg = T("Skipped.");
-        if (!session_->connected(nowNs) && !w.measuring())
+        if (!w.notice().empty()) msg = qs(w.notice());
+        if (!w.note().empty()) msg += (msg.isEmpty() ? QString() : QStringLiteral("\n\n")) + qs(w.note());
+        if (w.done(s) && !w.stepResult(s).valid)
+            msg += (msg.isEmpty() ? QString() : QStringLiteral("\n\n")) + T(spn::ui::wizardStepHint(w.stepResult(s))) +
+                   QStringLiteral(" ") + T("Move the cap again to repeat this step.");
+        else if (w.done(s) && w.stepResult(s).valid) {
+            msg += (msg.isEmpty() ? QString() : QStringLiteral("\n\n")) +
+                   T("Detected: %1").arg(T(wiz::roleTitle(s)));
+            if (w.stepResult(s).ratio > wiz::AMBIGUOUS_RATIO)
+                msg += QStringLiteral(" ") + T("Close call - repeat if necessary and move more cleanly in only one direction.");
+        } else if (w.skipped(s) && w.notice().empty())
+            msg += (msg.isEmpty() ? QString() : QStringLiteral("\n\n")) + T("Skipped.");
+        if (!connected && !w.measuring())
             msg += (msg.isEmpty() ? QString() : QStringLiteral("\n\n")) +
                    T(connectionHint(session_->connection(nowNs), currentHostOs()));
     }
     wizResult_->setText(msg);
 
     bStart_->setVisible(!result);
-    bStart_->setText(w.done(s) ? T("Measure again") : T("Start"));
-    bStart_->setEnabled(w.canStart(session_->connected(nowNs)));
+    const bool freshWait = w.waiting() && !w.done(s);
+    bStart_->setText(freshWait ? T("Start now") : T("Measure again"));
+    bStart_->setEnabled(freshWait ? w.canStart(connected) : w.canAgain());
     bSkip_->setVisible(!result && wiz::roleOptional(w.step()));
     bSkip_->setEnabled(w.canSkip());
     bBack_->setEnabled(w.canBack());
@@ -513,6 +579,8 @@ void AxesPage::refreshWizard(int64_t nowNs) {
     bNext_->setEnabled(w.canNext());
     bApply_->setVisible(result);
     bApply_->setEnabled(w.canApply());
+    if (result && !wizWasResult_ && bApply_->isEnabled()) bApply_->setFocus();  // Enter applies
+    wizWasResult_ = result;
 }
 
 QWidget *createAxesPage(const UiContext &ctx) { return new AxesPage(ctx); }

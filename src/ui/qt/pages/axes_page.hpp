@@ -24,6 +24,9 @@ class QPushButton;
 class QStackedWidget;
 class QTimer;
 class LiveBarsWidget;
+namespace motionview {
+class ChipFlow;
+}
 
 // Optional override of the live feed connection (tests, self-test); empty = the real daemon.
 struct AxesPageEnv {
@@ -79,7 +82,10 @@ private:
     QPushButton *pause_ = nullptr, *openWiz_ = nullptr;
 
     QLabel *wizHead_ = nullptr, *wizInstr_ = nullptr, *wizMeaning_ = nullptr, *wizResult_ = nullptr;
-    QProgressBar *wizSteps_ = nullptr, *wizMeasure_ = nullptr;
+    QLabel *wizState_ = nullptr, *wizArrow_ = nullptr;  // the state of the step as text, the first movement
+    motionview::ChipFlow *wizChips_ = nullptr;           // the five motions, the current one solid
+    QProgressBar *wizMeasure_ = nullptr;                 // time left of the longest step, while measuring
+    bool wizWasResult_ = false;
     QPushButton *bStart_ = nullptr, *bSkip_ = nullptr, *bBack_ = nullptr, *bNext_ = nullptr,
                 *bApply_ = nullptr, *bCancel_ = nullptr;
     QString applyNote_, savedNote_;

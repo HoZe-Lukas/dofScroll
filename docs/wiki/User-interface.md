@@ -71,7 +71,7 @@ Your files in `modes/` and `buttons/` in one list. The **switch** turns a file o
 ### Device and Axes
 
 - **Device:** the connected SpaceMice and the number of buttons each has (this decides how many button rows a profile offers). With several devices (Windows and macOS, direct HID) every device is listed; see [FAQ](FAQ).
-- **Axes:** live bars of the six axes with a marker for the peak, one cell per button, the active joystick mode and, when the joystick mode splits a scroll channel, live bars for push and tilt. **The daemon pauses its output while this page is open**, so moving the cap does not scroll the window you look at. The **axis assistant** asks you to push, tilt and twist in turn, detects which axis does what even with strong crosstalk, and applies the result to the axis mix.
+- **Axes:** live bars of the six axes with a marker for the peak, one cell per button, the active joystick mode and, when the joystick mode splits a scroll channel, live bars for push and tilt. **The daemon pauses its output while this page is open**, so moving the cap does not scroll the window you look at. The **axis assistant** asks you to push, tilt and twist in turn and needs no mouse click: a step starts when you move the cap, ends when you have moved out and back and let go, and the next step follows by itself (the two tilt steps skip themselves when you do not move). It shows the movement as an arrow with live bars, detects which axis does what even with strong crosstalk, and applies the result to the axis mix when you press Apply (Enter); Cancel (Esc) changes nothing. Thresholds and times are keys in `ui.conf` (`axis_assistant_*`, see the UI documentation), not settings in the window.
 
 ### Driver cleanup (Windows)
 

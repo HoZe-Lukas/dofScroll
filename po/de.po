@@ -43,10 +43,6 @@ msgstr ""
 "Keine anhaltende Bewegung erkannt (nur kurze Ausschläge) - bitte gleichmäßig "
 "und etwas länger bewegen."
 
-#: src/axis_wizard.hpp:208
-msgid "No movement detected - please move the cap after \"Start\"."
-msgstr "Keine Bewegung erkannt - bitte die Kappe nach „Start“ bewegen."
-
 #: src/axis_wizard.hpp:218
 #, c-format
 msgid "Too weak (peak %d on %s, required %d) - please move more firmly."
@@ -234,64 +230,6 @@ msgstr "Kappe drehen"
 msgid "(off)"
 msgstr "(aus)"
 
-#: src/ui/model/axes_model.hpp:266
-msgid ""
-"Pull the cap toward you, then push it forward - level, without tilting. "
-"Toward you first!"
-msgstr ""
-"Kappe zu dir ziehen und danach nach vorn schieben - waagerecht, ohne zu "
-"kippen. Zuerst zu dir!"
-
-#: src/ui/model/axes_model.hpp:268
-msgid "Toward you = positive (scroll down)."
-msgstr "Zu dir = positiv (Scrollen nach unten)."
-
-#: src/ui/model/axes_model.hpp:269
-msgid ""
-"Tilt the cap toward you, then forward (tilt the top, without pushing). "
-"Toward you first!"
-msgstr ""
-"Kappe zu dir kippen und danach nach vorn kippen (die Oberseite neigen, ohne "
-"zu schieben). Zuerst zu dir!"
-
-#: src/ui/model/axes_model.hpp:271
-msgid "Tilting toward you = positive (scroll down). Optional - can be skipped."
-msgstr ""
-"Zu dir kippen = positiv (Scrollen nach unten). Optional - kann übersprungen "
-"werden."
-
-#: src/ui/model/axes_model.hpp:272
-msgid ""
-"Push the cap to the right and back - level, without tilting. Right first!"
-msgstr ""
-"Kappe nach rechts schieben und zurück - waagerecht, ohne zu kippen. Zuerst "
-"nach rechts!"
-
-#: src/ui/model/axes_model.hpp:273
-msgid "Right = positive (scroll right)."
-msgstr "Rechts = positiv (Scrollen nach rechts)."
-
-#: src/ui/model/axes_model.hpp:274
-msgid "Tilt the cap sideways: tilt to the right and back. Right first!"
-msgstr ""
-"Kappe seitlich kippen: nach rechts kippen und zurück. Zuerst nach rechts!"
-
-#: src/ui/model/axes_model.hpp:275
-msgid "Tilting right = positive (scroll right). Optional - can be skipped."
-msgstr ""
-"Nach rechts kippen = positiv (Scrollen nach rechts). Optional - kann "
-"übersprungen werden."
-
-#: src/ui/model/axes_model.hpp:276
-msgid "Twist the cap clockwise (seen from above) and back. Clockwise first!"
-msgstr ""
-"Kappe im Uhrzeigersinn drehen (von oben gesehen) und zurück. Zuerst im "
-"Uhrzeigersinn!"
-
-#: src/ui/model/axes_model.hpp:277
-msgid "Clockwise = positive (zoom in)."
-msgstr "Uhrzeigersinn = positiv (hineinzoomen)."
-
 #: src/ui/qt/pages/axes_page.cpp:403
 msgid "Detected mapping:"
 msgstr "Erkannte Zuordnung:"
@@ -307,14 +245,6 @@ msgstr " (optional)"
 #: src/ui/qt/pages/axes_page.cpp:385
 msgid "Result"
 msgstr "Ergebnis"
-
-#: src/ui/qt/pages/axes_page.cpp:421
-msgid "Measurement complete"
-msgstr "Messung abgeschlossen"
-
-#: src/ui/qt/pages/axes_page.cpp:422
-msgid "Ready - click \"Start\", then move (3 s)"
-msgstr "Bereit - \"Start\" klicken, dann bewegen (3 s)"
 
 #: src/ui/qt/pages/axes_page.cpp:427
 msgid "Skipped."
@@ -738,10 +668,6 @@ msgid "Learn which axis does what by moving the cap, step by step."
 msgstr ""
 "Schritt für Schritt durch Bewegen der Kappe lernen, welche Achse was tut."
 
-#: src/ui/qt/pages/axes_page.cpp:274
-msgid "Leave the assistant without changing anything."
-msgstr "Den Assistenten verlassen, ohne etwas zu ändern."
-
 #: src/ui/qt/pages/axes_page.cpp:275
 msgid "Back"
 msgstr "Zurück"
@@ -750,10 +676,6 @@ msgstr "Zurück"
 msgid "Skip"
 msgstr "Überspringen"
 
-#: src/ui/qt/pages/axes_page.cpp:277 src/ui/qt/pages/axes_page.cpp:435
-msgid "Start"
-msgstr "Start"
-
 #: src/ui/qt/pages/axes_page.cpp:278
 msgid "Next"
 msgstr "Weiter"
@@ -761,10 +683,6 @@ msgstr "Weiter"
 #: src/ui/qt/pages/axes_page.cpp:279
 msgid "Apply"
 msgstr "Anwenden"
-
-#: src/ui/qt/pages/axes_page.cpp:280
-msgid "Write the detected axis mixes into the [global] settings."
-msgstr "Die erkannten Achsen-Mixe in die [global]-Einstellungen schreiben."
 
 #: src/ui/qt/pages/axes_page.cpp:326 src/ui/qt/pages/axes_page.cpp:332
 #: src/ui/qt/pages/axes_page.cpp:412
@@ -798,10 +716,6 @@ msgstr ""
 #: src/ui/qt/pages/axes_page.cpp:413
 msgid "Warning: %1"
 msgstr "Warnung: %1"
-
-#: src/ui/qt/pages/axes_page.cpp:420
-msgid "Measuring - move now! %1 s left"
-msgstr "Messung läuft - jetzt bewegen! Noch %1 s"
 
 #: src/ui/qt/pages/axes_page.cpp:423
 msgid "No connection to the daemon"
@@ -5040,3 +4954,182 @@ msgstr "Behalte Profildateien nur aus Quellen, denen du vertraust, und lies die 
 #: src/ui
 msgid "Import the profile"
 msgstr "Profil importieren"
+
+#: src/ui/model/axes_model.hpp
+msgid "Pull the cap toward you, then push it away from you."
+msgstr "Zieh die Kappe zu dir und schieb sie dann von dir weg."
+
+#: src/ui/model/axes_model.hpp
+msgid "Toward you counts as positive (scroll down)."
+msgstr "Zu dir zählt als positiv (Scrollen nach unten)."
+
+#: src/ui/model/axes_model.hpp
+msgid "Tilt the cap toward you, then away from you."
+msgstr "Kipp die Kappe zu dir und dann von dir weg."
+
+#: src/ui/model/axes_model.hpp
+msgid "Tilting toward you counts as positive (scroll down). Optional."
+msgstr "Kippen zu dir zählt als positiv (Scrollen nach unten). Optional."
+
+#: src/ui/model/axes_model.hpp
+msgid "Push the cap to the right, then back to the left."
+msgstr "Schieb die Kappe nach rechts und dann zurück nach links."
+
+#: src/ui/model/axes_model.hpp
+msgid "Right counts as positive (scroll right)."
+msgstr "Rechts zählt als positiv (Scrollen nach rechts)."
+
+#: src/ui/model/axes_model.hpp
+msgid "Tilt the cap to the right, then back to the left."
+msgstr "Kipp die Kappe nach rechts und dann zurück nach links."
+
+#: src/ui/model/axes_model.hpp
+msgid "Tilting right counts as positive (scroll right). Optional."
+msgstr "Kippen nach rechts zählt als positiv (Scrollen nach rechts). Optional."
+
+#: src/ui/model/axes_model.hpp
+msgid "Twist the cap clockwise, then back."
+msgstr "Dreh die Kappe im Uhrzeigersinn und dann zurück."
+
+#: src/ui/model/axes_model.hpp
+msgid "Clockwise counts as positive (zoom in)."
+msgstr "Im Uhrzeigersinn zählt als positiv (Zoom hinein)."
+
+#: src/ui/model/axes_model.hpp
+msgid "toward you"
+msgstr "zu dir"
+
+#: src/ui/model/axes_model.hpp
+msgid "to the right"
+msgstr "nach rechts"
+
+#: src/ui/model/axes_model.hpp
+msgid "clockwise"
+msgstr "im Uhrzeigersinn"
+
+#: src/ui/model/axes_model.hpp
+msgid "No sustained movement seen. Move the cap steadily and a little longer."
+msgstr "Keine anhaltende Bewegung erkannt. Bewege die Kappe gleichmäßig und etwas länger."
+
+#: src/ui/model/axes_model.hpp
+msgid "Too weak. Move the cap more firmly in the direction shown."
+msgstr "Zu schwach. Bewege die Kappe kräftiger in die gezeigte Richtung."
+
+#: src/ui/model/axes_model.hpp
+msgid "Not clear. Move the cap in only one direction, without tilting or pushing sideways."
+msgstr "Nicht eindeutig. Bewege die Kappe nur in eine Richtung, ohne zu kippen oder seitlich zu schieben."
+
+#: src/ui/model/axes_model.hpp
+msgid "The direction could not be told. Start with the movement shown, then go back."
+msgstr "Die Richtung war nicht erkennbar. Beginne mit der gezeigten Bewegung und geh dann zurück."
+
+#: src/ui/model/axes_model.hpp
+#, c-format
+msgid "\"%s\" skipped, no movement. You can do it later from the result page."
+msgstr "\"%s\" übersprungen, keine Bewegung. Du kannst es später von der Ergebnisseite aus nachholen."
+
+#: src/ui/model/axes_model.hpp
+msgid "No movement seen. Move the cap as shown, or press \"Measure again\"."
+msgstr "Keine Bewegung erkannt. Bewege die Kappe wie gezeigt oder drücke \"Erneut messen\"."
+
+#: src/ui/model/axes_model.hpp
+msgid "The step took too long. Try again with one clear movement out and back."
+msgstr "Der Schritt hat zu lange gedauert. Versuche es noch einmal mit einer klaren Bewegung hin und zurück."
+
+#: src/ui/model/axes_model.hpp
+msgid "Skipped"
+msgstr "Übersprungen"
+
+#: src/ui/model/axes_model.hpp
+msgid "Not detected"
+msgstr "Nicht erkannt"
+
+#: src/ui/model/axes_model.hpp
+#, c-format
+msgid "%s, negative"
+msgstr "%s, negativ"
+
+#: src/ui/model/axes_model.hpp
+#, c-format
+msgid "%s, positive"
+msgstr "%s, positiv"
+
+#: src/ui/model/axes_model.hpp
+msgid "Waiting for you to move the cap..."
+msgstr "Warte darauf, dass du die Kappe bewegst..."
+
+#: src/ui/model/axes_model.hpp
+msgid "Measuring: out and back seen, hold still..."
+msgstr "Messung: hin und zurück erkannt, halte still..."
+
+#: src/ui/model/axes_model.hpp
+msgid "Measuring: first movement seen, now move back..."
+msgstr "Messung: erste Bewegung erkannt, jetzt zurück..."
+
+#: src/ui/model/axes_model.hpp
+msgid "Measuring: keep moving..."
+msgstr "Messung: bewege weiter..."
+
+#: src/ui/model/axes_model.hpp
+msgid "Detected"
+msgstr "Erkannt"
+
+#: src/axis_wizard.hpp
+msgid "No movement detected - please move the cap."
+msgstr "Keine Bewegung erkannt - bitte die Kappe bewegen."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "The five motions of the assistant"
+msgstr "Die fünf Bewegungen des Assistenten"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "State of the step"
+msgstr "Zustand des Schritts"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Time left for this step"
+msgstr "Verbleibende Zeit für diesen Schritt"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Leave the assistant without changing anything (Esc)."
+msgstr "Den Assistenten verlassen, ohne etwas zu ändern (Esc)."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Normally a step starts when you move the cap. This starts it at once."
+msgstr "Normalerweise beginnt ein Schritt, sobald du die Kappe bewegst. Das startet ihn sofort."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Go on at once. Otherwise the next step starts by itself after a moment."
+msgstr "Sofort weiter. Sonst beginnt der nächste Schritt nach einem Moment von selbst."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Write the detected axis mixes into the [global] settings (Enter)."
+msgstr "Die erkannten Achsmischungen in die [global]-Einstellungen schreiben (Enter)."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "skipped"
+msgstr "übersprungen"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "done"
+msgstr "fertig"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "This will be written:"
+msgstr "Das wird geschrieben:"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "First: %1"
+msgstr "Zuerst: %1"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "picked up"
+msgstr "erkannt"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Detected: %1"
+msgstr "Erkannt: %1"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Move the cap again to repeat this step."
+msgstr "Bewege die Kappe erneut, um diesen Schritt zu wiederholen."

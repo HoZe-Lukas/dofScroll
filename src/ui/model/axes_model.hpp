@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Toolkit-free logic of the "Axes / assistant" page: bar scaling, peak hold, pause/freeze, the
 // connection state line with the per-OS "start the daemon" hint, the axis assistant controller
-// (steps, 3 s measurement, evaluation through axis_wizard.hpp, apply into [global]) and AxesSession,
+// (steps started and ended by movement, evaluation through axis_wizard.hpp, apply into [global]) and AxesSession,
 // which feeds all of them from one LiveFeedClient. The Qt page is a thin view on top of this.
 //
 // Only the live feed is used as data source (all three OSes); nothing here touches libspnav.
@@ -18,6 +18,7 @@
 
 #include "axis_wizard.hpp"
 #include "live_feed/live_feed.hpp"
+#include "ui/model/assistant_tuning.hpp"
 #include "ui/model/live_feed_model.hpp"
 #include "ui/model/settings_model.hpp"
 
@@ -255,91 +256,226 @@ inline const char *connectionHint(ConnState s, HostOs os) {
 }
 
 // ---- axis assistant -----------------------------------------------------------------------------
+//
+// Flow of one step (all by movement, no click needed):
+//   Waiting    the cap must first be at rest (kArmRestNs), then a movement above the start
+//              threshold (MIN_RUN samples in a row) starts the measurement. An optional step is
+//              skipped by itself after `auto_skip_s` without movement; a required step only shows
+//              a hint after `max_s`.
+//   Measuring  ends when the cap moved out and back (two half-movements) and has been at rest for
+//              `rest_ms`; or after a single half-movement and a long rest; or after `max_s`.
+//   Detected   a valid result is shown for kAdvanceNs, then the next step starts by itself.
+//   Review     a step that is revisited with Back: result shown, nothing starts by itself.
+// An invalid result goes back to Waiting on the same step (the message stays visible), so the
+// next movement measures it again.
 
 struct WizardStepText {
     const char *instruction;
     const char *meaning;
 };
 
+// One short line per step in direction words (never axis names) and what "positive" means.
 inline const WizardStepText &wizardStepText(int step) {
     static const WizardStepText t[wiz::ROLE_COUNT] = {
-        {N_("Pull the cap toward you, then push it forward - level, without tilting. "
-            "Toward you first!"),
-         N_("Toward you = positive (scroll down).")},
-        {N_("Tilt the cap toward you, then forward (tilt the top, without pushing). "
-            "Toward you first!"),
-         N_("Tilting toward you = positive (scroll down). Optional - can be skipped.")},
-        {N_("Push the cap to the right and back - level, without tilting. Right first!"),
-         N_("Right = positive (scroll right).")},
-        {N_("Tilt the cap sideways: tilt to the right and back. Right first!"),
-         N_("Tilting right = positive (scroll right). Optional - can be skipped.")},
-        {N_("Twist the cap clockwise (seen from above) and back. Clockwise first!"),
-         N_("Clockwise = positive (zoom in).")},
+        {N_("Pull the cap toward you, then push it away from you."),
+         N_("Toward you counts as positive (scroll down).")},
+        {N_("Tilt the cap toward you, then away from you."),
+         N_("Tilting toward you counts as positive (scroll down). Optional.")},
+        {N_("Push the cap to the right, then back to the left."),
+         N_("Right counts as positive (scroll right).")},
+        {N_("Tilt the cap to the right, then back to the left."),
+         N_("Tilting right counts as positive (scroll right). Optional.")},
+        {N_("Twist the cap clockwise, then back."),
+         N_("Clockwise counts as positive (zoom in).")},
     };
     static const WizardStepText bad = {"", ""};
     return step >= 0 && step < wiz::ROLE_COUNT ? t[step] : bad;
 }
 
+// The first half-movement of a step: an arrow and the words for it.
+struct WizardFirstMove {
+    const char *arrow;
+    const char *words;
+};
+inline const WizardFirstMove &wizardFirstMove(int step) {
+    static const WizardFirstMove t[wiz::ROLE_COUNT] = {
+        {"\xE2\x86\x93", N_("toward you")},         {"\xE2\x86\x93", N_("toward you")},
+        {"\xE2\x86\x92", N_("to the right")},       {"\xE2\x86\x92", N_("to the right")},
+        {"\xE2\x86\xBB", N_("clockwise")},
+    };
+    static const WizardFirstMove bad = {"", ""};
+    return step >= 0 && step < wiz::ROLE_COUNT ? t[step] : bad;
+}
+
+// What to change after a result that is not valid, in words (no axis names).
+inline const char *wizardStepHint(const wiz::StepResult &r) {
+    if (r.valid) return "";
+    if (r.axis < 0) return N_("No sustained movement seen. Move the cap steadily and a little longer.");
+    if (r.too_weak) return N_("Too weak. Move the cap more firmly in the direction shown.");
+    if (r.ambiguous)
+        return N_("Not clear. Move the cap in only one direction, without tilting or pushing sideways.");
+    return N_("The direction could not be told. Start with the movement shown, then go back.");
+}
+
+enum class WizardPhase { Waiting, Measuring, Detected, Review, ResultPage };
+
 class WizardController {
 public:
-    static constexpr int64_t kMeasureNs = 3000000000;
-    static constexpr size_t kMaxSamples = 4096;  // bound for a measurement (3 s at <= 60 Hz needs ~200)
+    static constexpr int64_t kArmRestNs = 200000000;     // rest needed before a movement starts a step
+    static constexpr int64_t kMinMeasureNs = 500000000;  // a spike cannot end a step sooner
+    static constexpr int64_t kAdvanceNs = 1000000000;    // a valid result is shown this long
+    static constexpr int64_t kOneHalfRestNs = 2000000000;  // rest that ends a step with one half-movement
+    static constexpr size_t kMaxSamples = 8192;          // bound for a measurement
     static constexpr int kSteps = wiz::ROLE_COUNT;
 
     int step() const { return step_; }  // 0..kSteps-1 measuring steps, kSteps = result page
     bool onResultPage() const { return step_ >= kSteps; }
-    bool measuring() const { return measuring_; }
+    WizardPhase phase() const { return phase_; }
+    bool measuring() const { return phase_ == WizardPhase::Measuring; }
+    bool waiting() const { return phase_ == WizardPhase::Waiting; }
     bool done(int s) const { return inRange(s) && done_[size_t(s)]; }
     bool skipped(int s) const { return inRange(s) && skipped_[size_t(s)]; }
     const wiz::StepResult &stepResult(int s) const { return res_[size_t(inRange(s) ? s : 0)]; }
     const wiz::WizardResult &final() const { return final_; }
+    // Something went wrong or needs a word (connection lost, nothing moved for a long time).
     const std::string &note() const { return note_; }
+    // Remark on the step before ("Skipped, no movement"); gone when the step is measured.
+    const std::string &notice() const { return notice_; }
     size_t sampleCount() const { return samples_.size(); }
+    // Half-movements seen so far in the running measurement (0, 1, 2).
+    int halves() const { return halves_; }
 
-    // Fraction of the measurement time elapsed (0..1) and seconds left.
+    void setTuning(const AxisAssistantTuning &t) { tuning_ = t; }
+    const AxisAssistantTuning &tuning() const { return tuning_; }
+
+    // Fraction of the longest step elapsed (0..1) and seconds left until it ends.
     double progress(int64_t nowNs) const {
-        if (!measuring_) return done(step_) ? 1.0 : 0.0;
-        return std::min(1.0, std::max(0.0, double(nowNs - t0_) / double(kMeasureNs)));
+        if (!measuring()) return done(step_) ? 1.0 : 0.0;
+        return std::min(1.0, std::max(0.0, double(nowNs - t0_) / double(tuning_.maxNs())));
     }
     double secondsLeft(int64_t nowNs) const {
-        return measuring_ ? std::max(0.0, double(kMeasureNs - (nowNs - t0_)) / 1e9) : 0.0;
+        return measuring() ? std::max(0.0, double(tuning_.maxNs() - (nowNs - t0_)) / 1e9) : 0.0;
     }
 
-    bool canStart(bool connected) const { return connected && !onResultPage() && !measuring_; }
-    bool canSkip() const { return !onResultPage() && !measuring_ && wiz::roleOptional(step_); }
-    bool canBack() const { return step_ > 0 && !measuring_; }
+    bool canStart(bool connected) const { return connected && !onResultPage() && !measuring(); }
+    bool canAgain() const { return !onResultPage(); }
+    bool canSkip() const { return !onResultPage() && !measuring() && wiz::roleOptional(step_); }
+    bool canBack() const { return step_ > 0 && !measuring(); }
     bool canNext() const {
-        return !onResultPage() && !measuring_ && ((done(step_) && stepResult(step_).valid) || skipped(step_));
+        return !onResultPage() && !measuring() && ((done(step_) && stepResult(step_).valid) || skipped(step_));
     }
     bool canApply() const { return onResultPage() && final_.ok; }
 
     // Lateral axes of the zoom detection: warns on the result page if the twist axis is among them.
     void setZoomLateral(const std::vector<Axis> &lat) { lateral_ = lat; }
+    void setConnected(bool c) { connected_ = c; }
 
+    // Starts measuring at once (the "Start now" button; the normal start is by movement).
     bool start(int64_t nowNs, bool connected) {
         if (!canStart(connected)) return false;
+        lastNow_ = nowNs;
         samples_.clear();
         note_.clear();
+        notice_.clear();
         done_[size_t(step_)] = false;
-        measuring_ = true;
-        t0_ = nowNs;
-        return true;
-    }
-    void onSample(const RawAxes &a) {
-        if (measuring_ && samples_.size() < kMaxSamples) samples_.push_back(a);
-    }
-    // Finishes the measurement after kMeasureNs; true once when the result of the step is ready.
-    bool tick(int64_t nowNs) {
-        if (!measuring_ || nowNs - t0_ < kMeasureNs) return false;
-        measuring_ = false;
-        res_[size_t(step_)] = wiz::analyzeStep(samples_);
-        done_[size_t(step_)] = true;
         skipped_[size_t(step_)] = false;
+        beginMeasuring(nowNs);
         return true;
+    }
+    // Throws the result of this step away and waits for a new movement.
+    bool again(int64_t nowNs) {
+        if (!canAgain()) return false;
+        lastNow_ = nowNs;
+        done_[size_t(step_)] = false;
+        skipped_[size_t(step_)] = false;
+        note_.clear();
+        notice_.clear();
+        enterWaiting();
+        return true;
+    }
+
+    void onSample(const RawAxes &a, int64_t nowNs) {
+        lastNow_ = nowNs;
+        const bool active = maxAbs(a) > tuning_.start_threshold;
+        if (phase_ == WizardPhase::Waiting) {
+            if (active) {
+                if (above_ > 0 || armed(nowNs)) {
+                    recent_.push_back(a);
+                    if (++above_ >= wiz::MIN_RUN) {
+                        samples_ = recent_;
+                        note_.clear();
+                        notice_.clear();
+                        beginMeasuring(nowNs);
+                    }
+                } else {
+                    quietSince_ = -1;  // still moving from before: wait for rest first
+                }
+            } else {
+                above_ = 0;
+                recent_.clear();
+                if (quietSince_ < 0) quietSince_ = nowNs;
+            }
+        } else if (phase_ == WizardPhase::Measuring) {
+            if (samples_.size() < kMaxSamples) samples_.push_back(a);
+            if (active) lastActive_ = nowNs;
+        }
+    }
+
+    // Advances the flow with the clock; true when something changed that the view must show.
+    bool tick(int64_t nowNs) {
+        lastNow_ = nowNs;
+        switch (phase_) {
+        case WizardPhase::Waiting: {
+            if (!connected_) {
+                waitSince_ = nowNs;  // the timers run only while data can arrive
+                return false;
+            }
+            const int64_t idle = nowNs - waitSince_;
+            if (wiz::roleOptional(step_) && !done_[size_t(step_)] && idle >= tuning_.autoSkipNs()) {
+                const std::string title = wiz::tr(wiz::roleTitle(step_));
+                skipped_[size_t(step_)] = true;
+                goTo(step_ + 1);
+                notice_ = wiz::wfmt(N_("\"%s\" skipped, no movement. You can do it later from the result page."),
+                                    title.c_str());
+                return true;
+            }
+            if (idle >= tuning_.maxNs() && !waitNoted_) {
+                waitNoted_ = true;
+                note_ = wiz::wfmt(N_("No movement seen. Move the cap as shown, or press \"Measure again\"."));
+                return true;
+            }
+            return false;
+        }
+        case WizardPhase::Measuring: {
+            const int64_t el = nowNs - t0_;
+            if (el >= tuning_.maxNs()) {
+                finishMeasuring(nowNs, true);
+                return true;
+            }
+            if (el < kMinMeasureNs) return false;
+            updateHalves();
+            const int64_t rest = nowNs - lastActive_;
+            if ((halves_ >= 2 && rest >= tuning_.restNs()) ||
+                (halves_ >= 1 && rest >= std::max(kOneHalfRestNs, 4 * tuning_.restNs()))) {
+                finishMeasuring(nowNs, false);
+                return true;
+            }
+            return false;
+        }
+        case WizardPhase::Detected:
+            if (nowNs - detectedAt_ >= kAdvanceNs) {
+                goTo(step_ + 1);
+                return true;
+            }
+            return false;
+        default: return false;
+        }
     }
     void connectionLost() {
-        if (!measuring_) return;
-        measuring_ = false;
+        connected_ = false;
+        if (!measuring()) return;
+        samples_.clear();
+        enterWaiting();
         note_ = wiz::wfmt(N_("Connection to the daemon lost - measurement aborted."));
     }
     bool skip() {
@@ -359,7 +495,11 @@ public:
         goTo(step_ + 1);
         return true;
     }
-    void reset() { *this = WizardController(); }
+    void reset() {
+        const AxisAssistantTuning t = tuning_;
+        *this = WizardController();
+        tuning_ = t;
+    }
 
     // Writes the detected mixes into [global] (section 0) and resets the direction switches. All or
     // nothing: on any failure the model is unchanged. Does not save; the caller saves and reloads.
@@ -401,10 +541,57 @@ public:
 
 private:
     static bool inRange(int s) { return s >= 0 && s < kSteps; }
+    static int maxAbs(const RawAxes &a) {
+        int m = 0;
+        for (int v : a) m = std::max(m, std::abs(v));
+        return m;
+    }
+    bool armed(int64_t nowNs) const { return quietSince_ >= 0 && nowNs - quietSince_ >= kArmRestNs; }
+    void enterWaiting() {
+        phase_ = WizardPhase::Waiting;
+        waitSince_ = lastNow_;
+        quietSince_ = -1;
+        above_ = 0;
+        waitNoted_ = false;
+        halves_ = 0;
+        recent_.clear();
+    }
+    void beginMeasuring(int64_t nowNs) {
+        phase_ = WizardPhase::Measuring;
+        t0_ = lastActive_ = nowNs;
+        halves_ = 0;
+        recent_.clear();
+        above_ = 0;
+        done_[size_t(step_)] = false;
+    }
+    void updateHalves() {
+        const int axis = wiz::strongestAxis(wiz::smoothedPeaks(samples_));
+        halves_ = wiz::countHalfMovements(samples_, axis, tuning_.start_threshold);
+    }
+    void finishMeasuring(int64_t nowNs, bool timedOut) {
+        res_[size_t(step_)] = wiz::analyzeStep(samples_);
+        done_[size_t(step_)] = true;
+        skipped_[size_t(step_)] = false;
+        if (res_[size_t(step_)].valid) {
+            phase_ = WizardPhase::Detected;
+            detectedAt_ = nowNs;
+            return;
+        }
+        enterWaiting();  // stays on the step; the message of the result says what to change
+        if (timedOut) note_ = wiz::wfmt(N_("The step took too long. Try again with one clear movement out and back."));
+    }
     void goTo(int s) {
         note_.clear();
+        notice_.clear();
         step_ = std::max(0, std::min(s, kSteps));
-        if (step_ == kSteps) evaluateNow();
+        if (step_ == kSteps) {
+            phase_ = WizardPhase::ResultPage;
+            evaluateNow();
+        } else if ((done_[size_t(step_)] && res_[size_t(step_)].valid) || skipped_[size_t(step_)]) {
+            phase_ = WizardPhase::Review;
+        } else {
+            enterWaiting();
+        }
     }
     void evaluateNow() {
         final_ = wiz::evaluate(res_, skipped_);
@@ -418,15 +605,57 @@ private:
     }
 
     int step_ = 0;
-    bool measuring_ = false;
-    int64_t t0_ = 0;
-    std::string note_;
-    std::vector<RawAxes> samples_;
+    WizardPhase phase_ = WizardPhase::Waiting;
+    AxisAssistantTuning tuning_;
+    bool connected_ = true;
+    int64_t lastNow_ = 0, t0_ = 0, waitSince_ = 0, quietSince_ = -1, lastActive_ = 0, detectedAt_ = 0;
+    int above_ = 0, halves_ = 0;
+    bool waitNoted_ = false;
+    std::string note_, notice_;
+    std::vector<RawAxes> samples_, recent_;
     std::array<wiz::StepResult, wiz::ROLE_COUNT> res_{};
     std::array<bool, wiz::ROLE_COUNT> done_{}, skipped_{};
     wiz::WizardResult final_;
     std::vector<Axis> lateral_;
 };
+
+// The result page as a table by direction: what was detected for each motion, in the order of
+// the steps. The axis name appears only here, next to the direction, because that is what is written.
+struct WizardMappingRow {
+    std::string direction;  // "Push forward/back" (translated)
+    std::string detail;     // "y, positive" / "Skipped" / "Not detected" (translated)
+};
+inline std::vector<WizardMappingRow> wizardMappingRows(const WizardController &w) {
+    std::vector<WizardMappingRow> rows;
+    for (int r = 0; r < WizardController::kSteps; ++r) {
+        WizardMappingRow row;
+        row.direction = wiz::tr(wiz::roleTitle(r));
+        const wiz::StepResult &s = w.stepResult(r);
+        if (w.skipped(r)) row.detail = wiz::tr(N_("Skipped"));
+        else if (w.done(r) && s.valid)
+            row.detail = wiz::wfmt(s.sign < 0 ? N_("%s, negative") : N_("%s, positive"), axisName(Axis(s.axis)));
+        else row.detail = wiz::tr(N_("Not detected"));
+        rows.push_back(row);
+    }
+    return rows;
+}
+
+// The state of the step as a short text (state is never only colour or a bar).
+inline std::string wizardStateText(const WizardController &w, bool connected) {
+    if (w.onResultPage()) return std::string();
+    if (!connected) return wiz::tr(N_("No connection to the daemon"));
+    switch (w.phase()) {
+    case WizardPhase::Waiting: return wiz::tr(N_("Waiting for you to move the cap..."));
+    case WizardPhase::Measuring:
+        return wiz::tr(w.halves() >= 2   ? N_("Measuring: out and back seen, hold still...")
+                       : w.halves() == 1 ? N_("Measuring: first movement seen, now move back...")
+                                         : N_("Measuring: keep moving..."));
+    case WizardPhase::Detected: return wiz::tr(N_("Detected"));
+    case WizardPhase::Review:
+        return wiz::tr(w.skipped(w.step()) ? N_("Skipped") : N_("Detected"));
+    default: return std::string();
+    }
+}
 
 // ---- session: one client, all models ------------------------------------------------------------
 
@@ -441,11 +670,13 @@ public:
         client_.poll(nowNs, [&](const LiveSample &s) {
             feed_.update(s, nowNs);
             view_.onSample(s, nowNs);
-            wizard_.onSample(s.axes);
+            wizard_.onSample(s.axes, nowNs);
         });
         feed_.syncDevices(client_);
         view_.setDevice(feed_.deviceLabel(), feed_.factoryButtons());
-        if (client_.state() != LiveFeedClient::State::Connected) wizard_.connectionLost();
+        const bool up = client_.state() == LiveFeedClient::State::Connected;
+        wizard_.setConnected(up);
+        if (!up) wizard_.connectionLost();
         return wizard_.tick(nowNs);
     }
     ConnState connection(int64_t nowNs) const { return connectionState(client_.state(), feed_, nowNs); }

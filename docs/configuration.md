@@ -53,7 +53,7 @@ the active joystick mode splits that channel.
 Axes (libspnav convention, measured on a SpaceMouse Pro): push forward or back is `z`, sideways is
 `x`, lift or press is `y`, tilt forward or back is `rx`, tilt sideways is `rz`, twist is `ry`. If you
 changed `spacenavd` settings (axis swap, inversion), adjust the mixes or run the axis assistant
-(Axes page of the interface, "Axis assistant...").
+(Axes page of the interface, "Axis assistant..."; you only move the cap, no clicks needed, see [ui.md](ui.md)).
 
 With the official 3Dconnexion driver on Windows (and the 3DxWare client API on macOS) the axes are named
 differently: push forward or back is `y`, sideways is `x`, lift or press is `z`, tilt forward or back
