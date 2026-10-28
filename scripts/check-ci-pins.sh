@@ -73,6 +73,7 @@ n="$(grep -c 'environment:' .github/workflows/ci.yml)"
 [ "$n" = 1 ] || bad "ci.yml: 'environment:' must appear exactly once (only the release job), found $n"
 grep -q -E '^      checks: read ' .github/workflows/ci.yml || bad "ci.yml: the release job needs 'checks: read' for the gate"
 grep -q 'creation' .github/rulesets/tags.json || bad ".github/rulesets/tags.json: the creation rule is missing"
+grep -q '"Integration"' .github/rulesets/tags.json || bad ".github/rulesets/tags.json: the GitHub Actions app must be a bypass actor (tag-release.yml)"
 
 [ "$fail" -eq 0 ] || exit 1
 echo "check-ci-pins: ok"
