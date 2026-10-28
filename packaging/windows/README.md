@@ -2,9 +2,10 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Windows packaging files (experimental)
 
-There is no installer yet (package W4). These scripts are for a manual setup from the build
-artifact (`dofscroll.exe`, `devices\`, `examples\` next to each other). None needs administrator
-rights; all act on the current user only.
+CI builds an unsigned per-user installer (`installer.nsi`, built by `build-installer.ps1`) and a portable ZIP;
+the installer uses `stop-ui.ps1` and `stop-daemon.ps1` before an update. The scripts ship in the installer and the ZIP under `scripts\` and can also be used for a
+manual setup from the build artifact (`dofscroll.exe`, `devices\`, `examples\` next to each other).
+None needs administrator rights; all act on the current user only.
 
 | Script | What it does |
 |---|---|
@@ -13,7 +14,7 @@ rights; all act on the current user only.
 | `stop-ui.ps1` | Stops the interface (`dofscroll-ui.exe`) at `-ExePath` (current session only); exit code 10 if one was running. The installer uses it before an update and starts the UI again afterwards (interactive installs only). |
 | `stop-daemon.ps1` | Stops the daemon at `-ExePath` (current session only): asks it to quit through its event, ends it after a timeout, then runs `--release-keys`; exit code 10 if one was running. The installer uses it before an update and starts the daemon again afterwards (also for `/S`). |
 
-All three accept `-WhatIf` (or `-DryRun`) to print the actions without doing them.
+All four accept `-WhatIf` (or `-DryRun`) to print the actions without doing them.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File install-autostart.ps1 -ExePath "C:\Tools\dofscroll\dofscroll.exe"

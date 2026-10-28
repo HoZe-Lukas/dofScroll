@@ -22,9 +22,9 @@ concurrency:
   cancel-in-progress: true
 
 # Third-party actions are pinned to full commit SHAs (tag in the comment).
-#   actions/checkout        = v4.2.2
-#   actions/upload-artifact = v4.6.2
-#   jurplel/install-qt-action = v4.3.0
+#   actions/checkout        = v7.0.1
+#   actions/upload-artifact = v7.0.2
+#   jurplel/install-qt-action = v4.4.1  (CI jobs only; the release builds install Qt with a hash-pinned aqtinstall)
 #   actions/cache           = v6.1.0
 #   Qt for ui-linux-pinned: version and aqtinstall version from packaging/qt.env
 
@@ -36,6 +36,8 @@ jobs:
       QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install Qt6 (distribution packages)
         run: |
           retry() { for i in 1 2 3; do timeout 240 "$@" && return 0; echo "::warning::attempt $i/3 failed or timed out: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
@@ -88,7 +90,10 @@ jobs:
           retry() { for i in 1 2 3; do "$@" && return 0; echo "::warning::attempt $i/3 failed: $*"; sleep 10; done; echo "::error::failed after 3 attempts: $*"; return 1; }
           python3 -m venv "$RUNNER_TEMP/aqt-venv"
           retry "$RUNNER_TEMP/aqt-venv/bin/pip" install --require-hashes --no-deps -r packaging/ci/aqt-requirements.txt
-          retry "$RUNNER_TEMP/aqt-venv/bin/aqt" install-qt linux desktop "$QT_VERSION" linux_gcc_64 -O "$RUNNER_TEMP/Qt"
+          # kept and checked against our own SHA-256 list (packaging/ci/qt-archives.sha256, issue #265)
+          retry "$RUNNER_TEMP/aqt-venv/bin/aqt" install-qt linux desktop "$QT_VERSION" linux_gcc_64 -O "$RUNNER_TEMP/Qt" --keep --archive-dest "$RUNNER_TEMP/qt-archives"
+          sh packaging/ci/qt-archive-hashes.sh verify "$RUNNER_TEMP/qt-archives"
+          rm -rf "$RUNNER_TEMP/qt-archives"
       - name: Configure and build the UI target
         run: |
           cmake -S . -B build -G Ninja -DDOFSCROLL_UI=ON -DDOFSCROLL_CORE_ONLY=ON \
@@ -107,6 +112,8 @@ jobs:
       QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Read the Qt version (packaging/qt.env)
         shell: bash
         run: |
@@ -137,6 +144,8 @@ jobs:
       QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Read the Qt version (packaging/qt.env)
         run: |
           . packaging/qt.env

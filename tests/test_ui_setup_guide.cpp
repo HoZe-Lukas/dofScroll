@@ -190,6 +190,87 @@ static void testGuideRows() {
     std::puts("ok guide rows");
 }
 
+// Consent for "Start at login" (issue #276): the guide never changes the system by itself. It shows the box (on by default at
+// the first run), and the system is changed only when the user confirms the guide and the box is ticked or unticked on purpose.
+static void testAutostartConsent() {
+    // no system change at construction: building the model and reading the state asks for nothing
+    AutostartConsent first(true);
+    assert(!first.cancel().needed);                              // nothing is done unless the user confirms
+    assert(first.wish());                                        // the visible default of the first run is "on"
+    first.systemState(true, false, false, true);                 // read: off
+    assert(first.wish() && first.pending() == AutostartConsent::Pending::Enable);  // announced, not done
+    // cancel (Skip, Escape, the close button): nothing is changed
+    assert(!first.cancel().needed);
+    // confirm with the box ticked (the default): switched on, once
+    AutostartConsent::Change c = first.confirm();
+    assert(c.needed && c.enable);
+
+    // first run, already on in the system: confirming changes nothing
+    AutostartConsent already(true);
+    already.systemState(true, true, false, true);
+    assert(already.pending() == AutostartConsent::Pending::None && !already.confirm().needed);
+
+    // first run, the user unticks: confirm leaves it off (nothing to change if it is off), cancel changes nothing
+    AutostartConsent off(true);
+    off.systemState(true, false, false, true);
+    off.setWish(false);
+    assert(!off.wish() && !off.confirm().needed && !off.cancel().needed);
+    // first run, on in the system, the user unticks: confirm switches it off
+    AutostartConsent unt(true);
+    unt.systemState(true, true, false, true);
+    unt.setWish(false);
+    assert(unt.pending() == AutostartConsent::Pending::Disable);
+    c = unt.confirm();
+    assert(c.needed && !c.enable);
+    assert(!unt.cancel().needed);
+
+    // opened again later (not the first run): the box shows the system state; confirming without a click changes nothing
+    AutostartConsent again(false);
+    again.systemState(true, true, false, true);
+    assert(again.wish() && again.pending() == AutostartConsent::Pending::None && !again.confirm().needed);
+    AutostartConsent again2(false);
+    again2.systemState(true, false, false, true);
+    assert(!again2.wish() && !again2.confirm().needed);
+    // ... a click is a decision that is applied on confirm only
+    again2.setWish(true);
+    assert(again2.pending() == AutostartConsent::Pending::Enable && !again2.cancel().needed);
+    c = again2.confirm();
+    assert(c.needed && c.enable);
+
+    // a partly active setup is repaired on confirm when the wish is "on", and removed when the wish is "off"
+    AutostartConsent part(false);
+    part.systemState(true, false, true, true);
+    part.setWish(true);
+    assert(part.confirm().needed && part.confirm().enable);
+    part.setWish(false);
+    assert(part.confirm().needed && !part.confirm().enable);
+
+    // not changeable here (no systemd, entry cannot be written): never a change, whatever the wish
+    AutostartConsent nope(true);
+    nope.systemState(true, false, false, false);
+    assert(!nope.confirm().needed && nope.pending() == AutostartConsent::Pending::None);
+
+    // the state is not read yet: a first run still has its wish; the change is applied on confirm (switching on twice is harmless)
+    AutostartConsent unread(true);
+    c = unread.confirm();
+    assert(c.needed && c.enable);
+    AutostartConsent unread2(false);
+    assert(!unread2.confirm().needed);
+
+    // the guide rows tell what will happen, in words, and are not "Done" before it happened
+    IdentityStrings s;
+    SetupInputs in;
+    in.autostartKnown = true;
+    in.autostartOn = false;
+    in.autostartPending = AutostartConsent::Pending::Enable;
+    const std::vector<SetupStep> g = buildSetupGuide(in, s);
+    assert(find(g, "autostart")->state == StepState::Todo && find(g, "autostart")->text.find("Finish") != std::string::npos);
+    in.autostartOn = true;
+    in.autostartPending = AutostartConsent::Pending::Disable;
+    assert(find(buildSetupGuide(in, s), "autostart")->state == StepState::Todo);
+    std::puts("ok autostart consent");
+}
+
 static void testSettingsUrls() {
     assert(isSystemSettingsUrl(permissionPaneUrl(PermissionPane::Accessibility)));
     assert(isSystemSettingsUrl(permissionPaneUrl(PermissionPane::InputMonitoring)));
@@ -260,6 +341,7 @@ int main() {
     testAutoStart();
     testStatusPermissions();
     testGuideRows();
+    testAutostartConsent();
     testSettingsUrls();
     testFlow();
     std::puts("test_ui_setup_guide: ok");

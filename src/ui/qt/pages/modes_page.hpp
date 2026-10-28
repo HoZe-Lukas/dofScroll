@@ -44,7 +44,7 @@ public:
     // shows errors, without it (self-test) it only reports through lastError(). True if imported.
     bool importPath(const QString &file, bool interactive = true);
     // No dialogs; failures are reported through lastError(). Rename does not rewrite profiles.
-    bool exportModeTo(const QString &id, const QString &dest);
+    bool exportModeTo(const QString &id, const QString &dest, bool overwrite = false);  // overwrite: atomic replace
     bool renameMode(const QString &id, const QString &newName);
     const QString &lastError() const { return lastError_; }
     const spn::ui::ModeCatalog &catalog() const { return catalog_; }

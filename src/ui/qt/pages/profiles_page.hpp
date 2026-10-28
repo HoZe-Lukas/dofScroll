@@ -10,6 +10,8 @@
 #pragma once
 #include <QWidget>
 
+class QSplitter;
+
 #include <functional>
 #include <memory>
 #include <string>
@@ -68,6 +70,7 @@ public:
     QString headerKind() const;  // "Global profile", "Device profile" or "Program profile"
     QString headerNote() const;  // the one line about inheritance below the name
     bool headerHasIcon() const;
+    double editorShare() const;  // self-test: width of the editor side / width of the splitter
     QStringList profileListLabels() const;  // the list as shown: Global, group headers and profiles in order
     QString treeLabel(size_t section) const;  // the label of a profile in the list (name and number of overrides)
     ProfileMotionsView *motionsView() const { return motions_; }
@@ -157,6 +160,7 @@ private:
     QLineEdit *profileFilter_, *settingsFilter_;
     QLabel *headerIcon_ = nullptr, *headerName_ = nullptr, *headerKind_ = nullptr, *headerNote_ = nullptr;
     QTabWidget *tabs_;
+    QSplitter *split_ = nullptr;
     QScrollArea *general_ = nullptr, *overrides_ = nullptr;
     ProfileMotionsView *motions_ = nullptr;
     ChannelsEditor *channels_ = nullptr;

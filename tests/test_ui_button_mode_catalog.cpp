@@ -3,6 +3,7 @@
 // ButtonModeCatalog: create, duplicate, save, import, remove, references and change detection.
 #undef NDEBUG
 #include <cassert>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -173,6 +174,18 @@ int main() {
         assert(fs::readFileBounded(out, 4096, fs::ReadOptions(), &text).ok() && text.find("ACTION") != std::string::npos);
         assert(!c.exportTo("my-latch", out).ok && !c.exportTo("my-latch", out).error.empty());
         assert(!c.exportTo("no-such", root + "/other-copy.conf").ok && !c.exportTo("my-latch", "").ok);
+        // overwrite (the user confirmed "replace"): atomic, the old file is never removed first (issue #273)
+        {
+            std::ofstream(out, std::ios::binary | std::ios::trunc) << "old content\n";
+            assert(!c.exportTo("my-latch", out).ok);  // still the default: never overwrites
+            assert(c.exportTo("my-latch", out, true).ok);
+            std::string t;
+            assert(fs::readFileBounded(out, 4096, fs::ReadOptions(), &t).ok() && t.find("ACTION") != std::string::npos &&
+                   t.find("old content") == std::string::npos);
+            const std::string odir = root + "/is-a-dir2.conf";
+            std::filesystem::create_directories(odir);
+            assert(!c.exportTo("my-latch", odir, true).ok && std::filesystem::exists(odir));
+        }
     }
 
     // change detection

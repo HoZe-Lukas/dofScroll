@@ -47,6 +47,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Qt version
         run: |
           . packaging/qt.env
@@ -81,6 +83,8 @@ jobs:
           if [ -x /tmp/scan/rpm/usr/bin/dofscroll-ui ]; then
             desktop-file-validate /tmp/scan/rpm/usr/share/applications/dofscroll.desktop
             test -f /tmp/scan/rpm/usr/share/icons/hicolor/scalable/apps/dofscroll.svg
+            # the shipped binaries, as staged from the package (PIE, RELRO, NX, stack protector, FORTIFY)
+            sh scripts/check-hardening.sh /tmp/scan/rpm/usr/bin/dofscroll /tmp/scan/rpm/usr/bin/dofscroll-ui
             echo "::notice::RPM contains the Qt interface (dofscroll-ui)"
             echo "RPM: Qt interface included" >> "$GITHUB_STEP_SUMMARY"
             . packaging/qt.env
@@ -143,6 +147,8 @@ jobs:
           retry apt-get install -y --no-install-recommends g++ make cmake git ca-certificates gettext file \
             pkg-config dpkg-dev desktop-file-utils libspnav-dev libx11-dev libxtst-dev
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install Qt (packaging/qt.env, aqtinstall) and the libraries it needs
         run: sh packaging/ci/debian12-qt.sh "$GITHUB_WORKSPACE"
       - name: Configure
@@ -173,6 +179,7 @@ jobs:
             echo "::error::the DEB depends on Qt or a library that is bundled" >&2; exit 1
           fi
           test -x /tmp/scan/usr/bin/dofscroll-ui
+          sh scripts/check-hardening.sh /tmp/scan/usr/bin/dofscroll /tmp/scan/usr/bin/dofscroll-ui
           desktop-file-validate /tmp/scan/usr/share/applications/dofscroll.desktop
           test -f /tmp/scan/usr/share/icons/hicolor/scalable/apps/dofscroll.svg
           test -f /tmp/scan/usr/lib/dofscroll/lib/libQt6Core.so.6

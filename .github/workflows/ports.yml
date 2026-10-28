@@ -38,6 +38,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Configure
         run: cmake -S . -B build -DDOFSCROLL_WERROR=ON
       - name: Build
@@ -149,6 +151,8 @@ jobs:
         shell: C:\msys64\usr\bin\bash.exe -leo pipefail {0}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install toolchain
         run: pacman -S --noconfirm --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
       - name: Configure
@@ -235,6 +239,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Configure
         run: cmake -S . -B build -DDOFSCROLL_WERROR=ON
       - name: Build

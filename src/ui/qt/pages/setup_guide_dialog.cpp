@@ -49,7 +49,7 @@ QString stateText(const spn::ui::SetupStep &s) {
 
 SetupGuideDialog::SetupGuideDialog(const UiContext &ctx, const DaemonStarter *starter, bool firstRun, QWidget *parent,
                                    AutostartReader reader)
-    : QDialog(parent), ctx_(ctx), starter_(starter), reader_(std::move(reader)) {
+    : QDialog(parent), ctx_(ctx), starter_(starter), reader_(std::move(reader)), consent_(firstRun) {
     using namespace spn::ui::tokens;
     if (!reader_) reader_ = [](std::string *detail) { return spn::autostart::queryAutostart(detail); };
     setWindowTitle(T("Set up dofscroll"));
@@ -98,11 +98,7 @@ SetupGuideDialog::SetupGuideDialog(const UiContext &ctx, const DaemonStarter *st
         emit skipRequested();
         hide();
     });
-    connect(finish_, &QPushButton::clicked, this, [this] {
-        closing_ = true;
-        emit finishRequested();
-        hide();
-    });
+    connect(finish_, &QPushButton::clicked, this, [this] { finishNow(); });
 
     spn::ui::SetupInputs in;
     in.os = spn::ui::hostOs();
@@ -111,7 +107,7 @@ SetupGuideDialog::SetupGuideDialog(const UiContext &ctx, const DaemonStarter *st
     timer_ = new QTimer(this);
     timer_->setInterval(1000);
     connect(timer_, &QTimer::timeout, this, [this] { refresh(); });
-    runAutostart(firstRun, true);  // first run: "Start at login" is on by default
+    runAutostart(false, false);  // only reads the state: nothing is changed before the user presses Finish
     refresh();
 }
 
@@ -151,8 +147,15 @@ void SetupGuideDialog::build(const std::vector<spn::ui::SetupStep> &first) {
         if (s.id == "autostart") {
             autostart_ = new QCheckBox(T("Start dofscroll at login"));
             autostart_->setAccessibleName(T("Start dofscroll at login"));
+            autostart_->setAccessibleDescription(T("Nothing is changed until you press Finish."));
+            autostart_->setToolTip(T("Nothing is changed until you press Finish."));
+            autostart_->setChecked(consent_.wish());  // the visible default; the system is read in the background
             autostart_->setEnabled(false);
-            connect(autostart_, &QCheckBox::clicked, this, [this](bool on) { runAutostart(true, on); });
+            // a click is only a choice: Finish applies it, Skip and Escape drop it
+            connect(autostart_, &QCheckBox::clicked, this, [this](bool on) {
+                consent_.setWish(on);
+                refresh();
+            });
             cl->addWidget(autostart_);
         }
         // the copy-able command (a fallback only)
@@ -227,6 +230,7 @@ void SetupGuideDialog::refresh() {
     }
     in.autostartKnown = autostartKnown_;
     in.autostartOn = autostartOn_;
+    in.autostartPending = consent_.pending();
     in.autostartDetail = autostartDetail_;
     if (spn::ui::hostOs() == spn::ui::Os::MacOS)
         in.daemonPath = spn::autostart::macBundleDaemonPath(QCoreApplication::applicationDirPath().toStdString());
@@ -275,6 +279,7 @@ void SetupGuideDialog::runAutostart(bool change, bool enable) {
     if (busy_) return;
     busy_ = true;
     if (autostart_) autostart_->setEnabled(false);
+    if (finish_) finish_->setEnabled(false);  // until the state is read (or the change is applied)
     spn::ui::ActionRunner *runner = ctx_.runner;
     const AutostartReader reader = reader_;
     QThread *t = QThread::create([this, runner, reader, change, enable] {
@@ -291,6 +296,7 @@ void SetupGuideDialog::runAutostart(bool change, bool enable) {
 void SetupGuideDialog::onAutostartDone(const AutoResult &r) {
     using spn::autostart::AutostartState;
     busy_ = false;
+    if (finish_) finish_->setEnabled(true);
     autostartKnown_ = true;
     autostartOn_ = r.state == AutostartState::Enabled;
     autostartDetail_.clear();
@@ -302,13 +308,40 @@ void SetupGuideDialog::onAutostartDone(const AutoResult &r) {
         message_->setText(mark(spn::ui::StatusKind::Error, T("Could not change the setting: ") + qs8(r.setErr)));
         message_->setVisible(true);
     }
+    const bool changeable = r.state != AutostartState::Unavailable && r.state != AutostartState::Error;
+    consent_.systemState(true, autostartOn_, r.state == AutostartState::Partial, changeable);
     if (autostart_) {
         QSignalBlocker b(autostart_);
-        autostart_->setCheckState(r.state == AutostartState::Partial ? Qt::PartiallyChecked
-                                  : autostartOn_ ? Qt::Checked : Qt::Unchecked);
-        autostart_->setEnabled(r.state != AutostartState::Unavailable && r.state != AutostartState::Error);
+        // the box shows the wish (the default of a first run, a click), otherwise what the system says
+        const bool shown = consent_.wish();
+        autostart_->setCheckState(!consent_.active() && r.state == AutostartState::Partial ? Qt::PartiallyChecked
+                                  : shown ? Qt::Checked : Qt::Unchecked);
+        autostart_->setEnabled(changeable);
+    }
+    if (finishing_) {
+        finishing_ = false;
+        if (r.setOk) {  // applied: now the guide may close
+            closing_ = true;
+            emit finishRequested();
+            hide();
+        }  // else the message is shown and the guide stays open: try again, or skip
     }
     refresh();
+}
+
+// "Finish": the one place where the system is changed (issue #276), and only for a choice that differs from it.
+void SetupGuideDialog::finishNow() {
+    const spn::ui::AutostartConsent::Change c = consent_.confirm();
+    if (!c.needed) {
+        closing_ = true;
+        emit finishRequested();
+        hide();
+        return;
+    }
+    finishing_ = true;
+    message_->setVisible(false);
+    runAutostart(true, c.enable);
+    if (!busy_) finishing_ = false;  // a read was still running: the button is disabled for that time, so this is only a guard
 }
 
 void SetupGuideDialog::waitIdle() {

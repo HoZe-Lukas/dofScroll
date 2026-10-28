@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+#
+# SHA-256 of every Qt archive that aqtinstall downloads for the Qt version of packaging/qt.env (issue #265), checked by
+# packaging/ci/qt-archive-hashes.sh in the build jobs. One line per archive: "<sha256>  <file name>". The lines are
+# generated, not written by hand: start the workflow `qt-archive-hashes` (Actions tab), review the output and commit it
+# here (docs/release-process.md, "Qt archive hashes"). When QT_VERSION changes, replace the lines of the old version.
+# Empty until the first run: the check then only warns.

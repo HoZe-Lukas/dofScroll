@@ -132,7 +132,19 @@ int main() {
     // replacement, then quits this process)
     runner.calls.clear();
     quit = false;
+    // issue #273: the pending edits are written before anything is restarted (the unit's restart kills this process)
+    size_t callsAtFlush = 99;
+    int flushed = 0;
+    c.hooks().flush = [&] {
+        ++flushed;
+        callsAtFlush = runner.calls.size();
+    };
     assert(c.menu().entries[12].action == TrayAction::Restart && c.perform(c.menu().entries[12]));
+    assert(flushed == 1 && callsAtFlush == 0);
+    c.hooks().flush = nullptr;
+    runner.calls.clear();
+    quit = false;
+    assert(c.perform(c.menu().entries[12]));  // without a flush hook it still works
     assert(runner.calls.size() == 3 && runner.calls[0].kind == Kind::ReleaseKeys &&
            runner.calls[1].kind == Kind::RestartDaemon && runner.calls[2].kind == Kind::RestartInterface && quit);
     runner.result = false;

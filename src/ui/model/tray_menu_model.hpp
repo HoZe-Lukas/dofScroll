@@ -122,6 +122,7 @@ struct TrayHooks {
     std::function<void(const std::string &)> setMode; // pick a mode (writes [global] MODE)
     std::function<void(bool)> setEnabled;             // new state of the Enabled toggle
     std::function<void()> openSettings, showLog, quit;
+    std::function<void()> flush;                      // writes pending edits; called before the interface is restarted
 };
 
 // Runs the action of a clicked entry. `entry.checked` of a Check item is the state BEFORE the
@@ -156,6 +157,9 @@ inline bool performTrayAction(const TrayEntry &entry, ActionRunner &runner, cons
             return ok;
         }
         case TrayAction::Restart: {
+            // Under dofscroll-ui.service the restart of the interface kills this process before the quit hook runs:
+            // what the autosave still holds is written first (issue #273).
+            if (h.flush) h.flush();
             // Keys first (a failure here must not block the restart: the daemon releases on quit).
             // The daemon is restarted before the interface: restarting the interface may end this process.
             std::string ignored;

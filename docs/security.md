@@ -607,24 +607,34 @@ repository settings below.
 
 ---
 
-## 5. Repository: merge rules and branch protection (to be set manually)
+## 5. Repository: merge rules and branch protection
 
 These settings cannot be set through a file in the repo, only in the hosting platform's
-interface (maintainer/admin role) or via its API. For GitHub:
+interface (maintainer/admin role) or via its API (`scripts/configure-repo.sh`, `docs/repo-settings.md`).
+For GitHub, the live state read from the public API (`GET /repos/{owner}/{repo}/rulesets`, 2026-10-28) is three
+active rulesets. They are layered: for the default branch the stricter rule of the two branch rulesets wins.
 
-1. **Settings -> Branches -> Branch protection rule for `main`:**
-   - Require a pull request before merging; require at least one approval, dismiss stale
-     approvals, optionally require review from code owners.
-   - Require status checks to pass before merging; select the CI jobs (`build`, `test`,
-     `check`). Do **not** treat skipped checks as successful.
-   - Require conversation resolution before merging.
-   - Require branches to be up to date before merging (so CI runs on exactly the state that
-     is merged).
-   - Do not allow force pushes and deletions; apply the rules to administrators as well.
-2. Recommended: squash or rebase merges, "Automatically delete head branches".
-3. Verification: open a test pull request with a deliberately failing check or an open
-   conversation - the merge button must be blocked; a direct `git push` to `main` must be
-   rejected.
+| Ruleset | Target | Rules |
+|---|---|---|
+| `base` | default branch | no deletion, no force push (`non_fast_forward`), no direct update (`update`), linear history, signed commits, pull request with **1 required approval** (stale approvals are *not* dismissed on push, last-push approval not required, code-owner review not required, conversation resolution not required), `code_quality` (severity errors), `copilot_code_review` (not on push). Repository admins bypass it ("always"). |
+| `main branch` | default branch | no deletion, no force push, pull request with 0 approvals and **conversation resolution required**, required status checks: `build + ctest (Rocky Linux 9)`, `ASan/UBSan (Rocky Linux 9)`, `cppcheck (Rocky Linux 9)`, `secret scan`, `lint`, `CodeQL (c-cpp)`. The checks are **not strict** (branches need not be up to date) and carry no `integration_id` (any app may report a check of that name). No bypass actors. |
+| `release tags` | `refs/tags/v*` | no deletion, no force push. |
+
+Both pull request rules allow all three merge methods (`merge`, `squash`, `rebase`); the repository itself also
+has all three enabled, "delete head branches" and auto-merge on. `scripts/configure-repo.sh` still asks for
+squash-only merges and does not know the ruleset `base`, so the script and the live state differ. The CODEOWNERS
+file requests reviews but code-owner review is not enforced by either ruleset.
+
+Open differences between this section's earlier recommendation and the live state, for the maintainer to decide
+(not changed by documentation):
+
+- require branches to be up to date (`strict_required_status_checks_policy`): off today;
+- bind the required checks to the GitHub Actions app (`integration_id`): not done;
+- dismiss stale approvals on push, require code-owner review: off today;
+- merge methods: squash-only in the script, all three live.
+
+Verification: open a test pull request with a deliberately failing check or an open conversation - the merge
+button must be blocked; a direct `git push` to `main` must be rejected.
 
 ---
 
@@ -1011,8 +1021,13 @@ workflows). Nothing high or critical, no local privilege escalation. Fixed in 1.
 - **Display text from files, programs and devices** (profile names and match strings, device names, mode texts,
   configuration path, action texts) is shown as plain text in the labels that carry it. Before, a name such as
   `<img src=...>` could be rendered as rich text.
-- **Upgrade scripts (`packaging/cpack/preinst` and `postinst`, run as root):** `preinst` stops the user units
-  (interface, then daemon) and `postinst` starts them again, for every logged-in user; no file is written. A user name must not start with `-`; every
+- **Package scripts (`packaging/cpack/preinst`, `postinst` and `prerm`, run as root):** `preinst` stops the user units
+  (interface, then daemon) and `postinst` starts them again, for every logged-in user; `prerm` (removal only) stops and
+  disables those two units, nothing else. `postinst` never enables or starts `spacenavd` (an administrator may have
+  disabled it on purpose, issue #264): it only prints the command when the service exists and is not running. It
+  removes a dangling enable link of the old tray unit in a user's home only as that user (`runuser -u`), never as root
+  (a path in a user-controlled directory can be swapped between the check and the removal, L4 of #266); the one
+  removal as root is in the administrator's `/etc/systemd/user`. No file of the configuration is written. A user name must not start with `-`; every
   call is time-limited, and when `timeout` is missing nothing is done; a process is signalled only after its owner is
   checked again right before the signal (process numbers can be reused); an interface is stopped only for a user who
   has the unit enabled.
@@ -1041,8 +1056,12 @@ CI supply chain (issue #149), status after the fix:
   `attestations` write permissions only on the release job); verify with `gh attestation verify <file> -R
   HoZe-Lukas/dofScroll` (readme, `docs/releasing.md`). A checksum file made in the same pipeline is still no
   provenance by itself: the attestation is.
-- Remains: aqtinstall verifies each Qt archive against a SHA-256 that it fetches from download.qt.io too, so a
-  compromised Qt server could serve both; there is no independent per-archive hash of our own. The one source
+- Qt archives: aqtinstall verifies each archive against a SHA-256 that it fetches from download.qt.io too, so a
+  compromised Qt server could serve both. Our own list `packaging/ci/qt-archives.sha256` (checked by
+  `packaging/ci/qt-archive-hashes.sh` in every build that installs Qt, issue #265) closes that once it is filled; **until
+  the file has lines for the pinned Qt version the check only warns** (`docs/release-process.md`, "Qt archive hashes").
+  The weekly `bundled-libs-advisories` workflow compares the bundled Rocky libraries with the distribution's security
+  advisories. Remains: the one source
   distribution in the aqtinstall closure (`patch`) is built by pip with an unpinned build backend (setuptools),
   which `--require-hashes` does not cover. The pins are refreshed monthly by a reviewed PR (`refresh-ci-pins.yml`, never auto-merged; the generators run in a read-only job on a copy without `.git`, the job with the write token only commits three named files from the artifact; a
   tampered image published before a refresh would be pinned as it is, so review that PR and the monthly image build). The jobs of `ci.yml` and CodeQL use the same pinned images; only

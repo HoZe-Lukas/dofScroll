@@ -58,6 +58,7 @@ Tray::Tray(MainWindow *window, const QIcon &baseIcon, const UiContext &ctx, QObj
       notRunningIcon_(withOpacity(enabledIcon_, 0.3)),
       timer_(new QTimer(this)) {
     controller_.hooks().openSettings = [this] { window_->bringToFront(); };
+    controller_.hooks().flush = [this] { window_->flushPending(); };
     controller_.hooks().quit = [this] {
         window_->flushPending();  // the last edit is on disk before the process ends
         QApplication::quit();
