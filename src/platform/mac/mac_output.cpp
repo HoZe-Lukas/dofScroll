@@ -23,7 +23,10 @@
 #include <atomic>
 #include <mutex>
 
+#include <vector>
+
 #include "mac_key_tables.hpp"
+#include "mouse_move_math.hpp"
 
 namespace spn {
 namespace {
@@ -42,6 +45,11 @@ static_assert(mac::kEvRightMouseDown == kCGEventRightMouseDown, "ev");
 static_assert(mac::kEvRightMouseUp == kCGEventRightMouseUp, "ev");
 static_assert(mac::kEvOtherMouseDown == kCGEventOtherMouseDown, "ev");
 static_assert(mac::kEvOtherMouseUp == kCGEventOtherMouseUp, "ev");
+
+static_assert(mousemove::kEvMouseMoved == kCGEventMouseMoved, "ev");
+static_assert(mousemove::kEvLeftMouseDragged == kCGEventLeftMouseDragged, "ev");
+static_assert(mousemove::kEvRightMouseDragged == kCGEventRightMouseDragged, "ev");
+static_assert(mousemove::kEvOtherMouseDragged == kCGEventOtherMouseDragged, "ev");
 
 std::atomic<bool> g_promptedForAccessibility{false};
 
@@ -126,7 +134,8 @@ public:
         postMouse(spec, down);
     }
 
-    // Relative pointer movement as a mouse-moved event, clipped to the main display. Untested on hardware.
+    // Relative pointer movement, clipped to the union of the active displays; a drag event of the held button
+    // while one is down. Untested on hardware.
     void moveMouse(int dx, int dy) override {
         dx = clampMouseDelta(dx);
         dy = clampMouseDelta(dy);
@@ -134,14 +143,26 @@ public:
         std::lock_guard<std::mutex> lk(m_);
         if (!src_) return;
         CGPoint p = cursorPosition();
-        const CGRect r = CGDisplayBounds(CGMainDisplayID());
         p.x += dx;
         p.y += dy;
-        if (p.x < r.origin.x) p.x = r.origin.x;
-        if (p.y < r.origin.y) p.y = r.origin.y;
-        if (p.x > r.origin.x + r.size.width - 1) p.x = r.origin.x + r.size.width - 1;
-        if (p.y > r.origin.y + r.size.height - 1) p.y = r.origin.y + r.size.height - 1;
-        CGEventRef e = CGEventCreateMouseEvent(src_, kCGEventMouseMoved, p, kCGMouseButtonLeft);
+        CGDirectDisplayID ids[16];
+        uint32_t n = 0;
+        std::vector<mousemove::Rect> rects;
+        if (CGGetActiveDisplayList(16, ids, &n) == kCGErrorSuccess) {
+            for (uint32_t i = 0; i < n; ++i) {
+                const CGRect r = CGDisplayBounds(ids[i]);
+                rects.push_back({r.origin.x, r.origin.y, r.size.width, r.size.height});
+            }
+        }
+        const mousemove::Point c = mousemove::clampToUnion({p.x, p.y}, rects.data(), rects.size());
+        p.x = c.x;
+        p.y = c.y;
+        const int type = mousemove::moveEventType(buttonsDown_[1], buttonsDown_[2], buttonsDown_[3]);
+        const CGMouseButton btn = type == mousemove::kEvLeftMouseDragged    ? kCGMouseButtonLeft
+                                  : type == mousemove::kEvRightMouseDragged ? kCGMouseButtonRight
+                                  : type == mousemove::kEvOtherMouseDragged ? kCGMouseButtonCenter
+                                                                            : kCGMouseButtonLeft;
+        CGEventRef e = CGEventCreateMouseEvent(src_, static_cast<CGEventType>(type), p, btn);
         if (!e) return;
         CGEventSetIntegerValueField(e, kCGMouseEventDeltaX, dx);
         CGEventSetIntegerValueField(e, kCGMouseEventDeltaY, dy);
