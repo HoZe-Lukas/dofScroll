@@ -389,6 +389,20 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
     bool part_zoom = false;
     for (int i = 0; i < PART_COUNT; ++i)
         if (split[i / 2] && part_t[i] == ChannelActionType::Zoom && part_rate[i] != 0.0) part_zoom = true;
+    if (part_zoom) {
+        // A push or tilt part zooms (for example "tilt forward = zoom"): the zoom modifier is held, so a mouse wheel of any other
+        // motion would zoom too. While the part zooms the other wheel motions pause (their remainders are dropped), the same
+        // exclusion the twist has through its dominance latch; keys and clicks are left as they are.
+        auto wheel = [](ChannelActionType t) { return t == ChannelActionType::WheelV || t == ChannelActionType::WheelH; };
+        for (int i = 0; i < PART_COUNT; ++i)
+            if (split[i / 2] && wheel(part_t[i])) {
+                np[i] = 0;
+                acc_part_[i].reset();
+            }
+        if (!split[0] && wheel(tv)) { nv = 0; acc_v_.reset(); }
+        if (!split[1] && wheel(th)) { nh = 0; acc_h_.reset(); }
+        if (wheel(tt)) { nt = 0; acc_zoom_.reset(); }
+    }
     if (zooming || (!split[0] && tv == ChannelActionType::Zoom && rate_v != 0.0) ||
         (!split[1] && th == ChannelActionType::Zoom && rate_h != 0.0) || part_zoom)
         addZoomKeys(keys, s);

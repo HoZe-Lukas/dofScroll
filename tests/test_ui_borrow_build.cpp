@@ -1,0 +1,270 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
+// Taking a motion or a button over from another profile, joystick mode or button mode (borrow_model.hpp), the
+// choices of a motion with their notes (zoom from a tilt), and the profile builder (profile_builder_model.hpp):
+// a copy of the EFFECTIVE assignment as explicit keys, push and tilt separately, cleared sources copy "cleared",
+// nothing written on a refusal, follows-the-mode and own-copy, duplicate names refused, rollback.
+#undef NDEBUG
+#include <cassert>
+#include <cstdio>
+#include <string>
+
+#include "config.hpp"
+#include "testutil.hpp"
+#include "ui/model/borrow_model.hpp"
+#include "ui/model/profile_builder_model.hpp"
+#include "ui_fixture.hpp"
+
+using namespace spn;
+using namespace spn::ui;
+
+static std::string sectionText(const SettingsModel &m, size_t i) {
+    std::string t;
+    for (const KV &kv : m.profiles().sections[i].kv) t += kv.first + "=" + kv.second + ";";
+    return t;
+}
+static bool has(const std::string &text, const char *part) { return text.find(part) != std::string::npos; }
+
+static BorrowSource profile(size_t i) {
+    BorrowSource b;
+    b.section = i;
+    return b;
+}
+static BorrowSource joystickMode(const std::string &id) {
+    BorrowSource b;
+    b.kind = BorrowSource::Kind::JoystickMode;
+    b.id = id;
+    return b;
+}
+static BorrowSource buttonMode(const std::string &id) {
+    BorrowSource b;
+    b.kind = BorrowSource::Kind::ButtonMode;
+    b.id = id;
+    return b;
+}
+
+int main() {
+    useFreshDefaultOf("linux");
+    IdentityStrings id;
+    const std::string root = tu::makeTempDir("dofscroll-borrow");
+    ModeCatalog modes(root + "/modes");
+    ButtonModeCatalog bmodes(root + "/buttons");
+
+    ProfileSet ps;
+    const size_t dev = ps.findOrAdd(Section::DEVICE, "Pro");
+    const size_t code = ps.findOrAdd(Section::APP, "code");
+    const size_t video = ps.findOrAdd(Section::APP, "video");
+    SettingsModel m;
+    m.setProfiles(ps, "");
+    m.setModes(modes.modeSet(), modes.dir());
+    std::string err;
+
+    // ---- the source's effective assignment is copied as explicit keys, push and tilt separately ----
+    assert(m.setValue(code, "V_TILT_ACTION", "zoom", &err));
+    assert(m.setValue(code, "TWIST_ACTION", "keys:ctrl+minus,ctrl+plus", &err));
+    assert(m.setButton(code, 2, "key:space", &err));
+    assert(borrowMotion(m, video, "h_tilt", profile(code), &err));  // the tilt of the other channel, from another motion's source
+    assert(sectionText(m, video) == "H_TILT_ACTION=default;");       // what code does there: the normal action, explicit
+    assert(borrowMotion(m, video, "v_tilt", profile(code), &err));
+    assert(m.effectiveWithMode(video).actions[1].partSet[1] && sectionText(m, video).find("V_TILT_ACTION=zoom") != std::string::npos);
+    assert(!has(sectionText(m, video), "V_PUSH_ACTION"));  // push is not touched by taking the tilt over
+    assert(borrowMotion(m, video, "twist", profile(code), &err));
+    assert(has(sectionText(m, video), "TWIST_ACTION=keys:ctrl+minus,ctrl+plus"));
+    assert(m.setValue(code, "V_TILT_ACTION", "wheel_h", &err));  // later change in the source: the copy does not follow
+    assert(has(sectionText(m, video), "V_TILT_ACTION=zoom"));
+    // another motion of the source for this motion
+    assert(borrowMotion(m, video, "v_push", profile(code), &err, "twist"));
+    assert(has(sectionText(m, video), "V_PUSH_ACTION=keys:ctrl+minus,ctrl+plus"));
+
+    // ---- cleared sources copy cleared; the effective source includes its joystick mode and Global ----
+    assert(m.setValue(0, "H_ACTION", "none", &err));  // Global switches the horizontal channel off
+    assert(borrowMotion(m, dev, "h_push", profile(0), &err) || !err.empty());  // a device profile below its mode: see below
+    assert(clearMotion(m, code, "h_push", nullptr, &err));
+    assert(borrowMotion(m, video, "h_push", profile(code), &err));
+    assert(has(sectionText(m, video), "H_PUSH_ACTION=none"));
+    assert(borrowedMotionWords(m, profile(code), "h_push", id).find("nothing (cleared)") != std::string::npos);
+    assert(m.setValue(0, "H_ACTION", "default", &err));
+    // a motion switched off by sensitivity 0 in the source is cleared too
+    assert(m.setValue(dev, "SCROLL_V_SENS", "0", &err));
+    {
+        const BorrowedMotion b = borrowedMotion(m, profile(dev), "v_push");
+        assert(b.ok && b.off);
+    }
+
+    // ---- sources: other profiles and joystick modes; not itself; lift has nothing ----
+    {
+        const std::vector<BorrowSource> src = motionSources(m, video);
+        bool self = false, global = false, mode = false, btn = false;
+        for (const BorrowSource &s : src) {
+            self = self || (s.kind == BorrowSource::Kind::Profile && s.section == video);
+            global = global || (s.kind == BorrowSource::Kind::Profile && s.section == 0 && s.label == "Global");
+            mode = mode || (s.kind == BorrowSource::Kind::JoystickMode && s.id == "photo");
+            btn = btn || s.kind == BorrowSource::Kind::ButtonMode;
+        }
+        assert(!self && global && mode && !btn);
+        bool bm = false;
+        for (const BorrowSource &s : buttonSources(m, video, &bmodes.set())) bm = bm || s.kind == BorrowSource::Kind::ButtonMode;
+        assert(bm);
+    }
+    assert(!borrowMotion(m, video, "v_push", profile(video), &err) && !err.empty());
+    assert(!borrowMotion(m, video, "lift", profile(code), &err));
+    assert(!borrowMotion(m, 99, "v_push", profile(code), &err));
+    assert(!borrowMotion(m, video, "v_push", profile(99), &err));
+    assert(!borrowMotion(m, video, "v_push", joystickMode("nope"), &err));
+
+    // from a joystick mode: its action for the motion; photo zooms with the vertical channel
+    assert(borrowMotion(m, code, "v_push", joystickMode("photo"), &err));
+    assert(has(sectionText(m, code), "V_PUSH_ACTION=zoom"));
+    assert(borrowMotion(m, code, "h_tilt", joystickMode("photo"), &err));  // keys left/right in photo
+    assert(has(sectionText(m, code), "H_TILT_ACTION=keys:left,right"));
+
+    // a profile below its joystick mode cannot beat the mode: refused, nothing written
+    assert(m.setValue(dev, "MODE", "photo", &err));
+    const std::string devBefore = sectionText(m, dev);
+    assert(!borrowMotion(m, dev, "twist", profile(code), &err) && has(err, "joystick mode"));
+    assert(sectionText(m, dev) == devBefore);
+
+    // ---- buttons: the effective binding, a mode's binding wins over Global, nothing is copied as nothing ----
+    assert(borrowButton(m, video, 2, profile(code), &err));
+    assert(has(sectionText(m, video), "BUTTON_2=key:space"));
+    assert(borrowButton(m, video, 7, profile(code), &err));  // code binds nothing: an explicit nothing
+    assert(has(sectionText(m, video), "BUTTON_7=none"));
+    assert(borrowedButtonWords(m, profile(code), 2, nullptr, id).find("Space") != std::string::npos);
+    assert(!borrowButton(m, video, 2, profile(video), &err));
+    assert(!borrowButton(m, video, 0, profile(code), &err));
+    assert(!borrowButton(m, video, 33, profile(code), &err));
+    assert(!borrowButton(m, video, 3, buttonMode("latch-nav"), &err));  // no button modes given: refused
+    assert(borrowButton(m, video, 3, buttonMode("latch-nav"), &err, &bmodes.set()));
+    assert(has(sectionText(m, video), "BUTTON_3=toggle:nav"));
+    {
+        ModeDef d;
+        const ModeDef *any = nullptr;
+        for (const ModeDef &x : modes.modeSet().modes)
+            if (!x.buttons.empty()) any = &x;
+        if (any) {
+            const int n = any->buttons[0].button;
+            assert(borrowButton(m, video, n, joystickMode(any->id), &err));
+            assert(has(sectionText(m, video), ("BUTTON_" + std::to_string(n) + "=").c_str()));
+        }
+        (void)d;
+    }
+
+    // ---- the choices of a motion: any motion can zoom; a profile that cannot beat its mode says so ----
+    {
+        const MotionChoiceCheck z = motionChoiceCheck(m, video, "v_tilt", ChannelActionType::Zoom, id);
+        assert(z.works && has(z.note, "own channel") && has(z.note, "pause"));
+        const MotionChoiceCheck t = motionChoiceCheck(m, video, "twist", ChannelActionType::Zoom, id);
+        assert(t.works && t.note.empty());
+        const MotionChoiceCheck k = motionChoiceCheck(m, video, "h_push", ChannelActionType::Keys, id);
+        assert(k.works && k.note.empty());
+        const MotionChoiceCheck pinned = motionChoiceCheck(m, dev, "twist", ChannelActionType::Keys, id);
+        assert(!pinned.works && has(pinned.note, "joystick mode"));
+        assert(!motionChoiceCheck(m, video, "lift", ChannelActionType::Zoom, id).works);
+        assert(m.setValue(video, "ZOOM_MODIFIER", "none", &err));
+        assert(has(motionChoiceCheck(m, video, "v_tilt", ChannelActionType::Zoom, id).note, "plain wheel"));
+        m.clearOverride(video, "ZOOM_MODIFIER");
+    }
+
+    // ---- into a joystick mode being edited: the same copy, through the form of the mode ----
+    {
+        ModeForm f;
+        const Settings base;
+        assert(borrowMotionIntoMode(m, f, base, Motion::VTilt, profile(code), &err, Motion::Twist));  // the twist action of code
+        assert(actionOf(f, base, Motion::VTilt).type == ChannelActionType::Keys);
+        assert(actionOf(f, base, Motion::VPush) == ChannelForm());  // the push keeps what it did
+        assert(borrowMotionIntoMode(m, f, base, Motion::VPush, joystickMode("photo"), &err));
+        assert(actionOf(f, base, Motion::VPush).type == ChannelActionType::Zoom);
+        assert(!borrowMotionIntoMode(m, f, base, Motion::Lift, profile(code), &err) && !err.empty());
+        assert(borrowButtonIntoMode(m, f, 2, profile(code), nullptr, &err));
+        assert(f.buttons.size() == 1 && f.buttons[0].first == 2 && f.buttons[0].second == "key:space");
+        assert(borrowButtonIntoMode(m, f, 2, buttonMode("latch-nav"), &bmodes.set(), &err) && f.buttons[0].second == "toggle:nav");
+        assert(!borrowButtonIntoMode(m, f, 2, buttonMode("latch-nav"), nullptr, &err));
+        bool self = false;
+        for (const BorrowSource &s : motionSources(m, ProfileSet::npos, "photo")) self = self || s.id == "photo";
+        assert(!self);
+    }
+
+    // ---- the builder ----
+    const size_t before = m.sectionCount();
+    ProfileBuild b;
+    b.kind = Section::APP;
+    b.name = "  gimp ";
+    b.modeId = "photo";
+    b.buttons.push_back({4, "latch-nav", false});
+    b.motions.push_back({"v_tilt", profile(code), ""});
+    b.buttonTakes.push_back({2, profile(code)});
+    ProfileBuildResult r = buildProfile(m, b, &modes, &bmodes);
+    assert(r.ok && r.section == before && m.sectionCount() == before + 1);
+    assert(m.sections()[r.section].pattern == "gimp");  // the same normalization as every profile name
+    {
+        const std::string t = sectionText(m, r.section);
+        assert(has(t, "MODE=photo") && has(t, "BUTTON_4=buttonmode:latch-nav") && has(t, "V_TILT_ACTION=wheel_h") && has(t, "BUTTON_2=key:space"));
+        assert(m.effectiveMode(r.section) == "photo");
+    }
+    // a normal profile afterwards: editable like any other
+    assert(clearMotion(m, r.section, "v_tilt", nullptr, &err));
+    assert(inheritMotion(m, r.section, "v_tilt", nullptr));
+    assert(!has(sectionText(m, r.section), "V_TILT_ACTION"));
+    // duplicates are refused (case-insensitive, same kind); another kind is fine
+    b.name = "GIMP";
+    r = buildProfile(m, b, &modes, &bmodes);
+    assert(!r.ok && has(r.error, "already exists") && m.sectionCount() == before + 1);
+    b.kind = Section::DEVICE;
+    b.name = "gimp";
+    b.motions.clear();
+    b.buttonTakes.clear();
+    b.buttons.clear();
+    r = buildProfile(m, b, &modes, &bmodes);
+    assert(r.ok);
+    // from a base: the base's own keys are copied, then the extras on top
+    ProfileBuild c;
+    c.name = "krita";
+    c.base = code;
+    c.modeId = "timeline";
+    r = buildProfile(m, c, &modes, &bmodes);
+    assert(r.ok && has(sectionText(m, r.section), "V_PUSH_ACTION=zoom") && has(sectionText(m, r.section), "MODE=timeline"));
+    assert(!has(sectionText(m, code), "krita"));  // the base is untouched
+    // an invalid name, a missing mode, a missing button mode, a doubled button: nothing is created
+    const size_t n0 = m.sectionCount();
+    ProfileBuild bad;
+    bad.name = "";
+    assert(!buildProfile(m, bad, &modes, &bmodes).ok);
+    bad.name = "x1";
+    bad.modeId = "no-such-mode";
+    assert(!buildProfile(m, bad, &modes, &bmodes).ok);
+    bad.modeId.clear();
+    bad.buttons.push_back({1, "no-such-button-mode", false});
+    assert(!buildProfile(m, bad, &modes, &bmodes).ok);
+    bad.buttons = {{1, "latch-nav", false}, {1, "latch-nav", false}};
+    assert(!buildProfile(m, bad, &modes, &bmodes).ok);
+    bad.buttons.clear();
+    bad.motions.push_back({"twist", profile(99), ""});  // fails late: the new profile is removed again
+    assert(!buildProfile(m, bad, &modes, &bmodes).ok && m.sectionCount() == n0);
+    bad.motions.clear();
+    bad.kind = Section::GLOBAL;
+    assert(!buildProfile(m, bad, &modes, &bmodes).ok);
+
+    // own copies: the profile names the copy, which is a file of its own; a refused build removes the copies again
+    ProfileBuild own;
+    own.name = "blender";
+    own.modeId = "timeline";
+    own.modeOwnCopy = true;
+    own.buttons.push_back({5, "latch-nav", true});
+    r = buildProfile(m, own, &modes, &bmodes);
+    assert(r.ok && r.createdModes.size() == 1 && r.createdButtonModes.size() == 1);
+    assert(r.modeId != "timeline" && modes.find(r.modeId) && !modes.find(r.modeId)->path.empty());
+    assert(has(sectionText(m, r.section), ("MODE=" + r.modeId).c_str()));
+    assert(has(sectionText(m, r.section), ("BUTTON_5=buttonmode:" + r.createdButtonModes[0]).c_str()));
+    assert(bmodes.find(r.createdButtonModes[0]) && !bmodes.find(r.createdButtonModes[0])->builtin);
+    assert(modes.find("timeline") && modes.find("timeline")->origin == ModeCatalog::Origin::BuiltIn);  // the original is untouched
+    {
+        const size_t modeCount = modes.modes().size(), btnCount = bmodes.buttonModes().size();
+        ProfileBuild fail = own;
+        fail.name = "blender2";
+        fail.motions.push_back({"twist", profile(99), ""});
+        assert(!buildProfile(m, fail, &modes, &bmodes).ok);
+        assert(modes.modes().size() == modeCount && bmodes.buttonModes().size() == btnCount);
+    }
+    std::puts("test_ui_borrow_build: OK");
+    return 0;
+}

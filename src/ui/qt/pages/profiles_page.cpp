@@ -37,6 +37,7 @@
 
 #include "add_app_dialog.hpp"
 #include "add_device_dialog.hpp"
+#include "profile_builder_dialog.hpp"
 #include "button_row.hpp"
 #include "channels_editor.hpp"
 #include "info_popup.hpp"
@@ -152,7 +153,10 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     add_dev_->setToolTip(T("Create a profile for a connected device"));
     import_ = new QPushButton(T("Import profile..."), left);
     import_->setToolTip(T("Add a profile from a .conf file (an exported profile): a device or a program profile, by its header"));
-    for (QPushButton *b : {add_app_, add_dev_, import_}) ll->addWidget(b);
+    new_profile_ = new QPushButton(T("New profile..."), left);
+    new_profile_->setObjectName(QStringLiteral("newProfile"));
+    new_profile_->setToolTip(T("Build a profile from existing joystick modes, button modes and the motions and buttons of other profiles"));
+    for (QPushButton *b : {add_app_, add_dev_, import_, new_profile_}) ll->addWidget(b);
     // defective profile files, in words (never hidden: the file is not used and not overwritten)
     defectNote_ = new QLabel(left);
     defectNote_->setWordWrap(true);
@@ -245,7 +249,8 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     setTabOrder(tree_, add_app_);
     setTabOrder(add_app_, add_dev_);
     setTabOrder(add_dev_, import_);
-    setTabOrder(import_, settingsFilter_);
+    setTabOrder(import_, new_profile_);
+    setTabOrder(new_profile_, settingsFilter_);
     setTabOrder(settingsFilter_, tabs_);
 
     connect(tree_, &QTreeWidget::currentItemChanged, this,
@@ -259,6 +264,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     connect(add_app_, &QPushButton::clicked, this, &ProfilesPage::addApplication);
     connect(add_dev_, &QPushButton::clicked, this, &ProfilesPage::addDevice);
     connect(import_, &QPushButton::clicked, this, &ProfilesPage::importProfile);
+    connect(new_profile_, &QPushButton::clicked, this, &ProfilesPage::newProfile);
 
     // the numbers of overrides in the list follow the edits
     // (a save that found a file changed on disk reloaded the model: the list is built again)
@@ -1132,6 +1138,13 @@ void ProfilesPage::addApplication() {
     }
     ctx_.saveSoon();
     rebuildTree(idx);
+}
+
+void ProfilesPage::newProfile() {
+    ProfileBuilderDialog dlg(ctx_, env_, this);
+    if (dlg.exec() != QDialog::Accepted) return;
+    if (ctx_.modes) ctx_.settings->setModes(ctx_.modes->modeSet(), ctx_.modesDir);  // an own copy of a joystick mode is a new file
+    rebuildTree(dlg.createdSection());
 }
 
 void ProfilesPage::addDevice() {

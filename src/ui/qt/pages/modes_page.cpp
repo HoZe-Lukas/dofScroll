@@ -293,7 +293,8 @@ void ModesPage::hideEvent(QHideEvent *e) {
 void ModesPage::refreshIfChanged() {
     const ModeCatalog::ModeEntry *cur = current();
     const QString keep = cur ? QString::fromStdString(cur->id) : QString();
-    if (catalog_.refreshIfChanged()) populate(keep);
+    // The catalog is shared: a copy made elsewhere (the profile builder) already refreshed it, so the list is also compared.
+    if (catalog_.refreshIfChanged() || list_->count() != int(catalog_.modes().size())) populate(keep);
 }
 
 QString ModesPage::currentId() const {
