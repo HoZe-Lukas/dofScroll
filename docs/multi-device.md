@@ -63,8 +63,9 @@ The status file keeps its plain keys for the first device and adds, with several
 `lanes=<n>`, `active_device=<name>` and `device<k>=`, `profile<k>=`, `mode<k>=`, `toggle<k>=`, `enabled<k>=` for
 the devices k = 2..n (`src/common.hpp`). The interface then shows "Devices: A (Joystick mode: normal), B
 (Joystick mode: timeline)" in the status line and drops the warning "only A is reported". The Axes page and the
-live feed show the device that moved last; the live feed protocol did not change, so the page lists all device
-names and cannot say which one a sample came from (a device selector is not built).
+live feed show the device that moved last. A sample source frame (type 3, no version bump) names the device of each
+sample, so the status line names it and a "Device" selector on the Axes page and in the axis assistant (shown with
+two or more devices) pins both to one device; "All devices" follows the one that moved last.
 
 ## Linux: the decision
 

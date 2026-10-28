@@ -1000,6 +1000,7 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
             live_.enabled = live_enabled;
             live_.idle = live_idle;
             live_.mode = live_lane->runner->mode().id;
+            live_.source = live_lane->dev_id;
         }
         d_.liveFeed(live_, now_ns);
     }

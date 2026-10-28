@@ -75,7 +75,9 @@ void LiveFeedServer::publish(const LiveSample &sample, int64_t nowNs) {
 
     LiveSample s = sample;
     s.seq = seq_++;
-    const std::vector<uint8_t> frame = encodeLiveSample(s);
+    std::vector<uint8_t> frame = encodeLiveSource(s.source);  // empty if unknown; then the sample frame
+    const std::vector<uint8_t> sampleFrame = encodeLiveSample(s);
+    frame.insert(frame.end(), sampleFrame.begin(), sampleFrame.end());
 
     for (size_t i = 0; i < clients_.size();) {
         Client &c = clients_[i];

@@ -3,6 +3,7 @@
 #include "axes_page.hpp"
 
 #include <QApplication>
+#include <QComboBox>
 #include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -250,6 +251,8 @@ void AxesPage::buildLivePage(QWidget *page) {
     connHint_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     l->addWidget(connLine_);
     l->addWidget(connHint_);
+    devRow_[0] = makeDeviceRow(devCombo_[0], devLabel_[0]);
+    l->addWidget(devRow_[0]);
     bars_ = new LiveBarsWidget(&session_->view(), false, page);
     l->addWidget(bars_, 1);
     auto *parts = new QLabel;  // filled by refreshPartsHint(): the axes of the shown configuration (issue #186)
@@ -280,6 +283,55 @@ void AxesPage::buildLivePage(QWidget *page) {
     connect(openWiz_, &QPushButton::clicked, this, [this] { openWizard(); });
 }
 
+// "Device: [All devices | A | B]": pins the page and the assistant to one device (issue #139). Hidden
+// until the daemon reports two or more devices.
+QWidget *AxesPage::makeDeviceRow(QComboBox *&combo, QLabel *&label) {
+    auto *w = new QWidget;
+    auto *h = new QHBoxLayout(w);
+    h->setContentsMargins(0, 0, 0, 0);
+    label = new QLabel(T("Device:"));
+    combo = new QComboBox;
+    combo->setAccessibleName(T("Device"));
+    combo->setToolTip(T("With several devices: show and measure only this device. \"All devices\" follows the one that moved last."));
+    label->setBuddy(combo);
+    h->addWidget(label);
+    h->addWidget(combo, 1);
+    w->setVisible(false);
+    connect(combo, QOverload<int>::of(&QComboBox::activated), this, [this, combo](int i) {
+        const QVariant v = combo->itemData(i);
+        if (v.isValid()) session_->selectDevice(v.toInt());
+        devSelShown_ = -2;  // refresh both combos
+        refreshDevices();
+    });
+    return w;
+}
+
+void AxesPage::refreshDevices() {
+    const auto &devs = session_->selectableDevices();
+    std::vector<int> ids;
+    for (const LiveDevice &d : devs) ids.push_back(d.id);
+    const int sel = session_->selectedDevice();
+    if (ids != devShown_ || sel != devSelShown_) {
+        devShown_ = ids;
+        devSelShown_ = sel;
+        for (int k = 0; k < 2; k++) {
+            QSignalBlocker block(devCombo_[k]);
+            devCombo_[k]->clear();
+            devCombo_[k]->addItem(T("All devices (the one that moved last)"), spn::ui::AxesSession::kAllDevices);
+            int cur = 0;
+            for (const LiveDevice &d : devs) {
+                devCombo_[k]->addItem(qs(truncateUtf8(d.name, 64)), int(d.id));
+                if (d.id == sel) cur = devCombo_[k]->count() - 1;
+            }
+            devCombo_[k]->setCurrentIndex(cur);
+        }
+    }
+    const bool show = !devs.empty();
+    devRow_[0]->setVisible(show);
+    devRow_[1]->setVisible(show);
+    devCombo_[1]->setEnabled(!session_->wizard().measuring());  // a step is measured on one device
+}
+
 void AxesPage::buildWizardPage(QWidget *page) {
     auto *l = new QVBoxLayout(page);
     wizHead_ = new QLabel;
@@ -307,6 +359,7 @@ void AxesPage::buildWizardPage(QWidget *page) {
     wizMeasure_->setRange(0, 1000);
     wizMeasure_->setTextVisible(false);
     wizMeasure_->setAccessibleName(T("Time left for this step"));
+    devRow_[1] = makeDeviceRow(devCombo_[1], devLabel_[1]);
     wizBars_ = new LiveBarsWidget(&session_->view(), true, page);
     wizResult_ = new QLabel;
     wizResult_->setWordWrap(true);
@@ -319,6 +372,7 @@ void AxesPage::buildWizardPage(QWidget *page) {
     l->addWidget(wizMeaning_);
     l->addWidget(wizState_);
     l->addWidget(wizMeasure_);
+    l->addWidget(devRow_[1]);
     l->addWidget(wizBars_);
     l->addWidget(wizResult_, 1);
 
@@ -459,6 +513,7 @@ void AxesPage::pollOnce(int64_t nowNs) {
     suspend_->update(wantsSuspend(), nowNs);
     const bool finished = session_->poll(nowNs);
     refreshLive(nowNs);
+    refreshDevices();
     if (wizardVisible() || finished) refreshWizard(nowNs);
     refreshParts();
     bars_->update();

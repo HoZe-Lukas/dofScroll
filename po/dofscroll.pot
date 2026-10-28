@@ -2812,3 +2812,15 @@ msgstr ""
 #: src/ui/qt/pages/axes_page.cpp
 msgid "Move the cap again to repeat this step."
 msgstr ""
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Device:"
+msgstr ""
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "With several devices: show and measure only this device. \"All devices\" follows the one that moved last."
+msgstr ""
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "All devices (the one that moved last)"
+msgstr ""
