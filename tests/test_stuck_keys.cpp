@@ -582,6 +582,88 @@ static void testNavLatchCleared() {
     }
 }
 
+// --- the key engine (stage 3 of #224): analog and digital keys, chords with modifiers, rate limits and triggers -----------------
+// A key function taps atomically (a chord presses and releases its modifiers inside the same call), so nothing may ever be
+// left held, and once the cause is gone (reload, ENABLED = 0, a program that unbinds the motion, suspend, an unplugged
+// device, a joystick mode switch) no key may be sent any more while the cap is still deflected.
+struct EngineCase {
+    const char *action;  // lines of the profile
+    const char *name;
+};
+static const EngineCase kEngineCases[] = {
+    {"V_ACTION = keys:ctrl+pageup,ctrl+pagedown\n", "analog chord"},
+    {"V_ACTION = keys:up,down\nSCROLL_V_PUSH_KEY_RATE_MIN = 3\n", "analog with a lower limit"},
+    {"V_ACTION = keys:up,down\nSCROLL_V_PUSH_TRIGGER = 15\nSCROLL_V_PUSH_KEY_RATE_MAX = 20\n", "analog with a trigger"},
+    {"V_ACTION = step:alt+left,alt+right\n", "digital alt chord"},
+    {"V_ACTION = step:shift,ctrl\nSCROLL_V_PUSH_TRIGGER = 5\n", "digital modifier keys"},
+    {"V_PUSH_ACTION = keys:none,down\nV_TILT_ACTION = step:up,none\n", "none per side, split"},
+};
+
+static void testKeyEngineEveryTransition() {
+    static const char *const names[] = {"reload", "ENABLED=0", "program unbinds", "suspend", "unplugged", "mode switch"};
+    for (const EngineCase &a : kEngineCases) {
+        for (int tr = 0; tr < 6; ++tr) {
+            char what[200];
+            std::snprintf(what, sizeof what, "%s / %s", a.name, names[tr]);
+            const std::string lines = a.action;
+            std::string modeText = lines;  // the same keys in a joystick mode file (V_ACTION etc. are mode keys too)
+            const bool viaMode = tr == 5;
+            StuckRig r(viaMode ? std::string("[global]\nTICK_HZ = 250\nMODE = alpha\n")
+                               : "[global]\nTICK_HZ = 250\n" + lines + "[app:off]\nENABLED = 0\n[app:unb]\nV_ACTION = none\nV_PUSH_ACTION = none\nV_TILT_ACTION = none\n",
+                       viaMode ? std::vector<std::pair<std::string, std::string>>{{"alpha.conf", modeText + "BUTTON_2 = mode:next\n"},
+                                                                                  {"beta.conf", "V_ACTION = none\nBUTTON_2 = mode:next\n"}}
+                               : std::vector<std::pair<std::string, std::string>>{});
+            r.run(0.1);
+            r.move();
+            r.run(0.3);
+            CHECK(!r.rec.held(), "%s: a tap must never stay held", what);
+            CHECK(r.rec.taps > 0, "%s: the function presses while the cap is deflected", what);
+            switch (tr) {
+            case 0:
+                writeFile(r.conf, "[global]\nTICK_HZ = 250\nV_ACTION = none\nV_PUSH_ACTION = none\nV_TILT_ACTION = none\n");
+                r.reload.pending = true;
+                break;
+            case 1: r.win.cls = "off"; break;
+            case 2: r.win.cls = "unb"; break;
+            case 3: r.suspend = true; break;
+            case 4:
+                r.devicesChanged();
+                r.src.list.clear();
+                break;
+            case 5: r.src.pushButton(0, 1, true); break;
+            }
+            r.run(0.3);
+            CHECK(!r.rec.held(), "%s: still held after the transition (%zu keys)", what, r.rec.keys.size());
+            const int before = r.rec.taps;
+            r.run(0.5);  // the cap is still deflected: the cause is gone, so no key may follow
+            CHECK(r.rec.taps == before, "%s: %d keys sent after the transition", what, r.rec.taps - before);
+            if (tr == 5) r.src.pushButton(0, 1, false);
+            r.stop();
+            if (tr == 3) r.suspend = false;
+            r.win.cls = "";
+            r.expectQuiet(what);
+        }
+    }
+}
+
+// The lift (y) with a digital key (the only key function it takes): the same release paths, and the safety net.
+static void testKeyEngineLift() {
+    StuckRig r("[global]\nTICK_HZ = 250\nLIFT_ACTION = step:volume_up,volume_down\nLIFT_DEADZONE = 20\n[app:off]\nENABLED = 0\n");
+    r.run(0.1);
+    r.src.pushMotion(0, 0, 300, 0, 0, 0, 0);
+    r.run(0.3);
+    CHECK(r.rec.taps == 1 && !r.rec.held(), "lift: one press per push (%d), nothing held", r.rec.taps);
+    r.win.cls = "off";
+    r.run(0.3);
+    r.src.pushMotion(0, 0, 0, 0, 0, 0, 0);
+    r.src.pushMotion(0, 0, -300, 0, 0, 0, 0);
+    r.run(0.3);
+    CHECK(r.rec.taps == 1 && !r.rec.held(), "lift: nothing while the program disables control");
+    r.stop();
+    r.win.cls = "";
+    r.expectQuiet("lift digital");
+}
+
 int main() {
     testDevicesChangedMidMotion();
     testDevicesChangedMidButtonHold();
@@ -607,6 +689,8 @@ int main() {
     testEveryActionEveryTransition();
     testZoomModifiersEveryTransition();
     testNavLatchCleared();
+    testKeyEngineEveryTransition();
+    testKeyEngineLift();
     if (failures) {
         std::fprintf(stderr, "%d check(s) failed\n", failures);
         return 1;

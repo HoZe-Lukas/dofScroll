@@ -27,6 +27,7 @@
 #include "common.hpp"
 #include "config.hpp"
 #include "dsp.hpp"
+#include "key_engine.hpp"
 #include "keys.hpp"
 #include "modes.hpp"
 #include "output.hpp"
@@ -117,10 +118,12 @@ private:
 
     Channel ch_v_, ch_h_, ch_zoom_, ch_lift_;
     StepAccumulator acc_v_, acc_h_, acc_zoom_, acc_lift_;
-    int8_t step_v_ = 0, step_h_ = 0, step_zoom_ = 0, step_lift_ = 0;  // step: channels: 0 armed, +1/-1 fired on that side
+    // Key engine slots, one per motion (KeyMotion order; a channel that is not split uses the push slot): keys: is a
+    // KeyRepeater, step: a DigitalTrigger (key_engine.hpp).
+    KeyRepeater rep_[KM_COUNT];
+    DigitalTrigger trig_[KM_COUNT];
     Channel ch_part_[PART_COUNT];                     // sub-channels of split V / H channels
     StepAccumulator acc_part_[PART_COUNT];
-    int8_t step_part_[PART_COUNT] = {0, 0, 0, 0};
     ZoomDetector zoom_;
     std::bitset<kKeyCount> keys_held_;
     uint8_t mouse_held_ = 0;  // bit n = mouse button n (1 left, 2 middle, 3 right)

@@ -4,6 +4,7 @@
 #include "profile_actions.hpp"
 
 #include <cmath>
+#include <cstdlib>
 
 namespace spn {
 
@@ -21,19 +22,6 @@ int stepOrReset(StepAccumulator &acc, double rate, double dt) {
         return 0;
     }
     return acc.add(rate, dt);
-}
-
-// step: channel action. One tap per push with hysteresis: fires when the rate reaches the trigger on
-// a side while armed (+1: positive, -1: negative), re-arms when it has fallen to half the trigger.
-// The state is the side that fired last. Returns the signed number of taps (-1, 0 or 1).
-int stepFire(int8_t &state, double rate, double trigger) {
-    if (state > 0 && rate <= trigger / 2.0) state = 0;
-    if (state < 0 && rate >= -trigger / 2.0) state = 0;
-    if (state == 0) {
-        if (rate >= trigger) { state = 1; return 1; }
-        if (rate <= -trigger) { state = -1; return -1; }
-    }
-    return 0;
 }
 
 constexpr size_t idx(Key k) { return static_cast<size_t>(k); }
@@ -54,11 +42,13 @@ void ModeRunner::resetState() {
     acc_h_.reset();
     acc_zoom_.reset();
     acc_lift_.reset();
-    step_v_ = step_h_ = step_zoom_ = step_lift_ = 0;
+    for (int i = 0; i < KM_COUNT; ++i) {
+        rep_[i].reset();
+        trig_[i].reset();
+    }
     for (int i = 0; i < PART_COUNT; ++i) {
         ch_part_[i].reset();
         acc_part_[i].reset();
-        step_part_[i] = 0;
     }
     zoom_.reset();
 }
@@ -359,22 +349,29 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
     if (zooming) {
         acc_v_.reset();
         acc_h_.reset();
-        step_v_ = step_h_ = 0;
         acc_lift_.reset();
-        step_lift_ = 0;
-        for (int i = 0; i < PART_COUNT; ++i) {
-            acc_part_[i].reset();
-            step_part_[i] = 0;
+        for (int i = 0; i < KM_COUNT; ++i) {
+            rep_[i].reset();
+            trig_[i].reset();
         }
+        for (int i = 0; i < PART_COUNT; ++i) acc_part_[i].reset();
         nt = acc_zoom_.add(rate_zoom, dt);
     } else {
-        // Channels with a step: action use the armed/fired state instead of the accumulator.
-        auto channel = [&](ChannelActionType t, StepAccumulator &acc, int8_t &step, double rate) {
+        // keys: runs the repeater and step: the digital trigger of the motion's key slot (key_engine.hpp); the wheels use the
+        // accumulator. A slot that is not in use is kept at rest.
+        auto channel = [&](ChannelActionType t, StepAccumulator &acc, int km, double rate) {
             if (t == ChannelActionType::Step) {
                 acc.reset();
-                return stepFire(step, rate, s.step_trigger);
+                rep_[km].reset();
+                const double trigger = (s.key_tuning[km].set & KeyTuning::F_TRIGGER) ? s.key_tuning[km].trigger : s.step_trigger;
+                return trig_[km].step(rate, trigger);
             }
-            step = 0;
+            trig_[km].reset();
+            if (t == ChannelActionType::Keys) {
+                acc.reset();
+                return rep_[km].step(rate, dt, keyParamsOf(s, km));
+            }
+            rep_[km].reset();
             if (t == ChannelActionType::Off) {
                 acc.reset();
                 return 0;
@@ -382,18 +379,18 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
             return stepOrReset(acc, rate, dt);
         };
         // The twist channel does not accumulate for zoom itself (the zoom detection does).
-        nt = channel(tt == ChannelActionType::Zoom ? ChannelActionType::Off : tt, acc_zoom_, step_zoom_, rate_zoom);
+        nt = channel(tt == ChannelActionType::Zoom ? ChannelActionType::Off : tt, acc_zoom_, KM_TWIST, rate_zoom);
         if (split[0]) {
-            for (int i = PART_V_PUSH; i <= PART_V_TILT; ++i) np[i] = channel(part_t[i], acc_part_[i], step_part_[i], part_rate[i]);
+            for (int i = PART_V_PUSH; i <= PART_V_TILT; ++i) np[i] = channel(part_t[i], acc_part_[i], i, part_rate[i]);
         } else {
-            nv = channel(tv, acc_v_, step_v_, rate_v);
+            nv = channel(tv, acc_v_, KM_V_PUSH, rate_v);
         }
         if (split[1]) {
-            for (int i = PART_H_PUSH; i <= PART_H_TILT; ++i) np[i] = channel(part_t[i], acc_part_[i], step_part_[i], part_rate[i]);
+            for (int i = PART_H_PUSH; i <= PART_H_TILT; ++i) np[i] = channel(part_t[i], acc_part_[i], i, part_rate[i]);
         } else {
-            nh = channel(th, acc_h_, step_h_, rate_h);
+            nh = channel(th, acc_h_, KM_H_PUSH, rate_h);
         }
-        nl = channel(tl, acc_lift_, step_lift_, rate_lift);
+        nl = channel(tl, acc_lift_, KM_LIFT, rate_lift);
     }
 
     std::bitset<kKeyCount> keys = w.keys;
@@ -421,6 +418,7 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
         addZoomKeys(keys, s);
     syncKeys(keys);
 
+    int pressBudget = kMaxPressesPerTick;  // key presses of all functions together in this tick
     auto emit = [&](const ChannelAction &a, ChannelActionType t, int n, int sgn) {
         if (n == 0) return;
         switch (t) {
@@ -437,8 +435,9 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
             break;
         case ChannelActionType::Step:
         case ChannelActionType::Keys:
-            for (int i = n; i > 0; --i) tapChord(a.pos, a.posMods);
-            for (int i = n; i < 0; ++i) tapChord(a.neg, a.negMods);
+            if (n > 0 ? a.posNone : a.negNone) break;  // "none" for this side: nothing is pressed
+            for (int i = std::abs(n); i > 0 && pressBudget > 0; --i, --pressBudget)
+                tapChord(n > 0 ? a.pos : a.neg, n > 0 ? a.posMods : a.negMods);
             break;
         }
     };

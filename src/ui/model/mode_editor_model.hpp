@@ -124,8 +124,8 @@ inline ChannelForm channelFormOf(const ChannelAction &a) {
     ChannelForm f;
     f.type = a.type;
     if (a.usesKeys()) {
-        f.neg = modelist::chordText(a.neg, a.negMods);
-        f.pos = modelist::chordText(a.pos, a.posMods);
+        f.neg = modelist::negChordText(a);
+        f.pos = modelist::posChordText(a);
     }
     return f;
 }

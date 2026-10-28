@@ -274,7 +274,7 @@ static void testParser() {
     }
     {  // chord warnings also cover the parts
         w.clear();
-        loadText("V_TILT_ACTION = keys:alt+left,alt+right\n", &w);
+        loadText("V_TILT_ACTION = step:alt+left,alt+right\n", &w);
         CHECK(warned(w, "can press shortcut chords"), "risky chord on a part is reported");
     }
 }

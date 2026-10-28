@@ -206,8 +206,9 @@ std::string chordRisk(const ModeDef &m) {
         if (a->type == ChannelActionType::Zoom) hasZoom = true;
         if (!a->usesKeys()) continue;
         const std::string what = a->type == ChannelActionType::Step ? "a step: channel presses " : "a keys: channel presses ";
-        const struct { Key key; const ChordMods &mods; } args[2] = {{a->neg, a->negMods}, {a->pos, a->posMods}};
+        const struct { Key key; const ChordMods &mods; bool none; } args[2] = {{a->neg, a->negMods, a->negNone}, {a->pos, a->posMods, a->posNone}};
         for (const auto &arg : args) {
+            if (arg.none) continue;
             if (arg.mods.n == 0) {
                 if (!isNavKey(arg.key)) hasRiskyKeys = true;
                 if (isModifierKey(arg.key)) why.push_back(what + keyName(arg.key));
@@ -332,8 +333,12 @@ std::string channelActionText(const ChannelAction &a) {
         case ChannelActionType::WheelV: return "wheel_v";
         case ChannelActionType::WheelH: return "wheel_h";
         case ChannelActionType::Zoom: return "zoom";
-        case ChannelActionType::Step: return "step:" + chordWords(a.neg, a.negMods) + "," + chordWords(a.pos, a.posMods);
-        case ChannelActionType::Keys: return "keys:" + chordWords(a.neg, a.negMods) + "," + chordWords(a.pos, a.posMods);
+        case ChannelActionType::Step:
+            return "step:" + (a.negNone ? std::string("none") : chordWords(a.neg, a.negMods)) + "," +
+                   (a.posNone ? std::string("none") : chordWords(a.pos, a.posMods));
+        case ChannelActionType::Keys:
+            return "keys:" + (a.negNone ? std::string("none") : chordWords(a.neg, a.negMods)) + "," +
+                   (a.posNone ? std::string("none") : chordWords(a.pos, a.posMods));
     }
     return "default";
 }
@@ -352,10 +357,20 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
         const size_t comma = rest.find(',');
         if (comma == std::string::npos || rest.find(',', comma + 1) != std::string::npos)
             return fail(err, std::string(step ? "step" : "keys") + ":<neg>,<pos> expects exactly two keys or key chords");
-        if (!parseChord(trim(rest.substr(0, comma)), &a.neg, &a.negMods, err) ||
-            !parseChord(trim(rest.substr(comma + 1)), &a.pos, &a.posMods, err))
+        // Per side: a key or chord, or "none" (nothing is pressed in that direction).
+        const std::string negText = trim(rest.substr(0, comma)), posText = trim(rest.substr(comma + 1));
+        a.negNone = negText == "none";
+        a.posNone = posText == "none";
+        if ((!a.negNone && !parseChord(negText, &a.neg, &a.negMods, err)) || (!a.posNone && !parseChord(posText, &a.pos, &a.posMods, err)))
             return false;
+        if (a.negNone && a.posNone) return fail(err, std::string(step ? "step" : "keys") + ": needs a key on at least one side (use none for the whole action)");
         a.type = step ? ChannelActionType::Step : ChannelActionType::Keys;
+        // Tier rule: an analog repeat of a risky key is refused, one press per push (step:) is allowed with the load warning.
+        if (!step) {
+            const struct { bool none; Key key; const ChordMods &mods; } sides[2] = {{a.negNone, a.neg, a.negMods}, {a.posNone, a.pos, a.posMods}};
+            for (const auto &side : sides)
+                if (!side.none && !keyAnalogAllowed(side.key, side.mods)) return fail(err, "this key can only be used digitally, use step:");
+        }
     } else {
         return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos> | step:<neg>,<pos> (keys may be chords like ctrl+pageup)");
     }
@@ -370,6 +385,18 @@ bool parseLiftAction(const std::string &text, ChannelAction *out, std::string *e
         return fail(err, "an analog keys: action cannot be used on the lift (it fires when the cap is grabbed); use step:<neg>,<pos>");
     if (out) *out = a;
     return true;
+}
+
+bool keyAnalogAllowed(Key key, const ChordMods &mods) {
+    switch (key) {
+        case Key::Up: case Key::Down: case Key::Left: case Key::Right: case Key::PageUp: case Key::PageDown: case Key::Home:
+        case Key::End: case Key::Tab: case Key::Plus: case Key::Minus: case Key::KpPlus: case Key::KpMinus:
+            return (mods.mask() & 12u) == 0;  // ctrl and shift only: alt and super chords are tier B
+        case Key::VolumeUp: case Key::VolumeDown: case Key::MediaNext: case Key::MediaPrev:
+            return mods.n == 0;
+        default:
+            return false;
+    }
 }
 
 bool chordNeedsWarning(Key key, const ChordMods &mods) { return mods.n > 0 && ((mods.mask() & 12u) != 0 || !isNavKey(key)); }

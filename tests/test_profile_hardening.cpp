@@ -238,7 +238,7 @@ static void testUiAndResolveAgree(const std::string &root) {
 static void testProfileChordNote() {
     ProfileSet profs;
     std::vector<std::string> w;
-    parseProfilesText("[app:x]\nV_ACTION = keys:alt+left,alt+right\nH_ACTION = keys:ctrl+pageup,ctrl+pagedown\n", "t", &profs, &w);
+    parseProfilesText("[app:x]\nV_ACTION = step:alt+left,alt+right\nH_ACTION = keys:ctrl+pageup,ctrl+pagedown\n", "t", &profs, &w);
     assert(w.size() == 1 && has(w[0], "V_ACTION") && has(w[0], "chord"));
     assert(profs.resolve("", "x").actions[kLayerApp].chanSet[ProfileActions::V]);
 }

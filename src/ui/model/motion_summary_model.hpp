@@ -104,7 +104,7 @@ inline MotionRow rowFor(const char *id, const std::string &name, const std::stri
     r.how = how;
     ChannelActionType t = a.type;
     if (t == ChannelActionType::Default) t = twist ? ChannelActionType::Zoom : vertical ? ChannelActionType::WheelV : ChannelActionType::WheelH;
-    const std::string neg = keyWords(modelist::chordText(a.neg, a.negMods)), pos = keyWords(modelist::chordText(a.pos, a.posMods));
+    const std::string neg = keyWords(modelist::negChordText(a)), pos = keyWords(modelist::posChordText(a));
     switch (t) {
         case ChannelActionType::Off:
             r.kind = MotionKind::Off;

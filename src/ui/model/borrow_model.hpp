@@ -75,8 +75,8 @@ inline std::string actionWords(const ChannelAction &a, bool off, const StringPro
         case ChannelActionType::WheelV: return s.tr("scroll");
         case ChannelActionType::WheelH: return s.tr("scroll sideways");
         case ChannelActionType::Zoom: return s.tr("zoom");
-        case ChannelActionType::Keys: return format(s.tr("keys %1 / %2"), {modelist::chordText(a.neg, a.negMods), modelist::chordText(a.pos, a.posMods)});
-        case ChannelActionType::Step: return format(s.tr("one key tap per push: %1 / %2"), {modelist::chordText(a.neg, a.negMods), modelist::chordText(a.pos, a.posMods)});
+        case ChannelActionType::Keys: return format(s.tr("keys %1 / %2"), {modelist::negChordText(a), modelist::posChordText(a)});
+        case ChannelActionType::Step: return format(s.tr("one key tap per push: %1 / %2"), {modelist::negChordText(a), modelist::posChordText(a)});
         case ChannelActionType::Off: break;
     }
     return std::string();

@@ -74,7 +74,7 @@ everywhere a joystick mode can be chosen (profile drop-downs, tray menu, Overvie
 | `off` | Off | Off | Off | Off | Off | Not used | none |
 | `timeline` | Off | Off | Keys: Left / Right | Keys: Left / Right | Keys: Left / Right | Not used | none |
 | `slides` | Keys: Page Up / Page Down | Keys: Page Up / Page Down | Off | Off | Off | Not used | SCROLL_V_SENS = 2 |
-| `media` | Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: J / L | Not used | none |
+| `media` | Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Steps: J / L | Not used | none |
 | `map` | Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: Minus / Plus | Not used | none |
 | `precision` | Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used | SCROLL_V_SENS = 2, SCROLL_H_SENS = 1, ZOOM_SENS = 2 |
 | `tabs` | Scroll | Scroll | Keys: Ctrl+Page Up / Ctrl+Page Down | Keys: Ctrl+Page Up / Ctrl+Page Down | Zoom | Not used | none |

@@ -146,7 +146,7 @@ int main() {
     assert(openDemo(ed2, dir) && ed2.form() == ed.form() && ed2.compose() == composed);
 
     // loader warnings are returned, including the chord warning
-    ed2.form().h = {ChannelActionType::Keys, "alt+left", "alt+right"};
+    ed2.form().h = {ChannelActionType::Step, "alt+left", "alt+right"};
     r = ed2.save();
     assert(r.ok && hasWarning(r.warnings, "can press shortcut chords") && hasWarning(r.warnings, "alt+left"));
 
