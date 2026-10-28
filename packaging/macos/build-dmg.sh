@@ -96,7 +96,8 @@ macdeployqt "$APP" -always-overwrite
 # of the user cannot start a dofscroll binary with its own code and use the Accessibility and Input Monitoring
 # grants (issue #269). The entitlement allow-dyld-environment-variables is NOT set anywhere. Only the daemon gets
 # com.apple.security.cs.disable-library-validation (daemon.entitlements): it dlopens the vendor framework, which
-# another team signed. Ad-hoc is not an identity; a Developer ID signature needs a paid account (docs/release-process.md).
+# another team signed, like on Windows. CI showed that the daemon then also loads DYLD_INSERT_LIBRARIES code: the
+# interface and hidprobe are protected, the daemon is not (maintainer decision: parity with Windows). Ad-hoc is not an identity; a Developer ID signature needs a paid account (docs/release-process.md).
 SIGN="codesign --force --options runtime --sign -"
 find "$APP/Contents" -type f -name '*.dylib' | while IFS= read -r f; do $SIGN "$f"; done
 if [ -d "$APP/Contents/Frameworks" ]; then

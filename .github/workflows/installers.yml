@@ -228,7 +228,9 @@ jobs:
           rm -f "$inj/marker"
           INJECT_MARKER="$inj/marker" DYLD_INSERT_LIBRARIES="$inj/inject.dylib" "$inj/plain" || true
           test -e "$inj/marker" || { echo "::error::test setup: a program without the hardened runtime should load the injected library"; exit 1; }
-          for prog in "$d" "$probe" "$mnt/dofscroll.app/Contents/MacOS/dofscroll-ui"; do
+          # The daemon is not in this list: it has disable-library-validation (to load the vendor framework, like on
+          # Windows) and then loads injected libraries too; the first CI run showed that. Documented in release-process.md.
+          for prog in "$probe" "$mnt/dofscroll.app/Contents/MacOS/dofscroll-ui"; do
             rm -f "$inj/marker"
             INJECT_MARKER="$inj/marker" DYLD_INSERT_LIBRARIES="$inj/inject.dylib" "$prog" --version >/dev/null 2>&1 || true
             if [ -e "$inj/marker" ]; then echo "::error::$prog loaded a library from DYLD_INSERT_LIBRARIES"; exit 1; fi

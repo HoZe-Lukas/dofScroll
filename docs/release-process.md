@@ -198,8 +198,12 @@ by rebuilding in the refreshed images (the CI image is rebuilt weekly).
   `DYLD_INSERT_LIBRARIES`, so another process of the user cannot inject code into a dofscroll process that holds the
   Accessibility and Input Monitoring grants (issue #269); the entitlement `allow-dyld-environment-variables` is
   never set. Only the daemon has `com.apple.security.cs.disable-library-validation` (`packaging/macos/daemon.entitlements`),
-  because it loads the vendor framework of another team at run time. `build-dmg.sh` checks the flags and the entitlements
-  and the macOS job of `installers.yml` starts each program with `DYLD_INSERT_LIBRARIES` and fails if the library ran
+  because it loads the vendor framework of another team at run time, as the Windows daemon loads the vendor COM
+  object (maintainer decision: same behavior on both systems). The CI test showed that with this entitlement the
+  daemon also loads `DYLD_INSERT_LIBRARIES` code, so only the interface and `dofscroll-hidprobe` are protected
+  against injection; the daemon is not (the same as on Windows, where nothing stops a process of the same user).
+  Without the optional driver-interface input the entitlement could be dropped. `build-dmg.sh` checks the flags and the entitlements
+  and the macOS job of `installers.yml` starts the interface and `dofscroll-hidprobe` with `DYLD_INSERT_LIBRARIES` and fails if the library ran
   (with a program that is not hardened as positive control).
   Gatekeeper still treats the download as unidentified and unnotarized; the first-run steps are in
   [installation.md](installation.md). Only Apple silicon is built (`macos-latest`).
