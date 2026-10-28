@@ -99,6 +99,19 @@ public:
         send(in);
     }
 
+    // Relative pointer movement (MOUSEEVENTF_MOVE without ABSOLUTE). Untested on hardware.
+    void moveMouse(int dx, int dy) override {
+        dx = clampMouseDelta(dx);
+        dy = clampMouseDelta(dy);
+        if (dx == 0 && dy == 0) return;
+        INPUT i = mouseInput(MOUSEEVENTF_MOVE);
+        i.mi.dx = dx;
+        i.mi.dy = dy;
+        std::vector<INPUT> in;
+        in.push_back(i);
+        send(in);
+    }
+
     void releaseAll() override { doReleaseAll(); }
 
     // Called at every daemon start and by --release-keys. Normally it only releases what this

@@ -96,6 +96,13 @@ public:
         if (down) buttonsDown_.insert(button); else buttonsDown_.erase(button);
     }
 
+    void moveMouse(int dx, int dy) override {
+        dx = clampMouseDelta(dx);
+        dy = clampMouseDelta(dy);
+        if (!dpy_ || (dx == 0 && dy == 0)) return;
+        XTestFakeRelativeMotionEvent(dpy_, dx, dy, CurrentTime);
+    }
+
     void releaseAll() override { doReleaseAll(); }
 
     void forceReleaseAll() override {

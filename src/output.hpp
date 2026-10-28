@@ -9,6 +9,10 @@
 
 namespace spn {
 
+// Largest pointer step per moveMouse() call and axis (pixels).
+constexpr int kMaxMouseStep = 127;
+constexpr int clampMouseDelta(int v) { return v > kMaxMouseStep ? kMaxMouseStep : v < -kMaxMouseStep ? -kMaxMouseStep : v; }
+
 class Output {
 public:
     virtual ~Output() = default;
@@ -22,6 +26,10 @@ public:
     virtual void setKey(Key k, bool down) = 0;
     virtual void tapKey(Key k) = 0;                 // press and release (e.g. arrow keys in nav mode)
     virtual void mouseButton(int button, bool down) = 0;  // 1 = left, 2 = middle, 3 = right
+    // Relative pointer movement in pixels (dx > 0 right, dy > 0 down). Backends clamp each axis
+    // with clampMouseDelta() and send one motion per call; it becomes visible at flush().
+    // Default: ignored, so backends and fakes without a pointer keep working.
+    virtual void moveMouse(int dx, int dy) { (void)dx; (void)dy; }
     virtual void releaseAll() = 0;                  // release every held key/button
     // Like releaseAll(), but independent of our own state: releases every Key and mouse
     // buttons 1-3 even if an earlier process (crash, SIGKILL) left them pressed.
