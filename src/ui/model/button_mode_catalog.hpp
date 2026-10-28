@@ -184,8 +184,8 @@ public:
 
     // Copies the file of the button mode to `dest` (a file path chosen by the user; a built-in button
     // mode is exported as the template text of the built-in). Never overwrites, never follows a link at
-    // `dest`; the content is read with the import limits.
-    Result exportTo(const std::string &id, const std::string &dest) const {
+    // `dest`; with `overwrite` (the user confirmed) a plain file at `dest` is replaced atomically; the content is read with the import limits.
+    Result exportTo(const std::string &id, const std::string &dest, bool overwrite = false) const {
         Result r;
         const Entry *e = find(id);
         if (!e) return fail(r, "no such button mode");
@@ -193,8 +193,17 @@ public:
         std::string text;
         if (e->builtin) text = newTemplate(id, e->label, e->description, e->action, e->cycle);
         else if (!fs::readFileBounded(e->path, kMaxImportBytes, fs::ReadOptions(), &text).ok()) return fail(r, "cannot read " + e->path);
-        if (fs::pathExists(dest)) return fail(r, "the destination already exists");
-        if (!fs::createFileExclusive(dest, text)) return fail(r, "cannot create " + dest);
+        fs::FileInfo di;
+        if (fs::lstatPath(dest, &di)) {
+            if (!overwrite) return fail(r, "the destination already exists");
+            // The user confirmed "replace": the old file stays until the new content is complete (atomic replace),
+            // and only a plain file is replaced - never a link, a folder or anything else.
+            if (!di.isFile || di.isLink) return fail(r, "the destination is not a plain file");
+            std::string werr;
+            if (!fs::writeFileReplace(dest, text, &werr)) return fail(r, werr.empty() ? "cannot replace " + dest : werr);
+        } else if (!fs::createFileExclusive(dest, text)) {
+            return fail(r, "cannot create " + dest);
+        }
         r.ok = true;
         r.id = id;
         r.path = dest;

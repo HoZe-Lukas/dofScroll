@@ -41,7 +41,7 @@ public:
     bool installExample(const QString &id);
     QString originOf(const QString &id) const;
     bool createEditableCopy(const QString &id);  // no question; the file of a built-in button mode, selected
-    bool exportButtonModeTo(const QString &id, const QString &dest);  // no dialog; false + lastError()
+    bool exportButtonModeTo(const QString &id, const QString &dest, bool overwrite = false);  // no dialog; false + lastError()
     const QString &lastError() const { return lastError_; }
     ButtonUseWidget *useWidget() const { return use_; }
     CycleEditorWidget *cycleEditor() const { return cycle_; }  // the "Cycle through" section (self-test)

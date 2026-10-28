@@ -97,8 +97,12 @@
 #include "pages/profiles_page.hpp"
 #include "pages/overview_page.hpp"
 #include "qt_action_runner.hpp"
+#include "signal_flush.hpp"
 #include "theme.hpp"
 #include "tray.hpp"
+#ifdef Q_OS_UNIX
+#include <signal.h>
+#endif
 #include "ui/model/tray_controller.hpp"
 #include "ui_i18n.hpp"
 #include "ui/model/design_tokens.hpp"
@@ -441,6 +445,21 @@ static bool modeLibrarySelfTest(UiContext ctx, const QString &tmpPath) {
     }
     const QString out = tmpPath + QStringLiteral("/exported-mine.conf");
     check(page.exportModeTo(QStringLiteral("mine"), out) && QFile::exists(out), "export writes a copy");
+    // issue #273: "replace" on export is an atomic overwrite; the old file stays when it cannot be replaced
+    check(!page.exportModeTo(QStringLiteral("mine"), out), "export does not overwrite by itself");
+    {
+        QFile old(out);
+        check(old.open(QIODevice::WriteOnly | QIODevice::Truncate) && old.write("old content\n") > 0, "write the old export");
+        old.close();
+        check(page.exportModeTo(QStringLiteral("mine"), out, true), "export replaces the file when the user confirmed");
+        QFile now(out);
+        check(now.open(QIODevice::ReadOnly) && !now.readAll().contains("old content"), "the new export has the new content");
+        const QString dirDest = tmpPath + QStringLiteral("/export-is-a-folder.conf");
+        QDir().mkpath(dirDest);
+        check(!page.exportModeTo(QStringLiteral("mine"), dirDest, true) && QDir(dirDest).exists(),
+              "a failed replace removes nothing");
+        QDir().rmdir(dirDest);
+    }
     // a dropped file goes through the same loader as Import; the id comes from the file name
     const int before = page.modeCount();
     check(page.importPath(out, false) && page.modeCount() == before + 1 && page.selectMode(QStringLiteral("exported-mine")),
@@ -461,6 +480,17 @@ static bool modeLibrarySelfTest(UiContext ctx, const QString &tmpPath) {
               QFile::exists(tmpPath + QStringLiteral("/modes/dropped-two.conf")),
           "rename moves the file and the id");
     check(!page.renameMode(QStringLiteral("normal"), QStringLiteral("Other")), "a built-in cannot be renamed");
+    // renaming a mode that is open in the editor writes its edits first and opens the editor on the new file
+    check(page.selectMode(QStringLiteral("dropped-two")) && page.openEditor(), "open the editor on a file mode");
+    check(page.renameMode(QStringLiteral("dropped-two"), QStringLiteral("Dropped Three")) &&
+              QFile::exists(tmpPath + QStringLiteral("/modes/dropped-three.conf")) &&
+              !QFile::exists(tmpPath + QStringLiteral("/modes/dropped-two.conf")),
+          "rename with the editor open moves the file");
+    check(qs8(page.editorWidget()->editor().form().id) == QStringLiteral("dropped-three"),
+          "the editor is open on the renamed mode");
+    page.flushEditor();
+    check(!QFile::exists(tmpPath + QStringLiteral("/modes/dropped-two.conf")), "nothing brings the old id back");
+    QFile::remove(tmpPath + QStringLiteral("/modes/dropped-three.conf"));
     // clean up what this test added
     for (const char *f : {"/modes/dropped-two.conf", "/modes/exported-mine.conf"})
         QFile::remove(tmpPath + QString::fromLatin1(f));
@@ -2687,6 +2717,31 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
         std::optional<std::string> v = diskKey(rig, Section::GLOBAL, "", "ZOOM_MIX");
         check(v && *v == "rx", "the text is on disk after the flush of the quit path");
     }
+#ifdef Q_OS_UNIX
+    // SIGTERM (systemctl --user stop|restart, logout) flushes what is typed before the process ends (issue #273)
+    w.showPage(QStringLiteral("profiles"));
+    if (auto *e4 = qobject_cast<QLineEdit *>(ch->editorFor("ZOOM_MIX"))) {
+        typeInto(e4, QStringLiteral("ry"));
+        check(rig.saver()->pending(), "typed text pending before SIGTERM");
+        int seen = 0;
+        {
+            SignalFlush sf([&](int signo) {
+                seen = signo;
+                w.flushPending();
+            });
+            check(sf.active(), "the signal handler is installed");
+            ::raise(SIGTERM);
+            ::raise(SIGHUP);  // a burst is one call
+            settle();
+        }
+        check(seen == SIGTERM, "SIGTERM reached the event loop (and the process is still alive)");
+        check(!rig.saver()->pending(), "SIGTERM flushed the pending edit");
+        std::optional<std::string> v = diskKey(rig, Section::GLOBAL, "", "ZOOM_MIX");
+        check(v && *v == "ry", "the text is on disk after SIGTERM");
+        struct sigaction cur;
+        check(::sigaction(SIGTERM, nullptr, &cur) == 0 && cur.sa_handler == SIG_DFL, "the previous handler is restored");
+    }
+#endif
     std::printf("profile editor self-test: %s\n", ok ? "ok" : "failed");
     return ok;
 }
@@ -4437,6 +4492,13 @@ int main(int argc, char **argv) {
     }
     Tray tray(&window, icon, ctx);
     tray.show();
+    // SIGTERM, SIGINT, SIGHUP (systemctl --user stop|restart, logout, Ctrl-C): the pending edits are written, the
+    // window state is saved, then the program quits (issue #273).
+    SignalFlush signalFlush([&](int) {
+        window.flushPending();
+        window.saveWindowState();
+        app.quit();
+    });
     // The daemon is started from here when none runs (after the grace period of a login autostart,
     // src/ui/model/daemon_autostart.hpp): the first start after installing is "open dofscroll from the menu".
     DaemonStarter starter(runner, ctx.runtimeDir);
