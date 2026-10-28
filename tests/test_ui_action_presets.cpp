@@ -21,7 +21,7 @@ struct English : StringProvider {
 int main() {
     English s;
     const std::vector<ActionPreset> all = actionPresets(s);
-    assert(all.size() == 9);
+    assert(all.size() == 11);
     std::set<std::string> ids;
     for (const ActionPreset &p : all) {
         assert(!p.id.empty() && !p.label.empty() && !p.glyph.empty() && !p.tip.empty() && ids.insert(p.id).second);

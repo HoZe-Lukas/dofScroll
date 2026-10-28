@@ -30,6 +30,7 @@ struct StuckRec {
     std::set<int> mouse;  // currently held mouse buttons
     int wheels = 0;       // wheelV/wheelH calls
     int taps = 0;         // tapKey calls
+    int clicks = 0;       // mouse buttons going down
     int releaseAlls = 0;
     bool held() const { return !keys.empty() || !mouse.empty(); }
     int output() const { return wheels + taps; }
@@ -47,7 +48,7 @@ struct StuckOutput : Output {
     }
     void tapKey(Key) override { ++r->taps; }
     void mouseButton(int b, bool d) override {
-        if (d) r->mouse.insert(b); else r->mouse.erase(b);
+        if (d) { r->mouse.insert(b); ++r->clicks; } else r->mouse.erase(b);
     }
     void releaseAll() override { r->keys.clear(); r->mouse.clear(); ++r->releaseAlls; }
     void flush() override {}
@@ -664,6 +665,178 @@ static void testKeyEngineLift() {
     r.expectQuiet("lift digital");
 }
 
+
+// --- mouse clicks and holds on every motion (stage 4 of #224) -------------------------------------------------------------
+// hold:<neg>,<pos> keeps a key, chord or mouse button down while the motion is deflected, step: with click presses and releases a
+// button. Every way the cause can disappear (reload, ENABLED = 0, a program that unbinds the motion, suspend, an unplugged device,
+// a joystick mode switch, a silent source) must leave nothing held, and no click may follow while the cap is still deflected.
+struct MotionCase {
+    const char *name;
+    const char *key;  // action key of the motion
+    int x, y, z, rx, ry, rz;
+    const char *dead;  // extra lines of the profile (the dead zone of the lift)
+};
+static const MotionCase kMotionCases[] = {
+    {"v_push", "V_PUSH_ACTION", 0, 0, 300, 0, 0, 0, ""},
+    {"v_tilt", "V_TILT_ACTION", 0, 0, 0, 300, 0, 0, ""},
+    {"h_push", "H_PUSH_ACTION", 300, 0, 0, 0, 0, 0, ""},
+    {"h_tilt", "H_TILT_ACTION", 0, 0, 0, 0, 0, 300, ""},
+    {"twist", "TWIST_ACTION", 0, 0, 0, 0, 300, 0, ""},
+    {"lift", "LIFT_ACTION", 0, 300, 0, 0, 0, 0, "LIFT_DEADZONE = 20\n"},
+};
+static const char *const kFunctions[] = {"hold:click,click", "hold:ctrl+shift,alt", "hold:rightclick,ctrl", "step:click,rightclick"};
+static const char *const kTransitions[] = {"reload", "ENABLED=0", "program unbinds", "suspend", "unplugged", "mode switch", "silent source"};
+
+// The cap held at (x, y, z, rx, ry, rz) for `secs`: the event is repeated every 100 ms, like a device does.
+static void holdAt(StuckRig &r, int x, int y, int z, int rx, int ry, int rz, double secs) {
+    for (double t = 0; t < secs - 1e-9; t += 0.1) {
+        r.src.pushMotion(0, x, y, z, rx, ry, rz);
+        r.run(0.1);
+    }
+}
+
+static void pushCase(StuckRig &r, const MotionCase &m, int sign) {
+    r.src.pushMotion(0, sign * m.x, sign * m.y, sign * m.z, sign * m.rx, sign * m.ry, sign * m.rz);
+}
+
+// Runs `secs` while the cap stays deflected: the event is repeated every 100 ms, like a device does (a silent source is a case of
+// its own, "silent source" below; the stale watchdog zeroes the axes after a quarter of a second without an event).
+static void runDeflected(StuckRig &r, const MotionCase &m, int sign, double secs) {
+    for (double t = 0; t < secs - 1e-9; t += 0.1) {
+        pushCase(r, m, sign);
+        r.run(0.1);
+    }
+}
+
+static void testMouseHoldEveryTransition() {
+    for (const MotionCase &m : kMotionCases) {
+        for (const char *fn : kFunctions) {
+            for (int sign = -1; sign <= 1; sign += 2) {
+                for (int tr = 0; tr < 7; ++tr) {
+                    char what[240];
+                    std::snprintf(what, sizeof what, "%s %s (%s) / %s", m.name, fn, sign < 0 ? "negative" : "positive", kTransitions[tr]);
+                    const std::string line = std::string(m.key) + " = " + fn + "\n" + m.dead;
+                    const std::string unbind = std::string(m.key) + " = none\n";
+                    const bool viaMode = tr == 5;
+                    StuckRig r(viaMode ? std::string("[global]\nTICK_HZ = 250\nMODE = alpha\n")
+                                       : "[global]\nTICK_HZ = 250\n" + line + "[app:off]\nENABLED = 0\n[app:unb]\n" + unbind,
+                               viaMode ? std::vector<std::pair<std::string, std::string>>{{"alpha.conf", line + "BUTTON_2 = mode:next\n"},
+                                                                                          {"beta.conf", unbind + "BUTTON_2 = mode:next\n"}}
+                                       : std::vector<std::pair<std::string, std::string>>{});
+                    r.run(0.1);
+                    runDeflected(r, m, sign, 0.3);
+                    const bool isHold = fn[0] == 'h';
+                    // a side that is not the deflected one does nothing; both sides are filled in the cases, so something happens
+                    CHECK(isHold ? r.rec.held() : r.rec.clicks > 0, "%s: the function acts while the cap is deflected", what);
+                    switch (tr) {
+                    case 0:
+                        writeFile(r.conf, "[global]\nTICK_HZ = 250\n" + unbind);
+                        r.reload.pending = true;
+                        break;
+                    case 1: r.win.cls = "off"; break;
+                    case 2: r.win.cls = "unb"; break;
+                    case 3: r.suspend = true; break;
+                    case 4:
+                        r.devicesChanged();
+                        r.src.list.clear();
+                        break;
+                    case 5: r.src.pushButton(0, 1, true); break;
+                    case 6: break;  // the source says nothing more
+                    }
+                    auto stillDeflected = [&](double secs) {
+                        if (tr == 4 || tr == 6) r.run(secs);  // an unplugged device and a silent source send nothing more
+                        else runDeflected(r, m, sign, secs);
+                    };
+                    stillDeflected(0.6);
+                    CHECK(!r.rec.held(), "%s: still held after the transition (%zu keys, %zu mouse)", what, r.rec.keys.size(), r.rec.mouse.size());
+                    const int before = r.rec.clicks;
+                    stillDeflected(0.5);  // the cap is still deflected (or silent): the cause is gone, no click may follow, nothing pressed again
+                    CHECK(r.rec.clicks == before && !r.rec.held(), "%s: output after the transition (%d clicks)", what, r.rec.clicks - before);
+                    if (tr == 5) r.src.pushButton(0, 1, false);
+                    r.stop();
+                    if (tr == 3) r.suspend = false;
+                    r.win.cls = "";
+                    r.expectQuiet(what);
+                }
+            }
+        }
+    }
+}
+
+// A hold of ctrl on a tilt plus the twist that zooms (ctrl as the zoom modifier): every path ends with ctrl up.
+static void testZoomPlusHoldEveryTransition() {
+    for (int tr = 0; tr < 7; ++tr) {
+        char what[160];
+        std::snprintf(what, sizeof what, "zoom + hold ctrl / %s", kTransitions[tr]);
+        const std::string line = "V_TILT_ACTION = hold:ctrl,ctrl\nTWIST_ACTION = zoom\n";
+        const std::string unbind = "V_TILT_ACTION = none\nTWIST_ACTION = none\n";
+        StuckRig r(tr == 5 ? std::string("[global]\nTICK_HZ = 250\nMODE = alpha\n")
+                           : "[global]\nTICK_HZ = 250\n" + line + "[app:off]\nENABLED = 0\n[app:unb]\n" + unbind,
+                   tr == 5 ? std::vector<std::pair<std::string, std::string>>{{"alpha.conf", line + "BUTTON_2 = mode:next\n"},
+                                                                              {"beta.conf", unbind + "BUTTON_2 = mode:next\n"}}
+                           : std::vector<std::pair<std::string, std::string>>{});
+        r.run(0.1);
+        holdAt(r, 0, 0, 0, 300, 350, 0, 0.4);  // tilt and twist
+        CHECK(r.rec.keys.count(int(Key::Ctrl)), "%s: ctrl is down with zoom and hold", what);
+        switch (tr) {
+        case 0:
+            writeFile(r.conf, "[global]\nTICK_HZ = 250\n" + unbind);
+            r.reload.pending = true;
+            break;
+        case 1: r.win.cls = "off"; break;
+        case 2: r.win.cls = "unb"; break;
+        case 3: r.suspend = true; break;
+        case 4:
+            r.devicesChanged();
+            r.src.list.clear();
+            break;
+        case 5: r.src.pushButton(0, 1, true); break;
+        case 6: break;
+        }
+        r.run(0.6);
+        CHECK(!r.rec.held(), "%s: ctrl still held after the transition", what);
+        if (tr == 5) r.src.pushButton(0, 1, false);
+        r.stop();
+        if (tr == 3) r.suspend = false;
+        r.win.cls = "";
+        r.expectQuiet(what);
+    }
+    // both end by themselves: ctrl stays down until the later one lets go
+    StuckRig r("[global]\nTICK_HZ = 250\nV_TILT_ACTION = hold:ctrl,ctrl\nTWIST_ACTION = zoom\n");
+    r.run(0.1);
+    holdAt(r, 0, 0, 0, 300, 350, 0, 0.4);
+    holdAt(r, 0, 0, 0, 0, 350, 0, 0.4);  // the tilt lets go, the twist zooms on
+    CHECK(r.rec.keys.count(int(Key::Ctrl)), "the zoom keeps ctrl after the hold ended");
+    r.stop();
+    r.expectQuiet("zoom + hold, both end");
+}
+
+// The safety net: the output holds something the runner does not know (a lost key-up) after a hold: it must be cleared.
+static void testSafetyNetAfterHold() {
+    StuckRig r("[global]\nTICK_HZ = 250\nV_TILT_ACTION = hold:click,click\n");
+    r.run(0.1);
+    holdAt(r, 0, 0, 0, 300, 0, 0, 0.2);
+    CHECK(r.rec.mouse.size() == 1, "the hold presses the button");
+    r.stop();
+    r.run(0.1);
+    CHECK(!r.rec.held(), "released with the motion");
+    r.rec.mouse.insert(1);  // the output desynchronises: a button that the runner does not know
+    r.rec.keys.insert(int(Key::Ctrl));
+    const int before = r.rec.releaseAlls;
+    r.expectQuiet("safety net after a hold", 0.5);
+    CHECK(r.rec.releaseAlls > before, "the safety net calls Output::releaseAll");
+}
+
+// A legitimate long hold survives the safety net (the deflection is activity).
+static void testLongHoldSurvivesSafetyNet() {
+    StuckRig r("[global]\nTICK_HZ = 250\nV_TILT_ACTION = hold:click,click\n");
+    r.run(0.1);
+    holdAt(r, 0, 0, 0, 300, 0, 0, 3.0);
+    CHECK(r.rec.mouse.size() == 1, "a drag with hold is not broken by the safety net");
+    r.stop();
+    r.expectQuiet("long hold");
+}
+
 int main() {
     testDevicesChangedMidMotion();
     testDevicesChangedMidButtonHold();
@@ -691,6 +864,10 @@ int main() {
     testNavLatchCleared();
     testKeyEngineEveryTransition();
     testKeyEngineLift();
+    testMouseHoldEveryTransition();
+    testZoomPlusHoldEveryTransition();
+    testSafetyNetAfterHold();
+    testLongHoldSurvivesSafetyNet();
     if (failures) {
         std::fprintf(stderr, "%d check(s) failed\n", failures);
         return 1;

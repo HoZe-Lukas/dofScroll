@@ -83,6 +83,8 @@
 #include "key_tree_picker.hpp"
 #include <QColumnView>
 #include "pages/profile_motions_view.hpp"
+#include "ui/model/motion_edit_model.hpp"
+#include "key_tree_picker.hpp"
 #include "pages/button_use_widget.hpp"
 #include "autosaver.hpp"
 #include "described_item_delegate.hpp"
@@ -2251,6 +2253,177 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                 QCheckBox *lan = mv->inspector()->findChild<QCheckBox *>(QStringLiteral("keyAnalog"));
                 check(lan && !lan->isEnabled() && !lan->isChecked() && mv->inspector()->findChild<QLabel *>(QStringLiteral("keyAnalogReason")),
                       "lift / press: the Analog box is greyed with the reason");
+                if (find("motionInherit")) find("motionInherit")->click();
+                settle();
+            }
+            {   // mouse click and hold (stage 4 of #224): plain-word choices, a click or a button per side, the analog box greyed with its reason
+                check(mv->select(QStringLiteral("m:h_tilt")), "select the horizontal tilt for click and hold");
+                settle();
+                QComboBox *mact = mv->inspector()->findChild<QComboBox *>(QStringLiteral("motionAction"));
+                check(mact && mact->findData(spn::ui::kChoiceMouseClick) >= 0 && mact->findData(int(spn::ChannelActionType::Hold)) >= 0,
+                      "the list offers the mouse click and the hold");
+                bool plain = false;
+                for (int i = 0; mact && i < mact->count(); ++i)
+                    plain = plain || mact->itemText(i).contains(QStringLiteral("Hold a key or button")) || mact->itemText(i).contains(QStringLiteral("Mouse click"));
+                check(plain, "the choices are in plain words, never syntax");
+                check(mact && !mact->accessibleDescription().isEmpty(), "the action list has an accessible description (a combo box reports its text as its name)");
+                bool buddy = false;
+                for (QLabel *l : mv->inspector()->findChildren<QLabel *>())
+                    buddy = buddy || (mact && l->buddy() == mact);
+                check(buddy, "the action list has a visible label with the list as its buddy");
+                if (mact) {
+                    const int idx = mact->findData(int(spn::ChannelActionType::Hold));
+                    mact->setCurrentIndex(idx);
+                    emit mact->activated(idx);
+                    settle();
+                }
+                check(itemText("m:h_tilt").startsWith(QStringLiteral("Held")), "the picture says that the key is held");
+                QCheckBox *han = mv->inspector()->findChild<QCheckBox *>(QStringLiteral("keyAnalog"));
+                check(han && !han->isEnabled() && !han->isChecked() && mv->inspector()->findChild<QLabel *>(QStringLiteral("keyAnalogReason")) &&
+                          mv->inspector()->findChild<QLabel *>(QStringLiteral("keyAnalogReason"))->text().contains(QStringLiteral("Holding")),
+                      "a hold: the Analog box is greyed and the reason is written next to it");
+                check(!mv->inspector()->findChild<QLineEdit *>(QStringLiteral("keyRateMin")) && mv->inspector()->findChild<QLineEdit *>(QStringLiteral("keyTrigger")),
+                      "a hold has the trigger field, no rate fields");
+                auto storedTilt = [&] {
+                    const bool saved = rig.waitSaved();
+                    const std::optional<std::string> v = diskKey(rig, Section::APP, "firefox", "H_TILT_ACTION");
+                    return saved && v ? *v : std::string();
+                };
+                check(storedTilt().compare(0, 5, "hold:") == 0, "the hold is stored as hold:<neg>,<pos>");
+                const QList<QWidget *> sides = mv->inspector()->findChildren<QWidget *>(QStringLiteral("sidePickerBox"));
+                check(sides.size() == 2, "a side picker per direction");
+                bool namesOk = true, sizesOk = true, buddiesOk = true;
+                for (QWidget *sp : sides) {
+                    auto *kc = sp->findChild<KeyTreePicker *>();
+                    namesOk = namesOk && kc && !kc->accessibleName().isEmpty() && kc->accessibleName().contains(QStringLiteral("direction"));
+                    for (QCheckBox *cb : sp->findChildren<QCheckBox *>()) {
+                        namesOk = namesOk && !cb->accessibleName().isEmpty();
+                        sizesOk = sizesOk && cb->minimumHeight() >= 24;
+                    }
+                    sizesOk = sizesOk && kc && kc->minimumHeight() >= 24;
+                    bool hasLabel = false;
+                    for (QLabel *l : mv->inspector()->findChildren<QLabel *>()) hasLabel = hasLabel || (kc && l->buddy() == kc);
+                    buddiesOk = buddiesOk && hasLabel;
+                }
+                check(namesOk && sizesOk && buddiesOk, "every side control has an accessible name, a label with a buddy and a target of at least 24 px");
+                // the tab order follows the screen: the action list, then the negative side (modifiers, key list), then the positive one
+                mact = mv->inspector()->findChild<QComboBox *>(QStringLiteral("motionAction"));  // the inspector was rebuilt: the old list is gone
+                if (sides.size() == 2 && mact) {
+                    auto *kc0 = sides[0]->findChild<KeyTreePicker *>();
+                    QWidget *next = mact;
+                    int steps = 0;
+                    bool reaches = false;
+                    for (; steps < 40 && next; ++steps) {
+                        next = next->nextInFocusChain();
+                        if (next == kc0) {
+                            reaches = true;
+                            break;
+                        }
+                    }
+                    check(reaches && steps < 12, "the negative side follows the action list in the tab order");
+                }
+                if (sides.size() == 2)
+                    if (auto *kc1 = sides[1]->findChild<KeyTreePicker *>()) {
+                        kc1->setValue(QStringLiteral("rightclick"));
+                        emit kc1->valueChosen(QStringLiteral("rightclick"));
+                        settle();
+                        const std::string st = storedTilt();
+                        check(st.compare(0, 5, "hold:") == 0 && st.size() > 11 && st.compare(st.size() - 11, 11, ",rightclick") == 0,
+                              "a mouse button chosen in the key list is stored as rightclick");
+                    }
+                // "Nothing for this direction" is worded for a click or a hold
+                bool nothingBox = false;
+                for (QLabel *l : mv->inspector()->findChildren<QLabel *>(QStringLiteral("keyNoNegLabel"))) nothingBox = l->text().startsWith(QStringLiteral("Nothing for")) && l->wordWrap() && l->buddy() && l->buddy()->objectName() == QStringLiteral("keyNoNeg");
+                check(nothingBox, "the box that switches a direction off says Nothing, not No key");
+                mact = mv->inspector()->findChild<QComboBox *>(QStringLiteral("motionAction"));
+                if (mact) {
+                    const int idx = mact->findData(spn::ui::kChoiceMouseClick);
+                    mact->setCurrentIndex(idx);
+                    emit mact->activated(idx);
+                    settle();
+                }
+                mact = mv->inspector()->findChild<QComboBox *>(QStringLiteral("motionAction"));
+                check(mact && mact->currentData().toInt() == spn::ui::kChoiceMouseClick && itemText("m:h_tilt").contains(QStringLiteral("click per push")), "the mouse click is chosen and shown");
+                check(rig.waitSaved() && diskKey(rig, Section::APP, "firefox", "H_TILT_ACTION") == std::optional<std::string>("step:none,rightclick"),
+                      "a click is stored as step: with the click word (the sides stay)");
+                han = mv->inspector()->findChild<QCheckBox *>(QStringLiteral("keyAnalog"));
+                check(han && !han->isEnabled(), "a click: the Analog box is greyed");
+                if (mact) {
+                    const int idx = mact->findData(int(spn::ChannelActionType::Keys));
+                    mact->setCurrentIndex(idx);
+                    emit mact->activated(idx);
+                    settle();
+                }
+                check(rig.waitSaved() && diskKey(rig, Section::APP, "firefox", "H_TILT_ACTION") == std::optional<std::string>("keys:up,down"),
+                      "from a click back to analog keys: the sides start with up and down, never an analog click");
+                const QFont baseFont = QApplication::font();
+                const QSize baseSize = w.size();
+                // letter spacing 100 = the font as it is; 140 widens every glyph like a wide font of another platform would
+                const struct { double scale; int spacing; } fontCases[] = {{1.0, 100}, {1.5, 100}, {2.0, 100}, {1.0, 140}, {1.5, 140}, {1.0, 180}, {2.0, 180}, {1.0, 250}, {1.0, 400},
+#ifndef Q_OS_WIN
+                                                                              {1.0, 900},  // beyond what a Windows font needs; covers the compact list on a narrow font
+#endif
+                                                                             };
+                for (const auto &fc : fontCases) {
+                    const double scale = fc.scale;
+                    QApplication::setFont(baseFont);
+                    applyTheme(spn::ui::Theme::Light);  // our own style sheet: its lengths are in em, so it follows the font
+                    QFont f = QApplication::font();
+                    f.setPointSizeF(f.pointSizeF() * scale);
+                    f.setLetterSpacing(QFont::PercentageSpacing, fc.spacing);
+                    QApplication::setFont(f);
+                    // 1100 px at the normal font; someone with a larger font also uses a wider window (up to a 1920 px screen)
+                    w.resize(std::min(int(scale * 1100), 1920), 900);
+                    settle();
+                    mv->select(QStringLiteral("m:v_push"));  // the inspector is built again with the new font
+                    settle();
+                    mv->select(QStringLiteral("m:h_tilt"));
+                    settle();
+                    bool fits = true;
+                    for (QWidget *p = mv->inspector(); p; p = p->parentWidget())
+                        if (auto *sa = qobject_cast<QAbstractScrollArea *>(p))
+                            if (sa->horizontalScrollBar() && sa->horizontalScrollBar()->isVisible()) {
+                                fits = false;
+                                std::fprintf(stderr, "  horizontal scroll bar of a %s (viewport %d px)\n", sa->metaObject()->className(), sa->viewport()->width());
+                            }
+                    // the inspector needs well under 450 px at the font as it is (wide glyphs make it wider: those cases only
+                    // have to fit, the scroll bar check above)
+                    if (scale == 1.0 && fc.spacing == 100 && mv->inspector()->minimumSizeHint().width() > 450) {
+                        fits = false;
+                        std::fprintf(stderr, "  inspector asks for %d px at the normal font\n", mv->inspector()->minimumSizeHint().width());
+                    }
+                    // picture and inspector side by side only when the inspector really has the width it needs
+                    if (mv->inspector()->width() < mv->inspector()->minimumSizeHint().width()) {
+                        fits = false;
+                        std::fprintf(stderr, "  inspector is %d px wide but needs %d px\n", mv->inspector()->width(), mv->inspector()->minimumSizeHint().width());
+                    }
+                    check(fits, fc.spacing != 100 ? (scale == 1.0 ? "1100 px, wide glyphs: no horizontal scroll bar" : "150% font, wide glyphs: no horizontal scroll bar")
+                                : scale == 1.0 ? "1100 px, 100% font: no horizontal scroll bar" : scale == 1.5 ? "150% font: no horizontal scroll bar" : "200% font: no horizontal scroll bar");
+                    if (!fits) {  // which controls reach beyond the visible width (for the log of a failing run)
+                        std::fprintf(stderr, "  motions view min %d, picture min %d, inspector min %d, width %d\n", mv->minimumSizeHint().width(), mv->picture()->minimumSizeHint().width(),
+                                     mv->inspector()->minimumSizeHint().width(), mv->width());
+                        QAbstractScrollArea *sa = nullptr;
+                        for (QWidget *p = mv->inspector(); p && !sa; p = p->parentWidget()) sa = qobject_cast<QAbstractScrollArea *>(p);
+                        for (QWidget *c : mv->findChildren<QWidget *>()) {
+                            const int right = c->mapTo(w.window(), QPoint(c->width(), 0)).x();
+                            const int limit = sa ? sa->viewport()->mapTo(w.window(), QPoint(sa->viewport()->width(), 0)).x() : w.width();
+                            if (c->isVisibleTo(mv) && (right > limit || c->minimumSizeHint().width() > 300))
+                                std::fprintf(stderr, "  too wide (x%g/%d): %s \"%s\" min %dx%d hint %dx%d right %d limit %d\n", scale, fc.spacing, c->metaObject()->className(),
+                                             qPrintable(qobject_cast<QLabel *>(c) ? qobject_cast<QLabel *>(c)->text().left(40) : qobject_cast<QAbstractButton *>(c) ? qobject_cast<QAbstractButton *>(c)->text().left(40) : c->objectName()), c->minimumSizeHint().width(), c->minimumSizeHint().height(), c->sizeHint().width(),
+                                             c->sizeHint().height(), right, limit);
+                        }
+                    }
+                    bool wrapped = true;
+                    for (QLabel *l : mv->inspector()->findChildren<QLabel *>())
+                        if (!l->isHidden() && !l->wordWrap() && !l->text().isEmpty() && l->objectName() != QStringLiteral("chordHint")) { wrapped = false; std::fprintf(stderr, "  does not wrap: \"%s\"\n", qPrintable(l->text().left(50))); }  // every text of the inspector wraps: a label that does not has the width of its text
+                    check(wrapped, "long texts of the inspector wrap");
+                    if (!qEnvironmentVariableIsEmpty("DOFSCROLL_SELFTEST_A11Y_SHOTS"))
+                        w.grab().save(QString::fromLocal8Bit(qgetenv("DOFSCROLL_SELFTEST_A11Y_SHOTS")) + QStringLiteral("/motions-%1.png").arg(int(scale * 100)));
+                }
+                QApplication::setFont(baseFont);
+                applyTheme(spn::ui::Theme::System);
+                w.resize(baseSize);
+                settle();
                 if (find("motionInherit")) find("motionInherit")->click();
                 settle();
             }

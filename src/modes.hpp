@@ -25,7 +25,9 @@
 //   (neg for negative, pos for positive deflection; rate proportional to the deflection),
 //   key names from keys.hpp. Per side a key, a chord or "none". keys: is analog and only accepted for keys that are safe
 //   to repeat (keyAnalogAllowed: "this key can only be used digitally, use step:"); step:<neg>,<pos> is the digital one
-//   (one press per push, any key). Rate limits and trigger per motion: <P>KEY_RATE_MIN / <P>KEY_RATE_MAX / <P>TRIGGER
+//   (one press per push, any key; a side may also be click, rightclick or middleclick: one mouse click per push) and
+//   hold:<neg>,<pos> (a key, chord or mouse button is held while the motion is deflected, released at half the trigger).
+//   Rate limits and trigger per motion: <P>KEY_RATE_MIN / <P>KEY_RATE_MAX / <P>TRIGGER
 //   (config.hpp KeyTuning, key_engine.hpp).
 // Split push and tilt (optional, per scroll channel): V_PUSH_ACTION, V_TILT_ACTION, H_PUSH_ACTION and
 //   H_TILT_ACTION (same grammar). The vertical channel mixes push forward/back (z) and tilt forward/back (rx),
@@ -108,18 +110,28 @@ struct ChordMods {
 };
 
 // Keys: a rate of key taps (keys:<neg>,<pos>); Step: one tap per push (step:<neg>,<pos>), both use neg/pos.
-enum class ChannelActionType { Default, Off, WheelV, WheelH, Zoom, Keys, Step };
+// Hold: hold:<neg>,<pos> (stage 4 of docs/plan-motion-functions.md): per side a key, a chord or a mouse button is held while the
+// motion is deflected beyond the trigger and released when it has fallen back to half of it (digital only).
+enum class ChannelActionType { Default, Off, WheelV, WheelH, Zoom, Keys, Step, Hold };
+// The mouse buttons a side can name (numbering of Output::mouseButton): click = 1, middleclick = 2, rightclick = 3.
+constexpr uint8_t kMouseLeft = 1, kMouseMiddle = 2, kMouseRight = 3;
 struct ChannelAction {
     ChannelActionType type = ChannelActionType::Default;
-    Key neg = Key::Up, pos = Key::Down;  // only for Keys and Step: the key of the chord
-    bool usesKeys() const { return type == ChannelActionType::Keys || type == ChannelActionType::Step; }
-    ChordMods negMods = ChordMods(), posMods = ChordMods();         // only for Keys and Step: modifiers held while the key is tapped
-    bool negNone = false, posNone = false;  // only for Keys and Step: "none" for that side, nothing is pressed in that direction
+    Key neg = Key::Up, pos = Key::Down;  // only for Keys, Step and Hold: the key of the chord
+    bool usesKeys() const {
+        return type == ChannelActionType::Keys || type == ChannelActionType::Step || type == ChannelActionType::Hold;
+    }
+    ChordMods negMods = ChordMods(), posMods = ChordMods();         // only for Keys, Step and Hold: modifiers held while the key is tapped
+    bool negNone = false, posNone = false;  // only for Keys, Step and Hold: "none" for that side, nothing is pressed in that direction
+    // Only for Step (one click per press) and Hold (the button is held): a mouse button instead of a key on that side,
+    // 0 = a key (or none), else kMouseLeft / kMouseMiddle / kMouseRight. Never with the analog Keys.
+    uint8_t negMouse = 0, posMouse = 0;
     bool operator==(const ChannelAction &o) const {
         return type == o.type &&
                (!usesKeys() ||
-                (negNone == o.negNone && posNone == o.posNone && (negNone || (neg == o.neg && negMods == o.negMods)) &&
-                 (posNone || (pos == o.pos && posMods == o.posMods))));
+                (negNone == o.negNone && posNone == o.posNone && negMouse == o.negMouse && posMouse == o.posMouse &&
+                 (negNone || negMouse || (neg == o.neg && negMods == o.negMods)) &&
+                 (posNone || posMouse || (pos == o.pos && posMods == o.posMods))));
     }
 };
 

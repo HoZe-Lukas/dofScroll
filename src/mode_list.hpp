@@ -169,8 +169,14 @@ inline std::string chordText(Key key, const ChordMods &mods) {
 }
 
 // One side of a keys: / step: action as chord text: "none" for a side that presses nothing.
-inline std::string negChordText(const ChannelAction &a) { return a.negNone ? std::string("none") : chordText(a.neg, a.negMods); }
-inline std::string posChordText(const ChannelAction &a) { return a.posNone ? std::string("none") : chordText(a.pos, a.posMods); }
+// A mouse side (step: / hold:) is its button word: click, middleclick, rightclick.
+inline std::string mouseWord(uint8_t b) { return b == kMouseLeft ? "click" : b == kMouseMiddle ? "middleclick" : "rightclick"; }
+inline std::string negChordText(const ChannelAction &a) {
+    return a.negNone ? std::string("none") : a.negMouse ? mouseWord(a.negMouse) : chordText(a.neg, a.negMods);
+}
+inline std::string posChordText(const ChannelAction &a) {
+    return a.posNone ? std::string("none") : a.posMouse ? mouseWord(a.posMouse) : chordText(a.pos, a.posMods);
+}
 
 using spn::channelActionText;  // modes.hpp
 

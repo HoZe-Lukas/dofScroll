@@ -19,6 +19,7 @@
 
 struct KeyEngineEnv {
     std::string motionId;                     // "v_push" ... "lift"
+    QString motionName;                       // "Vertical push": named in the accessible descriptions of the controls
     spn::ui::ChannelForm *form = nullptr;     // the function that is edited in place (keys: or step:)
     spn::Settings effective;                  // what applies now (for the words and the placeholders)
     // The text the motion itself holds for a key ("" when it holds none), and the writer ("" removes the key).
@@ -39,14 +40,18 @@ inline QWidget *keyEngineBox(QWidget *parent, QObject *owner, const KeyEngineEnv
     auto *col = new QVBoxLayout(box);
     col->setContentsMargins(0, 0, 0, 0);
     const AnalogChoice choice = analogChoice(env.motionId, *env.form, strings);
-    const KeyEngineWords words = keyEngineWords(choice.analog, env.effective, env.motionId, strings);
+    const KeyEngineWords words = keyEngineWords(choice.analog, env.effective, env.motionId, strings, choice.hold);
+    const QString forMotion = env.motionName.isEmpty() ? QString() : env.motionName + QStringLiteral(": ");
+    const bool mouseOrHold = choice.hold || env.form->anyMouse();  // a side may be a mouse button: the words say "nothing", not "no key"
 
-    auto *analog = new QCheckBox(T("Analog (the key repeats faster the further you push)"), box);
+    auto *analog = new QCheckBox(T("Analog"), box);  // short: a check box does not wrap, the words below say what it does
     analog->setObjectName(QStringLiteral("keyAnalog"));
     analog->setProperty("look", QStringLiteral("box"));
     analog->setChecked(choice.analog);
     analog->setEnabled(choice.allowed);
     analog->setAccessibleName(T("Analog (the key repeats faster the further you push)"));
+    analog->setAccessibleDescription(forMotion + (choice.allowed ? T("Switches between a repeating key and one press per push") : qs8(choice.reason)));
+    analog->setMinimumHeight(24);
     if (!choice.allowed) analog->setToolTip(qs8(choice.reason));
     col->addWidget(analog);
     if (!choice.allowed) {
@@ -66,29 +71,42 @@ inline QWidget *keyEngineBox(QWidget *parent, QObject *owner, const KeyEngineEnv
     for (int side = 0; side < 2; ++side) {
         std::string ChannelForm::*chord = side == 0 ? &ChannelForm::neg : &ChannelForm::pos;
         const bool none = env.form->*chord == "none";
-        auto *cb = new QCheckBox(side == 0 ? T("No key for the negative direction") : T("No key for the positive direction"), box);
+        // The explanation is a label that wraps (a check box does not); the check box itself has a short text.
+        const QString longText = mouseOrHold ? (side == 0 ? T("Nothing for the negative direction") : T("Nothing for the positive direction"))
+                                             : (side == 0 ? T("No key for the negative direction") : T("No key for the positive direction"));
+        auto *sideLabel = new QLabel(longText, box);
+        sideLabel->setWordWrap(true);
+        sideLabel->setTextFormat(Qt::PlainText);
+        sideLabel->setObjectName(side == 0 ? QStringLiteral("keyNoNegLabel") : QStringLiteral("keyNoPosLabel"));
+        col->addWidget(sideLabel);
+        auto *cb = new QCheckBox(mouseOrHold ? T("Nothing") : T("No key"), box);
         cb->setObjectName(side == 0 ? QStringLiteral("keyNoNeg") : QStringLiteral("keyNoPos"));
         cb->setProperty("look", QStringLiteral("box"));
         cb->setChecked(none);
         const std::string other = env.form->*(side == 0 ? &ChannelForm::pos : &ChannelForm::neg);
         cb->setEnabled(none || other != "none");  // at least one side keeps a key
+        sideLabel->setBuddy(cb);
         cb->setAccessibleName(cb->text());
+        cb->setAccessibleDescription(forMotion + longText);
+        cb->setMinimumHeight(24);
         col->addWidget(cb);
-        QObject::connect(cb, &QCheckBox::clicked, owner, [env, chord](bool on) {
-            env.form->*chord = on ? "none" : (chord == &ChannelForm::neg ? "up" : "down");
+        QObject::connect(cb, &QCheckBox::clicked, owner, [env, chord, mouseOrHold](bool on) {
+            env.form->*chord = on ? "none" : mouseOrHold ? "click" : (chord == &ChannelForm::neg ? "up" : "down");
             if (env.commit) env.commit();
         });
     }
 
     // the rate and trigger fields: empty = not set (the behavior of older versions)
     auto *fieldsHost = new QWidget(box);  // a widget of its own: the layouts around are emptied by takeAt()
-    auto *fields = new QFormLayout(fieldsHost);
+    auto *fields = new QVBoxLayout(fieldsHost);  // label above its field: a label that wraps, so a wide font never widens the inspector
     fields->setContentsMargins(0, 0, 0, 0);
     auto addField = [&](KeyField f, const QString &label, const char *objectName) {
         const std::string key = keyEngineKey(env.motionId, f);
         auto *edit = new QLineEdit(qs8(env.get ? env.get(key) : std::string()), box);
         edit->setObjectName(QString::fromLatin1(objectName));
         edit->setAccessibleName(label);
+        edit->setAccessibleDescription(forMotion + qs8(key));
+        edit->setMinimumHeight(24);
         edit->setToolTip(qs8(key));
         const int km = keyMotionOf(env.motionId);
         if (km >= 0) {
@@ -98,7 +116,14 @@ inline QWidget *keyEngineBox(QWidget *parent, QObject *owner, const KeyEngineEnv
             const double shown = has ? v : f == KeyField::Trigger ? env.effective.step_trigger : -1.0;
             if (shown >= 0.0) edit->setPlaceholderText(QString::number(shown, 'g', 6));  // what applies when the field is empty
         }
-        fields->addRow(label + QLatin1Char(':'), edit);
+        auto *fieldLabel = new QLabel(label + QLatin1Char(':'), box);
+        fieldLabel->setWordWrap(true);
+        fieldLabel->setTextFormat(Qt::PlainText);
+        fieldLabel->setBuddy(edit);
+        fields->addWidget(fieldLabel);
+        edit->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        edit->setMinimumWidth(80);
+        fields->addWidget(edit);
         auto *note = new QLabel(box);
         note->setObjectName(QStringLiteral("keyFieldNote"));
         note->setWordWrap(true);
@@ -123,7 +148,7 @@ inline QWidget *keyEngineBox(QWidget *parent, QObject *owner, const KeyEngineEnv
         QObject::connect(edit, &QLineEdit::editingFinished, owner, [env] {
             if (env.flush) env.flush();
         });
-        fields->addRow(note);
+        fields->addWidget(note);
     };
     if (choice.analog) {
         addField(KeyField::RateMin, qs8(words.rateMin), "keyRateMin");

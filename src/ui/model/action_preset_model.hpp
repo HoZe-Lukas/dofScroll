@@ -35,6 +35,8 @@ inline std::vector<ActionPreset> actionPresets(const StringProvider &s) {
             {"arrows", s.tr("Arrow keys"), "\xE2\x9C\xA5", s.tr("Presses the arrow keys")},
             {"keys", s.tr("Other keys"), motionGlyph("keys"), s.tr("Presses any key or key combination for each direction")},
             {"taps", s.tr("One key tap per push"), motionGlyph("step"), s.tr("One key press for each push or tilt")},
+            {"click", s.tr("Mouse click per push"), "\xE2\x97\x89", s.tr("One mouse click for each push or tilt")},
+            {"hold", s.tr("Hold a key or button while pushed"), "\xE2\x97\x86", s.tr("Holds a key, a key combination or a mouse button while you push, and lets go when you ease back")},
             {"off", s.tr("Do nothing"), motionGlyph("off"), s.tr("This motion has no effect in this joystick mode")},
             {"default", s.tr("As in the profile"), "\xE2\x86\xBA", s.tr("Scroll and zoom as the profile says")}};
 }
@@ -62,7 +64,9 @@ inline ChannelForm presetForm(const std::string &id, Motion m, const ChannelForm
     else if (id == "keys" || id == "taps") {
         const bool had = current.usesKeys() && !current.neg.empty() && !current.pos.empty();
         c = keys(id == "keys" ? ChannelActionType::Keys : ChannelActionType::Step, had ? current.neg.c_str() : "up", had ? current.pos.c_str() : "down");
-    } else if (id == "off") c.type = ChannelActionType::Off;
+    } else if (id == "click") c = keys(ChannelActionType::Step, "none", "click");
+    else if (id == "hold") c = keys(ChannelActionType::Hold, "none", "click");
+    else if (id == "off") c.type = ChannelActionType::Off;
     else c.type = ChannelActionType::Default;
     return c;
 }
@@ -75,7 +79,8 @@ inline std::string activePreset(Motion m, const ChannelForm &f) {
         case ChannelActionType::WheelV: return "scroll";
         case ChannelActionType::WheelH: return "scroll_h";
         case ChannelActionType::Zoom: return "zoom";
-        case ChannelActionType::Step: return "taps";
+        case ChannelActionType::Step: return f.anyMouse() && !f.anyKeySide() ? "click" : "taps";
+        case ChannelActionType::Hold: return "hold";
         case ChannelActionType::Keys:
             if (f.neg == "pageup" && f.pos == "pagedown") return "pages";
             if (presetForm("arrows", m, f) == f) return "arrows";

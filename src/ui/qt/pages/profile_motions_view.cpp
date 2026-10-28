@@ -9,8 +9,11 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QResizeEvent>
 #include <QStandardItemModel>
+#include <QTimer>
 #include <QVBoxLayout>
+#include <algorithm>
 #include <memory>
 #include <set>
 
@@ -18,6 +21,7 @@
 #include "key_engine_box.hpp"
 #include "pages/motion_editor.hpp"
 #include "pages/take_over_dialog.hpp"
+#include "side_picker.hpp"
 #include "ui/model/borrow_model.hpp"
 #include "ui/model/button_chip_model.hpp"
 #include "ui/model/device_layout_model.hpp"
@@ -47,7 +51,8 @@ ProfileMotionsView::ProfileMotionsView(const UiContext &ctx, ButtonRowFn addButt
     outer->setContentsMargins(0, 0, 0, 0);
     extras_ = new QVBoxLayout;
     outer->addLayout(extras_);
-    auto *root = new QHBoxLayout;
+    auto *root = new QBoxLayout(QBoxLayout::LeftToRight);
+    root_ = root;
     outer->addLayout(root, 1);
     auto *left = new QVBoxLayout;
     picture_ = new MotionPicture(this);
@@ -58,14 +63,31 @@ ProfileMotionsView::ProfileMotionsView(const UiContext &ctx, ButtonRowFn addButt
     sentence_->setAccessibleName(T("What the selected item does"));
     left->addWidget(sentence_);
     left->addStretch(1);
-    root->addLayout(left, 3);
+    root->addLayout(left, 2);
     inspector_ = new QGroupBox(T("Selected"), this);
     col_ = new QVBoxLayout(inspector_);
-    root->addWidget(inspector_, 2);
+    root->addWidget(inspector_, 3);
     connect(picture_, &MotionPicture::selected, this, [this](const QString &id) {
         selected_ = id;
         rebuildInspector();
     });
+}
+
+// Picture and inspector side by side only while both fit with what they really need (their minimum widths, which depend on
+// the font and its glyph widths, not on the line height); otherwise the inspector goes under the picture and uses the whole
+// width, so no text is cut off and no horizontal scroll bar is needed. Also called after the inspector was rebuilt: its
+// minimum width changes with its content and with the font, without any resize.
+void ProfileMotionsView::updateDirection() {
+    if (!root_ || root_->count() < 2) return;
+    const int em = fontMetrics().height();
+    const int need = root_->itemAt(0)->minimumSize().width() + std::max(root_->itemAt(1)->minimumSize().width(), 28 * em) + root_->spacing() + 16;
+    const QBoxLayout::Direction want = width() >= need ? QBoxLayout::LeftToRight : QBoxLayout::TopToBottom;
+    if (root_->direction() != want) root_->setDirection(want);
+}
+
+void ProfileMotionsView::resizeEvent(QResizeEvent *e) {
+    QWidget::resizeEvent(e);
+    updateDirection();
 }
 
 QString ProfileMotionsView::selectedId() const { return picture_->current(); }
@@ -142,6 +164,10 @@ void ProfileMotionsView::rebuildInspector() {
     if (id.startsWith(QLatin1String("m:"))) buildMotion(col_, id.mid(2));
     else if (id.startsWith(QLatin1String("b:"))) buildButton(col_, id.mid(2).toInt());
     col_->addStretch(1);
+    QTimer::singleShot(0, this, [this] {
+        updateDirection();
+        if (inspectorBuilt) inspectorBuilt();
+    });
 }
 
 void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) {
@@ -154,8 +180,11 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
     if (!row) return;
     title_ = new QLabel(QStringLiteral("<b>") + qs8(row->name).toHtmlEscaped() + QStringLiteral("</b>"), inspector_);
     title_->setTextFormat(Qt::RichText);
+    title_->setWordWrap(true);
     col->addWidget(title_);
-    col->addWidget(new QLabel(qs8(row->how), inspector_));
+    auto *how = new QLabel(qs8(row->how), inspector_);
+    how->setWordWrap(true);
+    col->addWidget(how);
     QString text = qs8(row->name) + QStringLiteral(": ") + qs8(row->action);
     sentence_->setText(text);
     auto *belongs = new QLabel(T("The joystick mode %1 gives this motion its action. Below you can set another action in this profile only; the joystick mode itself is changed on the Joystick modes page.").arg(qs8(a.modeLabel)), inspector_);
@@ -167,9 +196,16 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
     // (motion_edit_model.hpp: Clear writes the action "none" of this motion into this profile only, "Use the inherited setting" removes it again).
     const MotionEdit edit = motionEdit(*ctx_.settings, section_, motionId.toStdString(), strings);
     if (edit.editable) {
-        auto *state = new QGroupBox(section_ == 0 ? T("In Global") : T("In this profile"), inspector_);
+        // A group box title cannot wrap and sets a minimum width of its own: the title is a wrapping label inside the box.
+        const QString stateTitle = section_ == 0 ? T("In Global") : T("In this profile");
+        auto *state = new QGroupBox(inspector_);
+        state->setAccessibleName(stateTitle);
         state->setObjectName(QStringLiteral("motionState"));
         auto *sl = new QVBoxLayout(state);
+        auto *stateHead = new QLabel(QStringLiteral("<b>") + stateTitle.toHtmlEscaped() + QStringLiteral("</b>"), state);
+        stateHead->setTextFormat(Qt::RichText);
+        stateHead->setWordWrap(true);
+        sl->addWidget(stateHead);
         auto *words = new QLabel(qs8(edit.words), state);
         words->setObjectName(QStringLiteral("motionStateWords"));
         words->setWordWrap(true);
@@ -179,18 +215,29 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         // Another action for this motion in this profile: the choices of the joystick mode editor (motionActionChoices),
         // written as the action key of the motion; an invalid value is shown here and never written.
         auto form = std::make_shared<ChannelForm>(edit.action);
+        auto *kindLabel = new QLabel(T("What this motion does:"), state);
         auto *kind = new QComboBox(state);
         kind->setObjectName(QStringLiteral("motionAction"));
         kind->setAccessibleName(T("What this motion does in this profile"));
+        // A combo box reports its current text as its name: the purpose is the description, and the visible label is its buddy.
+        kind->setAccessibleDescription(T("Action for %1").arg(qs8(row->name)));
+        kindLabel->setBuddy(kind);
+        kindLabel->setWordWrap(true);
+        kind->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);  // long entries are elided, never widen the inspector
+        kind->setMinimumContentsLength(12);
+        kind->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        kind->setMinimumWidth(120);
+        kind->setToolTip(T("Action for %1").arg(qs8(row->name)));
         int current = 0;
         const bool isLift = motionId == QLatin1String("lift");
         // Lift / press: nothing is its default and a pinned "none" shows as that entry; no analog keys in its list.
         const ChannelActionType shown = isLift && edit.action.type == ChannelActionType::Off ? ChannelActionType::Default : edit.action.type;
         for (const MotionActionChoice &c : isLift ? liftActionChoices() : motionActionChoices()) {
-            if (c.type == shown) current = kind->count();
-            kind->addItem(T(c.label), int(c.type));
+            if (c.key() == choiceIdOf(ChannelForm{shown, edit.action.neg, edit.action.pos})) current = kind->count();
+            kind->addItem(T(c.label), c.key());
         }
         kind->setCurrentIndex(current);
+        sl->addWidget(kindLabel);
         sl->addWidget(kind);
         // Any motion can get any action; what cannot work here is greyed out with the reason, and what is worth knowing
         // about the chosen action (zoom from a tilt) is said in words below the list (motionChoiceCheck).
@@ -203,7 +250,7 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
             auto *model = qobject_cast<QStandardItemModel *>(kind->model());
             const std::string motionStd = motionId.toStdString();
             for (int i = 0; i < kind->count(); ++i) {
-                const MotionChoiceCheck c = motionChoiceCheck(*ctx_.settings, section_, motionStd, ChannelActionType(kind->itemData(i).toInt()), strings);
+                const MotionChoiceCheck c = motionChoiceCheck(*ctx_.settings, section_, motionStd, choiceType(kind->itemData(i).toInt()), strings);
                 if (model && model->item(i)) {
                     model->item(i)->setEnabled(c.works || i == current);
                     if (!c.works && i != current) model->item(i)->setToolTip(qs8(c.note));
@@ -230,13 +277,32 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
             rebuild();
         };
         if (edit.action.usesKeys()) {
-            keysLayout->addWidget(new QLabel(T("Key for the negative direction"), keysBox));
-            keysLayout->addWidget(chordPicker(keysBox, this, &form->neg, T("Key for the negative direction"), applyForm));
-            keysLayout->addWidget(new QLabel(T("Key for the positive direction"), keysBox));
-            keysLayout->addWidget(chordPicker(keysBox, this, &form->pos, T("Key for the positive direction"), applyForm));
+            // Step and hold take a mouse click per side as well (the Mouse branch of the key list); the analog keys: do not.
+            const bool mouseSides = edit.action.type != ChannelActionType::Keys;
+            const bool holds = edit.action.type == ChannelActionType::Hold;
+            const QString negText = mouseSides ? (holds ? T("Key or mouse button held for the negative direction") : T("Key or mouse click for the negative direction"))
+                                               : T("Key for the negative direction");
+            const QString posText = mouseSides ? (holds ? T("Key or mouse button held for the positive direction") : T("Key or mouse click for the positive direction"))
+                                               : T("Key for the positive direction");
+            QWidget *previous = kind;
+            for (int side = 0; side < 2; ++side) {
+                std::string *chord = side == 0 ? &form->neg : &form->pos;
+                const QString sideText = side == 0 ? negText : posText;
+                auto *label = new QLabel(sideText, keysBox);
+                label->setWordWrap(true);
+                keysLayout->addWidget(label);
+                QWidget *picker = nullptr;
+                KeyTreePicker *kc = nullptr;
+                picker = sidePicker(keysBox, this, chord, qs8(row->name) + QStringLiteral(": ") + sideText, applyForm, &kc, mouseSides);
+                label->setBuddy(kc);
+                keysLayout->addWidget(picker);
+                QWidget::setTabOrder(previous, picker);
+                previous = picker;
+            }
             // analog or digital, the rate and trigger fields of this motion (stage 3 of #224)
             KeyEngineEnv env;
             env.motionId = motion_edit_detail::keyTuningMotion(*ctx_.settings, section_, motion);
+            env.motionName = qs8(row->name);
             env.form = form.get();
             env.effective = ctx_.settings->effectiveWithMode(section_);
             const size_t section = section_;
@@ -259,15 +325,10 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
             if (QWidget *engine = keyEngineBox(keysBox, this, env, strings)) keysLayout->addWidget(engine);
         }
         connect(kind, &QComboBox::activated, this, [kind, form, applyForm](int idx) {
-            const ChannelActionType type = ChannelActionType(kind->itemData(idx).toInt());
-            form->type = type;
-            if (form->usesKeys() && (form->neg.empty() || form->pos.empty())) {
-                form->neg = "up";
-                form->pos = "down";
-            }
+            applyChoice(form.get(), kind->itemData(idx).toInt());  // the sides keep what they hold when the new kind can use it
             applyForm();
         });
-        auto *buttons = new QHBoxLayout;
+        auto *buttons = new QVBoxLayout;  // one below the other: three buttons side by side need more than a narrow inspector has
         auto *clear = new QPushButton(T("Clear"), state);
         clear->setObjectName(QStringLiteral("motionClear"));
         clear->setEnabled(edit.canClear);
@@ -285,10 +346,12 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         takeOver->setToolTip(T("Copy what this motion does in another profile or joystick mode into this profile"));
         takeOver->setVisible(!isLift);  // taking the lift over is not offered yet
         connect(takeOver, &QPushButton::clicked, this, [this, motionId] { takeOverMotion(motionId); });
-        buttons->addWidget(clear);
-        buttons->addWidget(on);
-        buttons->addWidget(inherit);
-        buttons->addStretch(1);
+        for (QPushButton *b : {clear, on, inherit, takeOver}) {
+            b->setMinimumHeight(24);
+            b->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);  // a long text must not widen the inspector
+            b->setMinimumWidth(120);
+            buttons->addWidget(b, 0, Qt::AlignLeft);
+        }
         sl->addLayout(buttons);
         sl->addWidget(takeOver, 0, Qt::AlignLeft);  // its own line: the row above is already as wide as a narrow inspector allows
         const std::string id = motionId.toStdString();
@@ -314,20 +377,25 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
 
     const std::string prefix = channelPrefix(motionId.toStdString());
     if (prefix.empty()) return;
-    auto *box = new QGroupBox(T("Tuning in this profile"), inspector_);
+    auto *box = new QGroupBox(inspector_);
+    box->setAccessibleName(T("Tuning in this profile"));
     auto *g = new QGridLayout(box);
     g->setColumnStretch(1, 1);
+    auto *boxHead = new QLabel(QStringLiteral("<b>") + T("Tuning in this profile").toHtmlEscaped() + QStringLiteral("</b>"), box);
+    boxHead->setTextFormat(Qt::RichText);
+    boxHead->setWordWrap(true);
+    g->addWidget(boxHead, 0, 0, 1, 3);
     static const char *const fields[][2] = {{"SENS", "Sensitivity"}, {"DEADZONE", "Dead zone"}, {"SIGN", "Direction (sign)"},
                                             {"CURVE", "Curve"}, {"SMOOTH_MS", "Smoothing (ms)"}};
-    int r = 0;
+    int r = 1;
     for (const auto &f : fields) {
         const std::string key = prefix + f[0];
         SettingsModel::Value v;
         if (!ctx_.settings->value(section_, key, &v)) continue;
         auto *label = new QLabel(T(f[1]) + QLatin1Char(':'), box);
-        auto *edit = new QLineEdit(qs8(v.text), box);
-        edit->setAccessibleName(T(f[1]));
-        edit->setToolTip(qs8(key));
+        auto *lineEdit = new QLineEdit(qs8(v.text), box);
+        lineEdit->setAccessibleName(T(f[1]));
+        lineEdit->setToolTip(qs8(key));
         auto *origin = new QLabel(qs8(originBadgeText(keyOrigin(*ctx_.settings, section_, key), strings)), box);
         origin->setWordWrap(true);
         origin->setTextFormat(Qt::PlainText);
@@ -337,14 +405,21 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         }
         auto *reset = new QPushButton(section_ == 0 ? T("Reset") : T("Inherit"), box);
         reset->setEnabled(v.overridden);
+        reset->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        reset->setMinimumWidth(80);
         reset->setAccessibleName(T(f[1]) + QStringLiteral(": ") + reset->text());
-        g->addWidget(label, r, 0);
-        g->addWidget(edit, r, 1);
-        g->addWidget(reset, r, 2);
-        g->addWidget(origin, r + 1, 1, 1, 2);
-        r += 2;
+        // the label above its field (and wrapping): a wide font must not widen the inspector
+        label->setWordWrap(true);
+        label->setBuddy(lineEdit);
+        lineEdit->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        lineEdit->setMinimumWidth(80);
+        g->addWidget(label, r, 0, 1, 3);
+        g->addWidget(lineEdit, r + 1, 0, 1, 2);
+        g->addWidget(reset, r + 1, 2);
+        g->addWidget(origin, r + 2, 0, 1, 3);
+        r += 3;
         const std::string value = v.text;
-        connect(edit, &QLineEdit::textEdited, this, [this, key, origin, box](const QString &t) {
+        connect(lineEdit, &QLineEdit::textEdited, this, [this, key, origin, box](const QString &t) {
             std::string err;
             if (ctx_.settings->setValue(section_, key, t.trimmed().toUtf8().toStdString(), &err)) {
                 const IdentityStrings fb;

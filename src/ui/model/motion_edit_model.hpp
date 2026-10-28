@@ -359,10 +359,47 @@ inline MotionChoiceCheck motionChoiceCheck(const SettingsModel &m, size_t sectio
 }
 
 // The choices of the "What it does" list of a motion, in display order (English source labels; the view translates).
+// Two entries are views of one action type: "Mouse click per push" is Step with mouse sides. `id` is what the list stores
+// (key()), int(type) unless the entry says otherwise; choiceIdOf / applyChoice map between the entry and the form.
+constexpr int kChoiceMouseClick = 100;
 struct MotionActionChoice {
     ChannelActionType type;
     const char *label;
+    int id = -1;
+    int key() const { return id >= 0 ? id : int(type); }
 };
+// The entry that shows the form now.
+inline int choiceIdOf(const ChannelForm &f) {
+    if (f.type == ChannelActionType::Step && f.anyMouse() && !f.anyKeySide()) return kChoiceMouseClick;
+    return int(f.type);
+}
+inline ChannelActionType choiceType(int id) { return id == kChoiceMouseClick ? ChannelActionType::Step : ChannelActionType(id); }
+// Chooses the entry for the form: the sides keep what they hold when the new kind can use it, else they start with a click
+// on the positive side (mouse click, hold) or up / down.
+inline void applyChoice(ChannelForm *form, int id) {
+    const ChannelForm before = *form;
+    form->type = choiceType(id);
+    if (!form->usesKeys()) return;
+    const bool hadSides = before.usesKeys() && !before.neg.empty() && !before.pos.empty();
+    if (id == kChoiceMouseClick) {
+        if (!before.anyMouse() || !hadSides) {
+            form->neg = "none";
+            form->pos = "click";
+        } else {  // the mouse sides stay, a key side makes way: this entry is "clicks only"
+            if (!ChannelForm::isMouseWord(form->neg)) form->neg = "none";
+            if (!ChannelForm::isMouseWord(form->pos)) form->pos = "none";
+        }
+    } else if (form->type == ChannelActionType::Hold) {
+        if (!hadSides) {
+            form->neg = "none";
+            form->pos = "click";
+        }
+    } else if (!hadSides || before.type == ChannelActionType::Hold || before.anyMouse()) {
+        form->neg = "up";  // a key function after a click or a hold: the keys start fresh
+        form->pos = "down";
+    }
+    if (form->type == ChannelActionType::Keys && form->anyMouse()) form->type = ChannelActionType::Step;
+}
 inline const std::vector<MotionActionChoice> &motionActionChoices() {
     static const std::vector<MotionActionChoice> c = {{ChannelActionType::Default, "Normal (scroll, or zoom for the twist)"},
                                                       {ChannelActionType::WheelV, "Scroll"},
@@ -370,6 +407,8 @@ inline const std::vector<MotionActionChoice> &motionActionChoices() {
                                                       {ChannelActionType::Zoom, "Zoom"},
                                                       {ChannelActionType::Keys, "Keys (one key per direction)"},
                                                       {ChannelActionType::Step, "One key tap per push"},
+                                                      {ChannelActionType::Step, "Mouse click per push", kChoiceMouseClick},
+                                                      {ChannelActionType::Hold, "Hold a key or button while pushed"},
                                                       {ChannelActionType::Off, "Nothing"}};
     return c;
 }
@@ -380,7 +419,9 @@ inline const std::vector<MotionActionChoice> &liftActionChoices() {
                                                       {ChannelActionType::WheelV, "Scroll"},
                                                       {ChannelActionType::WheelH, "Scroll sideways"},
                                                       {ChannelActionType::Zoom, "Zoom"},
-                                                      {ChannelActionType::Step, "One key tap per push"}};
+                                                      {ChannelActionType::Step, "One key tap per push"},
+                                                      {ChannelActionType::Step, "Mouse click per push", kChoiceMouseClick},
+                                                      {ChannelActionType::Hold, "Hold a key or button while pushed"}};
     return c;
 }
 

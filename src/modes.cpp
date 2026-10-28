@@ -20,6 +20,7 @@
 namespace spn {
 
 namespace {
+const char *mouseSideName(uint8_t b) { return b == kMouseLeft ? "click" : b == kMouseMiddle ? "middleclick" : "rightclick"; }
 
 constexpr size_t kMaxModeOverrides = 128;
 constexpr int kMaxModeButton = 32;       // highest button number in a mode file (1-based)
@@ -205,10 +206,22 @@ std::string chordRisk(const ModeDef &m) {
     for (const ChannelAction *a : {&m.v, &m.h, &m.twist, &m.lift, &m.vSplit.push, &m.vSplit.tilt, &m.hSplit.push, &m.hSplit.tilt}) {
         if (a->type == ChannelActionType::Zoom) hasZoom = true;
         if (!a->usesKeys()) continue;
-        const std::string what = a->type == ChannelActionType::Step ? "a step: channel presses " : "a keys: channel presses ";
-        const struct { Key key; const ChordMods &mods; bool none; } args[2] = {{a->neg, a->negMods, a->negNone}, {a->pos, a->posMods, a->posNone}};
+        const bool hold = a->type == ChannelActionType::Hold;
+        const std::string what = hold ? "a hold: channel holds " : a->type == ChannelActionType::Step ? "a step: channel presses " : "a keys: channel presses ";
+        const struct { Key key; const ChordMods &mods; bool none; uint8_t mouse; } args[2] = {{a->neg, a->negMods, a->negNone, a->negMouse},
+                                                                                                {a->pos, a->posMods, a->posNone, a->posMouse}};
         for (const auto &arg : args) {
             if (arg.none) continue;
+            if (arg.mouse) {  // tier B: a mouse click or a held mouse button
+                why.push_back(std::string(hold ? "a hold: channel holds the mouse button (" : "a step: channel clicks the mouse (") + mouseSideName(arg.mouse) + ")");
+                continue;
+            }
+            if (hold) {  // tier B: a held key is never harmless (a stuck letter types, a held modifier changes every click)
+                std::string name;
+                for (uint8_t i = 0; i < arg.mods.n; ++i) name += std::string(keyName(arg.mods.k[i])) + "+";
+                why.push_back(what + name + keyName(arg.key));
+                continue;
+            }
             if (arg.mods.n == 0) {
                 if (!isNavKey(arg.key)) hasRiskyKeys = true;
                 if (isModifierKey(arg.key)) why.push_back(what + keyName(arg.key));
@@ -294,7 +307,7 @@ bool splitCycleTarget(const std::string &target, bool *forward, std::vector<std:
 
 // <chord> = [<modifier>+]... <key>: modifiers (ctrl, shift, alt, super) at most once each, then
 // exactly one non-modifier key. A single name (also a lone modifier) is a plain key.
-static bool parseChord(const std::string &text, Key *key, ChordMods *mods, std::string *err) {
+static bool parseChord(const std::string &text, Key *key, ChordMods *mods, std::string *err, bool allowModifiersOnly = false) {
     std::vector<std::string> parts;
     size_t start = 0;
     for (size_t pos; (pos = text.find('+', start)) != std::string::npos; start = pos + 1)
@@ -312,7 +325,12 @@ static bool parseChord(const std::string &text, Key *key, ChordMods *mods, std::
     }
     Key last;
     if (!parseKeyName(parts.back(), &last)) return fail(err, "unknown key '" + parts.back() + "'");
-    if (m.n > 0 && isModifierKey(last)) return fail(err, "a chord must end with a key that is not a modifier");
+    if (m.n > 0 && isModifierKey(last) && !allowModifiersOnly) return fail(err, "a chord must end with a key that is not a modifier");
+    if (m.n > 0 && isModifierKey(last)) {  // hold:ctrl+shift: only modifiers, held together
+        for (uint8_t j = 0; j < m.n; ++j)
+            if (m.k[j] == last) return fail(err, "modifier '" + parts.back() + "' appears twice");
+        if (m.n >= kMaxChordMods) return fail(err, "a chord has at most 4 modifiers");
+    }
     *key = last;
     *mods = m;
     return true;
@@ -326,6 +344,15 @@ std::string chordWords(Key key, const ChordMods &mods) {
 }
 }  // namespace
 
+namespace {
+std::string sideText(bool none, uint8_t mouse, Key key, const ChordMods &mods) {
+    return none ? std::string("none") : mouse ? std::string(mouseSideName(mouse)) : chordWords(key, mods);
+}
+uint8_t mouseSideOf(const std::string &t) {
+    return t == "click" ? kMouseLeft : t == "middleclick" ? kMouseMiddle : t == "rightclick" ? kMouseRight : 0;
+}
+}  // namespace
+
 std::string channelActionText(const ChannelAction &a) {
     switch (a.type) {
         case ChannelActionType::Default: return "default";
@@ -334,11 +361,10 @@ std::string channelActionText(const ChannelAction &a) {
         case ChannelActionType::WheelH: return "wheel_h";
         case ChannelActionType::Zoom: return "zoom";
         case ChannelActionType::Step:
-            return "step:" + (a.negNone ? std::string("none") : chordWords(a.neg, a.negMods)) + "," +
-                   (a.posNone ? std::string("none") : chordWords(a.pos, a.posMods));
         case ChannelActionType::Keys:
-            return "keys:" + (a.negNone ? std::string("none") : chordWords(a.neg, a.negMods)) + "," +
-                   (a.posNone ? std::string("none") : chordWords(a.pos, a.posMods));
+        case ChannelActionType::Hold:
+            return std::string(a.type == ChannelActionType::Step ? "step:" : a.type == ChannelActionType::Hold ? "hold:" : "keys:") +
+                   sideText(a.negNone, a.negMouse, a.neg, a.negMods) + "," + sideText(a.posNone, a.posMouse, a.pos, a.posMods);
     }
     return "default";
 }
@@ -351,28 +377,35 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
     else if (t == "wheel_v") a.type = ChannelActionType::WheelV;
     else if (t == "wheel_h") a.type = ChannelActionType::WheelH;
     else if (t == "zoom") a.type = ChannelActionType::Zoom;
-    else if (t.compare(0, 5, "keys:") == 0 || t.compare(0, 5, "step:") == 0) {
-        const bool step = t[0] == 's';
+    else if (t.compare(0, 5, "keys:") == 0 || t.compare(0, 5, "step:") == 0 || t.compare(0, 5, "hold:") == 0) {
+        const ChannelActionType ty = t[0] == 'k' ? ChannelActionType::Keys : t[0] == 's' ? ChannelActionType::Step : ChannelActionType::Hold;
+        const std::string word = t.substr(0, 4);
         const std::string rest = t.substr(5);
         const size_t comma = rest.find(',');
         if (comma == std::string::npos || rest.find(',', comma + 1) != std::string::npos)
-            return fail(err, std::string(step ? "step" : "keys") + ":<neg>,<pos> expects exactly two keys or key chords");
-        // Per side: a key or chord, or "none" (nothing is pressed in that direction).
+            return fail(err, word + ":<neg>,<pos> expects exactly two sides, each a key, a key chord" +
+                                 (ty == ChannelActionType::Keys ? std::string(" or none") : std::string(", a mouse button (click, rightclick, middleclick) or none")));
+        // Per side: a key or chord, a mouse button (click, rightclick, middleclick; digital only) or "none" (nothing is done in that direction).
         const std::string negText = trim(rest.substr(0, comma)), posText = trim(rest.substr(comma + 1));
         a.negNone = negText == "none";
         a.posNone = posText == "none";
-        if ((!a.negNone && !parseChord(negText, &a.neg, &a.negMods, err)) || (!a.posNone && !parseChord(posText, &a.pos, &a.posMods, err)))
+        a.negMouse = mouseSideOf(negText);
+        a.posMouse = mouseSideOf(posText);
+        if ((a.negMouse || a.posMouse) && ty == ChannelActionType::Keys)
+            return fail(err, "a mouse click can only be used digitally, use step: (one click per push) or hold:");
+        if ((!a.negNone && !a.negMouse && !parseChord(negText, &a.neg, &a.negMods, err, ty == ChannelActionType::Hold)) ||
+            (!a.posNone && !a.posMouse && !parseChord(posText, &a.pos, &a.posMods, err, ty == ChannelActionType::Hold)))
             return false;
-        if (a.negNone && a.posNone) return fail(err, std::string(step ? "step" : "keys") + ": needs a key on at least one side (use none for the whole action)");
-        a.type = step ? ChannelActionType::Step : ChannelActionType::Keys;
-        // Tier rule: an analog repeat of a risky key is refused, one press per push (step:) is allowed with the load warning.
-        if (!step) {
+        if (a.negNone && a.posNone) return fail(err, word + ": needs a key on at least one side (use none for the whole action)");
+        a.type = ty;
+        // Tier rule: an analog repeat of a risky key is refused, one press per push (step:) and a hold are allowed with the load warning.
+        if (ty == ChannelActionType::Keys) {
             const struct { bool none; Key key; const ChordMods &mods; } sides[2] = {{a.negNone, a.neg, a.negMods}, {a.posNone, a.pos, a.posMods}};
             for (const auto &side : sides)
                 if (!side.none && !keyAnalogAllowed(side.key, side.mods)) return fail(err, "this key can only be used digitally, use step:");
         }
     } else {
-        return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos> | step:<neg>,<pos> (keys may be chords like ctrl+pageup)");
+        return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos> | step:<neg>,<pos> | hold:<neg>,<pos> (keys may be chords like ctrl+pageup; step: and hold: also take click, rightclick, middleclick)");
     }
     if (out) *out = a;
     return true;

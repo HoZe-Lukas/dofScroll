@@ -20,6 +20,8 @@
 class MotionPicture;
 class QGridLayout;
 class QVBoxLayout;
+class QBoxLayout;
+class QResizeEvent;
 
 class ProfileMotionsView : public QWidget {
     Q_OBJECT
@@ -44,7 +46,12 @@ public:
     // reason is shown in the inspector).
     bool takeOverMotion(const QString &motionId);
     bool takeOverButton(int n);
+    std::function<void()> inspectorBuilt;  // the inspector was rebuilt: its width need may have changed
     std::function<void()> changed;  // a value was written; the page queues a rebuild of the other tabs
+
+protected:
+    void resizeEvent(QResizeEvent *e) override;
+    void updateDirection();
 
 private:
     void rebuild();
@@ -60,6 +67,7 @@ private:
     MotionPicture *picture_ = nullptr;
     QWidget *inspector_ = nullptr;
     QVBoxLayout *col_ = nullptr, *extras_ = nullptr;
+    QBoxLayout *root_ = nullptr;  // picture and inspector: side by side, or the inspector below when narrow
     QLabel *title_ = nullptr, *sentence_ = nullptr;
     QString selected_, problemText_;
     spn::ui::MotionMemory memory_;  // the sensitivity a channel had before it was cleared (session only)

@@ -49,6 +49,9 @@ inline std::string channelActionWords(const ChannelAction &a, const StringProvid
         case ChannelActionType::Step:
             return format(s.tr("taps %1 or %2 once per push"),
                           {modelist::negChordText(a), modelist::posChordText(a)});
+        case ChannelActionType::Hold:
+            return format(s.tr("holds %1 or %2 while pushed"),
+                          {modelist::negChordText(a), modelist::posChordText(a)});
     }
     return std::string();
 }

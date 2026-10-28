@@ -225,7 +225,7 @@ to the picture shows the selected item:
   swap them, hold Ctrl (Cmd on macOS) while dropping to copy (a dashed frame marks the motion the drop would
   land on). Lift / press and the buttons cannot be dragged; the two lists are the way without a mouse. "Tune this motion" (closed until used) edits sensitivity, dead zone, curve and
   smoothing of that motion as overrides of the joystick mode.
-- **Analog or digital.** Every motion that presses keys (the "Keys" box) has the check box **Analog (the key repeats faster the
+- **Analog or digital.** Every motion that presses keys (the "Keys" box) has the check box **Analog** (accessible name: "Analog (the key repeats faster the
   further you push)**: checked is `keys:`, unchecked is `step:` (one press per push, like a click); it only switches the
   prefix of the stored action, the keys stay. Two more check boxes, "No key for the negative / positive direction", write
   `none` for a side. Below: the fields "Lowest rate" and "Highest rate" (presses per second, analog) and the "Trigger level"
@@ -236,6 +236,14 @@ to the picture shows the selected item:
   reason in words, for a key that cannot repeat (letters, digits, Enter, Delete, Esc, Alt or Super combinations) and for the
   lift. The rate and trigger fields are keys of the joystick mode (`SCROLL_V_PUSH_KEY_RATE_MIN` ... `LIFT_TRIGGER`,
   [modes.md](modes.md#the-key-engine-analog-and-digital)); a tilt of a channel that is not split uses the push keys.
+- **Mouse click and hold.** The list "What this motion does" (and the tiles of the joystick mode editor) offers **Mouse
+  click per push** and **Hold a key or button while pushed**. Each direction has a key field built from the modifier check boxes
+  and the key list; the list has a **Mouse** branch (Click, Right click, Middle click) where a click or a mouse button can be
+  chosen, and "Nothing for this direction" switches a side off. A hold keeps its key or button down while you push and lets go
+  when you ease back to half of the trigger level. The Analog check box stays greyed, with the reason written next to it, for a
+  click and a hold (they are always digital). Everything is operable with the keyboard in the order of the screen (list, negative
+  direction, positive direction, trigger level), every control has a name for screen readers, and the inspector wraps its text,
+  so it reads fully at a window width of 1100 pixels and at larger fonts.
 - **A channel mix written by hand** (an override such as `SCROLL_V_MIX = z`) is never changed by the
   picture: a motion it does not use says "Not used: custom channel mix" and offers "Show in Settings tab".
 - **Lift / press** has its own list "What it does" with the same choices as on the Profiles page: "Nothing (the default)",
