@@ -366,6 +366,10 @@ if(BUILD_TESTING)
     add_test(NAME preinst_postinst_upgrade
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_preinst_upgrade.sh ${CMAKE_SOURCE_DIR})
   endif()
+  if(SH_EXECUTABLE)  # release gate of the tag build: ancestor of main, required checks green (fake gh)
+    add_test(NAME release_gate
+             COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_release_gate.sh ${CMAKE_SOURCE_DIR})
+  endif()
   if(SH_EXECUTABLE)  # the six-motion table of the built-in joystick modes must match the definitions
     add_test(NAME docs_motions
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_docs_motions.sh ${CMAKE_SOURCE_DIR})
