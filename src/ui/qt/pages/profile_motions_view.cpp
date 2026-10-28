@@ -15,6 +15,7 @@
 #include <set>
 
 #include "key_combo.hpp"
+#include "key_engine_box.hpp"
 #include "pages/motion_editor.hpp"
 #include "pages/take_over_dialog.hpp"
 #include "ui/model/borrow_model.hpp"
@@ -233,6 +234,29 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
             keysLayout->addWidget(chordPicker(keysBox, this, &form->neg, T("Key for the negative direction"), applyForm));
             keysLayout->addWidget(new QLabel(T("Key for the positive direction"), keysBox));
             keysLayout->addWidget(chordPicker(keysBox, this, &form->pos, T("Key for the positive direction"), applyForm));
+            // analog or digital, the rate and trigger fields of this motion (stage 3 of #224)
+            KeyEngineEnv env;
+            env.motionId = motion_edit_detail::keyTuningMotion(*ctx_.settings, section_, motion);
+            env.form = form.get();
+            env.effective = ctx_.settings->effectiveWithMode(section_);
+            const size_t section = section_;
+            SettingsModel *model = ctx_.settings;
+            env.get = [model, section](const std::string &key) {
+                std::string held;
+                motion_edit_detail::ownText(*model, section, key, &held);
+                return held;
+            };
+            env.set = [model, section](const std::string &key, const std::string &value, std::string *err) {
+                if (value.empty()) return model->clearOverride(section, key);
+                return model->setValue(section, key, value, err);
+            };
+            env.commit = applyForm;
+            env.typed = [this] {
+                ctx_.saveTyped();
+                if (changed) changed();
+            };
+            env.flush = [this] { ctx_.saveSoon(); };
+            if (QWidget *engine = keyEngineBox(keysBox, this, env, strings)) keysLayout->addWidget(engine);
         }
         connect(kind, &QComboBox::activated, this, [kind, form, applyForm](int idx) {
             const ChannelActionType type = ChannelActionType(kind->itemData(idx).toInt());

@@ -104,7 +104,7 @@ static void testGrammar() {
     assert(parseChannelAction("keys:ctrl+pageup,ctrl+pagedown", &a, &err) && a.type == ChannelActionType::Keys &&
            a.neg == Key::PageUp && a.pos == Key::PageDown && a.negMods.n == 1 && a.negMods.k[0] == Key::Ctrl &&
            a.posMods.n == 1);
-    assert(parseChannelAction("Keys: Ctrl + Shift + Tab , alt+left", &a, &err) && a.negMods.n == 2 &&
+    assert(parseChannelAction("Step: Ctrl + Shift + Tab , alt+left", &a, &err) && a.negMods.n == 2 &&
            a.negMods.k[0] == Key::Ctrl && a.negMods.k[1] == Key::Shift && a.pos == Key::Left && a.posMods.n == 1);
     {
         ChannelAction x, y, z;
@@ -114,13 +114,14 @@ static void testGrammar() {
         assert(parseChannelAction("keys:ctrl+tab,left", &z, nullptr));
         assert(!(x == z));
         assert(parseChannelAction("keys:tab,left", &z, nullptr) && !(z == x) && z.negMods.n == 0);
-        assert(parseChannelAction("keys:ctrl+shift+alt+super+a,b", &z, nullptr) && z.negMods.n == 4);
-        // a lone modifier stays valid
-        assert(parseChannelAction("keys:ctrl,shift", &z, nullptr) && z.neg == Key::Ctrl && z.negMods.n == 0);
+        assert(parseChannelAction("step:ctrl+shift+alt+super+a,b", &z, nullptr) && z.negMods.n == 4);
+        // a lone modifier stays valid digitally; an analog repeat of it is refused (tier B)
+        assert(parseChannelAction("step:ctrl,shift", &z, nullptr) && z.neg == Key::Ctrl && z.negMods.n == 0);
+        assert(!parseChannelAction("keys:ctrl,shift", &z, &err) && err.find("digitally") != std::string::npos);
     }
-    for (const char *bad : {"keys:ctrl+ctrl+a,b", "keys:ctrl+,b", "keys:+a,b", "keys:ctrl+shift,b",
-                            "keys:a+b,c", "keys:ctrl+nonsense,b", "keys:ctrl+shift+alt+super+ctrl+a,b",
-                            "keys:ctrl+a,b,c", "keys:ctrl+a"}) {
+    for (const char *bad : {"step:ctrl+ctrl+a,b", "step:ctrl+,b", "step:+a,b", "step:ctrl+shift,b",
+                            "step:a+b,c", "step:ctrl+nonsense,b", "step:ctrl+shift+alt+super+ctrl+a,b",
+                            "step:ctrl+a,b,c", "step:ctrl+a"}) {
         err.clear();
         assert(!parseChannelAction(bad, &a, &err) && !err.empty());
     }
@@ -613,12 +614,12 @@ static void testSecurityHardening() {
     // F2: chord warnings, one per mode, mode still loads
     clearDir();
     writeFile("mod.conf", "BUTTON_1 = key:ctrl\nBUTTON_2 = key:alt\n");
-    writeFile("kmod.conf", "TWIST_ACTION = keys:shift,f1\n");
-    writeFile("zk.conf", "V_ACTION = zoom\nH_ACTION = keys:w,w\n");
+    writeFile("kmod.conf", "TWIST_ACTION = step:shift,f1\n");
+    writeFile("zk.conf", "V_ACTION = zoom\nH_ACTION = step:w,w\n");
     writeFile("cnav.conf", "H_ACTION = keys:ctrl+pageup,ctrl+shift+pagedown\nV_ACTION = keys:shift+left,shift+right\n");
-    writeFile("calt.conf", "H_ACTION = keys:alt+left,alt+right\n");
-    writeFile("csup.conf", "H_ACTION = keys:super+left,super+right\n");
-    writeFile("cdel.conf", "H_ACTION = keys:ctrl+w,ctrl+q\n");
+    writeFile("calt.conf", "H_ACTION = step:alt+left,alt+right\n");
+    writeFile("csup.conf", "H_ACTION = step:super+left,super+right\n");
+    writeFile("cdel.conf", "H_ACTION = step:ctrl+w,ctrl+q\n");
     writeFile("safe.conf", "BUTTON_1 = key:space\nH_ACTION = keys:left,right\nV_ACTION = wheel_v\n");
     w.clear();
     ms = loadModes(g_dir, &w);

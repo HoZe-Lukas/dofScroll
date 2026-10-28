@@ -168,6 +168,10 @@ inline std::string chordText(Key key, const ChordMods &mods) {
     return t + keyName(key);
 }
 
+// One side of a keys: / step: action as chord text: "none" for a side that presses nothing.
+inline std::string negChordText(const ChannelAction &a) { return a.negNone ? std::string("none") : chordText(a.neg, a.negMods); }
+inline std::string posChordText(const ChannelAction &a) { return a.posNone ? std::string("none") : chordText(a.pos, a.posMods); }
+
 using spn::channelActionText;  // modes.hpp
 
 // Config text of a button binding ("click", "key:space", "mode:next", ...; "none" if unbound).

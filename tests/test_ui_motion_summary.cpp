@@ -43,7 +43,7 @@ int main() {
     };
     const Expect table[] = {{"normal", "Scroll", "Sideways", "Zoom"},     {"off", "Off", "Off", "Off"},
                             {"timeline", "Off", "Keys", "Keys"},          {"slides", "Keys", "Off", "Off"},
-                            {"media", "Keys", "Keys", "Keys"},            {"map", "Keys", "Keys", "Keys"},
+                            {"media", "Keys", "Keys", "Taps"},           {"map", "Keys", "Keys", "Keys"},
                             {"precision", "Scroll", "Sideways", "Zoom"},  {"tabs", "Scroll", "Keys", "Zoom"},
                             {"browse", "Keys", "Keys", "Zoom"},           {"sheet", "Keys", "Keys", "Keys"},
                             {"photo", "Zoom", "Keys", "Off"},             {"zoom-pan", "Zoom", "Sideways", "Sideways"},

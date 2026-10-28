@@ -225,10 +225,21 @@ to the picture shows the selected item:
   swap them, hold Ctrl (Cmd on macOS) while dropping to copy (a dashed frame marks the motion the drop would
   land on). Lift / press and the buttons cannot be dragged; the two lists are the way without a mouse. "Tune this motion" (closed until used) edits sensitivity, dead zone, curve and
   smoothing of that motion as overrides of the joystick mode.
+- **Analog or digital.** Every motion that presses keys (the "Keys" box) has the check box **Analog (the key repeats faster the
+  further you push)**: checked is `keys:`, unchecked is `step:` (one press per push, like a click); it only switches the
+  prefix of the stored action, the keys stay. Two more check boxes, "No key for the negative / positive direction", write
+  `none` for a side. Below: the fields "Lowest rate" and "Highest rate" (presses per second, analog) and the "Trigger level"
+  (with "about N % of full deflection"; analog: the level of the first press, digital: the level of every press). An empty
+  field means "not set": no lower limit, no upper limit below 100 presses per second, and the level `STEP_TRIGGER`; the
+  placeholder shows what applies. Turning analog on starts with 3 to 25 presses per second (the two rate fields). An invalid
+  number is shown next to its field and never written (same check as the file loader). The check box is greyed, with the
+  reason in words, for a key that cannot repeat (letters, digits, Enter, Delete, Esc, Alt or Super combinations) and for the
+  lift. The rate and trigger fields are keys of the joystick mode (`SCROLL_V_PUSH_KEY_RATE_MIN` ... `LIFT_TRIGGER`,
+  [modes.md](modes.md#the-key-engine-analog-and-digital)); a tilt of a channel that is not split uses the push keys.
 - **A channel mix written by hand** (an override such as `SCROLL_V_MIX = z`) is never changed by the
   picture: a motion it does not use says "Not used: custom channel mix" and offers "Show in Settings tab".
-- **Lift / press** has no action list in the joystick mode editor yet (a `LIFT_ACTION` line in the file works and is kept).
-  On the Profiles page it has its own action, see below. The inspector adds it as a term to the mix of one channel
+- **Lift / press** has its own list "What it does" with the same choices as on the Profiles page: "Nothing (the default)",
+  scroll, scroll sideways, zoom and one key tap per push (written as `LIFT_ACTION`; no analog key). The inspector also adds it as a term to the mix of one channel
   (`SCROLL_V_MIX = z + rx + y`, with a weight) and says in words that it is prone to false triggers when
   the cap is grabbed or released. No built-in joystick mode uses it (`tests/test_no_lift_press.cpp`).
 - **A button:** the same button row as on the Buttons tab (the actions, the button modes, "Unbind").
@@ -253,12 +264,16 @@ binding wins). Everything is saved at once; there is no Save button; an invalid 
 
 **Lift / press in a profile.** The sixth motion is edited like the others, with a shorter list because its default is
 nothing and it fires when the cap is grabbed: "Nothing (the default)", scroll, scroll sideways, zoom and one key tap per
-push; an analog key repeat is not offered (greyed with the reason). The note under the list says that lifting can fire when
+push; an analog key repeat is not offered (the Analog check box is greyed with the reason). The note under the list says that lifting can fire when
 you grab or let go of the cap and that the dead zone (`LIFT_DEADZONE`, default 80, shown under "Tuning in this profile")
 is the remedy. **Clear** pins nothing for this profile (`LIFT_ACTION = none`), **Use the inherited setting** removes the
 key; "Switch on" and "Take over from ..." are not offered for the lift. Which axis it is comes from `LIFT_MIX` (`y` with
 spacenavd, `z` in the Windows and macOS seeds), not from the program. A lift without an action is "Not used", a cleared one
-"Off". The joystick mode editor has no lift list yet; a `LIFT_ACTION` line in a joystick mode file works and is kept.
+"Off". The joystick mode editor has the same list for the lift.
+
+**Analog or digital in a profile.** A motion whose action presses keys shows the same check box, the two "No key" boxes and the
+rate and trigger fields below the key pickers; they are keys of the profile (`SCROLL_H_TILT_KEY_RATE_MAX`, `ZOOM_TRIGGER`, ...) and
+follow the usual inheritance. See the first bullet of "Motions and buttons (the picture)" for the words.
 
 **Help where you work.** The line under the picture says in plain words what the selected item does, with
 the real rate from the channel processing at full deflection ("Vertical tilt: presses Page up or Page

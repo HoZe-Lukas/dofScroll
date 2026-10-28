@@ -1017,6 +1017,79 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
         if (arrows) arrows->click();
         check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")) && !fileText(rel).contains(QStringLiteral("V_PUSH_ACTION")), "back to the arrow keys");
     }
+    {   // analog or digital (stage 3 of #224): the check box switches keys: and step:, greyed for a key that cannot repeat
+        sel(QStringLiteral("m:v_push"));
+        auto box = [&](const char *name) { return me()->inspector()->findChild<QCheckBox *>(QLatin1String(name)); };
+        auto field = [&](const char *name) { return me()->inspector()->findChild<QLineEdit *>(QLatin1String(name)); };
+        check(box("keyAnalog") && box("keyAnalog")->isChecked() && box("keyAnalog")->isEnabled(), "the mode editor has the Analog check box, checked for keys:");
+        if (box("keyAnalog")) box("keyAnalog")->click();
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = step:up,down")), "unchecking it writes step:");
+        sel(QStringLiteral("m:v_push"));
+        check(box("keyAnalog") && !box("keyAnalog")->isChecked() && field("keyTrigger") && !field("keyRateMin"), "and shows the trigger field only");
+        if (box("keyAnalog")) box("keyAnalog")->click();
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")) &&
+                  fileText(rel).contains(QStringLiteral("SCROLL_V_PUSH_KEY_RATE_MIN = 3")) && fileText(rel).contains(QStringLiteral("SCROLL_V_PUSH_KEY_RATE_MAX = 25")),
+              "checking it writes keys: and the UI defaults of the rate");
+        sel(QStringLiteral("m:v_push"));
+        if (field("keyRateMax")) {
+            field("keyRateMax")->setText(QStringLiteral("12"));
+            emit field("keyRateMax")->textEdited(QStringLiteral("12"));
+            emit field("keyRateMax")->editingFinished();
+        }
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("SCROLL_V_PUSH_KEY_RATE_MAX = 12")), "a rate field is written as its key");
+        if (field("keyRateMax")) {
+            field("keyRateMax")->setText(QStringLiteral("-4"));
+            emit field("keyRateMax")->textEdited(QStringLiteral("-4"));
+            bool noted = false;
+            for (QLabel *n : me()->inspector()->findChildren<QLabel *>(QStringLiteral("keyFieldNote"))) noted = noted || !n->isHidden();
+            check(noted, "an invalid rate is shown next to its field");
+            check(settleWrite() && fileText(rel).contains(QStringLiteral("SCROLL_V_PUSH_KEY_RATE_MAX = 12")), "and never written");
+        }
+        // a risky key can only be digital: switch to digital, press a letter, the box is greyed with the reason
+        if (box("keyAnalog")) box("keyAnalog")->click();
+        settleWrite();
+        sel(QStringLiteral("m:v_push"));
+        for (KeyCaptureButton *b : me()->inspector()->findChildren<KeyCaptureButton *>())
+            if (b->accessibleName().contains(QStringLiteral("negative: Press a key"))) {
+                b->click();
+                QKeyEvent letter(QEvent::KeyPress, Qt::Key_J, Qt::NoModifier, QStringLiteral("j"));
+                b->press(&letter);
+                break;
+            }
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = step:j,down")), "a letter is written digitally");
+        sel(QStringLiteral("m:v_push"));
+        check(box("keyAnalog") && !box("keyAnalog")->isEnabled() && me()->inspector()->findChild<QLabel *>(QStringLiteral("keyAnalogReason")),
+              "analog is greyed for a key that cannot repeat, with the reason");
+        // lift / press has its own list in the mode editor, with the same choices as the profile page
+        sel(QStringLiteral("m:lift"));
+        QComboBox *liftList = me()->inspector()->findChild<QComboBox *>(QStringLiteral("liftAction"));
+        check(liftList && liftList->findData(int(spn::ChannelActionType::Keys)) < 0 && liftList->findData(int(spn::ChannelActionType::Step)) >= 0 &&
+                  liftList->currentData().toInt() == int(spn::ChannelActionType::Default),
+              "lift / press has its list: nothing is the default, no analog keys");
+        if (liftList) {
+            const int idx = liftList->findData(int(spn::ChannelActionType::Step));
+            liftList->setCurrentIndex(idx);
+            emit liftList->activated(idx);
+        }
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("LIFT_ACTION = step:up,down")), "a lift action is written as LIFT_ACTION");
+        sel(QStringLiteral("m:lift"));
+        check(box("keyAnalog") && !box("keyAnalog")->isEnabled(), "and the lift cannot be analog");
+        liftList = me()->inspector()->findChild<QComboBox *>(QStringLiteral("liftAction"));
+        if (liftList) {
+            liftList->setCurrentIndex(0);
+            emit liftList->activated(0);
+        }
+        check(settleWrite() && !fileText(rel).contains(QStringLiteral("LIFT_ACTION = step")), "back to nothing");
+        // back to the plain arrow keys for the steps that follow
+        sel(QStringLiteral("m:v_push"));
+        QToolButton *arrows = radio(QStringLiteral("Arrow keys"));
+        if (arrows) arrows->click();
+        settleWrite();
+        sel(QStringLiteral("m:v_tilt"));
+        arrows = radio(QStringLiteral("Arrow keys"));
+        if (arrows) arrows->click();
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")), "arrow keys again");
+    }
     {   // drag and drop: a drop on another motion swaps, with Ctrl it copies; lift / press and buttons take no part
         MotionPicture *pic = me()->picture();
         check(pic->canDrag(QStringLiteral("m:v_push")) && !pic->canDrag(QStringLiteral("m:lift")) && !pic->canDrag(QStringLiteral("b:1")),
@@ -2093,6 +2166,64 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
             if (find("motionSwitchOn")) find("motionSwitchOn")->click();
             settle();
             check(itemText("m:h_tilt") != QStringLiteral("Off") && !stateWords().contains(QStringLiteral("Cleared")), "Switch on makes the tilt work again");
+            {   // analog or digital (stage 3 of #224): the check box only switches keys: / step:, with the rate and trigger fields
+                check(mv->select(QStringLiteral("m:h_tilt")), "select the horizontal tilt for the key functions");
+                settle();
+                QComboBox *kact = mv->inspector()->findChild<QComboBox *>(QStringLiteral("motionAction"));
+                if (kact) {
+                    const int idx = kact->findData(int(spn::ChannelActionType::Keys));
+                    kact->setCurrentIndex(idx);
+                    emit kact->activated(idx);
+                    settle();
+                }
+                QCheckBox *an = mv->inspector()->findChild<QCheckBox *>(QStringLiteral("keyAnalog"));
+                check(an && an->isChecked() && an->isEnabled(), "a key function has the Analog check box, checked for keys:");
+                check(mv->inspector()->findChild<QLineEdit *>(QStringLiteral("keyRateMin")) && mv->inspector()->findChild<QLineEdit *>(QStringLiteral("keyRateMax")),
+                      "an analog key function has the rate fields");
+                if (an) an->click();
+                settle();
+                an = mv->inspector()->findChild<QCheckBox *>(QStringLiteral("keyAnalog"));
+                kact = mv->inspector()->findChild<QComboBox *>(QStringLiteral("motionAction"));
+                check(an && !an->isChecked() && kact && kact->currentData().toInt() == int(spn::ChannelActionType::Step), "unchecked: the action is the digital step:");
+                check(!mv->inspector()->findChild<QLineEdit *>(QStringLiteral("keyRateMin")) && mv->inspector()->findChild<QLineEdit *>(QStringLiteral("keyTrigger")),
+                      "a digital key function has the trigger field, no rate fields");
+                if (QLineEdit *trig = mv->inspector()->findChild<QLineEdit *>(QStringLiteral("keyTrigger"))) {
+                    trig->setText(QStringLiteral("abc"));
+                    emit trig->textEdited(QStringLiteral("abc"));
+                    bool noted = false;
+                    for (QLabel *n : mv->inspector()->findChildren<QLabel *>(QStringLiteral("keyFieldNote"))) noted = noted || (!n->isHidden() && n->text().contains(QStringLiteral("number expected")));
+                    check(noted, "an invalid trigger is shown next to its field");
+                    trig->setText(QStringLiteral("30"));
+                    emit trig->textEdited(QStringLiteral("30"));
+                    settle();
+                    check(rig.waitSaved() && diskKey(rig, Section::APP, "firefox", "SCROLL_H_TILT_TRIGGER") == std::optional<std::string>("30"),
+                          "a valid trigger is stored as the key of the motion");
+                }
+                if (an) {
+                    an = mv->inspector()->findChild<QCheckBox *>(QStringLiteral("keyAnalog"));
+                    an->click();
+                    settle();
+                    an = mv->inspector()->findChild<QCheckBox *>(QStringLiteral("keyAnalog"));
+                    QLineEdit *lo = mv->inspector()->findChild<QLineEdit *>(QStringLiteral("keyRateMin")), *hi = mv->inspector()->findChild<QLineEdit *>(QStringLiteral("keyRateMax"));
+                    check(an && an->isChecked() && lo && hi && lo->text() == QStringLiteral("3") && hi->text() == QStringLiteral("25"),
+                          "switching to analog starts with the UI defaults 3 and 25 presses a second");
+                }
+                // lift: only digital, the box is greyed and says why
+                check(mv->select(QStringLiteral("m:lift")), "select lift / press for the key functions");
+                settle();
+                QComboBox *lact = mv->inspector()->findChild<QComboBox *>(QStringLiteral("motionAction"));
+                if (lact) {
+                    const int idx = lact->findData(int(spn::ChannelActionType::Step));
+                    lact->setCurrentIndex(idx);
+                    emit lact->activated(idx);
+                    settle();
+                }
+                QCheckBox *lan = mv->inspector()->findChild<QCheckBox *>(QStringLiteral("keyAnalog"));
+                check(lan && !lan->isEnabled() && !lan->isChecked() && mv->inspector()->findChild<QLabel *>(QStringLiteral("keyAnalogReason")),
+                      "lift / press: the Analog box is greyed with the reason");
+                if (find("motionInherit")) find("motionInherit")->click();
+                settle();
+            }
             // a motion the joystick mode switched off can be switched on in the program profile
             check(mv->select(QStringLiteral("m:v_push")), "select the vertical push");
             settle();

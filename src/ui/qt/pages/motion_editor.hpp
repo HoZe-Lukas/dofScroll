@@ -58,6 +58,8 @@ inline void clearLayoutNow(QLayout *l) {
     }
 }
 
+struct KeyEngineEnv;  // key_engine_box.hpp
+
 // The picture: items are the six motions ("m:v_push", ...) and the buttons ("b:3").
 class MotionPicture : public QWidget {
     Q_OBJECT
@@ -211,6 +213,7 @@ private:
     void buildLiftInspector(QVBoxLayout *col);
     void buildButtonInspector(QVBoxLayout *col, int n);
     void buildTuning(QVBoxLayout *col, spn::ui::Motion m);
+    KeyEngineEnv keyEngineEnv(spn::ui::ChannelForm *ref, spn::ui::Motion m);
     QString T(const char *s) const;
 
     MotionEditorEnv env_;

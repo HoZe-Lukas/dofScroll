@@ -75,6 +75,8 @@ inline std::string keyName(const std::string &chord) { return motion_detail::key
 inline std::string motionSentence(const ModeForm &form, const Settings &base, Motion m, const StringProvider &s,
                                   double liveRaw = std::nan("")) {
     const MotionLabel l = motionLabel(form, base, m, s);
+    if (m == Motion::Lift && form.lift.type != ChannelActionType::Default && form.lift.type != ChannelActionType::Off)
+        return format(s.tr("%1: %2; it can fire when the cap is grabbed or let go"), {l.name, l.action});
     if (m == Motion::Lift) {
         return l.lift ? format(s.tr("%1: is added to another motion; it is prone to false triggers when the cap is grabbed or released"), {l.name})
                       : format(s.tr("%1: not used"), {l.name});
@@ -109,15 +111,15 @@ inline std::string motionSentence(const ModeForm &form, const Settings &base, Mo
             if (moving) text += s.tr(", now: zooming");
             break;
         case ChannelActionType::Keys: {
-            const std::string neg = help_detail::keyName(modelist::chordText(a.neg, a.negMods)),
-                              pos = help_detail::keyName(modelist::chordText(a.pos, a.posMods));
+            const std::string neg = help_detail::keyName(modelist::negChordText(a)),
+                              pos = help_detail::keyName(modelist::posChordText(a));
             text = format(s.tr("presses %1 or %2, about %3 times a second at full deflection"), {neg, pos, help_detail::number(full)});
             if (moving) text += format(s.tr(", now: %1, %2 a second"), {now < 0 ? neg : pos, help_detail::number(now)});
             break;
         }
         default: {  // Step
-            const std::string neg = help_detail::keyName(modelist::chordText(a.neg, a.negMods)),
-                              pos = help_detail::keyName(modelist::chordText(a.pos, a.posMods));
+            const std::string neg = help_detail::keyName(modelist::negChordText(a)),
+                              pos = help_detail::keyName(modelist::posChordText(a));
             text = format(s.tr("taps %1 or %2 once per push"), {neg, pos});
             if (moving) text += format(s.tr(", now: %1"), {now < 0 ? neg : pos});
             break;

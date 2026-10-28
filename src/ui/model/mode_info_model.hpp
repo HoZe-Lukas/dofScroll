@@ -45,10 +45,10 @@ inline std::string channelActionWords(const ChannelAction &a, const StringProvid
         case ChannelActionType::Zoom: return s.tr("zooms (Ctrl + wheel)");
         case ChannelActionType::Keys:
             return format(s.tr("taps %1 in one direction and %2 in the other, faster the further you push"),
-                          {modelist::chordText(a.neg, a.negMods), modelist::chordText(a.pos, a.posMods)});
+                          {modelist::negChordText(a), modelist::posChordText(a)});
         case ChannelActionType::Step:
             return format(s.tr("taps %1 or %2 once per push"),
-                          {modelist::chordText(a.neg, a.negMods), modelist::chordText(a.pos, a.posMods)});
+                          {modelist::negChordText(a), modelist::posChordText(a)});
     }
     return std::string();
 }

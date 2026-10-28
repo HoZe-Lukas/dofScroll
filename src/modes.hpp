@@ -23,7 +23,10 @@
 //   default = the channel's normal behavior (V: wheel_v, H: wheel_h, twist: zoom with
 //   dominance detection). zoom = hold Ctrl + mouse wheel. keys:<neg>,<pos> = key presses
 //   (neg for negative, pos for positive deflection; rate proportional to the deflection),
-//   key names from keys.hpp.
+//   key names from keys.hpp. Per side a key, a chord or "none". keys: is analog and only accepted for keys that are safe
+//   to repeat (keyAnalogAllowed: "this key can only be used digitally, use step:"); step:<neg>,<pos> is the digital one
+//   (one press per push, any key). Rate limits and trigger per motion: <P>KEY_RATE_MIN / <P>KEY_RATE_MAX / <P>TRIGGER
+//   (config.hpp KeyTuning, key_engine.hpp).
 // Split push and tilt (optional, per scroll channel): V_PUSH_ACTION, V_TILT_ACTION, H_PUSH_ACTION and
 //   H_TILT_ACTION (same grammar). The vertical channel mixes push forward/back (z) and tilt forward/back (rx),
 //   the horizontal channel push sideways (x) and tilt sideways (rz). A mode that sets at least one split key of a
@@ -108,13 +111,15 @@ struct ChordMods {
 enum class ChannelActionType { Default, Off, WheelV, WheelH, Zoom, Keys, Step };
 struct ChannelAction {
     ChannelActionType type = ChannelActionType::Default;
-    Key neg = Key::Up, pos = Key::Down;  // only for Keys: the key of the chord
+    Key neg = Key::Up, pos = Key::Down;  // only for Keys and Step: the key of the chord
     bool usesKeys() const { return type == ChannelActionType::Keys || type == ChannelActionType::Step; }
-    ChordMods negMods = ChordMods(), posMods = ChordMods();         // only for Keys: modifiers held while the key is tapped
+    ChordMods negMods = ChordMods(), posMods = ChordMods();         // only for Keys and Step: modifiers held while the key is tapped
+    bool negNone = false, posNone = false;  // only for Keys and Step: "none" for that side, nothing is pressed in that direction
     bool operator==(const ChannelAction &o) const {
         return type == o.type &&
                (!usesKeys() ||
-                (neg == o.neg && pos == o.pos && negMods == o.negMods && posMods == o.posMods));
+                (negNone == o.negNone && posNone == o.posNone && (negNone || (neg == o.neg && negMods == o.negMods)) &&
+                 (posNone || (pos == o.pos && posMods == o.posMods))));
     }
 };
 
@@ -175,6 +180,10 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
 // the cap is grabbed, so a key repeat on it would type by accident); the digital "step:<neg>,<pos>" is allowed.
 // "default" means none for the lift.
 bool parseLiftAction(const std::string &text, ChannelAction *out, std::string *err);
+// True when a key or chord may be pressed by the analog `keys:` action (tier A of docs/plan-motion-functions.md: navigation
+// keys, ctrl or shift plus a navigation key, volume, media next and previous, plus and minus). Everything else (letters, digits,
+// function keys, enter, delete, escape, space, alt or super chords, play_pause, a lone modifier) can only be used digitally.
+bool keyAnalogAllowed(Key key, const ChordMods &mods);
 // The canonical config text of a channel action ("default", "none", "wheel_v", "keys:ctrl+pageup,ctrl+pagedown", ...),
 // the inverse of parseChannelAction.
 std::string channelActionText(const ChannelAction &a);

@@ -377,7 +377,14 @@ inline MotionLabel motionLabel(const ModeForm &form, const Settings &base, Motio
     }
     const MotionPlace p = placeOf(form, base, m);
     MotionRow row;
-    if (!p.found) {
+    // The lift / press motion has its own action (LIFT_ACTION): "default" and "none" do nothing.
+    const bool liftAction = m == Motion::Lift && form.lift.type != ChannelActionType::Default && form.lift.type != ChannelActionType::Off;
+    if (liftAction) {
+        ChannelAction a;
+        std::string err;
+        if (!parseLiftAction(form.lift.text(), &a, &err)) a = ChannelAction();
+        row = motion_detail::rowFor(motionId(m), n.name, n.how, a, true, false, effectiveSettings(form, base).zoom_modifier, s);
+    } else if (!p.found) {
         row = motion_detail::unusedRow(motionId(m), n.name, n.how, s);
     } else {
         ChannelAction a;
@@ -400,7 +407,9 @@ inline MotionLabel motionLabel(const ModeForm &form, const Settings &base, Motio
     l.lift = m == Motion::Lift && p.found;
     l.reversed = isReversed(form, base, m);
     if (m == Motion::Lift) {
-        if (p.found) {
+        if (liftAction) {
+            l.kind = MotionKind::Active;
+        } else if (p.found) {
             l.action = s.tr("Added to another motion");
             l.tile = s.tr("In a mix");
             l.symbol = "lift_in";

@@ -72,6 +72,10 @@ constexpr size_t kMaxCurvePoints = 64;         // points per CURVE
 constexpr size_t kMaxLateralAxes = 6;          // axes in ZOOM_LATERAL
 constexpr double kMaxZoomExitRatio = 100.0;
 constexpr double kMinStepTrigger = 0.5, kMaxStepTrigger = 10000.0;
+// Key engine (stage 3 of docs/plan-motion-functions.md): at most this many key presses per tick and function, and per tick in total.
+constexpr int kMaxPressesPerFunction = 4, kMaxPressesPerTick = 8;
+// Largest accepted KEY_RATE_* value (presses per second); the hard cap min(100, tick_hz / 2) applies below it.
+constexpr double kMaxKeyRate = 1000.0;
 constexpr long kMinPriority = -1000, kMaxPriority = 1000;  // PRIORITY of a [device:]/[app:] profile
 constexpr long kMaxButtons = 32;               // highest accepted BUTTON_<n> (the daemon button mask is 32 bits)
 
@@ -123,6 +127,24 @@ struct PartTuning {
 std::vector<std::string> partTuningKeys();
 // The sub-channel config of a part: `parent` with the part's mix and the tuned fields.
 ChannelCfg partConfig(const ChannelCfg &parent, const PartTuning &t, const Mix &partMix);
+
+// The six motions that can drive a key or a chord, in the order of the key engine slots (the first four are SplitPart).
+enum KeyMotion { KM_V_PUSH = 0, KM_V_TILT, KM_H_PUSH, KM_H_TILT, KM_TWIST, KM_LIFT, KM_COUNT };
+// Per-motion tuning of the key functions `keys:` (analog) and `step:` (digital): <P>KEY_RATE_MIN, <P>KEY_RATE_MAX and
+// <P>TRIGGER with P in SCROLL_V_PUSH_, SCROLL_V_TILT_, SCROLL_H_PUSH_, SCROLL_H_TILT_, ZOOM_ (twist), LIFT_. A value that is
+// not set keeps today's behavior: no lower limit, no upper limit below the hard cap, STEP_TRIGGER. A channel that is not split
+// uses the push values.
+struct KeyTuning {
+    enum Field : unsigned { F_RATE_MIN = 1, F_RATE_MAX = 2, F_TRIGGER = 4 };
+    unsigned set = 0;        // bit mask of the fields below that were set
+    double rate_min = 0.0;   // analog: lowest repeat rate in presses/s while the motion is deflected (0 = none)
+    double rate_max = 0.0;   // analog: highest repeat rate (0 = unlimited, the hard cap min(100, tick_hz / 2) still applies)
+    double trigger = 0.0;    // level (steps/s) of one press (digital) or of the first press (analog); 0 = STEP_TRIGGER / not used
+};
+// The 18 key tuning key names (SCROLL_V_PUSH_KEY_RATE_MIN ... LIFT_TRIGGER), in a stable order.
+std::vector<std::string> keyTuningKeys();
+// The key prefix of a motion ("SCROLL_V_PUSH_", ..., "ZOOM_", "LIFT_").
+const char *keyTuningPrefix(int keyMotion);
 
 // Keys held while a zoom action sends the mouse wheel (ZOOM_MODIFIER), as a bit mask. The bit values are the
 // ones of the chord modifiers in modes.hpp.
@@ -182,6 +204,7 @@ struct Settings {
     // Publish the live feed (axes, buttons, channel outputs) to the UI while a client is connected.
     bool live_feed = true;
     PartTuning parts[PART_COUNT];  // split scroll channels, see PartTuning
+    KeyTuning key_tuning[KM_COUNT];  // rate limits and trigger of the key functions per motion, see KeyTuning
     std::string mode = "normal";  // mode id (see modes.hpp)
     // Button bindings from BUTTON_<n> keys (n = 1..kMaxButtons): canonical action text as
     // accepted by parseButtonAction (none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | toggle:nav |

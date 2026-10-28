@@ -41,7 +41,7 @@ int main() {
         assert(r.kind == CaptureResult::Chord);
         ChannelAction a;
         std::string err;
-        assert(parseChannelAction("keys:" + r.chord + "," + r.chord, &a, &err));
+        assert(parseChannelAction("step:" + r.chord + "," + r.chord, &a, &err));
     }
     std::puts("test_ui_key_capture OK");
     return 0;

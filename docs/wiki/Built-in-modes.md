@@ -23,7 +23,7 @@ Every joystick mode is described by what each of the six motions of the cap does
 | `off` | Off | Off | Off | Off | Off | Not used | none |
 | `timeline` | Off | Off | Keys: Left / Right | Keys: Left / Right | Keys: Left / Right | Not used | none |
 | `slides` | Keys: Page Up / Page Down | Keys: Page Up / Page Down | Off | Off | Off | Not used | SCROLL_V_SENS = 2 |
-| `media` | Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: J / L | Not used | none |
+| `media` | Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Steps: J / L | Not used | none |
 | `map` | Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: Minus / Plus | Not used | none |
 | `precision` | Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used | SCROLL_V_SENS = 2, SCROLL_H_SENS = 1, ZOOM_SENS = 2 |
 | `tabs` | Scroll | Scroll | Keys: Ctrl+Page Up / Ctrl+Page Down | Keys: Ctrl+Page Up / Ctrl+Page Down | Zoom | Not used | none |
@@ -72,9 +72,9 @@ Override `SCROLL_V_SENS = 2` (gentler than the default of 5, so a push does not 
 
 | Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
 |---|---|---|---|---|---|
-| Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Keys: J / L | Not used |
+| Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Steps: J / L | Not used |
 
-Good for video players and web video: up/down is volume in most players, sideways seeks, `j` / `l` go back / forward 10 seconds on YouTube. The keys are program-specific. No button bindings.
+Good for video players and web video: up/down is volume in most players, sideways seeks, `j` / `l` go back / forward 10 seconds on YouTube (one jump per twist, a digital key). The keys are program-specific. No button bindings.
 
 ### `map`
 

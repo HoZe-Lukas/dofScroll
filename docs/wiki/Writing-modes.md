@@ -264,7 +264,7 @@ Vertical scroll and zoom stay as they are (built-in `tabs`). Use `step:ctrl+page
     NAME = Player
     V_ACTION = keys:up,down        # volume in many players
     H_ACTION = keys:left,right     # seek
-    TWIST_ACTION = keys:j,l        # 10 seconds back/forward on YouTube
+    TWIST_ACTION = step:j,l        # 10 seconds back/forward on YouTube (letters are digital only)
 
 (Built-in `media`.) These are ordinary keys; which key does what is up to the program.
 

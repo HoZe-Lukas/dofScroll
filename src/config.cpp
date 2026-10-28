@@ -442,6 +442,28 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
         }
     }
 
+    // --- key engine tuning per motion: <P>KEY_RATE_MIN, <P>KEY_RATE_MAX, <P>TRIGGER
+    for (int m = 0; m < KM_COUNT; ++m) {
+        const std::string pre = keyTuningPrefix(m);
+        if (key.compare(0, pre.size(), pre) != 0) continue;
+        const std::string suffix = key.substr(pre.size());
+        KeyTuning &t = s.key_tuning[m];
+        if (suffix == "KEY_RATE_MIN" || suffix == "KEY_RATE_MAX") {
+            if (!parseDouble(value, &d)) return setErr(err, "number expected");
+            if (d < 0.0 || d > kMaxKeyRate) return setErr(err, "0.." + fmtNum(kMaxKeyRate) + " presses per second expected");
+            const bool lo = suffix == "KEY_RATE_MIN";
+            (lo ? t.rate_min : t.rate_max) = d;
+            t.set |= lo ? KeyTuning::F_RATE_MIN : KeyTuning::F_RATE_MAX;
+            return true;
+        }
+        if (suffix == "TRIGGER") {
+            if (!parseDouble(value, &d)) return setErr(err, "number expected");
+            t.trigger = std::min(kMaxStepTrigger, std::max(kMinStepTrigger, d));
+            t.set |= KeyTuning::F_TRIGGER;
+            return true;
+        }
+    }
+
     // --- per-part keys of split channels: SCROLL_<V|H>_<PUSH|TILT>_<SUFFIX>
     if (key.compare(0, 7, "SCROLL_") == 0 && key.size() > 9 && (key[7] == 'V' || key[7] == 'H') && key[8] == '_') {
         const std::string rest = key.substr(9);
@@ -556,6 +578,18 @@ std::vector<std::string> partTuningKeys() {
         for (const char *part : {"PUSH", "TILT"})
             for (const char *f : {"SENS", "DEADZONE", "SIGN", "CURVE", "SMOOTH_MS"})
                 out.push_back(std::string("SCROLL_") + ch + "_" + part + "_" + f);
+    return out;
+}
+
+const char *keyTuningPrefix(int m) {
+    static const char *const names[KM_COUNT] = {"SCROLL_V_PUSH_", "SCROLL_V_TILT_", "SCROLL_H_PUSH_", "SCROLL_H_TILT_", "ZOOM_", "LIFT_"};
+    return m >= 0 && m < KM_COUNT ? names[m] : "";
+}
+
+std::vector<std::string> keyTuningKeys() {
+    std::vector<std::string> out;
+    for (int m = 0; m < KM_COUNT; ++m)
+        for (const char *f : {"KEY_RATE_MIN", "KEY_RATE_MAX", "TRIGGER"}) out.push_back(std::string(keyTuningPrefix(m)) + f);
     return out;
 }
 
@@ -692,6 +726,14 @@ std::vector<KV> allKeys(const Settings &s) {
         if (t.set & PartTuning::F_SIGN) kv.emplace_back(pre + "SIGN", std::to_string(t.cfg.sign));
         if (t.set & PartTuning::F_CURVE) kv.emplace_back(pre + "CURVE", curveToString(t.cfg));
         if (t.set & PartTuning::F_SMOOTH) kv.emplace_back(pre + "SMOOTH_MS", fmtNum(t.cfg.smooth_ms));
+    }
+    // Key engine tuning: only the values that were set (nothing for a config without them).
+    for (int m = 0; m < KM_COUNT; ++m) {
+        const KeyTuning &t = s.key_tuning[m];
+        const std::string pre = keyTuningPrefix(m);
+        if (t.set & KeyTuning::F_RATE_MIN) kv.emplace_back(pre + "KEY_RATE_MIN", fmtNum(t.rate_min));
+        if (t.set & KeyTuning::F_RATE_MAX) kv.emplace_back(pre + "KEY_RATE_MAX", fmtNum(t.rate_max));
+        if (t.set & KeyTuning::F_TRIGGER) kv.emplace_back(pre + "TRIGGER", fmtNum(t.trigger));
     }
     return kv;
 }

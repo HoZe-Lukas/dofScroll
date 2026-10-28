@@ -1310,7 +1310,10 @@ private:
     static bool isEditableKey(const std::string &k) {
         static const std::vector<KV> all = allKeys(Settings());
         static const std::vector<std::string> parts = partTuningKeys();  // SCROLL_V_PUSH_SENS ...: listed only when tuned
+        static const std::vector<std::string> keyTuning = keyTuningKeys();  // SCROLL_V_PUSH_KEY_RATE_MIN ...: listed only when set
         for (const std::string &p : parts)
+            if (p == k) return true;
+        for (const std::string &p : keyTuning)
             if (p == k) return true;
         return lookup(all, k) != nullptr || isActionKey(k);
     }

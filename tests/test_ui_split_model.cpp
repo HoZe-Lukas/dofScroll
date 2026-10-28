@@ -548,7 +548,7 @@ static void testImportRiskUsesParser() {
     ms.modes = {normal, own};
     m.setModes(ms, "");
     // the parser trims around '+': none of these is harmless
-    for (const char *line : {"BUTTON_1 = key:ctrl +w", "BUTTON_1 = key:alt + f4", "V_ACTION = keys:ctrl +w,ctrl +t",
+    for (const char *line : {"BUTTON_1 = key:ctrl +w", "BUTTON_1 = key:alt + f4", "V_ACTION = step:ctrl +w,ctrl +t",
                              "BUTTON_1 = key:shift+delete", "BUTTON_1 = key:delete", "BUTTON_1 = key:f4", "BUTTON_1 = key:super",
                              "BUTTON_1 = key:enter", "BUTTON_1 = key:esc", "BUTTON_2 = click", "BUTTON_2 = RightClick",
                              "BUTTON_2 = middleclick", "CLICK_BUTTON = 3", "MODE = custom", "BUTTON_3 = mode:custom"}) {
@@ -567,7 +567,7 @@ static void testImportRiskUsesParser() {
         }
     }
     // the canonical value is written, not the raw text
-    ImportPlan p = planOf(m, d, "[app:programname]\nBUTTON_1 = key:ctrl +w\nV_ACTION = keys:ctrl +w,ctrl +t\n");
+    ImportPlan p = planOf(m, d, "[app:programname]\nBUTTON_1 = key:ctrl +w\nV_ACTION = step:ctrl +w,ctrl +t\n");
     assert(p.ok && applyProfileImport(m, p, ImportChoice::Replace, id).done && m.save(id).saved);
     const std::string f = get(d + "/apps/programname.conf");
     assert(has(f, "BUTTON_1 = key:ctrl+w") && !has(f, "ctrl +w"));

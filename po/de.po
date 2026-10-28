@@ -5669,3 +5669,67 @@ msgstr "Stopp"
 #: src/ui/model/key_tree_model.hpp
 msgid "Mute"
 msgstr "Stumm"
+
+#: src/ui/qt/key_engine_box.hpp
+msgid "Analog (the key repeats faster the further you push)"
+msgstr "Analog (die Taste wiederholt sich schneller, je weiter du drückst)"
+
+#: src/ui/qt/key_engine_box.hpp
+msgid "No key for the negative direction"
+msgstr "Keine Taste für die negative Richtung"
+
+#: src/ui/qt/key_engine_box.hpp
+msgid "No key for the positive direction"
+msgstr "Keine Taste für die positive Richtung"
+
+#: src/ui/model/key_engine_model.hpp
+msgid "Lift / press can fire when you grab the cap, so it only presses one key per push."
+msgstr "Heben/Drücken kann auslösen, wenn du die Kappe anfasst, deshalb drückt es nur eine Taste pro Druck."
+
+#: src/ui/model/key_engine_model.hpp
+msgid "This key can only be used digitally: one press per push. A key that repeats could do damage (letters, digits, Enter, Delete, Esc, Alt or Super combinations)."
+msgstr "Diese Taste kann nur digital benutzt werden: ein Druck pro Bewegung. Eine Taste, die sich wiederholt, könnte Schaden anrichten (Buchstaben, Ziffern, Enter, Entf, Esc, Alt- oder Super-Kombinationen)."
+
+#: src/ui/model/key_engine_model.hpp
+msgid "Analog: the key repeats faster the further you push, between the lowest and the highest rate below."
+msgstr "Analog: Die Taste wiederholt sich schneller, je weiter du drückst, zwischen der niedrigsten und der höchsten Rate unten."
+
+#: src/ui/model/key_engine_model.hpp
+msgid "Empty: no lower limit, and the repeat follows the push (never more than 100 presses a second). A new analog function starts with 3 to 25 presses a second."
+msgstr "Leer: keine untere Grenze, und die Wiederholung folgt dem Druck (nie mehr als 100 Tastendrücke pro Sekunde). Eine neue analoge Funktion startet mit 3 bis 25 Tastendrücken pro Sekunde."
+
+#: src/ui/model/key_engine_model.hpp
+msgid "Digital: one press each time you push past the trigger level, like a click. It presses again after you ease back to half of the level and push again."
+msgstr "Digital: ein Tastendruck jedes Mal, wenn du über die Auslöseschwelle drückst, wie ein Klick. Er drückt erst wieder, nachdem du bis auf die Hälfte der Schwelle zurückgegangen bist und erneut drückst."
+
+#: src/ui/model/key_engine_model.hpp
+msgid "Empty: the level of the whole configuration (STEP_TRIGGER) applies."
+msgstr "Leer: Es gilt die Schwelle der gesamten Konfiguration (STEP_TRIGGER)."
+
+#: src/ui/model/key_engine_model.hpp
+msgid "Lowest rate (presses a second)"
+msgstr "Niedrigste Rate (Tastendrücke pro Sekunde)"
+
+#: src/ui/model/key_engine_model.hpp
+msgid "Highest rate (presses a second)"
+msgstr "Höchste Rate (Tastendrücke pro Sekunde)"
+
+#: src/ui/model/key_engine_model.hpp
+msgid "Trigger level (about %1 % of full deflection)"
+msgstr "Auslöseschwelle (etwa %1 % des vollen Ausschlags)"
+
+#: src/ui/model/key_engine_model.hpp
+msgid "Trigger level"
+msgstr "Auslöseschwelle"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Lift / press has its own action (below). It can also be added to another motion (further down)."
+msgstr "Heben/Drücken hat eine eigene Aktion (unten). Es lässt sich außerdem zu einer anderen Bewegung hinzufügen (weiter unten)."
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "What lift / press does in this joystick mode"
+msgstr "Was Heben/Drücken in diesem Joystick-Modus tut"
+
+#: src/ui/model/motion_help_model.hpp
+msgid "%1: %2; it can fire when the cap is grabbed or let go"
+msgstr "%1: %2; es kann auslösen, wenn die Kappe angefasst oder losgelassen wird"
