@@ -11,9 +11,11 @@
 #include <vector>
 #include <QStandardItemModel>
 
+#include "key_tree_picker.hpp"
 #include "ui/model/key_list.hpp"
 #include "ui_i18n.hpp"
 
+// Older grouped drop-down; the pages use makeKeyTreePicker (key_tree_picker.hpp).
 inline QComboBox *makeKeyCombo(const QString &current, QWidget *parent) {
     auto *c = new QComboBox(parent);
     c->setMaxVisibleItems(20);
@@ -67,7 +69,7 @@ inline QWidget *chordPicker(QWidget *parent, QObject *owner, std::string *chord,
         cb->setAccessibleName(accessible + QStringLiteral(" ") + QString::fromLatin1(m));
         h->addWidget(cb);
     }
-    auto *kc = makeKeyCombo(QString::fromStdString(key), w);
+    auto *kc = makeKeyTreePicker(QString::fromStdString(key), w);
     kc->setAccessibleName(accessible);
     h->addWidget(kc, 1);
     auto update = [w, chord, kc, changed] {
@@ -75,12 +77,12 @@ inline QWidget *chordPicker(QWidget *parent, QObject *owner, std::string *chord,
         const auto boxes = w->findChildren<QCheckBox *>();
         for (QCheckBox *cb : boxes)
             if (cb->isChecked()) sel.push_back(cb->text().toStdString());
-        if (!kc->currentData().isValid()) return;
-        *chord = joinChord(sel, kc->currentData().toString().toStdString());
+        if (kc->value().isEmpty()) return;
+        *chord = joinChord(sel, kc->value().toStdString());
         changed();
     };
     for (QCheckBox *cb : w->findChildren<QCheckBox *>()) QObject::connect(cb, &QCheckBox::toggled, owner, update);
-    QObject::connect(kc, &QComboBox::activated, owner, [update](int) { update(); });
+    QObject::connect(kc, &KeyTreePicker::valueChosen, owner, [update](const QString &) { update(); });
     return w;
 }
 

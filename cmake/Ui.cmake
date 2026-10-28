@@ -64,6 +64,8 @@ if(DOFSCROLL_UI)
     src/ui/qt/button_row.hpp
     src/ui/qt/key_capture.hpp
     src/ui/qt/key_combo.hpp
+    src/ui/qt/key_tree_picker.cpp
+    src/ui/qt/key_tree_picker.hpp
     src/ui/qt/pages/button_modes_page.cpp
     src/ui/qt/pages/button_use_widget.cpp
     src/ui/qt/pages/button_use_widget.hpp
