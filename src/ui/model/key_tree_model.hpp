@@ -134,11 +134,14 @@ inline KeyTree buildKeyTree(const KeyTreeOptions &opt = {}) {
         return n;
     };
     KeyTreeNode keyboard = branch("keyboard", "Keyboard"), media = branch("media", "Media");
-    for (const auto &s : {std::pair<const char *, const char *>{"letters", "Letters"}, {"digits", "Digits"},
-                          {"function", "Function keys"}, {"navigation", "Navigation"}, {"editing", "Editing"},
-                          {"keypad", "Keypad"}, {"punctuation", "Punctuation"}, {"modifiers", "Modifiers"},
-                          {"system", "System keys"}})
-        keyboard.children.push_back(branch(s.first, s.second));
+    struct SubCategory {
+        const char *id, *title;
+    };
+    static const SubCategory kKeyboardSubs[] = {
+        {"letters", "Letters"},       {"digits", "Digits"},         {"function", "Function keys"},
+        {"navigation", "Navigation"}, {"editing", "Editing"},       {"keypad", "Keypad"},
+        {"punctuation", "Punctuation"}, {"modifiers", "Modifiers"}, {"system", "System keys"}};
+    for (const SubCategory &s : kKeyboardSubs) keyboard.children.push_back(branch(s.id, s.title));
     media.children.push_back(branch("volume", "Volume"));
     media.children.push_back(branch("playback", "Playback"));
     for (const std::string &name : allKeyNames()) {
