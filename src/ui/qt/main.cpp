@@ -3916,23 +3916,31 @@ static bool setupGuideSelfTest(const QString &tmpPath) {
     d.show();
     d.waitIdle();
     settle();
-    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 1 && rec.calls.front().enable,
-          "the first run switches Start at login on through the runner");
-    check(d.autostartBox() && d.autostartBox()->isChecked() && d.autostartBox()->isEnabled(), "the check box is on by default");
+    // issue #276: opening the guide changes nothing in the system; the box shows the default and the step says what will happen
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 0, "no system change at construction");
+    check(d.autostartBox() && d.autostartBox()->isChecked() && d.autostartBox()->isEnabled(), "the check box is ticked by default and usable");
+    check(!d.autostartBox()->accessibleDescription().isEmpty(), "the check box says that nothing changes before Finish");
     const spn::ui::SetupStep *autoStep = d.step(QStringLiteral("autostart"));
-    check(autoStep && autoStep->state == spn::ui::StepState::Done, "Start at login is done");
+    check(autoStep && autoStep->state == spn::ui::StepState::Todo && autoStep->text.find("Finish") != std::string::npos,
+          "Start at login is not done yet: it will be switched on with Finish");
     const spn::ui::SetupStep *daemonStep = d.step(QStringLiteral("daemon"));
     check(daemonStep && daemonStep->state == spn::ui::StepState::Problem, "no heartbeat: the daemon step needs attention");
     check(d.actionButtonOf(QStringLiteral("daemon")) != nullptr, "...with a Start now button");
     d.actionButtonOf(QStringLiteral("daemon"))->click();
     check(rec.count(spn::ui::RecordingActionRunner::Kind::StartDaemon) == 1, "Start now asks the runner to start the daemon");
     check(d.step(QStringLiteral("tryit")) && d.step(QStringLiteral("tryit"))->state == spn::ui::StepState::Info, "Try it is information");
-    // unticking switches it off at once
+    // clicking the box only records a choice: still no system change, in both directions
     d.autostartBox()->click();
     d.waitIdle();
-    check(rec.calls.back().kind == spn::ui::RecordingActionRunner::Kind::SetAutostart && !rec.calls.back().enable &&
-              !d.autostartBox()->isChecked() && d.step(QStringLiteral("autostart"))->state == spn::ui::StepState::Todo,
-          "unticking Start at login switches it off");
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 0 && !d.autostartBox()->isChecked() &&
+              d.step(QStringLiteral("autostart"))->state == spn::ui::StepState::Todo,
+          "unticking Start at login changes nothing in the system");
+    d.autostartBox()->click();
+    d.waitIdle();
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 0 && d.autostartBox()->isChecked(),
+          "ticking it again changes nothing either");
+    // the box can be operated with the keyboard (Space) and is reachable by Tab
+    check(d.autostartBox()->focusPolicy() & Qt::TabFocus, "the check box takes the keyboard focus");
     // a live heartbeat without a device: the daemon is done, the device is not (spacenavd off: the command)
     rec.spacenavd = spn::ui::ServiceState::Inactive;
     st.update(guideStatusText(QString()).toStdString(), true, std::time(nullptr));
@@ -3960,12 +3968,73 @@ static bool setupGuideSelfTest(const QString &tmpPath) {
     // Skip and Finish: once each, the dialog hides
     d.skipButton()->click();
     check(skipped == 1 && finished == 0 && !d.isVisible(), "Skip closes the guide");
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 0, "Skip changes nothing in the system");
     d.show();
-    d.finishButton()->click();
+    d.finishButton()->click();  // ticked: the system is changed now, and only now
+    d.waitIdle();
+    settle();
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 1 && rec.calls.back().enable,
+          "Finish with the box ticked switches Start at login on, once");
     check(skipped == 1 && finished == 1 && !d.isVisible(), "Finish closes the guide");
     d.show();
     d.close();  // the close button (Escape does the same through reject)
     check(skipped == 2 && !d.isVisible(), "the close button counts as Skip, once");
+    check(rec.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 1, "closing changes nothing in the system");
+    {
+        // a first run that is cancelled with the box ticked (the default): the system stays as it was
+        GuideRunner r7;
+        UiContext c7 = c;
+        c7.runner = &r7;
+        auto reader7 = [&r7](std::string *) { return static_cast<spn::autostart::AutostartState>(r7.autostart.load()); };
+        SetupGuideDialog d7(c7, nullptr, true, nullptr, reader7);
+        d7.show();
+        d7.waitIdle();
+        d7.close();
+        d7.waitIdle();
+        check(r7.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 0 && r7.autostart.load() == static_cast<int>(spn::autostart::AutostartState::Disabled),
+              "Escape or the close button on a first run does not enable Start at login");
+        // already on, the user unticks and confirms: switched off; opened later without a click: nothing
+        GuideRunner r8;
+        r8.autostart = static_cast<int>(spn::autostart::AutostartState::Enabled);
+        UiContext c8 = c;
+        c8.runner = &r8;
+        auto reader8 = [&r8](std::string *) { return static_cast<spn::autostart::AutostartState>(r8.autostart.load()); };
+        {
+            SetupGuideDialog d8(c8, nullptr, false, nullptr, reader8);
+            d8.show();
+            d8.waitIdle();
+            check(d8.autostartBox()->isChecked(), "opened later: the box shows the state of the system");
+            d8.finishButton()->click();
+            d8.waitIdle();
+            check(r8.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 0, "Finish without a click changes nothing");
+        }
+        {
+            SetupGuideDialog d9(c8, nullptr, true, nullptr, reader8);
+            d9.show();
+            d9.waitIdle();
+            d9.autostartBox()->click();
+            d9.finishButton()->click();
+            d9.waitIdle();
+            settle();
+            check(r8.count(spn::ui::RecordingActionRunner::Kind::SetAutostart) == 1 && !r8.calls.back().enable,
+                  "unticked and confirmed: Start at login is switched off");
+        }
+        // a change that fails keeps the guide open and says why
+        GuideRunner r9;
+        r9.result = false;
+        UiContext c9 = c;
+        c9.runner = &r9;
+        auto reader9 = [&r9](std::string *) { return static_cast<spn::autostart::AutostartState>(r9.autostart.load()); };
+        SetupGuideDialog d10(c9, nullptr, true, nullptr, reader9);
+        int fin10 = 0;
+        QObject::connect(&d10, &SetupGuideDialog::finishRequested, [&] { ++fin10; });
+        d10.show();
+        d10.waitIdle();
+        d10.finishButton()->click();
+        d10.waitIdle();
+        settle();
+        check(fin10 == 0 && d10.isVisible(), "a failed change keeps the guide open");
+    }
 
     // ---- in the window: shown at the first start, remembered, shown again from the Overview
     {

@@ -7,7 +7,8 @@
 //                                        daemon_autostart.hpp)
 //   device      "SpaceMouse found"       devices_seen of the status; on Linux, when the spacenavd service is
 //                                        not active, the plain words and the command as a fallback only
-//   autostart   "Start at login"         check box, on by default, applied through SetAutostart
+//   autostart   "Start at login"         check box, on by default; applied through SetAutostart only when the
+//                                        user presses Finish (AutostartConsent), never while the guide is open
 //   macOS only  "Accessibility" and "Input Monitoring"   the permissions, a button opens the pane
 //   tryit       "Try it"                 push the cap, the window under the pointer scrolls
 //
@@ -58,6 +59,57 @@ enum class StepAction {
     Autostart            // the check box "Start at login"
 };
 
+// "Start at login" is only ever changed in the system when the user confirms the guide (issue #276). The check box
+// shows the wish: on by default at the first run, otherwise the state of the system; a click is a decision. Nothing
+// is applied while the dialog is open or when it is cancelled (Skip, Escape, the close button): onConfirm() says what
+// "Finish" must change, if anything.
+enum class AutostartConsentPending { None, Enable, Disable };
+
+class AutostartConsent {
+public:
+    using Pending = AutostartConsentPending;
+    struct Change {
+        bool needed = false;
+        bool enable = false;
+    };
+    explicit AutostartConsent(bool firstRun) : firstRun_(firstRun) {}
+
+    // What the system says now (read only). changeable = false: no way to change it here (no systemd, unwritable entry).
+    void systemState(bool known, bool on, bool partial, bool changeable) {
+        known_ = known;
+        on_ = on;
+        partial_ = partial;
+        changeable_ = changeable;
+    }
+    void setWish(bool on) {
+        touched_ = true;
+        wish_ = on;
+    }
+    // What the check box shows.
+    bool wish() const { return touched_ ? wish_ : (firstRun_ ? true : (known_ && on_)); }
+    // The wish only counts at the first run (the visible default) or after a click.
+    bool active() const { return touched_ || firstRun_; }
+    Pending pending() const {
+        if (!active() || !changeable_ || !known_) return Pending::None;
+        if (!partial_ && on_ == wish()) return Pending::None;
+        return wish() ? Pending::Enable : Pending::Disable;
+    }
+    // "Finish": the one place where the system may be changed. While the state is unknown (not read yet) the wish of
+    // a first run is applied anyway; switching on twice is harmless.
+    Change confirm() const {
+        if (!active() || (known_ && !changeable_)) return Change();
+        if (!known_) return wish() ? Change{true, true} : Change();
+        const Pending p = pending();
+        return p == Pending::None ? Change() : Change{true, p == Pending::Enable};
+    }
+    // "Skip", Escape, the window's close button: never a change.
+    Change cancel() const { return Change(); }
+
+private:
+    bool firstRun_ = false, touched_ = false, wish_ = false;
+    bool known_ = false, on_ = false, partial_ = false, changeable_ = true;
+};
+
 struct SetupInputs {
     Os os = Os::Linux;
     bool daemonRunning = false;
@@ -68,7 +120,8 @@ struct SetupInputs {
     InputIssue inputIssue = InputIssue::Clear;
     ServiceState spacenavd = ServiceState::Unknown;  // Linux
     bool autostartKnown = false;     // the state of "Start at login" was read
-    bool autostartOn = false;
+    bool autostartOn = false;        // the state in the system now (never the wish)
+    AutostartConsentPending autostartPending = AutostartConsentPending::None;  // what Finish will do
     std::string autostartDetail;     // why it cannot be changed here (empty = it can)
     bool permissionsKnown = false;   // macOS: the daemon reported them
     bool missingAccessibility = false, missingInputMonitoring = false;
@@ -184,6 +237,12 @@ inline std::vector<SetupStep> buildSetupGuide(const SetupInputs &in, const Strin
         } else if (!in.autostartDetail.empty() && !in.autostartOn) {
             s.state = StepState::Problem;
             s.text = format(t.tr("Cannot be switched on here: %1"), {in.autostartDetail});
+        } else if (in.autostartPending == AutostartConsentPending::Enable) {
+            s.state = StepState::Todo;
+            s.text = t.tr("dofscroll will start when you log in. This is switched on when you press Finish; untick the box to leave it off.");
+        } else if (in.autostartPending == AutostartConsentPending::Disable) {
+            s.state = StepState::Todo;
+            s.text = t.tr("Start at login will be switched off when you press Finish; tick the box to keep it on.");
         } else if (in.autostartOn) {
             s.state = StepState::Done;
             s.text = t.tr("dofscroll and its tray icon start when you log in. You can change this on the Settings page.");
