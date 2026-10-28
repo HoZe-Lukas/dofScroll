@@ -86,6 +86,7 @@ public:
     bool removeSelected();                                // Remove (the button asks first); Undo is offered for a few seconds
     bool undoRemove();                                    // Undo of the last removal (the profile with all its settings)
     bool undoAvailable() const { return removed_.valid; }
+    void dismissUndo() { clearRemovedUndo(); }
     bool renameSelected(const QString &name);             // Change application / device: the new name, same settings
     bool importFrom(const QString &file, bool replaceOnCollision);  // Import; a name that exists is replaced or kept
     QString defectNotes() const;                          // the words about defective profile files under the list
@@ -110,6 +111,7 @@ private slots:
 
 private:
     void rebuildTree(size_t selectSection);
+    void clearRemovedUndo();
     void applyProfileFilter();
     bool settingMatches(const QString &label, const std::string &key) const;
     void rebuildContent();
@@ -162,7 +164,7 @@ private:
     QLabel *defectNote_ = nullptr;  // defective profile files, in words, under the list
     QWidget *undoBar_ = nullptr;    // "Profile removed. Undo" for a few seconds under the list
     QLabel *undoLabel_ = nullptr;
-    QTimer *undoTimer_ = nullptr;
+    bool keepUndo_ = false;  // rebuildTree() drops the offer, except while a removal itself rebuilds it
     spn::ui::RemovedProfile removed_;
     size_t shown_ = 0;  // section the tabs show
     int settingRows_ = 0;

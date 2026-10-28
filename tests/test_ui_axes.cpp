@@ -7,6 +7,8 @@
 #include <cstdio>
 #include <cstring>
 #include <deque>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <string>
 
@@ -14,6 +16,7 @@
 #include "ui/model/axes_model.hpp"
 #include "ui/model/fresh_state.hpp"
 #include "ui/model/ui_settings.hpp"
+#include "ui/model/undo_rules.hpp"
 
 using namespace spn;
 using namespace spn::ui;
@@ -618,6 +621,31 @@ static void testApplyPreviewUndoAndWords() {
     assert(restoreGlobal(m, before, &err));
     assert(m.value(0, "SCROLL_V_MIX", &v) && v.text != "z" && m.value(0, "SCROLL_V_SIGN", &v) && v.text == "-1");
     assert(!restoreGlobal(m, GlobalSnapshot(), &err));
+    // The offer has no time limit: it knows no clock, so 60 s, 10 minutes and 1 hour later it is the same offer and
+    // restores the same state. Only a change of the Global values since Apply makes it obsolete.
+    assert(w.applyTo(m, &err));
+    AppliedUndo offer;
+    offer.before = before;
+    offer.after = snapshotGlobal(m);
+    for (const int64_t elapsed : {int64_t(60), int64_t(600), int64_t(3600)}) {
+        (void)elapsed;  // nothing to advance: the offer holds no time
+        assert(offer.valid() && offer.stillApplies(m));
+    }
+    {
+        SettingsModel copy = m;
+        assert(restoreGlobal(copy, offer.before, &err));
+        assert(copy.value(0, "SCROLL_V_SIGN", &v) && v.text == "-1" && copy.value(0, "SCROLL_V_MIX", &v) && v.text != "z");
+    }
+    assert(m.setValue(0, "SCROLL_V_MIX", "x", &err));  // changed by hand after Apply
+    assert(!offer.stillApplies(m));
+    assert(!AppliedUndo().valid() && !AppliedUndo().stillApplies(m));
+    assert(undoShortcutApplies(true, false) && !undoShortcutApplies(true, true) && !undoShortcutApplies(false, false));
+    // Regression guard: neither undo offer of the pages may be tied to a timer.
+    for (const char *src : {"src/ui/qt/pages/profiles_page.cpp", "src/ui/qt/pages/axes_page.cpp"}) {
+        std::ifstream in(src);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        assert(!text.empty() && text.find("undoTimer_") == std::string::npos);
+    }
     // a plain-word name for the axes the configuration names; none for an unknown pattern
     const AxisRoles roles = deriveAxisRoles(freshSettings());
     const auto words = axisPlainWords(roles);

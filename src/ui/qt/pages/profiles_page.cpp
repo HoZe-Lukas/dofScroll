@@ -27,6 +27,7 @@
 #include <QStandardPaths>
 #include <QStyle>
 #include <QTabWidget>
+#include <QShortcut>
 #include <QTimer>
 #include <QToolButton>
 #include <QTreeWidget>
@@ -57,7 +58,10 @@
 #include "ui/model/profile_import.hpp"
 #include "ui/model/profile_tree_model.hpp"
 #include "platform_hooks.hpp"
+#include "a11y_announce.hpp"
+#include "undo_focus.hpp"
 #include "theme.hpp"
+#include "ui/model/undo_rules.hpp"
 #include "ui_i18n.hpp"
 
 using namespace spn;
@@ -175,19 +179,25 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     undoLabel_->setTextFormat(Qt::PlainText);
     auto *undoButton = new QPushButton(T("Undo"), undoBar_);
     undoButton->setObjectName(QStringLiteral("undoRemove"));
-    undoButton->setToolTip(T("Bring the removed profile back with all its settings"));
+    undoButton->setToolTip(T("Bring the removed profile back with all its settings") + QStringLiteral(" (") +
+                           QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText) + QLatin1Char(')'));
+    auto *dismiss = new QPushButton(T("Dismiss"), undoBar_);
+    dismiss->setObjectName(QStringLiteral("undoDismiss"));
+    dismiss->setToolTip(T("Close this bar; the profile stays removed"));
     ul->addWidget(undoLabel_, 1);
     ul->addWidget(undoButton);
+    ul->addWidget(dismiss);
     undoBar_->hide();
     ll->addWidget(undoBar_);
-    undoTimer_ = new QTimer(this);
-    undoTimer_->setSingleShot(true);
-    undoTimer_->setInterval(8000);
-    connect(undoTimer_, &QTimer::timeout, this, [this] {
-        removed_ = spn::ui::RemovedProfile();
-        undoBar_->hide();
-    });
+    // No time limit: the offer stays until the profile list changes again, the configuration is reloaded from disk
+    // or Dismiss is pressed. Ctrl+Z (Cmd+Z) does the same as Undo, except while a text field has the focus.
     connect(undoButton, &QPushButton::clicked, this, [this] { undoRemove(); });
+    connect(dismiss, &QPushButton::clicked, this, [this] { clearRemovedUndo(); });
+    auto *undoKey = new QShortcut(QKeySequence::Undo, this);
+    undoKey->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(undoKey, &QShortcut::activated, this, [this] {
+        if (spn::ui::undoShortcutApplies(removed_.valid, focusInTextInput())) undoRemove();
+    });
 
     // Right: who is edited, the search box of the settings and the tabs.
     auto *right = new QWidget(split);
@@ -353,7 +363,13 @@ size_t ProfilesPage::currentSection() const {
 
 void ProfilesPage::problem(const QString &text) { ctx_.report(text, true); }
 
+void ProfilesPage::clearRemovedUndo() {
+    removed_ = spn::ui::RemovedProfile();
+    if (undoBar_) undoBar_->hide();
+}
+
 void ProfilesPage::rebuildTree(size_t selectSection) {
+    if (!keepUndo_) clearRemovedUndo();  // any other change of the list, or a reload from disk, makes the offer obsolete
     QSignalBlocker block(tree_);
     tree_->clear();
     const spn::ui::IdentityStrings fallbackStrings;
@@ -1238,7 +1254,7 @@ void ProfilesPage::removeProfile() {
     // Cancel is the default (Enter does not delete); the destructive choice has its own name.
     QMessageBox box(QMessageBox::Warning, T("Remove profile"),
                     T("Remove the profile \"%1\" and all its settings?").arg(name), QMessageBox::NoButton, this);
-    box.setInformativeText(T("You can undo this for a few seconds afterwards."));
+    box.setInformativeText(T("You can undo this afterwards."));
     QPushButton *go = box.addButton(T("Remove profile"), QMessageBox::DestructiveRole);
     QPushButton *keep = box.addButton(T("Cancel"), QMessageBox::RejectRole);
     box.setDefaultButton(keep);
@@ -1261,12 +1277,14 @@ bool ProfilesPage::removeSelected() {
         return false;
     }
     ctx_.saveSoon();
+    keepUndo_ = true;
     rebuildTree(0);
+    keepUndo_ = false;
     removed_ = copy;
     undoLabel_->setText(T("Profile \"%1\" removed.").arg(name));
     undoBar_->show();
-    undoTimer_->start();
-    ctx_.report(T("Profile \"%1\" removed. Undo is possible for a few seconds.").arg(name), false);
+    ctx_.report(T("Profile \"%1\" removed. Undo with the Undo button or %2. Dismiss closes the bar.")
+                    .arg(name, QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)), false);
     return true;
 }
 
@@ -1279,9 +1297,7 @@ bool ProfilesPage::undoRemove() {
         problem(T("The profile \"%1\" could not be brought back: %2").arg(name, qs8(err)));
         return false;
     }
-    removed_ = spn::ui::RemovedProfile();
-    undoTimer_->stop();
-    undoBar_->hide();
+    clearRemovedUndo();
     ctx_.saveSoon();
     rebuildTree(idx);
     ctx_.report(T("Profile \"%1\" is back.").arg(name), false);

@@ -28,6 +28,8 @@
 
 #include "a11y_announce.hpp"
 #include "axis_convention.hpp"
+#include "undo_focus.hpp"
+#include "ui/model/undo_rules.hpp"
 #include "config.hpp"
 #include "seed.hpp"
 #include "motion_view.hpp"
@@ -262,10 +264,12 @@ AxesPage::AxesPage(const UiContext &ctx, const AxesPageEnv &env, QWidget *parent
     timer_->setInterval(33);  // ~30 Hz
     timer_->setTimerType(Qt::CoarseTimer);
     connect(timer_, &QTimer::timeout, this, [this] { pollOnce(now()); });
-    undoTimer_ = new QTimer(this);
-    undoTimer_->setSingleShot(true);
-    undoTimer_->setInterval(15000);
-    connect(undoTimer_, &QTimer::timeout, this, [this] { dropUndo(); });
+    // Ctrl+Z (Cmd+Z) does the same as the Undo button, except while a text field has the focus. No time limit.
+    auto *undoKey = new QShortcut(QKeySequence::Undo, this);
+    undoKey->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(undoKey, &QShortcut::activated, this, [this] {
+        if (spn::ui::undoShortcutApplies(undo_.valid() && undoBar_->isVisibleTo(this), focusInTextInput())) undoWizard();
+    });
     refreshLive(now());  // the "Daemon: ..." line is there from the first frame
 }
 
@@ -293,8 +297,14 @@ void AxesPage::buildLivePage(QWidget *page) {
     auto *ubl = new QHBoxLayout(undoBar_);
     ubl->setContentsMargins(0, 0, 0, 0);
     undoApply_ = new QPushButton(T("Undo"));
-    undoApply_->setToolTip(T("Put the axis mixes and direction switches of the Global profile back as they were before Apply."));
+    undoApply_->setToolTip(T("Put the axis mixes and direction switches of the Global profile back as they were before Apply.") +
+                           QStringLiteral(" (") + QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText) + QLatin1Char(')'));
+    auto *dismissApply = new QPushButton(T("Dismiss"));
+    dismissApply->setObjectName(QStringLiteral("undoDismiss"));
+    dismissApply->setToolTip(T("Close this bar; the axis mixes stay as Apply set them"));
     ubl->addWidget(undoApply_);
+    ubl->addWidget(dismissApply);
+    connect(dismissApply, &QPushButton::clicked, this, [this] { dropUndo(); });
     ubl->addStretch(1);
     undoBar_->hide();
     l->addWidget(undoBar_);
@@ -550,6 +560,7 @@ void AxesPage::applyWizard() {
     if (!ctx_.settings || !ctx_.strings) return;
     std::string err;
     const spn::ui::GlobalSnapshot before = spn::ui::snapshotGlobal(*ctx_.settings);
+    dropUndo();  // the next Apply makes the offer of the last one obsolete
     if (!w.applyTo(*ctx_.settings, &err)) {
         applyNote_ = T("Error: %1").arg(qs(err));
         spn::ui::announce(this, applyNote_);
@@ -583,30 +594,36 @@ void AxesPage::applyWizard() {
     // The live page shows the outcome; a reload failure is reported but the file is saved.
     savedNote_ = r.reloaded ? T("Axis mixes saved to the Global profile.")
                             : T("Axis mixes saved to the Global profile. %1").arg(qs(r.error));
-    undo_ = before;  // one click brings the old values back for a while
+    undo_.before = before;  // one click brings the old values back, as long as nothing else changes them
+    undo_.after = spn::ui::snapshotGlobal(*ctx_.settings);
     undoBar_->setVisible(undo_.valid());
-    undoTimer_->start();
-    spn::ui::announce(this, savedNote_ + QLatin1Char(' ') + T("Undo is possible for a few seconds."));
+    spn::ui::announce(this, savedNote_ + QLatin1Char(' ') +
+                                T("Undo with the Undo button or %1. Dismiss closes the bar.")
+                                    .arg(QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)));
     refreshLive(now());
 }
 
 void AxesPage::dropUndo() {
-    undo_ = spn::ui::GlobalSnapshot();
-    undoBar_->hide();
+    undo_ = spn::ui::AppliedUndo();
+    if (undoBar_) undoBar_->hide();
+}
+
+void AxesPage::checkUndo() {
+    if (undo_.valid() && ctx_.settings && !undo_.stillApplies(*ctx_.settings)) dropUndo();
 }
 
 // Puts the Global values back as they were before Apply (the same keys, written at once).
 void AxesPage::undoWizard() {
+    checkUndo();
     if (!undo_.valid() || !ctx_.settings) return;
     std::string err;
-    if (!spn::ui::restoreGlobal(*ctx_.settings, undo_, &err)) {
+    if (!spn::ui::restoreGlobal(*ctx_.settings, undo_.before, &err)) {
         savedNote_ = T("Undo failed: %1").arg(qs(err));
         spn::ui::announce(this, savedNote_);
         refreshLive(now());
         return;
     }
     dropUndo();
-    undoTimer_->stop();
     refreshPartsHint();
     if (ctx_.autosave) {
         ctx_.autosave->requestImmediate();
@@ -621,6 +638,7 @@ void AxesPage::undoWizard() {
 
 void AxesPage::showEvent(QShowEvent *e) {
     QWidget::showEvent(e);
+    checkUndo();  // the Global values may have been edited on another page meanwhile
     timer_->start();  // polls the feed only while the page is visible
 }
 

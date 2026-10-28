@@ -57,6 +57,8 @@ public:
     QString resultText() const;  // the assistant's result text (self-test)
     bool applyForTest() { applyWizard(); return !wizardVisible(); }
     bool undoForTest() { undoWizard(); return !undo_.valid(); }
+    void dismissUndo() { dropUndo(); }
+    void configReloaded() { dropUndo(); }  // the configuration was read from disk again: the offer is obsolete
     void openWizard();
     void cancelWizard();
 
@@ -75,6 +77,7 @@ private:
     void applyWizard();
     void undoWizard();  // the Global values as they were before Apply
     void dropUndo();
+    void checkUndo();  // drops the offer when the Global values were changed by hand since Apply
     void refreshPartsHint();  // the sentence under the live bars: the axes of the shown configuration
     QLabel *partsHint_ = nullptr;
     int64_t now() const { return clock_.nsecsElapsed(); }
@@ -111,8 +114,7 @@ private:
     QCheckBox *manualAdvance_ = nullptr;           // "Don't advance automatically" (ui.conf: axis_assistant_manual_advance)
     QWidget *undoBar_ = nullptr;                   // Undo of the last Apply, for a while
     QPushButton *undoApply_ = nullptr;
-    QTimer *undoTimer_ = nullptr;
-    spn::ui::GlobalSnapshot undo_;
+    spn::ui::AppliedUndo undo_;
 };
 
 QWidget *createAxesPage(const UiContext &ctx);

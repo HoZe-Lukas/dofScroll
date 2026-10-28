@@ -442,6 +442,16 @@ static void testRemoveUndo() {
         assert(m.profiles().find(Section::APP, "a") < m.profiles().find(Section::APP, "b") &&
                m.profiles().find(Section::APP, "b") < m.profiles().find(Section::APP, "c"));
     }
+    // No time limit: 60 s, 10 minutes and 1 hour later the same copy restores the same profile (the copy holds no
+    // clock; only a change of the list, a reload or Dismiss ends the offer, which is the page's rule).
+    for (int elapsed : {60, 600, 3600}) {
+        (void)elapsed;
+        const size_t c = m.profiles().find(Section::APP, "c");
+        const RemovedProfile snapC = captureProfile(m, c);
+        assert(m.removeSection(c, &err));
+        size_t idx = 0;
+        assert(restoreProfile(m, snapC, &idx, &err) && m.effective(idx).zoom.sensitivity == 5);
+    }
     // a profile with this name exists again: nothing is restored; nothing to restore for Global or a bad index
     const RemovedProfile snap = captureProfile(m, m.profiles().find(Section::APP, "a"));
     assert(!restoreProfile(m, snap, nullptr, &err) && has(err, "exists"));

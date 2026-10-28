@@ -518,7 +518,7 @@ is lift/press in the configuration shown (the axis the channel mixes leave out: 
 system (`src/axis_convention.hpp`: Linux order, Windows driver order; macOS and the direct HID path use the
 Linux order until they are measured, issue #186). **Apply** is the default button (Enter), **Cancel** and Esc leave without writing. The result page lists what
 Apply changes in the Global profile ("now ..., new ..." for each mix) before anything is written, and after Apply
-the Axes page offers **Undo** for 15 seconds, which puts the old values of the same keys back. The check box
+the Axes page offers **Undo**, which puts the old values of the same keys back (rule below). The check box
 **Don't advance automatically** (off by default, remembered in `ui.conf`) keeps a detected step on screen until you
 press Next and never skips an optional step by itself. The axis rows show a plain second name ("z: Push forward /
 back") where the configuration says what the axis is; the Device selector exists only with two or more devices;
@@ -527,6 +527,17 @@ writes exactly the keys it always wrote (`SCROLL_V_MIX`, `SCROLL_H_MIX`, `ZOOM_M
 `*_SIGN` switches and `ZOOM_LATERAL`). The state is always text ("Waiting...", "Measuring...",
 "Detected"), the whole page works with the keyboard (Tab order: Apply, Next, Start/Measure again, Skip,
 Back, Cancel), and the daemon output stays paused while the assistant is open.
+
+**Undo stays available until you change something else; there is no time limit.** After removing a profile and
+after Apply in the axis assistant the page keeps an Undo offer (a bar with **Undo** and **Dismiss**, both reachable with
+the keyboard) for as long as you need, a minute or an hour. The offer ends only when something else makes it obsolete:
+for a removed profile another change of the profile list (add, remove, change application or device, move, import,
+New profile) or a reload of the configuration from disk; for Apply the next Apply or Undo, or a change of the Global
+values after Apply (Undo would overwrite it); and always when you press **Dismiss** or close the window. The two kinds
+are kept apart, so one does not drop the other. Ctrl+Z (Cmd+Z on macOS) on the Profiles page and on the assistant page
+does the same as the visible Undo button, but only while the focus is not in a text field, a spin box or an editable
+list, so the undo of the field itself keeps working; the button's tooltip shows the shortcut. A screen reader is told what can be
+undone and how (button and shortcut). No timer, animation or other visual element ever hides or disables the Undo control.
 
 The thresholds and times are keys in `ui.conf` (next to `language`, `theme`); there is no control
 for them in the interface. They are for people whose device needs other values: delete a line to get
@@ -705,8 +716,8 @@ file is written first, then the old one is removed; the profile keeps its place 
 **Move down** change the order (below); **Export...** saves the profile as a `.conf` file (a copy of its profile
 file; for Global the `[global]` keys the file holds); **Remove** deletes the profile (and its file) after asking
 once (Cancel is the default button, the destructive button is called "Remove profile"), nothing asks about unsaved
-changes; for 8 seconds afterwards **Undo** under the list brings the profile back with all its settings and its place in
-the order. Results and errors that appear in the status bar are also announced to screen readers. Global has no program or device and cannot be removed, it has only Export.
+changes; afterwards **Undo** under the list brings the profile back with all its settings and its place in
+the order (rule below). Results and errors that appear in the status bar are also announced to screen readers. Global has no program or device and cannot be removed, it has only Export.
 **Import profile...** takes such a `.conf` file: the header of the file decides the kind (`[device:...]` becomes a
 device profile, `[app:...]` a program profile); the file is checked completely before anything changes, and a
 Global file, a file with several profiles or with an invalid value is refused with a message. If a profile of that

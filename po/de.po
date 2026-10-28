@@ -5807,16 +5807,8 @@ msgid "Bring the removed profile back with all its settings"
 msgstr "Das entfernte Profil mit allen Einstellungen zurückholen"
 
 #: src/ui/qt/pages/axes_page.cpp
-msgid "You can undo this for a few seconds afterwards."
-msgstr "Du kannst das danach ein paar Sekunden lang rückgängig machen."
-
-#: src/ui/qt/pages/axes_page.cpp
 msgid "Profile \"%1\" removed."
 msgstr "Profil „%1“ entfernt."
-
-#: src/ui/qt/pages/axes_page.cpp
-msgid "Profile \"%1\" removed. Undo is possible for a few seconds."
-msgstr "Profil „%1“ entfernt. Du kannst es ein paar Sekunden lang rückgängig machen."
 
 #: src/ui/qt/pages/axes_page.cpp
 msgid "The profile \"%1\" could not be brought back: %2"
@@ -5859,10 +5851,6 @@ msgid "Axis mixes saved to the Global profile. %1"
 msgstr "Achsen-Mixe im Profil Global gespeichert. %1"
 
 #: src/ui/qt/pages/axes_page.cpp
-msgid "Undo is possible for a few seconds."
-msgstr "Du kannst das ein paar Sekunden lang rückgängig machen."
-
-#: src/ui/qt/pages/axes_page.cpp
 msgid "Undo failed: %1"
 msgstr "Rückgängig machen fehlgeschlagen: %1"
 
@@ -5889,3 +5877,27 @@ msgstr "„Anwenden“ setzt diese Achsen-Mixe im Profil Global und stellt die R
 #: src/ui/qt/pages/axes_page.cpp
 msgid "Reversed directions"
 msgstr "Umgekehrte Richtungen"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "You can undo this afterwards."
+msgstr "Du kannst das danach rückgängig machen."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Dismiss"
+msgstr "Schließen"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Close this bar; the profile stays removed"
+msgstr "Diese Leiste schließen; das Profil bleibt entfernt"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Close this bar; the axis mixes stay as Apply set them"
+msgstr "Diese Leiste schließen; die Achsen-Mixe bleiben so, wie „Anwenden“ sie gesetzt hat"
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Profile \"%1\" removed. Undo with the Undo button or %2. Dismiss closes the bar."
+msgstr "Profil „%1“ entfernt. Rückgängig mit der Schaltfläche „Rückgängig“ oder %2. „Schließen“ schließt die Leiste."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "Undo with the Undo button or %1. Dismiss closes the bar."
+msgstr "Rückgängig mit der Schaltfläche „Rückgängig“ oder %1. „Schließen“ schließt die Leiste."

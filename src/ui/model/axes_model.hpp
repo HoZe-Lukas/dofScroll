@@ -740,6 +740,14 @@ inline GlobalSnapshot snapshotGlobal(const SettingsModel &m) {
     }
     return snap;
 }
+// The offer of Undo after Apply: the values before and the values Apply wrote. It is on offer as long as the Global
+// profile still has the values Apply wrote; a change by hand after Apply makes it obsolete (it would overwrite that
+// change). Time plays no part.
+struct AppliedUndo {
+    GlobalSnapshot before, after;
+    bool valid() const { return before.valid() && after.valid(); }
+    bool stillApplies(const SettingsModel &m) const { return valid() && snapshotGlobal(m).values == after.values; }
+};
 // Puts the values back; all or nothing (on a failure the model is unchanged). Does not save.
 inline bool restoreGlobal(SettingsModel &m, const GlobalSnapshot &snap, std::string *err) {
     if (!snap.valid()) {
