@@ -39,8 +39,9 @@ per-device profiles and button counts work (unlike the merged stream of spacenav
 Hot-plug comes from the matching/removal callbacks. The `3DconnexionClient` framework (part of the
 proprietary SDK, incompatible with GPL-3.0-or-later) is not linked or shipped. The installed driver's
 client interface can be used as a second input path, loaded at run time with `dlopen` (setting `INPUT`;
-see `port-architecture.md`, "Driver interface backend", and `legal-notes.md`). A signed build with the
-hardened runtime needs the entitlement `com.apple.security.cs.disable-library-validation` for it.
+see `port-architecture.md`, "Driver interface backend", and `legal-notes.md`). The released image is signed with the
+hardened runtime and library validation, so this second input path cannot load there (it would need the entitlement
+`com.apple.security.cs.disable-library-validation`, which also lets the daemon load injected libraries); the default HID input is used.
 
 ### Output: CGEvent
 

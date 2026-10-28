@@ -328,7 +328,8 @@ requested, and that registration fails under the App Sandbox.
   driver may use it to pick per-application settings, none exist for it).
 - Library validation: a signed, hardened-runtime dofscroll needs the entitlement
   `com.apple.security.cs.disable-library-validation` to load the vendor framework (signed by another
-  team); see `security.md` section 13.
+  team). The released image does not set it (the entitlement also lets the daemon load
+  `DYLD_INSERT_LIBRARIES` code, shown by the CI test), so this input path cannot load there; see `security.md` section 13.
 
 ### Windows: the COM object
 
