@@ -43,6 +43,8 @@ if(DOFSCROLL_UI)
     src/ui/qt/ui_i18n.hpp
     src/ui/qt/ui_context.hpp
     src/ui/qt/qt_action_runner.cpp
+    src/ui/qt/signal_flush.cpp
+    src/ui/qt/signal_flush.hpp
     src/ui/qt/qt_action_runner.hpp
     src/ui/qt/pages/page_registry.cpp
     src/ui/qt/pages/page_registry.hpp

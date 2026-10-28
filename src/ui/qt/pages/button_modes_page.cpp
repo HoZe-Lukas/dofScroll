@@ -687,9 +687,9 @@ QString ButtonModesPage::originOf(const QString &id) const {
     return e ? qs8(spn::ui::buttonModeOriginText(e->builtin, e->overridesBuiltin, QtStrings())) : QString();
 }
 
-bool ButtonModesPage::exportButtonModeTo(const QString &id, const QString &dest) {
+bool ButtonModesPage::exportButtonModeTo(const QString &id, const QString &dest, bool overwrite) {
     flush();  // the copy holds the last change
-    const ButtonModeCatalog::Result r = catalog_.exportTo(id.toStdString(), dest.toStdString());
+    const ButtonModeCatalog::Result r = catalog_.exportTo(id.toStdString(), dest.toStdString(), overwrite);
     lastError_ = qs(r.error);
     return r.ok;
 }
@@ -698,10 +698,10 @@ void ButtonModesPage::onExport() {
     const ButtonModeCatalog::Entry *e = current();
     if (!e) return;
     const QString id = qs(e->id);
-    // The dialog asks before replacing; the model never overwrites, so an existing file is removed first.
+    // The dialog asks before replacing; a file that exists then is replaced atomically by the export itself, so a failed
+    // export leaves the old file as it was (it is never removed first).
     const QString file = QFileDialog::getSaveFileName(this, T("Export button mode file"), QDir::homePath() + QLatin1Char('/') + id + QStringLiteral(".conf"),
                                                       T("Button mode files (*.conf);;All files (*)"));
     if (file.isEmpty()) return;
-    if (QFileInfo::exists(file) && !QFile::remove(file)) return showError(T("Could not export the button mode."), file.toStdString());
-    if (!exportButtonModeTo(id, file)) showError(T("Could not export the button mode."), lastError_.toStdString());
+    if (!exportButtonModeTo(id, file, QFileInfo::exists(file))) showError(T("Could not export the button mode."), lastError_.toStdString());
 }

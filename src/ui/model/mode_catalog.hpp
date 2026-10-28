@@ -13,7 +13,7 @@
 //   c.inspectImport(path, name)              // check before copying: id, warnings, errors
 //   c.importFile(path, name)                 // same checks, then atomic copy, never overwrites
 //   c.rename(id, "New name")                 // file modes: new NAME and id (file name); references are NOT rewritten
-//   c.exportTo(id, destPath)                 // copy of the mode file to a chosen path, never overwrites
+//   c.exportTo(id, destPath)                 // copy of the mode file to a chosen path, overwrites only with the flag (atomic)
 //   ModeCatalog::usedBy(profiles, id)        // profile sections that select or switch to the mode
 //   c.remove(id)                             // file modes only; removing an override restores the built-in
 //   c.stamp() / c.refreshIfChanged()         // folder change detection for the view
@@ -360,9 +360,10 @@ public:
 
     // ---- export ----
     // Copies the file of a File / BuiltInOverridden mode to `dest` (a file path chosen by the user).
-    // Never overwrites, never follows a link at `dest`; the content is read with the import limits.
+    // Never overwrites unless `overwrite` (the user confirmed "replace": then a plain file at `dest` is replaced atomically,
+    // the old one stays until the new one is complete), never follows a link at `dest`; the content is read with the import limits.
     // Built-in modes without a file are exported as the template text of the built-in.
-    Result exportTo(const std::string &id, const std::string &dest) const {
+    Result exportTo(const std::string &id, const std::string &dest, bool overwrite = false) const {
         Result r;
         const ModeEntry *e = find(id);
         if (!e) return fail(r, "no such joystick mode");
@@ -375,8 +376,17 @@ public:
         } else if (!fs::readFileBounded(e->path, kMaxImportBytes, fs::ReadOptions(), &text).ok()) {
             return fail(r, "cannot read " + e->path);
         }
-        if (fs::pathExists(dest)) return fail(r, "the destination already exists");
-        if (!fs::createFileExclusive(dest, text)) return fail(r, "cannot create " + dest);
+        fs::FileInfo di;
+        if (fs::lstatPath(dest, &di)) {
+            if (!overwrite) return fail(r, "the destination already exists");
+            // The user confirmed "replace": the old file stays until the new content is complete (atomic replace),
+            // and only a plain file is replaced - never a link, a folder or anything else.
+            if (!di.isFile || di.isLink) return fail(r, "the destination is not a plain file");
+            std::string werr;
+            if (!fs::writeFileReplace(dest, text, &werr)) return fail(r, werr.empty() ? "cannot replace " + dest : werr);
+        } else if (!fs::createFileExclusive(dest, text)) {
+            return fail(r, "cannot create " + dest);
+        }
         r.ok = true;
         r.id = id;
         r.path = dest;
