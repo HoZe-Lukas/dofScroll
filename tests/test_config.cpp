@@ -327,8 +327,8 @@ static void testSaveLoad() {
     }
     {  // the header says where the profiles live now (devices/ and apps/), not the one-file layout (#244)
         std::ifstream f(p);
-        std::string head((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-        head = head.substr(0, head.find("\n[global]\n"));
+        const std::string all((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        const std::string head = all.substr(0, all.find("\n[global]\n"));
         assert(head.find("devices/<name>.conf") != std::string::npos);
         assert(head.find("apps/<name>.conf") != std::string::npos);
         assert(head.find("Sections:") == std::string::npos);
