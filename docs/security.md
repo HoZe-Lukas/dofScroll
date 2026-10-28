@@ -852,7 +852,7 @@ Known gaps, stated plainly:
   first. The application manifest is `asInvoker`, long-path aware, UTF-8 code page. These flags are
   compile/link-checked by the CI runners only; the `-fstack-protector`/`-pie`/`relro` set of the
   Linux build is not applicable. The hardening check script is Linux-only.
-- macOS: the sandbox/entitlement story (hardened runtime, notarization) belongs to packaging
+- macOS: the ad-hoc signature has the hardened runtime since issue #269 (DYLD_* variables are ignored; see `docs/release-process.md`); notarization and the sandbox/entitlement story belong to packaging
   (package W4), not to this layer.
 - Profile file names come from the profile name through a slugger that follows the same reserved-name
   rule as the path layer (`isReservedDeviceStem`: CON, CONIN$, COM and LPT with the superscript digits,
@@ -994,9 +994,10 @@ is restricted, fixed and logged. Background and the legal side: [legal-notes.md]
   only keep a different, user-writable file from being loaded in place of the installed driver. An
   administrator or malware with administrator rights can replace the driver; so they can replace
   dofscroll. On macOS a notarized, hardened-runtime build needs the entitlement
-  `com.apple.security.cs.disable-library-validation` to load a library signed by another team; this is
-  a trade-off to be decided when the DMG is signed (`release-process.md`), and the unsigned DMG
-  of today does not need it. Under the App Sandbox, registering with the driver fails (reported
+  `com.apple.security.cs.disable-library-validation` to load a library signed by another team; the DMG
+  sets it for the daemon only, as decided by the maintainer for parity with Windows. The trade-off, shown by the CI
+  injection test: that daemon also loads `DYLD_INSERT_LIBRARIES` code, while the interface and the diagnostic tool
+  ignore it (`release-process.md`). Under the App Sandbox, registering with the driver fails (reported
   publicly); dofscroll is not sandboxed.
 - **Failure modes:** driver absent, library or class refused by the checks, interface member
   missing ("interface mismatch"), registration or `Connect` refused, driver stops answering. In every
