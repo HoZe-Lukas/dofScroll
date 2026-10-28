@@ -144,12 +144,11 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     profileFilter_->setAccessibleName(T("Search profiles"));
     profileFilter_->setToolTip(T("Show only the programs and devices whose name contains this text"));
     ll->addWidget(profileFilter_);
-    // The pane has a small floor of its own (list and buttons 90 px): with wide glyphs (Windows fonts
-    // are about 1.6 times wider than Linux ones) the texts of the buttons must not push the splitter handle to the
-    // right and squeeze the editor, which would force a horizontal scroll bar. A narrow button clips its text; the
-    // tooltip and the accessible description carry the full name.
+    // The pane keeps the width its buttons and its list need (setCompactList below squeezes it only when the editor
+    // would otherwise not fit: wide glyphs, a small window).
+    list_ = left;
     tree_ = new QTreeWidget(left);
-    tree_->setMinimumWidth(90);
+    tree_->setMinimumWidth(170);
     tree_->setMinimumHeight(160);
     tree_->setHeaderHidden(true);
     tree_->setTextElideMode(Qt::ElideMiddle);  // a long program name keeps its beginning and its end
@@ -165,8 +164,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     new_profile_->setObjectName(QStringLiteral("newProfile"));
     new_profile_->setToolTip(T("Build a profile from existing joystick modes, button modes and the motions and buttons of other profiles"));
     for (QPushButton *b : {add_app_, add_dev_, import_, new_profile_}) {
-        b->setMinimumWidth(90);
-        b->setAccessibleDescription(b->toolTip());
+        b->setAccessibleDescription(b->toolTip());  // the full name when a narrow button clips its text
         ll->addWidget(b);
     }
     // defective profile files, in words (never hidden: the file is not used and not overwritten)
@@ -193,9 +191,6 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     dismiss->setObjectName(QStringLiteral("undoDismiss"));
     dismiss->setToolTip(T("Close this bar; the profile stays removed"));
     ul->addWidget(undoLabel_, 1);
-    undoLabel_->setMinimumWidth(40);
-    undoButton->setMinimumWidth(48);
-    dismiss->setMinimumWidth(48);
     ul->addWidget(undoButton);
     ul->addWidget(dismiss);
     undoBar_->hide();
@@ -232,8 +227,6 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     headerName_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     headerKind_ = new QLabel(header);
     headerKind_->setForegroundRole(QPalette::PlaceholderText);
-    headerName_->setMinimumWidth(40);  // a long name or wide glyphs never widen the page
-    headerKind_->setMinimumWidth(40);
     hl->addWidget(headerIcon_);
     hl->addWidget(headerName_);
     hl->addWidget(headerKind_);
@@ -255,7 +248,6 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     rl->addWidget(tabs_, 1);
     tabs_->setMinimumWidth(260);  // the editor never gets squashed, and the page fits the smallest window
     right->setMinimumWidth(260 + tk::kSpaceMd);  // an explicit floor: nothing inside (header, filter) widens the page
-    left->setMinimumWidth(90 + tk::kSpaceMd);
     split->setChildrenCollapsible(false);
 
     // The tabs exist once; they stay when another profile is selected (only their content changes).
@@ -298,14 +290,22 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     // ... and more when the inspector of the motions needs it (wide glyphs): the list gives up width down to its floor
     defaults->setRightNeed(
         [this] {
-            if (!motions_ || !motions_->isVisibleTo(tabs_)) return 0;
+            if (!motions_ || !motions_->isVisibleTo(tabs_)) {
+                setCompactList(false);
+                return 0;
+            }
             QWidget *area = motions_->parentWidget();  // the viewport of the scroll area
             QWidget *rightPane = tabs_->parentWidget();
             const int overhead = (area && rightPane && area->width() > 0) ? rightPane->width() - area->width() : 80;
             const int bar = style()->pixelMetric(QStyle::PM_ScrollBarExtent);  // the vertical bar may come with the content
-            return motions_->minimumSizeHint().width() + std::max(overhead, 40) + bar + tk::kSpaceMd;
+            const int need = motions_->minimumSizeHint().width() + std::max(overhead, 40) + bar + tk::kSpaceMd;
+            // The list keeps what its buttons need unless the editor then does not fit.
+            setCompactList(false);
+            const int natural = list_->minimumSizeHint().width();
+            setCompactList(split_->width() - split_->handleWidth() < natural + need);
+            return need;
         },
-        90 + tk::kSpaceMd);
+        [this] { return compactList_ ? kCompactListWidth + tk::kSpaceMd : list_->minimumSizeHint().width(); });
     motions_->inspectorBuilt = [defaults] { defaults->fit(); };
     outer->addWidget(split, 1);
 
@@ -622,6 +622,24 @@ void ProfilesPage::rebuildHeader() {
     headerKind_->setText(section == 0                   ? T("Global profile")
                          : info.kind == Section::DEVICE ? T("Device profile")
                                                         : T("Program profile"));
+}
+
+// With wide glyphs (Windows fonts are about 1.6 times wider than Linux ones) the buttons of the list and the Motions
+// inspector together need more than a small window has. The list then gives up its natural width: its pieces get a
+// small minimum, a button clips its text (the tooltip and the accessible description carry the full name) and the
+// header texts shrink. Back to the natural minimums as soon as everything fits.
+void ProfilesPage::setCompactList(bool on) {
+    if (on == compactList_) return;
+    compactList_ = on;
+    const int w = on ? kCompactListWidth : 0;
+    tree_->setMinimumWidth(on ? w : 170);
+    for (QPushButton *b : {add_app_, add_dev_, import_, new_profile_}) b->setMinimumWidth(w);
+    list_->setMinimumWidth(on ? w + tk::kSpaceMd : 0);
+    headerName_->setMinimumWidth(on ? 40 : 0);
+    headerKind_->setMinimumWidth(on ? 40 : 0);
+    undoLabel_->setMinimumWidth(on ? 40 : 0);
+    for (QPushButton *b : undoBar_->findChildren<QPushButton *>()) b->setMinimumWidth(on ? 48 : 0);
+    list_->updateGeometry();
 }
 
 // Fills the tab area with the parts (the old content is replaced).

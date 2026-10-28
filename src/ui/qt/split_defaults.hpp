@@ -32,9 +32,9 @@ public:
         connect(split, &QSplitter::splitterMoved, this, [this] { moved_ = true; });  // the user's choice wins
     }
 
-    void setRightNeed(std::function<int()> need, int listFloor) {
+    void setRightNeed(std::function<int()> need, std::function<int()> listFloor) {
         need_ = std::move(need);
-        floor_ = listFloor;
+        floor_ = std::move(listFloor);
     }
     // Sets the sizes again (the editor's need changed, for example after its content was rebuilt with another font).
     void fit() {
@@ -53,14 +53,14 @@ private:
         int list = listSideWidth(total, percent_, min_);
         if (need_) {
             const int need = need_();
-            if (need > 0) list = std::min(list, std::max(floor_, total - need - split_->handleWidth()));
+            if (need > 0) list = std::min(list, std::max(floor_ ? floor_() : 0, total - need - split_->handleWidth()));
         }
         split_->setSizes({list, total - list});
     }
 
     QSplitter *split_;
     int percent_, min_;
-    int floor_ = 0;
+    std::function<int()> floor_;
     std::function<int()> need_;
     bool moved_ = false;
 };
