@@ -143,9 +143,10 @@ before happens by itself:
   steps with live checks, "dofscroll is running", "SpaceMouse found", "Start at login" (a check box,
   on by default), on macOS the two permissions, and "Try it". See [ui.md](ui.md#the-setup-guide). Skip
   it, finish it, or open it again later with **Show setup guide** on the Overview.
-- **Linux packages enable the SpaceMouse driver service.** On every install and upgrade the RPM and DEB
-  run `systemctl enable --now spacenavd.service` as root, best effort, when the unit exists and is not
-  enabled (it never fails the installation). A fresh install does not start your dofscroll units: the
+- **Linux packages never enable the SpaceMouse driver service.** `spacenavd` is a system service that an
+  administrator may have disabled on purpose, so the RPM and DEB leave it alone. When its unit exists but it is
+  not running, the install or upgrade prints how to start it:
+  `sudo systemctl enable --now spacenavd.service`. A fresh install does not start your dofscroll units: the
   interface does that at the first start.
 
 The steps below are the alternative: for a TGZ install, a machine without a desktop, or when the
@@ -157,8 +158,8 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 
 Do these steps once per machine. Steps 1 and 5 need root.
 
-1. Enable the SpaceMouse driver (the RPM and DEB do this themselves; needed for the TGZ, or when the
-   package could not):
+1. Enable the SpaceMouse driver (the RPM, DEB and TGZ never do this for you; the package only prints the command
+   when the service exists and is not running):
 
         sudo systemctl enable --now spacenavd
 
@@ -282,7 +283,7 @@ The package stops and starts the programs on its own, in three steps (RPM `%pre`
 **before** the files are replaced it stops `dofscroll-ui.service` and `dofscroll.service` of every
 logged-in user (the daemon releases held keys when it stops); **after** the files are in place it runs
 `systemctl --user daemon-reload` and starts both again, the daemon first, whether they were running before
-or not. A fresh install starts none of your units (the first start of the interface does it, see the first-time setup), but, like every install and upgrade, enables the system service `spacenavd.service` when it is not enabled. If nobody was logged
+or not. A fresh install starts none of your units (the first start of the interface does it, see the first-time setup). No step enables or starts the system service `spacenavd.service`; when it exists and is not running, the install or upgrade prints the command to start it. When the package is **removed**, a fourth step (RPM `%preun`, DEB `prerm`) stops and disables `dofscroll-ui.service` and `dofscroll.service` of every logged-in user, and nothing else; it does nothing on an upgrade. Users who are not logged in keep an enable link that systemd ignores once the unit files are gone. If nobody was logged
 in through logind, or you run the program from a terminal, restart by hand (user names with an `@`, such as domain accounts, are handled; an interface that was not started by its unit, for example by the desktop's session restore, is stopped and started through the unit when its binary was replaced):
 
     systemctl --user daemon-reload

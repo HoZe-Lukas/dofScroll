@@ -60,7 +60,11 @@ endif()
 # them as %pre and %post.
 set(CPACK_RPM_PRE_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/packaging/cpack/preinst)
 set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/packaging/cpack/postinst)
+# packaging/cpack/prerm (RPM %preun, DEB prerm) stops and disables the two dofscroll user units of every logged-in
+# user when the package is removed (not on an upgrade).
+set(CPACK_RPM_PRE_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/packaging/cpack/prerm)
 set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA ${CMAKE_SOURCE_DIR}/packaging/cpack/preinst
-                                       ${CMAKE_SOURCE_DIR}/packaging/cpack/postinst)
+                                       ${CMAKE_SOURCE_DIR}/packaging/cpack/postinst
+                                       ${CMAKE_SOURCE_DIR}/packaging/cpack/prerm)
 
 include(CPack)

@@ -1003,8 +1003,13 @@ workflows). Nothing high or critical, no local privilege escalation. Fixed in 1.
 - **Display text from files, programs and devices** (profile names and match strings, device names, mode texts,
   configuration path, action texts) is shown as plain text in the labels that carry it. Before, a name such as
   `<img src=...>` could be rendered as rich text.
-- **Upgrade scripts (`packaging/cpack/preinst` and `postinst`, run as root):** `preinst` stops the user units
-  (interface, then daemon) and `postinst` starts them again, for every logged-in user; no file is written. A user name must not start with `-`; every
+- **Package scripts (`packaging/cpack/preinst`, `postinst` and `prerm`, run as root):** `preinst` stops the user units
+  (interface, then daemon) and `postinst` starts them again, for every logged-in user; `prerm` (removal only) stops and
+  disables those two units, nothing else. `postinst` never enables or starts `spacenavd` (an administrator may have
+  disabled it on purpose, issue #264): it only prints the command when the service exists and is not running. It
+  removes a dangling enable link of the old tray unit in a user's home only as that user (`runuser -u`), never as root
+  (a path in a user-controlled directory can be swapped between the check and the removal, L4 of #266); the one
+  removal as root is in the administrator's `/etc/systemd/user`. No file of the configuration is written. A user name must not start with `-`; every
   call is time-limited, and when `timeout` is missing nothing is done; a process is signalled only after its owner is
   checked again right before the signal (process numbers can be reused); an interface is stopped only for a user who
   has the unit enabled.

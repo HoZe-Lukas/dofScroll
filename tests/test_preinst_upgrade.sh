@@ -39,8 +39,7 @@ cat > "$T/bin/systemctl" <<EOF
 echo "systemctl \$*" >> "$T/log"
 case "\$*" in
     *"cat spacenavd.service"*) exit \${FAKE_SPACENAVD_EXISTS:-0} ;;
-    *"is-enabled"*spacenavd*) exit \${FAKE_SPACENAVD_ENABLED:-1} ;;
-    *"enable --now spacenavd"*) exit \${FAKE_ENABLE_RC:-0} ;;
+    *"is-active"*spacenavd*) exit \${FAKE_SPACENAVD_ACTIVE:-3} ;;
     *is-active*) exit \${FAKE_ACTIVE:-0} ;;
     *is-enabled*) exit 1 ;;
 esac
@@ -135,54 +134,81 @@ grep -q "^$M start dofscroll.service" "$T/log" || fail "case 8: daemon not start
 grep -q "start dofscroll-ui.service" "$T/log" && fail "case 8: interface started although the package has no interface unit"
 : > "$T/ui.service"
 
-# 10. spacenavd (the SpaceMouse driver service): on every install and upgrade, a fresh install included, the
-#     system service is enabled and started when its unit exists and is not enabled. A fresh install must not
-#     touch the user's dofscroll units (the interface starts the daemon at the first start).
+# 10. spacenavd (the SpaceMouse driver service) is NEVER enabled or started by the package (an administrator may have
+#     disabled it on purpose). When its unit exists but it is not running, a message tells how to enable it, on a
+#     fresh install and on an upgrade alike. A fresh install must not touch the user's dofscroll units (the
+#     interface starts the daemon at the first start).
 mkdir -p "$T/run-systemd"
-SC="systemctl enable --now spacenavd.service"
-for args in "1" "configure \"\""; do
+out() { PATH="$T/bin:$PATH" sh "$T/postinst" "$@" 2>&1; }
+for args in "1" "configure" "2" "configure 1.2.1"; do
     reset
-    eval "run postinst $args"
-    grep -q "^$SC" "$T/log" || fail "case 10: spacenavd not enabled on a fresh install ($args)"
-    grep -q -- "--user\|dofscroll" "$T/log" && fail "case 10: a fresh install touched the user's dofscroll units ($args)"
+    msg=$(out $args) || fail "case 10: postinst exited non-zero ($args)"
+    echo "$msg" | grep -q "sudo systemctl enable --now spacenavd.service" || fail "case 10: no message about spacenavd ($args)"
+    grep -q "systemctl enable\|systemctl start spacenavd\|systemctl restart spacenavd\|--now" "$T/log" && fail "case 10: spacenavd was enabled or started ($args)"
 done
 reset
-run postinst 2
-grep -q "^$SC" "$T/log" || fail "case 10: spacenavd not enabled on an upgrade"
-reset
-run postinst configure 1.2.1
-grep -q "^$SC" "$T/log" || fail "case 10: spacenavd not enabled on a DEB upgrade"
-grep -q "^$SC" "$T/log" && [ "$(line "cat spacenavd.service")" -lt "$(line "enable --now spacenavd")" ] || fail "case 10: the unit must be looked up first"
+out 1 >/dev/null
+grep -q -- "--user\|dofscroll" "$T/log" && fail "case 10: a fresh install touched the user's dofscroll units"
+grep -v '^ *#' "$SRC/packaging/cpack/postinst" | grep -v 'echo ' | grep -q "systemctl enable\|systemctl start spacenavd" \
+    && fail "case 10: postinst enables or starts a service"
 
-# 11. Already enabled, or no such unit: nothing is enabled.
+# 11. Already running, or no such unit: no message.
 reset
-FAKE_SPACENAVD_ENABLED=0 run postinst 1
-grep -q "enable --now spacenavd" "$T/log" && fail "case 11: an enabled spacenavd was enabled again"
+msg=$(FAKE_SPACENAVD_ACTIVE=0 out 1)
+[ -z "$msg" ] || fail "case 11: message although spacenavd runs"
 reset
-FAKE_SPACENAVD_EXISTS=1 run postinst 1
-grep -q "enable --now spacenavd" "$T/log" && fail "case 11: spacenavd enabled although its unit does not exist"
+msg=$(FAKE_SPACENAVD_EXISTS=1 out 1)
+[ -z "$msg" ] || fail "case 11: message although the unit does not exist"
 
-# 12. A failing enable never fails the package transaction.
+# 12. The postinst never fails the package transaction, whatever systemctl says.
 reset
-FAKE_ENABLE_RC=1 run postinst 1
+FAKE_SPACENAVD_EXISTS=5 FAKE_SPACENAVD_ACTIVE=5 run postinst 1
 
 # 13. No running systemd (chroot, image build), or a DEB action that is not configure: nothing.
 reset
 rm -rf "$T/run-systemd"
-run postinst 1
-run postinst 2
+msg=$(out 1; out 2)
+[ -z "$msg" ] || fail "case 13: message without a running systemd"
 [ "$(grep -c "spacenavd" "$T/log")" = 0 ] || fail "case 13: systemctl called for spacenavd without a running systemd"
 mkdir -p "$T/run-systemd"
 reset
 run postinst abort-upgrade 1.2.1
 [ ! -s "$T/log" ] || fail "case 13: abort-upgrade did something"
 
-# 14. Without timeout the spacenavd step is skipped too (every call is time-limited).
+# 14. Without timeout the spacenavd message is skipped too (every call is time-limited).
 reset
 sed 's/command -v timeout >/command -v no-such-timeout-tool >/' "$T/postinst" > "$T/postinst14"
 PATH="$T/bin:$PATH" sh "$T/postinst14" 1 || fail "case 14: postinst exited non-zero"
 [ ! -s "$T/log" ] || fail "case 14: systemctl called although timeout is missing"
 rm -rf "$T/run-systemd"
+
+# 15. prerm (RPM %preun / DEB prerm): on removal only, stop and disable the two user units; an upgrade does nothing.
+cp "$SRC/packaging/cpack/prerm" "$T/prerm"
+for args in "0" "remove"; do
+    reset
+    run prerm $args
+    for u in dofscroll-ui.service dofscroll.service; do
+        grep -q "^$M stop $u" "$T/log" || fail "case 15: $u not stopped ($args)"
+        grep -q "^$M disable $u" "$T/log" || fail "case 15: $u not disabled ($args)"
+    done
+    [ "$(line "stop dofscroll-ui.service")" -lt "$(line "stop dofscroll.service")" ] || fail "case 15: the interface must be stopped first"
+    grep -v "dofscroll" "$T/log" | grep -q . && fail "case 15: prerm touched something else ($args)"
+done
+for args in "1" "2" "upgrade" "deconfigure" "failed-upgrade" ""; do
+    reset
+    run prerm $args
+    [ ! -s "$T/log" ] || fail "case 15: prerm acted on an upgrade or an unknown action ($args)"
+done
+reset
+sed 's/command -v timeout >/command -v no-such-timeout-tool >/' "$T/prerm" > "$T/prerm15"
+PATH="$T/bin:$PATH" sh "$T/prerm15" 0 || fail "case 15: prerm exited non-zero without timeout"
+[ ! -s "$T/log" ] || fail "case 15: systemctl called although timeout is missing"
+reset
+FAKE_USER='x;rm' run prerm 0
+[ ! -s "$T/log" ] || fail "case 15: unsafe user name used"
+grep -q 'dofscroll\.conf\|\.config/dofscroll' "$SRC/packaging/cpack/prerm" && fail "case 15: prerm touches the configuration"
+grep -q '^set -[a-z]*e' "$SRC/packaging/cpack/prerm" && fail "case 15: prerm uses set -e"
+[ "$(tail -n 1 "$SRC/packaging/cpack/prerm")" = "exit 0" ] || fail "case 15: prerm must end with exit 0"
 
 # 9. Neither script touches the configuration of a user, and neither can fail the transaction.
 grep -q 'dofscroll\.conf\|\.config/dofscroll' "$SRC/packaging/cpack/preinst" && fail "case 9: preinst touches the configuration"
