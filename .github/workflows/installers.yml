@@ -230,12 +230,23 @@ jobs:
           test -e "$inj/marker" || { echo "::error::test setup: a program without the hardened runtime should load the injected library"; exit 1; }
           # The daemon is not in this list: it has disable-library-validation (to load the vendor framework, like on
           # Windows) and then loads injected libraries too; the first CI run showed that. Documented in release-process.md.
-          for prog in "$probe" "$mnt/dofscroll.app/Contents/MacOS/dofscroll-ui"; do
-            rm -f "$inj/marker"
-            INJECT_MARKER="$inj/marker" DYLD_INSERT_LIBRARIES="$inj/inject.dylib" "$prog" --version >/dev/null 2>&1 || true
-            if [ -e "$inj/marker" ]; then echo "::error::$prog loaded a library from DYLD_INSERT_LIBRARIES"; exit 1; fi
-            echo "hardened: $prog ignores DYLD_INSERT_LIBRARIES"
-          done
+          # GitHub's macOS runners run with System Integrity Protection off, and then dyld honours DYLD_* variables even for
+          # hardened programs (seen in the first runs: a hardened hidprobe loaded the library). The behavior can only be tested
+          # with SIP on; here the flags are checked instead (build-dmg.sh: `runtime` flag, no allow-dyld-environment-variables).
+          csrutil status || true
+          if csrutil status 2>&1 | grep -q 'enabled'; then
+            for prog in "$probe" "$mnt/dofscroll.app/Contents/MacOS/dofscroll-ui"; do
+              rm -f "$inj/marker"
+              INJECT_MARKER="$inj/marker" DYLD_INSERT_LIBRARIES="$inj/inject.dylib" "$prog" --version >/dev/null 2>&1 || true
+              if [ -e "$inj/marker" ]; then echo "::error::$prog loaded a library from DYLD_INSERT_LIBRARIES"; exit 1; fi
+              echo "hardened: $prog ignores DYLD_INSERT_LIBRARIES"
+            done
+          else
+            echo "::notice::SIP is off on this runner: the DYLD_INSERT_LIBRARIES behavior is not tested here, only the signature flags (a human check on a real Mac)"
+            for prog in "$probe" "$mnt/dofscroll.app/Contents/MacOS/dofscroll-ui"; do
+              codesign -d --verbose=2 "$prog" 2>&1 | grep -q 'flags=.*runtime'
+            done
+          fi
           script="$mnt/dofscroll.app/Contents/Resources/diagnostics/test-driver-coexistence.sh"
           test -x "$script"
           bash "$script" --non-interactive --report "$RUNNER_TEMP/coexistence-report.txt" >/dev/null

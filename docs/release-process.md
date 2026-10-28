@@ -203,7 +203,7 @@ by rebuilding in the refreshed images (the CI image is rebuilt weekly).
   daemon also loads `DYLD_INSERT_LIBRARIES` code, so only the interface and `dofscroll-hidprobe` are protected
   against injection; the daemon is not (the same as on Windows, where nothing stops a process of the same user).
   Without the optional driver-interface input the entitlement could be dropped. `build-dmg.sh` checks the flags and the entitlements
-  and the macOS job of `installers.yml` starts the interface and `dofscroll-hidprobe` with `DYLD_INSERT_LIBRARIES` and fails if the library ran
+  and the macOS job of `installers.yml` starts the interface and `dofscroll-hidprobe` with `DYLD_INSERT_LIBRARIES` and fails if the library ran, but only when System Integrity Protection is on; GitHub's runners have it off (dyld then honors the variable even for hardened programs), so there only the signature flags are checked and the behavior stays a human check on a real Mac
   (with a program that is not hardened as positive control).
   Gatekeeper still treats the download as unidentified and unnotarized; the first-run steps are in
   [installation.md](installation.md). Only Apple silicon is built (`macos-latest`).
