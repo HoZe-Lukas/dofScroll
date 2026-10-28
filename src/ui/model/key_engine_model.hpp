@@ -52,12 +52,21 @@ inline std::string keyEngineKey(const std::string &motionId, KeyField f) {
 struct AnalogChoice {
     bool shown = false;    // the function presses keys (keys: or step:), so the check box is there
     bool analog = false;   // keys: (checked)
+    bool hold = false;     // hold:<neg>,<pos>: digital, a key or button is held while the motion is deflected
     bool allowed = false;  // analog may be chosen: no tier B key, not the lift
     std::string reason;    // why it is greyed (English source text through the provider); empty when allowed
 };
 
 // Is an analog `keys:` allowed for these chords? Reason in words when not. A `none` side is no key.
 inline bool analogAllowedFor(const std::string &motionId, const ChannelForm &form, std::string *reason, const StringProvider &s) {
+    if (form.type == ChannelActionType::Hold) {
+        if (reason) *reason = s.tr("Holding is always digital: the key or button is held while you push past the trigger level and let go when you ease back to half of it.");
+        return false;
+    }
+    if (form.anyMouse()) {
+        if (reason) *reason = s.tr("A mouse click can only be used digitally: one click per push.");
+        return false;
+    }
     if (motionId == "lift") {
         if (reason) *reason = s.tr("Lift / press can fire when you grab the cap, so it only presses one key per push.");
         return false;
@@ -75,6 +84,7 @@ inline AnalogChoice analogChoice(const std::string &motionId, const ChannelForm 
     AnalogChoice c;
     c.shown = form.usesKeys();
     c.analog = form.type == ChannelActionType::Keys;
+    c.hold = form.type == ChannelActionType::Hold;
     if (!c.shown) return c;
     c.allowed = analogAllowedFor(motionId, form, &c.reason, s);
     if (c.analog) c.allowed = true;  // already analog: it was accepted once, let the user switch it off
@@ -85,6 +95,8 @@ inline AnalogChoice analogChoice(const std::string &motionId, const ChannelForm 
 // The check box: keys: <-> step:. The chords stay as they are. false (and nothing changed) when the form presses no keys.
 inline bool setAnalog(ChannelForm *form, bool analog) {
     if (!form->usesKeys()) return false;
+    if (analog && (form->type == ChannelActionType::Hold || form->anyMouse())) return false;  // digital only
+    if (form->type == ChannelActionType::Hold) return false;  // the check box is greyed: a hold stays a hold
     form->type = analog ? ChannelActionType::Keys : ChannelActionType::Step;
     return true;
 }
@@ -134,11 +146,15 @@ struct KeyEngineWords {
     std::string trigger;
     std::string defaults;  // what an empty field means, and the UI defaults
 };
-inline KeyEngineWords keyEngineWords(bool analog, const Settings &effective, const std::string &motionId, const StringProvider &s) {
+inline KeyEngineWords keyEngineWords(bool analog, const Settings &effective, const std::string &motionId, const StringProvider &s,
+                                     bool hold = false) {
     KeyEngineWords w;
     const double t = effectiveTrigger(effective, motionId);
     const int pct = triggerPercent(effective, motionId, t);
-    if (analog) {
+    if (hold) {
+        w.mode = s.tr("Hold: the key or button is held down while you push past the trigger level and let go when you ease back to half of it. It is never let go on a timer, so a long drag works.");
+        w.defaults = s.tr("Empty: the level of the whole configuration (STEP_TRIGGER) applies.");
+    } else if (analog) {
         w.mode = s.tr("Analog: the key repeats faster the further you push, between the lowest and the highest rate below.");
         w.defaults = s.tr("Empty: no lower limit, and the repeat follows the push (never more than 100 presses a second). A new analog function starts with 3 to 25 presses a second.");
     } else {

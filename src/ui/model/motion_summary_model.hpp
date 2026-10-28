@@ -82,6 +82,8 @@ inline std::string keyWords(const std::string &chord) {
         std::string part = chord.substr(start, plus - start);
         if (part == "pageup") part = "page up";
         else if (part == "pagedown") part = "page down";
+        else if (part == "rightclick") part = "right click";
+        else if (part == "middleclick") part = "middle click";
         if (!part.empty() && part[0] >= 'a' && part[0] <= 'z') part[0] = char(part[0] - 'a' + 'A');
         if (start != 0) out += "+";
         out += part;
@@ -142,9 +144,20 @@ inline MotionRow rowFor(const char *id, const std::string &name, const std::stri
             r.detail = neg + " / " + pos;
             r.symbol = "keys";
             break;
+        case ChannelActionType::Hold:
+            r.action = format(s.tr("Held while pushed: %1 / %2"), {neg, pos});
+            r.chip = s.tr("Hold");
+            r.detail = neg + " / " + pos;
+            r.symbol = "step";
+            break;
         default:  // Step
-            r.action = format(s.tr("One tap per push: %1 / %2"), {neg, pos});
-            r.chip = s.tr("Taps");
+            if (a.negMouse || a.posMouse) {
+                r.action = format(s.tr("One click per push: %1 / %2"), {neg, pos});
+                r.chip = s.tr("Click");
+            } else {
+                r.action = format(s.tr("One tap per push: %1 / %2"), {neg, pos});
+                r.chip = s.tr("Taps");
+            }
             r.detail = neg + " / " + pos;
             r.symbol = "step";
             break;

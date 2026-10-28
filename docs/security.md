@@ -723,7 +723,11 @@ by a file). Assessment and limits:
   Delete, Backspace, Esc, space, `alt` or `super` chords, play/pause, a lone modifier) is tier B: the parser refuses
   `keys:` with "this key can only be used digitally, use step:" in mode files, profiles and the interface alike, and only
   `step:` (one press per push) is accepted, with the plain load warning above. The lift never takes an analog key. There is
-  no switch that lifts the rule. The key presses are also capped per tick (4 per function, 8 in all) and the repeat rate at
+  no switch that lifts the rule. Mouse clicks and holds on a motion (`step:` with `click`, `rightclick`, `middleclick`; `hold:`
+  with a key, a chord or a mouse button) are tier B as well: digital only (`keys:` with a click is refused), the plain load
+  warning, no gate. A held key or button is released on every path that releases keys (mode change, reload, suspend,
+  `ENABLED = 0`, device removal, stale source, safety net, unbinding program profile); it is not let go on a timer, a hold longer
+  than 60 seconds is only logged once. A hold unions with the zoom modifier and with other holds. The key presses are also capped per tick (4 per function, 8 in all) and the repeat rate at
   `min(100, TICK_HZ / 2)` presses per second. `ENABLED`, `BACKEND` and `TICK_HZ`
   are rejected in mode files so that a mode cannot switch output off.
 - **Held state:** keys and buttons held by a mode are released on mode change, suspend,
