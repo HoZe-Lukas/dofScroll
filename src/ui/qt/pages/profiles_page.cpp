@@ -144,12 +144,12 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     profileFilter_->setAccessibleName(T("Search profiles"));
     profileFilter_->setToolTip(T("Show only the programs and devices whose name contains this text"));
     ll->addWidget(profileFilter_);
-    // The pane has a small floor of its own (list and buttons 120 px): with wide glyphs (Windows fonts
+    // The pane has a small floor of its own (list and buttons 90 px): with wide glyphs (Windows fonts
     // are about 1.6 times wider than Linux ones) the texts of the buttons must not push the splitter handle to the
     // right and squeeze the editor, which would force a horizontal scroll bar. A narrow button clips its text; the
     // tooltip and the accessible description carry the full name.
     tree_ = new QTreeWidget(left);
-    tree_->setMinimumWidth(120);
+    tree_->setMinimumWidth(90);
     tree_->setMinimumHeight(160);
     tree_->setHeaderHidden(true);
     tree_->setTextElideMode(Qt::ElideMiddle);  // a long program name keeps its beginning and its end
@@ -165,7 +165,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     new_profile_->setObjectName(QStringLiteral("newProfile"));
     new_profile_->setToolTip(T("Build a profile from existing joystick modes, button modes and the motions and buttons of other profiles"));
     for (QPushButton *b : {add_app_, add_dev_, import_, new_profile_}) {
-        b->setMinimumWidth(120);
+        b->setMinimumWidth(90);
         b->setAccessibleDescription(b->toolTip());
         ll->addWidget(b);
     }
@@ -255,7 +255,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     rl->addWidget(tabs_, 1);
     tabs_->setMinimumWidth(260);  // the editor never gets squashed, and the page fits the smallest window
     right->setMinimumWidth(260 + tk::kSpaceMd);  // an explicit floor: nothing inside (header, filter) widens the page
-    left->setMinimumWidth(120 + tk::kSpaceMd);
+    left->setMinimumWidth(90 + tk::kSpaceMd);
     split->setChildrenCollapsible(false);
 
     // The tabs exist once; they stay when another profile is selected (only their content changes).
@@ -305,7 +305,7 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
             const int bar = style()->pixelMetric(QStyle::PM_ScrollBarExtent);  // the vertical bar may come with the content
             return motions_->minimumSizeHint().width() + std::max(overhead, 40) + bar + tk::kSpaceMd;
         },
-        120 + tk::kSpaceMd);
+        90 + tk::kSpaceMd);
     motions_->inspectorBuilt = [defaults] { defaults->fit(); };
     outer->addWidget(split, 1);
 
