@@ -3,15 +3,19 @@
 #include "unix_socket.hpp"
 
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include <cerrno>
 #include <cstring>
+#include <ctime>
 
 #include "fs.hpp"
 
 namespace spn::usock {
+
+static const int kConnectTimeoutMs = 500;
 
 bool dirTrusted(const std::string &dir, std::string *err) {
     struct stat st;
@@ -74,6 +78,55 @@ int sendFlags() {
 #endif
 }
 
+// Connects a fresh socket without ever blocking longer than timeoutMs (a listener with a full
+// backlog never lets a blocking connect() return). Leaves the socket non-blocking. 0 on success,
+// else an errno value (ETIMEDOUT when the time ran out).
+static int connectWithTimeout(int fd, const struct sockaddr_un &addr, int timeoutMs) {
+    if (!setNonBlocking(fd)) return errno;
+    struct timespec t0;
+    ::clock_gettime(CLOCK_MONOTONIC, &t0);
+    auto elapsedMs = [&t0]() {
+        struct timespec t;
+        ::clock_gettime(CLOCK_MONOTONIC, &t);
+        return static_cast<long>((t.tv_sec - t0.tv_sec) * 1000L + (t.tv_nsec - t0.tv_nsec) / 1000000L);
+    };
+    for (;;) {
+        if (::connect(fd, reinterpret_cast<const struct sockaddr *>(&addr), sizeof addr) == 0) return 0;
+        const int e = errno;
+        if (e == EINTR) continue;
+        if (e == EINPROGRESS) {
+            struct pollfd p = {fd, POLLOUT, 0};
+            const long left = timeoutMs - elapsedMs();
+            const int rc = ::poll(&p, 1, left > 0 ? static_cast<int>(left) : 0);
+            if (rc < 0 && errno == EINTR) continue;
+            if (rc <= 0) return ETIMEDOUT;
+            int soerr = 0;
+            socklen_t len = sizeof soerr;
+            if (::getsockopt(fd, SOL_SOCKET, SO_ERROR, &soerr, &len) != 0) return errno;
+            return soerr;
+        }
+        if (e != EAGAIN) return e;  // Linux: backlog full; retry until the deadline
+        if (elapsedMs() >= timeoutMs) return ETIMEDOUT;
+        struct timespec nap = {0, 10 * 1000 * 1000};
+        ::nanosleep(&nap, nullptr);
+    }
+}
+
+int acceptCloexec(int listenFd) {
+    for (;;) {
+#ifdef __linux__
+        const int c = ::accept4(listenFd, nullptr, nullptr, SOCK_CLOEXEC);
+        if (c < 0 && errno == EINTR) continue;
+        return c;
+#else
+        const int c = ::accept(listenFd, nullptr, nullptr);
+        if (c < 0 && errno == EINTR) continue;
+        if (c >= 0) ::fcntl(c, F_SETFD, FD_CLOEXEC);
+        return c;
+#endif
+    }
+}
+
 int listenAt(const std::string &path, int backlog, std::string *err) {
     struct sockaddr_un addr;
     if (!fillAddr(path, &addr)) {
@@ -88,7 +141,9 @@ int listenAt(const std::string &path, int backlog, std::string *err) {
         }
         const int probe = newSocket();
         if (probe >= 0) {
-            const bool alive = ::connect(probe, reinterpret_cast<struct sockaddr *>(&addr), sizeof addr) == 0;
+            const int ce = connectWithTimeout(probe, addr, kConnectTimeoutMs);
+            // A full backlog (EAGAIN/timeout) means somebody listens; only a refusal means stale.
+            const bool alive = ce == 0 || ce == ETIMEDOUT || ce == EAGAIN;
             ::close(probe);
             if (alive) {
                 *err = "another dofscroll instance is already listening on " + path;
@@ -141,15 +196,19 @@ int connectTo(const std::string &path, bool nonblocking, std::string *err) {
         *err = std::string("socket: ") + std::strerror(errno);
         return -1;
     }
-    if (::connect(fd, reinterpret_cast<struct sockaddr *>(&addr), sizeof addr) != 0) {
-        *err = path + ": " + std::strerror(errno);
+    const int ce = connectWithTimeout(fd, addr, kConnectTimeoutMs);
+    if (ce != 0) {
+        *err = path + ": " + std::strerror(ce);
         ::close(fd);
         return -1;
     }
-    if (nonblocking && !setNonBlocking(fd)) {
-        ::close(fd);
-        *err = "fcntl failed";
-        return -1;
+    if (!nonblocking) {
+        const int fl = ::fcntl(fd, F_GETFL, 0);
+        if (fl < 0 || ::fcntl(fd, F_SETFL, fl & ~O_NONBLOCK) != 0) {
+            ::close(fd);
+            *err = "fcntl failed";
+            return -1;
+        }
     }
     return fd;
 }

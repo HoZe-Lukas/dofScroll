@@ -75,9 +75,8 @@ public:
     std::unique_ptr<FeedConn> accept() override {
         if (fd_ < 0) return nullptr;
         for (;;) {
-            const int c = ::accept(fd_, nullptr, nullptr);
+            const int c = usock::acceptCloexec(fd_);
             if (c < 0) {
-                if (errno == EINTR) continue;
                 return nullptr;  // EAGAIN or a real error: nothing to do here
             }
             uid_t peer = 0;

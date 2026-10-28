@@ -83,6 +83,10 @@ bool createFileExclusive(const std::string &path, const std::string &data);
 // On failure *err holds a one-line message.
 bool writeFileReplace(const std::string &path, const std::string &data, std::string *err);
 
+// Like writeFileReplace, but for runtime files (status, log): a symlink or any other non-regular
+// file at the final name is refused, never followed and never replaced.
+bool writeFileReplaceNoFollow(const std::string &path, const std::string &data, std::string *err);
+
 // Creates the file empty (user-only) or sets its modification time to now, never following a link at
 // the final name. false when the path is a link, a directory, another user's file or the call fails.
 // Used for heartbeat files: the content is irrelevant, the age is the message.

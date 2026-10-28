@@ -88,6 +88,29 @@ static void testFileMonitor() {
     CHECK(LogindFileMonitor(dir, "../x").isActive(&detail), "invalid id = active");
     CHECK(LogindFileMonitor(dir + "/nonexistent", "7").isActive(&detail), "missing dir = active");
 
+    // No session id: the state of the user decides (fast user switching must pause the daemon).
+    const std::string ud = dir + "/users";
+    std::filesystem::create_directories(ud);
+    put(ud + "/1000", "NAME=u\nSTATE=active\nSESSIONS=3\n");
+    put(ud + "/1001", "NAME=v\nSTATE=online\nSESSIONS=4\n");
+    put(ud + "/1002", "STATE=lingering\n");
+    put(ud + "/1003", "garbage\n");
+    CHECK(parseLogindUser("STATE=active\n") == SessionState::Active, "user active");
+    CHECK(parseLogindUser("STATE=online\n") == SessionState::Inactive, "user online");
+    CHECK(parseLogindUser("") == SessionState::Unknown, "user empty");
+    CHECK(LogindFileMonitor(dir, "", ud, 1000).isActive(&detail), "no id, user active");
+    CHECK(!LogindFileMonitor(dir, "", ud, 1001).isActive(&detail), "no id, user online = paused");
+    CHECK(!LogindFileMonitor(dir, "a/b", ud, 1001).isActive(&detail), "invalid id, user online = paused");
+    CHECK(!LogindFileMonitor(dir, "", ud, 1002).isActive(&detail), "no id, lingering = paused");
+    {
+        LogindFileMonitor m3(dir, "", ud, 1003);
+        CHECK(m3.isActive(&detail), "no id, unknown user state = active");
+        CHECK(m3.isActive(&detail), "still active");
+        CHECK(m3.takeUnknownWarning() && !m3.takeUnknownWarning(), "warning is reported once");
+    }
+    CHECK(LogindFileMonitor(dir, "", ud, 4242).isActive(&detail), "no user file = active");
+    CHECK(!LogindFileMonitor(dir, "8", ud, 1000).isActive(&detail), "a valid session id wins over the user state");
+
     // Changes are seen on the next poll (no caching).
     LogindFileMonitor m(dir, "8");
     CHECK(!m.isActive(nullptr), "before");

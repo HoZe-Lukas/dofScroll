@@ -34,7 +34,7 @@ bool requestReload(std::string *err) {
     // systemctl from the fixed system directories, never through PATH (exec_lookup.hpp)
     const std::string systemctl = findHelper("systemctl");
     if (systemctl.empty()) {
-        if (err) *err = "systemctl not found in /usr/bin, /usr/local/bin or /bin";
+        if (err) *err = "systemctl not found in /usr/bin, /bin, /usr/sbin or /sbin (root-owned)";
         return false;
     }
     pid_t pid = ::fork();

@@ -156,6 +156,16 @@ static void testReplace(const std::string &d) {
         assert(fs::lstatPath(d + "/l.conf", &li) && li.isLink);
         assert(get(d + "/real.conf") == "viaLink");
     }
+    // runtime files: a link at the final name is refused and its target stays untouched
+    put(d + "/victim.txt", "keep");
+    if (makeSymlink("victim.txt", d + "/status.json")) {
+        assert(!fs::writeFileReplaceNoFollow(d + "/status.json", "evil", &err) && !err.empty());
+        assert(get(d + "/victim.txt") == "keep");
+        fs::FileInfo li;
+        assert(fs::lstatPath(d + "/status.json", &li) && li.isLink);
+    }
+    assert(fs::writeFileReplaceNoFollow(d + "/plain.json", "a", &err));
+    assert(fs::writeFileReplaceNoFollow(d + "/plain.json", "b", &err) && get(d + "/plain.json") == "b");
 }
 
 static void testMkdirs(const std::string &d) {

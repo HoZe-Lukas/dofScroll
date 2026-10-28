@@ -211,7 +211,7 @@ if(BUILD_TESTING)
       continue()
     endif()
     # POSIX helper lookup (stat/access)
-    if(name STREQUAL "test_exec_lookup" AND WIN32)
+    if((name STREQUAL "test_exec_lookup" OR name STREQUAL "test_unix_socket") AND WIN32)
       continue()
     endif()
     # RuntimeDir (openat-based runtime files of the Linux daemon) lives in a Linux platform file

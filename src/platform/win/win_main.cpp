@@ -196,7 +196,7 @@ private:
         closeFile();
         const std::string text = joinLines(lines_);
         std::string err;
-        if (!fs::writeFileReplace(path_, text, &err)) {
+        if (!fs::writeFileReplaceNoFollow(path_, text, &err)) {
             pending_.clear();
             return;  // mirror stays off
         }
@@ -374,7 +374,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
             if (!throttle->due(body, nowNs)) return;
             const std::string text = statusFileText(body, static_cast<long long>(std::time(nullptr)));
             std::string err;
-            if (!text.empty() && !fs::writeFileReplace(statusPath, text, &err)) {
+            if (!text.empty() && !fs::writeFileReplaceNoFollow(statusPath, text, &err)) {
                 static bool warned = false;
                 if (!warned) {
                     warned = true;

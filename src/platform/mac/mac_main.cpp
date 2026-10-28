@@ -193,7 +193,7 @@ private:
         if (!fs::readFileBounded(path_, kLogMaxBytes * 4, opt, &text).ok()) text.clear();
         const std::string kept = trimLogText(text, keepLines_, kLogMaxBytes / 2);
         std::string err;
-        if (!fs::writeFileReplace(path_, kept, &err)) {
+        if (!fs::writeFileReplaceNoFollow(path_, kept, &err)) {
             disable();
             return;
         }
@@ -254,7 +254,7 @@ public:
         const std::string text = body + perm_ + "updated=" + std::to_string(static_cast<long long>(std::time(nullptr))) + "\n";
         if (text.size() > kStatusMaxBytes) return;
         std::string err;
-        if (fs::writeFileReplace(path_, text, &err)) {
+        if (fs::writeFileReplaceNoFollow(path_, text, &err)) {
             wrote_ = true;
         } else if (!warned_) {
             warned_ = true;

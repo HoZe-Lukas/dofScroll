@@ -55,7 +55,19 @@ int main() {
     // PATH is not consulted: only the given directories count
     setenv("PATH", b.c_str(), 1);
     assert(findExecutableIn("tool", trustedBinDirs()).empty());  // b is on PATH, but not a trusted directory
-    assert(trustedBinDirs() == (std::vector<std::string>{"/usr/bin", "/usr/local/bin", "/bin"}));
+    assert(trustedBinDirs() == (std::vector<std::string>{"/usr/bin", "/bin", "/usr/sbin", "/sbin", "/usr/local/bin"}));
+    assert(systemBinDirs() == (std::vector<std::string>{"/usr/bin", "/bin", "/usr/sbin", "/sbin"}));
+
+    // system tools: owner and write bits are checked, a bad candidate is skipped
+    {
+        const uid_t me = geteuid();
+        touch(a + "/sys", 0775);  // group-writable
+        touch(b + "/sys", 0755);
+        assert(findOwnedExecutableIn("sys", {a, b}, me) == b + "/sys");
+        touch(b + "/sys2", 0757);  // other-writable
+        assert(findOwnedExecutableIn("sys2", {a, b}, me).empty());
+        assert(findOwnedExecutableIn("sys", {b}, me + 1).empty());  // wrong owner
+    }
     assert(findExecutableIn("sh", trustedBinDirs()).find("/bin/sh") != std::string::npos);
 
     // findHelper: the trusted directories only, whatever PATH says

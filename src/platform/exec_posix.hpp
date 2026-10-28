@@ -35,7 +35,7 @@ inline ExecResult execCapture(const std::vector<std::string> &argv, int timeoutM
     std::string prog = argv[0];
     if (prog.find('/') == std::string::npos) {
         prog = findHelper(prog);
-        if (prog.empty()) { r.error = argv[0] + ": not found in " + "/usr/bin, /usr/local/bin or /bin"; return r; }
+        if (prog.empty()) { r.error = argv[0] + ": not found in " + "/usr/bin, /bin, /usr/sbin or /sbin (root-owned)"; return r; }
     }
     int po[2], pe[2], px[2];
     if (pipe(po) != 0) { r.error = "pipe failed"; return r; }

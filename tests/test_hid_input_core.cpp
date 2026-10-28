@@ -187,5 +187,33 @@ int main() {
     }
 
     std::puts("test_hid_input_core: ok");
+    // ids stay unique within 1..255 over many hot-plugs (wire range is one byte), freed ids are reused
+    {
+        HidInputCore c3({mk(kCompact)});
+        std::vector<InputEvent> e3;
+        std::vector<int> live;
+        for (int round = 0; round < 1000; ++round) {
+            const int id = c3.addDevice(0x256f, 0xc635, "", &e3);
+            assert(id >= 1 && id <= 255);
+            for (int other : live) assert(other != id);
+            live.push_back(id);
+            if (live.size() > 3) {
+                c3.removeDevice(live.front(), &e3);
+                live.erase(live.begin());
+            }
+            e3.clear();
+        }
+        // full table: the 256th device is refused, and after a removal that id is free again
+        HidInputCore c4({mk(kCompact)});
+        std::vector<int> allIds;
+        for (int k = 0; k < 255; ++k) {
+            const int id = c4.addDevice(0x256f, 0xc635, "", &e3);
+            assert(id >= 1 && id <= 255);
+            allIds.push_back(id);
+        }
+        assert(c4.addDevice(0x256f, 0xc635, "", &e3) == 0);
+        c4.removeDevice(allIds[100], &e3);
+        assert(c4.addDevice(0x256f, 0xc635, "", &e3) == allIds[100]);
+    }
     return 0;
 }
