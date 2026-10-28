@@ -23,7 +23,10 @@
 //   default = the channel's normal behavior (V: wheel_v, H: wheel_h, twist: zoom with
 //   dominance detection). zoom = hold Ctrl + mouse wheel. keys:<neg>,<pos> = key presses
 //   (neg for negative, pos for positive deflection; rate proportional to the deflection),
-//   key names from keys.hpp.
+//   key names from keys.hpp. Per side a key, a chord or "none". keys: is analog and only accepted for keys that are safe
+//   to repeat (keyAnalogAllowed: "this key can only be used digitally, use step:"); step:<neg>,<pos> is the digital one
+//   (one press per push, any key). Rate limits and trigger per motion: <P>KEY_RATE_MIN / <P>KEY_RATE_MAX / <P>TRIGGER
+//   (config.hpp KeyTuning, key_engine.hpp).
 // Split push and tilt (optional, per scroll channel): V_PUSH_ACTION, V_TILT_ACTION, H_PUSH_ACTION and
 //   H_TILT_ACTION (same grammar). The vertical channel mixes push forward/back (z) and tilt forward/back (rx),
 //   the horizontal channel push sideways (x) and tilt sideways (rz). A mode that sets at least one split key of a

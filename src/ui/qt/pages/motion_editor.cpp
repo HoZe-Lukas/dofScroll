@@ -38,10 +38,12 @@
 #include "info_popup.hpp"
 #include "key_capture.hpp"
 #include "key_combo.hpp"
+#include "key_engine_box.hpp"
 #include "ui/model/action_preset_model.hpp"
 #include "ui/model/axes_model.hpp"
 #include "ui/model/design_tokens.hpp"
 #include "ui/model/button_chip_model.hpp"
+#include "ui/model/motion_edit_model.hpp"
 #include "ui/model/motion_help_model.hpp"
 #include "ui/model/motion_map_model.hpp"
 #include "ui/model/ui_progress.hpp"
@@ -805,6 +807,7 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
             }
             kg->addWidget(note, row, 0, 1, 2);
             kg->setColumnStretch(1, 1);
+            if (QWidget *engine = keyEngineBox(keys, this, keyEngineEnv(ref, m), *env_.strings)) kg->addWidget(engine, row + 1, 0, 1, 2);
             col->addWidget(keys);
         }
 
@@ -868,6 +871,36 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
     col->addWidget(more);
 }
 
+// The environment of the analog / digital box (key_engine_box.hpp) for the key function `ref` of motion m: the rate and trigger
+// keys are overrides of this joystick mode. A tilt of an unsplit channel runs as the push part, so it uses the push keys.
+KeyEngineEnv MotionEditor::keyEngineEnv(ChannelForm *ref, Motion m) {
+    KeyEngineEnv env;
+    std::string id = motionId(m);
+    if (isTilt(m) && !placeOf(*env_.form, env_.base, m).split) id = m == Motion::VTilt ? "v_push" : "h_push";
+    env.motionId = id;
+    env.form = ref;
+    env.effective = effectiveSettings(*env_.form, env_.base);
+    ModeForm *form = env_.form;
+    env.get = [form](const std::string &key) {
+        const std::string *v = form->overrideValue(key);
+        return v ? *v : std::string();
+    };
+    env.set = [form](const std::string &key, const std::string &value, std::string *) {
+        form->setOverride(key, value);
+        return true;
+    };
+    env.commit = [this] {
+        if (env_.changed) env_.changed();
+    };
+    env.typed = [this] {
+        if (env_.typed) env_.typed();
+    };
+    env.flush = [this] {
+        if (env_.flush) env_.flush();
+    };
+    return env;
+}
+
 void MotionEditor::buildTuning(QVBoxLayout *col, Motion m) {
     const std::string prefix = tuningPrefix(*env_.form, env_.base, m);
     if (prefix.empty()) return;
@@ -913,7 +946,45 @@ void MotionEditor::buildLiftInspector(QVBoxLayout *col) {
     warn->setWordWrap(true);
     warn->setProperty("warning", true);
     col->addWidget(warn);
-    col->addWidget(new QLabel(T("Lift / press has no action of its own: it can be added to another motion."), inspectorBox_));
+    auto *own = new QLabel(T("Lift / press has its own action (below). It can also be added to another motion (further down)."), inspectorBox_);
+    own->setWordWrap(true);
+    col->addWidget(own);
+    {   // what it does: the same choices as the profile's Motions page (liftActionChoices: nothing, scroll, zoom, one key tap per push)
+        auto *what = new QGroupBox(T("What it does"), inspectorBox_);
+        auto *wl = new QVBoxLayout(what);
+        auto *kind = new QComboBox(what);
+        kind->setObjectName(QStringLiteral("liftAction"));
+        kind->setAccessibleName(T("What lift / press does in this joystick mode"));
+        ChannelForm &lift = env_.form->lift;
+        const ChannelActionType shown = lift.type == ChannelActionType::Off ? ChannelActionType::Default : lift.type;
+        int current = 0;
+        for (const MotionActionChoice &c : liftActionChoices()) {
+            if (c.type == shown) current = kind->count();
+            kind->addItem(T(c.label), int(c.type));
+        }
+        kind->setCurrentIndex(current);
+        wl->addWidget(kind);
+        if (lift.usesKeys()) {
+            auto committed = [this] {
+                if (env_.committed) env_.committed();
+            };
+            wl->addWidget(new QLabel(T("Key for the negative direction"), what));
+            wl->addWidget(chordPicker(what, this, &lift.neg, T("Lift / press") + QStringLiteral(" ") + T("negative"), committed));
+            wl->addWidget(new QLabel(T("Key for the positive direction"), what));
+            wl->addWidget(chordPicker(what, this, &lift.pos, T("Lift / press") + QStringLiteral(" ") + T("positive"), committed));
+            if (QWidget *engine = keyEngineBox(what, this, keyEngineEnv(&lift, Motion::Lift), *env_.strings)) wl->addWidget(engine);
+        }
+        connect(kind, &QComboBox::activated, this, [this, kind](int idx) {
+            ChannelForm &f = env_.form->lift;
+            f.type = ChannelActionType(kind->itemData(idx).toInt());
+            if (f.usesKeys() && (f.neg.empty() || f.pos.empty() || f.neg == "none" || f.pos == "none")) {
+                f.neg = "up";
+                f.pos = "down";
+            }
+            if (env_.changed) env_.changed();
+        });
+        col->addWidget(what);
+    }
 
     // where it is added now and with which weight
     const Settings eff = effectiveSettings(*env_.form, env_.base);

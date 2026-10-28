@@ -692,7 +692,15 @@ by a file). Assessment and limits:
   file from a stranger has no XTest access) and for the uinput backend. Chords are reachable too:
   Ctrl is held while a channel zooms, so a `keys:` action on another channel can send Ctrl+W or
   Ctrl+Q without any Ctrl button (review F2). The daemon warns at load time about
-  modifier-capable bindings, but that is a hint, not a gate. `ENABLED`, `BACKEND` and `TICK_HZ`
+  modifier-capable bindings, but that is a hint, not a gate.
+  **Tier rule (key engine):** an analog `keys:` action, which repeats a key as long as the cap is deflected, is only
+  accepted for keys that are safe to repeat (tier A: arrows, page up/down, home, end, tab, `ctrl` or `shift` plus one of
+  these, plus and minus, volume up/down, media next/previous). Any other key (letters, digits, function keys, Enter,
+  Delete, Backspace, Esc, space, `alt` or `super` chords, play/pause, a lone modifier) is tier B: the parser refuses
+  `keys:` with "this key can only be used digitally, use step:" in mode files, profiles and the interface alike, and only
+  `step:` (one press per push) is accepted, with the plain load warning above. The lift never takes an analog key. There is
+  no switch that lifts the rule. The key presses are also capped per tick (4 per function, 8 in all) and the repeat rate at
+  `min(100, TICK_HZ / 2)` presses per second. `ENABLED`, `BACKEND` and `TICK_HZ`
   are rejected in mode files so that a mode cannot switch output off.
 - **Held state:** keys and buttons held by a mode are released on mode change, suspend,
   `ENABLED = 0` and at daemon exit/start (`forceReleaseAll`, `--release-keys`), so a faulty

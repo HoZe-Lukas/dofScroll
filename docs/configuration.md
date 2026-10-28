@@ -50,6 +50,15 @@ values and these keys replace single values with **absolute** values (not multip
 the channel keys). They have no default, are not written to the config unless set, and act only while
 the active joystick mode splits that channel.
 
+Key functions per motion: `keys:<neg>,<pos>` (analog) and `step:<neg>,<pos>` (digital) can sit on every motion, with a key,
+a chord or `none` per side. Three keys per motion tune them: `<P>KEY_RATE_MIN` and `<P>KEY_RATE_MAX` (presses per second, 0 to
+1000, analog; default no limit, the rate never exceeds `min(100, TICK_HZ / 2)`) and `<P>TRIGGER` (steps per second, default
+`STEP_TRIGGER`), with `<P>` one of `SCROLL_V_PUSH_`, `SCROLL_V_TILT_`, `SCROLL_H_PUSH_`, `SCROLL_H_TILT_`, `ZOOM_` (twist),
+`LIFT_`. They are valid in profiles and in joystick mode files, are not written unless set, and a channel that is not split
+uses the push keys. At most 4 presses per tick and function and 8 per tick in total are sent. An analog `keys:` with a key
+that is not safe to repeat (a letter, digit, Enter, Delete, Esc, Alt or Super chord, play/pause) is refused ("this key can
+only be used digitally, use `step:`"), `step:` takes any key. Details and the tier rule: [modes.md](modes.md#the-key-engine-analog-and-digital).
+
 Axes (libspnav convention, measured on a SpaceMouse Pro): push forward or back is `z`, sideways is
 `x`, lift or press is `y`, tilt forward or back is `rx`, tilt sideways is `rz`, twist is `ry`. If you
 changed `spacenavd` settings (axis swap, inversion), adjust the mixes or run the axis assistant
@@ -98,7 +107,7 @@ raise `LIFT_DEADZONE` until grabbing the cap does not fire it.
 | `ZOOM_LATERAL` | `x z rx rz` | Axes the twist must dominate to enter zoom. An axis that is part of `ZOOM_MIX` itself is ignored here. The axis assistant sets this list to the axes of the two scroll channels. |
 | `ZOOM_ENTER_MS` | `40` | How long the twist must dominate before zoom latches. |
 | `ZOOM_EXIT_RATIO` | `1.5` | Zoom ends when another axis exceeds the twist by this factor (at least 1.0). |
-| `STEP_TRIGGER` | `20` | Level at which a `step:` channel action (see [joystick modes](modes.md)) fires one key tap, measured in steps per second after the channel's dead zone, curve, smoothing and sensitivity (`deflection * SENS / 20`; 0.5 to 10000). The action re-arms at half of it. Raise it for a firmer push, lower it together with a low `*_SENS`. |
+| `STEP_TRIGGER` | `20` | Level at which a `step:` channel action (see [joystick modes](modes.md)) fires one key tap, measured in steps per second after the channel's dead zone, curve, smoothing and sensitivity (`deflection * SENS / 20`; 0.5 to 10000). The action re-arms at half of it. Raise it for a firmer push, lower it together with a low `*_SENS`. A single motion can have its own level with `<P>TRIGGER` (for example `SCROLL_V_TILT_TRIGGER`). |
 | `BACKEND` | `auto` | `auto`, `x11` or `uinput`. `auto` picks uinput under Wayland, else X11. If the chosen backend fails, the other is tried. Needs a daemon restart. |
 | `INPUT` | `auto` | `auto`, `driver` or `hid`. **Windows and macOS only; ignored on Linux**, where spacenavd is the driver. How the SpaceMouse is read: `driver` through the interface of the installed official 3Dconnexion driver (loaded at run time from the installed driver, nothing bundled; see [legal-notes.md](legal-notes.md)), `hid` directly as raw HID, `auto` by a built-in table (macOS: driver first when installed, otherwise HID; Windows: HID first, the driver as the fallback when HID cannot be opened). With `driver` or `hid` exactly that path is used and nothing else is tried; an invalid value is reported and `auto` applies. Read from `[global]` only, applied on reload without a restart (switching takes a few seconds). The active path is shown as `input=driver` or `input=hid` in the status file and as "Input: 3Dconnexion driver" or "Input: direct (HID)" in the interface and in the log. The defaults of `auto` are unverified guesses until tested on hardware. |
 | `TICK_HZ` | `250` | Tick rate 30 to 1000. Can differ per profile. |
@@ -275,6 +284,20 @@ In the interface: select the button in the picture, choose the action in its row
 **Inherit** to go back to what Global and the device say. The row says where the binding comes from ("Inherited
 from Global: ...", "Set in this profile (inherited: ...)", "device Pro sets ...") and, when the profile's
 joystick mode binds the button too, who wins.
+
+#### Recipe: tabs on a sideways tilt, pages on a forward tilt
+
+Analog for the tab switch (the further you tilt, the faster, between 2 and 8 presses per second), digital for the pages:
+
+    [app:browser]
+    H_TILT_ACTION = keys:ctrl+pageup,ctrl+pagedown
+    SCROLL_H_TILT_KEY_RATE_MIN = 2
+    SCROLL_H_TILT_KEY_RATE_MAX = 8
+    V_TILT_ACTION = step:pageup,pagedown
+    SCROLL_V_TILT_TRIGGER = 30
+
+In the interface, the same page of the motion has the check box "Analog (the key repeats faster the further you push)" and
+the fields for the lowest and highest rate and the trigger level. `step:` accepts letters and other keys that `keys:` refuses.
 
 #### Recipe: use the tilt as zoom in one program
 

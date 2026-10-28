@@ -125,6 +125,18 @@ inline ChannelAction effectiveAction(const SettingsModel &m, size_t section, con
     return id.find("tilt") != std::string::npos ? sp.tiltAction(parent) : sp.pushAction(parent);
 }
 
+// The motion whose rate and trigger keys (<P>KEY_RATE_MIN ...) the key function of `id` really uses: a tilt of a channel that
+// is not split runs as the channel's push part (mode_runner.cpp), so its keys are the push keys.
+inline std::string keyTuningMotion(const SettingsModel &m, size_t section, const std::string &id) {
+    if (id != "v_tilt" && id != "h_tilt") return id;
+    const Settings s = m.effectiveWithMode(section);
+    ModeDef normal;
+    const ModeDef *def = m.modeDef(m.effectiveMode(section));
+    const ChannelActions ca = effectiveChannelActions(def ? *def : normal, s);
+    const bool split = id == "v_tilt" ? ca.vSplit.active() : ca.hSplit.active();
+    return split ? id : (id == "v_tilt" ? "v_push" : "h_push");
+}
+
 inline bool effectiveOn(const SettingsModel &m, size_t section, const std::string &id) {
     const ChannelActionType t = effectiveAction(m, section, id).type;
     if (t == ChannelActionType::Off || (id == "lift" && t == ChannelActionType::Default)) return false;  // the lift's default is none

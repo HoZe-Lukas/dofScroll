@@ -74,7 +74,7 @@ Override `SCROLL_V_SENS = 2` (gentler than the default of 5, so a push does not 
 |---|---|---|---|---|---|
 | Keys: Up / Down | Keys: Up / Down | Keys: Left / Right | Keys: Left / Right | Steps: J / L | Not used |
 
-Good for video players and web video: up/down is volume in most players, sideways seeks, `j` / `l` go back / forward 10 seconds on YouTube. The keys are program-specific. No button bindings.
+Good for video players and web video: up/down is volume in most players, sideways seeks, `j` / `l` go back / forward 10 seconds on YouTube (one jump per twist, a digital key). The keys are program-specific. No button bindings.
 
 ### `map`
 

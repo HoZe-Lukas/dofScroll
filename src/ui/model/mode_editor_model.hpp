@@ -72,12 +72,13 @@ struct SplitForm {
 struct ModeForm {
     std::string id, name, description;
     ChannelForm v, h, twist;
+    ChannelForm lift;  // LIFT_ACTION: "default" (nothing) or what the lift / press motion does (no analog keys)
     SplitForm vSplit, hSplit;
     std::vector<std::pair<int, std::string>> buttons;          // button number (1..32), action text; sorted by number
     std::vector<std::pair<std::string, std::string>> overrides;  // settings key, value; in file order
 
     bool operator==(const ModeForm &o) const {
-        return id == o.id && name == o.name && description == o.description && v == o.v && h == o.h &&
+        return id == o.id && name == o.name && description == o.description && v == o.v && h == o.h && lift == o.lift &&
                vSplit == o.vSplit && hSplit == o.hSplit && twist == o.twist && buttons == o.buttons && overrides == o.overrides;
     }
     const std::string *button(int n) const {
@@ -147,6 +148,7 @@ inline ModeForm formFromMode(const ModeDef &m) {
     f.v = channelFormOf(m.v);
     f.h = channelFormOf(m.h);
     f.twist = channelFormOf(m.twist);
+    f.lift = channelFormOf(m.lift);
     f.vSplit = splitFormOf(m.vSplit);
     f.hSplit = splitFormOf(m.hSplit);
     for (const ButtonBinding &b : m.buttons)
@@ -179,6 +181,8 @@ public:
         }
         // Per-part tuning of split channels (they only act while the mode splits that channel).
         for (const std::string &k : partTuningKeys()) out.push_back(k);
+        // Rate limits and triggers of the key functions per motion (key_engine.hpp).
+        for (const std::string &k : keyTuningKeys()) out.push_back(k);
         return out;
     }
     std::vector<std::string> addableOverrideKeys() const {
@@ -238,6 +242,10 @@ public:
             ChannelAction a;
             if (!parseChannelAction(c.second->text(), &a, &err)) out.push_back({c.first, err});
         }
+        {
+            ChannelAction a;
+            if (!parseLiftAction(form_.lift.text(), &a, &err)) out.push_back({"lift", err});
+        }
         const struct { const char *field; bool set; const ChannelForm *f; } parts[] = {
             {"v_push", form_.vSplit.pushSet, &form_.vSplit.push}, {"v_tilt", form_.vSplit.tiltSet, &form_.vSplit.tilt},
             {"h_push", form_.hSplit.pushSet, &form_.hSplit.push}, {"h_tilt", form_.hSplit.tiltSet, &form_.hSplit.tilt}};
@@ -284,6 +292,7 @@ public:
         if (form_.v.type != ChannelActionType::Default) want.emplace_back("V_ACTION", form_.v.text());
         if (form_.h.type != ChannelActionType::Default) want.emplace_back("H_ACTION", form_.h.text());
         if (form_.twist.type != ChannelActionType::Default) want.emplace_back("TWIST_ACTION", form_.twist.text());
+        if (form_.lift.type != ChannelActionType::Default) want.emplace_back("LIFT_ACTION", form_.lift.text());
         // Split keys are written whenever set, also with "default" (set = the part no longer follows the channel).
         if (form_.vSplit.pushSet) want.emplace_back("V_PUSH_ACTION", form_.vSplit.push.text());
         if (form_.vSplit.tiltSet) want.emplace_back("V_TILT_ACTION", form_.vSplit.tilt.text());
@@ -318,7 +327,7 @@ public:
             for (size_t i = 0; i < want.size(); ++i)
                 if (want[i].first == key) idx = i;
             const bool structural = key == "NAME" || key == "DESCRIPTION" || key == "V_ACTION" || key == "H_ACTION" ||
-                                    key == "TWIST_ACTION" || key == "V_PUSH_ACTION" || key == "V_TILT_ACTION" ||
+                                    key == "TWIST_ACTION" || key == "LIFT_ACTION" || key == "V_PUSH_ACTION" || key == "V_TILT_ACTION" ||
                                     key == "H_PUSH_ACTION" || key == "H_TILT_ACTION" || key.rfind("BUTTON_", 0) == 0;
             const bool owned = structural || idx < want.size() || std::find(known.begin(), known.end(), key) != known.end();
             if (!owned) {
@@ -438,6 +447,7 @@ private:
         }
         // Refuse when the loader drops a line this form wrote (not for foreign lines that were already ignored).
         std::vector<std::string> mine = {"V_ACTION", "H_ACTION", "TWIST_ACTION"};
+        if (form_.lift.type != ChannelActionType::Default) mine.push_back("LIFT_ACTION");
         if (form_.vSplit.pushSet) mine.push_back("V_PUSH_ACTION");
         if (form_.vSplit.tiltSet) mine.push_back("V_TILT_ACTION");
         if (form_.hSplit.pushSet) mine.push_back("H_PUSH_ACTION");

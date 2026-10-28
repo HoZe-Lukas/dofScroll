@@ -127,8 +127,8 @@ For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`), `TWIST_ACTION` (`Z
 | `none` | Channel off. |
 | `wheel_v`, `wheel_h` | Vertical or horizontal mouse wheel. |
 | `zoom` | Hold the zoom modifier (`ZOOM_MODIFIER`, default Ctrl) and send the mouse wheel. |
-| `keys:<neg>,<pos>` | Key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection. Dead zone, curve, smoothing and sensitivity of the channel apply. Each argument can be a chord, see below. |
-| `step:<neg>,<pos>` | One key tap per push instead of a rate, with hysteresis; see below. |
+| `keys:<neg>,<pos>` | Analog key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection (limits: [key engine](#the-key-engine-analog-and-digital)). Dead zone, curve, smoothing and sensitivity of the channel apply. Each argument can be a chord or `none`, see below. Only for keys that are safe to repeat (tier A, see below): a letter, digit, Enter, Delete, Esc, Alt or Super chord is refused with "this key can only be used digitally, use step:". |
+| `step:<neg>,<pos>` | One key tap per push instead of a rate, with hysteresis (digital); see below. Any key. |
 
 The same keys (`V_ACTION`, `H_ACTION`, `TWIST_ACTION`, `LIFT_ACTION` and the four split keys) are also allowed **in a profile**
 (`[global]`, `[device:*]`, `[app:*]` of `dofscroll.conf`) for one program or device, for example `TWIST_ACTION = none`
@@ -300,12 +300,51 @@ Because the trigger is measured after `*_SENS`, a channel with a low sensitivity
 `STEP_TRIGGER`. The chord warning rules below apply to `step:` exactly as to `keys:`. How the
 trigger level feels on a real device is not verified; tune `STEP_TRIGGER`.
 
+### The key engine: analog and digital
+
+Every motion (vertical and horizontal push and tilt separately, twist, lift; both directions) can press a key or chord per
+direction, in a joystick mode and in a profile. `keys:` is **analog** (the key repeats faster the further you push),
+`step:` is **digital** (one press per push, like a click). In the interface this is the check box "Analog (the key
+repeats faster the further you push)"; it only switches `keys:` and `step:` in the stored text, the keys stay.
+
+Per side the value is a key, a chord or `none`: `step:none,pagedown` presses nothing for the negative direction. At least
+one side needs a key (use `none` for the whole action otherwise).
+
+Three keys per motion tune the engine. `<P>` is `SCROLL_V_PUSH_`, `SCROLL_V_TILT_`, `SCROLL_H_PUSH_`, `SCROLL_H_TILT_`,
+`ZOOM_` (the twist) or `LIFT_`. They are valid in a joystick mode file and in every profile section, like the other channel
+keys. A channel that is not split (`V_ACTION`, `H_ACTION`) uses the push keys.
+
+| Key | Meaning |
+|---|---|
+| `<P>KEY_RATE_MIN` | Analog: lowest repeat rate in presses per second while the motion is deflected (0..1000, default 0 = no lower limit). With a value above 0 the first press comes at once when the motion leaves rest. |
+| `<P>KEY_RATE_MAX` | Analog: highest repeat rate (0..1000, default 0 = no limit). Whatever you set, the rate never exceeds `min(100, TICK_HZ / 2)` presses per second. |
+| `<P>TRIGGER` | Digital: the level (steps per second after the channel processing, like `STEP_TRIGGER`, which is the default) that gives one press. Analog: with a trigger the motion counts as at rest below it and the first press comes at once when it is crossed; it rests again at half the trigger. |
+
+The repeat rate is `clamp(|u|, KEY_RATE_MIN, KEY_RATE_MAX)`, `u` being the value of the motion in steps per second. Without
+the three keys the behavior is the one of older versions, with one exception: at most **4 presses per tick and function and
+8 per tick in total** are sent (older versions sent up to 200 per tick), which only matters for a very slow tick rate or an
+extreme sensitivity. The interface starts a new analog function with 3 to 25 presses per second; these are written as the
+two rate keys.
+
+Digital: one press when `|u|` reaches the trigger, re-armed when it has fallen to half the trigger; the other direction fires
+the other key and each side re-arms on its own. A push and a tilt are separate motions with their own keys, so tilting while
+you push cannot press the push key twice, but the same jitter around the trigger of one motion is absorbed by the hysteresis.
+Feel and thresholds of analog and digital, and the crosstalk of tilt against push with digital keys, are not verified on a real
+device.
+
+**Tier rule.** Analog (`keys:`) is only accepted for keys that are safe to repeat (tier A): the arrows, page up/down, home,
+end, tab, `ctrl` or `shift` plus one of these, plus and minus (also with `ctrl` / `shift`), volume up and down, media next
+and previous. Everything else (letters, digits, function keys, Enter, Delete, Backspace, Esc, space, `alt` or `super`
+chords, play/pause, a lone modifier) is tier B: `keys:` is refused with "this key can only be used digitally, use step:",
+`step:` is allowed with the load warning of the chord rules below. The lift never takes an analog key. The built-in `media`
+mode therefore uses `step:j,l` for the twist (one jump per twist instead of a rate).
+
 ### Key chords in `keys:`
 
 Each of the two arguments is either a key or a chord: zero to four modifiers (`ctrl`, `shift`,
 `alt`, `super`, each at most once, any order) joined by `+` to exactly one key that is not a
 modifier, for example `keys:ctrl+pageup,ctrl+pagedown` (previous / next tab). `plus` and `minus`
-are key names, so `ctrl+plus` is valid. A lone modifier (`keys:ctrl,shift`) stays valid as before.
+are key names, so `ctrl+plus` is valid. A lone modifier (`step:ctrl,shift`) is valid as `step:` only.
 
 One step presses the modifiers that are not held yet (in the order written), taps the key and
 releases only the modifiers it pressed, in reverse order. A modifier that is already held, for
@@ -393,7 +432,8 @@ Validate a joystick mode file with `build/tests/check_config --modes <directory>
 ## Lift/press is unused
 
 Lift and press of the cap (axis `y`) have an action of their own since the lift motion exists: `LIFT_ACTION`
-(`none`, `wheel_v`, `wheel_h`, `zoom`, `step:<neg>,<pos>`; no analog `keys:`), tuned by `LIFT_MIX` (default `y`; the
+(`none`, `wheel_v`, `wheel_h`, `zoom`, `step:<neg>,<pos>`; no analog `keys:`; the joystick mode editor offers the same list as
+the profile's Motions page), tuned by `LIFT_MIX` (default `y`; the
 Windows and macOS seeds say `z`), `LIFT_SENS`, `LIFT_DEADZONE` (default 80), `LIFT_SIGN`, `LIFT_CURVE` and
 `LIFT_SMOOTH_MS`, all valid in a joystick mode file and in a profile. It is still deliberately not used by any default
 or built-in joystick mode (the default action is `none`): grabbing or releasing the cap moves it up or down a little,

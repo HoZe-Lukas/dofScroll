@@ -75,6 +75,8 @@ inline std::string keyName(const std::string &chord) { return motion_detail::key
 inline std::string motionSentence(const ModeForm &form, const Settings &base, Motion m, const StringProvider &s,
                                   double liveRaw = std::nan("")) {
     const MotionLabel l = motionLabel(form, base, m, s);
+    if (m == Motion::Lift && form.lift.type != ChannelActionType::Default && form.lift.type != ChannelActionType::Off)
+        return format(s.tr("%1: %2; it can fire when the cap is grabbed or let go"), {l.name, l.action});
     if (m == Motion::Lift) {
         return l.lift ? format(s.tr("%1: is added to another motion; it is prone to false triggers when the cap is grabbed or released"), {l.name})
                       : format(s.tr("%1: not used"), {l.name});

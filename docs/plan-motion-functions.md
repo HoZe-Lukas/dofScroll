@@ -3,7 +3,7 @@
 # Plan: any function on any motion, analog or digital, and own functions in profiles
 
 Status: specification (design of 2026-10-27), maintainer's decisions of 2026-10-28 included (section "Decisions of
-2026-10-28"). Implemented so far: `Output::moveMouse` (#236) and stage 2 (lift as the sixth motion: `LIFT_ACTION`, `LIFT_*`, [global] and [device:*] as two layers, #252). Tracking issues: #224 (any function on any motion), #225 (own functions in profiles).
+2026-10-28"). Implemented so far: `Output::moveMouse` (#236), stage 2 (lift as the sixth motion: `LIFT_ACTION`, `LIFT_*`, [global] and [device:*] as two layers, #252) and stage 3 (the key engine: `src/key_engine.hpp`, `<P>KEY_RATE_MIN` / `<P>KEY_RATE_MAX` / `<P>TRIGGER`, `none` per side, the tier rule, the analog check box and the lift list in the joystick mode editor; the take-over dialog does not copy the three keys yet). Tracking issues: #224 (any function on any motion), #225 (own functions in profiles).
 It builds on the merged profile keys (`V_ACTION`, `H_ACTION`, `TWIST_ACTION`, `V_PUSH_ACTION`, `V_TILT_ACTION`,
 `H_PUSH_ACTION`, `H_TILT_ACTION`, `src/profile_actions.hpp`) and on the split configuration (`docs/plan-config-split.md`).
 
