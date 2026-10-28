@@ -166,6 +166,71 @@ void testRejects() {
     }
 }
 
+// Sample source frame (issue #139): the device id of the next sample; old parsers skip type 3.
+void testSampleSource() {
+    LiveSample s = sample();
+    LiveSample o;
+    {  // no source frame: unknown
+        const std::vector<uint8_t> f = encodeLiveSample(s);
+        LiveFrameParser p;
+        assert(p.feed(f.data(), f.size()) && p.next(&o) && o.source == kLiveNoSource);
+        assert(encodeLiveSource(kLiveNoSource).empty() && encodeLiveSource(256).empty());
+    }
+    {  // source frame, then sample; the id applies to that sample only
+        std::vector<uint8_t> f = encodeLiveSource(7);
+        assert(f.size() == kLiveHeaderBytes + 1 && f[5] == kLiveTypeSource && f[4] == kLiveVersion);
+        const std::vector<uint8_t> a = encodeLiveSample(s);
+        f.insert(f.end(), a.begin(), a.end());
+        f.insert(f.end(), a.begin(), a.end());  // second sample without a source
+        const std::vector<uint8_t> z = encodeLiveSource(0);
+        f.insert(f.end(), z.begin(), z.end());
+        f.insert(f.end(), a.begin(), a.end());
+        LiveFrameParser p;
+        assert(p.feed(f.data(), f.size()));
+        assert(p.next(&o) && o.source == 7 && o.mode == s.mode);
+        assert(p.next(&o) && o.source == kLiveNoSource);
+        assert(p.next(&o) && o.source == 0 && !p.next(&o) && p.error() == LiveParseError::Ok);
+    }
+    {  // one byte at a time
+        std::vector<uint8_t> f = encodeLiveSource(255);
+        const std::vector<uint8_t> a = encodeLiveSample(s);
+        f.insert(f.end(), a.begin(), a.end());
+        LiveFrameParser p;
+        int got = 0;
+        for (uint8_t b : f) {
+            assert(p.feed(&b, 1));
+            if (p.next(&o)) got++, assert(o.source == 255);
+        }
+        assert(got == 1);
+    }
+    {  // wrong length ends the stream
+        std::vector<uint8_t> f = encodeLiveSource(1);
+        f[6] = 2;
+        f.push_back(0);
+        LiveFrameParser p;
+        assert(p.feed(f.data(), f.size()) && !p.next(&o) && p.error() == LiveParseError::EBadLength);
+        std::vector<uint8_t> e = {'D', 'F', 'L', 'V', kLiveVersion, kLiveTypeSource, 0, 0};
+        LiveFrameParser q;
+        assert(q.feed(e.data(), e.size()) && !q.next(&o) && q.error() == LiveParseError::EBadLength);
+    }
+    {  // an old parser skips the frame: simulated by retyping it to an unknown type
+        std::vector<uint8_t> f = encodeLiveSource(3);
+        f[5] = 9;
+        const std::vector<uint8_t> a = encodeLiveSample(s);
+        f.insert(f.end(), a.begin(), a.end());
+        LiveFrameParser p;
+        assert(p.feed(f.data(), f.size()) && p.next(&o) && o.source == kLiveNoSource);
+    }
+    {  // reset forgets a pending source
+        std::vector<uint8_t> f = encodeLiveSource(5);
+        LiveFrameParser p;
+        assert(p.feed(f.data(), f.size()) && !p.next(&o));
+        p.reset();
+        const std::vector<uint8_t> a = encodeLiveSample(s);
+        assert(p.feed(a.data(), a.size()) && p.next(&o) && o.source == kLiveNoSource);
+    }
+}
+
 void testFuzz() {
     const std::vector<uint8_t> good = encodeLiveSample(sample());
     uint32_t x = 12345;
@@ -646,6 +711,7 @@ void testDeviceInfoTransport() {
 int main() {
     testFraming();
     testRejects();
+    testSampleSource();
     testFuzz();
     testServerRateAndIdle();
     testSlowClients();

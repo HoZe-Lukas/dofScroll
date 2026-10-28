@@ -668,12 +668,19 @@ public:
     // Returns true when a wizard measurement finished in this call.
     bool poll(int64_t nowNs) {
         client_.poll(nowNs, [&](const LiveSample &s) {
-            feed_.update(s, nowNs);
+            feed_.update(s, nowNs);  // connection health: every sample counts
+            lastSource_ = s.source;
+            if (!shows(s)) return;
             view_.onSample(s, nowNs);
             wizard_.onSample(s.axes, nowNs);
         });
         feed_.syncDevices(client_);
-        view_.setDevice(feed_.deviceLabel(), feed_.factoryButtons());
+        if (selected_ != kAllDevices && feed_.hasDevices() && !findDevice(selected_)) selected_ = kAllDevices;  // unplugged
+        const LiveDevice *sel = findDevice(selected_);
+        const LiveDevice *src = (sel || feed_.devices().size() < 2) ? nullptr : findDevice(lastSource_);
+        if (sel) view_.setDevice(sel->name, sel->factoryButtons);
+        else if (src) view_.setDevice(src->name, feed_.factoryButtons());
+        else view_.setDevice(feed_.deviceLabel(), feed_.factoryButtons());
         const bool up = client_.state() == LiveFeedClient::State::Connected;
         wizard_.setConnected(up);
         if (!up) wizard_.connectionLost();
@@ -686,7 +693,37 @@ public:
     AxesViewModel &view() { return view_; }
     WizardController &wizard() { return wizard_; }
 
+    // Device selector (issue #139). kAllDevices = every sample (the daemon sends the device that
+    // moved last); otherwise only samples whose source is that device id reach the view and the
+    // assistant (a sample of unknown source always passes). Falls back to kAllDevices when the
+    // device disappears from the device list.
+    static constexpr int kAllDevices = -1;
+    int selectedDevice() const { return selected_; }
+    // Returns false (and keeps the selection) for an id that is not in the device list. The assistant
+    // is not interrupted by the page: the caller disables the selector while a step measures.
+    bool selectDevice(int id) {
+        if (id != kAllDevices && !findDevice(id)) return false;
+        selected_ = id;
+        return true;
+    }
+    // Selector choices: the devices of the feed, only when there is more than one to choose from.
+    const std::vector<LiveDevice> &selectableDevices() const {
+        static const std::vector<LiveDevice> none;
+        return feed_.devices().size() > 1 ? feed_.devices() : none;
+    }
+
 private:
+    bool shows(const LiveSample &s) const {
+        return selected_ == kAllDevices || s.source == kLiveNoSource || s.source == selected_;
+    }
+    const LiveDevice *findDevice(int id) const {
+        if (id < 0) return nullptr;
+        for (const LiveDevice &d : feed_.devices())
+            if (d.id == id) return &d;
+        return nullptr;
+    }
+    int selected_ = kAllDevices;
+    int lastSource_ = kLiveNoSource;
     LiveFeedClient &client_;
     LiveFeedModel feed_;
     AxesViewModel view_;

@@ -55,8 +55,10 @@ struct FakeFeed {
     void pushDevices(const std::vector<LiveDevice> &d) {
         for (uint8_t b : encodeLiveDevices(d)) conn->in.push_back(b);
     }
-    void push(const RawAxes &a, uint32_t buttons = 0) {
+    void push(const RawAxes &a, uint32_t buttons = 0, int source = kLiveNoSource) {
         LiveSample s;
+        s.source = source;
+        for (uint8_t b : encodeLiveSource(source)) conn->in.push_back(b);
         s.axes = a;
         s.buttons = buttons;
         s.mode = "normal";
@@ -198,6 +200,61 @@ static void testConnection() {
     f.conn->broken = true;
     s.poll(t += 33 * MS);
     assert(s.connection(t) == ConnState::DaemonNotRunning);
+}
+
+// Device selector (issue #139): the source of a sample, the selection and the label.
+static void testDeviceSelector() {
+    FakeFeed f;
+    LiveFeedClient client(f.connector());
+    AxesSession s(client);
+    int64_t t = 0;
+    LiveDevice a, b;
+    a.id = 1, a.name = "Pro", a.reportedButtons = 2, a.factoryButtons = 15;
+    b.id = 2, b.name = "Compact", b.reportedButtons = 2, b.factoryButtons = 2;
+    s.poll(t += 600 * MS);
+    assert(s.selectableDevices().empty() && s.selectedDevice() == AxesSession::kAllDevices);
+    f.pushDevices({a});  // one device: nothing to choose
+    f.push(ax(1, 0, 0, 0, 0, 0), 0, 1);
+    s.poll(t += 33 * MS);
+    assert(s.selectableDevices().empty() && s.view().deviceLabel() == "Pro");
+    f.pushDevices({a, b});
+    f.push(ax(10, 0, 0, 0, 0, 0), 0, 2);
+    s.poll(t += 33 * MS);
+    assert(s.selectableDevices().size() == 2);
+    // all devices: every sample is shown, the label names the device that moved last
+    assert(s.view().shown().axes[AX_X] == 10 && s.view().shown().source == 2);
+    assert(s.view().deviceLabel() == "Compact" && s.view().buttonCount() == 15);
+    f.push(ax(20, 0, 0, 0, 0, 0), 0, 1);
+    s.poll(t += 33 * MS);
+    assert(s.view().shown().axes[AX_X] == 20 && s.view().deviceLabel() == "Pro");
+    // pin device 2: samples of device 1 are dropped, the label and the button count follow
+    assert(s.selectDevice(2) && s.selectedDevice() == 2);
+    f.push(ax(30, 0, 0, 0, 0, 0), 0, 1);
+    s.poll(t += 33 * MS);
+    assert(s.view().shown().axes[AX_X] == 20);  // unchanged
+    assert(s.view().deviceLabel() == "Compact" && s.view().buttonCount() == 2);
+    assert(s.connection(t) == ConnState::Connected);  // the dropped sample still keeps the link alive
+    f.push(ax(40, 0, 0, 0, 0, 0), 0, 2);
+    f.push(ax(50, 0, 0, 0, 0, 0));  // unknown source always passes
+    s.poll(t += 33 * MS);
+    assert(s.view().shown().axes[AX_X] == 50);
+    assert(!s.selectDevice(9) && s.selectedDevice() == 2);  // not in the list: kept
+    assert(s.selectDevice(AxesSession::kAllDevices) && s.selectedDevice() == AxesSession::kAllDevices);
+    // the pinned device is unplugged: back to all devices
+    assert(s.selectDevice(1));
+    f.pushDevices({b});
+    s.poll(t += 33 * MS);
+    assert(s.selectedDevice() == AxesSession::kAllDevices);
+    // the assistant only sees the pinned device
+    f.pushDevices({a, b});
+    s.poll(t += 33 * MS);
+    assert(s.selectDevice(1));
+    s.wizard().reset();
+    feed(f, s, t, 1);
+    const uint64_t before = s.feed().sampleCount();
+    f.push(ax(300, 0, 0, 0, 0, 0), 0, 2);
+    s.poll(t += 33 * MS);
+    assert(s.feed().sampleCount() == before + 1 && s.view().shown().axes[AX_X] != 300);
 }
 
 static void testWizard() {
@@ -533,6 +590,7 @@ int main() {
     testScaling();
     testPeakHoldAndPause();
     testConnection();
+    testDeviceSelector();
     testWizard();
     testWizardEdgeCases();
     testWizardByMovementOnly();

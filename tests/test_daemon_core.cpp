@@ -202,6 +202,7 @@ static void testLiveFeedSink() {
     CHECK(s.devices.size() == 1 && s.devices[0].name == "Test Mouse A" && s.devices[0].factoryButtons == 2 &&
               s.devicesRev >= 1,
           "device info in the sample");
+    CHECK(s.source == s.devices[0].id, "the sample names the device it comes from (issue #139)");
     Rig off("[global]\nLIVE_FEED = 0\n");
     off.run(0.1);
     CHECK(!off.live.empty() && !off.live.back().active, "LIVE_FEED = 0 marks the sample inactive");

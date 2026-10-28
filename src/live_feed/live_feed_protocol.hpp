@@ -6,7 +6,8 @@
 // One-way (daemon -> client), binary, little-endian. A stream is a sequence of frames:
 //   offset 0  4 bytes  magic "DFLV"
 //   offset 4  u8       protocol version (2; version 1 had no device info frame)
-//   offset 5  u8       frame type (1 = sample, 2 = device info; other types with a valid length are skipped)
+//   offset 5  u8       frame type (1 = sample, 2 = device info, 3 = sample source; other types with a valid
+//                      length are skipped, so a parser without type 3 still works)
 //   offset 6  u16      payload length (<= kMaxPayload)
 //   offset 8  payload
 // Sample payload (type 1), exactly 46 + mode_len bytes:
@@ -23,6 +24,9 @@
 //      u8 id, u16 vendor, u16 product (0 = unknown), u8 reportedButtons, u8 factoryButtons (0..32:
 //      the number the UI must use for configurable buttons), u8 axes (0..6), u8 name_len (0..64),
 //      name: strict UTF-8 without control characters
+// Sample source payload (type 3), exactly 1 byte, sent right before the sample frame it belongs to:
+//   0  u8 id           the device id (see device info) the following sample was read from;
+//                      no source frame = the device of the sample is unknown
 // The parser treats every byte as untrusted: bad magic, other version, oversize or inconsistent
 // length, out-of-range value, NaN/Inf, reserved flag bits or control characters end the stream.
 #pragma once
@@ -51,6 +55,9 @@ constexpr size_t kLiveMaxPayload = kLiveMaxInfoPayload > kLiveMaxSamplePayload ?
 constexpr size_t kLiveMaxFrame = kLiveHeaderBytes + kLiveMaxPayload;
 constexpr uint8_t kLiveTypeSample = 1;
 constexpr uint8_t kLiveTypeDevices = 2;
+constexpr uint8_t kLiveTypeSource = 3;
+constexpr size_t kLiveSourcePayload = 1;
+constexpr int kLiveNoSource = -1;  // LiveSample::source: the device of the sample is unknown
 constexpr int kLiveMaxButtons = 32;
 constexpr int kLiveAxisLimit = 100000;     // real devices stay near +-350
 constexpr double kLiveRateLimit = 1.0e6;   // channel outputs are steps per second
@@ -77,6 +84,9 @@ struct LiveSample {
     float v = 0, h = 0, zoom = 0;
     bool fresh = false, zooming = false, nav = false, enabled = true, idle = false;
     std::string mode;
+    // Id of the device the sample comes from (LiveDevice::id), kLiveNoSource = unknown. Sent as a
+    // separate source frame before the sample (0..255, anything else is not transmitted).
+    int source = kLiveNoSource;
     // Daemon-side only (sent as a separate info frame): bump devicesRev whenever `devices` changes.
     std::vector<LiveDevice> devices;
     uint32_t devicesRev = 0;
@@ -192,6 +202,18 @@ inline std::vector<uint8_t> encodeLiveSample(const LiveSample &s) {
     return b;
 }
 
+// Encodes the source frame (type 3) for a device id; empty for kLiveNoSource or an id outside 0..255.
+inline std::vector<uint8_t> encodeLiveSource(int id) {
+    std::vector<uint8_t> b;
+    if (id < 0 || id > 255) return b;
+    b.push_back('D'), b.push_back('F'), b.push_back('L'), b.push_back('V');
+    b.push_back(kLiveVersion);
+    b.push_back(kLiveTypeSource);
+    live_detail::put16(b, static_cast<uint32_t>(kLiveSourcePayload));
+    b.push_back(static_cast<uint8_t>(id));
+    return b;
+}
+
 // Encodes the device info frame (at most kLiveMaxDevices devices, names sanitized, counts clamped).
 inline std::vector<uint8_t> encodeLiveDevices(const std::vector<LiveDevice> &devs) {
     using namespace live_detail;
@@ -264,6 +286,10 @@ public:
             const uint8_t type = buf_[5];
             if (type == kLiveTypeSample && !decode(buf_.data() + kLiveHeaderBytes, len, out)) return false;
             if (type == kLiveTypeDevices && !decodeDevices(buf_.data() + kLiveHeaderBytes, len)) return false;
+            if (type == kLiveTypeSource) {
+                if (len != kLiveSourcePayload) return fail(LiveParseError::EBadLength);
+                source_ = buf_[kLiveHeaderBytes];
+            }
             buf_.erase(buf_.begin(), buf_.begin() + static_cast<std::ptrdiff_t>(kLiveHeaderBytes + len));
             if (type == kLiveTypeSample) return true;
         }
@@ -279,6 +305,7 @@ public:
         buf_.clear();
         devices_.clear();
         infoCount_ = 0;
+        source_ = kLiveNoSource;
         err_ = LiveParseError::Ok;
     }
     size_t buffered() const { return buf_.size(); }
@@ -287,6 +314,7 @@ private:
     std::vector<uint8_t> buf_;
     std::vector<LiveDevice> devices_;
     uint32_t infoCount_ = 0;
+    int source_ = kLiveNoSource;  // from the last source frame, consumed by the next sample
     LiveParseError err_ = LiveParseError::Ok;
 
     bool fail(LiveParseError e) {
@@ -355,6 +383,8 @@ private:
         s.fresh = fl & 1, s.zooming = fl & 2, s.nav = fl & 4, s.enabled = fl & 8, s.idle = fl & 16;
         s.mode.assign(reinterpret_cast<const char *>(p + kLiveSampleFixed), modeLen);
         if (!validMode(s.mode)) return fail(LiveParseError::EBadPayload);
+        s.source = source_;
+        source_ = kLiveNoSource;
         *out = std::move(s);
         return true;
     }

@@ -18,6 +18,7 @@
 #include "ui/model/split_parts_model.hpp"
 #include "ui/model/suspend_heartbeat.hpp"
 
+class QComboBox;
 class QLabel;
 class QProgressBar;
 class QPushButton;
@@ -60,6 +61,8 @@ private:
     void buildWizardPage(QWidget *page);
     void refreshLive(int64_t nowNs);
     void refreshParts();
+    void refreshDevices();  // device selectors (live page and assistant), shown with 2 or more devices
+    QWidget *makeDeviceRow(QComboBox *&combo, QLabel *&label);
     void refreshWizard(int64_t nowNs);
     void applyWizard();
     void refreshPartsHint();  // the sentence under the live bars: the axes of the shown configuration
@@ -78,6 +81,11 @@ private:
     QStackedWidget *stack_ = nullptr;
 
     QLabel *connLine_ = nullptr, *connHint_ = nullptr;
+    QComboBox *devCombo_[2] = {nullptr, nullptr};  // [0] live page, [1] assistant
+    QWidget *devRow_[2] = {nullptr, nullptr};
+    QLabel *devLabel_[2] = {nullptr, nullptr};
+    std::vector<int> devShown_;  // ids the combos list now (to rebuild only on a change)
+    int devSelShown_ = -2;
     LiveBarsWidget *bars_ = nullptr, *wizBars_ = nullptr;
     QPushButton *pause_ = nullptr, *openWiz_ = nullptr;
 

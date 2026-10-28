@@ -126,6 +126,11 @@ security notes in `security.md` section 10.
   characters, counts out of range, inconsistent lengths or more than 8 devices. Frames are at most
   601 bytes. The UI model (`LiveFeedModel::devices()`) exposes the list; without a feed the Profiles
   page falls back to the `device=` line of the status file.
+- Sample source frame (type 3), one byte: the device id (as in the device info frame) of the sample
+  that follows. The daemon sends it right before every sample (the feed shows the device that
+  moved last); without it the device is unknown (`LiveSample::source == kLiveNoSource`). A parser
+  that does not know type 3 skips it (unknown types with a valid length are skipped), so there is
+  no version bump. The UI uses it for the device selector of the Axes page and the axis assistant.
 - Transport behind one interface (`live_feed.hpp`: `FeedListener`, `FeedConn`): Unix domain socket
   `live.sock` in the runtime directory (Linux, macOS), named pipe `\\.\pipe\dofscroll-live-<sid>`
   (Windows).
