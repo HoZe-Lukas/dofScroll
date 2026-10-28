@@ -31,6 +31,7 @@
 #include "keys.hpp"
 #include "modes.hpp"
 #include "output.hpp"
+#include "pointer_engine.hpp"
 #include "profile_actions.hpp"
 
 namespace spn {
@@ -122,6 +123,7 @@ private:
     // KeyRepeater, step: a DigitalTrigger (key_engine.hpp).
     KeyRepeater rep_[KM_COUNT];
     DigitalTrigger trig_[KM_COUNT];
+    PointerMover ptr_[KM_COUNT];                      // pointer_x / pointer_y: pixel remainder per motion (pointer_engine.hpp)
     Channel ch_part_[PART_COUNT];                     // sub-channels of split V / H channels
     StepAccumulator acc_part_[PART_COUNT];
     ZoomDetector zoom_;
