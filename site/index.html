@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'sha256-zYLRmQPZD0mY6TyAXivPWdLLnINqJn956HApdot/2P8='; base-uri 'none'; form-action 'none'">
-<script>(function(d){var r=d.documentElement,k="dofscroll-theme",s=null,m=matchMedia("(prefers-color-scheme: dark)");function g(){if(s)return s;try{var t=localStorage.getItem(k);if(t==="light"||t==="dark")return t}catch(e){}return null}function f(){return g()||(m.matches?"dark":"light")}function a(){var t=f(),b=d.getElementById("theme");r.setAttribute("data-theme",t);if(b)b.setAttribute("aria-pressed",String(t==="dark"))}r.className="js";a();d.addEventListener("DOMContentLoaded",a);d.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("#theme");if(!b)return;s=f()==="dark"?"light":"dark";try{localStorage.setItem(k,s)}catch(x){}a()});if(m.addEventListener)m.addEventListener("change",a)})(document);</script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'sha256-qBYZjAC20OalBSL3Aurx2+v1p7+Bb7uw9BRaRM1Ni4s='; base-uri 'none'; form-action 'none'">
+<script>(function(d){var r=d.documentElement,k="dofscroll-theme",s=null,m=matchMedia("(prefers-color-scheme: dark)");function g(){if(s)return s;try{var t=localStorage.getItem(k);if(t==="light"||t==="dark")return t}catch(e){}return null}function f(){return g()||(m.matches?"dark":"light")}function a(){var t=f(),b=d.getElementById("theme");r.setAttribute("data-theme",t);if(b)b.setAttribute("aria-pressed",String(t==="dark"))}r.className="js";a();d.addEventListener("DOMContentLoaded",a);d.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("#theme");if(!b)return;s=f()==="dark"?"light":"dark";try{localStorage.setItem(k,s)}catch(x){}a()});if(m.addEventListener)m.addEventListener("change",a);d.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("#motion");if(b)r.classList.toggle("paused")});})(document);</script>
 <title>dofscroll: SpaceMouse as scroll wheel and zoom control</title>
 <meta name="description" content="Use a 3Dconnexion SpaceMouse as a scroll wheel and zoom control in any program: browsers, PDF readers, maps. Free and open source for Linux, Windows and macOS.">
 <link rel="canonical" href="https://hoze-lukas.github.io/dofScroll/">
@@ -37,7 +37,7 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="site"><div class="wrap">
 <a class="brand" href="./"><img src="img/dofscroll-app.svg" width="28" height="28" alt="">dofscroll</a>
-<nav class="main" aria-label="Main"><a href="#feel">How it feels</a>
+<nav class="main" aria-label="Main"><a href="#uses">What you can do</a>
 <a href="#features">What you get</a>
 <a href="#download">Download</a>
 <a href="#quickstart">How it works</a>
@@ -56,18 +56,32 @@
 <li class="pill">Free and open source</li>
 <li class="pill">Linux · Windows · macOS</li>
 </ul>
-<h1 id="top">Scroll and zoom everywhere with your SpaceMouse</h1>
-<p class="lead">dofscroll makes a 3Dconnexion SpaceMouse work as a scroll wheel in browsers, PDF readers and maps.</p>
+<h1 id="top">Scroll and zoom in any program with your SpaceMouse</h1>
+<p class="lead">dofscroll turns a 3Dconnexion SpaceMouse into a scroll wheel, a zoom control and a set of keys for everyday programs. Every program can have its own settings.</p>
 <div class="cta">
-<a class="btn big" href="#download">Download</a>
-<a class="btn secondary big" href="#quickstart">How it works</a>
+<a class="btn big" href="#download">Download dofscroll</a>
+<a class="btn secondary big" href="#uses">What you can do</a>
 </div>
-<p class="note">Tested on RHEL 9, basic functions work on Windows, not yet tested on macOS: <a href="#status">see status</a>.</p>
+<p class="note">Tested on Linux (RHEL 9). The Windows and macOS builds exist; Windows basics work on one machine, macOS is not verified on a device yet: <a href="#status">see status</a>.</p>
 </div>
-<div class="hero-visual"><div class="stack">
+<figure class="hero-visual"><div class="stack">
 <img class="shot-light main" src="img/ui-window-light.png" width="1040" height="680" alt="The dofscroll settings window: the Joystick modes page with six symbols per joystick mode and, for the selected one, what push, tilt and twist do"><img class="shot-dark main" src="img/ui-window-dark.png" width="1040" height="680" alt="The dofscroll settings window: the Joystick modes page with six symbols per joystick mode and, for the selected one, what push, tilt and twist do">
 <img class="shot-light side" src="img/ui-overview-light.png" width="720" height="470" alt="The dofscroll overview: daemon running, device SpaceMouse Pro connected"><img class="shot-dark side" src="img/ui-overview-dark.png" width="720" height="470" alt="The dofscroll overview: daemon running, device SpaceMouse Pro connected">
-</div></div>
+</div><figcaption>Settings window (large) and overview (small), as dofscroll shows them on your screen.</figcaption></figure>
+</div>
+</section>
+
+<section id="uses" class="alt" aria-labelledby="h-uses">
+<div class="wrap">
+<h2 id="h-uses">What you can do with it</h2>
+<ul class="cards three">
+<li class="card"><h3>Scroll long pages</h3><p>Push or tilt the cap to scroll a web page, a PDF or a document. Push harder to go faster.</p></li>
+<li class="card"><h3>Zoom with a twist</h3><p>Twist the cap to zoom in a map or a photo. Or push to zoom: a joystick mode for that is built in.</p></li>
+<li class="card"><h3>Switch browser tabs</h3><p>In the Tabs joystick mode, push or tilt sideways to go to the next or previous tab.</p></li>
+<li class="card"><h3>Move through slides</h3><p>In the Slides joystick mode, push the cap to send Page Up and Page Down.</p></li>
+<li class="card"><h3>Scrub a video timeline</h3><p>In the Timeline joystick mode, push sideways to step with the Left and Right keys.</p></li>
+<li class="card"><h3>A profile per program</h3><p>Smooth scrolling in the browser, timeline stepping in the video editor. dofscroll switches by itself.</p></li>
+</ul>
 </div>
 </section>
 
@@ -79,6 +93,7 @@
 <li class="card"><svg class="f-pdf" viewBox="0 0 220 140" aria-hidden="true" focusable="false"><defs><clipPath id="clip-p"><rect x="44" y="16" width="88" height="100" rx="3"/></clipPath></defs><rect class="paper" x="10" y="10" width="134" height="120" rx="10"/><rect class="bar" x="11" y="11" width="22" height="118" rx="9"/><g clip-path="url(#clip-p)"><g class="pages"><rect class="land" x="44" y="16" width="88" height="100" rx="3"/><rect class="hd" x="52" y="26" width="52" height="6" rx="3"/><rect class="ln" x="52" y="40" width="72" height="3" rx="2"/><rect class="ln" x="52" y="48" width="66" height="3" rx="2"/><rect class="ln" x="52" y="56" width="72" height="3" rx="2"/><rect class="ln" x="52" y="64" width="72" height="3" rx="2"/><rect class="ln" x="52" y="72" width="44" height="3" rx="2"/><rect class="land" x="44" y="128" width="88" height="100" rx="3"/><rect class="hd" x="52" y="138" width="40" height="6" rx="3"/><rect class="ln" x="52" y="152" width="72" height="3" rx="2"/><rect class="ln" x="52" y="160" width="70" height="3" rx="2"/><rect class="pic" x="52" y="170" width="72" height="30" rx="3"/><rect class="ln" x="52" y="206" width="72" height="3" rx="2"/><rect class="ln" x="52" y="214" width="50" height="3" rx="2"/><rect class="land" x="44" y="240" width="88" height="100" rx="3"/><rect class="hd" x="52" y="250" width="52" height="6" rx="3"/><rect class="ln" x="52" y="264" width="72" height="3" rx="2"/><rect class="ln" x="52" y="272" width="66" height="3" rx="2"/><rect class="ln" x="52" y="280" width="72" height="3" rx="2"/><rect class="ln" x="52" y="288" width="72" height="3" rx="2"/><rect class="ln" x="52" y="296" width="44" height="3" rx="2"/></g></g><circle class="dot" cx="88" cy="123" r="2.8"/><circle class="dot" cx="100" cy="123" r="2.8"/><circle class="dot-on" cx="88" cy="123" r="2.8"/><circle class="base" cx="182" cy="82" r="24"/><circle class="cap-shadow" cx="182" cy="82" r="15"/><g class="cap"><circle class="puck-body" cx="182" cy="82" r="15"/><circle class="puck-top" cx="182" cy="82" r="11"/></g><path class="chev c-up" d="M175 47l7-7 7 7"/><path class="chev c-down" d="M175 117l7 7 7-7"/><path class="chev c-left" d="M155 75l-7 7 7 7"/><path class="chev c-right" d="M209 75l7 7-7 7"/></svg><h3>PDF</h3><p>Page through documents.</p></li>
 <li class="card"><svg class="f-map" viewBox="0 0 220 140" aria-hidden="true" focusable="false"><defs><clipPath id="clip-m"><rect x="11" y="11" width="132" height="118" rx="9"/></clipPath></defs><rect class="paper" x="10" y="10" width="134" height="120" rx="10"/><g clip-path="url(#clip-m)"><g class="zooming"><rect class="land" x="-60" y="-60" width="270" height="260"/><path class="road" d="M-20 98C42 84 56 112 84 90S120 62 170 70"/><path class="road" d="M40 -20C46 40 38 60 56 82S62 112 70 170"/><path class="road" d="M104 -20C100 34 114 52 108 76"/><rect class="ln" x="76" y="30" width="16" height="12" rx="2"/><rect class="ln" x="118" y="92" width="14" height="20" rx="2"/><rect class="ln" x="20" y="52" width="12" height="14" rx="2"/><path class="pin" d="M84 86c-8-9-12-14-12-20a12 12 0 0 1 24 0c0 6-4 11-12 20z"/><circle class="paper" cx="84" cy="66" r="4"/></g></g><circle class="base" cx="182" cy="82" r="24"/><circle class="cap-shadow" cx="182" cy="82" r="15"/><g class="twist-cap"><circle class="puck-body" cx="182" cy="82" r="15"/><circle class="puck-top" cx="182" cy="82" r="11"/><path class="mark" d="M182 82V73"/><circle class="mark-dot" cx="182" cy="73" r="2.6"/></g><g class="arc-cw"><path class="arc" d="M203.2 60.8A30 30 0 0 1 203.2 103.2"/><path class="arc" d="M203.2 103.2l7.9-1.4M203.2 103.2l1.4-7.9"/></g><g class="arc-ccw"><path class="arc" d="M160.8 60.8A30 30 0 0 0 160.8 103.2"/><path class="arc" d="M160.8 103.2l-7.9-1.4M160.8 103.2l-1.4-7.9"/></g></svg><h3>Map</h3><p>Twist the cap to zoom.</p></li>
 </ul>
+<p class="motion"><button type="button" id="motion" class="motion-toggle"><span class="m-pause">Pause animations</span> <span class="m-play">Play animations</span></button></p>
 </div>
 </section>
 
