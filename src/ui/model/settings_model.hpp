@@ -72,6 +72,7 @@
 #include <utility>
 #include <vector>
 
+#include "button_modes.hpp"
 #include "config.hpp"
 #include "utf8.hpp"
 #include "device_db.hpp"
@@ -253,6 +254,12 @@ public:
             const ModeDef *md = modes_.find(utf8::lowerAscii(utf8::trim(mid)));
             return md && !md->builtin;
         };
+        // The model does not know the user's buttons directory: a Button mode is safe only if it is in the embedded
+        // library (an id that a user file overrides is treated as the library one).
+        auto ownButtonMode = [](const std::string &bid) {
+            static const ButtonModeSet library = loadButtonModes("", nullptr);
+            return library.find(utf8::lowerAscii(utf8::trim(bid))) == nullptr;
+        };
         if (k == "CLICK_BUTTON") return true;
         if (k == "MODE") return ownMode(value);
         if (k.compare(0, 7, "BUTTON_") == 0) {
@@ -268,6 +275,9 @@ public:
                     return mods.n == 0 ? plainRisky(kk) : chordNeedsWarning(kk, mods);
                 case ButtonActionType::ModeSwitch: case ButtonActionType::ToggleMode: case ButtonActionType::HoldMode:
                     return ownMode(mode);
+                case ButtonActionType::ButtonMode:
+                    // a Button mode file of the user can bind keys and clicks, like an own Joystick mode
+                    return ownButtonMode(mode);
                 default:
                     return false;
             }

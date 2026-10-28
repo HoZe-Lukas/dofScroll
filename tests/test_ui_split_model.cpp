@@ -551,7 +551,8 @@ static void testImportRiskUsesParser() {
     for (const char *line : {"BUTTON_1 = key:ctrl +w", "BUTTON_1 = key:alt + f4", "V_ACTION = step:ctrl +w,ctrl +t",
                              "BUTTON_1 = key:shift+delete", "BUTTON_1 = key:delete", "BUTTON_1 = key:f4", "BUTTON_1 = key:super",
                              "BUTTON_1 = key:enter", "BUTTON_1 = key:esc", "BUTTON_2 = click", "BUTTON_2 = RightClick",
-                             "BUTTON_2 = middleclick", "CLICK_BUTTON = 3", "MODE = custom", "BUTTON_3 = mode:custom"}) {
+                             "BUTTON_2 = middleclick", "CLICK_BUTTON = 3", "MODE = custom", "BUTTON_3 = mode:custom",
+                             "BUTTON_4 = buttonmode:my-own"}) {
         const ImportPlan p = planOf(m, d, std::string("[app:programname]\n") + line + "\n");
         if (!p.ok || p.risks.empty()) {
             fprintf(stderr, "not flagged: %s\n", line);
@@ -559,7 +560,7 @@ static void testImportRiskUsesParser() {
         }
     }
     for (const char *line : {"BUTTON_1 = key:space", "BUTTON_1 = nav", "BUTTON_1 = key:ctrl+pageup", "SCROLL_V_SENS = 3", "MODE = normal",
-                             "V_ACTION = keys:ctrl+pageup,ctrl+pagedown", "BUTTON_1 = none"}) {
+                             "V_ACTION = keys:ctrl+pageup,ctrl+pagedown", "BUTTON_1 = none", "BUTTON_4 = buttonmode:next-mode"}) {
         const ImportPlan p = planOf(m, d, std::string("[app:programname]\n") + line + "\n");
         if (!p.ok || !p.risks.empty()) {
             fprintf(stderr, "flagged: %s\n", line);

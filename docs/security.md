@@ -63,6 +63,13 @@ display server (also on text consoles, in the login manager and in other session
 seat). Whoever can write to `/dev/uinput` can inject keyboard input into every session active
 there - this is the most critical point of the whole setup (see S1).
 
+**Pointer motion:** `Output::moveMouse` (XTest, uinput `REL_X`/`REL_Y`, `SendInput`, CGEvent) is the same
+trust class as key injection: whoever can make the daemon move the pointer can also make it click, so a
+profile or mode that moves the pointer needs the same trust as one that binds keys. The per-call delta is
+capped (`clampMouseDelta`, 127 px per axis), but the cap bounds only one call: the **caller** must limit the
+call rate. The uinput virtual device already registered the relative axes (it also produces scroll and
+buttons), so pointer motion adds no new capability there.
+
 **SIGHUP:** only triggers a config reload (flag in the handler, work in the main thread). Only
 processes of the same user or the user manager can send it - uncritical, especially since the
 daemon checks the file for changes every second anyway.
