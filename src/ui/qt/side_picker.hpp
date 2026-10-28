@@ -40,12 +40,14 @@ inline QWidget *sidePicker(QWidget *parent, QObject *owner, std::string *side, c
     const bool isMouse = spn::ui::ChannelForm::isMouseWord(*side);
     std::vector<QCheckBox *> boxes;
     for (const char *m : kModNames) {
-        auto *cb = new QCheckBox(QString::fromLatin1(m), w);
+        const QString label = modifierLabel(m);
+        auto *cb = new QCheckBox(label, w);
         cb->setObjectName(QStringLiteral("sidePickerMod_") + QString::fromLatin1(m));
+        cb->setProperty("chordMod", QString::fromLatin1(m));  // the stored name; the text is for the people
         cb->setProperty("look", QStringLiteral("box"));
         cb->setChecked(!none && !isMouse && std::find(sel.begin(), sel.end(), m) != sel.end());
         cb->setEnabled(!none && !isMouse);
-        cb->setAccessibleName(accessible + QStringLiteral(": ") + QString::fromLatin1(m));
+        cb->setAccessibleName(accessible + QStringLiteral(": ") + label);
         cb->setMinimumHeight(24);
         mods->addWidget(cb);
         boxes.push_back(cb);
@@ -69,7 +71,7 @@ inline QWidget *sidePicker(QWidget *parent, QObject *owner, std::string *side, c
         } else {
             std::vector<std::string> on;
             for (QCheckBox *cb : boxes)
-                if (cb->isChecked()) on.push_back(cb->text().toStdString());
+                if (cb->isChecked()) on.push_back(cb->property("chordMod").toString().toStdString());
             *side = joinChord(on, chosen);
         }
         changed();
