@@ -126,7 +126,7 @@ Plan and rules: [plan-config-split.md](plan-config-split.md).
 - **Release job** (#287, issue #263). The `release` job runs `scripts/release-gate.sh` first (the tagged commit must be on
   `main`, every required check green), waits for the approval of the environment `release`, and publishes a draft
   release with all files (needed for immutable releases). The repository settings are set by hand:
-  `docs/release-checklist-1.3.0.md`.
+  [release-checklist-1.3.0.md](release-checklist-1.3.0.md).
 - **Qt archives** (#291, issue #265). Every Qt installation verifies the downloaded archives against
   `packaging/ci/qt-archives.sha256`; **the list is still empty** until the workflow `qt-archive-hashes` has run once
   (issue #295). A weekly workflow warns when an advisory fixes a bundled library.
@@ -189,6 +189,13 @@ Credits: pull requests by the maintainer unless marked.
 - Import and Button modes: the risk check also flags the user's own Button modes (`buttonmode:<id>` of a file that is not an
   unmodified built-in), and **Take over the tuning** copies the key engine keys `<P>KEY_RATE_MIN`, `<P>KEY_RATE_MAX` and
   `<P>TRIGGER` too (#298, issues #268 and #260)
+- UI robustness (#304, issues #275, #241, #245, #249): the button-mode catalog save keeps unknown keys and comments and checks for a
+  change on disk; rename and remove re-resolve the profile after a nested dialog or a reload; the spacenavd probe of the
+  setup guide runs on a worker thread; tray labels escape `&`; the tray's Enabled flushes the open window first; the first
+  device profile is retried; bidi and invisible characters are dropped from profile file slugs; the driver backup restore
+  does not write through a symlink; after a rename the profile list re-sorts and the page reselects the profile; a pinned
+  idle device shows zero bars after one second; the Motion help and the Axes page hint take every axis name from the
+  configuration
 - UI: proportional splitters and a wider default window (#297); accessible names, undo for Remove profile and Apply (#271)
 - `dofscroll-ui --self-test` skips the info popover checks on Wayland (#212 by @codingkoala, part 1 of #193; #213)
 - CI: pins in `packaging/ci/images.env`, monthly refresh without a token (#205); refresh opens the PR and approves its
@@ -233,12 +240,12 @@ can verify these; none of them has been tested:
 - `dofscroll-ui --self-test` can still fail on a real Wayland session at the font-dependent default size check
   (issue #193, closed); the grabbing-popup problem is worked around, the Qt bug is not fixed (open issue #258, waiting for a Qt fix).
 - The driver cleanup is available on Windows only (issue #184).
-- A pinned idle device on the Axes page shows its last values until it moves (issue #245).
 - Media keys are not sent on macOS.
 - Windows and macOS packages are unsigned (issue #42); the Qt archive hash list is empty until it is recorded (issue #295).
 - The macOS and Windows daemons load the vendor library and are not protected against DYLD or DLL injection.
-- Open from the audits and not in this release: daemon core and parser hardening (issue #272), the remaining UI
-  robustness findings (issue #275), systemd unit shadowing (issue #270), the Motion help naming Linux axes (issue #249).
+- Open from the audits and not in this release: daemon core and parser hardening (issue #272), the rest of the UI
+  robustness findings (issue #275: waits of `qt_action_runner` outside the setup guide, Tab handling in the key capture
+  button, accessibility alerts for validation and "Saved" labels), systemd unit shadowing (issue #270).
 
 ## Not on main yet
 
@@ -249,4 +256,4 @@ From [plan-motion-functions.md](plan-motion-functions.md) (issues #224, #225), s
 `pointer_x` / `pointer_y` and `MOUSE_SPEED` (stage 5), presets such as "turn pages", "switch tabs", "volume" and "change
 track" (stage 6), the `macro:` function with a recording dialog, own functions in profiles (`New function...`), raised
 size limits and `TWIST_GUARD` (stage 7). Also pending: parser hardening (issue #272) and the rest of the UI robustness
-findings (issue #275). Today the size limits are the old ones.
+findings of issue #275 (see Known limitations). Today the size limits are the old ones.
