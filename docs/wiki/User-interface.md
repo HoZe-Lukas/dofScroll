@@ -46,7 +46,7 @@ The list on the left holds **Global** first, then **device profiles**, then **pr
 
 Below the list: **Add application...** (a picker of the programs running now, search, "Capture next focused program", shows the exact match string that will be stored) and **Add device...** (from the connected devices).
 
-What belongs to the selected profile is the box **This profile** at the bottom of its **General** tab: **Change application...** (or **Change device...**) picks another program or device for the profile with the same picker, so you can follow a program whose name changed and keep all settings; **Export...** (the profile as a `.conf` file) and **Remove**. Global can only be exported.
+What belongs to the selected profile is the box **This profile** at the bottom of its **General** tab: **Change application...** (or **Change device...**) picks another program or device for the profile with the same picker, so you can follow a program whose name changed and keep all settings; **Export...** (the profile as a `.conf` file, which is its profile file in `devices/` or `apps/`), **Import...** (copies such a file in) and **Remove**. A profile file that does not load is marked "defective" in the list with the reason and is never overwritten. Global can only be exported.
 
 ### Joystick modes
 
@@ -102,6 +102,7 @@ Output on/off, **Start at login** (see below), language and theme, the daemon se
 | Create my own joystick mode | Modes > Joystick modes > New, or New from example, then Edit |
 | Change a built-in joystick mode | Joystick modes > Edit (creates a file with the same id); Delete brings the built-in back |
 | Push and tilt do different things | Joystick mode editor > Settings > Split push and tilt |
+| Share a profile | Profiles > Export...; the file is the profile (copy it into `devices/` or `apps/`, or Import...) |
 | Share a joystick mode or button mode | Export, send the file; Import or drop a `.conf` file onto the page |
 | Switch a downloaded file off without deleting it | Modes > User modes switch |
 | See what the device sends / find out which axis is which | Device > Axes, axis assistant |

@@ -75,7 +75,7 @@ permission for `dofscroll-hidprobe`).
 
 ## 6. Reload
 
-- [ ] Editing `dofscroll.conf` is picked up automatically.
+- [ ] Editing `dofscroll.conf` or a profile file in `devices/` or `apps/` is picked up automatically.
 - [ ] `requestReload()` (tray, once W3 exists) or a small test client reloads the config; a second
       request after the reload still works; no daemon running gives a clear error.
 

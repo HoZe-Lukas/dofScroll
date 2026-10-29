@@ -6,24 +6,120 @@ The source (`src/config.cpp`, `src/config.hpp`) is the reference. This page desc
 
 ## File and location
 
-The file is UTF-8 (a BOM is accepted, never written; LF written, CRLF accepted); names may contain any Unicode text, see [encoding.md](encoding.md).
+Every file is UTF-8 (a BOM is accepted, never written; LF written, CRLF accepted); names may contain any Unicode text, see [encoding.md](encoding.md).
 
-| Item | Value |
-|---|---|
-| Config file | `~/.config/dofscroll/dofscroll.conf` (`$XDG_CONFIG_HOME` is used if it is an absolute path) |
-| Joystick mode files | `~/.config/dofscroll/modes/*.conf` (see [modes.md](modes.md)) |
-| Legacy paths | `~/.config/spnav-scroll/spnav-scroll.conf`, `~/.config/spnav-scroll.conf` (read only if the new file is missing) |
+The configuration is a folder with one file per thing:
 
-The tray and the daemon read and write the same format. The daemon reloads on `SIGHUP` and when the
-file changes, so you do not need to restart it. Only `BACKEND` needs a restart.
+    ~/.config/dofscroll/
+      dofscroll.conf              global settings only ([global])
+      devices/<name>.conf         one device profile per file
+      apps/<name>.conf            one program profile per file
+      modes/  buttons/            joystick modes and button modes (see modes.md)
+      backup/dofscroll.conf.pre-split   the old single file, kept by the upgrade (only if there was one)
+
+| Item | Linux | Windows | macOS |
+|---|---|---|---|
+| Config folder | `~/.config/dofscroll/` (`$XDG_CONFIG_HOME` is used if it is an absolute path) | `%APPDATA%\dofscroll\` | `~/Library/Application Support/dofscroll/` |
+| Global settings | `dofscroll.conf` in the config folder | same | same |
+| Device and program profiles | `devices/` and `apps/` in the config folder | same | same |
+| Joystick and button modes | `modes/`, `buttons/` | same | same |
+| Legacy paths | `~/.config/spnav-scroll/spnav-scroll.conf`, `~/.config/spnav-scroll.conf` (read only if the new file is missing) | none | none |
+
+The folder `devices/` of the configuration holds your device **profiles**. It is not the `devices/` folder
+of the source tree, which holds the device **descriptions** (how a raw HID report maps to axes, see [devices.md](devices.md)).
+
+The settings window and the daemon read and write the same format. The daemon only reads; the settings window
+writes. The daemon reloads on `SIGHUP` and when `dofscroll.conf` or a file in `devices/`, `apps/` or `modes/`
+changes (a change of one file reloads everything), so you do not need to restart it. Only `BACKEND` needs a restart.
 
 Format: `KEY = value`, sections `[name]`, comments with `#` or `;`. Keys are case-sensitive and
-upper case. The easiest way to edit is the tray settings window. The tray rewrites the file
-without keeping comments. It writes atomically, keeps the file mode and follows a symlink.
+upper case. The easiest way to edit is the settings window. The settings window rewrites a file
+without keeping comments, and only the files whose profile you changed. It writes every file atomically
+(temporary file, then rename), keeps the file mode and follows a symlink of `dofscroll.conf`.
 
-Limits: file up to 1 MiB, line up to 8 KiB, up to 256 sections, 512 keys per section, 12 mix
+Limits: file up to 1 MiB, line up to 8 KiB, up to 256 sections in `dofscroll.conf`, 512 keys per section, 12 mix
 terms, 64 curve points. Duplicate keys in one section: the last wins. Invalid values are rejected
-with a message in the log.
+with a message in the log. The profile folders have limits too (number of files, size per file, total
+number of profiles); a folder over the limit is read up to the limit and the log says so.
+
+### Profile files
+
+A profile file has the same syntax as always and exactly one section whose header carries the real name:
+
+    # devices/spacemouse-pro.conf
+    [device:SpaceMouse Pro]
+    SCROLL_V_SENS = 8
+    BUTTON_1 = nav
+
+    # apps/firefox.conf
+    [app:firefox]
+    ZOOM_SENS = 12
+
+- The **header is the truth**: the name in the header decides which device or program the file is for. The
+  file name is only a label. If you rename a file by hand it is still read, and the settings window writes it
+  under its own name the next time you change that profile.
+- A file in `apps/` has an `[app:...]` header, a file in `devices/` a `[device:...]` header. A file with the
+  wrong kind of header, with several sections, or with no section is defective (see "Errors per file").
+- Every profile exists once. If two files have the same header name (for example a hand-made copy), the first
+  one in the order of the file names wins; the second is ignored, with a warning in the log and in the
+  profile list, and is never overwritten.
+- A broken file only drops its own profile. All other profiles stay active.
+
+The exported file of a profile (Profiles page, **Export...**) is a valid profile file. **Sharing or importing a
+profile is copying a file**: copy it into `devices/` or `apps/` of the other computer (or use **Import...**
+on the Profiles page) and the profile is there at the next reload.
+
+### File names
+
+The settings window names a file after the profile name (the "slug"):
+
+- upper case ASCII letters become lower case (only ASCII; umlauts and other letters stay as they are);
+- the characters `/ \ : * ? " < > |`, control characters and a dot or space at the start become `_`;
+  a dot or space at the end becomes `_` too;
+- the Windows device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1` to `COM9`, `LPT1` to `LPT9`) get a `_` appended;
+- the name is at most 80 bytes (cut between two characters, never in the middle of one);
+- when a name is cut, or two profiles would get the same file name (also names that differ only in
+  upper and lower case, which Windows and macOS cannot keep apart), `-` and a short hash
+  are appended. The hash is taken from the lower-cased name, so the file name is the same on every
+  operating system and a copied configuration stays portable.
+
+Examples: `SpaceMouse Pro` becomes `devices/spacemouse pro.conf`; `Q/A: notes` becomes `apps/q_a_ notes.conf`.
+You can name a file anything you like when you create it by hand; only the header counts.
+
+### Errors per file
+
+The log (and the profile list in the settings window, which marks the profile "defective") names the file and
+the reason when a profile file is not used: a line that is not valid (only that line is skipped, as in every
+file), a wrong or missing header, more than one section, a second file with the same header name, a file that
+is too big or not readable. The settings window never overwrites a defective file while the error stands: fix
+or remove the file by hand, the profile is read again at the next reload.
+
+### Hand-editing
+
+Edit a profile file with any editor; the daemon reloads within about a second. If the settings window is
+open and you changed a file it was about to write, it says so and reads your file instead of overwriting it.
+To create a profile by hand, create a file in `devices/` or `apps/` with a header and the keys that differ from
+`[global]`. To delete it, delete the file. Check a folder with `build/tests/check_config <config folder>`
+(source build).
+
+### The single file (legacy)
+
+The old format stays readable: `[device:...]` and `[app:...]` sections inside `dofscroll.conf` are still
+accepted, for example in a hand-written file or in a dotfile repository with a symlinked `dofscroll.conf`.
+When the same profile also has a file in `devices/` or `apps/`, **the file wins** and the section is ignored with
+a warning. The first start of the new interface moves the profiles of an existing `dofscroll.conf` into their
+own files, see [installation.md](installation.md#upgrading-the-configuration-one-file-per-profile). A
+`dofscroll.conf` that is a symlink is not split: it is only read, and the settings window keeps writing the single file.
+
+### Downgrade
+
+An older version reads only `dofscroll.conf`, so after the split it sees `[global]` and no profiles (nothing is
+lost). To go back, in the config folder:
+
+    cat devices/*.conf apps/*.conf >> dofscroll.conf
+
+or restore the old file: `cp backup/dofscroll.conf.pre-split dofscroll.conf` (the backup is the file as it was
+before the split, without changes you made after it). There is no button for this.
 
 ## Channels
 
@@ -115,6 +211,7 @@ raise `LIFT_DEADZONE` until grabbing the cap does not fire it.
 | `INPUT` | `auto` | `auto`, `driver` or `hid`. **Windows and macOS only; ignored on Linux**, where spacenavd is the driver. How the SpaceMouse is read: `driver` through the interface of the installed official 3Dconnexion driver (loaded at run time from the installed driver, nothing bundled; see [legal-notes.md](legal-notes.md)), `hid` directly as raw HID, `auto` by a built-in table (macOS: driver first when installed, otherwise HID; Windows: HID first, the driver as the fallback when HID cannot be opened). With `driver` or `hid` exactly that path is used and nothing else is tried; an invalid value is reported and `auto` applies. Read from `[global]` only, applied on reload without a restart (switching takes a few seconds). The active path is shown as `input=driver` or `input=hid` in the status file and as "Input: 3Dconnexion driver" or "Input: direct (HID)" in the interface and in the log. The defaults of `auto` are unverified guesses until tested on hardware. |
 | `TICK_HZ` | `250` | Tick rate 30 to 1000. Can differ per profile. |
 | `ENABLED` | `1` | `0` switches all output off (scroll, zoom, keys, clicks) and releases held keys. |
+| `PRIORITY` | `0` | Only in `[device:*]` and `[app:*]` profiles (split layout): integer, ascending order in which overlapping profiles of one kind are applied, the highest wins; ties by file name. See "Order of overlapping profiles". |
 | `MODE` | `normal` | Active joystick mode, see [modes.md](modes.md). Can be set in `[global]` (the joystick mode of everything that does not choose its own), `[device:*]` and `[app:*]`. |
 | `LIVE_FEED` | `1` | `0` disables the live data feed to the UI (axes view, axis assistant); with `1` it only runs while a UI is connected. See `security.md`. |
 | `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | **Deprecated**, use `BUTTON_<n> = nav`. Button (0-based index) that turns X/Y into arrow keys while held. |
@@ -165,19 +262,20 @@ If the active joystick mode binds the same button, the joystick mode's binding w
 
 ## Profiles
 
-| Section | Applies when |
+| Section (file) | Applies when |
 |---|---|
-| `[global]` | Always. Base values and fallback. |
-| `[device:<text>]` | The device name reported by `spacenavd` contains `<text>` (case-insensitive substring). |
-| `[app:<text>]` | The active window's `WM_CLASS` contains `<text>` (case-insensitive substring). |
+| `[global]` (`dofscroll.conf`) | Always. Base values and fallback. |
+| `[device:<text>]` (`devices/<name>.conf`) | The device name reported by `spacenavd` contains `<text>` (case-insensitive substring). |
+| `[app:<text>]` (`apps/<name>.conf`) | The active window's `WM_CLASS` contains `<text>` (case-insensitive substring). |
 
-Sections contain only the keys they override. `BACKEND` is read from `[global]` at start, `INPUT` from `[global]` (an `INPUT` line in a profile section has no effect).
+Below, "section" means the section of a profile, whether it is in its own file or (legacy) in `dofscroll.conf`.
+A profile holds only the keys it overrides. `BACKEND` is read from `[global]` at start, `INPUT` from `[global]` (an `INPUT` line in a profile section has no effect).
 
 ### Precedence
 
 Lowest to highest: `[global]` < matching `[device:*]` < overrides of the active joystick mode < matching
-`[app:*]`. All device sections are applied before all app sections, each in file order, so a later
-matching section wins. The joystick mode is chosen by `MODE` from the resolved profile (global, device or
+`[app:*]`. All device profiles are applied before all app profiles, each in the order of their `PRIORITY` (see
+"Order of overlapping profiles" below), so a later matching profile wins. The joystick mode is chosen by `MODE` from the resolved profile (global, device or
 app), so an app section can select a joystick mode and still has the last word over the joystick mode's overrides.
 
 The channel actions (`V_ACTION`, `H_ACTION`, `TWIST_ACTION`, `LIFT_ACTION` and the four push/tilt keys) and `BUTTON_<n>` follow the same
@@ -197,6 +295,37 @@ button; before, the mode's binding won). A version of dofscroll that does not kn
 ignored" for each of them and skips only those lines: everything else of the profile still applies, the profile just
 does not change the action there. (An old interface that saves the file would drop such lines.) Mode files are
 unchanged: `V_ACTION` and friends in a mode file work as before.
+
+### Order of overlapping profiles
+
+Matching is by substring, so several profiles of one kind can match at once (`[app:fire]` and `[app:firefox]` both
+match the window class `firefox`). They are all applied, device profiles before program profiles, and the
+later one wins for every key both set. The order inside one kind is:
+
+- **Single file (legacy):** the order of the sections in `dofscroll.conf`.
+- **Split layout:** the optional key `PRIORITY` in the profile, an integer, default 0, ascending (the profile with the
+  highest number is applied last and wins). Profiles with the same `PRIORITY` are applied in the order of their file
+  names. `PRIORITY` is read only from the profile itself; a `PRIORITY` line in `[global]` has no effect. It exists because
+  files have no order of their own and a file name is a poor place for it.
+
+Example: both match Firefox; `fire` sets the zoom for all programs whose name contains "fire", `firefox` refines it.
+
+    # apps/fire.conf
+    [app:fire]
+    PRIORITY = 10
+    ZOOM_SENS = 8
+    SCROLL_V_SENS = 4
+
+    # apps/firefox.conf
+    [app:firefox]
+    PRIORITY = 20            # applied after "fire": ZOOM_SENS 12 wins, SCROLL_V_SENS 4 is inherited from it
+    ZOOM_SENS = 12
+
+The upgrade keeps your old behavior: when a kind has more than one profile, the migration gives them `PRIORITY` 10, 20,
+30 ... in the order they had in the old file, so the split layout resolves exactly like the old file. A kind with one
+profile gets no `PRIORITY` line. To change the order by hand, change the numbers (leave gaps such as 10, 20, 30 so you
+can insert one later). The settings window shows the order in the profile list and offers "Move up" and "Move down",
+which renumber the `PRIORITY` lines for you.
 
 ### Inheritance
 
@@ -376,8 +505,9 @@ arrives separately (Windows and macOS, direct HID) every device has its own prof
 
 ## Example files
 
-All are validated by `cmake --build build --target check-config`. Copy one to
-`~/.config/dofscroll/dofscroll.conf` to use it. Packages install them in
+All are validated by `cmake --build build --target check-config`. Copy a single file to
+`~/.config/dofscroll/dofscroll.conf` to use it (the legacy single-file format), or copy the folder
+`examples/split/` into `~/.config/dofscroll/` for one file per profile. Packages install them in
 `/usr/share/dofscroll/examples/`.
 
 | File | Content |
@@ -385,7 +515,8 @@ All are validated by `cmake --build build --target check-config`. Copy one to
 | `examples/default/linux/`, `windows/`, `macos/` (`dofscroll.conf`) | Initial config that the interface seeds on first start, one per operating system (macOS: experimental, untested). It has no device profile: the first attached device gets its own profile once (button 1 = navigation). |
 | `examples/dofscroll-pro.conf` | SpaceMouse Pro, buttons off. |
 | `examples/dofscroll-compact.conf` | SpaceMouse Compact, left button as nav button. |
-| `examples/dofscroll-multi-device.conf` | Both device profiles in one file. |
+| `examples/dofscroll-multi-device.conf` | Both device profiles in one file (legacy single-file format). |
+| `examples/split/` | The split layout: `dofscroll.conf` with `[global]`, `devices/` and `apps/` with one profile per file. |
 | `examples/modes/*.conf`, `examples/buttons/*.conf` | The built-in joystick modes and button modes (embedded into the program at build time, not installed or seeded). |
 
 ## Settings in the vendor driver

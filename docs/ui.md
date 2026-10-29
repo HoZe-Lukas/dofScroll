@@ -3,7 +3,8 @@
 # The dofscroll interface (`dofscroll-ui`)
 
 `dofscroll-ui` is the Qt6 interface: a tray icon plus a settings window, one code base for Linux,
-Windows and macOS. It edits the same config file as the daemon and asks the daemon to reload, so
+Windows and macOS. It edits the same configuration as the daemon (`dofscroll.conf` for Global, one file per
+device or program profile in `devices/` and `apps/`, see [configuration.md](configuration.md#file-and-location)) and asks the daemon to reload, so
 changes apply immediately. There is no Save button: every change is saved by itself (see "Saving"
 below). The daemon runs without it. The interface starts minimized to the
 tray (no window opens); "Settings..." in the tray menu or a click on the tray icon shows the window. Without a
@@ -842,7 +843,7 @@ untouched and the Motions and buttons tab lists them as "Not moved: ...". Disabl
 
 ## Tray menu
 
-Status line, "Joystick mode" submenu (the Global joystick mode; every entry has its description as tooltip), "Enabled", "Settings...", "Open config file",
+Status line, "Joystick mode" submenu (the Global joystick mode; every entry has its description as tooltip), "Enabled", "Settings...", "Open config file" (opens `dofscroll.conf`; the profile files are in the folders `devices/` and `apps/` next to it),
 "Show log...", "Open joystick modes folder", "Release all keys", "Restart",
 "Quit". "Release all keys" starts
 `dofscroll --release-keys` as a separate process (the daemon binary next to the interface, else
