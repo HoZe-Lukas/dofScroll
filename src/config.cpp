@@ -3,6 +3,7 @@
 // Implementation of the configuration system; see config.hpp for the
 // file format and the contract.
 #include "config.hpp"
+#include "log_sanitize.hpp"
 #include "modes.hpp"
 #include "utf8.hpp"
 
@@ -1248,7 +1249,7 @@ bool parseProfilesText(const std::string &data, const std::string &path, Profile
         value = trim(value);
         if (key.empty()) { warn(lineno, "line without key ignored"); continue; }
         if (hasControlChar(key) || hasControlChar(value)) {
-            warn(lineno, "control character in the line - ignored");
+            warn(lineno, "control character in the line - ignored: " + sanitizeForLog(key));
             continue;
         }
         Settings probe;
