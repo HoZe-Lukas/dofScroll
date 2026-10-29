@@ -231,7 +231,7 @@ can verify these; none of them has been tested:
 ## Known limitations
 
 - `dofscroll-ui --self-test` can still fail on a real Wayland session at the font-dependent default size check
-  (issue #193); the grabbing-popup problem is worked around, the Qt bug is not fixed (issue #258).
+  (issue #193, closed); the grabbing-popup problem is worked around, the Qt bug is not fixed (open issue #258, waiting for a Qt fix).
 - The driver cleanup is available on Windows only (issue #184).
 - A pinned idle device on the Axes page shows its last values until it moves (issue #245).
 - Media keys are not sent on macOS.
