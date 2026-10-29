@@ -16,7 +16,7 @@
 // tuning of its channel (sensitivity, dead zone, direction, curve) stays as the target has it, and the source's channel
 // keys are not touched. With "also take over the tuning" (tuning = true) copyMotionSettings() also writes the EFFECTIVE
 // tuning of the source motion as explicit keys: SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS> (ZOOM_*
-// for the twist); a motion that is tuned off in the source (sensitivity 0) is copied as an explicit SENS = 0. The one
+// for the twist) and, where the source sets them, <P>KEY_RATE_MIN, <P>KEY_RATE_MAX and <P>TRIGGER; a motion that is tuned off in the source (sensitivity 0) is copied as an explicit SENS = 0. The one
 // function serves profiles (borrowMotion) and joystick modes (borrowMotionIntoMode). A motion the source has switched off (action none, or sensitivity 0) is copied as "cleared" (none).
 // Buttons: the effective binding of the source (a joystick mode's binding beats Global and device, a program's own
 // binding beats the mode); nothing bound, or cleared, is copied as an explicit "nothing". A button mode is copied as
@@ -159,7 +159,7 @@ inline BorrowedMotion borrowedMotion(const SettingsModel &m, const BorrowSource 
     return r;
 }
 
-// ---- the tuning of a motion: SCROLL_<V|H>_<PUSH|TILT>_<...>, ZOOM_<...> (the one shared copy) ----
+// ---- the tuning of a motion: SCROLL_<V|H>_<PUSH|TILT>_<...>, ZOOM_<...> (the one shared copy; the five channel keys, then the key engine keys the source sets) ----
 namespace borrow_detail {
 inline const char *const kTuningFields[] = {"SENS", "DEADZONE", "SIGN", "CURVE", "SMOOTH_MS"};
 // The settings the source really runs with: a profile with its joystick mode merged; a joystick mode on top of Global.
@@ -189,7 +189,7 @@ inline std::string tuningPrefix(const std::string &id) {
 }
 }  // namespace borrow_detail
 
-// The effective tuning of one motion of the source as explicit key / value pairs in the canonical config form (five keys).
+// The effective tuning of one motion of the source as explicit key / value pairs in the canonical config form: the five channel keys, then <P>KEY_RATE_MIN, <P>KEY_RATE_MAX and <P>TRIGGER of those the source sets.
 inline bool motionTuning(const SettingsModel &m, const BorrowSource &src, const std::string &motionId, std::vector<KV> *out, std::string *err) {
     if (!borrow_detail::motionIdOk(motionId)) {
         if (err) *err = "Take over is not offered for the lift yet";
@@ -199,6 +199,9 @@ inline bool motionTuning(const SettingsModel &m, const BorrowSource &src, const 
     if (!borrow_detail::sourceSettings(m, src, &s, err)) return false;
     const std::string pre = borrow_detail::tuningPrefix(motionId);
     Settings tmp;  // carries the values, so the canonical text comes from the one writer of the config
+    // the key engine tuning of the motion (rate limits and trigger): only what the source sets
+    const int keyMotion = motionId == "twist" ? KM_TWIST : (motionId[0] == 'v' ? 0 : 2) + (motionId.find("tilt") != std::string::npos ? 1 : 0);
+    tmp.key_tuning[keyMotion] = s.key_tuning[keyMotion];
     if (motionId == "twist") {
         tmp.zoom = s.zoom;
     } else {
@@ -214,14 +217,17 @@ inline bool motionTuning(const SettingsModel &m, const BorrowSource &src, const 
     for (const char *f : borrow_detail::kTuningFields)
         for (const KV &kv : all)
             if (kv.first == pre + f) out->emplace_back(kv);
-    return out->size() == 5;
+    for (const char *f : {"KEY_RATE_MIN", "KEY_RATE_MAX", "TRIGGER"})
+        for (const KV &kv : all)
+            if (kv.first == pre + f) out->emplace_back(kv);
+    return out->size() >= 5;
 }
 
 // Where the copied tuning goes: a profile (SettingsModel::setValue) or a joystick mode form (ModeForm::setOverride).
 using TuningSink = std::function<bool(const std::string &key, const std::string &value, std::string *err)>;
 
 // THE copy of the tuning of the motion `fromMotion` (default: the same) of the source into the motion `motionId` of the
-// destination: the five keys of the destination's motion, explicit. Every value is checked first.
+// destination: the five keys of the destination's motion, explicit, plus the key engine keys that the source sets (a key it does not set is left as the destination has it). Every value is checked first.
 inline bool copyMotionSettings(const SettingsModel &m, const BorrowSource &src, const TuningSink &dst, const std::string &motionId,
                                std::string *err, const std::string &fromMotion = std::string()) {
     const std::string fromId = fromMotion.empty() ? motionId : fromMotion;

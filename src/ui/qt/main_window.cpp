@@ -81,6 +81,7 @@ MainWindow::MainWindow(const UiContext &base, QWidget *parent)
     ctx_.status = &status_;
     ctx_.modes = &modes_;
     ctx_.buttonModes = &buttonModes_;
+    settings_.setButtonModes(&buttonModes_.set());  // bindingIsRisky sees the Button modes of the user's own
     ctx_.strings = &strings_;
     ctx_.autosave = &autosave_;
     ctx_.notes = &startupNotes_;

@@ -7,6 +7,7 @@
 #undef NDEBUG
 #include <cassert>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -621,6 +622,29 @@ static void testImportRiskUsesParser() {
     tu::removeAll(d);
 }
 
+// A Button mode of the user's own (also one that overrides a built-in id) is flagged when it is bound (issue #268).
+static void testImportRiskSeesOwnButtonModes() {
+    const std::string d = makeDir("split-model-riskbm");
+    SettingsModel m = load(d);
+    assert(!m.bindingIsRisky("BUTTON_4", "buttonmode:next-mode"));  // without a catalog: the built-in library
+    assert(m.bindingIsRisky("BUTTON_4", "buttonmode:my-own"));
+    std::filesystem::create_directories(d + "/buttons");
+    put(d + "/buttons/my-own.conf", "NAME = Mine\nACTION = key:delete\n");
+    put(d + "/buttons/next-mode.conf", "NAME = Not the library one\nACTION = click\n");
+    const ButtonModeSet set = loadButtonModes(d + "/buttons", nullptr);
+    assert(set.find("my-own") && !set.find("my-own")->builtin);
+    assert(set.find("next-mode") && !set.find("next-mode")->builtin);
+    assert(set.find("prev-mode") && set.find("prev-mode")->builtin);
+    m.setButtonModes(&set);
+    assert(m.bindingIsRisky("BUTTON_4", "buttonmode:my-own"));
+    assert(m.bindingIsRisky("BUTTON_4", "ButtonMode:Next-Mode"));  // the user's file replaces the built-in one
+    assert(!m.bindingIsRisky("BUTTON_4", "buttonmode:prev-mode"));
+    assert(!m.bindingIsRisky("BUTTON_4", "buttonmode:latch-nav"));
+    const ImportPlan p = planOf(m, d, "[app:programname]\nBUTTON_4 = buttonmode:next-mode\n");
+    assert(p.ok && !p.risks.empty());
+    tu::removeAll(d);
+}
+
 static void testNewAndImportedPriority() {
     const std::string d = makeDir("split-model-newprio");
     put(d + "/dofscroll.conf", "[global]\n");
@@ -767,6 +791,7 @@ int main() {
     testStateAcrossEdits();
     testHostileImportAndDisplay();
     testImportRiskUsesParser();
+    testImportRiskSeesOwnButtonModes();
     testNewAndImportedPriority();
     testStaleImportPlan();
     testImportNameChecks();

@@ -758,6 +758,11 @@ by a file). Assessment and limits:
   profile's channel action that presses an Alt/Super chord, or a chord with a non-navigation key, is
   loaded and noted with a warning, as for a mode file. The profile files have the same trust level as
   `dofscroll.conf` (same owner, same folder).
+- **Import of a profile file in the interface:** the interface asks before it adds a profile that binds keys that can
+  do harm, clicks, or a Joystick mode or Button mode of the user's own (a mode file can bind anything). For Button modes
+  the interface checks the real buttons folder, so a user file that replaces a built-in Button mode id (for example
+  `next-mode`) counts as the user's own; only the unmodified built-in ones are not flagged. An id that is in neither
+  place is flagged too, because a file of that name could appear later.
 
 ---
 

@@ -241,6 +241,36 @@ int main() {
         assert(has(sectionText(m, code), "SCROLL_V_TILT_SENS=8;"));
         assert(m.setValue(code, "SCROLL_V_TILT_SENS", "9", &err));
         assert(has(sectionText(m, video), "SCROLL_V_TILT_SENS=8;"));
+        // the key engine keys (rate limits, trigger) come with the tuning where the source sets them (issue #260)
+        assert(m.setValue(code, "SCROLL_V_TILT_KEY_RATE_MIN", "3", &err) && m.setValue(code, "SCROLL_V_TILT_KEY_RATE_MAX", "25", &err) &&
+               m.setValue(code, "SCROLL_V_TILT_TRIGGER", "30", &err) && m.setValue(code, "ZOOM_KEY_RATE_MAX", "12", &err));
+        assert(borrowMotion(m, video, "h_tilt", profile(code), &err, "v_tilt", true));
+        assert(has(sectionText(m, video), "SCROLL_H_TILT_KEY_RATE_MIN=3;") && has(sectionText(m, video), "SCROLL_H_TILT_KEY_RATE_MAX=25;") &&
+               has(sectionText(m, video), "SCROLL_H_TILT_TRIGGER=30;"));
+        assert(!has(sectionText(m, video), "SCROLL_V_TILT_KEY_RATE"));  // the keys of the destination motion, not the source's
+        assert(borrowMotion(m, video, "twist", profile(code), &err, "", true));
+        assert(has(sectionText(m, video), "ZOOM_KEY_RATE_MAX=12;") && !has(sectionText(m, video), "ZOOM_KEY_RATE_MIN") &&
+               !has(sectionText(m, video), "ZOOM_TRIGGER"));
+        {
+            std::vector<KV> kv;
+            assert(copyMotionSettings(m, profile(code), [&](const std::string &key, const std::string &v, std::string *) { kv.emplace_back(key, v); return true; },
+                                      "v_tilt", &err));
+            assert(kv.size() == 8 && kv[5].first == "SCROLL_V_TILT_KEY_RATE_MIN" && kv[5].second == "3" && kv[7].first == "SCROLL_V_TILT_TRIGGER");
+        }
+        // without "also take over the tuning" they stay out
+        assert(m.clearOverride(video, "SCROLL_H_TILT_KEY_RATE_MIN") && m.clearOverride(video, "SCROLL_H_TILT_TRIGGER"));
+        assert(borrowMotion(m, video, "h_tilt", profile(code), &err, "v_tilt"));
+        assert(!has(sectionText(m, video), "SCROLL_H_TILT_TRIGGER") && !has(sectionText(m, video), "SCROLL_H_TILT_KEY_RATE_MIN"));
+        // into a joystick mode form
+        {
+            ModeForm kf;
+            const Settings kbase;
+            assert(borrowMotionIntoMode(m, kf, kbase, Motion::VTilt, profile(code), &err, Motion::VTilt, true));
+            assert(kf.overrides.size() == 8 && kf.overrideValue("SCROLL_V_TILT_TRIGGER") && *kf.overrideValue("SCROLL_V_TILT_TRIGGER") == "30");
+        }
+        for (const char *key : {"SCROLL_V_TILT_KEY_RATE_MIN", "SCROLL_V_TILT_KEY_RATE_MAX", "SCROLL_V_TILT_TRIGGER", "ZOOM_KEY_RATE_MAX"})
+            assert(m.clearOverride(code, key));
+        for (const char *key : {"SCROLL_H_TILT_KEY_RATE_MAX", "ZOOM_KEY_RATE_MAX"}) assert(m.clearOverride(video, key));
         // refused: nothing is written (a profile below its mode, lift, an unknown source)
         const std::string devNow = sectionText(m, dev), videoNow = sectionText(m, video);
         assert(!borrowMotion(m, dev, "twist", profile(code), &err, "", true) && has(err, "joystick mode"));

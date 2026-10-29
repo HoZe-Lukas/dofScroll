@@ -254,11 +254,13 @@ public:
             const ModeDef *md = modes_.find(utf8::lowerAscii(utf8::trim(mid)));
             return md && !md->builtin;
         };
-        // The model does not know the user's buttons directory: a Button mode is safe only if it is in the embedded
-        // library (an id that a user file overrides is treated as the library one).
-        auto ownButtonMode = [](const std::string &bid) {
+        // A Button mode of the user's own (a file in the buttons directory, also one that overrides a built-in id) can
+        // bind keys and clicks. Without a catalog (setButtonModes) only the embedded library is known.
+        auto ownButtonMode = [&](const std::string &bid) {
             static const ButtonModeSet library = loadButtonModes("", nullptr);
-            return library.find(utf8::lowerAscii(utf8::trim(bid))) == nullptr;
+            const ButtonModeSet &set = buttonModes_ ? *buttonModes_ : library;
+            const ButtonMode *b = set.find(utf8::lowerAscii(utf8::trim(bid)));
+            return b == nullptr || !b->builtin;  // an unknown id may become a user file
         };
         if (k == "CLICK_BUTTON") return true;
         if (k == "MODE") return ownMode(value);
@@ -414,6 +416,9 @@ public:
         modes_ = ms;
         modesDir_ = modesDir;
     }
+    // The Button mode catalog (buttons directory plus built-in library), so that bindingIsRisky sees the user's own
+    // files. Not owned: the set must outlive the model (ButtonModeCatalog::set() does); nullptr = built-in library only.
+    void setButtonModes(const ButtonModeSet *set) { buttonModes_ = set; }
     // Effective mode id of section i (the MODE of [global], "normal" when it sets none).
     std::string effectiveMode(size_t i) const {
         if (i >= ps_.sections.size()) return "normal";
@@ -1400,6 +1405,7 @@ private:
     int limit_ = int(kMaxButtons);
     ReloadFn reload_;
     ModeSet modes_;
+    const ButtonModeSet *buttonModes_ = nullptr;
     std::string modesDir_;
 };
 

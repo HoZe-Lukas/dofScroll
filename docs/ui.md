@@ -738,7 +738,7 @@ it matches almost every program or device) and bindings that can do harm are sho
 confirmation before the profile is added: key chords with Ctrl, Alt or Super (however they are spaced, as the daemon
 reads them), other chords with a key that is not a navigation key (for example Shift+Delete), plain Delete, Backspace,
 Enter, Esc, F4 or a modifier key, mouse clicks as button action (also the old `CLICK_BUTTON`) and a `MODE` or
-`mode:` binding that points to a Joystick mode of your own. The values are written in their canonical form (what the
+`mode:` binding that points to a Joystick mode of your own, or a `buttonmode:<id>` binding that points to a Button mode of your own (a file in the `buttons/` folder, also one that replaces a built-in Button mode of the same id; the three built-in ones are not flagged). The values are written in their canonical form (what the
 editor would write), not as typed in the file. A profile that binds such things shows the same warning in its header
 ("Only keep profile files from sources you trust ..."). A file whose profile name contains control, zero-width,
 bidirectional or BOM characters is refused. If the profiles change while the question is open (the configuration was
@@ -792,7 +792,7 @@ joystick mode; for a button also a button mode), says in words what would be cop
 effective assignment of the source becomes explicit keys of the target, later changes in the source do not follow. Push and
 tilt are separate motions. A source that is off is copied as "cleared". For a motion the dialog has the check box **Also take
 over the tuning** (off by default: only the action is copied); on, it also copies the effective sensitivity, dead zone,
-direction, curve and smoothing of that motion as explicit keys, and the sentence in the dialog lists them. Profiles and
+direction, curve and smoothing of that motion as explicit keys (and the key engine keys rate minimum, rate maximum and trigger where the source sets them), and the sentence in the dialog lists them. Profiles and
 joystick modes use the same copy. A refused copy (a profile below its joystick mode
 cannot beat the mode) says why and writes nothing. Like every edit it is saved by itself.
 
