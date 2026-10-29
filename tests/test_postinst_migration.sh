@@ -69,6 +69,9 @@ setup() {  # $1 = with tray link (1/0), $2 = ui unit present (1/0)
     rm -rf "$T/home" "$T/log" "$T/ui.service"
     mkdir -p "$T/home/alice/.config/dofscroll" "$T/home/alice/.config/systemd/user/default.target.wants"
     echo "SCROLL_V_SENS = 7" > "$T/home/alice/.config/dofscroll/dofscroll.conf"
+    # split layout (one file per profile): a package step leaves these alone as well
+    mkdir -p "$T/home/alice/.config/dofscroll/devices" "$T/home/alice/.config/dofscroll/apps"
+    echo "[device:X]" > "$T/home/alice/.config/dofscroll/devices/x.conf"
     if [ "$1" = 1 ]; then
         ln -s "$T/gone/dofscroll-tray.service" \
             "$T/home/alice/.config/systemd/user/default.target.wants/dofscroll-tray.service"
@@ -93,6 +96,8 @@ grep -q "^$M start dofscroll.service" "$T/log" || fail "daemon not started after
 grep -q "^$M start dofscroll-ui.service" "$T/log" || fail "interface not started after the upgrade"
 grep -q 'dofscroll-tray.service' "$T/log" | grep -q "start dofscroll-tray" && fail "removed tray unit started"
 [ "$(cat "$T/home/alice/.config/dofscroll/dofscroll.conf")" = "SCROLL_V_SENS = 7" ] || fail "config changed"
+[ "$(cat "$T/home/alice/.config/dofscroll/devices/x.conf")" = "[device:X]" ] || fail "profile file changed"
+[ -d "$T/home/alice/.config/dofscroll/apps" ] || fail "config folder removed"
 
 # 2. Tray enabled but not running: enabled for the next login, and started now like every upgrade starts it.
 setup 1 1

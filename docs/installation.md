@@ -251,9 +251,11 @@ Do these steps once per machine. Steps 1 and 5 need root.
 When the Qt interface starts and no config exists, it creates
 `~/.config/dofscroll/dofscroll.conf` from `examples/default/<os>/dofscroll.conf` (`linux`, `windows` or
 `macos`: the axis order of the official driver differs per system; the macOS file is experimental and
-untested: it uses the Windows axis order). It never overwrites an existing file. The seeded file has no device profile: when the daemon
-reports the attached device for the first time after a new installation, the interface adds the profile
-`[device:<name of that device>]` (button 1 = navigation), once. The joystick modes and button modes are built into the program and are not copied.
+untested: it uses the Windows axis order). It never overwrites an existing file, and a config folder that
+already has files in `devices/` or `apps/` counts as configured. The seeded `dofscroll.conf` holds `[global]`
+only and has no device profile: when the daemon reports the attached device for the first time after a new
+installation, the interface writes the profile of that device as its own file, `devices/<name of that device>.conf`
+(header `[device:<name of that device>]`, button 1 = navigation), once. The joystick modes and button modes are built into the program and are not copied.
 The daemon cannot write to that directory, so only the interface seeds. Without it, copy the file yourself:
 
     mkdir -p -m 0700 ~/.config/dofscroll
@@ -309,9 +311,36 @@ or the link is still there, do it by hand:
     systemctl --user enable --now dofscroll-ui.service
     rm -f ~/.config/systemd/user/dofscroll-tray.service   # only if you copied the unit there yourself
 
-Your config in `~/.config/dofscroll/` is never touched by a package. If you copied the units
+Your config in `~/.config/dofscroll/` (the file `dofscroll.conf` and the folders `devices/`, `apps/`, `modes/`,
+`buttons/` and `backup/`) is never touched by a package. If you copied the units
 in step 3, repeat the copy and the `sed` command when the unit files changed in the release
 notes.
+
+### Upgrading the configuration: one file per profile
+
+Older versions kept everything in one `dofscroll.conf` (`[global]`, `[device:...]`, `[app:...]`). From
+version 1.3.0 on every device profile and every program profile is its own file (layout and file format:
+[configuration.md](configuration.md#file-and-location)). The **first start of the new interface** converts an
+existing configuration once, automatically; a package upgrade does not touch your files, and the daemon never
+converts anything (it may not write), it reads both layouts, so a start without the interface keeps working.
+The interface does this, in this order, while it holds the instance lock:
+
+1. It copies your old `dofscroll.conf` byte for byte to `backup/dofscroll.conf.pre-split` (a file that is already
+   there is never overwritten; the new copy gets a number).
+2. It writes every `[device:...]` and every `[app:...]` section into its own file in `devices/` and `apps/`;
+   comments directly above a section move with it.
+3. It reads everything back and compares it with what it read before. If anything differs, it stops and leaves
+   your old `dofscroll.conf` as it was.
+4. Only then it replaces `dofscroll.conf` by its `[global]` part.
+
+If `dofscroll.conf` is a symlink (for example into a dotfile repository), nothing is converted: the file is only
+read and the interface keeps writing the single-file format. Without a conversion nothing needs your attention.
+
+Going back to an older version: an older version reads only `dofscroll.conf`, so it sees `[global]` and no
+profiles (nothing is lost). Put the profiles back with `cat devices/*.conf apps/*.conf >> dofscroll.conf` in the
+config folder, or restore the backup with `cp backup/dofscroll.conf.pre-split dofscroll.conf`.
+If something looks wrong after the upgrade see
+[troubleshooting.md](troubleshooting.md#after-the-upgrade-profiles-are-missing-or-defective).
 
 ### Uninstall
 
@@ -431,7 +460,8 @@ are in [work-plan.md](work-plan.md); how the packages are built is in
    switched on (it writes the Run values of the current user, see 6.). The components page has
    **Start the daemon at logon** too (off by default; Run key value `dofscroll`) for a daemon without
    the interface.
-4. Config is read from `%APPDATA%\dofscroll\dofscroll.conf`, logs are in
+4. Config is read from `%APPDATA%\dofscroll\` (`dofscroll.conf` for the global settings, `devices\` and
+   `apps\` with one file per profile; the installer and an upgrade never touch it), logs are in
    `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
 5. The official 3Dconnexion driver can stay installed and running: dofscroll is designed to work next
    to it. Whether both can read the SpaceMouse at the same time is **not verified on real hardware yet**;

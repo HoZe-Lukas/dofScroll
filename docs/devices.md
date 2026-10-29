@@ -13,6 +13,12 @@ Two independent pieces (neither is wired into the daemon yet):
    how a raw HID report maps to axes and buttons, so further devices can be added without
    recompiling. The format is the same on every OS.
 
+Do not confuse them with the **device profiles** (settings per device: sensitivity, buttons), which are the
+files `devices/<name>.conf` in your configuration folder (`~/.config/dofscroll/`, see
+[configuration.md](configuration.md#profile-files)). The device description files described here live in the
+installation (`/usr/share/dofscroll/devices/`, next to the program on Windows and macOS) and are not part of your
+configuration.
+
 ## Verified button counts
 
 | Model | Buttons | Basis |

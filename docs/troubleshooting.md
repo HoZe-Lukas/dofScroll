@@ -20,7 +20,7 @@ on macOS, the two permissions, and says what to do. On Linux:
 | Interface log | `journalctl --user -u dofscroll-ui.service` |
 | Log copy for the interface | `$XDG_RUNTIME_DIR/dofscroll.log` (usually `/run/user/<uid>/`, at most 300 lines) |
 | Status file | `$XDG_RUNTIME_DIR/dofscroll-status`, lines `key=value`: `profile`, `device`, `app`, `enabled`, `paused`, `devices_seen`, `input` (Windows and macOS: `driver` or `hid`), `updated`. Removed on clean exit. |
-| Config | `~/.config/dofscroll/dofscroll.conf` and `~/.config/dofscroll/modes/` |
+| Config | `~/.config/dofscroll/dofscroll.conf` (global settings), `devices/` and `apps/` (one file per profile), `modes/`, `buttons/` (Windows: `%APPDATA%\dofscroll\`) |
 
 ### Reading the journal
 
@@ -30,7 +30,7 @@ Lines carry the daemon's messages. Look for:
   `[device:*]` sections);
 - profile switches, with the matched device and app;
 - "control disabled" and "active again" (`ENABLED = 0` or `MODE = off` in effect);
-- warnings about skipped config lines or joystick mode files;
+- warnings about skipped config lines, joystick mode files or profile files (the message names the file);
 - connection retries to `spacenavd`.
 
 For button indices and the live axis values, stop the service and run the daemon in a terminal:
@@ -277,9 +277,39 @@ active. A locked screen is not detected on Windows and macOS. See
 
 ### Config changes do not apply
 
-The daemon reloads when the file changes. Force it: `systemctl --user kill -s HUP dofscroll.service`.
+The daemon reloads when `dofscroll.conf` or a file in `devices/`, `apps/` or `modes/` changes. Force it:
+`systemctl --user kill -s HUP dofscroll.service`.
 Check the journal for a rejected line. `BACKEND` needs a restart. Validate a file with
-`build/tests/check_config FILE` (source build only).
+`build/tests/check_config FILE` (source build only); the same program checks a whole config folder when you
+give it the folder.
+
+### After the upgrade: profiles are missing or defective
+
+Since version 1.3.0 every device and program profile is its own file in `devices/` and `apps/` of the config
+folder (see [configuration.md](configuration.md#file-and-location)). The first start of the new interface moves
+the profiles of an old `dofscroll.conf` there and keeps the old file as `backup/dofscroll.conf.pre-split`
+(see [installation.md](installation.md#upgrading-the-configuration-one-file-per-profile)). If something is wrong:
+
+- **No profile after the upgrade, and no `devices/` or `apps/` folder:** the interface did not start yet (the
+  daemon never converts), or `dofscroll.conf` is a symlink (it is read as it is and not split). Start the
+  interface once. If the interface refused the conversion, its log says why; your old file is unchanged then.
+- **A profile does not load:** look in the journal (`journalctl --user -u dofscroll.service`) for a line that names
+  the file. Typical reasons: the header does not match the folder (`[device:...]` in `apps/` or the other way
+  round), the file has more than one section or none, the file is too big, or it is not readable (mode, owner).
+  Only that profile is dropped; all others stay active. In the settings window the profile is marked
+  "defective" with the reason, and the window does not overwrite the file while the error stands. Fix the file with an
+  editor (or remove it) and the profile is read again at the next reload.
+- **Two files with the same name:** if two files have the same header name (for example a copy you made by hand),
+  the first one in the order of the file names is used and the other one is ignored with a warning, the
+  same in the log and in the profile list. Delete the copy you do not want. The ignored file is never overwritten.
+- **A profile in `dofscroll.conf` has no effect:** when the same profile also has a file in `devices/` or `apps/`,
+  the file wins and the section in `dofscroll.conf` is ignored with a warning (an old version of the interface
+  that was still running may have written it). Delete one of them.
+- **The settings window says that a file changed:** you edited a profile file by hand while the window was about to
+  write it. The window reads your file instead of overwriting it; nothing is lost.
+- **Back to an older version:** an older version reads only `dofscroll.conf` and shows no profiles. Run
+  `cat devices/*.conf apps/*.conf >> dofscroll.conf` in the config folder, or restore
+  `backup/dofscroll.conf.pre-split` (`cp backup/dofscroll.conf.pre-split dofscroll.conf`).
 
 ### macOS: the guide says a permission is missing
 

@@ -21,15 +21,15 @@ The RPM and DEB files are install-tested in CI containers only (not on a real de
 
 ## First-time setup (Linux)
 
-**Install the package, then open dofScroll from the application menu.** That is the whole first start: the interface starts the daemon by itself and shows a short setup guide (daemon running, SpaceMouse found, "Start at login" on by default). The RPM and DEB enable the `spacenavd` service on every install and upgrade (best effort, as root; a fresh install does not start your dofscroll units, the interface does that). The steps below are the alternative: a TGZ install, a machine without a desktop, or when the automatic way did not work.
+**Install the package, then open dofScroll from the application menu.** That is the whole first start: the interface starts the daemon by itself and shows a short setup guide (daemon running, SpaceMouse found, "Start at login" on by default). The RPM and DEB never enable or start the `spacenavd` service (they print the command when the service exists but is off); a fresh install does not start your dofscroll units either, the interface does that, and the setup guide changes "Start at login" only when you press Finish. The steps below are the alternative: a TGZ install, a machine without a desktop, or when the automatic way did not work.
 
-1. `sudo systemctl enable --now spacenavd` (done by the RPM and DEB)
+1. `sudo systemctl enable --now spacenavd` (the packages do not do this for you)
 2. `systemctl --user daemon-reload`, then check `systemctl --user list-unit-files 'dofscroll*'`
 3. `systemctl --user enable --now dofscroll.service dofscroll-ui.service`. The interface's "Start at login" switch does the same through one interface on all systems.
 4. Wayland only (or `BACKEND = uinput`): activate the udev rule yourself, it is not active by default.
    `sudo cp /usr/share/dofscroll/udev/70-dofscroll-uinput.rules /etc/udev/rules.d/`, then `sudo udevadm control --reload && sudo udevadm trigger`, then log out and in. Do not join the `input` group, see [Security](Security).
 
-On first start the tray creates `~/.config/dofscroll/dofscroll.conf` if it does not exist (it never overwrites anything); the example joystick modes are built into the program and need no copying. Without the tray, copy the config by hand, see [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md).
+On first start the tray creates `~/.config/dofscroll/dofscroll.conf` (global settings) if it does not exist (it never overwrites anything); each profile is a file in `devices/` or `apps/`, and an existing single-file config is split once, with a backup, see [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md#upgrading-the-configuration-one-file-per-profile); the example joystick modes are built into the program and need no copying. Without the tray, copy the config by hand, see [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md).
 
 ## Build from source
 
@@ -53,14 +53,14 @@ CI builds an installer (`dofscroll-<version>-windows-x64-setup.exe`) and a porta
 1. Download, verify the checksum as above, run the installer. No administrator rights are needed (default folder `%LOCALAPPDATA%\Programs\dofscroll`).
 2. SmartScreen shows "Windows protected your PC": click **More info**, then **Run anyway**.
 3. **Open dofscroll from the Start menu** (or tick "Open dofscroll now" on the finish page): the interface (`dofscroll-ui.exe`) starts the daemon (`dofscroll.exe`, no window) by itself and the first start shows the setup guide with "Start at login" on. The installer has the optional component "Start the daemon at logon" (off by default) too.
-4. Config: `%APPDATA%\dofscroll\dofscroll.conf` (same format as on Linux). Log: `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
+4. Config: `%APPDATA%\dofscroll\` (`dofscroll.conf`, `devices\`, `apps\`; same layout as on Linux). Log: `%LOCALAPPDATA%\dofscroll\dofscroll.log`.
 5. The official 3Dconnexion driver can stay installed and running; dofscroll works next to it and never asks you to stop it: with the driver installed it reads the device through the driver's interface (setting `INPUT`, default `auto`), otherwise directly (not verified on hardware yet). Please run the 5 minute test `powershell -ExecutionPolicy Bypass -File scripts\test-driver-coexistence.ps1` from the install folder and attach its file to issue #36, see [Requirements](Requirements). The diagnostic tool `dofscroll-hidprobe.exe` is next to `dofscroll.exe`.
 
 Uninstall: Settings > Apps > dofscroll; your configuration stays. Details: [docs/installation.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/installation.md), [port-windows.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-windows.md), [port-windows-checklist.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/port-windows-checklist.md).
 
 ## macOS (unsigned, unverified on hardware)
 
-CI builds `dofscroll-<version>-macos-arm64.dmg` (Apple silicon). It is signed ad hoc only and **not notarized**, and it has **not been run with a real SpaceMouse**.
+CI builds `dofscroll-<version>-macos-arm64.dmg` (Apple silicon). It is signed ad hoc only (with the hardened runtime; the signature changes with an update, so macOS asks for the Input Monitoring and Accessibility grants again) and **not notarized**, and it has **not been run with a real SpaceMouse**.
 
 1. Open the DMG and drag `dofscroll.app` to Applications.
 2. Gatekeeper blocks the first start: right-click the app > **Open** > **Open**. On macOS 15 and later use System Settings > Privacy & Security > **Open Anyway**. Alternative: `xattr -dr com.apple.quarantine /Applications/dofscroll.app`.

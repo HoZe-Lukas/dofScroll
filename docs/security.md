@@ -434,6 +434,31 @@ Target platform RHEL 9 = **systemd 252**; only directives available there were u
 | `SystemCallArchitectures=native` | no 32-bit syscalls |
 | `SystemCallFilter=@system-service` + `~@privileged` + `~@resources`, `SystemCallErrorNumber=EPERM` | syscall allowlist; `~@privileged` blocks e.g. `@module`, `@clock`, `@raw-io`, `@reboot`, `@swap`; `~@resources` (since 2026-10-15) blocks `setpriority`, `sched_set*`, `setrlimit`, `ioprio_set`, `mbind` ... (`prlimit64` for querying stays allowed). Empirically effective (EPERM) and without loss of function: neither daemon nor tray call these syscalls |
 
+### Write paths with one file per profile
+
+Since 1.3.0 the configuration is a folder with one file per profile: `dofscroll.conf`, `devices/<name>.conf`,
+`apps/<name>.conf`, `modes/`, `buttons/` and `backup/dofscroll.conf.pre-split`
+(see [configuration.md](configuration.md#file-and-location)). `ReadWritePaths=%E/dofscroll` covers the whole
+tree below that directory, so the interface can write every one of these files and create the subdirectories
+(`devices/`, `apps/`, `backup/`) with no change to the unit; nothing outside `%E/dofscroll` becomes writable.
+
+- **The daemon only reads.** Its unit has no write path under `%E`; it lists `devices/` and `apps/` (bounded: number
+  of files, size per file, total number of profiles), reads each regular file on its own and never creates, renames
+  or removes anything there. The one-time conversion of an old config (backup, per-profile files, read-back check)
+  is done by the interface, not by the daemon.
+- **File names are never taken from input as a path.** The interface derives the name from the profile name (the
+  characters `/ \ : * ? " < > |`, control characters and a leading dot are replaced, names are cut at 80 bytes, the
+  reserved Windows names are changed), opens files only in the fixed directories, never follows links and never
+  uses `..`. Only the header of a file decides which profile it is. A file name from the directory listing is
+  therefore never used to leave the directory.
+- **Writes** are temporary file plus rename in the same directory (as before, S5), one file at a time; a crash
+  leaves the old file or a harmless duplicate, never a half-written profile. Before overwriting, the interface
+  compares the stamp of the target; a file edited by hand in the meantime is read instead of overwritten.
+- **Reading is isolated per file:** a defective file (wrong header, several sections, too big) drops only its
+  own profile, so one bad file cannot switch off the others. A second file with the same header name is ignored.
+- **Mixed versions during an upgrade:** an old interface writes only `dofscroll.conf`; the rule "a profile file
+  wins over a section of the same name in `dofscroll.conf`" keeps the new files in force.
+
 ### Why `PrivateUsers=yes` is needed (verified)
 
 Without `PrivateUsers=yes` the systemd 252 user manager behaved as follows (test with transient

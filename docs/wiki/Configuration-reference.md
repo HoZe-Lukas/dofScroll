@@ -12,18 +12,21 @@ The file is UTF-8 (a BOM is accepted, never written; LF written, CRLF accepted);
 
 | Item | Value |
 |---|---|
-| Config file | `~/.config/dofscroll/dofscroll.conf` (`$XDG_CONFIG_HOME` is used if it is an absolute path) |
+| Config file | `~/.config/dofscroll/dofscroll.conf`: global settings only (`$XDG_CONFIG_HOME` is used if it is an absolute path) |
+| Profile files | `~/.config/dofscroll/devices/<name>.conf` (one `[device:NAME]` section per file) and `apps/<name>.conf` (one `[app:NAME]` section per file); the header names the device or program, the file name is only a label; every profile exists once |
 | Joystick mode files | `~/.config/dofscroll/modes/*.conf`, see [Joystick modes](Modes) |
+| Button mode files | `~/.config/dofscroll/buttons/*.conf`, see [Buttons](Buttons) |
+| Backup of the migration | `~/.config/dofscroll/backup/dofscroll.conf.pre-split` (the old single file, kept by the upgrade; only if there was one) |
 | Legacy paths | `~/.config/spnav-scroll/spnav-scroll.conf` and `~/.config/spnav-scroll.conf`, read only if the new file is missing |
-| Windows | `%APPDATA%\dofscroll\dofscroll.conf`, same format (unverified on hardware) |
+| Windows | `%APPDATA%\dofscroll\` with `dofscroll.conf`, `devices\`, `apps\`, same format (unverified on hardware) |
 
-Format: `KEY = value`, sections `[name]`, comments with `#` or `;`. Keys are case-sensitive and upper case. The daemon reloads on `SIGHUP` and when the file changes; only `BACKEND` needs a restart. The tray rewrites the file without keeping comments (atomically, keeping the file mode).
+Format: `KEY = value`, sections `[name]`, comments with `#` or `;`. Keys are case-sensitive and upper case. The daemon reloads on `SIGHUP` and when `dofscroll.conf` or a profile file changes; only `BACKEND` needs a restart. The settings window rewrites only the changed files, without keeping comments (atomically, keeping the file mode). Older versions kept the profiles as sections in `dofscroll.conf`; that format is still read (a profile file wins over a section of the same name), and the first start of the interface moves the sections into files and keeps the old file as `backup/dofscroll.conf.pre-split`. Downgrade: `cat devices/*.conf apps/*.conf >> dofscroll.conf` in the config folder. Details: [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
 
-Limits: file up to 1 MiB, line up to 8 KiB, 256 sections, 512 keys per section, 12 mix terms, 64 curve points. Duplicate key in one section: the last wins. Invalid values are rejected with a message in the log.
+Limits: `dofscroll.conf` up to 1 MiB, a profile file up to 64 KiB, at most 255 profile files per folder, line up to 8 KiB, 256 sections, 512 keys per section, 12 mix terms, 64 curve points. Duplicate key in one section: the last wins. Invalid values are rejected with a message in the log.
 
 ## Channels
 
-Three channels, each with its own axis mix, sensitivity, dead zone, direction, curve and smoothing: `SCROLL_V` (vertical), `SCROLL_H` (horizontal) and `ZOOM` (twist).
+Three channels, each with its own axis mix, sensitivity, dead zone, direction, curve and smoothing: `SCROLL_V` (vertical), `SCROLL_H` (horizontal) and `ZOOM` (twist). The push and tilt parts of V and H can be tuned on their own (`SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>`), and the lift is a sixth motion with `LIFT_MIX` (default `y`; the Windows and macOS seeds use `z`), `LIFT_SENS`, `LIFT_DEADZONE` (default 80), `LIFT_SIGN`, `LIFT_CURVE` and `LIFT_SMOOTH_MS`.
 
 | Key | Default V / H / ZOOM | Meaning |
 |---|---|---|
@@ -35,6 +38,14 @@ Three channels, each with its own axis mix, sensitivity, dead zone, direction, c
 | `<CH>_SMOOTH_MS` | `0` | Low-pass time constant in ms, 0 to 500; `0` is off |
 
 The seeded config uses different values than these built-in defaults; it is a starting point. Older key names (`SCROLL_SENSITIVITY_X/Y`, `SCROLL_DEADZONE_X/Y`, `ZOOM_SENSITIVITY`, `INVERT_X/Y`, `ZOOM_INVERT`, `RESPONSE_CURVE`) are still accepted and mapped to the keys above.
+
+### Actions and keys per motion
+
+| Key | Default | Meaning |
+|---|---|---|
+| `V_ACTION`, `H_ACTION`, `TWIST_ACTION`, `LIFT_ACTION` | none (the joystick mode decides; the lift: `none`) | What a channel does, in a profile or a joystick mode: `default`, `none`, `wheel_v`, `wheel_h`, `zoom`, `keys:<neg>,<pos>` (analog), `step:<neg>,<pos>` (digital, also `click`, `rightclick`, `middleclick`), `hold:<neg>,<pos>` |
+| `V_PUSH_ACTION`, `V_TILT_ACTION`, `H_PUSH_ACTION`, `H_TILT_ACTION` | none | The same for a push or tilt part on its own |
+| `<prefix>KEY_RATE_MIN`, `<prefix>KEY_RATE_MAX`, `<prefix>TRIGGER` | `0`, `0`, `STEP_TRIGGER` | Analog rate limits and trigger level per motion; prefix `SCROLL_V_PUSH_`, `SCROLL_V_TILT_`, `SCROLL_H_PUSH_`, `SCROLL_H_TILT_`, `ZOOM_` or `LIFT_` (see [Joystick modes](Modes)) |
 
 ## Zoom, backend, buttons
 
@@ -50,6 +61,7 @@ The seeded config uses different values than these built-in defaults; it is a st
 | `INPUT` | `auto` | `auto`, `driver` or `hid`. Windows and macOS only (ignored on Linux): read the SpaceMouse through the installed 3Dconnexion driver's interface or directly as raw HID; read from `[global]` only |
 | `TICK_HZ` | `250` | Tick rate 30 to 1000 |
 | `ENABLED` | `1` | `0` switches all output off and releases held keys |
+| `PRIORITY` | `0` | Only in device and program profile files: integer, order in which overlapping profiles of one kind are applied (ascending, the highest wins; ties by file name) |
 | `MODE` | `normal` | Active joystick mode, see [Joystick modes](Modes) |
 | `LIVE_FEED` | `1` | `0` disables the live data feed to the interface (axes view, axis assistant) |
 | `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | Deprecated (use `BUTTON_<n> = nav`; the interface migrates them): raw 0-based button index that turns X/Y into arrow keys while held |
@@ -72,6 +84,7 @@ All are validated by `cmake --build build --target check-config`. Packages insta
 
 | File | Content |
 |---|---|
+| [examples/split/](https://github.com/HoZe-Lukas/dofScroll/tree/main/examples/split) | The split layout: `dofscroll.conf` plus `devices/` and `apps/` with one profile per file |
 | [examples/default/linux/dofscroll.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/default/linux/dofscroll.conf) | Initial config seeded by the interface on Linux (`windows/` and `macos/` next to it, macOS experimental) |
 | [examples/dofscroll-pro.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-pro.conf) | SpaceMouse Pro, buttons off |
 | [examples/dofscroll-compact.conf](https://github.com/HoZe-Lukas/dofScroll/blob/main/examples/dofscroll-compact.conf) | SpaceMouse Compact, both buttons active |

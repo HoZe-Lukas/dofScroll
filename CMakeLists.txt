@@ -295,6 +295,9 @@ if(BUILD_TESTING)
   # split layout (dofscroll.conf + devices/ + apps/); the broken one must fail (header kind differs from the directory)
   add_test(NAME check_config_split_layout COMMAND check_config ${CMAKE_SOURCE_DIR}/tests/data/split-config)
   list(APPEND CHECK_CONFIG_COMMANDS COMMAND check_config ${CMAKE_SOURCE_DIR}/tests/data/split-config)
+  # the shipped example of the split layout (examples/split)
+  add_test(NAME check_config_example_split COMMAND check_config ${CMAKE_SOURCE_DIR}/examples/split)
+  list(APPEND CHECK_CONFIG_COMMANDS COMMAND check_config ${CMAKE_SOURCE_DIR}/examples/split)
   add_test(NAME check_config_split_layout_broken COMMAND check_config ${CMAKE_SOURCE_DIR}/tests/data/split-config-broken)
   set_tests_properties(check_config_split_layout_broken PROPERTIES WILL_FAIL TRUE)
   add_custom_target(check-config ${CHECK_CONFIG_COMMANDS} DEPENDS check_config
@@ -346,6 +349,7 @@ endif()
 file(GLOB EXAMPLE_FILES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/examples/*.conf)
 install(FILES ${EXAMPLE_FILES} DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
 install(DIRECTORY examples/default DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
+install(DIRECTORY examples/split DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/examples)
 install(DIRECTORY devices/ DESTINATION ${CMAKE_INSTALL_DATADIR}/dofscroll/devices FILES_MATCHING PATTERN "*.conf")
 # examples/modes and examples/buttons are built into the program (cmake/BuiltinLibrary.cmake), not installed.
 

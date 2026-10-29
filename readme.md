@@ -16,7 +16,7 @@ Install in three lines (download the package from the [latest release](https://g
 - **Windows:** run the unsigned `dofscroll-*-setup.exe` (SmartScreen: More info, Run anyway) or unpack the portable ZIP. Then open **dofscroll** from the Start menu.
 - **macOS (Apple silicon):** open the unsigned, not notarized DMG and drag the app to Applications (right-click, Open on first start). Then open **dofscroll** from Applications.
 
-The first start is always just opening the program: it starts the daemon by itself and shows a short setup guide (daemon, SpaceMouse, start at login, on macOS the two permissions). No terminal commands. The Linux packages enable the `spacenavd` driver service themselves.
+The first start is always just opening the program: it starts the daemon by itself and shows a short setup guide (daemon, SpaceMouse, start at login, on macOS the two permissions). No terminal commands, except one on Linux if the `spacenavd` driver service is off: the packages never enable it for you (the setup guide shows the command).
 
 dofscroll is not affiliated with or endorsed by 3Dconnexion.
 
@@ -39,6 +39,10 @@ It consists of two programs. The Qt interface is the only tray and settings wind
 |---|---|
 | `dofscroll` | Background daemon. Reads the SpaceMouse, produces the input events. |
 | `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Overview, Profiles (tabs General, Channels, Motions and buttons, Overrides), Editor and Joystick modes with a visual editor (a picture of the cap: click a motion or button and choose what it does), Button modes, User modes, Device, Axes, Settings). Writes the configuration files (`dofscroll.conf` and one file per profile in `devices/` and `apps/`) and tells the daemon to reload. See [docs/ui.md](docs/ui.md). |
+
+## What is new on `main` (1.3.0, not released yet)
+
+One file per profile with an automatic, backed-up migration; every motion can have its own action in a profile, the lift is the sixth motion; **Take over**, **New profile**, **Import** and **Export** build and share profiles; keys on every motion, **analog** (repeats faster with more deflection) or **digital** (once per push), mouse clicks and holds; a key picker as a tree in columns; a reworked axis assistant; macOS binaries with the hardened runtime. Nothing of it was tested with a real SpaceMouse. See [docs/release-notes-1.3.0.md](docs/release-notes-1.3.0.md) for the list, the breaking changes and what is not verified.
 
 ## Design principle
 
@@ -74,8 +78,9 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
   run against a fake driver in CI (hardware checklist items in `docs/port-windows-checklist.md` and
   `docs/port-macos-checklist.md`). Whether dofscroll and the driver can read the device at the same time on
   every setup is not verified. The Windows installer is not code-signed
-  (SmartScreen warns) and the macOS DMG is only ad-hoc signed and not notarized (Gatekeeper
-  blocks the first start). Notes in [docs/installation.md](docs/installation.md).
+  (SmartScreen warns) and the macOS DMG is only ad-hoc signed (with the hardened runtime on `main`; the daemon keeps
+  `disable-library-validation`, so it is not protected against DYLD injection, like the Windows daemon) and not notarized
+  (Gatekeeper blocks the first start). Notes in [docs/installation.md](docs/installation.md).
 - The Qt interface had first tests on one Windows desktop; the driver cleanup dialog (Windows only) and the interface on macOS have not been checked on real desktops.
 - Pausing output while the own session is not the active one (several users on one PC) was
   unit-tested with fake probes only; no second user session was available. The Windows and macOS
@@ -88,7 +93,7 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
   (Windows, macOS); the factory button count is known for SpaceMouse Pro, Pro Wireless, Compact,
   Wireless, Enterprise and SpaceNavigator.
 
-Release notes: [docs/release-notes-1.2.3.md](docs/release-notes-1.2.3.md) (and [1.2.2](docs/release-notes-1.2.2.md), [1.2.1](docs/release-notes-1.2.1.md), [1.2.0](docs/release-notes-1.2.0.md), [1.1.2](docs/release-notes-1.1.2.md), [1.1.1](docs/release-notes-1.1.1.md), [1.1.0](docs/release-notes-1.1.0.md), [1.0.0](docs/release-notes-1.0.0.md), [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
+Release notes: in preparation for 1.3.0: [docs/release-notes-1.3.0.md](docs/release-notes-1.3.0.md) (not released yet; what it lists is on `main` and untested on real hardware). Released: [docs/release-notes-1.2.3.md](docs/release-notes-1.2.3.md) (and [1.2.2](docs/release-notes-1.2.2.md), [1.2.1](docs/release-notes-1.2.1.md), [1.2.0](docs/release-notes-1.2.0.md), [1.1.2](docs/release-notes-1.1.2.md), [1.1.1](docs/release-notes-1.1.1.md), [1.1.0](docs/release-notes-1.1.0.md), [1.0.0](docs/release-notes-1.0.0.md), [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
 
 ## Download and install
 
@@ -132,7 +137,7 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 |---|---|
 | [docs/installation.md](docs/installation.md) | Install from a release, first-time setup, upgrade, uninstall, build from source |
 | [docs/ui.md](docs/ui.md) | The Qt interface: pages, profile editor, autosave, inheritance, joystick modes and button modes, running-program picker, tray |
-| [docs/configuration.md](docs/configuration.md) | Config file, all keys, profiles, precedence, examples |
+| [docs/configuration.md](docs/configuration.md) | Config folder (one file per profile), all keys, profiles, precedence, examples |
 | [docs/button-modes.md](docs/button-modes.md) | Button modes: named button behaviors in `buttons/*.conf`, chosen per button |
 | [docs/modes.md](docs/modes.md) | Joystick modes, button actions, key names, buttons versus the vendor driver (always-the-same button mappings belong in the driver) |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common problems, logs, status files |
@@ -140,6 +145,7 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 | [docs/security.md](docs/security.md) | Threat model, systemd hardening, uinput permissions, loading the driver interface |
 | [docs/legal-notes.md](docs/legal-notes.md) | What dofscroll uses of the 3Dconnexion driver, what it does not ship, where the rights lie |
 | [docs/releasing.md](docs/releasing.md) | How a release is made |
+| [docs/release-notes-1.3.0.md](docs/release-notes-1.3.0.md) | Release notes of 1.3.0 (in preparation) |
 | [docs/release-notes-1.2.3.md](docs/release-notes-1.2.3.md) | Release notes of 1.2.3; 1.2.2 in [docs/release-notes-1.2.2.md](docs/release-notes-1.2.2.md), 1.2.1 in [docs/release-notes-1.2.1.md](docs/release-notes-1.2.1.md), 1.2.0 in [docs/release-notes-1.2.0.md](docs/release-notes-1.2.0.md), 1.1.2 in [docs/release-notes-1.1.2.md](docs/release-notes-1.1.2.md), 1.1.1 in [docs/release-notes-1.1.1.md](docs/release-notes-1.1.1.md), 1.1.0 in [docs/release-notes-1.1.0.md](docs/release-notes-1.1.0.md), 1.0.0 in [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md), 0.1.1 in [docs/release-notes-0.1.1.md](docs/release-notes-0.1.1.md), beta.2 in [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-beta.2.md), beta.1 notes in [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) |
 | [docs/work-plan.md](docs/work-plan.md) | Roadmap and the Windows/macOS ports |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, pull requests, adding a joystick mode or language |
