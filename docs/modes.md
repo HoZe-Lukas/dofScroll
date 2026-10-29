@@ -58,12 +58,13 @@ Format: `KEY = value`, no sections, `#` and `;` comments.
 them with a warning). Any other key from [configuration.md](configuration.md) is a settings override. The overrides are applied after the device profile and before the app
 profile.
 
-Limits: up to 64 joystick mode files, each up to 64 KiB, up to 128 overrides per file, regular files only.
+Limits: up to 64 joystick mode files, each up to 64 KiB, up to 128 overrides per file, regular files only. A line holds up
+to 33 KiB, so an action (up to 32 KiB, a macro of 256 steps fits easily) fits on one line.
 Invalid lines or files are skipped with a warning in the log.
 
 ## Built-in joystick modes
 
-Fourteen joystick modes ship inside the program on every system. They need no file, no examples folder
+Sixteen joystick modes ship inside the program on every system. They need no file, no examples folder
 and no install path, and nothing is copied into your configuration directory. They appear
 everywhere a joystick mode can be chosen (profile drop-downs, tray menu, Overview, `MODE = <id>`,
 `mode:<id>` buttons) with the origin "Built in".
@@ -84,13 +85,15 @@ everywhere a joystick mode can be chosen (profile drop-downs, tray menu, Overvie
 | `zoom-pan` | Zoom | Zoom | Scroll sideways | Scroll sideways | Scroll sideways | Not used | none |
 | `vertical-only` | Scroll | Scroll | Off | Off | Off | Not used | none |
 | `fast` | Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used | SCROLL_V_SENS = 12, SCROLL_H_SENS = 10, ZOOM_SENS = 12 |
+| `volume` | Keys: Volume_up / Volume_down | Keys: Volume_up / Volume_down | Scroll sideways | Scroll sideways | Zoom | Not used | none |
+| `tracks` | Scroll | Scroll | Steps: Media_prev / Media_next | Steps: Media_prev / Media_next | Zoom | Not used | none |
 
 In the table, `Scroll` is the vertical mouse wheel, `Scroll sideways` the horizontal one and `Zoom` is Ctrl plus the wheel; `Keys: A / B` is `keys:A,B` in the file. Push and tilt of a channel do the same in every built-in joystick mode, and `normal` sends scroll and zoom plus the buttons you bind in the profile (the deprecated `NAV_BUTTON` and `CLICK_BUTTON` still work). `off` switches control off without `ENABLED = 0`.
 
 Their behavior in real programs is not verified. The built-in joystick modes contain no button-to-key
 bindings, see [Buttons and the vendor driver](#buttons-and-the-vendor-driver).
 
-The text of `slides`, `media`, `map`, `precision`, `tabs`, `browse`, `sheet`, `photo`, `zoom-pan`, `vertical-only` and `fast` is the single source
+The text of `slides`, `media`, `map`, `precision`, `tabs`, `browse`, `sheet`, `photo`, `zoom-pan`, `vertical-only`, `fast`, `volume` and `tracks` is the single source
 `examples/modes/<id>.conf`; the build embeds it into the program, and the program parses it with the
 same parser as a user file. `timeline`, `normal` and `off` are defined in code. The embedded set is
 never written to disk.
@@ -112,7 +115,7 @@ joystick mode, which the button mode `next-mode` does better and in every joysti
 
 **`mode:next` / `mode:prev` with the built-in library.** They cycle through *all* loaded joystick modes in
 alphabetical order of the id, built-ins included: `browse`, `fast`, `map`, `media`, `normal`, `off`,
-`photo`, `precision`, `sheet`, `slides`, `tabs`, `timeline`, `vertical-only`, `zoom-pan` plus your own, so the cycle is long. Use `mode:<id>` or
+`photo`, `precision`, `sheet`, `slides`, `tabs`, `timeline`, `tracks`, `vertical-only`, `volume`, `zoom-pan` plus your own, so the cycle is long. Use `mode:<id>` or
 `toggle:mode:<id>` for a short fixed set. Built-in joystick modes have no bindings of their own, so a cycle
 started from a joystick mode of yours stops at the next built-in unless you give that joystick mode a binding too
 (create an editable copy, or switch back through the tray menu).
@@ -131,6 +134,7 @@ For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`), `TWIST_ACTION` (`Z
 | `keys:<neg>,<pos>` | Analog key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection (limits: [key engine](#the-key-engine-analog-and-digital)). Dead zone, curve, smoothing and sensitivity of the channel apply. Each argument can be a chord or `none`, see below. Only for keys that are safe to repeat (tier A, see below): a letter, digit, Enter, Delete, Esc, Alt or Super chord is refused with "this key can only be used digitally, use step:". |
 | `step:<neg>,<pos>` | One key tap per push instead of a rate, with hysteresis (digital); see below. Any key. A side can also be `click`, `rightclick` or `middleclick` (one mouse click per push). |
 | `hold:<neg>,<pos>` | A key, a chord or a mouse button is held while the motion is deflected beyond the trigger and let go when it has fallen back to half of it (digital); see [Mouse clicks and holds](#mouse-clicks-and-holds). |
+| `macro:<neg>,<pos>` | A list of key down, key up and pause steps that runs once per push, one macro per direction (digital); see [Macros](#macros). |
 
 The same keys (`V_ACTION`, `H_ACTION`, `TWIST_ACTION`, `LIFT_ACTION` and the four split keys) are also allowed **in a profile**
 (`[global]`, `[device:*]`, `[app:*]` of `dofscroll.conf`) for one program or device, for example `TWIST_ACTION = none`
@@ -151,6 +155,7 @@ table in `src/device_db.cpp`). The count is not the one `spacenavd` reports.
 | `click`, `rightclick`, `middleclick` | Mouse button, held while the device button is held (drag works). |
 | `nav` | While held, X/Y send arrow keys instead of scrolling. |
 | `key:<name>` | Holds the key while the button is held. |
+| `macro:<steps>` | A macro: key down, key up and pause steps that run once when the button is pressed (and optionally a second list when it is released); see [Macros](#macros). |
 | `key:<mod>+...+<key>` | A key chord such as `key:ctrl+0` or `key:ctrl+shift+n`: zero to four of `ctrl`, `shift`, `alt`, `super`, then one key that is not a modifier (the same grammar and limits as the chords in `keys:`). Tapped once when the button goes down (modifiers pressed in the order written, then the key, then released in reverse); nothing happens on release, so holding the button does not repeat it and nothing can stay pressed. |
 | `mode:<id>` | Switches to joystick mode `<id>` when the button is pressed. |
 | `mode:next` | Switches to the next loaded joystick mode in alphabetical order of id, built-ins included, wrapping around. |
@@ -339,7 +344,10 @@ end, tab, `ctrl` or `shift` plus one of these, plus and minus (also with `ctrl` 
 and previous. Everything else (letters, digits, function keys, Enter, Delete, Backspace, Esc, space, `alt` or `super`
 chords, play/pause, a lone modifier) is tier B: `keys:` is refused with "this key can only be used digitally, use step:",
 `step:` is allowed with the load warning of the chord rules below. The lift never takes an analog key. The built-in `media`
-mode therefore uses `step:j,l` for the twist (one jump per twist instead of a rate).
+mode therefore uses `step:j,l` for the twist (one jump per twist instead of a rate). The ready choices of the joystick mode
+editor "Page up / Page down", "Switch tabs" (`keys:ctrl+pageup,ctrl+pagedown`), "Volume" (`keys:volume_up,volume_down`) and
+"Change track" (`step:media_prev,media_next`) are taken from the built-in modes `slides`, `tabs`, `volume` and `tracks`.
+The volume and media keys are not sent on macOS.
 
 ### Mouse clicks and holds
 
@@ -367,6 +375,62 @@ a source that goes silent (stale watchdog), the safety net and when a program pr
 
 Mouse clicks and holds are tier B (they act on whatever has the focus): the plain load warning applies, there is no gate.
 How click and hold feel on a real device, and a drag with a hold on macOS, are not verified.
+
+### Macros
+
+A macro is a list of steps that runs once per trigger: key down, key up and pause. It is digital only, so it sits on a device
+button or on a motion direction, never on an analog key repeat. The steps are separated by spaces:
+
+| Step | Meaning |
+|---|---|
+| `+<chord>` | Key down. A chord presses its modifiers in the order written, then the key (`+ctrl+c`); the key stays down until a step lets go of it. |
+| `-<chord>` | Key up. Releases the key first, then the modifiers in the reverse order. |
+| `wait:<ms>` | Pause of 1 to 60000 milliseconds. |
+
+There is no "tap" step: pressing and releasing a key is two steps (`+a -a`). Key names are the closed list of `keys.hpp`, as
+everywhere. Example (select all, copy, then type "ab" with shift held, 30 ms between the steps):
+
+    # [app:editor]
+    BUTTON_5 = macro:+ctrl +a wait:30 -a +c wait:30 -c -ctrl +shift wait:30 +a -a +b -b
+
+On a **device button** the text after `macro:` is the macro that runs when the button is pressed. On a **motion** it is
+`macro:<neg>,<pos>`: one macro per direction, run when the motion is pushed past the trigger on that side (the digital trigger of
+`step:`, re-armed at half of it); a side may be `none`:
+
+    H_TILT_ACTION = macro:+ctrl +shift +tab -tab -shift -ctrl,+ctrl +tab -tab -ctrl
+    V_TILT_ACTION = macro:none,+ctrl +s -s -ctrl
+
+**Release part.** A side can have a second macro that runs when the trigger is released (a button is let go; a motion has
+fallen back to half of the trigger). The two parts are separated by `|`; `none` stands for a part without steps:
+
+    BUTTON_6 = macro:+f5 -f5 | +f6 -f6            # F5 when the button goes down, F6 when it is let go
+    BUTTON_7 = macro:none | +ctrl+a -ctrl+a wait:30 +ctrl+c -ctrl+c   # nothing on the press, select all and copy on the release
+    V_PUSH_ACTION = macro:+a -a | +b -b,none      # a on the way in, b on the way back, only for the negative side
+
+Rules:
+
+- **Everything a macro holds is released.** When a macro ends, every key a step pressed and nobody let go of is released, so a
+  press-only macro such as `+ctrl` or `+ctrl wait:500` is valid and leaves nothing stuck. The same happens at once, with the macro
+  aborted, on a joystick mode change, a reload, suspend, `ENABLED = 0`, an unplugged device and "Release all keys"
+  (the paths of `releaseAll()`), and the safety net clears whatever the output still holds after a macro. A key that something
+  else holds as well (a button bound to it, the zoom modifier, a `hold:`) stays down until that lets go too. A change of the
+  program does not abort a running macro (a macro that switches windows changes the program itself).
+- **One macro at a time.** While a macro runs, further triggers (a button, a motion crossing the trigger again, a release part)
+  are ignored until it is done; nothing is queued.
+- **Timing.** The pauses are counted in the daemon's ticks (`TICK_HZ`, 250 per second by default), so a step runs in the first tick
+  in which the pause is over (at most one tick late, 4 ms at 250 Hz); time that carries over shortens the next pause. Steps without a
+  pause between them run in the same tick, in order. A macro in which a pause is the last step ends after that pause.
+- **Limits.** At most 256 steps per macro part (pauses count as steps); the queue of a running macro is the same 256 steps.
+  The action text is at most 32 KiB.
+- **Safety net.** A running macro counts as activity for the safety net (a pause longer than its quiet period of 250 ms must not
+  cut the macro); the net does its work as before once the macro is done.
+- **Safety.** The keys come from the closed list of `keys.hpp`. A macro with tier B keys (letters, digits, function keys,
+  Enter, Delete, Esc, space, `alt` or `super` chords, a lone modifier, ...) gets the plain load warning, there is no gate; see
+  `docs/security.md`, section 7. A macro acts on whatever has the focus: only take over files you have read.
+
+How macros behave in real programs (timing, recording, release at the end) is not verified on a real device.
+
+An old daemon does not know `macro:`: it ignores the line with its usual warning, nothing else changes.
 
 ### Key chords in `keys:`
 

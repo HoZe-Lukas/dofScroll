@@ -360,6 +360,19 @@ static void testReleasePaths() {
     CHECK(!r.holdsAnything(), "the pointer holds nothing on the output");
 }
 
+// A pointer part and a macro part side by side (stage 5 with the macro core): V_PUSH moves the pointer, V_TILT runs a macro.
+static void testPointerWithMacroPart() {
+    PtrRec o;
+    ModeRunner r(&o);
+    const Settings s = conf({{"V_PUSH_ACTION", "pointer_y"}, {"V_TILT_ACTION", "macro:+a -a,+b -b"}});
+    run(r, s, only(AX_Z, 300), 0.5);
+    CHECK(o.sumY() != 0 && o.sumX() == 0, "V_PUSH moves the pointer while V_TILT holds a macro");
+    r.releaseAll();
+    o.moves.clear();
+    r.tick(s, RawAxes{}, 0, true, DT);
+    CHECK(o.moves.empty(), "nothing moves after releaseAll");
+}
+
 static void testOldConfigsUnchanged() {
     // Without a pointer action no moveMouse call is ever made, on any path.
     PtrRec o;
@@ -393,6 +406,7 @@ int main() {
     testCapAtRunner();
     testSameFunctionOnTwoMotionsAdds();
     testReleasePaths();
+    testPointerWithMacroPart();
     testOldConfigsUnchanged();
     if (failures) {
         std::fprintf(stderr, "%d failure(s)\n", failures);

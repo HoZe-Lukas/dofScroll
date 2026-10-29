@@ -23,6 +23,9 @@ change a lot; the configuration stays readable by the daemon in both layouts.
 - **The pointer as a motion function.** Any motion can move the mouse pointer (`pointer_x`, `pointer_y`, with the global
   `MOUSE_SPEED`, pixels per step, default 8), in profiles and joystick modes, on X11, uinput, Windows and macOS. Analog only; at most
   127 pixels per tick and axis. Not verified: feel and speed on real hardware, Wayland, Windows and macOS.
+- **Ready choices in the joystick mode editor:** the tiles "Switch tabs", "Volume" and "Change track" next to "Page up /
+  Page down", made from the built-in modes `tabs`, `volume` and `tracks` (new) and `slides`; the volume and media keys are
+  not sent on macOS.
 - **Take over and New profile.** Copy the action (optionally the tuning) of a motion or button from another profile or
   mode; build a whole profile from parts of others.
 - **Key picker as a tree in columns**, and a reworked axis assistant that starts and ends steps by your movement.
@@ -179,6 +182,9 @@ Credits: pull requests by the maintainer unless marked.
 - Motions: lift as the sixth motion, global and device as two layers (#257, #252); key engine (#259); golden-master test
   (#234)
 - Key picker as a tree in columns (#255)
+- Action tiles "Switch tabs", "Volume" and "Change track" (stage 6 of #224); two new built-in joystick modes, `volume` and
+  `tracks` (sixteen in all); the tiles read their actions from the built-in example modes, a test keeps them equal; on
+  lift the same keys would be written digitally (`step:`), never analog
 - Axis assistant start and end by movement (#235, issue #190); lift/press warning (#248, issue #186); live feed device id
   and selector (#239, issue #139)
 - Output: relative pointer movement, all backends (#236); macOS clamps to all displays and drags while a button is held,
@@ -237,6 +243,8 @@ can verify these; none of them has been tested:
   fonts, dark mode, high-DPI, screen readers); the device selector with two real devices; the axis assistant thresholds.
 - The `release` job against the real GitHub API (gate, environment approval, draft then publish, immutable release):
   it has never run on a tag.
+- The tiles "Switch tabs", "Volume" and "Change track" in real programs (browsers, terminals, players); the volume and media
+  keys on each desktop. They are not sent on macOS.
 
 ## Known limitations
 

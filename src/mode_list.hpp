@@ -194,6 +194,7 @@ inline std::string buttonActionText(const ButtonBinding &b) {
         case ButtonActionType::ToggleMode: return "toggle:mode:" + b.mode;
         case ButtonActionType::ButtonMode: return "buttonmode:" + b.mode;
         case ButtonActionType::HoldMode: return "hold:mode:" + b.mode;
+        case ButtonActionType::Macro: return b.macro ? "macro:" + macroSideText(*b.macro) : "none";
     }
     return "none";
 }

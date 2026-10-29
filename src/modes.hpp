@@ -27,6 +27,8 @@
 //   to repeat (keyAnalogAllowed: "this key can only be used digitally, use step:"); step:<neg>,<pos> is the digital one
 //   (one press per push, any key; a side may also be click, rightclick or middleclick: one mouse click per push) and
 //   hold:<neg>,<pos> (a key, chord or mouse button is held while the motion is deflected, released at half the trigger).
+//   macro:<neg>,<pos> = per side a macro (macro.hpp): key down, key up and pause steps that run once per push, with the
+//   digital trigger of step: (a side may be none; "<press> | <release>" adds a macro for the release of the trigger).
 //   Rate limits and trigger per motion: <P>KEY_RATE_MIN / <P>KEY_RATE_MAX / <P>TRIGGER
 //   (config.hpp KeyTuning, key_engine.hpp).
 // Split push and tilt (optional, per scroll channel): V_PUSH_ACTION, V_TILT_ACTION, H_PUSH_ACTION and
@@ -45,8 +47,11 @@
 //   LIFT_SIGN, LIFT_CURVE, LIFT_SMOOTH_MS, valid in profiles and in mode files like the other channel keys.
 // Buttons are numbered from 1 (BUTTON_1 .. BUTTON_32), exactly like BUTTON_<n> in the main config;
 // BUTTON_0 is rejected. Internally button n is device bit n-1 (spnav_event_button.bnum).
-// Button actions: none | click | rightclick | middleclick | nav | key:<name> | mode:<id> | mode:next | mode:prev |
-//                 toggle:nav | toggle:mode:<id> | hold:mode:<id> | buttonmode:<id>
+// Button actions: none | click | rightclick | middleclick | nav | key:<name> | macro:<steps> | mode:<id> | mode:next |
+//                 mode:prev | toggle:nav | toggle:mode:<id> | hold:mode:<id> | buttonmode:<id>
+//   macro:<steps> = a macro (macro.hpp) that runs once when the button is pressed; "macro:<press> | <release>" runs a second
+//   one when it is released. One macro runs at a time (a trigger while one runs is ignored); everything it holds is released
+//   at its end and on every abort.
 //   click/rightclick/middleclick = hold the mouse button while the button is held;
 //   key = hold the key; nav = while held, the V/H channels send arrow keys instead of scroll.
 //   mode:<id> = switch to the mode <id> when the button is PRESSED (not on release);
@@ -83,6 +88,7 @@
 // "off" (all none: switches the device off), "timeline" (V none, H and TWIST keys:left,right).
 #pragma once
 #include <map>
+#include <memory>
 #include <string>
 #include <cstddef>
 #include <cstdint>
@@ -90,30 +96,19 @@
 #include <vector>
 
 #include "builtin_library.hpp"
+#include "chord.hpp"
 #include "keys.hpp"
+#include "macro.hpp"
 
 namespace spn {
-
-// Modifiers of a key chord (keys:ctrl+pageup,...), in the order written; at most kMaxChordMods.
-constexpr size_t kMaxChordMods = 4;
-struct ChordMods {
-    Key k[kMaxChordMods] = {Key::Ctrl, Key::Ctrl, Key::Ctrl, Key::Ctrl};
-    uint8_t n = 0;
-    // Order does not matter for equality: one bit per modifier key.
-    unsigned mask() const {
-        unsigned m = 0;
-        for (uint8_t i = 0; i < n; ++i)
-            m |= k[i] == Key::Ctrl ? 1u : k[i] == Key::Shift ? 2u : k[i] == Key::Alt ? 4u : 8u;
-        return m;
-    }
-    bool operator==(const ChordMods &o) const { return mask() == o.mask(); }
-};
 
 // Keys: a rate of key taps (keys:<neg>,<pos>); Step: one tap per push (step:<neg>,<pos>), both use neg/pos.
 // Hold: hold:<neg>,<pos> (stage 4 of docs/plan-motion-functions.md): per side a key, a chord or a mouse button is held while the
 // motion is deflected beyond the trigger and released when it has fallen back to half of it (digital only).
 // PointerX / PointerY: relative pointer movement (pointer_x, pointer_y), continuous, no keys (src/pointer_engine.hpp).
-enum class ChannelActionType { Default, Off, WheelV, WheelH, Zoom, Keys, Step, Hold, PointerX, PointerY };
+// Macro: macro:<neg>,<pos> (stage 7b, macro.hpp): per side a list of key down, key up and pause steps that runs once per
+// trigger, with the digital trigger of step: (digital only).
+enum class ChannelActionType { Default, Off, WheelV, WheelH, Zoom, Keys, Step, Hold, Macro, PointerX, PointerY };
 // The mouse buttons a side can name (numbering of Output::mouseButton): click = 1, middleclick = 2, rightclick = 3.
 constexpr uint8_t kMouseLeft = 1, kMouseMiddle = 2, kMouseRight = 3;
 struct ChannelAction {
@@ -127,7 +122,10 @@ struct ChannelAction {
     // Only for Step (one click per press) and Hold (the button is held): a mouse button instead of a key on that side,
     // 0 = a key (or none), else kMouseLeft / kMouseMiddle / kMouseRight. Never with the analog Keys.
     uint8_t negMouse = 0, posMouse = 0;
+    // Only for Macro: the macros of the two directions (never null for a parsed Macro). Shared, so copying an action stays cheap.
+    std::shared_ptr<const MacroAction> macro = nullptr;
     bool operator==(const ChannelAction &o) const {
+        if (type == ChannelActionType::Macro) return o.type == type && (macro == o.macro || (macro && o.macro && *macro == *o.macro));
         return type == o.type &&
                (!usesKeys() ||
                 (negNone == o.negNone && posNone == o.posNone && negMouse == o.negMouse && posMouse == o.posMouse &&
@@ -136,13 +134,14 @@ struct ChannelAction {
     }
 };
 
-enum class ButtonActionType { Unbound, Click, RightClick, MiddleClick, Nav, Key, ModeSwitch, ToggleNav, ToggleMode, ButtonMode, HoldMode };
+enum class ButtonActionType { Unbound, Click, RightClick, MiddleClick, Nav, Key, ModeSwitch, ToggleNav, ToggleMode, ButtonMode, HoldMode, Macro };
 struct ButtonBinding {
     int button = 1;                       // button number, 1-based (device bit index = button - 1), 1..32
     ButtonActionType type = ButtonActionType::Unbound;
     Key key = Key::Space;                 // only for Key
     std::string mode;                     // ModeSwitch: target id or "next"; ToggleMode: target id; ButtonMode: button mode id; HoldMode: target id
     ChordMods mods;                       // only for Key: modifiers of a chord (key:ctrl+0); a chord is tapped once per press
+    std::shared_ptr<const MacroSide> macro = nullptr;  // only for Macro: the macro of the press and, optional, of the release
 };
 
 // The two parts of a split scroll channel (V_PUSH_ACTION / V_TILT_ACTION, H_PUSH_ACTION / H_TILT_ACTION).
@@ -217,8 +216,10 @@ bool splitCycleTarget(const std::string &target, bool *forward, std::vector<std:
 // key:<name> is a plain key (held while the button is held); key:<mod>+...+<key> (zero to four of ctrl, shift,
 // alt, super, then a key that is not a modifier, as in keys:) is a chord: *mods (optional) receives the
 // modifiers (n = 0 for a plain key) and the chord is tapped once when the button goes down.
+// macro:<side> (macro.hpp) is a button macro: *macro (optional) receives the parsed side; the canonical text is
+// "macro:" + macroSideText(*macro).
 bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key, std::string *err,
-                       std::string *modeId = nullptr, ChordMods *mods = nullptr);
+                       std::string *modeId = nullptr, ChordMods *mods = nullptr, MacroSide *macro = nullptr);
 // Canonical config text of a key action: "key:space", "key:ctrl+0" (modifiers in the order written).
 std::string keyActionText(Key key, const ChordMods &mods);
 // True for a chord that the loader warns about in files of the user: it has alt or super, or ctrl/shift with a key that

@@ -35,7 +35,7 @@ A SpaceMouse cap moves in six ways. Every joystick mode says what each of them d
 
 ## Built-in joystick modes
 
-Fourteen joystick modes (`normal`, `off`, `timeline`, `slides`, `media`, `map`, `precision`, `tabs`, `browse`, `sheet`, `photo`, `zoom-pan`, `vertical-only`, `fast`) and five button modes (`latch-nav`, `next-mode`, `prev-mode`, `cycle-favorites`, `reset-zoom`) are built into the program on every system. Nothing has to be copied into your folder to use them. Each one, with its channel actions, overrides and use, is described on [Built-in joystick modes](Built-in-modes). To propose or send a new one, see [Joystick mode requests and contributions](Contributing-modes).
+Sixteen joystick modes (`normal`, `off`, `timeline`, `slides`, `media`, `map`, `precision`, `tabs`, `browse`, `sheet`, `photo`, `zoom-pan`, `vertical-only`, `fast`, `volume`, `tracks`) and five button modes (`latch-nav`, `next-mode`, `prev-mode`, `cycle-favorites`, `reset-zoom`) are built into the program on every system. Nothing has to be copied into your folder to use them. Each one, with its channel actions, overrides and use, is described on [Built-in joystick modes](Built-in-modes). To propose or send a new one, see [Joystick mode requests and contributions](Contributing-modes).
 
 A file in the joystick modes folder with the id of a built-in joystick mode replaces it.
 

@@ -672,8 +672,8 @@ issues in those areas (F1, F2). All findings below are **fixed** unless noted ot
 
 | Area | Finding | Fix |
 |---|---|---|
-| Config (medium) | O(n^2) loading (50,000 sections: 29.6 s) | index in `ProfileSet`, max. 256 sections, 512 keys per section (10,000 sections: ~0.05 s) |
-| Config (medium) | no file/line limits (200 MB line: 3.9 GB RAM) | file <= 1 MiB, line <= 8 KiB, mix <= 12 terms, curve <= 64 points, `ZOOM_LATERAL` <= 6 |
+| Config (medium) | O(n^2) loading (50,000 sections: 29.6 s) | index in `ProfileSet`, max. 256 sections, 512 keys per section (now 10,000; 10,000 sections: ~0.05 s) |
+| Config (medium) | no file/line limits (200 MB line: 3.9 GB RAM) | file <= 1 MiB, line <= 8 KiB (now 33 KiB, action text <= 32 KiB), mix <= 12 terms, curve <= 64 points, `ZOOM_LATERAL` <= 6 |
 | Config | stat/open TOCTOU (FIFO) | single `open(O_NONBLOCK)`, then `fstat` on the fd |
 | Config | path races when saving, predictable temp name | `openat`/`renameat` on the directory fd, temp name from `getrandom`, `O_EXCL` |
 | Config | symlink loop replaces the link; setuid/sticky bits copied | ELOOP error; mode masked to 0777 |
@@ -764,6 +764,22 @@ by a file). Assessment and limits:
   moving after the input stops. Like the other actions it is not gated; read mode files from strangers before using them (the
   load warning concerns key chords and does not mention the pointer). X11 uses XTest (as the keys do), uinput `REL_X/REL_Y`,
   Windows `SendInput`, macOS `CGEvent` (needs the accessibility permission as the keys do).
+  **Macros (tier B, stage 7b):** `macro:` (on a device button and on a motion direction, `docs/modes.md`, "Macros") is a list of key
+  down, key up and pause steps (`+ctrl+c`, `-c`, `wait:30`) that types or presses whatever the file says into the window with
+  the focus, so a macro from a stranger is as powerful as the key list allows and no more: the key names are the closed list of
+  `src/keys.hpp` (no key codes, no characters, no mouse, no commands). Every macro whose steps press a tier B key (a letter, digit,
+  function key, Enter, Delete, Backspace, Esc, space, an `alt` or `super` chord, play/pause, a lone modifier; `keyAnalogAllowed`
+  says no) gets the plain load warning naming the first keys, in profiles and in mode files alike, and the interface's
+  import check flags such a profile like a risky chord. There is no gate and no flag that lifts it. Bounds: at most 256 steps per
+  macro part (the running queue is the same 256), a pause of 1 to 60000 ms, one macro at a time (a trigger while one runs is ignored,
+  nothing is queued), the action text at most 32 KiB, a step presses at most five keys (four modifiers and the key), so
+  a macro part without pauses is at most 1280 key events plus the end release of the keys it holds (at most one per key of the list),
+  well under the 4096-event uinput buffer of one tick. **Release:** at the end of every
+  macro and on every abort (joystick mode change, reload, suspend, `ENABLED = 0`, an unplugged device, "Release all keys", exit, the
+  `releaseAll()` path of the safety net) every key the macro still holds is released, so a press-only macro such as `+ctrl` leaves
+  nothing stuck and there is no "never released" warning. A running macro counts as activity for the safety net (a pause is not
+  cut after 250 ms); it is bounded by its own steps (at most 256 pauses of 60 s). A hand-written file with a macro that waits for
+  hours holds its keys that long: "Release all keys" in the tray ends it at once.
 - **Held state:** keys and buttons held by a mode are released on mode change, suspend,
   `ENABLED = 0` and at daemon exit/start (`forceReleaseAll`, `--release-keys`), so a faulty
   mode file cannot leave a key stuck beyond those events.
@@ -781,7 +797,7 @@ by a file). Assessment and limits:
 - **Profile files (split layout):** the interface writes `devices/`, `apps/` and `backup/` inside
   `~/.config/dofscroll` (all covered by the `ReadWritePaths` of the UI unit); the daemon only reads
   them (its unit stays read-only for the configuration folder). The files are read through the
-  bounded directory reader: owner check, no links, at most 64 KiB each, the first 255 per directory
+  bounded directory reader: owner check, no links, at most 1 MiB each (the same limit as `dofscroll.conf`; it was 64 KiB), the first 255 per directory
   in sort order, and only next to a file named `dofscroll.conf` (a legacy `spnav-scroll.conf` in a
   generic folder has no profile directories). A directory that exists but cannot be read makes the
   whole load fail and the daemon keeps its previous settings. Leftover temporary files of an

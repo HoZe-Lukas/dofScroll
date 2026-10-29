@@ -384,9 +384,11 @@ bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &valu
         ButtonActionType bt;
         Key bk = Key::Space;
         ChordMods bmods;
-        if (!parseButtonAction(value, &bt, &bk, err, nullptr, &bmods)) return false;
+        MacroSide bmacro;
+        if (!parseButtonAction(value, &bt, &bk, err, nullptr, &bmods, &bmacro)) return false;
         std::string canon = lower(trim(value));
         if (bt == ButtonActionType::Key) canon = keyActionText(bk, bmods);
+        else if (bt == ButtonActionType::Macro) canon = "macro:" + macroSideText(bmacro);
         s.buttons[static_cast<int>(bn)] = canon;
         if (s.action_layer == kLayerApp) s.app_buttons[static_cast<int>(bn)] = canon;
         else s.app_buttons.erase(static_cast<int>(bn));  // a later [global]/[device:*] value is below the joystick mode again
@@ -1265,6 +1267,22 @@ bool parseProfilesText(const std::string &data, const std::string &path, Profile
             warn(lineno, key + ": " + err + " - line ignored");
             continue;
         }
+        // A macro presses what its steps say: the plain tier B warning (no gate), for a button and for a motion.
+        {
+            std::string risk;
+            if (key.compare(0, 7, "BUTTON_") == 0) {
+                ButtonActionType macroType = ButtonActionType::Unbound;
+                Key macroKey = Key::Space;
+                MacroSide macroSide;
+                if (parseButtonAction(value, &macroType, &macroKey, nullptr, nullptr, nullptr, &macroSide) && macroType == ButtonActionType::Macro)
+                    risk = macroRiskText(macroSide);
+            } else if (key.size() > 7 && key.compare(key.size() - 7, 7, "_ACTION") == 0) {
+                ChannelAction macroAct;
+                if (parseChannelAction(value, &macroAct, nullptr) && macroAct.type == ChannelActionType::Macro && macroAct.macro)
+                    risk = macroRiskText(*macroAct.macro);
+            }
+            if (!risk.empty()) warn(lineno, key + ": runs a macro that presses " + risk + " - loaded anyway");
+        }
         // A channel action that presses a chord with Alt/Super (or a chord with a non-navigation key) is loaded, but
         // noted, as for a joystick mode file.
         if (key.size() > 7 && key.compare(key.size() - 7, 7, "_ACTION") == 0) {
@@ -1282,7 +1300,7 @@ bool parseProfilesText(const std::string &data, const std::string &path, Profile
         auto dup = std::find_if(kv.begin(), kv.end(), [&](const KV &e) { return e.first == key; });
         if (dup != kv.end()) {
             kv.erase(dup);
-        } else if (kv.size() >= kMaxKeysPerSection) {
+        } else if (sectionKeysFull(kv.size())) {
             warn(lineno, "too many keys in the section (max. " + std::to_string(kMaxKeysPerSection) +
                              ") - line ignored");
             continue;

@@ -30,6 +30,15 @@ constexpr double kHoldLogSeconds = 60.0;  // a hold longer than this is logged o
 
 constexpr size_t idx(Key k) { return static_cast<size_t>(k); }
 
+// The time of a tick in whole microseconds (macro pauses are counted in them: no floating point sum can drift). The product
+// is kept in its own variable, like in key_engine.hpp, so no platform fuses it with a sum.
+int64_t microsOf(double dt) {
+    if (!(dt > 0.0)) return 0;  // also NaN
+    volatile double us = dt * 1e6;
+    const double capped = std::min(double(us), 3.6e9);  // an hour: a stalled clock must not overflow
+    return static_cast<int64_t>(std::llround(capped));
+}
+
 }  // namespace
 
 ModeRunner::ModeRunner(Output *out) : out_(out) {
@@ -75,6 +84,7 @@ void ModeRunner::setMode(const ModeDef &mode) {
 }
 
 void ModeRunner::releaseAll() {
+    abortMacro();
     syncKeys(std::bitset<kKeyCount>());
     syncMouse(0);
     resetState();
@@ -85,7 +95,7 @@ void ModeRunner::resetDsp() {
     // The zoom keys may differ in the new settings (ZOOM_MODIFIER): release every modifier; a button binding
     // that holds one is pressed again on the next tick.
     for (Key k : {Key::Ctrl, Key::Shift, Key::Alt, Key::Super}) {
-        if (!keys_held_[idx(k)]) continue;
+        if (!keys_held_[idx(k)] || macro_held_[idx(k)]) continue;  // a running macro keeps its own modifiers until it ends
         out_->setKey(k, false);
         keys_held_[idx(k)] = false;
     }
@@ -123,6 +133,7 @@ ModeRunner::Wanted ModeRunner::bindings(const Settings &s, uint32_t buttons) con
         case ButtonActionType::ToggleNav:
         case ButtonActionType::ToggleMode:
         case ButtonActionType::HoldMode:
+        case ButtonActionType::Macro:
         case ButtonActionType::ButtonMode: break;  // act on the press edge, see tick(); ButtonMode is expanded by the daemon core
         case ButtonActionType::Click: w.mouse |= 1u << 1; break;
         case ButtonActionType::MiddleClick: w.mouse |= 1u << 2; break;
@@ -158,7 +169,7 @@ ModeRunner::Wanted ModeRunner::bindings(const Settings &s, uint32_t buttons) con
 std::vector<ButtonBinding> ModeRunner::edgeBindings(const Settings &s) const {
     auto isEdge = [](ButtonActionType t) {
         return t == ButtonActionType::ModeSwitch || t == ButtonActionType::ToggleNav || t == ButtonActionType::ToggleMode ||
-               t == ButtonActionType::HoldMode;
+               t == ButtonActionType::HoldMode || t == ButtonActionType::Macro;  // a macro runs on the press edge (and optionally the release edge)
     };
     // a key chord (key:ctrl+0) acts once on the press edge too
     auto isChord = [](const ButtonBinding &b) { return b.type == ButtonActionType::Key && b.mods.n > 0; };
@@ -172,7 +183,9 @@ std::vector<ButtonBinding> ModeRunner::edgeBindings(const Settings &s) const {
         if (in_mode && !s.app_buttons.count(kv.first)) continue;
         ButtonBinding b;
         b.button = kv.first;
-        if (!parseButtonAction(kv.second, &b.type, &b.key, nullptr, &b.mode, &b.mods)) continue;
+        MacroSide macro;
+        if (!parseButtonAction(kv.second, &b.type, &b.key, nullptr, &b.mode, &b.mods, &macro)) continue;
+        if (b.type == ButtonActionType::Macro) b.macro = std::make_shared<const MacroSide>(std::move(macro));
         if (isEdge(b.type) || isChord(b)) out.push_back(b);
     }
     return out;
@@ -212,9 +225,21 @@ void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, b
         if (switch_request_.empty()) switch_request_ = kHoldReleaseRequest;
         else hold_release_pending_ = true;
     }
-    // Press edges only; nothing to look at (or to parse) while no button went down.
+    // Press edges (and the release edges of buttons that ran a macro); nothing to look at (or to parse) while no button changed.
     const uint32_t pressed = buttons & ~prev_buttons_;
-    for (const ButtonBinding &b : pressed ? edgeBindings(s) : std::vector<ButtonBinding>()) {
+    macro_budget_us_ = microsOf(dt);
+    for (const ButtonBinding &b : (pressed || (released & macro_armed_)) ? edgeBindings(s) : std::vector<ButtonBinding>()) {
+        if (b.type == ButtonActionType::Macro) {
+            const uint32_t bit = 1u << (b.button - 1);
+            if (buttonHeld(pressed, b.button - 1)) {
+                macro_armed_ |= bit;  // the release of this press may run the release part
+                if (b.macro) requestMacro(b.macro->press);
+            } else if ((released & macro_armed_ & bit) != 0) {
+                macro_armed_ &= ~bit;
+                if (b.macro) requestMacro(b.macro->release);
+            }
+            continue;
+        }
         if (!buttonHeld(pressed, b.button - 1)) continue;
         if (b.type == ButtonActionType::Key) {
             tapChord(b.key, b.mods);  // one tap per press, nothing on release: the modifiers pressed here are released at once
@@ -229,6 +254,7 @@ void ModeRunner::tick(const Settings &s, const RawAxes &raw, uint32_t buttons, b
             }
         }
     }
+    macro_armed_ &= ~released;  // whatever happened, a released button has nothing left to run
     prev_buttons_ = buttons;
     RawAxes axes = raw;
     // INVERT_AXES: flip the chosen axes before any mix, split part or zoom detection sees them
@@ -272,6 +298,7 @@ void ModeRunner::tickLegacy(const Settings &s, const RawAxes &raw, uint32_t butt
 
     std::bitset<kKeyCount> keys = w.keys;
     if (zooming) addZoomKeys(keys, s);
+    runMacro(keys);
     syncKeys(keys);
     if (zooming) {
         acc_v_.reset();
@@ -381,6 +408,7 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
 
     int nv = 0, nh = 0, nt = 0, nl = 0;
     int np[PART_COUNT] = {0, 0, 0, 0};
+    int fire[KM_COUNT] = {0, 0, 0, 0, 0, 0};  // macro: the side (+1 / -1) whose trigger was reached in this tick
     if (zooming) {
         acc_v_.reset();
         acc_h_.reset();
@@ -388,7 +416,8 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
         for (int i = 0; i < KM_COUNT; ++i) {
             rep_[i].reset();
             ptr_[i].reset();
-            if (slot[i].t == ChannelActionType::Hold || (i == KM_LIFT && slot[i].t == ChannelActionType::Step)) {
+            if (slot[i].t == ChannelActionType::Hold ||
+                (i == KM_LIFT && (slot[i].t == ChannelActionType::Step || slot[i].t == ChannelActionType::Macro))) {
                 // A hold keeps following its motion while the twist zooms (it is released when the motion falls back). The
                 // lift follows it too, its presses discarded: the zoom suppresses them, and a cap that is held beyond the
                 // trigger when the zoom ends must not fire a step at that moment (the lift fires when the cap is grabbed).
@@ -403,12 +432,14 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
         // keys: runs the repeater and step: the digital trigger of the motion's key slot (key_engine.hpp); the wheels use the
         // accumulator. A slot that is not in use is kept at rest.
         auto channel = [&](ChannelActionType t, StepAccumulator &acc, int km, double rate) {
-            if (t == ChannelActionType::Step || t == ChannelActionType::Hold) {
+            if (t == ChannelActionType::Step || t == ChannelActionType::Hold || t == ChannelActionType::Macro) {
                 acc.reset();
                 rep_[km].reset();
-                // A hold presses nothing: its state (trig_[km].state()) decides what is held below.
+                // A hold presses nothing: its state (trig_[km].state()) decides what is held below. A macro presses nothing
+                // here either: the trigger (and the release of the side) is looked at after the loop, see macroSide().
                 const int n = trig_[km].step(rate, triggerOf(km));
-                return t == ChannelActionType::Hold ? 0 : n;
+                if (t == ChannelActionType::Macro) fire[km] = n;
+                return t == ChannelActionType::Step ? n : 0;
             }
             trig_[km].reset();
             if (t == ChannelActionType::PointerX || t == ChannelActionType::PointerY) {
@@ -441,6 +472,25 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
             nh = channel(th, acc_h_, KM_H_PUSH, rate_h);
         }
         nl = channel(tl, acc_lift_, KM_LIFT, rate_lift);
+    }
+
+    // Macros of the motions: the trigger of a side starts the press part, the release of the trigger (back at half of it) the
+    // release part. A side that was left (released, or the other side fired) ends its armed state either way.
+    for (int i = 0; i < KM_COUNT; ++i) {
+        if (slot[i].t != ChannelActionType::Macro || !slot[i].a->macro) {
+            macro_side_[i] = 0;
+            continue;
+        }
+        const MacroAction &ma = *slot[i].a->macro;
+        const int st = trig_[i].state();
+        if (macro_side_[i] != 0 && st != macro_side_[i]) {
+            requestMacro((macro_side_[i] > 0 ? ma.pos : ma.neg).release);
+            macro_side_[i] = 0;
+        }
+        if (fire[i] != 0) {
+            macro_side_[i] = fire[i];
+            requestMacro((fire[i] > 0 ? ma.pos : ma.neg).press);
+        }
     }
 
     std::bitset<kKeyCount> keys = w.keys;
@@ -494,6 +544,7 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
     if (zooming || (!split[0] && tv == ChannelActionType::Zoom && rate_v != 0.0) ||
         (!split[1] && th == ChannelActionType::Zoom && rate_h != 0.0) || part_zoom)
         addZoomKeys(keys, s);
+    runMacro(keys);
     syncMouse(mouse);
     syncKeys(keys);
 
@@ -516,6 +567,7 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
         case ChannelActionType::Hold: break;  // held through the state above, never tapped
         case ChannelActionType::PointerX: pointerDx += n; break;  // positive: right
         case ChannelActionType::PointerY: pointerDy += n; break;  // positive: down
+        case ChannelActionType::Macro: break;  // run by the macro engine above
         case ChannelActionType::Step:
         case ChannelActionType::Keys:
             if (n > 0 ? a.posNone : a.negNone) break;  // "none" for this side: nothing is pressed
@@ -543,6 +595,96 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
     if (pointerDx != 0 || pointerDy != 0) out_->moveMouse(clampMouseDelta(pointerDx), clampMouseDelta(pointerDy));
     info_ = Info{rate_h, rate_v, twist, lateral, zooming, nav_active, rate_zoom, rate_lift};
     for (int i = 0; i < PART_COUNT; ++i) info_.rate_part[i] = split[i / 2] ? part_rate[i] : 0.0;
+}
+
+// A trigger of a macro: it starts at the next runMacro() of this tick, unless one is already running or waiting to start
+// (further triggers during a run are ignored until it is done).
+void ModeRunner::requestMacro(const MacroSteps &steps) {
+    if (steps.empty() || macro_.active || !macro_pending_.empty()) return;
+    macro_pending_ = steps;
+    if (macro_pending_.size() > kMaxMacroSteps) macro_pending_.resize(kMaxMacroSteps);  // the parsers never allow more
+}
+
+// Runs the steps that are due: a started macro runs its first steps at once, then every pause takes this tick's time off
+// (macro_budget_us_). `keys` is what everything else wants held (buttons, zoom, holds): a key the macro lets go of stays down
+// when something else wants it. The keys the macro holds are added to it, so the sync that follows keeps them.
+void ModeRunner::runMacro(std::bitset<kKeyCount> &keys) {
+    int64_t budget = macro_budget_us_;
+    if (!macro_.active && !macro_pending_.empty()) {
+        macro_.steps.swap(macro_pending_);
+        macro_pending_.clear();
+        macro_.next = 0;
+        macro_.wait_us = 0;
+        macro_.active = true;
+        budget = 0;  // the clock starts at the trigger
+    }
+    while (macro_.active) {
+        if (macro_.wait_us > 0) {
+            if (budget < macro_.wait_us) {
+                macro_.wait_us -= budget;
+                break;
+            }
+            budget -= macro_.wait_us;
+            macro_.wait_us = 0;
+        }
+        if (macro_.next >= macro_.steps.size()) {  // the end: everything the macro still holds is released
+            for (size_t i = 0; i < kKeyCount; ++i) {
+                if (!macro_held_[i]) continue;
+                macro_held_[i] = false;
+                if (keys_held_[i] && !keys[i]) {
+                    out_->setKey(static_cast<Key>(i), false);
+                    keys_held_[i] = false;
+                }
+            }
+            macro_.steps.clear();
+            macro_.active = false;
+            break;
+        }
+        const MacroStep &st = macro_.steps[macro_.next++];
+        if (st.kind == MacroStep::Kind::Wait) {
+            macro_.wait_us = static_cast<int64_t>(st.waitMs) * 1000;
+            continue;
+        }
+        Key ks[kMaxMacroKeysPerStep];
+        const size_t n = macroStepKeys(st, ks);
+        if (st.kind == MacroStep::Kind::Down) {
+            for (size_t j = 0; j < n; ++j) {
+                macro_held_[idx(ks[j])] = true;
+                if (!keys_held_[idx(ks[j])]) {
+                    out_->setKey(ks[j], true);
+                    keys_held_[idx(ks[j])] = true;
+                }
+            }
+        } else {
+            for (size_t j = n; j > 0; --j) {  // the key first, then the modifiers in reverse order
+                const size_t k = idx(ks[j - 1]);
+                macro_held_[k] = false;
+                if (keys_held_[k] && !keys[k]) {
+                    out_->setKey(ks[j - 1], false);
+                    keys_held_[k] = false;
+                }
+            }
+        }
+    }
+    keys |= macro_held_;
+}
+
+// Ends a running macro at once and lets go of what it holds (mode switch, reload, suspend, ENABLED=0, device removal, the
+// safety net and "Release all keys" all come here through releaseAll() or clearToggles()). Triggers that were waiting are dropped.
+void ModeRunner::abortMacro() {
+    for (size_t i = 0; i < kKeyCount; ++i) {
+        if (!macro_held_[i]) continue;
+        if (keys_held_[i]) out_->setKey(static_cast<Key>(i), false);
+        keys_held_[i] = false;
+    }
+    macro_held_.reset();
+    macro_.steps.clear();
+    macro_.next = 0;
+    macro_.wait_us = 0;
+    macro_.active = false;
+    macro_pending_.clear();
+    macro_armed_ = 0;
+    for (int &side : macro_side_) side = 0;
 }
 
 }  // namespace spn

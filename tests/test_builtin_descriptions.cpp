@@ -32,7 +32,7 @@ int main() {
             return 1;
         }
     }
-    assert(n >= 19);  // 14 joystick modes and 5 button modes
+    assert(n >= 21);  // 16 joystick modes and 5 button modes
     std::puts("built-in descriptions ok");
     return 0;
 }

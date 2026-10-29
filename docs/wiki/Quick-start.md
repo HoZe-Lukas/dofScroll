@@ -24,6 +24,8 @@ On first start the tray writes `~/.config/dofscroll/dofscroll.conf` (global sett
 | `map` | Arrow keys to pan, twist presses `minus`/`plus` |
 | `precision` | Normal behavior with low sensitivities |
 | `tabs` | Sideways switches tabs (Ctrl+Page Up / Page Down) |
+| `volume` | Up/down = Volume up / Volume down (not sent on macOS) |
+| `tracks` | Sideways = previous / next track, one per push (not sent on macOS) |
 | `sheet` | Arrow keys for spreadsheet cells, twist pages up/down |
 | `photo` | Sideways = previous/next image, up/down zooms |
 | `zoom-pan` | Up/down zooms, twist scrolls sideways |

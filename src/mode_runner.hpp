@@ -16,6 +16,9 @@
 //    everything they hold is released like the rest on mode change and releaseAll().
 // Button bindings of the mode apply in both paths.
 //
+// A macro (macro.hpp) runs in the same tick loop: steps are due by the dt of the ticks, the keys it holds are part of what the
+// output is synced to, and everything it still holds is released at its end and on every abort (releaseAll(), clearToggles()).
+//
 // Everything held (Ctrl for zoom, key/mouse bindings) is released on mode change and on
 // releaseAll() (suspend, ENABLED=0, exit).
 #pragma once
@@ -29,6 +32,7 @@
 #include "dsp.hpp"
 #include "key_engine.hpp"
 #include "keys.hpp"
+#include "macro.hpp"
 #include "modes.hpp"
 #include "output.hpp"
 #include "pointer_engine.hpp"
@@ -66,11 +70,12 @@ public:
     bool navLatched() const { return nav_latched_; }
     // Clears the toggle:nav latch. Called on reload, "Release all keys", suspend/disabled and an
     // unplugged device; releaseAll() (also used by the safety net) leaves it alone, and setMode()
-    // clears it.
+    // clears it. A running macro is aborted too and what it holds is released (the same paths).
     void clearToggles() {
         nav_latched_ = false;
         hold_button_ = 0;
         hold_release_pending_ = false;
+        abortMacro();
     }
 
     // One tick. raw/buttons are already zeroed by the caller while suspended or disabled;
@@ -78,7 +83,7 @@ public:
     // Does not call Output::flush().
     void tick(const Settings &s, const RawAxes &raw, uint32_t buttons, bool fresh, double dt);
 
-    // Releases every held key and mouse button and resets the DSP state.
+    // Releases every held key and mouse button, aborts a running macro and resets the DSP state.
     void releaseAll();
     // Settings changed (profile switch): resets the DSP state and releases the zoom Ctrl,
     // but not mouse buttons (a running drag survives).
@@ -97,10 +102,14 @@ public:
     const Info &info() const { return info_; }
 
     // Something is held on the output (a key or a mouse button).
-    bool holdsAnything() const { return keys_held_.any() || mouse_held_ != 0; }
+    bool holdsAnything() const { return keys_held_.any() || mouse_held_ != 0 || macro_.active; }
+    // A macro (macro.hpp) is running: steps are queued or it waits for the next one. At most one runs at a time.
+    bool macroRunning() const { return macro_.active; }
     // An axis channel is outside its dead zone (its rate after smoothing, dead zone and
-    // curve is not zero), or the zoom detector is latched. Used by the daemon's safety net.
+    // curve is not zero), or the zoom detector is latched, or a macro is running (a pause of a macro must not be cut
+    // short by the quiet period; a macro ends by itself and every abort path ends it). Used by the daemon's safety net.
     bool axesActive() const {
+        if (macro_.active) return true;
         for (double r : info_.rate_part)
             if (std::fabs(r) > kRateEpsilon) return true;
         return std::fabs(info_.rate_h) > kRateEpsilon || std::fabs(info_.rate_v) > kRateEpsilon ||
@@ -133,6 +142,23 @@ private:
     std::bitset<kKeyCount> keys_held_;
     uint8_t mouse_held_ = 0;  // bit n = mouse button n (1 left, 2 middle, 3 right)
     Info info_;
+
+    // The macro engine (macro.hpp). One macro runs at a time; a trigger while one runs is ignored. The keys a macro holds
+    // (macro_held_) are part of what the output is synced to until the macro ends or is aborted.
+    struct MacroRun {
+        MacroSteps steps;     // the queue (at most kMaxMacroSteps)
+        size_t next = 0;      // the next step to run
+        int64_t wait_us = 0;  // what is left of the current pause
+        bool active = false;
+    } macro_;
+    MacroSteps macro_pending_;                // a trigger of this tick, started by runMacro()
+    std::bitset<kKeyCount> macro_held_;       // keys pressed by a Down step and not yet released
+    int64_t macro_budget_us_ = 0;             // the time this tick adds to a running macro
+    uint32_t macro_armed_ = 0;                // buttons (bit n-1) whose press ran or tried a macro: their release may run one
+    int macro_side_[KM_COUNT] = {0, 0, 0, 0, 0, 0};  // motions with a macro armed: +1 / -1 the side that fired, 0 none
+    void requestMacro(const MacroSteps &steps);
+    void runMacro(std::bitset<kKeyCount> &keys);  // advances or starts the macro; keys = what everything else wants
+    void abortMacro();
 
     // Desired state derived from the bindings.
     struct Wanted {
