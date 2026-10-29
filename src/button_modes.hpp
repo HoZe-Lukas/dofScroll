@@ -20,6 +20,7 @@
 // expandMode); the expansion is never written back to a config file. ACTION must not itself be a
 // buttonmode: reference. Limits and file safety are those of mode files (conf_dir.hpp).
 #pragma once
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -39,6 +40,7 @@ struct ButtonMode {
     Key key = Key::Space;
     ChordMods mods;           // modifiers of a key: chord (n = 0 for a plain key)
     std::string target;       // mode id for ModeSwitch / ToggleMode ("next:a,b" with a cycle list)
+    std::shared_ptr<const MacroSide> macro;  // Macro: the parsed steps (null for every other type)
     std::vector<std::string> cycle;  // CYCLE ids (validated, deduplicated); empty = all modes
     bool builtin = false;     // from the embedded library (builtin_library.hpp): no file, path is empty
 };
