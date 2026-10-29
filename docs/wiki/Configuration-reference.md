@@ -22,7 +22,7 @@ The file is UTF-8 (a BOM is accepted, never written; LF written, CRLF accepted);
 
 Format: `KEY = value`, sections `[name]`, comments with `#` or `;`. Keys are case-sensitive and upper case. The daemon reloads on `SIGHUP` and when `dofscroll.conf` or a profile file changes; only `BACKEND` needs a restart. The settings window rewrites only the changed files, without keeping comments (atomically, keeping the file mode). Older versions kept the profiles as sections in `dofscroll.conf`; that format is still read (a profile file wins over a section of the same name), and the first start of the interface moves the sections into files and keeps the old file as `backup/dofscroll.conf.pre-split`. Downgrade: `cat devices/*.conf apps/*.conf >> dofscroll.conf` in the config folder. Details: [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
 
-Limits: `dofscroll.conf` up to 1 MiB, a profile file up to 64 KiB, at most 255 profile files per folder, line up to 8 KiB, 256 sections, 512 keys per section, 12 mix terms, 64 curve points. Duplicate key in one section: the last wins. Invalid values are rejected with a message in the log.
+Limits: `dofscroll.conf` and a profile file up to 1 MiB each, at most 255 profile files per folder, line up to 33 KiB, an action text up to 32 KiB, 256 sections, 10000 keys per section, 12 mix terms, 64 curve points. Duplicate key in one section: the last wins. Invalid values are rejected with a message in the log.
 
 ## Channels
 

@@ -6003,6 +6003,23 @@ msgid "Hold"
 msgstr "Halten"
 
 #: src/ui/model/motion_summary_model.hpp
+msgid "Runs a macro once per push"
+msgstr "Führt pro Schub ein Makro aus"
+
+#: src/ui/model/motion_summary_model.hpp
+#: src/ui/model/button_chip_model.hpp
+msgid "Macro"
+msgstr "Makro"
+
+#: src/ui/model/mode_info_model.hpp
+msgid "runs a macro once per push"
+msgstr "führt pro Schub ein Makro aus"
+
+#: src/ui/model/borrow_model.hpp
+msgid "run a macro"
+msgstr "ein Makro ausführen"
+
+#: src/ui/model/motion_summary_model.hpp
 msgid "One click per push: %1 / %2"
 msgstr "Ein Klick pro Schub: %1 / %2"
 

@@ -425,7 +425,7 @@ static void testLimits() {
 
     // very long line is skipped, the rest still parsed
     clearDir();
-    writeFile("long.conf", "NAME = " + std::string(5000, 'a') + "\nV_ACTION = none\n");
+    writeFile("long.conf", "NAME = " + std::string(kMaxLineBytes + 100, 'a') + "\nV_ACTION = none\n");
     w.clear();
     ms = loadModes(g_dir, &w);
     assert(ms.find("long") && ms.find("long")->v.type == ChannelActionType::Off && hasWarning(w, "too long"));

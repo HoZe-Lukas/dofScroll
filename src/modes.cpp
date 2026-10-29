@@ -26,7 +26,6 @@ constexpr size_t kMaxModeOverrides = 128;
 constexpr int kMaxModeButton = 32;       // highest button number in a mode file (1-based)
 constexpr size_t kMaxLabel = 64;
 constexpr size_t kMaxDescription = 256;
-constexpr size_t kMaxModeLine = 4096;
 
 std::string trim(const std::string &s) { return utf8::trim(s); }
 std::string lower(std::string s) { return utf8::lowerAscii(std::move(s)); }
@@ -100,7 +99,7 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
         lineno++;
         if (raw.find('\0') != std::string::npos) { warn(lineno, "line contains a NUL byte - ignored"); continue; }
         if (lineno == 1 && raw.compare(0, 3, "\xEF\xBB\xBF") == 0) raw.erase(0, 3);
-        if (raw.size() > kMaxModeLine) { warn(lineno, "line too long - ignored"); continue; }
+        if (raw.size() > kMaxLineBytes) { warn(lineno, "line too long - ignored"); continue; }
         std::string line = trim(raw);
         if (line.empty() || line[0] == '#' || line[0] == ';') continue;
         if (!utf8::isValid(line))
@@ -158,7 +157,9 @@ bool parseModeText(const std::string &text, const std::string &file, ModeDef *ou
             }
             ButtonBinding b;
             b.button = std::atoi(num.c_str());
-            if (!parseButtonAction(value, &b.type, &b.key, &err, &b.mode, &b.mods)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
+            MacroSide macro;
+            if (!parseButtonAction(value, &b.type, &b.key, &err, &b.mode, &b.mods, &macro)) { warn(lineno, key + ": " + err + " - line ignored"); continue; }
+            if (b.type == ButtonActionType::Macro) b.macro = std::make_shared<const MacroSide>(macro);
             bool replaced = false;
             for (ButtonBinding &e : out->buttons)
                 if (e.button == b.button) { e = b; replaced = true; }
@@ -198,13 +199,20 @@ bool isNavKey(Key k) {
 std::string chordRisk(const ModeDef &m) {
     std::vector<std::string> why;
     for (const ButtonBinding &b : m.buttons)
-        if (b.type == ButtonActionType::Key && b.mods.n == 0 && isModifierKey(b.key))
+        if (b.type == ButtonActionType::Macro && b.macro) {
+            const std::string r = macroRiskText(*b.macro);
+            if (!r.empty()) why.push_back("BUTTON_" + std::to_string(b.button) + " runs a macro that presses " + r);
+        } else if (b.type == ButtonActionType::Key && b.mods.n == 0 && isModifierKey(b.key))
             why.push_back("BUTTON_" + std::to_string(b.button) + " presses " + keyName(b.key));
         else if (b.type == ButtonActionType::Key && chordNeedsWarning(b.key, b.mods))
             why.push_back("BUTTON_" + std::to_string(b.button) + " presses " + keyActionText(b.key, b.mods).substr(4));
     bool hasRiskyKeys = false, hasZoom = false;
     for (const ChannelAction *a : {&m.v, &m.h, &m.twist, &m.lift, &m.vSplit.push, &m.vSplit.tilt, &m.hSplit.push, &m.hSplit.tilt}) {
         if (a->type == ChannelActionType::Zoom) hasZoom = true;
+        if (a->type == ChannelActionType::Macro && a->macro) {
+            const std::string r = macroRiskText(*a->macro);
+            if (!r.empty()) why.push_back("a macro: channel presses " + r);
+        }
         if (!a->usesKeys()) continue;
         const bool hold = a->type == ChannelActionType::Hold;
         const std::string what = hold ? "a hold: channel holds " : a->type == ChannelActionType::Step ? "a step: channel presses " : "a keys: channel presses ";
@@ -305,9 +313,8 @@ bool splitCycleTarget(const std::string &target, bool *forward, std::vector<std:
     return true;
 }
 
-// <chord> = [<modifier>+]... <key>: modifiers (ctrl, shift, alt, super) at most once each, then
-// exactly one non-modifier key. A single name (also a lone modifier) is a plain key.
-static bool parseChord(const std::string &text, Key *key, ChordMods *mods, std::string *err, bool allowModifiersOnly = false) {
+// The chord grammar is documented at the declaration (chord.hpp).
+bool parseChord(const std::string &text, Key *key, ChordMods *mods, std::string *err, bool allowModifiersOnly) {
     std::vector<std::string> parts;
     size_t start = 0;
     for (size_t pos; (pos = text.find('+', start)) != std::string::npos; start = pos + 1)
@@ -360,6 +367,7 @@ std::string channelActionText(const ChannelAction &a) {
         case ChannelActionType::WheelV: return "wheel_v";
         case ChannelActionType::WheelH: return "wheel_h";
         case ChannelActionType::Zoom: return "zoom";
+        case ChannelActionType::Macro: return "macro:" + (a.macro ? macroActionText(*a.macro) : std::string("none,none"));
         case ChannelActionType::Step:
         case ChannelActionType::Keys:
         case ChannelActionType::Hold:
@@ -370,9 +378,17 @@ std::string channelActionText(const ChannelAction &a) {
 }
 
 bool parseChannelAction(const std::string &text, ChannelAction *out, std::string *err) {
+    if (text.size() > kMaxActionTextBytes)
+        return fail(err, "action text too long (" + std::to_string(text.size()) + " bytes, max. " + std::to_string(kMaxActionTextBytes) + ")");
     const std::string t = lower(trim(text));
     ChannelAction a;
-    if (t == "default") a.type = ChannelActionType::Default;
+    if (t.compare(0, 6, "macro:") == 0) {
+        MacroAction m;
+        if (!parseMacroAction(t.substr(6), &m, err)) return false;
+        a.type = ChannelActionType::Macro;
+        a.macro = std::make_shared<const MacroAction>(std::move(m));
+    }
+    else if (t == "default") a.type = ChannelActionType::Default;
     else if (t == "none") a.type = ChannelActionType::Off;
     else if (t == "wheel_v") a.type = ChannelActionType::WheelV;
     else if (t == "wheel_h") a.type = ChannelActionType::WheelH;
@@ -405,7 +421,7 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
                 if (!side.none && !keyAnalogAllowed(side.key, side.mods)) return fail(err, "this key can only be used digitally, use step:");
         }
     } else {
-        return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos> | step:<neg>,<pos> | hold:<neg>,<pos> (keys may be chords like ctrl+pageup; step: and hold: also take click, rightclick, middleclick)");
+        return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos> | step:<neg>,<pos> | hold:<neg>,<pos> | macro:<neg>,<pos> (keys may be chords like ctrl+pageup; step: and hold: also take click, rightclick, middleclick)");
     }
     if (out) *out = a;
     return true;
@@ -441,12 +457,22 @@ std::string keyActionText(Key key, const ChordMods &mods) {
 }
 
 bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key, std::string *err,
-                       std::string *modeId, ChordMods *mods) {
+                       std::string *modeId, ChordMods *mods, MacroSide *macro) {
     if (mods) *mods = ChordMods();
+    if (macro) *macro = MacroSide();
+    if (text.size() > kMaxActionTextBytes)
+        return fail(err, "action text too long (" + std::to_string(text.size()) + " bytes, max. " + std::to_string(kMaxActionTextBytes) + ")");
     const std::string t = lower(trim(text));
     ButtonActionType ty;
     Key k = Key::Space;
-    if (t == "none") ty = ButtonActionType::Unbound;
+    if (t.compare(0, 6, "macro:") == 0) {
+        MacroSide side;
+        if (t.find(',') != std::string::npos) return fail(err, "a button macro is one side (macro:<steps> or macro:<steps> | <steps>), without ','");
+        if (!parseMacroSide(t.substr(6), &side, err)) return false;
+        if (macro) *macro = std::move(side);
+        ty = ButtonActionType::Macro;
+    }
+    else if (t == "none") ty = ButtonActionType::Unbound;
     else if (t == "click") ty = ButtonActionType::Click;
     else if (t == "rightclick") ty = ButtonActionType::RightClick;
     else if (t == "middleclick") ty = ButtonActionType::MiddleClick;
@@ -499,7 +525,7 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
         ty = ButtonActionType::ModeSwitch;
         if (modeId) *modeId = id;
     } else {
-        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name> | key:<mod>+<key> | mode:<id> | mode:next | mode:prev | toggle:nav | toggle:mode:<id> | hold:mode:<id> | buttonmode:<id>");
+        return fail(err, "expected none | click | rightclick | middleclick | nav | key:<name> | key:<mod>+<key> | macro:<steps> | mode:<id> | mode:next | mode:prev | toggle:nav | toggle:mode:<id> | hold:mode:<id> | buttonmode:<id>");
     }
     if (type) *type = ty;
     if (key) *key = k;

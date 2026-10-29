@@ -45,7 +45,8 @@
 namespace spn {
 
 constexpr size_t kMaxProfileFiles = 255;            // files read per directory (kMaxSections - 1)
-constexpr size_t kMaxProfileFileBytes = 64 * 1024;  // size of one profile file
+constexpr size_t kMaxProfileFileBytes = 1024 * 1024;  // size of one profile file (1 MiB, was 64 KiB); the same as the main file's
+static_assert(kMaxProfileFileBytes == kMaxConfigBytes, "a profile file and dofscroll.conf share one size limit (config.hpp)");
 constexpr size_t kMaxProfileDirEntries = 16384;     // directory entries listed per directory (all are collected and sorted before the first kMaxProfileFiles are used, so the choice is deterministic)
 constexpr size_t kMaxSlugBytes = 80;                // file name stem, without ".conf"
 

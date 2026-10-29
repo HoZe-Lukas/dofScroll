@@ -54,6 +54,7 @@ inline std::string buttonActionWords(const std::string &configText, const String
         case ButtonActionType::ToggleMode: return format(s.tr("Toggle: %1"), {id});
         case ButtonActionType::HoldMode: return format(s.tr("Hold: %1"), {id});
         case ButtonActionType::ButtonMode: return format(s.tr("Button mode: %1"), {id});
+        case ButtonActionType::Macro: return s.tr("Macro");
     }
     return s.tr("Unassigned");
 }

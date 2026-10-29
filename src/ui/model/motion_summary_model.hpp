@@ -144,6 +144,11 @@ inline MotionRow rowFor(const char *id, const std::string &name, const std::stri
             r.detail = neg + " / " + pos;
             r.symbol = "keys";
             break;
+        case ChannelActionType::Macro:
+            r.action = s.tr("Runs a macro once per push");
+            r.chip = s.tr("Macro");
+            r.symbol = "step";
+            break;
         case ChannelActionType::Hold:
             r.action = format(s.tr("Held while pushed: %1 / %2"), {neg, pos});
             r.chip = s.tr("Hold");

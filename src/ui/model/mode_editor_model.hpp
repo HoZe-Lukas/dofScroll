@@ -30,6 +30,8 @@ struct ChannelForm {
     ChannelActionType type = ChannelActionType::Default;
     // keys or chords ("ctrl+pageup"), "none", and for Step and Hold also the mouse buttons "click", "rightclick", "middleclick"
     std::string neg = "up", pos = "down";
+    // Only for Macro: the text after "macro:" ("<neg>,<pos>", macro.hpp); neg and pos are not used then.
+    std::string macro = "none,none";
 
     bool usesKeys() const {
         return type == ChannelActionType::Keys || type == ChannelActionType::Step || type == ChannelActionType::Hold;
@@ -51,11 +53,12 @@ struct ChannelForm {
             case ChannelActionType::Keys: return "keys:" + neg + "," + pos;
             case ChannelActionType::Step: return "step:" + neg + "," + pos;
             case ChannelActionType::Hold: return "hold:" + neg + "," + pos;
+            case ChannelActionType::Macro: return "macro:" + macro;
         }
         return "default";
     }
     bool operator==(const ChannelForm &o) const {
-        return type == o.type && (!usesKeys() || (neg == o.neg && pos == o.pos));
+        return type == o.type && (!usesKeys() || (neg == o.neg && pos == o.pos)) && (type != ChannelActionType::Macro || macro == o.macro);
     }
 };
 
@@ -138,6 +141,7 @@ inline ChannelForm channelFormOf(const ChannelAction &a) {
         f.neg = modelist::negChordText(a);
         f.pos = modelist::posChordText(a);
     }
+    if (a.type == ChannelActionType::Macro && a.macro) f.macro = macroActionText(*a.macro);
     return f;
 }
 
