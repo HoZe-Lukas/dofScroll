@@ -161,7 +161,7 @@ public:
             return "";
         }
         std::string s = utf8::trim(text);
-        for (char &c : s) c = char(std::tolower(static_cast<unsigned char>(c)));
+        for (char &c : s) c = utf8::lowerChar(c);
         return s;
     }
 

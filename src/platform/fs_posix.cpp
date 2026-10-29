@@ -95,6 +95,9 @@ ReadResult readAt(int dirfd, const std::string &path, size_t cap, const ReadOpti
         r.status = ReadStatus::NotOwned;
         return r;
     }
+    r.foreignOwner = st.st_uid != ::geteuid();
+    // Group write counts only for a group that is not the user's own (user-private groups with umask 002 are common).
+    r.looseMode = (st.st_mode & S_IWOTH) != 0 || ((st.st_mode & S_IWGRP) != 0 && st.st_gid != ::getegid());
     if (st.st_size > 0 && static_cast<size_t>(st.st_size) > cap) {
         ::close(fd);
         r.status = ReadStatus::TooLargeBySize;
@@ -225,6 +228,20 @@ bool mkdirsPrivate(const std::string &dir, std::string *emsg) {
         }
         i = j + 1;
     }
+    // The directory that will hold the files may have existed: it must be ours (or root's) and not writable by every
+    // user, otherwise another user could swap the files in it. A sticky directory (like /tmp) is fine. Group write is
+    // not refused (a private group is common); the loader says so for the configuration file itself.
+    struct stat st;
+    if (!dir.empty() && ::stat(dir.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+        if (st.st_uid != ::geteuid() && st.st_uid != 0) {
+            if (emsg) *emsg = dir + ": directory is owned by another user";
+            return false;
+        }
+        if ((st.st_mode & S_IWOTH) && !(st.st_mode & S_ISVTX)) {
+            if (emsg) *emsg = dir + ": directory is writable by every user (no sticky bit)";
+            return false;
+        }
+    }
     return true;
 }
 
@@ -312,7 +329,7 @@ static bool replaceFileImpl(const std::string &path, const std::string &content,
     struct stat est;
     if (::fstatat(dfd, base.c_str(), &est, AT_SYMLINK_NOFOLLOW) == 0) {
         if (!S_ISREG(est.st_mode)) return setMsg(err, real + ": not a regular file");
-        mode = est.st_mode & 0777;  // never carry over setuid/setgid/sticky
+        mode = est.st_mode & 0777 & ~mode_t(022);  // never carry over setuid/setgid/sticky; a file loosened to 0666 loses group/other write
     }
 
     std::string tmp;

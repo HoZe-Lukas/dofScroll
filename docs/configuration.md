@@ -40,7 +40,13 @@ without keeping comments, and only the files whose profile you changed. It write
 Limits: file up to 1 MiB, line up to 8 KiB, up to 256 sections in `dofscroll.conf`, 512 keys per section, 12 mix
 terms, 64 curve points. Duplicate keys in one section: the last wins. Invalid values are rejected
 with a message in the log. The profile folders have limits too (number of files, size per file, total
-number of profiles); a folder over the limit is read up to the limit and the log says so.
+number of profiles); a folder over the limit is read up to the limit and the log says so. A line whose key or value holds a
+control character (a carriage return inside a value, for example) is ignored with a warning, so a file that loads can always
+be saved again. A section whose name is empty, longer than 4096 bytes or holds a control character is ignored with a warning,
+together with its keys. On Linux and macOS the log notes when `dofscroll.conf` belongs to another user or can be written by
+others (or by a group that is not yours): `chmod go-w` the file. It is still read. The settings window writes files without
+group and other write permission, and it refuses to use a configuration folder that every user can write to (without the
+sticky bit) or that belongs to another user.
 
 ### Profile files
 
@@ -228,6 +234,11 @@ mode. The daemon still understands them, so old files behave as before, but the 
 offer them any more: **all buttons are assigned with `BUTTON_<n>`** (1-based) using `nav`,
 `toggle:nav`, `click`, `mode:<id>`, `mode:next`, `mode:prev`, `hold:mode:<id>`, `toggle:mode:<id>`
 and `buttonmode:<id>`. `NAV_BUTTON = 2` with `NAV_BUTTON_ENABLED = 1` is `BUTTON_3 = nav`.
+
+Where they are not migrated (a hand-edited file the interface has not opened yet), they apply only to the
+built-in scroll and zoom handling: in a joystick mode with a custom channel path (a non-default `V_ACTION`, `H_ACTION`,
+`TWIST_ACTION` or a split key) they are ignored, and only `BUTTON_<n>` works there. The migration below turns them into
+`BUTTON_<n>`, which works everywhere.
 
 When `dofscroll-ui` loads a file that uses them it migrates them once, visibly: in the profile that
 set them, `NAV_BUTTON` becomes `BUTTON_<n> = nav` and `CLICK_BUTTON` becomes `BUTTON_<n> = click`

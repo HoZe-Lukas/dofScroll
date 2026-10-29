@@ -22,7 +22,7 @@ inline std::string joinWmClass(const char *instance, const char *cls) {
     std::string c = cls ? cls : "";
     std::string r = inst;
     if (!c.empty()) r += (r.empty() ? "" : " ") + c;
-    if (r.size() > kMaxWmClassLen) r.resize(kMaxWmClassLen);
+    if (r.size() > kMaxWmClassLen) r = spn::utf8::truncate(r, kMaxWmClassLen);  // never inside a character
     std::transform(r.begin(), r.end(), r.begin(),
                    [](unsigned char ch) { return spn::utf8::lowerChar(ch); });
     return r;
@@ -32,9 +32,9 @@ inline std::string joinWmClass(const char *instance, const char *cls) {
 inline bool isOwnAppString(const std::string &s) {
     size_t i = 0;
     while (i < s.size()) {
-        while (i < s.size() && std::isspace((unsigned char)s[i])) i++;
+        while (i < s.size() && spn::utf8::isSpace(s[i])) i++;
         if (s.compare(i, 9, "dofscroll") == 0) return true;
-        while (i < s.size() && !std::isspace((unsigned char)s[i])) i++;
+        while (i < s.size() && !spn::utf8::isSpace(s[i])) i++;
     }
     return false;
 }

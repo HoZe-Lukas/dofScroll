@@ -97,6 +97,13 @@ bool anyWarningContains(const std::vector<std::string> &w, const std::string &ne
 
 // ---------------------------------------------------------------- helpers
 
+// Bidirectional controls and zero-width characters are dropped from display text (utf8::isSpoofing).
+bool hasSpoofing(const std::string &s) {
+    for (size_t i = 0; i < s.size(); ++i)
+        if (utf8::isSpoofing(s, i)) return true;
+    return false;
+}
+
 void testUtf8Helpers() {
     for (const Nasty &n : table()) {
         assert(utf8::isValid(n.text) == n.valid && n.what);
@@ -109,7 +116,7 @@ void testUtf8Helpers() {
             assert(d.size() <= cap && utf8::isValid(d) && !hasControl(d));
         }
         assert(utf8::sanitizeDisplay(n.text, 4096).find('\0') == std::string::npos);
-        if (n.valid && !hasControl(n.text)) assert(utf8::sanitizeDisplay(n.text, 4096) == n.text);
+        if (n.valid && !hasControl(n.text) && !hasSpoofing(n.text)) assert(utf8::sanitizeDisplay(n.text, 4096) == n.text);
         else if (!n.valid) assert(utf8::sanitizeDisplay(n.text, 4096).find("\xEF\xBF\xBD") != std::string::npos);
     }
     assert(utf8::firstInvalid("ab\xe6\x97") == 2);

@@ -11,6 +11,7 @@
 
 #include "key_list.hpp"
 #include "modes.hpp"
+#include "utf8.hpp"
 #include "ui/model/settings_model.hpp"
 
 namespace spn::ui {
@@ -85,7 +86,7 @@ struct Binding {
 inline std::string lowerTrim(const std::string &s) {
     const size_t a = s.find_first_not_of(" \t"), b = s.find_last_not_of(" \t");
     std::string t = a == std::string::npos ? std::string() : s.substr(a, b - a + 1);
-    for (char &c : t) c = char(std::tolower(static_cast<unsigned char>(c)));
+    for (char &c : t) c = utf8::lowerChar(c);
     return t;
 }
 
