@@ -186,6 +186,9 @@ Credits: pull requests by the maintainer unless marked.
   and tag creation rule (#287, issue #263; #296); first-run guide changes Start at login only on Finish (#288, issue #276);
   UI data loss on signals, export and rename (#290, issue #273); Qt archive hashes and the advisory check (#291,
   issue #265); macOS hardened runtime (#292, issue #269); plain text for foreign strings (#299, issues #274, #240)
+- Import and Button modes: the risk check also flags the user's own Button modes (`buttonmode:<id>` of a file that is not an
+  unmodified built-in), and **Take over the tuning** copies the key engine keys `<P>KEY_RATE_MIN`, `<P>KEY_RATE_MAX` and
+  `<P>TRIGGER` too (#298, issues #268 and #260)
 - UI: proportional splitters and a wider default window (#297); accessible names, undo for Remove profile and Apply (#271)
 - `dofscroll-ui --self-test` skips the info popover checks on Wayland (#212 by @codingkoala, part 1 of #193; #213)
 - CI: pins in `packaging/ci/images.env`, monthly refresh without a token (#205); refresh opens the PR and approves its
@@ -245,6 +248,5 @@ section is finalized (moved up or removed) before the tag.
 From [plan-motion-functions.md](plan-motion-functions.md) (issues #224, #225), stages 5 to 7: the motion actions
 `pointer_x` / `pointer_y` and `MOUSE_SPEED` (stage 5), presets such as "turn pages", "switch tabs", "volume" and "change
 track" (stage 6), the `macro:` function with a recording dialog, own functions in profiles (`New function...`), raised
-size limits and `TWIST_GUARD` (stage 7). Also pending: parser hardening (issue #272), UI robustness (issue #275), and the
-pull request that flags the user's own Button modes as risky and copies the key engine keys when taking over the tuning
-(#298, issues #268 and #260). Today the size limits are the old ones.
+size limits and `TWIST_GUARD` (stage 7). Also pending: parser hardening (issue #272) and the rest of the UI robustness
+findings (issue #275). Today the size limits are the old ones.
