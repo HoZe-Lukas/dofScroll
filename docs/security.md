@@ -803,7 +803,7 @@ by a file). Assessment and limits:
   `~/.config/dofscroll` (all covered by the `ReadWritePaths` of the UI unit); the daemon only reads
   them (its unit stays read-only for the configuration folder). The files are read through the
   bounded directory reader: owner check, no links, at most 1 MiB each (the same limit as `dofscroll.conf`; it was 64 KiB), the first 255 per directory
-  in sort order, and only next to a file named `dofscroll.conf` (a legacy `spnav-scroll.conf` in a
+  in sort order, and at most 16 MiB of profile file bytes per load for `devices/` and `apps/` together (`kMaxProfileTotalBytes`, issue #317: 255 files of 1 MiB took about 3 s and 766 MiB of memory on every reload; `devices/` is read before `apps/`, a file that no longer fits is skipped with a warning that names the file and the budget, `dofscroll.conf` is read first and not counted, the daemon keeps working with what was loaded), and only next to a file named `dofscroll.conf` (a legacy `spnav-scroll.conf` in a
   generic folder has no profile directories). A directory that exists but cannot be read makes the
   whole load fail and the daemon keeps its previous settings. Leftover temporary files of an
   interrupted write (`*.conf.tmp.<16 hex>`) older than a day are removed by the next write.

@@ -42,7 +42,7 @@ Limits: file up to 1 MiB (the main file and every profile file of `devices/` and
 `dofscroll.conf`, 10000 keys per section, 12 mix terms, 64 curve points. Duplicate keys in one section: the last wins.
 Invalid values are rejected with a message in the log (file, line and key are named). Planned for own functions in a
 section: at most 1000 (`kMaxOwnFunctionsPerSection`, no key uses it yet). A macro has at most 256 steps. The profile
-folders have limits too (number of files, total number of profiles); a folder over the limit is read up to the limit and
+folders have limits too (number of files, total number of profiles, and 16 MiB of profile file bytes together for `devices/` and `apps/` per load: `devices/` is read first, in file name order, and a file that no longer fits is skipped; the log and the settings window name it and the budget); a folder over the limit is read up to the limit and
 the log says so. A line whose key or value holds a
 control character (a carriage return inside a value, for example) is ignored with a warning, so a file that loads can always
 be saved again. A section whose name is empty, longer than 4096 bytes or holds a control character is ignored with a warning,

@@ -25,7 +25,7 @@
 //    names) to keep an order that matters (overlapping substring patterns). PROVISIONAL, may change.
 //    assignMigrationPriorities() gives a legacy order to the split layout.
 //  - Files are read through a directory handle without following links, owned by the current user, at most
-//    kMaxProfileFiles per directory, kMaxProfileFileBytes each, at most kMaxSections - 1 profiles in total.
+//    kMaxProfileFiles per directory, kMaxProfileFileBytes each, kMaxProfileTotalBytes together, at most kMaxSections - 1 profiles in total.
 //  - Writes are temp file plus rename (fs::writeFileReplace), never through a link, never to a non-regular
 //    file. Delete and rename check the stamp of the file as read, so a hand edit in between is reported
 //    (WriteStatus::Conflict) instead of overwritten or lost. A rename writes the new file first and then
@@ -47,6 +47,7 @@ namespace spn {
 constexpr size_t kMaxProfileFiles = 255;            // files read per directory (kMaxSections - 1)
 constexpr size_t kMaxProfileFileBytes = 1024 * 1024;  // size of one profile file (1 MiB, was 64 KiB); the same as the main file's
 static_assert(kMaxProfileFileBytes == kMaxConfigBytes, "a profile file and dofscroll.conf share one size limit (config.hpp)");
+constexpr size_t kMaxProfileTotalBytes = 16 * 1024 * 1024;  // profile file bytes read per load of devices/ + apps/ together (16 MiB, the worst case before the per-file limit was raised); a file that no longer fits is skipped (fatal FileDiag naming it and the budget), in sort order: devices/ first, then apps/. dofscroll.conf is not counted and is always read first
 constexpr size_t kMaxProfileDirEntries = 16384;     // directory entries listed per directory (all are collected and sorted before the first kMaxProfileFiles are used, so the choice is deterministic)
 constexpr size_t kMaxSlugBytes = 80;                // file name stem, without ".conf"
 
