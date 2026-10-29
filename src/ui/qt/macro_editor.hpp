@@ -49,8 +49,8 @@ public:
     // `accessible` names the editor ("Macro for the negative direction"); `sideName` is used in the descriptions of the controls.
     MacroEditor(const QString &accessible, QWidget *parent = nullptr);
 
-    const spn::ui::MacroSteps &steps() const { return steps_; }
-    void setSteps(const spn::ui::MacroSteps &steps);  // does not emit stepsChanged()
+    const spn::ui::MacroList &steps() const { return steps_; }
+    void setSteps(const spn::ui::MacroList &steps);  // does not emit stepsChanged()
     bool recording() const { return recorder_.recording(); }
 
     // The key events of a real keyboard reach the pad as widget events; the self-test sends the same events.
@@ -64,13 +64,13 @@ private:
     void refreshEditor();
     void refreshButtons();
     void stepEdited();
-    void addStep(spn::ui::MacroStep::Type type);
+    void addStep(spn::MacroStep::Kind type);
     void startRecording();
     void stopRecording(const QString &why);
     void onKey(bool down, const QString &key, qint64 ms);
-    QString stepWords(const spn::ui::MacroStep &s) const;
+    QString stepWords(const spn::MacroStep &s) const;
 
-    spn::ui::MacroSteps steps_;
+    spn::ui::MacroList steps_;
     spn::ui::MacroRecorder recorder_;
     QListWidget *list_ = nullptr;
     QComboBox *type_ = nullptr;

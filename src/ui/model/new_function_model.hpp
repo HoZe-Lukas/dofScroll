@@ -119,7 +119,7 @@ struct FunctionDraft {
     bool analog = false;                       // Key on a motion: keys: instead of step:
     std::string wheel = "wheel_v";             // Wheel: wheel_v, wheel_h or zoom
     std::string pointer = "pointer_x";         // Pointer: pointer_x or pointer_y
-    MacroSteps macroNeg, macroPos;             // Macro (a button uses macroNeg only)
+    MacroList macroNeg, macroPos;             // Macro (a button uses macroNeg only)
     std::string rateMin, rateMax, trigger;     // the tuning keys of the motion, "" = not set
 };
 

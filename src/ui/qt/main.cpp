@@ -3585,8 +3585,9 @@ static QString dialogTabOrderProblem(QDialog *dlg, QWidget *first) {
         if (qobject_cast<QLineEdit *>(w) && qobject_cast<QAbstractSpinBox *>(w->parentWidget())) continue;
         if (!dlg->isAncestorOf(w)) continue;
         const int y = w->mapTo(dlg, QPoint(0, 0)).y();
-        QWidget *scrolled = w;
-        while (scrolled && !qobject_cast<QScrollArea *>(scrolled)) scrolled = scrolled->parentWidget();
+        QWidget *scrolled = w->parentWidget();
+        while (scrolled && scrolled != dlg && !qobject_cast<QScrollArea *>(scrolled)) scrolled = scrolled->parentWidget();
+        if (scrolled == dlg || (scrolled && !qobject_cast<QScrollArea *>(scrolled)->widget()->isAncestorOf(w))) scrolled = nullptr;  // not in the content of the dialog scroll area (Close, the area itself): the order below it is not checked here
         // the scroll offset is not part of the order: positions inside the scroll area are taken in its content
         const int yy = scrolled ? w->mapTo(qobject_cast<QScrollArea *>(scrolled)->widget(), QPoint(0, 0)).y() : y + 100000;
         if (yy + 3 < lastY && scrolled) return QString::fromLatin1(w->metaObject()->className()) + QStringLiteral(" \"") + w->objectName() + QStringLiteral("\" comes after a control further down");
@@ -3654,11 +3655,15 @@ static bool newFunctionSelfTest() {
     check(rig.waitSaved() && !stored("H_TILT_ACTION"), "nothing is stored before the first edit");
 
     // ---- key or combination: modifier check boxes plus the key list; never free text ----
-    check(dlg->findChildren<QLineEdit *>().size() <= 3, "the only text fields are the rate and trigger fields");
+    // (the line edit inside a spin box of the macro editor is Qt's own: "qt_spinbox_lineedit")
+    int freeFields = 0;
     for (QLineEdit *le : dlg->findChildren<QLineEdit *>()) {
         const QString n = le->objectName();
+        if (n.startsWith(QStringLiteral("qt_"))) continue;
+        ++freeFields;
         check(n == QStringLiteral("newFunctionRateMin") || n == QStringLiteral("newFunctionRateMax") || n == QStringLiteral("newFunctionTrigger") || n.isEmpty(), "no free text field for a key");
     }
+    check(freeFields <= 3, "the only text fields are the rate and trigger fields");
     neg->setModifier(QStringLiteral("ctrl"), true);
     settle();
     check(dlg->writes() == 0 && !stored("H_TILT_ACTION"), "a modifier without a key writes nothing");
@@ -3807,6 +3812,7 @@ static bool newFunctionSelfTest() {
         check(!dlg->draft().analog, "and switches back");
         // a modifier box of the key field with Space, the key list opens with Enter / Space
         QCheckBox *shiftBox = neg->findChild<QCheckBox *>(QStringLiteral("chordMod_shift"));
+        neg->setValue("pageup");  // (the kind was changed to the click and back: the keys start again)
         shiftBox->setFocus();
         sendKeyTo(shiftBox, Qt::Key_Space);
         settle();
@@ -3857,6 +3863,10 @@ static bool newFunctionSelfTest() {
         QApplication::setFont(baseFont);
         applyTheme(spn::ui::Theme::System);
         dlg->chooseKind(FunctionKind::Key);
+        neg->setValue("ctrl+pageup");  // the kinds were switched back and forth: the keys start again, choose the chord of the beginning
+        pos->setValue("ctrl+pagedown");
+        neg->chooseKey(QStringLiteral("pageup"));
+        settle();
     }
 
     // ---- close; the inspector shows the new function; the list of own functions has it ----
@@ -3878,7 +3888,7 @@ static bool newFunctionSelfTest() {
     if (bkind) {
         Q_EMIT bkind->activated(bkind->count() - 1);
         settle();
-        auto *bd = mv->findChild<NewFunctionDialog *>();
+        auto *bd = page->findChild<NewFunctionDialog *>();
         check(bd != nullptr, "New function... opens the dialog for the button");
         if (bd) {
             auto *k = bd->findChild<ChordField *>(QStringLiteral("newFunctionKeyNeg"));
@@ -3941,6 +3951,7 @@ static bool newFunctionSelfTest() {
         ed->accept();
         settle();
     }
+    if (!dialogControlProblem(own).isEmpty()) std::fprintf(stderr, "  %s\n", qPrintable(dialogControlProblem(own)));
     check(dialogControlProblem(own).isEmpty(), "the own functions list names its controls");
     own->selectRow(0);
     own->deleteSelected(true);
@@ -4005,7 +4016,7 @@ static bool macroEditorSelfTest() {
     sendKeyTo(pad, Qt::Key_B);
     check(ed->steps().text().find("+b") == std::string::npos, "keys after the recording are not kept");
     // without the times: 30 ms between the steps
-    ed->setSteps(spn::ui::MacroSteps());
+    ed->setSteps(spn::ui::MacroList());
     times->setChecked(false);
     rec->click();
     settle();
@@ -4014,7 +4025,7 @@ static bool macroEditorSelfTest() {
     settle();
     check(ed->steps().text() == "+a wait:30 -a", "without the times: a pause of 30 ms between the steps");
     // the focus leaving the area ends the recording (another window, a click elsewhere)
-    ed->setSteps(spn::ui::MacroSteps());
+    ed->setSteps(spn::ui::MacroList());
     rec->click();
     settle();
     check(ed->recording(), "recording again");
@@ -4022,7 +4033,7 @@ static bool macroEditorSelfTest() {
     settle();
     check(!ed->recording(), "the recording ends when the focus leaves the recording area");
     // Esc three times: the way out for the keyboard
-    ed->setSteps(spn::ui::MacroSteps());
+    ed->setSteps(spn::ui::MacroList());
     rec->click();
     settle();
     sendKeyTo(pad, Qt::Key_A);
@@ -4030,13 +4041,13 @@ static bool macroEditorSelfTest() {
     settle();
     check(!ed->recording() && ed->steps().text().find("esc") == std::string::npos && ed->steps().text().find("+a") == 0, "Esc three times in a row ends the recording and is not part of the macro");
     // edit afterwards: change, delete, move, add; key fields are the shared chord field
-    ed->setSteps(spn::ui::MacroSteps());
+    ed->setSteps(spn::ui::MacroList());
     {
-        spn::ui::MacroSteps s;
-        s.add(spn::ui::MacroStep::down("ctrl"));
-        s.add(spn::ui::MacroStep::down("a"));
-        s.add(spn::ui::MacroStep::wait(30));
-        s.add(spn::ui::MacroStep::up("a"));
+        spn::ui::MacroList s;
+        s.add(spn::ui::macroDown("ctrl"));
+        s.add(spn::ui::macroDown("a"));
+        s.add(spn::MacroStep::wait(30));
+        s.add(spn::ui::macroUp("a"));
         ed->setSteps(s);
     }
     QListWidget *list = ed->findChild<QListWidget *>(QStringLiteral("macroSteps"));
@@ -4073,8 +4084,8 @@ static bool macroEditorSelfTest() {
     check(ed->steps().size() == 4 && changes >= 5, "adding a pause");
     // 256 steps at most
     {
-        spn::ui::MacroSteps s;
-        for (size_t i = 0; i < spn::ui::kMaxMacroSteps; ++i) s.add(i % 2 ? spn::ui::MacroStep::wait(5) : spn::ui::MacroStep::down("a"));
+        spn::ui::MacroList s;
+        for (size_t i = 0; i < spn::kMaxMacroSteps; ++i) s.add(i % 2 ? spn::MacroStep::wait(5) : spn::ui::macroDown("a"));
         ed->setSteps(s);
         settle();
         check(!ed->findChild<QPushButton *>(QStringLiteral("macroAddWait"))->isEnabled() && !rec->isEnabled(), "at 256 steps adding and recording are greyed");
@@ -4083,9 +4094,9 @@ static bool macroEditorSelfTest() {
     }
     // accessibility: every control, the order, and wide fonts
     {
-        spn::ui::MacroSteps s;
-        s.add(spn::ui::MacroStep::down("ctrl"));
-        s.add(spn::ui::MacroStep::wait(30));
+        spn::ui::MacroList s;
+        s.add(spn::ui::macroDown("ctrl"));
+        s.add(spn::MacroStep::wait(30));
         ed->setSteps(s);
         list->setCurrentRow(0);
         settle();

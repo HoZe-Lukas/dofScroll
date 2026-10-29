@@ -567,7 +567,11 @@ NewFunctionDialog *openNewFunctionDialog(const UiContext &ctx, size_t section, c
             }, &fresh);
             env.editing = !fresh;
         }
-        if (fresh) env.initial = newDraft(target, FunctionKind::Key);
+        if (fresh) {
+            env.initial = newDraft(target, FunctionKind::Key);
+            env.initial.neg.clear();  // a new function starts without keys: nothing is written until every field is chosen
+            env.initial.pos.clear();
+        }
     } else {
         env.targetName = T("Button %1").arg(target.button);
         for (const SettingsModel::ButtonRow &r : model->buttonRows(section))
@@ -577,7 +581,10 @@ NewFunctionDialog *openNewFunctionDialog(const UiContext &ctx, size_t section, c
             env.initial = draftFromText(target, own, std::string(), nullptr, &fresh);
             env.editing = !fresh;
         }
-        if (fresh) env.initial = newDraft(target, FunctionKind::Key);
+        if (fresh) {
+            env.initial = newDraft(target, FunctionKind::Key);
+            env.initial.neg.clear();
+        }
     }
     UiContext c = ctx;
     env.apply = [c, section, target](const FunctionDraft &d, std::vector<FunctionProblem> *problems) {

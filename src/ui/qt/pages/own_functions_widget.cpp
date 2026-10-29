@@ -48,7 +48,8 @@ OwnFunctionsWidget::OwnFunctionsWidget(const UiContext &ctx, QWidget *parent) : 
     auto *head = ownLabel(QStringLiteral("<b>") + T("Own functions of this profile").toHtmlEscaped() + QStringLiteral("</b>"), this);
     head->setTextFormat(Qt::RichText);
     v->addWidget(head);
-    v->addWidget(ownLabel(T("The functions you made with New function... in this profile. A function that several motions or buttons use is listed once."), this));
+    auto *intro = ownLabel(T("The functions you made with New function... in this profile. A function that several motions or buttons use is listed once."), this);
+    v->addWidget(intro);
     empty_ = ownLabel(T("This profile has no functions of its own yet. Choose New function... in the list of a motion or a button."), this, "ownFunctionsEmpty");
     v->addWidget(empty_);
     list_ = new QListWidget(this);
@@ -59,6 +60,7 @@ OwnFunctionsWidget::OwnFunctionsWidget(const UiContext &ctx, QWidget *parent) : 
     list_->setWordWrap(true);
     list_->setTextElideMode(Qt::ElideNone);
     list_->setMinimumHeight(80);
+    intro->setBuddy(list_);  // the visible label of the list
     v->addWidget(list_);
     auto *grid = new QGridLayout;
     edit_ = ownButton(T("Edit"), "ownFunctionEdit", T("Open the chosen function in the New function window"), this);
@@ -96,8 +98,8 @@ void OwnFunctionsWidget::refresh() { rebuild(); }
 int OwnFunctionsWidget::count() const { return int(functions_.size()); }
 
 void OwnFunctionsWidget::setSection(size_t section) {
+    if (section != section_) result_->hide();  // the words about the last change stay while the page redraws
     section_ = section;
-    result_->hide();
     rebuild();
 }
 

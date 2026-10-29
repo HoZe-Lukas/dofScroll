@@ -101,14 +101,14 @@ int main() {
         // a macro: the text is built from the steps; the parsers decide whether this version knows it
         d = newDraft(tilt, FunctionKind::Macro);
         assert(nfText(tilt, d).compare(0, 1, "!") == 0);  // no step yet
-        d.macroPos.add(MacroStep::down("ctrl"));
-        d.macroPos.add(MacroStep::down("c"));
-        d.macroPos.add(MacroStep::up("c"));
+        d.macroPos.add(macroDown("ctrl"));
+        d.macroPos.add(macroDown("c"));
+        d.macroPos.add(macroUp("c"));
         assert(nfText(tilt, d) == "macro:none,+ctrl +c -c");
-        d.macroNeg.add(MacroStep::wait(30));
+        d.macroNeg.add(spn::MacroStep::wait(30));
         assert(nfText(tilt, d) == "macro:wait:30,+ctrl +c -c");
         d = newDraft(btn, FunctionKind::Macro);
-        d.macroNeg.add(MacroStep::down("shift"));
+        d.macroNeg.add(macroDown("shift"));
         assert(nfText(btn, d) == "macro:+shift");
     }
 
@@ -245,9 +245,9 @@ int main() {
         assert(!applyFunction(m, app, FunctionTarget::buttonNumber(99), k, &pr));
         // the macro: written when this version knows it, refused with the reason when not
         FunctionDraft mac = newDraft(btn, FunctionKind::Macro);
-        mac.macroNeg.add(MacroStep::down("ctrl"));
-        mac.macroNeg.add(MacroStep::down("a"));
-        mac.macroNeg.add(MacroStep::up("a"));
+        mac.macroNeg.add(macroDown("ctrl"));
+        mac.macroNeg.add(macroDown("a"));
+        mac.macroNeg.add(macroUp("a"));
         const bool known = nfKind(functionKinds(btn, s), FunctionKind::Macro)->available;
         assert(applyFunction(m, app, btn, mac, &pr) == known);
         if (known) assert(nfHas(nfSection(m, app), "BUTTON_3=macro:+ctrl +a -a;"));

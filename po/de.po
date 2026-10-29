@@ -6029,6 +6029,7 @@ msgstr "Führt pro Schub ein Makro aus"
 #: src/ui/qt/pages/new_function_dialog.cpp
 #: src/ui/model/motion_summary_model.hpp
 #: src/ui/model/button_chip_model.hpp
+#: src/ui/qt/pages/new_function_dialog.cpp
 msgid "Macro"
 msgstr "Makro"
 

@@ -20,8 +20,8 @@
 #include "plain_text.hpp"
 #include "ui_i18n.hpp"
 
-using spn::ui::MacroStep;
-using spn::ui::MacroSteps;
+using spn::MacroStep;
+using spn::ui::MacroList;
 
 namespace {
 // The key name of keys.hpp for a key event while recording. Like the capture button, except that the modifier keys are keys of
@@ -176,9 +176,9 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     v->addWidget(typeLabel);
     type_ = new QComboBox(this);
     type_->setObjectName(QStringLiteral("macroStepType"));
-    type_->addItem(T("Press a key"), int(MacroStep::Down));
-    type_->addItem(T("Release a key"), int(MacroStep::Up));
-    type_->addItem(T("Pause"), int(MacroStep::Wait));
+    type_->addItem(T("Press a key"), int(MacroStep::Kind::Down));
+    type_->addItem(T("Release a key"), int(MacroStep::Kind::Up));
+    type_->addItem(T("Pause"), int(MacroStep::Kind::Wait));
     type_->setAccessibleName(T("Kind of the chosen step"));
     type_->setAccessibleDescription(T("Press a key, release a key or pause, for the chosen step"));
     type_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
@@ -197,8 +197,8 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     v->addWidget(waitLabel_);
     wait_ = new QSpinBox(this);
     wait_->setObjectName(QStringLiteral("macroWait"));
-    wait_->setRange(spn::ui::kMinMacroWaitMs, spn::ui::kMaxMacroWaitMs);
-    wait_->setValue(spn::ui::kDefaultMacroWaitMs);
+    wait_->setRange(spn::kMinMacroWaitMs, spn::kMaxMacroWaitMs);
+    wait_->setValue(spn::kDefaultMacroWaitMs);
     wait_->setAccessibleName(T("Pause in milliseconds"));
     wait_->setAccessibleDescription(T("How long the macro waits at this step, 1 to 60000 milliseconds"));
     wait_->setMinimumHeight(24);
@@ -238,9 +238,9 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
         if (!quiet_) refreshEditor();
         refreshButtons();
     });
-    connect(addDown_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Down); });
-    connect(addUp_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Up); });
-    connect(addWait_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Wait); });
+    connect(addDown_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Kind::Down); });
+    connect(addUp_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Kind::Up); });
+    connect(addWait_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Kind::Wait); });
     connect(del_, &QPushButton::clicked, this, [this] {
         const int row = list_->currentRow();
         if (row < 0 || !steps_.remove(size_t(row))) return;
@@ -272,15 +272,15 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
 }
 
 QString MacroEditor::stepWords(const MacroStep &s) const {
-    switch (s.type) {
-        case MacroStep::Down: return T("Press %1").arg(qs8(s.chord));
-        case MacroStep::Up: return T("Release %1").arg(qs8(s.chord));
-        case MacroStep::Wait: return T("Wait %1 ms").arg(s.ms);
+    switch (s.kind) {
+        case MacroStep::Kind::Down: return T("Press %1").arg(qs8(spn::ui::macroStepChord(s)));
+        case MacroStep::Kind::Up: return T("Release %1").arg(qs8(spn::ui::macroStepChord(s)));
+        case MacroStep::Kind::Wait: return T("Wait %1 ms").arg(s.waitMs);
     }
     return QString();
 }
 
-void MacroEditor::setSteps(const MacroSteps &steps) {
+void MacroEditor::setSteps(const MacroList &steps) {
     steps_ = steps;
     refreshList(steps_.empty() ? -1 : 0);
 }
@@ -291,8 +291,8 @@ void MacroEditor::refreshList(int select) {
     for (const MacroStep &s : steps_.steps()) list_->addItem(stepWords(s));
     if (select >= 0 && select < list_->count()) list_->setCurrentRow(select);
     quiet_ = false;
-    count_->setText(steps_.full() ? T("%1 of %2 steps: the macro is full.").arg(steps_.size()).arg(spn::ui::kMaxMacroSteps)
-                                  : T("%1 of %2 steps.").arg(steps_.size()).arg(spn::ui::kMaxMacroSteps));
+    count_->setText(steps_.full() ? T("%1 of %2 steps: the macro is full.").arg(steps_.size()).arg(spn::kMaxMacroSteps)
+                                  : T("%1 of %2 steps.").arg(steps_.size()).arg(spn::kMaxMacroSteps));
     refreshEditor();
     refreshButtons();
 }
@@ -310,14 +310,14 @@ void MacroEditor::refreshEditor() {
     }
     const MacroStep &s = steps_.at(size_t(row));
     quiet_ = true;
-    type_->setCurrentIndex(type_->findData(int(s.type)));
-    const bool wait = s.type == MacroStep::Wait;
+    type_->setCurrentIndex(type_->findData(int(s.kind)));
+    const bool wait = s.kind == MacroStep::Kind::Wait;
     chord_->setVisible(!wait);
     chordLabel_->setVisible(!wait);
     waitLabel_->setVisible(wait);
     wait_->setVisible(wait);
-    if (wait) wait_->setValue(s.ms);
-    else chord_->setValue(s.chord);
+    if (wait) wait_->setValue(s.waitMs);
+    else chord_->setValue(spn::ui::macroStepChord(s));
     quiet_ = false;
 }
 
@@ -342,27 +342,27 @@ void MacroEditor::stepEdited() {
     if (quiet_) return;
     const int row = list_->currentRow();
     if (row < 0 || size_t(row) >= steps_.size()) return;
-    const MacroStep::Type t = MacroStep::Type(type_->currentData().toInt());
+    const MacroStep::Kind t = MacroStep::Kind(type_->currentData().toInt());
     const MacroStep &old = steps_.at(size_t(row));
     MacroStep s;
-    if (t == MacroStep::Wait) {
-        s = MacroStep::wait(old.type == MacroStep::Wait ? wait_->value() : spn::ui::kDefaultMacroWaitMs);
+    if (t == MacroStep::Kind::Wait) {
+        s = MacroStep::wait(old.kind == MacroStep::Kind::Wait ? wait_->value() : spn::kDefaultMacroWaitMs);
     } else {
-        std::string chord = old.type == MacroStep::Wait ? std::string("space") : old.chord;
-        if (old.type != MacroStep::Wait && !chord_->value().empty()) chord = chord_->value();
-        s = t == MacroStep::Down ? MacroStep::down(chord) : MacroStep::up(chord);
+        std::string chord = old.kind == MacroStep::Kind::Wait ? std::string("space") : spn::ui::macroStepChord(old);
+        if (old.kind != MacroStep::Kind::Wait && !chord_->value().empty()) chord = chord_->value();
+        s = t == MacroStep::Kind::Down ? spn::ui::macroDown(chord) : spn::ui::macroUp(chord);
     }
     if (!steps_.set(size_t(row), s)) return;
     if (QListWidgetItem *it = list_->item(row)) it->setText(stepWords(s));
-    if (s.type != old.type) refreshEditor();  // the fields of the other kind
+    if (s.kind != old.kind) refreshEditor();  // the fields of the other kind
     emit stepsChanged();
 }
 
-void MacroEditor::addStep(MacroStep::Type type) {
+void MacroEditor::addStep(MacroStep::Kind type) {
     if (steps_.full()) return;
     const int row = list_->currentRow();
     const size_t at = row < 0 ? steps_.size() : size_t(row) + 1;
-    const MacroStep s = type == MacroStep::Wait ? MacroStep::wait(spn::ui::kDefaultMacroWaitMs) : type == MacroStep::Down ? MacroStep::down("space") : MacroStep::up("space");
+    const MacroStep s = type == MacroStep::Kind::Wait ? MacroStep::wait(spn::kDefaultMacroWaitMs) : type == MacroStep::Kind::Down ? spn::ui::macroDown("space") : spn::ui::macroUp("space");
     if (!steps_.insert(at, s)) return;
     refreshList(int(at));
     emit stepsChanged();
@@ -385,7 +385,7 @@ void MacroEditor::stopRecording(const QString &why) {
     recorder_.stop();
     pad_->setActive(false);
     QString note = why;
-    if (note.isEmpty() && recorder_.full()) note = T("The macro is full (%1 steps): the recording ended.").arg(spn::ui::kMaxMacroSteps);
+    if (note.isEmpty() && recorder_.full()) note = T("The macro is full (%1 steps): the recording ended.").arg(spn::kMaxMacroSteps);
     if (note.isEmpty() && recorder_.endedByEscape()) note = T("The recording ended with Esc pressed three times; those presses are not part of the macro.");
     if (note.isEmpty() && wasRecording) note = T("Recorded. Change, delete or move any step below.");
     if (!note.isEmpty()) {

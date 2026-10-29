@@ -10,27 +10,28 @@
 
 #include "ui/model/macro_model.hpp"
 
+using namespace spn;
 using namespace spn::ui;
 
 int main() {
     // ---- steps and their text ----
-    assert(MacroStep::down("ctrl+c").text() == "+ctrl+c" && MacroStep::up("c").text() == "-c" && MacroStep::wait(30).text() == "wait:30");
-    assert(MacroStep::down("ctrl+c").valid() && !MacroStep::down("ctrl+").valid() && !MacroStep::down("nosuchkey").valid());
-    assert(!MacroStep::down("c+ctrl").valid());  // modifiers first, then the key
-    assert(MacroStep::down("shift").valid() && MacroStep::down("ctrl+shift").valid());  // a lone modifier is a key
-    assert(MacroStep::wait(1).valid() && MacroStep::wait(60000).valid() && !MacroStep::wait(0).valid() && !MacroStep::wait(60001).valid());
+    assert(macroStepText(macroDown("ctrl+c")) == "+ctrl+c" && macroStepText(macroUp("c")) == "-c" && macroStepText(MacroStep::wait(30)) == "wait:30");
+    assert(macroStepValid(macroDown("ctrl+c")) && !macroStepValid(macroDown("ctrl+")) && !macroStepValid(macroDown("nosuchkey")));
+    assert(!macroStepValid(macroDown("c+ctrl")));  // modifiers first, then the key
+    assert(macroStepValid(macroDown("shift")) && macroStepValid(macroDown("ctrl+shift")));  // a lone modifier is a key
+    assert(macroStepValid(MacroStep::wait(1)) && macroStepValid(MacroStep::wait(60000)) && !macroStepValid(MacroStep::wait(0)) && !macroStepValid(MacroStep::wait(60001)));
     MacroStep p;
-    assert(parseMacroStep("+ctrl+c", &p) && p == MacroStep::down("ctrl+c"));
-    assert(parseMacroStep("-a", &p) && p == MacroStep::up("a"));
-    assert(parseMacroStep("wait:250", &p) && p == MacroStep::wait(250));
-    for (const char *bad : {"", "+", "-", "a", "wait:", "wait:0", "wait:61000", "wait:1x", "+nosuchkey", "wait:123456"}) assert(!parseMacroStep(bad, &p));
+    assert(parseMacroStep("+ctrl+c", &p, nullptr) && p == macroDown("ctrl+c"));
+    assert(parseMacroStep("-a", &p, nullptr) && p == macroUp("a"));
+    assert(parseMacroStep("wait:250", &p, nullptr) && p == MacroStep::wait(250));
+    for (const char *bad : {"", "+", "-", "a", "wait:", "wait:0", "wait:61000", "wait:1x", "+nosuchkey", "wait:123456"}) assert(!parseMacroStep(bad, &p, nullptr));
 
     // ---- the list: add, change, delete, reorder ----
-    MacroSteps s;
+    MacroList s;
     assert(s.empty() && s.text().empty());
-    assert(s.add(MacroStep::down("ctrl")) && s.add(MacroStep::down("a")) && s.add(MacroStep::up("a")) && s.add(MacroStep::up("ctrl")));
+    assert(s.add(macroDown("ctrl")) && s.add(macroDown("a")) && s.add(macroUp("a")) && s.add(macroUp("ctrl")));
     assert(s.text() == "+ctrl +a -a -ctrl");
-    assert(!s.add(MacroStep::wait(0)) && !s.add(MacroStep::down("nosuchkey")) && s.size() == 4);  // an invalid step is never added
+    assert(!s.add(MacroStep::wait(0)) && !s.add(macroDown("nosuchkey")) && s.size() == 4);  // an invalid step is never added
     assert(s.insert(2, MacroStep::wait(30)) && s.text() == "+ctrl +a wait:30 -a -ctrl");
     assert(s.set(2, MacroStep::wait(45)) && s.text() == "+ctrl +a wait:45 -a -ctrl");
     assert(!s.set(2, MacroStep::wait(0)) && !s.set(9, MacroStep::wait(5)) && s.text() == "+ctrl +a wait:45 -a -ctrl");
@@ -42,13 +43,13 @@ int main() {
     assert(s.empty());
 
     // ---- the limit of 256 steps (every step counts, pauses too) ----
-    for (size_t i = 0; i < kMaxMacroSteps; ++i) assert(s.add(i % 2 ? MacroStep::wait(5) : MacroStep::down("a")));
+    for (size_t i = 0; i < kMaxMacroSteps; ++i) assert(s.add(i % 2 ? MacroStep::wait(5) : macroDown("a")));
     assert(s.size() == 256 && s.full() && !s.add(MacroStep::wait(5)) && !s.insert(0, MacroStep::wait(5)));
     assert(s.remove(0) && !s.full() && s.add(MacroStep::wait(5)));
 
     // ---- reading a stored side ----
     std::string err;
-    MacroSteps r;
+    MacroList r;
     assert(r.parse("+ctrl +a wait:30 -a -ctrl", &err) && r.size() == 5 && r.text() == "+ctrl +a wait:30 -a -ctrl");
     assert(r.parse("", &err) && r.empty());
     assert(!r.parse("+a oops", &err) && err.find("oops") != std::string::npos);
@@ -86,8 +87,8 @@ int main() {
     assert(slow.steps().text() == "+a wait:60000 -a");
 
     // ---- recording appends to what is there ----
-    MacroSteps have;
-    have.add(MacroStep::down("shift"));
+    MacroList have;
+    have.add(macroDown("shift"));
     MacroRecorder more(false);
     more.start(have);
     more.press("a", 0);
