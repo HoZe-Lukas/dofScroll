@@ -64,7 +64,7 @@ Invalid lines or files are skipped with a warning in the log.
 
 ## Built-in joystick modes
 
-Fourteen joystick modes ship inside the program on every system. They need no file, no examples folder
+Sixteen joystick modes ship inside the program on every system. They need no file, no examples folder
 and no install path, and nothing is copied into your configuration directory. They appear
 everywhere a joystick mode can be chosen (profile drop-downs, tray menu, Overview, `MODE = <id>`,
 `mode:<id>` buttons) with the origin "Built in".
@@ -85,13 +85,15 @@ everywhere a joystick mode can be chosen (profile drop-downs, tray menu, Overvie
 | `zoom-pan` | Zoom | Zoom | Scroll sideways | Scroll sideways | Scroll sideways | Not used | none |
 | `vertical-only` | Scroll | Scroll | Off | Off | Off | Not used | none |
 | `fast` | Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used | SCROLL_V_SENS = 12, SCROLL_H_SENS = 10, ZOOM_SENS = 12 |
+| `volume` | Keys: Volume_up / Volume_down | Keys: Volume_up / Volume_down | Scroll sideways | Scroll sideways | Zoom | Not used | none |
+| `tracks` | Scroll | Scroll | Steps: Media_prev / Media_next | Steps: Media_prev / Media_next | Zoom | Not used | none |
 
 In the table, `Scroll` is the vertical mouse wheel, `Scroll sideways` the horizontal one and `Zoom` is Ctrl plus the wheel; `Keys: A / B` is `keys:A,B` in the file. Push and tilt of a channel do the same in every built-in joystick mode, and `normal` sends scroll and zoom plus the buttons you bind in the profile (the deprecated `NAV_BUTTON` and `CLICK_BUTTON` still work). `off` switches control off without `ENABLED = 0`.
 
 Their behavior in real programs is not verified. The built-in joystick modes contain no button-to-key
 bindings, see [Buttons and the vendor driver](#buttons-and-the-vendor-driver).
 
-The text of `slides`, `media`, `map`, `precision`, `tabs`, `browse`, `sheet`, `photo`, `zoom-pan`, `vertical-only` and `fast` is the single source
+The text of `slides`, `media`, `map`, `precision`, `tabs`, `browse`, `sheet`, `photo`, `zoom-pan`, `vertical-only`, `fast`, `volume` and `tracks` is the single source
 `examples/modes/<id>.conf`; the build embeds it into the program, and the program parses it with the
 same parser as a user file. `timeline`, `normal` and `off` are defined in code. The embedded set is
 never written to disk.
@@ -113,7 +115,7 @@ joystick mode, which the button mode `next-mode` does better and in every joysti
 
 **`mode:next` / `mode:prev` with the built-in library.** They cycle through *all* loaded joystick modes in
 alphabetical order of the id, built-ins included: `browse`, `fast`, `map`, `media`, `normal`, `off`,
-`photo`, `precision`, `sheet`, `slides`, `tabs`, `timeline`, `vertical-only`, `zoom-pan` plus your own, so the cycle is long. Use `mode:<id>` or
+`photo`, `precision`, `sheet`, `slides`, `tabs`, `timeline`, `tracks`, `vertical-only`, `volume`, `zoom-pan` plus your own, so the cycle is long. Use `mode:<id>` or
 `toggle:mode:<id>` for a short fixed set. Built-in joystick modes have no bindings of their own, so a cycle
 started from a joystick mode of yours stops at the next built-in unless you give that joystick mode a binding too
 (create an editable copy, or switch back through the tray menu).
@@ -341,7 +343,10 @@ end, tab, `ctrl` or `shift` plus one of these, plus and minus (also with `ctrl` 
 and previous. Everything else (letters, digits, function keys, Enter, Delete, Backspace, Esc, space, `alt` or `super`
 chords, play/pause, a lone modifier) is tier B: `keys:` is refused with "this key can only be used digitally, use step:",
 `step:` is allowed with the load warning of the chord rules below. The lift never takes an analog key. The built-in `media`
-mode therefore uses `step:j,l` for the twist (one jump per twist instead of a rate).
+mode therefore uses `step:j,l` for the twist (one jump per twist instead of a rate). The ready choices of the joystick mode
+editor "Page up / Page down", "Switch tabs" (`keys:ctrl+pageup,ctrl+pagedown`), "Volume" (`keys:volume_up,volume_down`) and
+"Change track" (`step:media_prev,media_next`) are taken from the built-in modes `slides`, `tabs`, `volume` and `tracks`.
+The volume and media keys are not sent on macOS.
 
 ### Mouse clicks and holds
 

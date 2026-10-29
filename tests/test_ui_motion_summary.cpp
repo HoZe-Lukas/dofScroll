@@ -47,7 +47,8 @@ int main() {
                             {"precision", "Scroll", "Sideways", "Zoom"},  {"tabs", "Scroll", "Keys", "Zoom"},
                             {"browse", "Keys", "Keys", "Zoom"},           {"sheet", "Keys", "Keys", "Keys"},
                             {"photo", "Zoom", "Keys", "Off"},             {"zoom-pan", "Zoom", "Sideways", "Sideways"},
-                            {"vertical-only", "Scroll", "Off", "Off"},    {"fast", "Scroll", "Sideways", "Zoom"}};
+                            {"vertical-only", "Scroll", "Off", "Off"},    {"fast", "Scroll", "Sideways", "Zoom"},
+                            {"volume", "Keys", "Sideways", "Zoom"},       {"tracks", "Scroll", "Taps", "Zoom"}};
     for (const Expect &e : table) {
         const ModeDef *m = builtins.find(e.id);
         assert(m && "built-in joystick mode is there");
