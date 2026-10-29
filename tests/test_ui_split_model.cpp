@@ -360,7 +360,7 @@ static void testDeleteAndRename() {
     put(d + "/apps/newname.conf", "[app:NewName]\nPRIORITY = 20\n");
     // the old file was changed by hand in between: it is left in place and the user is told
     m = load(d);
-    const size_t z =m.profiles().find(Section::APP, "zzz");
+    const size_t z = m.profiles().find(Section::APP, "zzz");
     assert(m.renameSection(z, "yyy", &err));
     put(d + "/apps/zzz.conf", "[app:zzz]\nPRIORITY = 10\n# hand\n");
     r = m.save(id);
