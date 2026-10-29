@@ -341,8 +341,8 @@ int main() {
         writeFile("typer.conf", "ACTION = macro:+ctrl +c -c -ctrl\n");
         writeFile("calm.conf", "ACTION = macro:+pagedown -pagedown | +pageup -pageup\n");
         w.clear();
-        const ButtonModeSet set = loadButtonModes(g_dir, &w);
-        const ButtonMode *t = set.find("typer"), *c = set.find("calm");
+        const ButtonModeSet macroSet = loadButtonModes(g_dir, &w);
+        const ButtonMode *t = macroSet.find("typer"), *c = macroSet.find("calm");
         assert(t && t->type == ButtonActionType::Macro && t->macro && t->macro->press.size() == 4);
         assert(hasWarning(w, "button mode typer runs a macro that presses ctrl"));
         assert(c && c->macro && c->macro->release.size() == 2 && !hasWarning(w, "button mode calm"));
@@ -354,7 +354,7 @@ int main() {
         bb.mode = "typer";
         md.buttons.push_back(bb);
         std::set<std::string> miss;
-        const ModeDef ex = expandMode(md, set, &miss);
+        const ModeDef ex = expandMode(md, macroSet, &miss);
         assert(miss.empty() && ex.buttons[0].type == ButtonActionType::Macro && ex.buttons[0].macro && ex.buttons[0].macro->press.size() == 4);
     }
 
