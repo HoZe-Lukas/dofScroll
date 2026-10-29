@@ -153,8 +153,8 @@ the result into the issue: what you ran, on what, what happened. Close an issue 
 - [ ] **D5. `gh issue list --repo $REPO --state open`**. Many issues of the audits are
   already closed by their pull request (#263, #264, #265, #268, #269, #273, #274, #276, #240, #260, #193); the rest of the
   list: #224 and #225 stay open (stages 5 to 7 are not merged), #272 and #275 stay open until the parser hardening and the
-  UI robustness land, #266 (low findings L1 to L9 of the supply-chain audit) is partly done by #280, #184, #42, #245, #249,
-  #258 are known limitations of the notes. Settle each in step G1 after the release.
+  UI robustness land, #266 (low findings L1 to L9 of the supply-chain audit) is partly done by #280, #184, #42,
+  #258 are known limitations of the notes (#245, #249 and most of #275 are fixed by #304). Settle each in step G1 after the release.
 
 ## E. Version bump (one pull request, merged last)
 
