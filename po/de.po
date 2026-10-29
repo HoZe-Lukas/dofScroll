@@ -4091,6 +4091,26 @@ msgstr "Drückt Bild auf und Bild ab"
 msgid "Presses the arrow keys"
 msgstr "Drückt die Pfeiltasten"
 
+#: src/ui/model/action_preset_model.hpp
+msgid "Switch tabs"
+msgstr "Tabs wechseln"
+
+#: src/ui/model/action_preset_model.hpp
+msgid "Presses Ctrl+Page up and Ctrl+Page down: previous and next tab in browsers and terminals"
+msgstr "Drückt Strg+Bild auf und Strg+Bild ab: vorheriger und nächster Tab in Browsern und Terminals"
+
+#: src/ui/model/action_preset_model.hpp
+msgid "Presses Volume up and Volume down (the volume keys are not sent on macOS)"
+msgstr "Drückt Lauter und Leiser (die Lautstärketasten werden unter macOS nicht gesendet)"
+
+#: src/ui/model/action_preset_model.hpp
+msgid "Change track"
+msgstr "Titel wechseln"
+
+#: src/ui/model/action_preset_model.hpp
+msgid "One press of Previous track or Next track for each push (the media keys are not sent on macOS)"
+msgstr "Pro Schub ein Druck auf Vorheriger Titel oder Nächster Titel (die Medientasten werden unter macOS nicht gesendet)"
+
 #: src/ui/qt/pages/editor_page.cpp
 msgid "Other keys"
 msgstr "Andere Tasten"

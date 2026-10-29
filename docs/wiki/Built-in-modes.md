@@ -33,6 +33,8 @@ Every joystick mode is described by what each of the six motions of the cap does
 | `zoom-pan` | Zoom | Zoom | Scroll sideways | Scroll sideways | Scroll sideways | Not used | none |
 | `vertical-only` | Scroll | Scroll | Off | Off | Off | Not used | none |
 | `fast` | Scroll | Scroll | Scroll sideways | Scroll sideways | Zoom | Not used | SCROLL_V_SENS = 12, SCROLL_H_SENS = 10, ZOOM_SENS = 12 |
+| `volume` | Keys: Volume_up / Volume_down | Keys: Volume_up / Volume_down | Scroll sideways | Scroll sideways | Zoom | Not used | none |
+| `tracks` | Scroll | Scroll | Steps: Media_prev / Media_next | Steps: Media_prev / Media_next | Zoom | Not used | none |
 
 In the table, `Scroll` is the vertical mouse wheel, `Scroll sideways` the horizontal one and `Zoom` is Ctrl plus the wheel. Key actions (`Keys: A / B`, `keys:` in the file) press the negative and the positive key as the axis is pushed, at a rate that follows the deflection. `default` is the channel's normal behavior (scroll wheel, Ctrl+wheel for the twist). None of the built-in joystick modes binds buttons, so every button keeps what the main config gives it (use a button mode or `BUTTON_<n>` in the config).
 
@@ -99,6 +101,22 @@ Overrides `SCROLL_V_SENS = 2`, `SCROLL_H_SENS = 1`, `ZOOM_SENS = 2` (the default
 | Scroll | Scroll | Keys: Ctrl+Page Up / Ctrl+Page Down | Keys: Ctrl+Page Up / Ctrl+Page Down | Zoom | Not used |
 
 Good for switching to the previous / next tab in browsers and terminals while up/down still scrolls and the twist still zooms. It presses a Ctrl chord (not verified in every program). No button bindings.
+
+### `volume`
+
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Keys: Volume_up / Volume_down | Keys: Volume_up / Volume_down | Scroll sideways | Scroll sideways | Zoom | Not used |
+
+Good for changing the volume of anything that plays sound; the rate follows the deflection. The volume keys are not sent on macOS. No button bindings.
+
+### `tracks`
+
+| Vertical push | Vertical tilt | Horizontal push | Horizontal tilt | Twist | Lift / press |
+|---|---|---|---|---|---|
+| Scroll | Scroll | Steps: Media_prev / Media_next | Steps: Media_prev / Media_next | Zoom | Not used |
+
+Good for music and video players: one push sideways is one track forward or back. The media keys are not sent on macOS. No button bindings.
 
 ### `browse`
 
