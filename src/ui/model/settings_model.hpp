@@ -269,8 +269,11 @@ public:
             Key kk = Key::Space;
             ChordMods mods;
             std::string mode;
-            if (!parseButtonAction(value, &t, &kk, nullptr, &mode, &mods)) return false;
+            MacroSide macro;
+            if (!parseButtonAction(value, &t, &kk, nullptr, &mode, &mods, &macro)) return false;
             switch (t) {
+                case ButtonActionType::Macro:  // what a macro presses is named by the tier B rule (macro.hpp), like a chord
+                    return !macroRiskText(macro).empty();
                 case ButtonActionType::Click: case ButtonActionType::RightClick: case ButtonActionType::MiddleClick:
                     return true;
                 case ButtonActionType::Key:
@@ -286,7 +289,9 @@ public:
         }
         if (k.size() > 7 && k.compare(k.size() - 7, 7, "_ACTION") == 0) {
             ChannelAction a;
-            if (!parseChannelAction(value, &a, nullptr) || !a.usesKeys()) return false;
+            if (!parseChannelAction(value, &a, nullptr)) return false;
+            if (a.type == ChannelActionType::Macro) return a.macro && !macroRiskText(*a.macro).empty();
+            if (!a.usesKeys()) return false;
             const struct { Key key; const ChordMods &mods; } args[2] = {{a.neg, a.negMods}, {a.pos, a.posMods}};
             for (const auto &arg : args)
                 if (arg.mods.n == 0 ? plainRisky(arg.key) : chordNeedsWarning(arg.key, arg.mods)) return true;

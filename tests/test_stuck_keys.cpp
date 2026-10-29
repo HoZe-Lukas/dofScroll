@@ -837,6 +837,138 @@ static void testLongHoldSurvivesSafetyNet() {
     r.expectQuiet("long hold");
 }
 
+// --- macros (stage 7b of docs/plan-motion-functions.md) ------------------------------------------------------------------
+// A macro holds keys between its steps (here ctrl and a, for 5 s). Every way the cause can disappear that releases everything
+// (reload, ENABLED = 0, suspend, an unplugged device, a joystick mode switch) must abort it at once and release what it holds; a
+// finished macro leaves nothing held. A change of the program does not abort it (a macro that switches windows changes the
+// program itself).
+static const char *const kMacroLine = "BUTTON_1 = macro:+ctrl +a wait:5000 -a -ctrl\n";
+static const char *const kMacroTransitions[] = {"reload", "ENABLED=0", "suspend", "unplugged", "mode switch"};
+
+static void testMacroEveryTransition() {
+    for (int tr = 0; tr < 5; ++tr) {
+        char what[120];
+        std::snprintf(what, sizeof what, "macro / %s", kMacroTransitions[tr]);
+        StuckRig r(tr == 4 ? std::string("[global]\nTICK_HZ = 250\nMODE = alpha\n")
+                           : std::string("[global]\nTICK_HZ = 250\n") + kMacroLine + "[app:off]\nENABLED = 0\n",
+                   tr == 4 ? std::vector<std::pair<std::string, std::string>>{{"alpha.conf", std::string(kMacroLine) + "BUTTON_2 = mode:next\n"},
+                                                                              {"beta.conf", "BUTTON_2 = mode:next\n"}}
+                           : std::vector<std::pair<std::string, std::string>>{});
+        r.run(0.1);
+        r.src.pushButton(0, 0, true);
+        r.run(0.1);
+        r.src.pushButton(0, 0, false);
+        r.run(0.1);
+        CHECK(r.rec.keys.count(int(Key::Ctrl)) && r.rec.keys.count(int(Key::A)), "%s: the macro holds ctrl and a", what);
+        CHECK(r.core->runner().macroRunning(), "%s: and runs", what);
+        switch (tr) {
+        case 0:
+            writeFile(r.conf, "[global]\nTICK_HZ = 250\n");  // the macro is gone from the profile
+            r.reload.pending = true;
+            break;
+        case 1: r.win.cls = "off"; break;
+        case 2: r.suspend = true; break;
+        case 3:
+            r.devicesChanged();
+            r.src.list.clear();
+            break;
+        case 4: r.src.pushButton(0, 1, true); break;
+        }
+        r.run(0.6);
+        CHECK(!r.rec.held(), "%s: still held after the transition (%zu keys)", what, r.rec.keys.size());
+        CHECK(tr == 3 || !r.core->runner().macroRunning(), "%s: the macro is aborted", what);
+        const int before = r.rec.output();
+        r.run(0.5);
+        CHECK(!r.rec.held() && r.rec.output() == before, "%s: nothing follows", what);
+        if (tr == 4) r.src.pushButton(0, 1, false);
+        if (tr == 2) r.suspend = false;
+        r.win.cls = "";
+        r.expectQuiet(what);
+    }
+}
+
+// The transition that is none: the source goes silent (the stale watchdog zeroes the axes, a quiet device sends no buttons either).
+// The macro does not depend on the device, so it ends by itself and releases at its end.
+static void testMacroSilentSource() {
+    StuckRig r("[global]\nTICK_HZ = 250\nBUTTON_1 = macro:+ctrl +a wait:600 -a\n");
+    r.run(0.1);
+    r.src.pushButton(0, 0, true);
+    r.run(0.1);
+    r.src.pushButton(0, 0, false);
+    r.run(0.3);
+    CHECK(r.rec.keys.count(int(Key::Ctrl)) && r.rec.keys.count(int(Key::A)), "the macro holds ctrl and a");
+    r.run(0.7);  // the source says nothing more; the pause is over
+    CHECK(!r.rec.held() && !r.core->runner().macroRunning(), "released at the end of the macro (%zu keys)", r.rec.keys.size());
+    r.expectQuiet("macro, silent source");
+}
+
+// A pause longer than the quiet period of the safety net (250 ms) is no reason to cut the macro; the net still clears
+// what the output holds without the runner knowing.
+static void testMacroSafetyNet() {
+    StuckRig r("[global]\nTICK_HZ = 250\nBUTTON_1 = macro:+a wait:900 -a\n");
+    r.src.pushButton(0, 0, true);
+    r.run(0.1);
+    r.src.pushButton(0, 0, false);
+    r.run(0.6);  // well beyond the quiet period, the macro is waiting
+    CHECK(r.rec.keys.count(int(Key::A)) && r.core->runner().macroRunning(), "the net does not cut a macro that waits");
+    r.run(0.25);  // the macro ends at 0.9 s, the net would act 250 ms later
+    CHECK(!r.rec.held() && !r.core->runner().macroRunning(), "the macro ended and released a");
+    r.rec.keys.insert(int(Key::Ctrl));  // the output desynchronises
+    const int before = r.rec.releaseAlls;
+    r.expectQuiet("safety net after a macro", 0.5);
+    CHECK(r.rec.releaseAlls > before, "the safety net calls Output::releaseAll after the macro");
+}
+
+// The program changes while the macro runs (for example alt+tab): the macro goes on and ends by itself.
+static void testMacroSurvivesProgramChange() {
+    StuckRig r("[global]\nTICK_HZ = 250\nBUTTON_1 = macro:+alt +tab wait:400 -tab -alt\n[app:other]\nZOOM_SENS = 2\n");
+    r.src.pushButton(0, 0, true);
+    r.run(0.1);
+    r.src.pushButton(0, 0, false);
+    r.run(0.05);
+    CHECK(r.rec.keys.count(int(Key::Alt)), "alt is down");
+    r.win.cls = "other";  // the window switch that alt+tab causes
+    r.run(0.15);
+    CHECK(r.rec.keys.count(int(Key::Alt)) && r.rec.keys.count(int(Key::Tab)) && r.core->runner().macroRunning(), "the macro goes on");
+    r.run(0.6);
+    CHECK(!r.rec.held() && !r.core->runner().macroRunning(), "and releases at its end");
+    r.win.cls = "";
+    r.expectQuiet("macro, program change");
+}
+
+// A macro on a motion: pushing triggers it once, an aborted run leaves nothing held and the motion that stays deflected starts nothing.
+static void testMotionMacroTransitions() {
+    for (int tr = 0; tr < 3; ++tr) {
+        char what[120];
+        std::snprintf(what, sizeof what, "motion macro / %s", tr == 0 ? "reload" : tr == 1 ? "ENABLED=0" : "suspend");
+        const std::string line = "V_PUSH_ACTION = macro:+ctrl +a wait:5000 -a -ctrl,+ctrl +a wait:5000 -a -ctrl\n";
+        StuckRig r("[global]\nTICK_HZ = 250\n" + line + "[app:off]\nENABLED = 0\n");
+        r.run(0.1);
+        for (int i = 0; i < 3; ++i) {
+            r.src.pushMotion(0, 0, 0, 300, 0, 0, 0);
+            r.run(0.1);
+        }
+        CHECK(r.rec.keys.count(int(Key::Ctrl)) && r.rec.keys.count(int(Key::A)), "%s: the macro holds ctrl and a", what);
+        switch (tr) {
+        case 0:
+            writeFile(r.conf, "[global]\nTICK_HZ = 250\n");
+            r.reload.pending = true;
+            break;
+        case 1: r.win.cls = "off"; break;
+        case 2: r.suspend = true; break;
+        }
+        for (int i = 0; i < 6; ++i) {  // the cap stays deflected
+            r.src.pushMotion(0, 0, 0, 300, 0, 0, 0);
+            r.run(0.1);
+        }
+        CHECK(!r.rec.held() && !r.core->runner().macroRunning(), "%s: nothing held, no macro", what);
+        r.stop();
+        if (tr == 2) r.suspend = false;
+        r.win.cls = "";
+        r.expectQuiet(what);
+    }
+}
+
 int main() {
     testDevicesChangedMidMotion();
     testDevicesChangedMidButtonHold();
@@ -868,6 +1000,11 @@ int main() {
     testZoomPlusHoldEveryTransition();
     testSafetyNetAfterHold();
     testLongHoldSurvivesSafetyNet();
+    testMacroEveryTransition();
+    testMacroSilentSource();
+    testMacroSafetyNet();
+    testMacroSurvivesProgramChange();
+    testMotionMacroTransitions();
     if (failures) {
         std::fprintf(stderr, "%d check(s) failed\n", failures);
         return 1;

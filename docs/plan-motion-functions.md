@@ -3,7 +3,7 @@
 # Plan: any function on any motion, analog or digital, and own functions in profiles
 
 Status: specification (design of 2026-10-27), maintainer's decisions of 2026-10-28 included (section "Decisions of
-2026-10-28"). Implemented so far: `Output::moveMouse` (#236), stage 2 (lift as the sixth motion: `LIFT_ACTION`, `LIFT_*`, [global] and [device:*] as two layers, #252) and stage 3 (the key engine: `src/key_engine.hpp`, `<P>KEY_RATE_MIN` / `<P>KEY_RATE_MAX` / `<P>TRIGGER`, `none` per side, the tier rule, the analog check box and the lift list in the joystick mode editor; the take-over copies the three keys with the tuning) and stage 4 (mouse and hold: `click`, `rightclick`, `middleclick` per side of `step:` and `hold:<neg>,<pos>`, with the union of held modifiers; the lift state audit fix). Tracking issues: #224 (any function on any motion), #225 (own functions in profiles).
+2026-10-28"). Implemented so far: stage 7b core (the `macro:` function without the dialog, see the status note under "Stored syntax"; the limits of section "Limits" are raised), `Output::moveMouse` (#236), stage 2 (lift as the sixth motion: `LIFT_ACTION`, `LIFT_*`, [global] and [device:*] as two layers, #252) and stage 3 (the key engine: `src/key_engine.hpp`, `<P>KEY_RATE_MIN` / `<P>KEY_RATE_MAX` / `<P>TRIGGER`, `none` per side, the tier rule, the analog check box and the lift list in the joystick mode editor; the take-over copies the three keys with the tuning) and stage 4 (mouse and hold: `click`, `rightclick`, `middleclick` per side of `step:` and `hold:<neg>,<pos>`, with the union of held modifiers; the lift state audit fix). Tracking issues: #224 (any function on any motion), #225 (own functions in profiles).
 It builds on the merged profile keys (`V_ACTION`, `H_ACTION`, `TWIST_ACTION`, `V_PUSH_ACTION`, `V_TILT_ACTION`,
 `H_PUSH_ACTION`, `H_TILT_ACTION`, `src/profile_actions.hpp`) and on the split configuration (`docs/plan-config-split.md`).
 
@@ -178,6 +178,24 @@ At the end of this macro `shift` is still down in the step list and is released 
 action on a motion the same text is used with a per-side form `macro:<neg-steps>,<pos-steps>` (a side may be `none`).
 Steps with tier B keys give the plain load warning; there is no gate.
 
+Release part (decided with the maintainer, implemented): per side (per button, per direction) a macro on the trigger and,
+optionally, one on the release. The two lists are separated by `|`, `none` stands for a list without steps:
+`macro:<press-steps> | <release-steps>`, on a motion `macro:<neg-press> | <neg-release>,<pos-press> | <pos-release>`.
+A side without `|` is exactly the form above, so old configs and old daemons are unaffected (an old daemon rejects the
+whole `macro:` line with its existing warning). The release of a button is the button going up; for a motion it is the
+re-arm at half of the trigger. A release part that comes while a macro still runs is ignored like any trigger. If a macro
+is aborted (any release path), the release part of that press does not run.
+
+Status (stage 7b core, no dialog): `src/macro.hpp` is the toolkit-free model API for the dialog and the recorder
+(`MacroStep`, `MacroSide`, `MacroAction`, `parseMacroStep(s)`, `macroStepText`, `macroStepsText`, `parseMacroSide`,
+`macroSideText`, `parseMacroAction`, `macroActionText`, `macroStepsProblem` for validation messages, `macroRiskText` for the
+tier B warning and the limits `kMaxMacroSteps`, `kMinMacroWaitMs`, `kMaxMacroWaitMs`, `kDefaultMacroWaitMs`).
+`parseChannelAction` / `parseButtonAction` accept `macro:`; the runner runs it (`ModeRunner::macroRunning()`). Timing is by
+the `dt` of the ticks in whole microseconds; the pauses carry their remainder. Interpretation notes: a running macro counts as
+activity for the safety net (a pause longer than 250 ms must not be cut), a change of the program does not abort it (a macro
+such as alt+tab changes the program itself), and the stale watchdog needs no extra path because a macro does not depend on the
+device after its trigger (it ends, and releases, by itself).
+
 ## Limits
 
 Decided 2026-10-28: the arbitrary limits are raised generously (plenty of memory); a high ceiling stays only against
@@ -185,11 +203,11 @@ hostile or broken files. Rate and output limits stay as they are.
 
 | Limit | Before | New | Stage |
 |---|---|---|---|
-| Profile file size (`kMaxProfileFileBytes`, `src/profile_files.*`) | 64 KiB | 1 MiB | 7a |
-| Action text | 256 bytes | 32 KiB | 7a |
-| Own functions (`FUNC_*`) per section | 32 | 1000 | 7a (constant), 7e (table) |
-| Keys per section | 512 | 10 000 | 7a |
-| Macro steps per macro, and macro queue | queue of 16 steps | 256 steps | 7b |
+| Profile file size (`kMaxProfileFileBytes`, `src/profile_files.*`) | 64 KiB | 1 MiB | 7a (done with 7b core: `kMaxProfileFileBytes == kMaxConfigBytes`) |
+| Action text | 256 bytes | 32 KiB | 7a (done: `kMaxActionTextBytes`; the line limit `kMaxLineBytes` is 33 KiB) |
+| Own functions (`FUNC_*`) per section | 32 | 1000 | 7a (constant done: `kMaxOwnFunctionsPerSection`), 7e (table) |
+| Keys per section | 512 | 10 000 | 7a (done: `kMaxKeysPerSection`) |
+| Macro steps per macro, and macro queue | queue of 16 steps | 256 steps | 7b (done: `kMaxMacroSteps`) |
 | Steps per side of `step:` / `keys:` (key sequences) | 8 | not needed (macro replaces it) | 7b |
 | Modifiers per step | 4 | 4 (the four modifiers exist once) | no change |
 

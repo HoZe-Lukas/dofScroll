@@ -81,6 +81,7 @@ inline std::string activePreset(Motion m, const ChannelForm &f) {
         case ChannelActionType::Zoom: return "zoom";
         case ChannelActionType::Step: return f.anyMouse() && !f.anyKeySide() ? "click" : "taps";
         case ChannelActionType::Hold: return "hold";
+        case ChannelActionType::Macro: return "macro";  // no tile: the macro dialog sets it
         case ChannelActionType::Keys:
             if (f.neg == "pageup" && f.pos == "pagedown") return "pages";
             if (presetForm("arrows", m, f) == f) return "arrows";

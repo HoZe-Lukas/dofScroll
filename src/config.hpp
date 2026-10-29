@@ -63,10 +63,17 @@ namespace spn {
 // Hard upper limits against resource exhaustion by manipulated files
 // (docs/security.md). Valid configurations are far below them.
 constexpr size_t kMaxConfigBytes = 1u << 20;   // file size (1 MiB)
-constexpr size_t kMaxLineBytes = 8192;         // line length
+// Action text (the value of a *_ACTION or BUTTON_<n> key, parseChannelAction / parseButtonAction): 32 KiB (was 256 bytes in the
+// plan, 8 KiB by the line limit). A line must hold the longest action plus its key and a trailing comment.
+constexpr size_t kMaxActionTextBytes = 32 * 1024;
+constexpr size_t kMaxLineBytes = kMaxActionTextBytes + 1024;  // line length (also the line limit of mode files)
 constexpr size_t kMaxPatternBytes = 4096;      // [app:...]/[device:...] name, in bytes
 constexpr size_t kMaxSections = 256;           // sections incl. [global]
-constexpr size_t kMaxKeysPerSection = 512;     // unique keys per section
+constexpr size_t kMaxKeysPerSection = 10000;   // unique keys per section (was 512)
+constexpr size_t kMaxOwnFunctionsPerSection = 1000;  // FUNC_<name> own functions per section (stage 7e of docs/plan-motion-functions.md; was 32)
+static_assert(kMaxOwnFunctionsPerSection <= kMaxKeysPerSection, "own functions are keys of their section");
+// True when a section that already holds `count` unique keys cannot take another one.
+inline bool sectionKeysFull(size_t count) { return count >= kMaxKeysPerSection; }
 constexpr size_t kMaxMixTerms = 12;            // terms per MIX expression
 constexpr size_t kMaxCurvePoints = 64;         // points per CURVE
 constexpr size_t kMaxLateralAxes = 6;          // axes in ZOOM_LATERAL

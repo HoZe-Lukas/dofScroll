@@ -37,10 +37,13 @@ upper case. The easiest way to edit is the settings window. The settings window 
 without keeping comments, and only the files whose profile you changed. It writes every file atomically
 (temporary file, then rename), keeps the file mode and follows a symlink of `dofscroll.conf`.
 
-Limits: file up to 1 MiB, line up to 8 KiB, up to 256 sections in `dofscroll.conf`, 512 keys per section, 12 mix
-terms, 64 curve points. Duplicate keys in one section: the last wins. Invalid values are rejected
-with a message in the log. The profile folders have limits too (number of files, size per file, total
-number of profiles); a folder over the limit is read up to the limit and the log says so. A line whose key or value holds a
+Limits: file up to 1 MiB (the main file and every profile file of `devices/` and `apps/` alike), line up to
+33 KiB, the text of one action (the value of a `*_ACTION` or `BUTTON_<n>` key) up to 32 KiB, up to 256 sections in
+`dofscroll.conf`, 10000 keys per section, 12 mix terms, 64 curve points. Duplicate keys in one section: the last wins.
+Invalid values are rejected with a message in the log (file, line and key are named). Planned for own functions in a
+section: at most 1000 (`kMaxOwnFunctionsPerSection`, no key uses it yet). A macro has at most 256 steps. The profile
+folders have limits too (number of files, total number of profiles); a folder over the limit is read up to the limit and
+the log says so. A line whose key or value holds a
 control character (a carriage return inside a value, for example) is ignored with a warning, so a file that loads can always
 be saved again. A section whose name is empty, longer than 4096 bytes or holds a control character is ignored with a warning,
 together with its keys. On Linux and macOS the log notes when `dofscroll.conf` belongs to another user or can be written by
@@ -161,8 +164,11 @@ uses the push keys. At most 4 presses per tick and function and 8 per tick in to
 that is not safe to repeat (a letter, digit, Enter, Delete, Esc, Alt or Super chord, play/pause) is refused ("this key can
 only be used digitally, use `step:`"), `step:` takes any key. Per side `step:` also takes `click`, `rightclick` and `middleclick`
 (one mouse click per push), and `hold:<neg>,<pos>` holds a key, a chord or a mouse button while the motion is deflected
-(`hold:click,none` drags while you push) and lets go at half of the trigger. Details and the tier rule:
-[modes.md](modes.md#the-key-engine-analog-and-digital), [mouse clicks and holds](modes.md#mouse-clicks-and-holds).
+(`hold:click,none` drags while you push) and lets go at half of the trigger. `macro:<neg>,<pos>` runs a list of key down,
+key up and pause steps once per push (digital only), on a motion and on a device button (`BUTTON_<n> = macro:<steps>`).
+Details and the tier rule:
+[modes.md](modes.md#the-key-engine-analog-and-digital), [mouse clicks and holds](modes.md#mouse-clicks-and-holds),
+[macros](modes.md#macros).
 
 Axes (libspnav convention, measured on a SpaceMouse Pro): push forward or back is `z`, sideways is
 `x`, lift or press is `y`, tilt forward or back is `rx`, tilt sideways is `rz`, twist is `ry`. If you
@@ -186,7 +192,7 @@ differently, see above).
 
 | Key | Default | Meaning |
 |---|---|---|
-| `LIFT_ACTION` | `none` | What the lift does, **in a profile or a joystick mode**: `none` (or `default`, the same), `wheel_v`, `wheel_h`, `zoom` or `step:<neg>,<pos>` (one key tap per push, digital). An analog `keys:<neg>,<pos>` is rejected on the lift (a key repeat would type by accident while you grab the cap); use `step:`. Allowed in `[global]`, `[device:*]` and `[app:*]`, written only when set. |
+| `LIFT_ACTION` | `none` | What the lift does, **in a profile or a joystick mode**: `none` (or `default`, the same), `wheel_v`, `wheel_h`, `zoom`, `step:<neg>,<pos>` (one key tap per push, digital) or `macro:<neg>,<pos>`. An analog `keys:<neg>,<pos>` is rejected on the lift (a key repeat would type by accident while you grab the cap); use `step:`. Allowed in `[global]`, `[device:*]` and `[app:*]`, written only when set. |
 | `LIFT_MIX` | `y` | Axis expression of the lift (the seeded Windows and macOS files: `z`). |
 | `LIFT_SENS` | `5` | Sensitivity 0 to 255; `0` switches the lift off. |
 | `LIFT_DEADZONE` | `80` | Dead zone in raw sensor units, higher than the other channels so that grabbing the cap stays below it. Raise it if the lift still fires when you grab or let go. |
@@ -223,7 +229,7 @@ raise `LIFT_DEADZONE` until grabbing the cap does not fire it.
 | `NAV_BUTTON`, `NAV_BUTTON_ENABLED` | `0`, `0` | **Deprecated**, use `BUTTON_<n> = nav`. Button (0-based index) that turns X/Y into arrow keys while held. |
 | `CLICK_BUTTON`, `CLICK_BUTTON_ENABLED` | `1`, `0` | **Deprecated**, use `BUTTON_<n> = click`. Button (0-based index) that is passed through as the left mouse button. A click that is the same everywhere is better set in the vendor driver, see [modes.md](modes.md#buttons-and-the-vendor-driver). |
 | `BUTTON_<n>` | none | Action of button `n`, same values as in joystick mode files, see [modes.md](modes.md). `buttonmode:<id>` uses a named button behavior from `buttons/<id>.conf`, see [button-modes.md](button-modes.md). In `[global]` and `[device:*]` the binding of the active joystick mode for the same button wins; in an `[app:*]` section the program's binding wins over the joystick mode (and `none` unbinds the button there). |
-| `V_ACTION`, `H_ACTION`, `TWIST_ACTION` | none (the joystick mode decides) | What the vertical, horizontal and twist channel does, **in a profile**: the keys and values of the joystick mode files (`default`, `none`, `wheel_v`, `wheel_h`, `zoom`, `keys:<neg>,<pos>`, `step:<neg>,<pos>`, see [modes.md](modes.md)). Allowed in `[global]`, `[device:*]` and `[app:*]`; written only when a profile sets them. |
+| `V_ACTION`, `H_ACTION`, `TWIST_ACTION` | none (the joystick mode decides) | What the vertical, horizontal and twist channel does, **in a profile**: the keys and values of the joystick mode files (`default`, `none`, `wheel_v`, `wheel_h`, `zoom`, `keys:<neg>,<pos>`, `step:<neg>,<pos>`, `hold:<neg>,<pos>`, `macro:<neg>,<pos>`, see [modes.md](modes.md)). Allowed in `[global]`, `[device:*]` and `[app:*]`; written only when a profile sets them. |
 | `V_PUSH_ACTION`, `V_TILT_ACTION`, `H_PUSH_ACTION`, `H_TILT_ACTION` | none | The same for push and tilt of a scroll channel on their own (the split keys of the joystick mode files). Setting one of them does not change the other part: `V_TILT_ACTION = none` switches off only the tilt, the push keeps what it did. |
 
 ### Deprecated: NAV_BUTTON and CLICK_BUTTON

@@ -52,6 +52,7 @@ inline std::string channelActionWords(const ChannelAction &a, const StringProvid
         case ChannelActionType::Hold:
             return format(s.tr("holds %1 or %2 while pushed"),
                           {modelist::negChordText(a), modelist::posChordText(a)});
+        case ChannelActionType::Macro: return s.tr("runs a macro once per push");
     }
     return std::string();
 }
