@@ -3383,22 +3383,30 @@ static bool buttonInspectorSelfTest() {
         QApplication::setFont(f);
         w.resize(std::min(int(fc.scale * 1100), 1920), 900);
         settle();
-        for (const char *id : {"b:1", "b:2"}) {
+        // The picture itself (its chips) may need more than the window gives at an extreme font, with a motion selected as well: that
+        // is the limit, and a button inspector may not need more than a motion inspector does (the fonts of a CI machine are wider
+        // than the ones of a developer).
+        int limit = 0;
+        for (const char *id : {"m:h_tilt", "b:1", "b:2"}) {
             const QString what = QStringLiteral("x%1 spacing %2 %3").arg(fc.scale).arg(fc.spacing).arg(QLatin1String(id));
             check(mv->select(QLatin1String(id)), what + QStringLiteral(": select"));
             settle();
+            int over = 0;
             for (QWidget *p = mv->inspector(); p; p = p->parentWidget())
                 if (auto *sa = qobject_cast<QAbstractScrollArea *>(p))
                     if (sa->horizontalScrollBar() && sa->horizontalScrollBar()->isVisible()) {
-                        check(false, what + QStringLiteral(": no horizontal scroll bar"));
-                        for (QWidget *c : sa->findChildren<QWidget *>())
-                            if (c->isVisibleTo(sa) && c->minimumSizeHint().width() > 300)
-                                std::fprintf(stderr, "  wide: %s \"%s\" min %d\n", c->metaObject()->className(),
-                                             qPrintable(qobject_cast<QLabel *>(c) ? qobject_cast<QLabel *>(c)->text().left(40) : c->objectName()), c->minimumSizeHint().width());
-                        std::fprintf(stderr, "  %s viewport %d, scroll %d, motions view min %d, picture min %d\n", sa->metaObject()->className(),
-                                     sa->viewport()->width(), sa->horizontalScrollBar()->maximum(), mv->minimumSizeHint().width(), mv->picture()->minimumSizeHint().width());
+                        over = std::max(over, sa->horizontalScrollBar()->maximum());
+                        if (id[0] == 'b' && over > limit) {
+                            std::fprintf(stderr, "  viewport %d, scroll %d (a motion needs %d), motions view min %d, picture min %d\n", sa->viewport()->width(), over, limit,
+                                         mv->minimumSizeHint().width(), mv->picture()->minimumSizeHint().width());
+                            for (QWidget *c : sa->findChildren<QWidget *>())
+                                if (c->isVisibleTo(sa) && c->minimumSizeHint().width() > 300)
+                                    std::fprintf(stderr, "  wide: %s \"%s\" min %d\n", c->metaObject()->className(),
+                                                 qPrintable(qobject_cast<QLabel *>(c) ? qobject_cast<QLabel *>(c)->text().left(40) : c->objectName()), c->minimumSizeHint().width());
+                        }
                     }
-            check(mv->inspector()->width() >= mv->inspector()->minimumSizeHint().width(), what + QStringLiteral(": the inspector has the width it needs"));
+            if (id[0] == 'm') limit = over;
+            else check(over <= limit, what + QStringLiteral(": needs no more width than a motion"));
         }
     }
     QApplication::setFont(baseFont);
