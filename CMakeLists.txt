@@ -374,6 +374,10 @@ if(BUILD_TESTING)
     add_test(NAME release_gate
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_release_gate.sh ${CMAKE_SOURCE_DIR})
   endif()
+  if(SH_EXECUTABLE)  # the gate of the write-token job of refresh-ci-pins.yml: digests and pins only (audit round 2)
+    add_test(NAME pin_diff
+             COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_pin_diff.sh ${CMAKE_SOURCE_DIR})
+  endif()
   if(SH_EXECUTABLE)  # own SHA-256 list of the Qt archives, and the advisory check of the bundled libraries (#265)
     add_test(NAME qt_archive_hashes
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_qt_archive_hashes.sh ${CMAKE_SOURCE_DIR})

@@ -104,11 +104,7 @@ jobs:
           done
           # the pin check of the trusted checkout judges the result; besides, only digest and hash lines may differ
           sh scripts/check-ci-pins.sh
-          git diff -U0 -- packaging/ci/images.env packaging/ci/rocky9.Dockerfile \
-            | grep -E '^[-+][^-+]' | grep -v -F '@sha256:' && { echo "a changed line is not a digest"; exit 1; }
-          git diff -U0 -- packaging/ci/aqt-requirements.txt | grep -E '^[-+][^-+]' \
-            | grep -v -E '^[-+](aqtinstall|[A-Za-z0-9_.-]+)==[^ ]+( ; python_version < "[0-9.]+")? \\$|^[-+] +--hash=sha256:[0-9a-f]{64}( \\)?$' \
-            && { echo "a changed line of aqt-requirements.txt is not a pin or a hash"; exit 1; }
+          sh scripts/check-pin-diff.sh
           true
       - name: Open or update the pull request
         env:
