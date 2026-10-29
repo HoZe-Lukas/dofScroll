@@ -34,6 +34,7 @@ AddDeviceDialog::AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::
                                         "settings of the profile stay.")
                                     : T("Pick a connected device or type its name. The profile applies while that "
                                         "device is used."));
+    intro->setTextFormat(Qt::PlainText);
     intro->setWordWrap(true);
     l->addWidget(intro);
     auto *top = new QHBoxLayout;
@@ -56,6 +57,7 @@ AddDeviceDialog::AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::
     list_->header()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
     l->addWidget(list_, 1);
     note_ = new QLabel(this);
+    note_->setTextFormat(Qt::PlainText);
     note_->setWordWrap(true);
     l->addWidget(note_);
 
@@ -63,6 +65,7 @@ AddDeviceDialog::AddDeviceDialog(const ProfilesEnv &ctx, const std::vector<std::
     manual_ = new QLineEdit(this);
     manual_->setAccessibleName(T("Device name"));
     validation_ = new QLabel(this);
+    validation_->setTextFormat(Qt::PlainText);
     validation_->setWordWrap(true);
     l->addWidget(manual_);
     l->addWidget(validation_);

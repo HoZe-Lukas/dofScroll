@@ -17,6 +17,7 @@
 #include "motion_view.hpp"
 #include "ui/model/button_chip_model.hpp"
 #include "ui_i18n.hpp"
+#include "plain_text.hpp"
 
 using namespace spn;
 using namespace spn::ui;
@@ -54,7 +55,7 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
         }
         lastGroup = c.group;
         kind->addItem(qs8(c.label), int(i));
-        if (!c.tooltip.empty()) kind->setItemData(kind->count() - 1, qs8(c.tooltip), Qt::ToolTipRole);
+        if (!c.tooltip.empty()) kind->setItemData(kind->count() - 1, spn::ui::qt::plainToolTip(qs8(c.tooltip)), Qt::ToolTipRole);
         if (int(i) == selected) kind->setCurrentIndex(kind->count() - 1);
     }
     if (selected < 0) kind->setCurrentIndex(-1);
@@ -90,7 +91,7 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
         for (const std::string &id : ids) {
             mc->addItem(qs8(id), qs8(id));
             auto tip = env.modeTips.find(id);
-            if (tip != env.modeTips.end()) mc->setItemData(mc->count() - 1, qs8(tip->second), Qt::ToolTipRole);
+            if (tip != env.modeTips.end()) mc->setItemData(mc->count() - 1, spn::ui::qt::plainToolTip(qs8(tip->second)), Qt::ToolTipRole);
         }
         mc->setCurrentIndex(std::max(0, mc->findData(qs8(row.binding.arg))));
         QObject::connect(mc, &QComboBox::activated, owner, [handlers, mc, bk](int) {
@@ -126,7 +127,7 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
         origin->setMinimumWidth(180);
         origin->setMaximumWidth(320);
         origin->setAccessibleName(T("Origin of button") + QStringLiteral(" %1").arg(row.number));
-        if (!row.originTip.empty()) origin->setToolTip(qs8(row.originTip));
+        if (!row.originTip.empty()) spn::ui::qt::setPlainToolTip(origin, qs8(row.originTip));
         grid->addWidget(origin, r, 4);
     }
 }

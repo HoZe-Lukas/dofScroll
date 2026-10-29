@@ -33,6 +33,7 @@
 #include "ui/model/inheritance_model.hpp"
 #include "ui/model/ui_filter.hpp"
 #include "ui_i18n.hpp"
+#include "plain_text.hpp"
 
 namespace {
 
@@ -133,6 +134,7 @@ ChannelsEditor::ChannelsEditor(const UiContext &ctx, QWidget *parent) : QWidget(
     auto *top = new QHBoxLayout;
     auto *intro = new QLabel(T("How the cap movement becomes scrolling and zooming. A change is saved at once and the "
                                "daemon reloads it."));
+    intro->setTextFormat(Qt::PlainText);
     intro->setWordWrap(true);
     intro->setForegroundRole(QPalette::PlaceholderText);
     top->addWidget(intro, 1);
@@ -141,13 +143,14 @@ ChannelsEditor::ChannelsEditor(const UiContext &ctx, QWidget *parent) : QWidget(
     restore->setToolTip(T("Remove every value of this tab from the profile: the inherited values (the built-in defaults "
                           "for Global) apply again"));
     connect(restore, &QPushButton::clicked, this, [this] {
-        if (QMessageBox::question(this, T("Restore defaults"),
+        if (spn::ui::qt::plainBox(QMessageBox::Question, this, T("Restore defaults"),
                                   T("Reset all settings on this tab to the inherited values?")) == QMessageBox::Yes)
             restoreDefaults();
     });
     top->addWidget(restore, 0, Qt::AlignTop);
     col->addLayout(top);
     noMatch_ = new QLabel(T("No setting matches the filter."));
+    noMatch_->setTextFormat(Qt::PlainText);
     noMatch_->setForegroundRole(QPalette::PlaceholderText);
     noMatch_->setVisible(false);
     col->addWidget(noMatch_);
@@ -250,7 +253,7 @@ void ChannelsEditor::refreshMeta() {
             }
         }
         m.origin->setText(qs8(text));
-        m.origin->setToolTip(tip);
+        spn::ui::qt::setPlainToolTip(m.origin, tip);
         m.reset->setEnabled(o.canReset);
         m.reset->setToolTip(qs8(spn::ui::resetTooltip(section_, o.canReset, strings)));
         m.reset->setAccessibleName(T("Reset to inherited") + QLatin1Char(' ') + qs8(m.key));
@@ -357,6 +360,7 @@ void ChannelsEditor::spinRow(QGridLayout *grid, int *row, const std::string &key
     QLabel *hl = new QLabel(help);
     QWidget *editor = make(hl);
     auto *l = new QLabel(label);
+    l->setTextFormat(Qt::PlainText);
     l->setBuddy(editor);
     grid->addWidget(l, *row, 0, Qt::AlignTop);
     grid->addWidget(editor, *row, 1);
@@ -370,6 +374,7 @@ void ChannelsEditor::spinRow(QGridLayout *grid, int *row, const std::string &key
 
 void ChannelsEditor::addMeta(QGridLayout *grid, int row, const std::string &key, FilterRow *fr) {
     auto *origin = new QLabel;
+    origin->setTextFormat(Qt::PlainText);
     origin->setForegroundRole(QPalette::PlaceholderText);
     origin->setWordWrap(true);
     origin->setMaximumWidth(300);
@@ -393,7 +398,7 @@ void ChannelsEditor::registerRow(const std::string &key, const QString &label, c
     const spn::ui::StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
     const QString tip = qs8(spn::ui::helpWithKey(help.toUtf8().toStdString(), key, strings));
     for (QWidget *w : widgets) {
-        w->setToolTip(tip);
+        spn::ui::qt::setPlainToolTip(w, tip);
         if (!qobject_cast<QLabel *>(w)) w->setAccessibleDescription(tip);
     }
     FilterRow r;
@@ -516,7 +521,9 @@ void ChannelsEditor::addCurve(QGridLayout *grid, int *row, const std::string &ke
                               "Input = deflection after the deadzone (raw sensor units), the factor applies "
                               "to the linear speed, linearly interpolated in between. Overrides the exponent.");
     auto *expLabel = new QLabel(expHelp);
+    expLabel->setTextFormat(Qt::PlainText);
     auto *ptsLabel = new QLabel(ptsHelp);
+    ptsLabel->setTextFormat(Qt::PlainText);
 
     // Exponent: slider (0.2..4.0) and spin box (0.1..10) kept in sync.
     auto *slider = new QSlider(Qt::Horizontal);
@@ -550,6 +557,7 @@ void ChannelsEditor::addCurve(QGridLayout *grid, int *row, const std::string &ke
             });
     connect(slider, &QSlider::sliderReleased, this, [this] { ctx_.saveSoon(); });
     auto *l = new QLabel(T("Curve (exponent)"));
+    l->setTextFormat(Qt::PlainText);
     l->setBuddy(spin);
     grid->addWidget(l, *row, 0, Qt::AlignTop);
     grid->addWidget(pair, *row, 1);
@@ -576,6 +584,7 @@ void ChannelsEditor::addCurve(QGridLayout *grid, int *row, const std::string &ke
     });
     connect(pts, &QLineEdit::editingFinished, this, [this] { ctx_.saveSoon(); });
     auto *pl2 = new QLabel(T("Curve (points)"));
+    pl2->setTextFormat(Qt::PlainText);
     pl2->setBuddy(pts);
     grid->addWidget(pl2, *row, 0, Qt::AlignTop);
     grid->addWidget(pts, *row, 1);
@@ -611,6 +620,7 @@ void ChannelsEditor::addInvertAxes(QGridLayout *grid, int *row) {
     const QString help = T("Flips the direction of the checked motions in every joystick mode, for example when pushing "
                            "scrolls the wrong way but tilting is right");
     auto *hl = new QLabel(help);
+    hl->setTextFormat(Qt::PlainText);
     auto *box = new QWidget;
     auto *bl = new QGridLayout(box);
     bl->setContentsMargins(0, 0, 0, 0);
@@ -632,6 +642,7 @@ void ChannelsEditor::addInvertAxes(QGridLayout *grid, int *row) {
     }
     bl->setColumnStretch(2, 1);
     auto *l = new QLabel(T("Invert direction of"));
+    l->setTextFormat(Qt::PlainText);
     grid->addWidget(l, *row, 0, Qt::AlignTop);
     grid->addWidget(box, *row, 1);
     hl->setWordWrap(true);
@@ -673,6 +684,7 @@ void ChannelsEditor::addZoomDetection(QGridLayout *grid, int *row) {
     });
     const QString latHelp = T("Zoom only starts if the twist is stronger than the strongest of these axes");
     auto *lat = new QLabel(latHelp);
+    lat->setTextFormat(Qt::PlainText);
     auto *box = new QWidget;
     auto *bl = new QGridLayout(box);  // three per line, so the row stays narrow in a small window
     bl->setContentsMargins(0, 0, 0, 0);
@@ -692,6 +704,7 @@ void ChannelsEditor::addZoomDetection(QGridLayout *grid, int *row) {
     }
     bl->setColumnStretch(3, 1);
     auto *l = new QLabel(T("Zoom must dominate against"));
+    l->setTextFormat(Qt::PlainText);
     grid->addWidget(l, *row, 0, Qt::AlignTop);
     grid->addWidget(box, *row, 1);
     lat->setWordWrap(true);

@@ -13,6 +13,7 @@
 #include "pages/mode_editor_widget.hpp"
 #include "ui/model/ui_terms.hpp"
 #include "ui_i18n.hpp"
+#include "plain_text.hpp"
 
 using namespace spn::ui;
 
@@ -123,7 +124,7 @@ bool EditorPage::makeCopy() {
     const std::string name = (e->label.empty() ? e->id : e->label) + " (mine)";
     const ModeCatalog::Result r = catalog_.duplicate(e->id, name);
     if (!r.ok) {
-        QMessageBox::warning(this, T("Editor"), T("Could not create the file.") + QStringLiteral("\n\n") + qs8(r.error));
+        spn::ui::qt::plainBox(QMessageBox::Warning, this, T("Editor"), T("Could not create the file.") + QStringLiteral("\n\n") + qs8(r.error));
         return false;
     }
     populate(qs8(r.id));

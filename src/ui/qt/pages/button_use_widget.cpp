@@ -13,6 +13,7 @@
 #include "ui/model/button_chip_model.hpp"
 #include "ui/model/device_layout_model.hpp"
 #include "ui_i18n.hpp"
+#include "plain_text.hpp"
 
 using namespace spn;
 using namespace spn::ui;
@@ -130,8 +131,9 @@ void ButtonUseWidget::updateButtons() {
     }()) : T("Choose a button in the picture."));
     // a short, fixed text (the name of a button mode can be long and would widen the page); the whole sentence is the tooltip
     use_->setText(T("Use on this button"));
-    use_->setToolTip(id_.isEmpty() ? QString() : T("Use \"%1\" on button %2").arg(label_, isButton ? n : QStringLiteral("...")));
-    use_->setAccessibleName(use_->toolTip().isEmpty() ? use_->text() : use_->toolTip());
+    const QString useTip = id_.isEmpty() ? QString() : T("Use \"%1\" on button %2").arg(label_, isButton ? n : QStringLiteral("..."));
+    spn::ui::qt::setPlainToolTip(use_, useTip);
+    use_->setAccessibleName(useTip.isEmpty() ? use_->text() : useTip);
     use_->setEnabled(isButton && !id_.isEmpty());
     unbind_->setEnabled(isButton);
 }

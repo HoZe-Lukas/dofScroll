@@ -13,6 +13,7 @@
 #include "log_dialog.hpp"
 #include "main_window.hpp"
 #include "ui_i18n.hpp"
+#include "plain_text.hpp"
 
 namespace {
 // The base icon drawn with reduced opacity: no hard-coded colors, so it follows the icon's own
@@ -136,7 +137,7 @@ void Tray::addEntry(QMenu *into, const spn::ui::TrayEntry &e) {
         group->setExclusive(true);
         for (const spn::ui::TrayEntry &c : e.children) {
             QAction *a = sub->addAction(QString::fromStdString(c.text));
-            a->setToolTip(QString::fromStdString(c.tooltip));  // the description of the joystick mode
+            spn::ui::qt::setPlainToolTip(a, QString::fromStdString(c.tooltip));  // the description of the joystick mode
             a->setStatusTip(QString::fromStdString(c.tooltip));
             a->setCheckable(true);
             a->setChecked(c.checked);

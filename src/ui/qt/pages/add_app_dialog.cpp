@@ -15,6 +15,7 @@
 #include <QVBoxLayout>
 
 #include "ui_i18n.hpp"
+#include "plain_text.hpp"
 
 using namespace spn;
 
@@ -36,6 +37,7 @@ AddAppDialog::AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string
                                         "next one you focus, or its match string. The settings of the profile stay.")
                                     : T("Pick a running program, capture the next one you focus, or type its match "
                                         "string. The profile applies while that program has the focus."));
+    intro->setTextFormat(Qt::PlainText);
     intro->setWordWrap(true);
     l->addWidget(intro);
 
@@ -67,6 +69,7 @@ AddAppDialog::AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string
     busy_->setMaximumHeight(6);
     busy_->hide();
     note_ = new QLabel(this);
+    note_->setTextFormat(Qt::PlainText);
     note_->setWordWrap(true);
     l->addWidget(busy_);
     l->addWidget(note_);
@@ -75,6 +78,7 @@ AddAppDialog::AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string
     capture_btn_ = new QPushButton(T("Capture next focused program"), this);
     capture_btn_->setToolTip(T("Click, then switch to the program within a few seconds"));
     countdown_ = new QLabel(this);
+    countdown_->setTextFormat(Qt::PlainText);
     cap->addWidget(capture_btn_);
     cap->addWidget(countdown_, 1);
     l->addLayout(cap);
@@ -88,6 +92,7 @@ AddAppDialog::AddAppDialog(const ProfilesEnv &ctx, const std::vector<std::string
     manual_->setPlaceholderText(T("e.g. firefox"));
     manual_->setAccessibleName(T("Match string"));
     validation_ = new QLabel(this);
+    validation_->setTextFormat(Qt::PlainText);
     validation_->setWordWrap(true);
     l->addWidget(manual_);
     l->addWidget(validation_);
@@ -192,7 +197,7 @@ void AddAppDialog::refill() {
         it->setText(0, qs8(r.app.displayName.empty() ? r.app.matchString : r.app.displayName));
         it->setText(1, qs8(r.app.matchString));
         if (r.hasProfile) it->setText(2, T("Already has a profile"));
-        if (!r.app.windowTitle.empty()) it->setToolTip(0, qs8(r.app.windowTitle));
+        if (!r.app.windowTitle.empty()) spn::ui::qt::setPlainToolTip(it, 0, qs8(r.app.windowTitle));
         it->setData(0, kRoleMatch, qs8(r.app.matchString));
         it->setData(0, kRoleHasProfile, r.hasProfile);
     }

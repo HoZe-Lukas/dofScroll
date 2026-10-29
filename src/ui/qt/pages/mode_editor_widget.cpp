@@ -32,6 +32,7 @@
 #include "ui/model/overview_model.hpp"
 #include "ui/model/ui_progress.hpp"
 #include "ui_i18n.hpp"
+#include "plain_text.hpp"
 
 using namespace spn;
 using namespace spn::ui;
@@ -88,7 +89,7 @@ ModeEditorWidget::ModeEditorWidget(const UiContext &ctx, QWidget *parent) : QWid
         flush();  // the text editor shows what is written
         std::string err;
         if (ctx_.runner && !ctx_.runner->openPath(editor_.path(), &err))
-            QMessageBox::warning(this, T("Joystick modes"), T("Could not open the file.") + QStringLiteral("\n\n") + qs8(err));
+            spn::ui::qt::plainBox(QMessageBox::Warning, this, T("Joystick modes"), T("Could not open the file.") + QStringLiteral("\n\n") + qs8(err));
     });
     connect(closeBtn_, &QPushButton::clicked, this, [this] {
         flush();  // nothing is lost: the last valid state is written before the editor goes
@@ -102,7 +103,7 @@ ModeEditorWidget::ModeEditorWidget(const UiContext &ctx, QWidget *parent) : QWid
             if (!r.ok && r.changedOnDisk) {
                 const bool overwrite =
                     overwriteAnswer_ ? overwriteAnswer_()
-                                     : QMessageBox::question(this, T("Joystick modes"),
+                                     : spn::ui::qt::plainBox(QMessageBox::Question, this, T("Joystick modes"),
                                                              T("The file changed on disk while you were editing. "
                                                                "Overwrite it with your changes?"),
                                                              QMessageBox::Yes | QMessageBox::No, QMessageBox::No) ==
@@ -119,7 +120,7 @@ bool ModeEditorWidget::open(const std::string &path, const ModeDef &def) {
     flush();  // the mode that was edited before is written first
     std::string err;
     if (!editor_.open(path, def, &err)) {
-        QMessageBox::warning(this, T("Joystick modes"), T("Could not open the file.") + QStringLiteral("\n\n") + qs8(err));
+        spn::ui::qt::plainBox(QMessageBox::Warning, this, T("Joystick modes"), T("Could not open the file.") + QStringLiteral("\n\n") + qs8(err));
         return false;
     }
     warnings_->hide();
@@ -129,6 +130,7 @@ bool ModeEditorWidget::open(const std::string &path, const ModeDef &def) {
 
 int ModeEditorWidget::addChannelRow(QGridLayout *g, int row, const QString &label, ChannelForm *form) {
     auto *name = new QLabel(label, this);
+    name->setTextFormat(Qt::PlainText);
     auto *kind = new QComboBox(this);
     kind->setAccessibleName(label);
     int cur = 0;

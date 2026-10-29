@@ -288,7 +288,9 @@ void AxesPage::buildLivePage(QWidget *page) {
     top->addStretch(1);
     l->addLayout(top);
     connLine_ = new QLabel;
+    connLine_->setTextFormat(Qt::PlainText);
     connHint_ = new QLabel;
+    connHint_->setTextFormat(Qt::PlainText);
     connHint_->setWordWrap(true);
     connHint_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     l->addWidget(connLine_);
@@ -315,6 +317,7 @@ void AxesPage::buildLivePage(QWidget *page) {
     l->addWidget(bars_, 1);
     auto *parts = new QLabel;  // filled by refreshPartsHint(): the axes of the shown configuration (issue #186)
     partsHint_ = parts;
+    parts->setTextFormat(Qt::PlainText);
     refreshPartsHint();
     parts->setWordWrap(true);
     l->addWidget(parts);
@@ -345,6 +348,7 @@ QWidget *AxesPage::makeDeviceRow(QComboBox *&combo, QLabel *&label) {
     auto *h = new QHBoxLayout(w);
     h->setContentsMargins(0, 0, 0, 0);
     label = new QLabel(T("Device:"));
+    label->setTextFormat(Qt::PlainText);
     combo = new QComboBox;
     combo->setAccessibleName(T("Device"));  // a QComboBox reports its current text as the name: the purpose is the description
     const QString purpose = T("With several devices: show and measure only this device. \"All devices\" follows the one that moved last.");
@@ -405,19 +409,23 @@ void AxesPage::buildWizardPage(QWidget *page) {
     wizChips_ = new motionview::ChipFlow;
     wizChips_->setAccessibleName(T("The five motions of the assistant"));
     wizInstr_ = new QLabel;
+    wizInstr_->setTextFormat(Qt::PlainText);
     wizInstr_->setWordWrap(true);
     QFont big = wizInstr_->font();
     big.setPointSizeF(big.pointSizeF() * 1.3);
     wizInstr_->setFont(big);
     wizArrow_ = new QLabel;
+    wizArrow_->setTextFormat(Qt::PlainText);
     QFont arrow = wizArrow_->font();
     arrow.setPointSizeF(arrow.pointSizeF() * 1.6);
     arrow.setBold(true);
     wizArrow_->setFont(arrow);
     wizMeaning_ = new QLabel;
+    wizMeaning_->setTextFormat(Qt::PlainText);
     wizMeaning_->setWordWrap(true);
     wizState_ = new QLabel;  // "Waiting", "Measuring", "Detected" as text, not only a bar
     wizState_->setWordWrap(true);
+    wizState_->setTextFormat(Qt::PlainText);
     QFont st = wizState_->font();
     st.setBold(true);
     wizState_->setFont(st);
@@ -428,6 +436,7 @@ void AxesPage::buildWizardPage(QWidget *page) {
     devRow_[1] = makeDeviceRow(devCombo_[1], devLabel_[1]);
     wizBars_ = new LiveBarsWidget(&session_->view(), true, page);
     wizResult_ = new QLabel;
+    wizResult_->setTextFormat(Qt::PlainText);
     wizResult_->setWordWrap(true);
     wizResult_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     wizResult_->setAlignment(Qt::AlignTop | Qt::AlignLeft);

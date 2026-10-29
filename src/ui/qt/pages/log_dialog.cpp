@@ -28,6 +28,7 @@ LogDialog::LogDialog(const std::string &runtimeDir, const spn::ui::StringProvide
     view_->setAccessibleName(T("Log text"));
     col->addWidget(view_, 1);
     note_ = new QLabel(this);
+    note_->setTextFormat(Qt::PlainText);
     note_->setWordWrap(true);
     note_->setForegroundRole(QPalette::PlaceholderText);
     col->addWidget(note_);
