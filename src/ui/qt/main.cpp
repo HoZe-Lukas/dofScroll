@@ -3643,7 +3643,6 @@ static bool newFunctionSelfTest() {
     check(dlg->windowTitle().contains(QStringLiteral("Horizontal tilt")), "the title names the motion");
     check(dlg->findChild<QPushButton *>(QStringLiteral("newFunctionClose")) && !buttonTexted(dlg, QStringLiteral("Save")) && !buttonTexted(dlg, QStringLiteral("OK")) && !buttonTexted(dlg, QStringLiteral("Cancel")),
           "no Save, OK or Cancel button: there is only Close");
-    auto byName = [&](const char *name) { return dlg->findChild<QWidget *>(QLatin1String(name)); };
     auto *kindBox = dlg->findChild<QComboBox *>(QStringLiteral("newFunctionKind"));
     auto *neg = dlg->findChild<ChordField *>(QStringLiteral("newFunctionKeyNeg"));
     auto *pos = dlg->findChild<ChordField *>(QStringLiteral("newFunctionKeyPos"));

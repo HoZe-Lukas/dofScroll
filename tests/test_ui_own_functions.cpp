@@ -65,9 +65,9 @@ int main() {
     assert(list[1].text == "key:ctrl+0" && list[1].uses.size() == 1 && list[1].onButton() && list[1].uses[0].button == 3 && list[1].uses[0].name == "Button 3");
 
     // the lines of a joystick mode that is a copy: the action keys, the buttons, the tuning the profile holds
-    const std::string lines = joystickModeLines(list[0], [&](const std::string &key) {
+    const std::string lines = joystickModeLines(list[0], [&](const std::string &k) {
         std::string held;
-        motion_edit_detail::ownText(m, app, key, &held);
+        motion_edit_detail::ownText(m, app, k, &held);
         return held;
     }, m, app);
     assert(ofHas(lines, "H_TILT_ACTION = step:ctrl+pageup,ctrl+pagedown\n") && ofHas(lines, "V_TILT_ACTION = step:ctrl+pageup,ctrl+pagedown\n"));
@@ -79,9 +79,9 @@ int main() {
         const std::string dir = tu::makeTempDir("dofscroll-ownfn");
         ModeCatalog mc(dir + "/modes");
         ButtonModeCatalog bc(dir + "/buttons");
-        const std::string modeLines = joystickModeLines(list[0], [&](const std::string &key) {
+        const std::string modeLines = joystickModeLines(list[0], [&](const std::string &k) {
             std::string held;
-            motion_edit_detail::ownText(m, app, key, &held);
+            motion_edit_detail::ownText(m, app, k, &held);
             return held;
         }, m, app);
         const SaveAsResult jm = saveAsJoystickMode(&mc, "Tab switching", modeLines);
