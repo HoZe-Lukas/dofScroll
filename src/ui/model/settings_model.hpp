@@ -238,7 +238,7 @@ public:
     // A binding that can do harm when it comes from a file of someone else, decided with the parsers of the daemon
     // (so "key:ctrl +w" is seen like "key:ctrl+w"): a chord that chordNeedsWarning flags, a modifier or a destructive
     // key (Delete, Backspace, Enter, Esc, F4) as a plain key or channel key, a mouse click as button action (also the
-    // legacy CLICK_BUTTON), and a pointer to a joystick mode of the user's own (a mode file can bind anything).
+    // legacy CLICK_BUTTON, and a click or held mouse button on a motion), and a pointer to a joystick mode of the user's own (a mode file can bind anything).
     bool bindingIsRisky(const std::string &key, const std::string &value) const {
         const std::string k = upper(utf8::trim(key));
         auto plainRisky = [](Key kk) {
@@ -292,9 +292,15 @@ public:
             if (!parseChannelAction(value, &a, nullptr)) return false;
             if (a.type == ChannelActionType::Macro) return a.macro && !macroRiskText(*a.macro).empty();
             if (!a.usesKeys()) return false;
-            const struct { Key key; const ChordMods &mods; } args[2] = {{a.neg, a.negMods}, {a.pos, a.posMods}};
-            for (const auto &arg : args)
+            // A mouse side (click, rightclick, middleclick on step: or hold:) clicks like a device button does: risky.
+            // "none" and mouse sides carry no key, so their stale key fields are never looked at.
+            const struct { Key key; const ChordMods &mods; bool none; uint8_t mouse; } args[2] = {
+                {a.neg, a.negMods, a.negNone, a.negMouse}, {a.pos, a.posMods, a.posNone, a.posMouse}};
+            for (const auto &arg : args) {
+                if (arg.none) continue;
+                if (arg.mouse != 0) return true;
                 if (arg.mods.n == 0 ? plainRisky(arg.key) : chordNeedsWarning(arg.key, arg.mods)) return true;
+            }
         }
         return false;
     }

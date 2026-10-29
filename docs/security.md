@@ -804,6 +804,10 @@ by a file). Assessment and limits:
   the interface checks the real buttons folder, so a user file that replaces a built-in Button mode id (for example
   `next-mode`) counts as the user's own; only the unmodified built-in ones are not flagged. An id that is in neither
   place is flagged too, because a file of that name could appear later.
+  **Audit round 2 (before 1.3.0):** the check used to look only at the key fields of a motion action, so `step:` and `hold:`
+  with `click`, `rightclick` or `middleclick` (a mouse side carries no key) passed the import without a question although the
+  same click on a device button was flagged. A mouse side of a motion action is now risky like `BUTTON_<n> = click`
+  (`SettingsModel::bindingIsRisky`, test `testMouseSidesOfMotionsAreRisky` in `tests/test_ui_profile_import.cpp`).
 
 ---
 

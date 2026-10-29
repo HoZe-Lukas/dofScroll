@@ -195,7 +195,26 @@ static void testCanonicalAndOrder() {
     tu::removeAll(d);
 }
 
+// A click or a held mouse button on a motion (step: / hold: with click, rightclick, middleclick) is as risky as a click
+// on a device button: the import asks before it adds such a profile (security audit round 2).
+static void testMouseSidesOfMotionsAreRisky() {
+    const std::string d = makeDir("imp-mouse");
+    SettingsModel m = load(d);
+    const char *const risky[] = {"V_ACTION = step:click,rightclick", "TWIST_ACTION = hold:middleclick,none", "LIFT_ACTION = step:none,click",
+                                 "V_PUSH_ACTION = hold:rightclick,rightclick", "H_ACTION = step:left,rightclick"};
+    for (const char *line : risky) {
+        const ImportPlan p = planOf(m, d, std::string("[app:programname]\n") + line + "\n");
+        assert(p.ok && !p.risks.empty() && p.needsConfirm());
+        assert(m.bindingIsRisky(std::string(line).substr(0, std::string(line).find(' ')), std::string(line).substr(std::string(line).find('=') + 2)));
+    }
+    // keys that are harmless stay unflagged, "none" on both sides too
+    const char *const calm[] = {"V_ACTION = step:pageup,pagedown", "TWIST_ACTION = hold:left,right", "LIFT_ACTION = step:none,none"};
+    for (const char *line : calm) assert(!planOf(m, d, std::string("[app:programname]\n") + line + "\n").needsConfirm());
+    tu::removeAll(d);
+}
+
 int main() {
+    testMouseSidesOfMotionsAreRisky();
     testBomCrlfAndFileKinds();
     testReplaceSemantics();
     testNotesAndRiskBoundaries();
