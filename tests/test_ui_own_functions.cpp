@@ -54,9 +54,9 @@ int main() {
     tabs.trigger = "25";
     assert(applyFunction(m, app, FunctionTarget::motion("h_tilt"), tabs, &pr));
     assert(applyFunction(m, app, FunctionTarget::motion("v_tilt"), tabs, &pr));
-    FunctionDraft key = newDraft(FunctionTarget::buttonNumber(3), FunctionKind::Key);
-    key.neg = "ctrl+0";
-    assert(applyFunction(m, app, FunctionTarget::buttonNumber(3), key, &pr));
+    FunctionDraft keyDraft = newDraft(FunctionTarget::buttonNumber(3), FunctionKind::Key);
+    keyDraft.neg = "ctrl+0";
+    assert(applyFunction(m, app, FunctionTarget::buttonNumber(3), keyDraft, &pr));
     std::vector<OwnFunction> list = ownFunctions(m, app, s);
     assert(list.size() == 2);
     assert(list[0].text == "step:ctrl+pageup,ctrl+pagedown" && list[0].uses.size() == 2 && list[0].onMotion() && !list[0].onButton());

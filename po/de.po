@@ -6520,7 +6520,7 @@ msgstr "Scrollen, seitlich scrollen oder zoomen für %1"
 
 #: src/ui/qt/pages/new_function_dialog.cpp
 msgid "Scrolling, zooming and moving the pointer follow how far you push: they are always analog."
-msgstr "Scrollen, Zoomen und Zeigerbewegung folgen dem, wie weit du schiebst: Sie sind immer analog."
+msgstr "Scrollen, Zoomen und Zeigerbewegung folgen dem, wie weit du schiebst, und sind immer analog."
 
 #: src/ui/qt/pages/new_function_dialog.cpp
 msgid "Start recording the keys you press into the steps below"
