@@ -1,17 +1,10 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
-# dofscroll 1.3.0 (draft)
-
-> **Draft, written 2026-10-28 from the merged pull requests since 1.2.3 (#203 to #278) and from the code of `main`.
-> Nothing here is final.** The release number is open: `docs/status-release-1.2.4.md` planned 1.2.4, this draft assumes
-> 1.3.0 because the configuration layout and the profile keys grow. Before the release the maintainer checks every
-> statement against the code (`docs/releasing.md`), fills the credits of the pull requests merged after this draft, and
-> checks the wording of the "Not verified" and "Known limitations" sections. Items under "Still planned" are **not** in
-> `main` and must not be announced as features.
+# dofscroll 1.3.0
 
 > **Tested extensively only on RHEL 9** (X11, KDE Plasma, SpaceMouse Pro and Compact). Windows: first tests on one real
 > machine (SpaceMouse Pro, official 3Dconnexion driver). macOS: built and unit-tested by CI, never run with a real device.
-> Everything new in this release was developed without a SpaceMouse at hand: see "Not verified".
+> **Nothing in this release was tested with a SpaceMouse in hand**: see "Not verified".
 
 Release after [1.2.3](release-notes-1.2.3.md). The profile pages, the way profiles are stored and what a motion can do
 change a lot; the configuration stays readable by the daemon in both layouts.
@@ -25,10 +18,15 @@ change a lot; the configuration stays readable by the daemon in both layouts.
   `TWIST_ACTION`, the four push and tilt parts, `LIFT_ACTION`), edited per profile as inherited, set or cleared.
 - **Key engine.** Every motion can press a key or chord per direction, analog (`keys:`, repeats faster with more
   deflection, with lowest and highest rate) or digital (`step:`, one press per push, with an own trigger level).
+- **Mouse clicks and holds on every motion.** `step:` takes `click`, `rightclick` and `middleclick` per side; the new
+  `hold:<neg>,<pos>` holds a key, chord or mouse button while the motion is deflected.
 - **Take over and New profile.** Copy the action (optionally the tuning) of a motion or button from another profile or
   mode; build a whole profile from parts of others.
 - **Key picker as a tree in columns**, and a reworked axis assistant that starts and ends steps by your movement.
 - Live feed names the device of each sample, so the Axes page and the assistant can follow one of several devices.
+- Security and robustness: the macOS binaries are signed with the hardened runtime, the packages never enable `spacenavd`,
+  the interface flushes pending edits on SIGTERM and Restart and shows foreign text (profile names, tooltips) as plain
+  text; the release job gates on `main`, green checks and an approval.
 - CI: the monthly pin refresh no longer runs package code next to a write token; pins live in `packaging/ci/images.env`.
 
 ## One file per profile
@@ -90,8 +88,17 @@ Plan and rules: [plan-config-split.md](plan-config-split.md).
   lowest and highest rate and the trigger level.
 - With default parameters the output is the output of 1.2.3 (golden-master test `tests/test_golden_motions.cpp`), except
   for the changes listed below.
-- Pointer movement exists in the output layer for all four backends (`Output::moveMouse`), but **no action uses it yet**
-  (see "Still planned").
+- **Mouse buttons and holds** (stage 4 of issue #224). `step:<neg>,<pos>` accepts `click`, `rightclick` and
+  `middleclick` per side (one click per crossing of the trigger). `hold:<neg>,<pos>` holds a key, a chord (modifiers alone
+  are allowed) or a mouse button while the motion is deflected beyond the trigger and lets go at half of it. Digital only;
+  held modifiers are the union of all holds, button bindings and the zoom modifier. A hold longer than 60 s is logged once
+  and never released by a timer. Every held state is released on a mode switch, reload, suspend, `ENABLED=0`, device
+  removal, a stale source and the safety net (`tests/test_stuck_keys.cpp`). The profile and joystick mode editors offer
+  "Mouse click per push" and "Hold a key or button while pushed" in words.
+- Lift fix: the lift filter and key state no longer survive a switch to the normal path, and no lift step fires when a
+  twist zoom ends while the cap is lifted.
+- Pointer movement exists in the output layer for all four backends (`Output::moveMouse`), but **no action uses it on
+  `main` yet** (see "Not on main yet").
 
 ## Axis assistant and Axes page
 
@@ -104,6 +111,34 @@ Plan and rules: [plan-config-split.md](plan-config-split.md).
 - Live feed: a new frame type tells which device a sample comes from (parsers that do not know it skip it). The Axes page and
   the assistant get a **Device** selector when two or more devices are connected. By design the daemon sends the device that
   moved last, so a pinned idle device shows its last values until it moves again.
+
+## Security, packages and robustness
+
+- **macOS: hardened runtime** (#292, issue #269). The DMG is signed ad hoc with `--options runtime`, inside out and without
+  `--deep`, so `DYLD_INSERT_LIBRARIES` is ignored by the interface and the probe. **The daemon keeps the entitlement
+  `com.apple.security.cs.disable-library-validation`** because it loads the vendor framework
+  `3DconnexionClient.framework`; it is therefore **not protected against DYLD injection, the same as on Windows**
+  (see [security.md](security.md)). The signature changes, so macOS asks for the Accessibility and Input Monitoring
+  grants again after the update. Still not signed with a developer ID and not notarized (issue #42).
+- **Packages** (#286, issue #264). The RPM and DEB scripts never enable or start `spacenavd` (they print the command to
+  run). A dangling tray link in a home directory is removed as that user, not as root. New `prerm`: on removal only,
+  the units of every logged-in user are stopped and disabled.
+- **Release job** (#287, issue #263). The `release` job runs `scripts/release-gate.sh` first (the tagged commit must be on
+  `main`, every required check green), waits for the approval of the environment `release`, and publishes a draft
+  release with all files (needed for immutable releases). The repository settings are set by hand:
+  `docs/release-checklist-1.3.0.md`.
+- **Qt archives** (#291, issue #265). Every Qt installation verifies the downloaded archives against
+  `packaging/ci/qt-archives.sha256`; **the list is still empty** until the workflow `qt-archive-hashes` has run once
+  (issue #295). A weekly workflow warns when an advisory fixes a bundled library.
+- **Interface** (#290, #299, #288, #297). Pending edits are written on SIGTERM, SIGINT and SIGHUP and before Restart;
+  an export replaces a file atomically and refuses links and folders; a rename flushes the editor first. Labels, tooltips
+  and message boxes show foreign text (profile, device and mode names, file errors) as plain text, and bidi and
+  zero-width characters are stripped from status names. The first-run guide changes **Start at login** only when you
+  press **Finish**. The default window is wider (1800x1100, clamped to 92% of the screen) and the list/editor splitters
+  are proportional.
+- **Audits** (#279, #280, #282, #294, #267). Helper lookup, socket timeout, close-on-exec, no-follow file access, the
+  session fallback and HID ids; low supply-chain findings (`persist-credentials: false`, hardening check on more
+  binaries, uninstall only below the prefix); a fuzz driver for the profile loader and the migration (ASan/UBSan).
 
 ## Backward-incompatible changes
 
@@ -124,6 +159,11 @@ Plan and rules: [plan-config-split.md](plan-config-split.md).
 - **At most 4 key presses per tick and function, and 8 per tick in total** (it was 200). A very high rate no longer
   produces a burst; the analog hard cap is `min(100, TICK_HZ/2)` presses per second.
 - Settings search on the Profiles page no longer filters button rows.
+- **Packages no longer enable `spacenavd`.** If you relied on the package to start it, run
+  `sudo systemctl enable --now spacenavd.service` once.
+- **macOS: the signature changes** (hardened runtime), so the Accessibility and Input Monitoring grants have to be given
+  again after the update (see above).
+- The default window of the interface is larger.
 
 ## All changes
 
@@ -140,6 +180,16 @@ Credits: pull requests by the maintainer unless marked.
   and selector (#239, issue #139)
 - Output: relative pointer movement, all backends (#236); macOS clamps to all displays and drags while a button is held,
   security note on pointer motion, Button mode risk check (#267)
+- Mouse click and hold on every motion, lift audit fix (stage 4 of #224, #283)
+- Security and robustness: I/O audit round 3 (#279); supply-chain low findings (#280, part of #266); fuzz driver for the
+  profile loader (#282, #294); packages never enable `spacenavd` (#286, issue #264); release gate, environment `release`
+  and tag creation rule (#287, issue #263; #296); first-run guide changes Start at login only on Finish (#288, issue #276);
+  UI data loss on signals, export and rename (#290, issue #273); Qt archive hashes and the advisory check (#291,
+  issue #265); macOS hardened runtime (#292, issue #269); plain text for foreign strings (#299, issues #274, #240)
+- Import and Button modes: the risk check also flags the user's own Button modes (`buttonmode:<id>` of a file that is not an
+  unmodified built-in), and **Take over the tuning** copies the key engine keys `<P>KEY_RATE_MIN`, `<P>KEY_RATE_MAX` and
+  `<P>TRIGGER` too (#298, issues #268 and #260)
+- UI: proportional splitters and a wider default window (#297); accessible names, undo for Remove profile and Apply (#271)
 - `dofscroll-ui --self-test` skips the info popover checks on Wayland (#212 by @codingkoala, part 1 of #193; #213)
 - CI: pins in `packaging/ci/images.env`, monthly refresh without a token (#205); refresh opens the PR and approves its
   checks (#207, #210; the bot PRs #209, #214); `ci-image` ignores the pins file (#211); shorter apt attempts (#223); the
@@ -147,7 +197,8 @@ Credits: pull requests by the maintainer unless marked.
 - Tests: coverage gaps closed (#251)
 - German texts use "du", checked by `scripts/check-german-du.sh` (#208)
 - Docs and rules: release rule for docs and issues, readme status (#203); wiki and website status after 1.2.3 (#204);
-  plans (#231, #238); release status (#233); website accessibility audit and a clearer first screen (#261)
+  plans (#231, #238); release status (#233); website accessibility audit and a clearer first screen (#261); statements
+  that contradicted the code (#289); the draft of these notes (#284)
 
 ## Thank you
 
@@ -156,32 +207,46 @@ Thanks to @codingkoala for the self-test fix on Wayland (#212) and for the repor
 
 ## Not verified
 
-None of this was run with a real SpaceMouse in this release cycle. Only a human on real hardware and a real desktop can
-verify:
+**None of this was run with a real SpaceMouse in this release cycle.** Only a human on real hardware and a real desktop
+can verify these; none of them has been tested:
 
+- Scrolling, zoom, buttons, the pointer path (`moveMouse`) and the tray with a real device, on every system. This includes
+  the feel of analog and digital keys (thresholds, crosstalk on tilt with digital keys), zoom from a tilt, click and hold
+  (trigger and half-level re-arm, a drag with a hold on macOS, uinput and Windows), and the lift (misfires when grabbing).
+- Real Windows, macOS and Wayland sessions for everything above and below. CI compiles and unit-tests those paths and
+  runs the interface offscreen; it never ran a real session. `moveMouse` is compiled and unit-tested on Linux only;
+  `mac_output.cpp` has never run on a Mac.
+- **macOS, hardened runtime.** The behavior with System Integrity Protection on, and the bundled Qt frameworks and
+  plugins under the hardened runtime, are untested on a real Mac; only the CI runner loaded them. That the daemon still
+  loads the vendor framework with the driver installed is checked by `diagnostics/test-driver-coexistence.sh` on a Mac.
+  **The macOS daemon keeps `disable-library-validation` and is not protected against DYLD injection, the same as the
+  Windows daemon.**
 - Migration of a real configuration and the first start on a fresh account on Linux, Windows and macOS; the installer
-  upgrade on Windows and macOS.
-- The Qt dialogs on a real desktop (import and export file dialogs, take over, New profile, key picker; large fonts, dark
-  mode, high-DPI). CI renders them offscreen only.
-- Zoom from a tilt (feel, direction), analog and digital keys (feel, thresholds, crosstalk on tilt with digital keys), the
-  lift (misfires when grabbing).
-- The device selector with two real devices.
-- `moveMouse` on every backend (not wired to any action, only compiled and unit-tested on Linux); the macOS part
-  (`mac_output.cpp`) has never been run on a Mac (CI only compiles it).
-- Wayland, the Windows and macOS paths of everything above (CI compiles and unit-tests them).
+  upgrade on Windows and macOS; a real RPM and DEB install, upgrade and removal with the new scriptlets.
+- The Qt dialogs on a real desktop (import and export file dialogs, take over, New profile, key picker, setup guide; large
+  fonts, dark mode, high-DPI, screen readers); the device selector with two real devices; the axis assistant thresholds.
+- The `release` job against the real GitHub API (gate, environment approval, draft then publish, immutable release):
+  it has never run on a tag.
 
 ## Known limitations
 
 - `dofscroll-ui --self-test` can still fail on a real Wayland session at the font-dependent default size check
-  (issue #193); the grabbing-popup problem is worked around, the Qt side (wayland SHM overflow) is not fixed.
+  (issue #193, closed); the grabbing-popup problem is worked around, the Qt bug is not fixed (open issue #258, waiting for a Qt fix).
 - The driver cleanup is available on Windows only (issue #184).
-- A pinned idle device on the Axes page shows its last values until it moves.
+- A pinned idle device on the Axes page shows its last values until it moves (issue #245).
 - Media keys are not sent on macOS.
+- Windows and macOS packages are unsigned (issue #42); the Qt archive hash list is empty until it is recorded (issue #295).
+- The macOS and Windows daemons load the vendor library and are not protected against DYLD or DLL injection.
+- Open from the audits and not in this release: daemon core and parser hardening (issue #272), the remaining UI
+  robustness findings (issue #275), systemd unit shadowing (issue #270), the Motion help naming Linux axes (issue #249).
 
-## Still planned (not in this release unless merged before it)
+## Not on main yet
 
-From [plan-motion-functions.md](plan-motion-functions.md) (issues #224, #225): stages 4 to 7. The motion actions
-`pointer_x` / `pointer_y` and `MOUSE_SPEED` (stage 5), `click` / `rightclick` / `middleclick` and `hold:` on a motion
-(stage 4), presets such as "turn pages", "switch tabs", "volume" and "change track" (stage 6), the `macro:` function
-with a recording dialog, own functions in profiles (`New function...`, the `FUNC_<name>` table), raised size limits (profile
-file 1 MiB, action text 32 KiB, 10 000 keys per section) and `TWIST_GUARD` (stage 7). Today the limits are the old ones.
+These were planned for 1.3.0 but are **not merged at the time of writing**. They must not be announced until they are; this
+section is finalized (moved up or removed) before the tag.
+
+From [plan-motion-functions.md](plan-motion-functions.md) (issues #224, #225), stages 5 to 7: the motion actions
+`pointer_x` / `pointer_y` and `MOUSE_SPEED` (stage 5), presets such as "turn pages", "switch tabs", "volume" and "change
+track" (stage 6), the `macro:` function with a recording dialog, own functions in profiles (`New function...`), raised
+size limits and `TWIST_GUARD` (stage 7). Also pending: parser hardening (issue #272) and the rest of the UI robustness
+findings (issue #275). Today the size limits are the old ones.
