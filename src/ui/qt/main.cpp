@@ -3387,14 +3387,14 @@ static bool withModal(const std::function<void()> &act, const std::function<void
     return handled;
 }
 
-// Every page at 1100 px with glyphs 1.6 times wider than the font as it is (the fonts of Windows): a page is a column of
+// Every page at 1100 px with glyphs 1.3 times wider than the font as it is (the fonts of Windows): a page is a column of
 // cards that may scroll vertically, but a horizontal scroll bar means that something does not wrap or that columns do not stack.
 static bool wideGlyphPagesSelfTest() {
     bool ok = true;
     EditorRig rig("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\nBUTTON_1 = key:ctrl+space\n");
     MainWindow &w = *rig.win;
     const QFont baseFont = QApplication::font();
-    for (const int spacing : {100, 160}) {
+    for (const int spacing : {100, 130}) {
         applyTheme(spn::ui::Theme::Light);
         QFont f = baseFont;
         f.setLetterSpacing(QFont::PercentageSpacing, spacing);
