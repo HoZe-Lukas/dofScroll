@@ -5,6 +5,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QLabel>
 #include <algorithm>
 #include <functional>
@@ -72,8 +73,13 @@ inline QString modifierLabel(const std::string &mod) {
 inline QWidget *chordPicker(QWidget *parent, QObject *owner, std::string *chord, const QString &accessible,
                      const std::function<void()> &changed) {
     auto *w = new QWidget(parent);
-    auto *h = new QHBoxLayout(w);
-    h->setContentsMargins(0, 0, 0, 0);
+    // The modifier boxes in one row, the key picker and its hint under them: one row of all of it needs 550 px in a wide font and
+    // does not fit the narrow inspector of the Motions and buttons tab (found by the layout audit).
+    auto *col = new QVBoxLayout(w);
+    col->setContentsMargins(0, 0, 0, 0);
+    auto *h = new QHBoxLayout;
+    col->addLayout(h);
+    h->addStretch(0);
     std::vector<std::string> mods;
     std::string key;
     splitChord(*chord, &mods, &key);
@@ -88,13 +94,18 @@ inline QWidget *chordPicker(QWidget *parent, QObject *owner, std::string *chord,
     }
     auto *kc = makeKeyTreePicker(QString::fromStdString(key), w);
     kc->setAccessibleName(accessible);
-    h->addWidget(kc, 1);
+    h->addStretch(1);
+    auto *keyRow = new QHBoxLayout;
+    col->addLayout(keyRow);
+    kc->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);  // a long key name must not widen the row
+    kc->setMinimumWidth(120);
+    keyRow->addWidget(kc, 1);
     // a modifier is ticked and no key chosen yet: nothing is written until there is one, and the line says so
     auto *hint = new QLabel(T("Choose a key"), w);
     hint->setObjectName(QStringLiteral("chordHint"));
     hint->setTextFormat(Qt::PlainText);
     hint->setVisible(false);
-    h->addWidget(hint);
+    keyRow->addWidget(hint);
     auto showHint = [w, kc, hint] {
         bool any = false;
         for (QCheckBox *cb : w->findChildren<QCheckBox *>()) any = any || cb->isChecked();

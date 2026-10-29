@@ -1073,7 +1073,7 @@ void MotionEditor::buildButtonInspector(QVBoxLayout *col, int n) {
     scope->setWordWrap(true);
     col->addWidget(scope);
     auto *grid = new QGridLayout;
-    grid->setColumnStretch(2, 1);
+    grid->setColumnStretch(1, 1);
     col->addLayout(grid);
     if (env_.addButtonRow) env_.addButtonRow(inspectorBox_, grid, 0, n);
     if (env_.takeOverButton) {

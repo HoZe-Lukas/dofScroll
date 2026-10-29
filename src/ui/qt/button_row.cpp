@@ -26,7 +26,7 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
                   const ButtonRowEnv &env, const ButtonRowHandlers &handlers) {
     auto *numberLabel = new QLabel(T("Button") + QStringLiteral(" %1").arg(row.number), parent);
     if (env.deviceButtons > 0) numberLabel->setToolTip(T("This device has %1 buttons").arg(env.deviceButtons));
-    grid->addWidget(numberLabel, r, 0);
+    grid->addWidget(numberLabel, r, 0, Qt::AlignTop);
     if (row.beyondLimit || !row.valid) {
         auto *bad = new QLabel(qs8(row.text) + QStringLiteral("  ") +
                                    (row.beyondLimit ? T("(above this device's button count)") : T("(not a valid action)")),
@@ -43,6 +43,11 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
 
     auto *kind = new QComboBox(parent);
     kind->setAccessibleName(T("Action of button") + QStringLiteral(" %1").arg(row.number));
+    // long entries (button mode names) are elided, they never widen the inspector
+    kind->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    kind->setMinimumContentsLength(12);
+    kind->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+    kind->setMinimumWidth(120);
     ButtonChoice::Group lastGroup = ButtonChoice::Group::None;
     for (size_t i = 0; i < choices.size(); ++i) {
         const ButtonChoice &c = choices[i];
@@ -86,6 +91,10 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
     } else if (bk == BindingKind::Mode || bk == BindingKind::ToggleMode || bk == BindingKind::HoldMode) {
         auto *mc = new QComboBox(parent);
         mc->setAccessibleName(T("Joystick mode of button") + QStringLiteral(" %1").arg(row.number));
+        mc->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+        mc->setMinimumContentsLength(12);
+        mc->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        mc->setMinimumWidth(120);
         std::vector<std::string> ids = env.modeIds;
         if (std::find(ids.begin(), ids.end(), row.binding.arg) == ids.end()) ids.push_back(row.binding.arg);
         for (const std::string &id : ids) {
@@ -99,7 +108,9 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
         });
         arg = mc;
     }
-    if (arg) grid->addWidget(arg, r, 2);
+    // The key picker (four modifier boxes and the key) and the origin go under the drop-down in the same cell: in the narrow
+    // inspector a row of five columns needs more than 1200 px and a horizontal scroll bar (found by the layout audit).
+    if (arg) cellLayout->addWidget(arg);
 
     QObject::connect(kind, &QComboBox::activated, owner, [handlers, kind, choices](int idx) {
         const QVariant data = kind->itemData(idx);
@@ -115,7 +126,7 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
         QObject::connect(reset, &QToolButton::clicked, owner, [handlers] {
             if (handlers.reset) handlers.reset();
         });
-        grid->addWidget(reset, r, 3);
+        grid->addWidget(reset, r, 2, Qt::AlignTop);
     }
     // Where the action comes from: "Inherited from Global: key:space", "Set in this profile", or in [global]
     // the profiles that override it. Written out, never only a colour.
@@ -124,10 +135,8 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
         origin->setTextFormat(Qt::PlainText);  // names profiles and joystick modes
         origin->setForegroundRole(QPalette::PlaceholderText);
         origin->setWordWrap(true);
-        origin->setMinimumWidth(180);
-        origin->setMaximumWidth(320);
         origin->setAccessibleName(T("Origin of button") + QStringLiteral(" %1").arg(row.number));
         if (!row.originTip.empty()) spn::ui::qt::setPlainToolTip(origin, qs8(row.originTip));
-        grid->addWidget(origin, r, 4);
+        cellLayout->addWidget(origin);
     }
 }
