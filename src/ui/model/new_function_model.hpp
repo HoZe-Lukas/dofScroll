@@ -35,6 +35,9 @@ namespace spn::ui {
 
 enum class FunctionKind { Key, Click, HoldKey, Wheel, Pointer, Macro };
 
+// The drop-down entry "New function..." of a motion or button row: not a choice of its own, it opens the dialog.
+constexpr int kChoiceNewFunction = 900;
+
 // Where the new function goes: one of the six motions ("v_push" ... "lift") or a device button (1-based).
 struct FunctionTarget {
     std::string motionId;  // empty for a button

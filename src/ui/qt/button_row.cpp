@@ -16,6 +16,7 @@
 #include "key_combo.hpp"
 #include "motion_view.hpp"
 #include "ui/model/button_chip_model.hpp"
+#include "ui/model/new_function_model.hpp"
 #include "ui_i18n.hpp"
 #include "plain_text.hpp"
 
@@ -65,6 +66,9 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
         if (int(i) == selected) kind->setCurrentIndex(kind->count() - 1);
     }
     if (selected < 0) kind->setCurrentIndex(-1);
+    // the last entry opens the dialog that composes a function (a key, a combination, a click, a macro); not a choice itself
+    const int shownIndex = kind->currentIndex();
+    if (handlers.newFunction) kind->addItem(T("New function..."), spn::ui::kChoiceNewFunction);
     // The drop-down with the shared button chip under it ("1 Space", muted "N Unassigned"): the same chip as on
     // the other pages. Under the drop-down, so the row does not get wider and the chip wraps with the font size.
     // The page rebuilds after every change, so the chip always shows the effective action.
@@ -114,9 +118,14 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
     // inspector a row of five columns needs more than 1200 px and a horizontal scroll bar (found by the layout audit).
     if (arg) cellLayout->addWidget(arg);
 
-    QObject::connect(kind, &QComboBox::activated, owner, [handlers, kind, choices](int idx) {
+    QObject::connect(kind, &QComboBox::activated, owner, [handlers, kind, choices, shownIndex](int idx) {
         const QVariant data = kind->itemData(idx);
         if (!data.isValid()) return;  // a group header
+        if (data.toInt() == spn::ui::kChoiceNewFunction && idx == kind->count() - 1 && handlers.newFunction) {
+            kind->setCurrentIndex(shownIndex);
+            handlers.newFunction();
+            return;
+        }
         const size_t ci = size_t(data.toInt());
         if (ci < choices.size() && handlers.choose) handlers.choose(choices[ci]);
     });

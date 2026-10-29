@@ -21,6 +21,7 @@
 #include <QLocale>
 #include <QLockFile>
 #include <QStandardPaths>
+#include <QStandardItemModel>
 #include <QProxyStyle>
 #include <QStyle>
 #include <QSystemTrayIcon>
@@ -80,6 +81,10 @@
 #include "pages/cycle_editor_widget.hpp"
 #include "pages/editor_page.hpp"
 #include "pages/motion_editor.hpp"
+#include "chord_field.hpp"
+#include "macro_editor.hpp"
+#include "pages/new_function_dialog.hpp"
+#include "pages/own_functions_widget.hpp"
 #include "key_capture.hpp"
 #include "key_combo.hpp"
 #include "key_tree_picker.hpp"
@@ -3531,6 +3536,578 @@ static bool buttonInspectorSelfTest() {
     return ok;
 }
 
+// ---- New function dialog, macro editor, own functions (stage 7a/7b of docs/plan-motion-functions.md) ----
+
+static void sendKeyTo(QWidget *w, int key, Qt::KeyboardModifiers mods = Qt::NoModifier) {
+    QKeyEvent press(QEvent::KeyPress, key, mods);
+    QApplication::sendEvent(w, &press);
+    QKeyEvent release(QEvent::KeyRelease, key, mods);
+    QApplication::sendEvent(w, &release);
+}
+
+// Every control of a dialog has a name for a screen reader; every drop-down, field, list and key picker also says what it is for (its
+// description: a combo box reports its current text as its name) and has a visible label with it as the buddy. Returns the first
+// problem ("" = none).
+static QString dialogControlProblem(QWidget *root) {
+    const QList<QLabel *> labels = root->findChildren<QLabel *>();
+    auto hasBuddy = [&](QWidget *w) {
+        for (QLabel *l : labels)
+            if (l->buddy() == w) return true;
+        return false;
+    };
+    for (QWidget *c : root->findChildren<QWidget *>()) {
+        if (!c->isVisibleTo(root)) continue;
+        if (c->objectName() == QStringLiteral("qt_scrollarea_viewport") || qobject_cast<QScrollBar *>(c) || qobject_cast<QTabBar *>(c)) continue;
+        if (qobject_cast<QLineEdit *>(c) && (qobject_cast<QAbstractSpinBox *>(c->parentWidget()) || qobject_cast<QComboBox *>(c->parentWidget()))) continue;
+        if (qobject_cast<QAbstractScrollArea *>(c) && !qobject_cast<QListWidget *>(c)) continue;
+        const bool field = qobject_cast<QComboBox *>(c) || qobject_cast<QLineEdit *>(c) || qobject_cast<QAbstractSpinBox *>(c) ||
+                           qobject_cast<QListWidget *>(c) || qobject_cast<KeyTreePicker *>(c);
+        const bool control = field || qobject_cast<QAbstractButton *>(c);
+        if (!control) continue;
+        QAccessibleInterface *iface = QAccessible::queryAccessibleInterface(c);
+        const QString what = QString::fromLatin1(c->metaObject()->className()) + QStringLiteral(" \"") + c->objectName() + QStringLiteral("\"");
+        if (!iface || iface->text(QAccessible::Name).isEmpty()) return what + QStringLiteral(" has no accessible name");
+        if (field && c->accessibleDescription().isEmpty()) return what + QStringLiteral(" has no accessible description");
+        if (field && !hasBuddy(c)) return what + QStringLiteral(" has no visible label with it as the buddy");
+        if (c->minimumHeight() > 0 && c->minimumHeight() < 24 && qobject_cast<QAbstractButton *>(c)) return what + QStringLiteral(" is smaller than 24 px");
+    }
+    return QString();
+}
+
+// The Tab order of a dialog follows the screen: the controls reached one after the other are never above the one before.
+static QString dialogTabOrderProblem(QDialog *dlg, QWidget *first) {
+    int lastY = -1;
+    QWidget *w = first;
+    for (int i = 0; i < 400; ++i) {
+        w = w->nextInFocusChain();
+        if (!w || w == first) break;
+        if (!w->isVisibleTo(dlg) || !w->isEnabled() || !(w->focusPolicy() & Qt::TabFocus)) continue;
+        if (qobject_cast<QLineEdit *>(w) && qobject_cast<QAbstractSpinBox *>(w->parentWidget())) continue;
+        if (!dlg->isAncestorOf(w)) continue;
+        const int y = w->mapTo(dlg, QPoint(0, 0)).y();
+        QWidget *scrolled = w;
+        while (scrolled && !qobject_cast<QScrollArea *>(scrolled)) scrolled = scrolled->parentWidget();
+        // the scroll offset is not part of the order: positions inside the scroll area are taken in its content
+        const int yy = scrolled ? w->mapTo(qobject_cast<QScrollArea *>(scrolled)->widget(), QPoint(0, 0)).y() : y + 100000;
+        if (yy + 3 < lastY && scrolled) return QString::fromLatin1(w->metaObject()->className()) + QStringLiteral(" \"") + w->objectName() + QStringLiteral("\" comes after a control further down");
+        if (scrolled) lastY = yy;
+    }
+    return QString();
+}
+
+static bool newFunctionSelfTest() {
+    using spn::Section;
+    using spn::ui::FunctionKind;
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "new function self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    EditorRig rig("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\n");
+    MainWindow &w = *rig.win;
+    w.showPage(QStringLiteral("profiles"));
+    settle();
+    ProfilesPage *page = w.profilesPage();
+    check(page != nullptr, "the window has a Profiles page");
+    if (!page) return false;
+    ProfileMotionsView *mv = page->motionsView();
+    check(page->selectSection(2) && page->selectTab(QStringLiteral("motions")) && mv != nullptr, "program profile firefox, Motions and buttons tab");
+    if (!mv) return false;
+    auto itemText = [&](const char *id) {
+        for (const MotionPicture::Item &it : mv->picture()->items())
+            if (it.id == QLatin1String(id)) return it.text;
+        return QString();
+    };
+    auto stored = [&](const char *key) { return diskKey(rig, Section::APP, "firefox", key); };
+    auto storedAny = [&](const char *a, const char *b) {
+        const std::optional<std::string> x = stored(a);
+        return x ? x : stored(b);
+    };
+
+    // ---- the entry of the motion's list opens the dialog; the list keeps showing what the motion does now ----
+    check(mv->select(QStringLiteral("m:h_tilt")), "select the horizontal tilt");
+    settle();
+    QComboBox *kact = mv->inspector()->findChild<QComboBox *>(QStringLiteral("motionAction"));
+    check(kact && kact->count() > 1 && kact->itemData(kact->count() - 1).toInt() == spn::ui::kChoiceNewFunction &&
+              kact->itemText(kact->count() - 1) == QStringLiteral("New function..."),
+          "the list of a motion ends with New function...");
+    if (!kact) return false;
+    const int shownBefore = kact->currentIndex();
+    kact->setCurrentIndex(kact->count() - 1);
+    Q_EMIT kact->activated(kact->count() - 1);
+    settle();
+    check(kact->currentIndex() == shownBefore, "choosing New function... does not change what the list shows");
+    auto *dlg = mv->findChild<NewFunctionDialog *>();
+    check(dlg != nullptr && dlg->isVisible(), "New function... opens the dialog");
+    if (!dlg) return false;
+    check(dlg->windowTitle().contains(QStringLiteral("Horizontal tilt")), "the title names the motion");
+    check(dlg->findChild<QPushButton *>(QStringLiteral("newFunctionClose")) && !buttonTexted(dlg, QStringLiteral("Save")) && !buttonTexted(dlg, QStringLiteral("OK")) && !buttonTexted(dlg, QStringLiteral("Cancel")),
+          "no Save, OK or Cancel button: there is only Close");
+    auto byName = [&](const char *name) { return dlg->findChild<QWidget *>(QLatin1String(name)); };
+    auto *kindBox = dlg->findChild<QComboBox *>(QStringLiteral("newFunctionKind"));
+    auto *neg = dlg->findChild<ChordField *>(QStringLiteral("newFunctionKeyNeg"));
+    auto *pos = dlg->findChild<ChordField *>(QStringLiteral("newFunctionKeyPos"));
+    auto *an = dlg->findChild<QCheckBox *>(QStringLiteral("newFunctionAnalog"));
+    check(kindBox && neg && pos && an, "the dialog has the kind list, both key fields and the Analog box");
+    if (!kindBox || !neg || !pos || !an) return false;
+    check(kindBox->count() == 6 && kindBox->itemText(0) == QStringLiteral("Key or key combination"), "six kinds, the key function first");
+    check(dlg->draft().kind == FunctionKind::Key && dlg->writes() == 0, "opening the dialog writes nothing");
+    check(rig.waitSaved() && !stored("H_TILT_ACTION"), "nothing is stored before the first edit");
+
+    // ---- key or combination: modifier check boxes plus the key list; never free text ----
+    check(dlg->findChildren<QLineEdit *>().size() <= 3, "the only text fields are the rate and trigger fields");
+    for (QLineEdit *le : dlg->findChildren<QLineEdit *>()) {
+        const QString n = le->objectName();
+        check(n == QStringLiteral("newFunctionRateMin") || n == QStringLiteral("newFunctionRateMax") || n == QStringLiteral("newFunctionTrigger") || n.isEmpty(), "no free text field for a key");
+    }
+    neg->setModifier(QStringLiteral("ctrl"), true);
+    settle();
+    check(dlg->writes() == 0 && !stored("H_TILT_ACTION"), "a modifier without a key writes nothing");
+    check(neg->findChild<QLabel *>(QStringLiteral("chordHint")) && !neg->findChild<QLabel *>(QStringLiteral("chordHint"))->isHidden(), "and says: choose a key");
+    neg->chooseKey(QStringLiteral("pageup"));
+    pos->setModifier(QStringLiteral("ctrl"), true);
+    pos->chooseKey(QStringLiteral("pagedown"));
+    settle();
+    check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("step:ctrl+pageup,ctrl+pagedown"), "ctrl+pageup / ctrl+pagedown is assigned as soon as the keys are chosen (digital)");
+    check(dlg->previewText() == QStringLiteral("step:ctrl+pageup,ctrl+pagedown") && dlg->assigned(), "the preview shows the action text");
+    check(itemText("m:h_tilt").contains(QStringLiteral("Ctrl")), "the picture shows the new function behind the dialog");
+    QLabel *status = dlg->findChild<QLabel *>(QStringLiteral("newFunctionStatus"));
+    check(status && status->text().contains(QStringLiteral("Assigned")) && status->text().contains(QStringLiteral("this profile")), "the state is said in words: assigned, and where it applies");
+    // "Press a key..." takes the modifiers too
+    {
+        auto *cap = neg->captureButton();
+        check(cap && !cap->accessibleName().isEmpty(), "the Press a key... button has a name");
+        if (cap) {
+            cap->click();
+            QKeyEvent k(QEvent::KeyPress, Qt::Key_PageDown, Qt::ControlModifier | Qt::ShiftModifier);
+            cap->press(&k);
+            settle();
+            check(neg->value() == "ctrl+shift+pagedown", "the capture button takes the key with its modifiers");
+        }
+        neg->setValue("ctrl+pageup");
+        neg->chooseKey(QStringLiteral("pageup"));
+        settle();
+    }
+
+    // ---- analog or digital: the check box only switches the prefix; rate and trigger fields ----
+    check(an->isEnabled() && !an->isChecked(), "a navigation chord may be analog; the box is off for a digital function");
+    an->click();
+    settle();
+    auto *rateMin = dlg->findChild<QLineEdit *>(QStringLiteral("newFunctionRateMin"));
+    auto *rateMax = dlg->findChild<QLineEdit *>(QStringLiteral("newFunctionRateMax"));
+    auto *trig = dlg->findChild<QLineEdit *>(QStringLiteral("newFunctionTrigger"));
+    check(rateMin && rateMax && trig && rateMin->isVisibleTo(dlg) && rateMax->isVisibleTo(dlg) && trig->isVisibleTo(dlg), "an analog function shows the rates and the trigger");
+    check(rateMin && rateMax && rateMin->text() == QStringLiteral("3") && rateMax->text() == QStringLiteral("25"), "a new analog function starts with 3 and 25 presses a second");
+    check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("keys:ctrl+pageup,ctrl+pagedown"), "analog is stored as keys:");
+    if (rateMax) {
+        typeInto(rateMax, QStringLiteral("abc"));
+        settle();
+        QLabel *note = nullptr;
+        for (QLabel *l : dlg->findChildren<QLabel *>(QStringLiteral("newFunctionFieldNote")))
+            if (!l->isHidden()) note = l;
+        check(note && note->text().contains(QStringLiteral("Invalid value")) && !dlg->assigned(), "an invalid rate is explained next to its field and not assigned");
+        check(rig.waitSaved() && storedAny("SCROLL_H_PUSH_KEY_RATE_MAX", "SCROLL_H_TILT_KEY_RATE_MAX") == std::optional<std::string>("25"), "the invalid value was not written");
+        typeInto(rateMax, QStringLiteral("8"));
+        settle();
+        check(dlg->assigned() && rig.waitSaved() && storedAny("SCROLL_H_PUSH_KEY_RATE_MAX", "SCROLL_H_TILT_KEY_RATE_MAX") == std::optional<std::string>("8"), "a valid rate is assigned and stored as the key of the motion");
+        typeInto(rateMin, QStringLiteral("20"));
+        settle();
+        check(!dlg->assigned(), "the lowest rate above the highest is refused");
+        typeInto(rateMin, QStringLiteral("3"));
+        settle();
+    }
+    // a letter can only be used digitally: the box is greyed with the reason
+    an->click();
+    settle();
+    neg->chooseKey(QStringLiteral("a"));
+    neg->setValue("a");
+    neg->chooseKey(QStringLiteral("a"));
+    settle();
+    QLabel *why = dlg->findChild<QLabel *>(QStringLiteral("newFunctionAnalogReason"));
+    check(!an->isEnabled() && why && !why->isHidden() && why->text().contains(QStringLiteral("digitally")), "a letter: the Analog box is greyed and the reason is written next to it");
+    neg->setValue("ctrl+pageup");
+    neg->chooseKey(QStringLiteral("pageup"));
+    settle();
+
+    // ---- the other kinds ----
+    auto chooseKind = [&](FunctionKind k) {
+        for (int i = 0; i < kindBox->count(); ++i)
+            if (FunctionKind(kindBox->itemData(i).toInt()) == k) {
+                kindBox->setCurrentIndex(i);
+                Q_EMIT kindBox->activated(i);
+            }
+        settle();
+    };
+    chooseKind(FunctionKind::Click);
+    check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("step:none,click"), "a mouse click: left click in the positive direction");
+    check(!an->isEnabled() && why && why->text().contains(QStringLiteral("mouse click")), "a mouse click: the Analog box is greyed with its reason");
+    if (auto *cp = dlg->findChild<QComboBox *>(QStringLiteral("newFunctionClickPos"))) {
+        const int i = cp->findData(QStringLiteral("rightclick"));
+        cp->setCurrentIndex(i);
+        Q_EMIT cp->activated(i);
+        settle();
+        check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("step:none,rightclick"), "a right click is stored");
+    } else {
+        check(false, "the click page has a drop-down per direction");
+    }
+    chooseKind(FunctionKind::HoldKey);
+    check(rig.waitSaved() && stored("H_TILT_ACTION").value_or("").compare(0, 5, "hold:") == 0, "hold a key: stored as hold:");
+    check(!an->isEnabled() && why && why->text().contains(QStringLiteral("Holding")), "hold: the Analog box is greyed with its reason");
+    chooseKind(FunctionKind::Wheel);
+    if (auto *wc = dlg->findChild<QComboBox *>(QStringLiteral("newFunctionWheel"))) {
+        const int i = wc->findData(QStringLiteral("zoom"));
+        wc->setCurrentIndex(i);
+        Q_EMIT wc->activated(i);
+        settle();
+        check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("zoom"), "scroll or zoom: zoom is stored");
+        check(!dlg->findChild<QLineEdit *>(QStringLiteral("newFunctionTrigger"))->isVisibleTo(dlg), "scroll and zoom have no trigger field");
+    } else {
+        check(false, "the scroll page has a drop-down");
+    }
+    {   // the kinds that need more than this version has are greyed with the reason
+        auto *model = qobject_cast<QStandardItemModel *>(kindBox->model());
+        for (int i = 0; model && i < kindBox->count(); ++i) {
+            const FunctionKind k = FunctionKind(kindBox->itemData(i).toInt());
+            if ((k == FunctionKind::Macro || k == FunctionKind::Pointer) && model->item(i) && !model->item(i)->isEnabled())
+                check(!model->item(i)->toolTip().isEmpty() && dlg->findChild<QLabel *>(QStringLiteral("newFunctionKindNotes")) &&
+                          dlg->findChild<QLabel *>(QStringLiteral("newFunctionKindNotes"))->text().contains(model->item(i)->toolTip()),
+                      "a kind this version cannot do is greyed and the reason is written in the dialog");
+        }
+    }
+    chooseKind(FunctionKind::Key);
+
+    // ---- accessibility: names, descriptions, buddies, the Tab order, the keyboard alone ----
+    {
+        const QString p = dialogControlProblem(dlg);
+        if (!p.isEmpty()) std::fprintf(stderr, "  %s\n", qPrintable(p));
+        check(p.isEmpty(), "every control of the dialog has a name; fields have a purpose and a label");
+        const QString t = dialogTabOrderProblem(dlg, kindBox);
+        if (!t.isEmpty()) std::fprintf(stderr, "  %s\n", qPrintable(t));
+        check(t.isEmpty(), "the Tab order follows the screen");
+        bool wrapped = true;
+        for (QLabel *l : dlg->findChildren<QLabel *>())
+            if (!l->isHidden() && !l->wordWrap() && !l->text().isEmpty()) {
+                wrapped = false;
+                std::fprintf(stderr, "  does not wrap: \"%s\"\n", qPrintable(l->text().left(50)));
+            }
+        check(wrapped, "every text of the dialog wraps");
+        // the keyboard alone: the kind list with Home / Down, the Analog box with Space
+        kindBox->setFocus();
+        sendKeyTo(kindBox, Qt::Key_Home);
+        sendKeyTo(kindBox, Qt::Key_Down);
+        settle();
+        check(dlg->draft().kind == FunctionKind::Click, "the kind list works with the keyboard alone");
+        chooseKind(FunctionKind::Key);
+        QCheckBox *an2 = dlg->findChild<QCheckBox *>(QStringLiteral("newFunctionAnalog"));
+        an2->setFocus();
+        sendKeyTo(an2, Qt::Key_Space);
+        settle();
+        check(dlg->draft().analog, "the Analog box works with the Space key");
+        sendKeyTo(an2, Qt::Key_Space);
+        settle();
+        check(!dlg->draft().analog, "and switches back");
+        // a modifier box of the key field with Space, the key list opens with Enter / Space
+        QCheckBox *shiftBox = neg->findChild<QCheckBox *>(QStringLiteral("chordMod_shift"));
+        shiftBox->setFocus();
+        sendKeyTo(shiftBox, Qt::Key_Space);
+        settle();
+        check(neg->value() == "shift+pageup", "a modifier box works with the Space key");
+        sendKeyTo(shiftBox, Qt::Key_Space);
+        settle();
+        auto *picker = qobject_cast<KeyTreePicker *>(neg->keyPicker());
+        picker->setFocus();
+        sendKeyTo(picker, Qt::Key_Space);
+        check(picker->popupOpen(), "the key list opens with the Space key");
+        picker->closePopup();
+    }
+
+    // ---- wide fonts: the dialog needs no horizontal scroll bar and its content fits the width ----
+    {
+        const QFont baseFont = QApplication::font();
+        const struct { double scale; int spacing; } cases[] = {{1.0, 100}, {1.5, 100}, {2.0, 100}, {1.0, 160}, {1.5, 160}, {1.0, 250}, {1.0, 400}};
+        for (const auto &fc : cases) {
+            QApplication::setFont(baseFont);
+            applyTheme(spn::ui::Theme::Light);
+            QFont f = QApplication::font();
+            f.setPointSizeF(f.pointSizeF() * fc.scale);
+            f.setLetterSpacing(QFont::PercentageSpacing, fc.spacing);
+            QApplication::setFont(f);
+            dlg->resize(std::min(int(fc.scale * 520), 1900), 700);
+            settle();
+            for (FunctionKind k : {FunctionKind::Key, FunctionKind::HoldKey, FunctionKind::Click, FunctionKind::Wheel, FunctionKind::Macro}) {
+                if (k == FunctionKind::Macro) {
+                    bool enabled = false;
+                    for (int i = 0; i < kindBox->count(); ++i)
+                        if (FunctionKind(kindBox->itemData(i).toInt()) == k) enabled = kindBox->model()->index(i, 0).flags() & Qt::ItemIsEnabled;
+                    if (!enabled) continue;
+                }
+                dlg->chooseKind(k);
+                settle();
+                auto *scroll = dlg->findChild<QScrollArea *>(QStringLiteral("newFunctionScroll"));
+                const int need = scroll->widget()->minimumSizeHint().width();
+                const int have = scroll->viewport()->width();
+                if (need > have) {
+                    std::fprintf(stderr, "  x%g/%d kind %d: the content needs %d px, the dialog has %d\n", fc.scale, fc.spacing, int(k), need, have);
+                    for (QWidget *c : scroll->widget()->findChildren<QWidget *>())
+                        if (c->isVisibleTo(scroll->widget()) && c->minimumSizeHint().width() > have - 20)
+                            std::fprintf(stderr, "    %s \"%s\" min %d\n", c->metaObject()->className(), qPrintable(c->objectName()), c->minimumSizeHint().width());
+                }
+                check(need <= have, "wide glyphs: the dialog needs no horizontal scroll bar");
+            }
+        }
+        QApplication::setFont(baseFont);
+        applyTheme(spn::ui::Theme::System);
+        dlg->chooseKind(FunctionKind::Key);
+    }
+
+    // ---- close; the inspector shows the new function; the list of own functions has it ----
+    dlg->findChild<QPushButton *>(QStringLiteral("newFunctionClose"))->click();
+    settle();
+    check(mv->findChild<NewFunctionDialog *>() == nullptr, "Close closes the dialog");
+    check(rig.waitSaved(), "everything is saved");
+    OwnFunctionsWidget *own = mv->ownFunctions();
+    check(own && own->count() == 1, "the function is listed among the own functions of the profile");
+    if (!own) return false;
+
+    // ---- a button: New function... in the list of the button ----
+    check(mv->select(QStringLiteral("b:3")), "select button 3");
+    settle();
+    QComboBox *bkind = nullptr;
+    for (QComboBox *c : mv->inspector()->findChildren<QComboBox *>())
+        if (c->accessibleName().startsWith(QStringLiteral("Action of button"))) bkind = c;
+    check(bkind && bkind->itemData(bkind->count() - 1).toInt() == spn::ui::kChoiceNewFunction, "the list of a button ends with New function...");
+    if (bkind) {
+        Q_EMIT bkind->activated(bkind->count() - 1);
+        settle();
+        auto *bd = mv->findChild<NewFunctionDialog *>();
+        check(bd != nullptr, "New function... opens the dialog for the button");
+        if (bd) {
+            auto *k = bd->findChild<ChordField *>(QStringLiteral("newFunctionKeyNeg"));
+            check(k && !bd->findChild<ChordField *>(QStringLiteral("newFunctionKeyPos")), "a button has one key field");
+            if (k) {
+                k->setModifier(QStringLiteral("ctrl"), true);
+                k->chooseKey(QStringLiteral("0"));
+                settle();
+            }
+            check(rig.waitSaved() && stored("BUTTON_3") == std::optional<std::string>("key:ctrl+0"), "ctrl+0 is stored as the binding of button 3");
+            auto *ba = bd->findChild<QCheckBox *>(QStringLiteral("newFunctionAnalog"));
+            QLabel *br = bd->findChild<QLabel *>(QStringLiteral("newFunctionAnalogReason"));
+            check(ba && !ba->isEnabled() && br && br->text().contains(QStringLiteral("always digital")), "a button: the Analog box is greyed (always digital)");
+            const QString p = dialogControlProblem(bd);
+            if (!p.isEmpty()) std::fprintf(stderr, "  %s\n", qPrintable(p));
+            check(p.isEmpty(), "the dialog of a button names every control");
+            // hold, scroll and pointer are greyed for a button with the reason
+            auto *bkinds = bd->findChild<QComboBox *>(QStringLiteral("newFunctionKind"));
+            auto *bmodel = bkinds ? qobject_cast<QStandardItemModel *>(bkinds->model()) : nullptr;
+            bool greyed = bmodel != nullptr;
+            for (int i = 0; bmodel && i < bkinds->count(); ++i) {
+                const FunctionKind kk = FunctionKind(bkinds->itemData(i).toInt());
+                if (kk == FunctionKind::HoldKey || kk == FunctionKind::Wheel || kk == FunctionKind::Pointer) greyed = greyed && !bmodel->item(i)->isEnabled() && !bmodel->item(i)->toolTip().isEmpty();
+            }
+            check(greyed, "for a button, hold, scroll and pointer are greyed with the reason");
+            bd->findChild<QPushButton *>(QStringLiteral("newFunctionClose"))->click();
+            settle();
+        }
+    }
+    check(own->count() == 2, "the button's function is listed too");
+
+    // ---- own functions: used by, edit, delete (back to inherited, said in words), save as mode ----
+    own->selectRow(0);
+    own->saveSelectedAsJoystickMode(QStringLiteral("Tab switching"));
+    settle();
+    check(QFileInfo::exists(rig.dir.path() + QStringLiteral("/modes/tab-switching.conf")), "Save as joystick mode writes modes/<id>.conf");
+    {
+        QFile f(rig.dir.path() + QStringLiteral("/modes/tab-switching.conf"));
+        const QByteArray text = f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+        check(text.contains("H_TILT_ACTION = step:ctrl+pageup,ctrl+pagedown") || text.contains("H_TILT_ACTION = keys:ctrl+pageup,ctrl+pagedown"), "the joystick mode file holds a copy of the function");
+        check(stored("H_TILT_ACTION").has_value(), "the profile keeps its own function");
+    }
+    own->selectRow(1);
+    own->saveSelectedAsButtonMode(QStringLiteral("Select none"));
+    settle();
+    check(QFileInfo::exists(rig.dir.path() + QStringLiteral("/buttons/select-none.conf")), "Save as button mode writes buttons/<id>.conf");
+    own->selectRow(1);
+    own->deleteSelected(true);
+    settle();
+    check(rig.waitSaved() && !stored("BUTTON_3"), "Delete removes the function: the button inherits again");
+    QLabel *res = own->findChild<QLabel *>(QStringLiteral("ownFunctionsResult"));
+    check(res && !res->isHidden() && res->text().contains(QStringLiteral("inherit again")) && res->text().contains(QStringLiteral("Button 3")), "and says in words who inherits again");
+    check(own->count() == 1, "the deleted function is gone from the list");
+    own->selectRow(0);
+    own->editSelected();
+    settle();
+    check(mv->findChild<NewFunctionDialog *>() != nullptr && mv->selectedId() == QStringLiteral("m:h_tilt"), "Edit shows the motion and opens its dialog");
+    if (auto *ed = mv->findChild<NewFunctionDialog *>()) {
+        check(ed->draft().kind == FunctionKind::Key && ed->draft().neg == "ctrl+pageup", "the dialog of an existing function shows it");
+        ed->accept();
+        settle();
+    }
+    check(dialogControlProblem(own).isEmpty(), "the own functions list names its controls");
+    own->selectRow(0);
+    own->deleteSelected(true);
+    settle();
+    check(rig.waitSaved() && !stored("H_TILT_ACTION"), "deleting the last function leaves the motion inheriting");
+    return ok;
+}
+
+// The macro editor: recording only while the recording area has the focus, steps editable afterwards (docs/plan-motion-functions.md).
+static bool macroEditorSelfTest() {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "macro editor self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    QWidget host;
+    auto *l = new QVBoxLayout(&host);
+    auto *ed = new MacroEditor(QStringLiteral("Macro of the button"), &host);
+    l->addWidget(ed);
+    host.resize(520, 900);
+    host.show();
+    host.activateWindow();
+    settle();
+    QPushButton *rec = ed->findChild<QPushButton *>(QStringLiteral("macroRecord"));
+    QPushButton *stop = ed->findChild<QPushButton *>(QStringLiteral("macroRecordStop"));
+    QCheckBox *times = ed->findChild<QCheckBox *>(QStringLiteral("macroRecordTimes"));
+    check(rec && stop && times, "Record, Record stop and the check box for the times are there");
+    if (!rec || !stop || !times) return false;
+    check(rec->isEnabled() && !stop->isEnabled() && times->isChecked(), "Record is ready, Record stop is greyed, the times are recorded by default");
+    check(times->accessibleName() == QStringLiteral("Also record the times between the keys"), "the check box has the full sentence as its name");
+    MacroRecordPad *pad = ed->pad();
+    check(pad->focusPolicy() == Qt::NoFocus, "outside a recording the area takes no focus");
+    // keys sent while not recording are not kept
+    sendKeyTo(pad, Qt::Key_A);
+    check(ed->steps().empty(), "nothing is recorded outside a recording");
+    // with the times
+    rec->click();
+    settle();
+    check(ed->recording() && stop->isEnabled() && !rec->isEnabled(), "Record starts the recording");
+    check(pad->focusPolicy() != Qt::NoFocus, "the recording area takes the focus while recording");
+    QKeyEvent ctrlDown(QEvent::KeyPress, Qt::Key_Control, Qt::ControlModifier);
+    QApplication::sendEvent(pad, &ctrlDown);
+    QThread::msleep(15);
+    QKeyEvent cDown(QEvent::KeyPress, Qt::Key_C, Qt::ControlModifier, QStringLiteral("c"));
+    QApplication::sendEvent(pad, &cDown);
+    QKeyEvent cRepeat(QEvent::KeyPress, Qt::Key_C, Qt::ControlModifier, QStringLiteral("c"), true);
+    QApplication::sendEvent(pad, &cRepeat);
+    QThread::msleep(15);
+    QKeyEvent cUp(QEvent::KeyRelease, Qt::Key_C, Qt::ControlModifier, QStringLiteral("c"));
+    QApplication::sendEvent(pad, &cUp);
+    QKeyEvent ctrlUp(QEvent::KeyRelease, Qt::Key_Control, Qt::NoModifier);
+    QApplication::sendEvent(pad, &ctrlUp);
+    settle();
+    {
+        const QString t = QString::fromStdString(ed->steps().text());
+        check(t.startsWith(QStringLiteral("+ctrl wait:")) && t.contains(QStringLiteral(" +c wait:")) && t.contains(QStringLiteral(" -c")) && t.endsWith(QStringLiteral("-ctrl")), "the keys become steps with the measured pauses");
+        check(!t.contains(QStringLiteral("+c +c")), "the keyboard repeat is not recorded");
+    }
+    stop->click();
+    settle();
+    check(!ed->recording() && pad->focusPolicy() == Qt::NoFocus && rec->isEnabled(), "Record stop ends the recording and gives the focus back");
+    sendKeyTo(pad, Qt::Key_B);
+    check(ed->steps().text().find("+b") == std::string::npos, "keys after the recording are not kept");
+    // without the times: 30 ms between the steps
+    ed->setSteps(spn::ui::MacroSteps());
+    times->setChecked(false);
+    rec->click();
+    settle();
+    sendKeyTo(pad, Qt::Key_A);
+    stop->click();
+    settle();
+    check(ed->steps().text() == "+a wait:30 -a", "without the times: a pause of 30 ms between the steps");
+    // the focus leaving the area ends the recording (another window, a click elsewhere)
+    ed->setSteps(spn::ui::MacroSteps());
+    rec->click();
+    settle();
+    check(ed->recording(), "recording again");
+    stop->setFocus();
+    settle();
+    check(!ed->recording(), "the recording ends when the focus leaves the recording area");
+    // Esc three times: the way out for the keyboard
+    ed->setSteps(spn::ui::MacroSteps());
+    rec->click();
+    settle();
+    sendKeyTo(pad, Qt::Key_A);
+    for (int i = 0; i < 3; ++i) sendKeyTo(pad, Qt::Key_Escape);
+    settle();
+    check(!ed->recording() && ed->steps().text().find("esc") == std::string::npos && ed->steps().text().find("+a") == 0, "Esc three times in a row ends the recording and is not part of the macro");
+    // edit afterwards: change, delete, move, add; key fields are the shared chord field
+    ed->setSteps(spn::ui::MacroSteps());
+    {
+        spn::ui::MacroSteps s;
+        s.add(spn::ui::MacroStep::down("ctrl"));
+        s.add(spn::ui::MacroStep::down("a"));
+        s.add(spn::ui::MacroStep::wait(30));
+        s.add(spn::ui::MacroStep::up("a"));
+        ed->setSteps(s);
+    }
+    QListWidget *list = ed->findChild<QListWidget *>(QStringLiteral("macroSteps"));
+    check(list && list->count() == 4 && list->item(0)->text() == QStringLiteral("Press ctrl"), "the steps are listed in words");
+    list->setCurrentRow(1);
+    settle();
+    auto *chord = ed->findChild<ChordField *>();
+    check(chord && chord->isVisibleTo(ed) && chord->value() == "a", "the chosen step shows its key in the key field");
+    int changes = 0;
+    QObject::connect(ed, &MacroEditor::stepsChanged, ed, [&] { ++changes; });
+    if (chord) {
+        chord->chooseKey(QStringLiteral("c"));
+        settle();
+        check(ed->steps().text() == "+ctrl +c wait:30 -a", "changing the key of a step");
+    }
+    list->setCurrentRow(2);
+    settle();
+    QSpinBox *wait = ed->findChild<QSpinBox *>(QStringLiteral("macroWait"));
+    check(wait && wait->isVisibleTo(ed) && wait->value() == 30, "a pause is edited in milliseconds");
+    if (wait) wait->setValue(250);
+    settle();
+    check(ed->steps().text() == "+ctrl +c wait:250 -a", "changing a pause");
+    ed->findChild<QPushButton *>(QStringLiteral("macroMoveUp"))->click();
+    settle();
+    check(ed->steps().text() == "+ctrl wait:250 +c -a", "moving a step up");
+    ed->findChild<QPushButton *>(QStringLiteral("macroMoveDown"))->click();
+    settle();
+    check(ed->steps().text() == "+ctrl +c wait:250 -a", "moving a step down");
+    ed->findChild<QPushButton *>(QStringLiteral("macroDelete"))->click();
+    settle();
+    check(ed->steps().text() == "+ctrl +c -a", "deleting a step");
+    ed->findChild<QPushButton *>(QStringLiteral("macroAddWait"))->click();
+    settle();
+    check(ed->steps().size() == 4 && changes >= 5, "adding a pause");
+    // 256 steps at most
+    {
+        spn::ui::MacroSteps s;
+        for (size_t i = 0; i < spn::ui::kMaxMacroSteps; ++i) s.add(i % 2 ? spn::ui::MacroStep::wait(5) : spn::ui::MacroStep::down("a"));
+        ed->setSteps(s);
+        settle();
+        check(!ed->findChild<QPushButton *>(QStringLiteral("macroAddWait"))->isEnabled() && !rec->isEnabled(), "at 256 steps adding and recording are greyed");
+        QLabel *count = ed->findChild<QLabel *>(QStringLiteral("macroCount"));
+        check(count && count->text().contains(QStringLiteral("256 of 256")), "and the count says so");
+    }
+    // accessibility: every control, the order, and wide fonts
+    {
+        spn::ui::MacroSteps s;
+        s.add(spn::ui::MacroStep::down("ctrl"));
+        s.add(spn::ui::MacroStep::wait(30));
+        ed->setSteps(s);
+        list->setCurrentRow(0);
+        settle();
+        const QString p = dialogControlProblem(&host);
+        if (!p.isEmpty()) std::fprintf(stderr, "  %s\n", qPrintable(p));
+        check(p.isEmpty(), "every control of the macro editor has a name, a purpose and a label");
+        const QFont baseFont = QApplication::font();
+        for (int spacing : {100, 160, 250, 400}) {
+            QApplication::setFont(baseFont);
+            QFont f = QApplication::font();
+            f.setLetterSpacing(QFont::PercentageSpacing, spacing);
+            QApplication::setFont(f);
+            settle();
+            if (ed->minimumSizeHint().width() > 500) std::fprintf(stderr, "  spacing %d: the macro editor needs %d px\n", spacing, ed->minimumSizeHint().width());
+            check(ed->minimumSizeHint().width() <= 500, "wide glyphs: the macro editor fits a 520 px dialog");
+        }
+        QApplication::setFont(baseFont);
+    }
+    return ok;
+}
+
 // Take over from other profiles (A), any action on any motion (B) and the profile builder (C): the dialogs of the Motions and
 // buttons tab, of the Joystick-mode editor and "New profile ...", with the model underneath (borrow_model.hpp, profile_builder_model.hpp).
 static bool borrowBuildSelfTest() {
@@ -5072,6 +5649,8 @@ int main(int argc, char **argv) {
         if (!buttonInspectorSelfTest()) return 1;
         if (!wideGlyphPagesSelfTest()) return 1;
         if (!accessibilityPurposeSelfTest()) return 1;
+        if (!newFunctionSelfTest()) return 1;
+        if (!macroEditorSelfTest()) return 1;
         if (!autosaveAuditSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
         if (!legacyButtonsSelfTest()) return 1;
         if (!profileFilesSelfTest()) return 1;

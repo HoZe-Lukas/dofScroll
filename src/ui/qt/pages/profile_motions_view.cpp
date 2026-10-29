@@ -20,6 +20,8 @@
 #include "key_combo.hpp"
 #include "key_engine_box.hpp"
 #include "pages/motion_editor.hpp"
+#include "pages/new_function_dialog.hpp"
+#include "pages/own_functions_widget.hpp"
 #include "pages/take_over_dialog.hpp"
 #include "side_picker.hpp"
 #include "ui/model/borrow_model.hpp"
@@ -54,6 +56,22 @@ ProfileMotionsView::ProfileMotionsView(const UiContext &ctx, ButtonRowFn addButt
     auto *root = new QBoxLayout(QBoxLayout::LeftToRight);
     root_ = root;
     outer->addLayout(root, 1);
+    // the functions this profile made with "New function...": a list of its own under the picture and the inspector
+    ownFunctions_ = new OwnFunctionsWidget(ctx_, this);
+    ownFunctions_->changed = [this] {
+        if (changed) changed();
+        rebuild();
+    };
+    ownFunctions_->editRequested = [this](const FunctionTarget &t) {
+        if (t.isMotion()) {
+            select(QStringLiteral("m:") + qs8(t.motionId));
+            newFunction(qs8(t.motionId));
+        } else {
+            select(QStringLiteral("b:") + QString::number(t.button));
+            newFunctionForButton(t.button);
+        }
+    };
+    outer->addWidget(ownFunctions_);
     auto *left = new QVBoxLayout;
     picture_ = new MotionPicture(this);
     left->addWidget(picture_);
@@ -111,11 +129,13 @@ void ProfileMotionsView::setExtras(const QList<QWidget *> &widgets) {
 void ProfileMotionsView::setSection(size_t section, bool bindingEditor) {
     section_ = section;
     bindingEditor_ = bindingEditor;
+    ownFunctions_->setSection(section);
     rebuild();
 }
 
 void ProfileMotionsView::rebuild() {
     if (!ctx_.settings) return;
+    if (ownFunctions_) ownFunctions_->refresh();
     const IdentityStrings fallback;
     const StringProvider &strings = ctx_.strings ? *ctx_.strings : fallback;
     const ProfileAssignment a = profileAssignment(*ctx_.settings, section_, strings);
@@ -259,6 +279,8 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
             }
         }
         choiceNote->setVisible(!choiceNote->text().isEmpty());
+        // the last entry opens the dialog that composes a function of its own (not a choice: the list keeps showing the current one)
+        kind->addItem(T("New function..."), kChoiceNewFunction);
         sl->addWidget(choiceNote);
         auto *keysBox = new QWidget(state);
         auto *keysLayout = new QVBoxLayout(keysBox);
@@ -324,7 +346,12 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
             env.flush = [this] { ctx_.saveSoon(); };
             if (QWidget *engine = keyEngineBox(keysBox, this, env, strings)) keysLayout->addWidget(engine);
         }
-        connect(kind, &QComboBox::activated, this, [kind, form, applyForm](int idx) {
+        connect(kind, &QComboBox::activated, this, [this, kind, form, applyForm, current, motionId](int idx) {
+            if (kind->itemData(idx).toInt() == kChoiceNewFunction) {
+                kind->setCurrentIndex(current);
+                newFunction(motionId);
+                return;
+            }
             applyChoice(form.get(), kind->itemData(idx).toInt());  // the sides keep what they hold when the new kind can use it
             applyForm();
         });
@@ -514,6 +541,22 @@ bool ProfileMotionsView::takeOverMotion(const QString &motionId) {
     if (changed) changed();
     rebuild();
     return true;
+}
+
+void ProfileMotionsView::newFunctionForButton(int n) {
+    openNewFunctionDialog(ctx_, section_, FunctionTarget::buttonNumber(n), this, [this] {
+        ctx_.saveSoon();
+        if (changed) changed();
+        rebuild();
+    });
+}
+
+void ProfileMotionsView::newFunction(const QString &motionId) {
+    openNewFunctionDialog(ctx_, section_, FunctionTarget::motion(motionId.toStdString()), this, [this] {
+        ctx_.saveSoon();
+        if (changed) changed();
+        rebuild();
+    });
 }
 
 bool ProfileMotionsView::takeOverButton(int n) {
