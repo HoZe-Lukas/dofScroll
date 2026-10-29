@@ -2,7 +2,8 @@ dofscroll @VERSION@ for macOS (Apple silicon) - first run
 =====================================================
 
 This build is NOT signed with an Apple Developer ID and NOT notarized. It is signed ad hoc only
-(that is what lets an arm64 binary run at all). macOS Gatekeeper will therefore warn on first use.
+(that is what lets an arm64 binary run at all), with the hardened runtime. macOS Gatekeeper will therefore warn on
+first use, and after an update macOS may ask for the two permissions of step 3 again (the signature changed).
 
 1. Install
    Drag dofscroll.app to Applications.

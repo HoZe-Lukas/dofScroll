@@ -3,8 +3,13 @@
 # macOS packaging (experimental)
 
 Files for running the dofscroll daemon as a per-user LaunchAgent from a local build. CI also builds an
-unsigned, not notarized disk image for Apple silicon (`build-dmg.sh`, ad-hoc signed; first run:
-`README-first-run.txt`); there is no `.pkg` and no Developer ID signature yet.
+not notarized disk image for Apple silicon (`build-dmg.sh`; first run: `README-first-run.txt`). It is signed ad hoc with the
+hardened runtime (`--options runtime`, inside out, without `--deep`); the daemon alone keeps the entitlement
+`com.apple.security.cs.disable-library-validation` (`daemon.entitlements`) because it loads the vendor framework
+`3DconnexionClient.framework`, so it is **not** protected against `DYLD_INSERT_LIBRARIES` injection (like the Windows
+daemon). The signature changes with every build, so the permissions below have to be granted again after an update.
+There is no `.pkg` and no Developer ID signature yet. The hardened runtime has been run on the CI runner only, never on
+a Mac with the driver and SIP on.
 
 | File | Purpose |
 |---|---|

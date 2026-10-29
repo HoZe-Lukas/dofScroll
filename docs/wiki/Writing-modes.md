@@ -2,7 +2,7 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # How to write a joystick mode
 
-This page is a tutorial: it shows how to create your own **joystick mode** (what the three channels do) and your own **button mode** (what one device button does), what is possible, and gives recipes you can copy. You do not need to know the code. Everything here was checked against the program source; what could only be checked on paper and not on a real device is marked "not verified on hardware". The short reference is [Modes](Modes); the list of ready-made modes is [Built-in modes](Built-in-modes).
+This page is a tutorial: it shows how to create your own **joystick mode** (what the motions of the cap do: the three channels, push and tilt separately, and the lift) and your own **button mode** (what one device button does), what is possible, and gives recipes you can copy. You do not need to know the code. Everything here was checked against the program source; what could only be checked on paper and not on a real device is marked "not verified on hardware". The short reference is [Modes](Modes); the list of ready-made modes is [Built-in modes](Built-in-modes).
 
 Contents: [1. Files](#1-where-mode-files-live) - [2. Channels](#2-the-three-channels-and-what-drives-them) - [3. Channel actions](#3-channel-actions) (incl. [split push and tilt](#split-push-and-tilt)) - [4. Recipes](#4-recipes) - [5. Tuning keys](#5-tuning-keys-in-a-mode) - [6. Button modes](#6-button-modes) - [7. Buttons inside a joystick mode](#7-buttons-inside-a-joystick-mode) - [8. Testing](#8-testing-a-mode) - [9. Safety](#9-safety) - [10. Sharing](#10-sharing-a-mode)
 
@@ -95,7 +95,8 @@ Set per channel with `V_ACTION`, `H_ACTION` or `TWIST_ACTION`.
 | `wheel_h` | Horizontal mouse wheel | `V_ACTION = wheel_h` |
 | `zoom` | Holds the zoom key (`ZOOM_MODIFIER`, default Ctrl) and sends the vertical wheel | `V_ACTION = zoom` |
 | `keys:<neg>,<pos>` | Key taps at the channel's rate, `<neg>` for negative, `<pos>` for positive deflection | `V_ACTION = keys:pageup,pagedown` |
-| `step:<neg>,<pos>` | One key tap per push (no repeat while held) | `V_ACTION = step:pageup,pagedown` |
+| `step:<neg>,<pos>` | One key tap per push (no repeat while held); a side can be `none`, `click`, `rightclick` or `middleclick` | `V_ACTION = step:pageup,pagedown` |
+| `hold:<neg>,<pos>` | A key, chord or mouse button held while the motion is deflected (digital) | `TWIST_ACTION = hold:click,none` |
 
 Rules:
 
@@ -388,7 +389,7 @@ A joystick mode can bind buttons itself with `BUTTON_<n> = <action>` (the same a
     BUTTON_3 = mode:normal            # leave this joystick mode
     BUTTON_4 = buttonmode:latch-nav
 
-Precedence: a binding in the active joystick mode wins over `BUTTON_<n>` in the main config for the same button. Binding in the main config (for example `BUTTON_2 = mode:next`) works in every joystick mode that does not bind that button. A joystick mode binding with an unknown target mode is dropped with a warning.
+Precedence: a binding in the active joystick mode wins over `BUTTON_<n>` of `[global]` and `[device:*]` for the same button; a `BUTTON_<n>` of an `[app:*]` profile wins over the joystick mode. Binding in the main config (for example `BUTTON_2 = mode:next`) works in every joystick mode that does not bind that button. A joystick mode binding with an unknown target mode is dropped with a warning.
 
 Toggles and switches by a button are runtime state: the status file shows them, a reload (saving, the tray's "Release all keys"), a restart, suspend, `ENABLED = 0` or any joystick mode change clears them.
 

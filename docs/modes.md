@@ -2,7 +2,7 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Joystick modes
 
-A joystick mode decides what the three channels and the device buttons do. Joystick modes are plain files, no
+A joystick mode decides what the motions of the cap (the three channels, push and tilt separately, and the lift) and the device buttons do. Joystick modes are plain files, no
 recompiling needed. Parser: `src/modes.hpp`, `src/modes.cpp`. Key names: `src/keys.hpp`.
 
 Exactly one joystick mode is active (per device when several devices arrive separately, see [multi-device.md](multi-device.md)). It is the one named by `MODE` in the resolved profile, otherwise
@@ -185,8 +185,8 @@ The id `release` is an ordinary joystick mode id: a file `release.conf` is valid
 switches to it. (The daemon's internal notice that a `hold:mode:` button was released is a request
 string with a colon, which can never be a joystick mode id.)
 
-A binding in the active joystick mode for a button wins over a `BUTTON_<n>` binding in the main config for
-the same button.
+A binding in the active joystick mode for a button wins over a `BUTTON_<n>` binding of `[global]` and `[device:*]` for
+the same button; a `BUTTON_<n>` of an `[app:*]` profile wins over the joystick mode's binding.
 
 A switch by `mode:` stays until the daemon restarts, the config or joystick modes directory reloads, or
 another switch happens. Held keys and buttons are released on every switch. An unknown joystick mode id in

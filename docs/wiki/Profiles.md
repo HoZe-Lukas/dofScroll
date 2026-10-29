@@ -56,11 +56,28 @@ On the Motions and buttons tab of the program profile every motion and every but
 
 ### Take over from another profile, any action on any motion, build a profile
 
-**Take over from ...** (next to Clear, on every motion and button of the Motions and buttons tab and in the joystick mode editor) copies what a motion or a button does in another profile, a joystick mode or (for buttons) a button mode into this profile. It is a copy of the effective assignment, written as explicit keys; later changes in the source do not follow. Push and tilt are separate motions. Only the action is copied, not the tuning of the channel. A motion that is off in the source is copied as cleared.
+**Take over from ...** (next to Clear, on every motion and button of the Motions and buttons tab and in the joystick mode editor) copies what a motion or a button does in another profile, a joystick mode or (for buttons) a button mode into this profile. It is a copy of the effective assignment, written as explicit keys; later changes in the source do not follow. Push and tilt are separate motions. By default only the action is copied; the check box **Also take over the tuning** also copies sensitivity, dead zone, direction, curve, smoothing and the key engine keys (lowest and highest rate, trigger level) of the motion. A motion that is off in the source is copied as cleared.
 
 Any motion can get any action, also **zoom** from a tilt (`V_TILT_ACTION = zoom`): the zoom keys are held and the wheel is sent, with the sensitivity and direction of the tilt's own channel (flip the direction if it zooms the wrong way); while it zooms, the other wheel motions pause. The interface explains this in words under the list of actions and greys out what cannot work in a profile (a profile below its joystick mode cannot change what the mode sets).
 
 **New profile ...** (Profiles page, below the list) builds a profile from existing parts: program or device and its name, what to start from, a joystick mode, a button mode per button, and single motions or buttons taken over from other profiles. Per mode you choose **follows the mode** (the profile names it, `MODE = photo` or `BUTTON_3 = buttonmode:next-mode`, so a later change of the mode changes the profile) or **Make my own copy of this mode** (a file of its own in your folder). The result is a normal profile, editable afterwards. Recipes with the file lines: [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
+
+### Keys, clicks and holds on a motion: analog or digital
+
+Every motion (vertical and horizontal push and tilt, twist, lift; both directions) can press a key or a chord per direction, in a profile as well as in a joystick mode. In the editor the check box **Analog** decides how: checked, the key repeats faster the further you push (`keys:<neg>,<pos>`); unchecked, it is pressed once per push, like a click (`step:<neg>,<pos>`). Three more fields tune it: the lowest and the highest rate (presses per second) and the trigger level. A side can be `none`, and the mouse is available too: **Mouse click per push** (`step:click,none`, also `rightclick`, `middleclick`) and **Hold a key or button while pushed** (`hold:click,none`, `hold:ctrl,none`), which holds until you ease back to half of the trigger level. Only keys that are safe to repeat can be analog (arrows, page up and down, home, end, tab, volume, media next and previous, plus and minus, ctrl or shift with a navigation key); letters, Enter, Delete, Esc, Alt and Super chords, mouse clicks and holds are digital only. In the file:
+
+```
+[app:browser]
+H_TILT_ACTION = keys:ctrl+pageup,ctrl+pagedown   # tabs, faster with more tilt
+SCROLL_H_TILT_KEY_RATE_MAX = 8
+V_TILT_ACTION = step:pageup,pagedown             # one page per push
+```
+
+The keys and their limits are in [Joystick modes](Modes) and in [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#the-key-engine-analog-and-digital). How the thresholds feel on a real device is not verified.
+
+### Profile files: import, export, order
+
+Every profile is a file, so sharing one is copying it: **Export...** on the profile (General tab, box **This profile**) writes the file, **Import profile...** (below the list) reads one after checking it completely. The import drops `PRIORITY`, `ENABLED`, `BACKEND`, `TICK_HZ` and `INPUT`, asks before accepting a very short name or bindings that can do harm (key chords with ctrl, alt or super, Delete, clicks, a joystick mode or button mode of your own), and applies an imported profile **before** yours, so yours win where both set the same key. **Move up** and **Move down** change the order of overlapping profiles of one kind (they change `PRIORITY`). A file that cannot be used is listed as "(defective)" with the reason and is never overwritten while the problem stands; **Remove** can be undone right after.
 
 ## Finding the program name
 
