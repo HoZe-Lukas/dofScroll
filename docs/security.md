@@ -1136,6 +1136,14 @@ CI supply chain (issue #149), status after the fix:
   the install smoke test still uses the distribution images by tag (it tests the
   current distributions on purpose and produces no release file). Windows and macOS
   runner images are GitHub's own and not pinned.
+  **Audit round 2 (before 1.3.0):** the write-token job of `refresh-ci-pins.yml` checked the taken-over files with an
+  inline diff filter that dropped every changed line whose content began with `-` or `+` (it took them for diff headers),
+  and it accepted any line that merely contained `@sha256:`. A compromised generator (PyPI code in the read-only job) could
+  therefore add `--index-url ...` or `-r ...` to `aqt-requirements.txt`, or an extra Dockerfile line, past the gate, and the
+  job would then approve the checks of the PR that runs it. The gate is now `scripts/check-pin-diff.sh`: headers are skipped
+  by position, and every changed line must have exactly the shape of an image digest line, a `FROM` line with a digest, a
+  pin or a hash (`tests/test_pin_diff.sh`, ctest `pin_diff`); `scripts/check-ci-pins.sh` fails if the workflow goes back to a
+  hand-written filter. A reviewer still reads the PR before it is merged; the gate is the automatic part.
 
 Open, tracked as issues: root removes a dangling
 tray link through a glob in a directory the user controls (only that fixed name, no practical harm); look-alike texts

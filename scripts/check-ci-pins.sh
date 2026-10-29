@@ -56,6 +56,11 @@ if [ -n "$split" ]; then
     && bad "$wf: no token in the read-only job"
 fi
 
+# the job that holds the write token lets only digests, pins and hashes through (scripts/check-pin-diff.sh)
+grep -v -E '^ *#' "$wf" | grep -q -E 'sh scripts/check-pin-diff\.sh' \
+  || bad "$wf: the job propose must run scripts/check-pin-diff.sh on the generated files"
+grep -v -E '^ *#' "$wf" | grep -E 'git diff -U0' && bad "$wf: judge the generated files with scripts/check-pin-diff.sh (a hand-written diff filter lets lines through)"
+
 # 4. attestation of the release
 grep -q -E 'uses: actions/attest-build-provenance@[0-9a-f]{40} ' .github/workflows/ci.yml \
   || bad "ci.yml: release job has no commit-pinned actions/attest-build-provenance step"
