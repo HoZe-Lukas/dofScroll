@@ -338,7 +338,8 @@ ProfilesPage::ProfilesPage(const UiContext &ctx, QWidget *parent) : QWidget(pare
     // (a save that found a file changed on disk reloaded the model: the list is built again)
     if (ctx_.autosave)
         connect(ctx_.autosave, &Autosaver::written, this, [this] {
-            if (ctx_.settings && ctx_.settings->takeReloaded()) rebuildTree(currentSection());
+            if (ctx_.settings && ctx_.settings->takeReloaded())
+                rebuildTree(ProfileTreeModel::resolve(*ctx_.settings, selKind_, selPattern_));  // by name: the list may differ
             else refreshTreeLabels();
         });
 
@@ -394,6 +395,18 @@ size_t ProfilesPage::currentSection() const {
     return s < 0 ? 0 : size_t(s);
 }
 
+// The identity (kind, pattern) of the selected profile: an index is only good until the model is reloaded or re-sorted.
+void ProfilesPage::rememberSelection() {
+    const size_t s = currentSection();
+    if (s == 0 || s >= ctx_.settings->sections().size()) {
+        selKind_ = Section::GLOBAL;
+        selPattern_.clear();
+        return;
+    }
+    selKind_ = ctx_.settings->sections()[s].kind;
+    selPattern_ = ctx_.settings->sections()[s].pattern;
+}
+
 void ProfilesPage::problem(const QString &text) { ctx_.report(text, true); }
 
 void ProfilesPage::clearRemovedUndo() {
@@ -445,6 +458,7 @@ void ProfilesPage::rebuildTree(size_t selectSection) {
     }
     if (!select) select = tree_->topLevelItem(0);
     tree_->setCurrentItem(select);
+    rememberSelection();
     defectNote_->setText(defects.join(QLatin1Char('\n')));
     defectNote_->setVisible(!defects.isEmpty());
     block.unblock();
@@ -512,6 +526,7 @@ int ProfilesPage::settingRowCount() const { return settingRows_ + channels_->vis
 // profile (the tab stays).
 void ProfilesPage::onSelectionChanged(QTreeWidgetItem *, QTreeWidgetItem *) {
     ctx_.saveNow();
+    rememberSelection();
     rebuildContent();
 }
 
@@ -1274,10 +1289,10 @@ void ProfilesPage::addDevice() {
 // "Change application..." / "Change device...": the same pickers as for a new profile (running programs, capture
 // the next focused one, device list, manual entry) choose the new match string; the settings stay.
 void ProfilesPage::renameProfile() {
-    const size_t s = currentSection();
-    if (s == 0) return;
-    const Section::Kind kind = ctx_.settings->sections()[s].kind;
-    const std::string cur = ctx_.settings->sections()[s].pattern;
+    const size_t s0 = currentSection();
+    if (s0 == 0) return;
+    const Section::Kind kind = ctx_.settings->sections()[s0].kind;
+    const std::string cur = ctx_.settings->sections()[s0].pattern;
     std::vector<std::string> others = ProfileTreeModel::patterns(*ctx_.settings, kind);
     others.erase(std::remove(others.begin(), others.end(), cur), others.end());  // keeping the current one is fine
     QString chosen;
@@ -1291,27 +1306,37 @@ void ProfilesPage::renameProfile() {
         chosen = dlg.deviceName();
     }
     if (chosen.toUtf8().toStdString() == cur) return;
-    renameSelected(chosen);
+    // The dialog is modal but the model can be reloaded meanwhile (the file changed on disk): find the profile again.
+    const size_t s = ProfileTreeModel::resolve(*ctx_.settings, kind, cur);
+    if (s == ProfileSet::npos) {
+        problem(T("The profile \"%1\" is gone (the configuration was reloaded); nothing was renamed.").arg(qs8(spn::ui::displayText(cur))));
+        return;
+    }
+    renameAt(s, chosen);
 }
 
 // The new name goes into the model; the autosave writes the new file first and removes the old one.
-bool ProfilesPage::renameSelected(const QString &name) {
-    const size_t s = currentSection();
+bool ProfilesPage::renameSelected(const QString &name) { return renameAt(currentSection(), name); }
+
+bool ProfilesPage::renameAt(size_t s, const QString &name) {
     if (s == 0) return false;
     std::string err;
-    if (!ProfileTreeModel::rename(*ctx_.settings, s, name.toUtf8().toStdString(), &err)) {
+    size_t now = s;
+    if (!ProfileTreeModel::rename(*ctx_.settings, s, name.toUtf8().toStdString(), &err, &now)) {
         problem(qs8(err));
         return false;
     }
     ctx_.saveSoon();
-    rebuildTree(s);
+    rebuildTree(now);  // the renamed profile may have moved in the order: select it by its new name
     return true;
 }
 
 void ProfilesPage::removeProfile() {
-    const size_t s = currentSection();
-    if (s == 0) return;
-    const QString name = qs8(spn::ui::displayText(ctx_.settings->sections()[s].pattern));
+    const size_t s0 = currentSection();
+    if (s0 == 0) return;
+    const Section::Kind kind = ctx_.settings->sections()[s0].kind;
+    const std::string pattern = ctx_.settings->sections()[s0].pattern;
+    const QString name = qs8(spn::ui::displayText(ctx_.settings->sections()[s0].pattern));
     // Cancel is the default (Enter does not delete); the destructive choice has its own name.
     QMessageBox box(QMessageBox::Warning, T("Remove profile"),
                     T("Remove the profile \"%1\" and all its settings?").arg(name), QMessageBox::NoButton, this);
@@ -1323,14 +1348,21 @@ void ProfilesPage::removeProfile() {
     box.setEscapeButton(keep);
     box.exec();
     if (box.clickedButton() != go) return;
-    removeSelected();
+    // the model can be reloaded while the question is open: remove the profile that was asked about, if it is still there
+    const size_t s = ProfileTreeModel::resolve(*ctx_.settings, kind, pattern);
+    if (s == ProfileSet::npos) {
+        problem(T("The profile \"%1\" is gone (the configuration was reloaded); nothing was removed.").arg(name));
+        return;
+    }
+    removeAt(s);
 }
 
 // Removes the profile: its file goes with the next autosave (only when it was not changed by hand meanwhile).
 // A copy is kept until something else changes: "Undo" puts it back.
-bool ProfilesPage::removeSelected() {
-    const size_t s = currentSection();
-    if (s == 0) return false;
+bool ProfilesPage::removeSelected() { return removeAt(currentSection()); }
+
+bool ProfilesPage::removeAt(size_t s) {
+    if (s == 0 || s >= ctx_.settings->sections().size()) return false;
     const spn::ui::RemovedProfile copy = spn::ui::captureProfile(*ctx_.settings, s);
     const QString name = qs8(spn::ui::displayText(ctx_.settings->sections()[s].pattern));
     std::string err;

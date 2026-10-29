@@ -339,6 +339,7 @@ void ButtonModesPage::loadForm() {
     if (use_) use_->setButtonMode(e ? qs(e->id) : QString(), e ? qs(e->label.empty() ? e->id : e->label) : QString());
     fileLabel_->setText(e ? (e->builtin ? T("Built in (no file)") : qs(e->path)) : QString());
     shownId_ = e ? qs(e->id) : QString();
+    shownStamp_ = e ? e->fileStamp : std::string();  // the file as this form read it: save refuses a file changed since
     updateWarnings();
     const bool has = e != nullptr;
     const bool editable = has && !e->builtin;  // a built-in button mode has no file to edit
@@ -496,7 +497,17 @@ spn::ui::Autosave::Outcome ButtonModesPage::writeForm() {
     const std::vector<std::string> cycle =
         action == "mode:next" || action == "mode:prev" ? cycle_->cycle() : std::vector<std::string>();
     const ButtonModeCatalog::Result r =
-        catalog_.save(id, name_->text().toUtf8().toStdString(), description_->text().toUtf8().toStdString(), action, cycle);
+        catalog_.save(id, name_->text().toUtf8().toStdString(), description_->text().toUtf8().toStdString(), action, cycle,
+                      shownStamp_);
+    if (r.changedOnDisk) {
+        // The file was changed by something else (a text editor, a copy): it is not overwritten. The form shows it as
+        // it is now, so the next edit starts from it.
+        std::fprintf(stderr, "button modes: '%s' changed on disk, not overwritten\n", id.c_str());
+        dirty_ = false;
+        catalog_.refresh();
+        populate(qs(id));
+        return {false, true, "the file changed on disk; it is shown again and your last edit was not saved"};
+    }
     if (!r.ok) {
         std::fprintf(stderr, "button modes: saving '%s' failed: %s\n", action.c_str(), r.error.c_str());
         return {false, true, r.error};
@@ -505,6 +516,7 @@ spn::ui::Autosave::Outcome ButtonModesPage::writeForm() {
     keepForm_ = true;  // the list shows the new name; the form stays as it is (the caret does not jump)
     populate(qs(id));
     keepForm_ = false;
+    shownStamp_ = r.stamp;
     return {true, true, std::string()};
 }
 

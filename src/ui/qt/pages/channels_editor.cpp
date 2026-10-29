@@ -27,6 +27,7 @@
 #include <memory>
 #include <vector>
 
+#include "a11y_announce.hpp"
 #include "ui/model/channels_page_model.hpp"
 #include "ui/model/curve_preview.hpp"
 #include "ui/model/design_tokens.hpp"
@@ -175,8 +176,11 @@ double ChannelsEditor::number(const std::string &key) const { return qs8(display
 void ChannelsEditor::showProblem(QWidget *editor, QLabel *help, const QString &helpText, const QString &error) {
     const bool bad = !error.isEmpty();
     if (help) {
+        const QString before = help->text();
         help->setText(bad ? mark(spn::ui::StatusKind::Error, T("Invalid value: ") + error) : helpText);
         setFlag(help, "error", bad);
+        // a screen reader does not see a label change: say a new problem once (not at every key of the same one)
+        if (bad && help->text() != before) spn::ui::announce(help, T("Invalid value: ") + error);
     }
     setFlag(editor, "invalid", bad);
 }
@@ -187,11 +191,13 @@ void ChannelsEditor::showLiftPressWarning(QLabel *help, const QString &helpText,
     watch.observe(ctx_.settings->effectiveWithMode(section_));
     const bool warn = watch.usesLift(text);  // only when the configuration says which axis is lift/press
     if (!help) return;
+    const QString before = help->text();
     help->setText(warn ? mark(spn::ui::StatusKind::Warning,
                               T("Warning: lift/press (%1) is prone to false triggers when you grab or release the cap")
                                   .arg(QString::fromLatin1(spn::axisName(watch.lift()))))
                        : helpText);
     setFlag(help, "warning", warn);
+    if (warn && help->text() != before) spn::ui::announce(help, help->text());
 }
 
 // Validates and stores in the profile; shows the model's message at the row on failure (nothing is

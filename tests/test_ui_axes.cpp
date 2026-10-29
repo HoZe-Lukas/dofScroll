@@ -242,6 +242,22 @@ static void testDeviceSelector() {
     f.push(ax(50, 0, 0, 0, 0, 0));  // unknown source always passes
     s.poll(t += 33 * MS);
     assert(s.view().shown().axes[AX_X] == 50);
+    // the pinned device rests while the other one moves (the daemon sends only the device that moved last): after a
+    // quiet second the bars of the pinned device are zero, not its last values (issue #245)
+    f.push(ax(60, 0, 0, 0, 0, 0), 0, 1);
+    s.poll(t += 500 * MS);
+    assert(s.view().shown().axes[AX_X] == 50);  // not yet
+    f.push(ax(61, 0, 0, 0, 0, 0), 0, 1);
+    s.poll(t += 600 * MS);
+    assert(s.view().shown().axes[AX_X] == 0 && s.view().fraction(AX_X) == 0 && s.view().peakValue(AX_X) >= 50);
+    f.push(ax(70, 0, 0, 0, 0, 0), 0, 2);
+    s.poll(t += 33 * MS);
+    assert(s.view().shown().axes[AX_X] == 70);  // it moves again: shown again
+    // a paused display stays frozen; with all devices nothing is zeroed (the last sample is the device that moved)
+    s.view().setPaused(true);
+    s.poll(t += 2000 * MS);
+    assert(s.view().shown().axes[AX_X] == 70);
+    s.view().setPaused(false);
     assert(!s.selectDevice(9) && s.selectedDevice() == 2);  // not in the list: kept
     assert(s.selectDevice(AxesSession::kAllDevices) && s.selectedDevice() == AxesSession::kAllDevices);
     // the pinned device is unplugged: back to all devices

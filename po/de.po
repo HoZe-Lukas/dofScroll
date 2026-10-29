@@ -6018,3 +6018,18 @@ msgstr "dofscroll startet, wenn du dich anmeldest. Das wird eingeschaltet, wenn 
 msgid "Start at login will be switched off when you press Finish; tick the box to keep it on."
 msgstr "„Beim Anmelden starten“ wird ausgeschaltet, wenn du auf „Fertig“ drückst; setze das Häkchen, um es eingeschaltet zu lassen."
 
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "The profile \"%1\" is gone (the configuration was reloaded); nothing was renamed."
+msgstr "Das Profil „%1“ gibt es nicht mehr (die Konfiguration wurde neu geladen); es wurde nichts umbenannt."
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "The profile \"%1\" is gone (the configuration was reloaded); nothing was removed."
+msgstr "Das Profil „%1“ gibt es nicht mehr (die Konfiguration wurde neu geladen); es wurde nichts entfernt."
+
+#: src/ui/qt/main_window.cpp
+msgid "The profile of your device could not be added: %1"
+msgstr "Das Profil deines Geräts konnte nicht angelegt werden: %1"
+
+#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+msgid "The folder holds more files than are listed here; the list is not complete."
+msgstr "Der Ordner enthält mehr Dateien, als hier aufgelistet sind; die Liste ist nicht vollständig."

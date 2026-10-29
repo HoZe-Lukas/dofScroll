@@ -168,6 +168,18 @@ static void testReplace(const std::string &d) {
     assert(fs::writeFileReplaceNoFollow(d + "/plain.json", "b", &err) && get(d + "/plain.json") == "b");
 }
 
+// renameNoReplace: moves to a free name, never replaces what is there (issue #275 L9).
+static void testRenameNoReplace(const std::string &d) {
+    put(d + "/nr-a.txt", "A");
+    put(d + "/nr-b.txt", "B");
+    bool exists = false;
+    assert(!fs::renameNoReplace(d + "/nr-a.txt", d + "/nr-b.txt", &exists) && exists);
+    assert(get(d + "/nr-a.txt") == "A" && get(d + "/nr-b.txt") == "B");
+    assert(fs::renameNoReplace(d + "/nr-a.txt", d + "/nr-c.txt", &exists) && !exists);
+    assert(!tu::exists(d + "/nr-a.txt") && get(d + "/nr-c.txt") == "A");
+    assert(!fs::renameNoReplace(d + "/nr-missing.txt", d + "/nr-d.txt", &exists) && !exists);
+}
+
 static void testMkdirs(const std::string &d) {
     std::string err;
     assert(fs::mkdirsPrivate(d + "/m/n/o", &err));
@@ -297,6 +309,7 @@ int main() {
     testRead(d);
     testCreateExclusive(d);
     testReplace(d);
+    testRenameNoReplace(d);
     testMkdirs(d);
     testList(d);
     testMisc();

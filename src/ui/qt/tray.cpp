@@ -123,6 +123,9 @@ void Tray::rebuild() {
     for (const spn::ui::TrayEntry &e : controller_.menu().entries) addEntry(&menu_, e);
 }
 
+// A QMenu reads "&" as a mnemonic marker: the text of a joystick mode ("Tom & Jerry") would lose the character.
+QString Tray::menuText(const std::string &text) { return QString::fromStdString(text).replace(QLatin1Char('&'), QStringLiteral("&&")); }
+
 void Tray::addEntry(QMenu *into, const spn::ui::TrayEntry &e) {
     using Kind = spn::ui::TrayEntry::Kind;
     if (!e.visible) return;
@@ -131,12 +134,12 @@ void Tray::addEntry(QMenu *into, const spn::ui::TrayEntry &e) {
         return;
     }
     if (e.kind == Kind::Submenu) {
-        QMenu *sub = into->addMenu(QString::fromStdString(e.text));
+        QMenu *sub = into->addMenu(menuText(e.text));
         sub->setToolTipsVisible(true);
         auto *group = new QActionGroup(sub);
         group->setExclusive(true);
         for (const spn::ui::TrayEntry &c : e.children) {
-            QAction *a = sub->addAction(QString::fromStdString(c.text));
+            QAction *a = sub->addAction(menuText(c.text));
             spn::ui::qt::setPlainToolTip(a, QString::fromStdString(c.tooltip));  // the description of the joystick mode
             a->setStatusTip(QString::fromStdString(c.tooltip));
             a->setCheckable(true);
@@ -146,7 +149,7 @@ void Tray::addEntry(QMenu *into, const spn::ui::TrayEntry &e) {
         }
         return;
     }
-    QAction *a = into->addAction(QString::fromStdString(e.text));
+    QAction *a = into->addAction(menuText(e.text));
     if (e.kind == Kind::Info) {
         a->setEnabled(false);
         return;

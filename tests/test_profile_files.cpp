@@ -64,6 +64,10 @@ static void testSlug() {
     assert(profileSlug(std::string("a\tb\x01") + "c") == "a_b_c");
     assert(profileSlug("a\xC2\x85" "b") == "a_b");        // C1 control U+0085
     assert(profileSlug("a\xFF" "b") == "a_b");              // invalid UTF-8 byte
+    // bidi controls and invisible format characters are dropped (an RLO would reverse the end of the file name)
+    assert(profileSlug("\xE2\x80\xAE" "rtl") == "rtl" && profileSlug("a\xE2\x80\x8B" "b\xEF\xBB\xBF" "c") == "abc");
+    assert(profileSlug("a\xE2\x81\xA6" "b\xE2\x81\xA9") == "ab" && profileSlug("\xE2\x80\xAE") == "_");
+    assert(profileSlug("caf\xC3\xA9") == "caf\xC3\xA9");  // an ordinary non-ASCII letter stays
     // leading / trailing dot and space
     assert(profileSlug(".hidden") == "_hidden");
     assert(profileSlug("..") == "__");

@@ -216,15 +216,19 @@ inline std::string disableDriverAxes(const std::string &xml, int *changed) {
 
 // Lists the programs of the driver folder that have active axes (sorted by name). false + *err when
 // the folder cannot be read. Global.xml and UserInfo.xml are not programs.
-inline bool scanDriverConfigs(const std::string &dir, std::vector<DriverApp> *apps, std::string *err) {
+// *truncated is set when the folder holds more entries than are looked at (kMaxDriverFiles): the list is then partial.
+inline bool scanDriverConfigs(const std::string &dir, std::vector<DriverApp> *apps, std::string *err,
+                              bool *truncated = nullptr) {
     using namespace driver_detail;
     apps->clear();
     std::vector<std::string> names;
     bool capped = false;
+    if (truncated) *truncated = false;
     if (dir.empty() || !fs::listDir(dir, kMaxDriverFiles, &names, &capped)) {
         if (err) *err = "the driver's settings folder cannot be read";
         return false;
     }
+    if (truncated) *truncated = capped;
     for (const std::string &n : names) {
         if (!plainName(n) || !endsWithXml(n)) continue;
         const std::string low = lowerAscii(n);
@@ -252,7 +256,7 @@ inline bool applyDriverCleanup(const std::string &dir, const std::vector<DriverA
         report->failed.push_back("invalid backup name");
         return false;
     }
-    const std::string bdir = dir + "/" + kDriverBackupDir + "/" + stamp;
+    std::string bdir = dir + "/" + kDriverBackupDir + "/" + stamp;
     report->backupDir = bdir;
     bool madeDir = false;
     for (const DriverApp &a : apps) {
@@ -272,7 +276,29 @@ inline bool applyDriverCleanup(const std::string &dir, const std::vector<DriverA
         const std::string cleaned = disableDriverAxes(xml, &n);
         if (n == 0) continue;  // nothing active any more
         if (!madeDir) {
-            if (!fs::mkdirsPrivate(bdir, &e)) {
+            // A stamp has a resolution of one second: a second cleanup in the same second would back up the files
+            // the first one already cleaned, over its backup of the originals. Every run gets a folder of its own.
+            const std::string base = dir + "/" + kDriverBackupDir;
+            bool made = fs::mkdirsPrivate(base, &e);
+            for (int k = 1; made && k < 100; ++k) {
+                const std::string cand = k == 1 ? stamp : stamp + "-" + std::to_string(k);
+                if (!validStamp(cand)) {
+                    made = false;
+                    break;
+                }
+                const fs::MkdirResult mk = fs::mkdirPrivate(base + "/" + cand, &e);
+                if (mk == fs::MkdirResult::Failed) {
+                    made = false;
+                    break;
+                }
+                if (mk == fs::MkdirResult::Created) {
+                    bdir = base + "/" + cand;
+                    report->backupDir = bdir;
+                    break;
+                }
+                if (k == 99) made = false;
+            }
+            if (!made) {
                 report->failed.push_back(a.file + ": the backup folder cannot be created");
                 return false;
             }
@@ -300,18 +326,21 @@ inline bool applyDriverCleanup(const std::string &dir, const std::vector<DriverA
 }
 
 // Stamps of the backups, newest first (the stamps sort as time).
-inline std::vector<std::string> listDriverBackups(const std::string &dir) {
+// *truncated: more entries than looked at (the list is partial).
+inline std::vector<std::string> listDriverBackups(const std::string &dir, bool *truncated = nullptr) {
     using namespace driver_detail;
     std::vector<std::string> out, names;
     bool capped = false;
-    if (dir.empty() || !fs::listDir(dir + "/" + kDriverBackupDir, 256, &names, &capped)) return out;
+    if (truncated) *truncated = false;
+    if (dir.empty() || !fs::listDir(dir + "/" + kDriverBackupDir, 1024, &names, &capped)) return out;
+    if (truncated) *truncated = capped;
     for (const std::string &n : names)
         if (validStamp(n)) out.push_back(n);
     std::sort(out.begin(), out.end(), std::greater<std::string>());
     return out;
 }
 
-// Puts the files of one backup back (overwrites the current ones).
+// Puts the files of one backup back (overwrites the current ones; a link at the destination is not written through).
 inline bool restoreDriverBackup(const std::string &dir, const std::string &stamp, DriverCleanupReport *report) {
     using namespace driver_detail;
     *report = DriverCleanupReport();
@@ -327,6 +356,7 @@ inline bool restoreDriverBackup(const std::string &dir, const std::string &stamp
         report->failed.push_back("the backup cannot be read");
         return false;
     }
+    if (capped) report->failed.push_back("the backup folder holds more files than are restored");
     for (const std::string &n : names) {
         if (!plainName(n) || !endsWithXml(n)) continue;
         std::string xml, e;
@@ -336,7 +366,8 @@ inline bool restoreDriverBackup(const std::string &dir, const std::string &stamp
             report->failed.push_back(n + ": cannot be read");
             continue;
         }
-        if (!fs::writeFileReplace(dir + "/" + n, xml, &e)) {
+        // not through a link: the driver's folder is the user's, but a link there may point anywhere
+        if (!fs::writeFileReplaceNoFollow(dir + "/" + n, xml, &e)) {
             report->failed.push_back(n + ": cannot be written (" + e + ")");
             continue;
         }

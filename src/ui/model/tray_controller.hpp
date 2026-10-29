@@ -144,6 +144,10 @@ private:
     }
 
     void setEnabled(bool on) {
+        // A settings window of this process may hold edits that are not written yet: they go to disk first, so the
+        // file this model edits is the one the window knows (otherwise the window finds the file changed under its
+        // edit, takes the file and drops the edit).
+        if (hooks_.flush) hooks_.flush();
         SettingsModel m;
         std::string err;
         std::vector<std::string> warnings;

@@ -183,6 +183,25 @@ bool touchFilePrivate(const std::string &path) {
 bool removeFile(const std::string &path) { return ::unlink(path.c_str()) == 0; }
 bool removeDir(const std::string &path) { return ::rmdir(path.c_str()) == 0; }
 bool renamePath(const std::string &from, const std::string &to) { return ::rename(from.c_str(), to.c_str()) == 0; }
+bool renameNoReplace(const std::string &from, const std::string &to, bool *exists) {
+    if (exists) *exists = false;
+    // link() fails with EEXIST instead of replacing: the new name appears atomically, then the old one goes.
+    if (::link(from.c_str(), to.c_str()) == 0) {
+        ::unlink(from.c_str());
+        return true;
+    }
+    if (errno == EEXIST) {
+        if (exists) *exists = true;
+        return false;
+    }
+    // A file system without hard links: the check and the rename are two steps there (best effort).
+    struct stat st;
+    if (::lstat(to.c_str(), &st) == 0) {
+        if (exists) *exists = true;
+        return false;
+    }
+    return ::rename(from.c_str(), to.c_str()) == 0;
+}
 long processId() { return static_cast<long>(::getpid()); }
 
 MkdirResult mkdirPrivate(const std::string &path, std::string *err) {

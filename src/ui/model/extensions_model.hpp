@@ -140,12 +140,11 @@ inline ExtensionResult setExtensionEnabled(const ExtensionEntry &e, bool enabled
         return r;
     }
     const std::string target = extensionPath(e, enabled);
-    if (fs::pathExists(target)) {
-        r.error = enabled ? "a file with this name is already switched on" : "a switched-off file with this name already exists";
-        return r;
-    }
-    if (!fs::renamePath(e.path, target)) {
-        r.error = "the file could not be renamed";
+    // One atomic step: a file that appears under the other name between a check and the rename is not replaced.
+    bool taken = false;
+    if (!fs::renameNoReplace(e.path, target, &taken)) {
+        r.error = taken ? (enabled ? "a file with this name is already switched on" : "a switched-off file with this name already exists")
+                        : "the file could not be renamed";
         return r;
     }
     r.ok = true;

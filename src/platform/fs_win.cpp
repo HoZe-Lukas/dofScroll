@@ -381,6 +381,12 @@ bool removeDir(const std::string &path) { return pathOk(path) && ::RemoveDirecto
 bool renamePath(const std::string &from, const std::string &to) {
     return pathOk(from) && pathOk(to) && ::MoveFileExW(native(from).c_str(), native(to).c_str(), MOVEFILE_WRITE_THROUGH) != 0;
 }
+bool renameNoReplace(const std::string &from, const std::string &to, bool *exists) {
+    if (exists) *exists = false;  // MoveFileEx without MOVEFILE_REPLACE_EXISTING never replaces
+    if (renamePath(from, to)) return true;
+    if (exists) *exists = ::GetFileAttributesW(native(to).c_str()) != INVALID_FILE_ATTRIBUTES;
+    return false;
+}
 long processId() { return static_cast<long>(::GetCurrentProcessId()); }
 
 MkdirResult mkdirPrivate(const std::string &path, std::string *err) {

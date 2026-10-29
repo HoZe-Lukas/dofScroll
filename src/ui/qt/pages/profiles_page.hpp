@@ -122,6 +122,9 @@ private:
     void refreshTreeLabels();  // the numbers of overrides in the list
     void setTabContent(QScrollArea *area, const QList<QWidget *> &parts);
     size_t currentSection() const;
+    void rememberSelection();
+    bool renameAt(size_t section, const QString &name);
+    bool removeAt(size_t section);
     void refreshDeviceLimit(size_t section);
     void queueRebuild();
     void pollDeviceFeed();
@@ -175,6 +178,8 @@ private:
     QLabel *undoLabel_ = nullptr;
     bool keepUndo_ = false;  // rebuildTree() drops the offer, except while a removal itself rebuilds it
     spn::ui::RemovedProfile removed_;
+    spn::Section::Kind selKind_ = spn::Section::GLOBAL;  // identity of the selected profile (survives a reload)
+    std::string selPattern_;
     size_t shown_ = 0;  // section the tabs show
     int settingRows_ = 0;
     bool advancedOpen_ = false;

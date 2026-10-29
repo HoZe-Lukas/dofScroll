@@ -103,7 +103,12 @@ int main() {
     TrayEntry en = c.menu().entries[5];
     assert(en.action == TrayAction::ToggleEnabled && en.checked);
     const int reloads = runner.count(Kind::RequestReload);
+    // pending edits of the window are written before the toggle edits the file (issue #275 L5)
+    bool flushedBefore = false;
+    c.hooks().flush = [&] { flushedBefore = slurp(p.configPath).find("ENABLED = 0") == std::string::npos; };
     assert(c.perform(en));
+    c.hooks().flush = nullptr;
+    assert(flushedBefore);
     assert(runner.count(Kind::RequestReload) == reloads + 1);
     assert(slurp(p.configPath).find("ENABLED = 0") != std::string::npos);
     assert(slurp(p.configPath).find("SCROLL_V_SENS = 5") != std::string::npos);

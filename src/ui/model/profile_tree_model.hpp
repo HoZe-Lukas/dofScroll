@@ -109,13 +109,25 @@ public:
     static bool remove(SettingsModel &m, size_t section, std::string *err) {
         return m.removeSection(section, err);
     }
-    static bool rename(SettingsModel &m, size_t section, const std::string &typed, std::string *err) {
+    // A rename can move the profile in the list (ties of PRIORITY are broken by file name): *newSection is where it
+    // is afterwards.
+    static bool rename(SettingsModel &m, size_t section, const std::string &typed, std::string *err,
+                       size_t *newSection = nullptr) {
         std::string norm, e;
         if (!validateProfilePattern(typed, &norm, &e)) {
             if (err) *err = e;
             return false;
         }
-        return m.renameSection(section, norm, err);
+        const Section::Kind kind = section < m.sections().size() ? m.sections()[section].kind : Section::GLOBAL;
+        if (!m.renameSection(section, norm, err)) return false;
+        if (newSection) *newSection = resolve(m, kind, norm);
+        return true;
+    }
+    // The index of the profile with this identity now (the model may have been reloaded or re-sorted since an
+    // index was taken), npos when it is gone. Page code that opens a dialog between taking an index and using it
+    // must go through this.
+    static size_t resolve(const SettingsModel &m, Section::Kind kind, const std::string &pattern) {
+        return kind == Section::GLOBAL ? 0 : m.profiles().find(kind, pattern);
     }
 
     // English source text of the tree label (the view translates "Global").

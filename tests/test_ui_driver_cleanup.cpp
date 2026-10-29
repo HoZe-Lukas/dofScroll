@@ -92,6 +92,45 @@ int main() {
     // a stamp is a folder name: nothing else gets through
     assert(!applyDriverCleanup(dir, apps, "../x", &rep) && !restoreDriverBackup(dir, "a/b", &rep));
 
+    // a second cleanup within the same second gets a folder of its own: the backup of the originals is not overwritten
+    assert(scanDriverConfigs(dir, &apps, &err) && apps.size() == 3);
+    for (DriverApp &a : apps) a.selected = a.file != "Fusion.xml";
+    assert(applyDriverCleanup(dir, apps, "20261023-101500", &rep) && rep.changed.size() == 2 &&
+           rep.backupDir == dir + "/dofscroll-backup/20261023-101500-2");  // the first run of this stamp is above
+    assert(get(dir + "/dofscroll-backup/20261023-101500/Code.xml") == wheel);
+    assert(restoreDriverBackup(dir, "20261023-101500", &rep));
+    assert(scanDriverConfigs(dir, &apps, &err));
+    for (DriverApp &a : apps) a.selected = a.file != "Fusion.xml";
+    assert(applyDriverCleanup(dir, apps, "20261023-101500", &rep) && rep.backupDir == dir + "/dofscroll-backup/20261023-101500-3");
+    assert(get(dir + "/dofscroll-backup/20261023-101500/Code.xml") == wheel &&
+           get(dir + "/dofscroll-backup/20261023-101500-3/Code.xml") == wheel);
+    assert(listDriverBackups(dir).size() == 3);
+    assert(restoreDriverBackup(dir, "20261023-101500", &rep) && get(dir + "/Code.xml") == wheel);
+
+    // restore does not write through a link at the destination
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(root + "/outside");
+        std::ofstream(root + "/outside/target.xml") << "untouched";
+        std::filesystem::remove(dir + "/Code.xml");
+        std::filesystem::create_symlink(root + "/outside/target.xml", dir + "/Code.xml", ec);
+        if (!ec) {
+            assert(!restoreDriverBackup(dir, "20261023-101500", &rep));
+            assert(get(root + "/outside/target.xml") == "untouched" && !rep.failed.empty());
+        }
+    }
+
+    // a folder with more entries than are looked at is reported as partial
+    {
+        const std::string big = root + "/big";
+        std::filesystem::create_directories(big);
+        for (int i = 0; i < int(kMaxDriverFiles) + 8; ++i) std::ofstream(big + "/f" + std::to_string(i) + ".txt") << "x";
+        bool truncated = false;
+        std::vector<DriverApp> some;
+        assert(scanDriverConfigs(big, &some, &err, &truncated) && truncated && some.empty());
+        assert(scanDriverConfigs(dir, &some, &err, &truncated) && !truncated);
+    }
+
     tu::removeAll(root);
     return 0;
 }

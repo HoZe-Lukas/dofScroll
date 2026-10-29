@@ -3164,3 +3164,19 @@ msgstr ""
 #: src/ui/qt/key_combo.hpp
 msgid "Windows key"
 msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "The profile \"%1\" is gone (the configuration was reloaded); nothing was renamed."
+msgstr ""
+
+#: src/ui/qt/pages/profiles_page.cpp
+msgid "The profile \"%1\" is gone (the configuration was reloaded); nothing was removed."
+msgstr ""
+
+#: src/ui/qt/main_window.cpp
+msgid "The profile of your device could not be added: %1"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+msgid "The folder holds more files than are listed here; the list is not complete."
+msgstr ""

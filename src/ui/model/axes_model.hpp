@@ -143,6 +143,7 @@ public:
         everButtons_ |= s.buttons;
         if (paused_) return;
         shown_ = s;
+        lastSampleNs_ = nowNs;
         hold_.update(s.axes, nowNs);
         for (int i = 0; i < AX_COUNT; i++) scale_ = std::max(scale_, axisFullScale(std::abs(s.axes[i])));
         chanScale_ = std::max({chanScale_, channelFullScale(std::fabs(double(s.v))),
@@ -151,6 +152,17 @@ public:
         has_ = true;
     }
     bool hasData() const { return has_; }
+    // The shown device has been quiet for `quietNs` (nothing was shown since): the bars go to zero (axes and the
+    // three channel outputs; buttons stay as they were, a release arrives as a sample of its own, and the peak
+    // marks stay). Returns true when something changed. Not while paused (the display is frozen then).
+    bool settleIdle(int64_t nowNs, int64_t quietNs) {
+        if (paused_ || !has_ || nowNs - lastSampleNs_ < quietNs) return false;
+        bool changed = shown_.v != 0 || shown_.h != 0 || shown_.zoom != 0;
+        for (int i = 0; i < AX_COUNT; i++) changed |= shown_.axes[i] != 0;
+        shown_.axes = RawAxes{};
+        shown_.v = shown_.h = shown_.zoom = 0;
+        return changed;
+    }
     const LiveSample &shown() const { return shown_; }
     int fullScale() const { return scale_; }
     double fraction(Axis a) const { return barFraction(shown_.axes[a], scale_); }
@@ -199,6 +211,7 @@ private:
     std::string label_;
     int scale_ = axisFullScale(0), known_ = 0;
     double chanScale_ = 10.0;
+    int64_t lastSampleNs_ = 0;
     bool paused_ = false, has_ = false;
 };
 
@@ -779,6 +792,8 @@ public:
             wizard_.onSample(s.axes, nowNs);
         });
         feed_.syncDevices(client_);
+        // The daemon sends only the device that moved last: a pinned device that rests would keep its last values.
+        if (selected_ != kAllDevices) view_.settleIdle(nowNs, kPinnedIdleNs);
         if (selected_ != kAllDevices && feed_.hasDevices() && !findDevice(selected_)) selected_ = kAllDevices;  // unplugged
         const LiveDevice *sel = findDevice(selected_);
         const LiveDevice *src = (sel || feed_.devices().size() < 2) ? nullptr : findDevice(lastSource_);
@@ -802,6 +817,7 @@ public:
     // assistant (a sample of unknown source always passes). Falls back to kAllDevices when the
     // device disappears from the device list.
     static constexpr int kAllDevices = -1;
+    static constexpr int64_t kPinnedIdleNs = 1000000000;  // quiet time after which a pinned device shows as idle
     int selectedDevice() const { return selected_; }
     // Returns false (and keeps the selection) for an id that is not in the device list. The assistant
     // is not interrupted by the page: the caller disables the selector while a step measures.

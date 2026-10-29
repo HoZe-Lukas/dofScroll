@@ -97,6 +97,9 @@ bool removeDir(const std::string &path);           // rmdir (empty directories o
 // Renames a file or directory; the destination of a directory rename must not exist (POSIX also
 // accepts an empty directory there, Windows does not replace anything).
 bool renamePath(const std::string &from, const std::string &to);
+// Renames a file and never replaces anything at `to`, also not one that appears while this runs (no check-then-rename
+// gap). false when `to` exists (*exists = true) or the call fails.
+bool renameNoReplace(const std::string &from, const std::string &to, bool *exists = nullptr);
 long processId();
 
 enum class MkdirResult { Created, Exists, Failed };

@@ -12,6 +12,7 @@
 #include <functional>
 #include <string>
 
+#include "a11y_announce.hpp"
 #include "ui/model/key_capture_model.hpp"
 #include "ui_i18n.hpp"
 
@@ -105,6 +106,8 @@ public:
             capturing_ = true;
             setText(T("Press the key or combination..."));
             grabKeyboard();
+            // the new state is a text change only: tell a screen reader, and that Esc leaves (the keyboard is grabbed)
+            spn::ui::announce(this, toolTip());
         });
     }
     bool capturing() const { return capturing_; }

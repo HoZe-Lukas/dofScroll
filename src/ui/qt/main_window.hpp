@@ -141,6 +141,7 @@ private:
     QTimer *stateTimer_ = nullptr;       // single shot: saves the geometry after a resize or move
     bool trayAvailable_ = true;
     bool trayNoticeShown_ = false;
+    bool firstDeviceErrorShown_ = false;  // the failure of the first device profile is reported once
     spn::ui::SetupGuideFlow guideFlow_;
     QPointer<SetupGuideDialog> guide_;
     const DaemonStarter *starter_ = nullptr;

@@ -654,6 +654,7 @@ public:
         ps_.sections[i].pattern = norm;
         reindex();
         touch(i);  // the file is written under the new name first, then the old one is removed
+        resort();  // the file name breaks ties of PRIORITY: the profile may move (callers re-find it by name)
         return true;
     }
     // Replaces every setting of a device/app profile by `kv` (each key and value is validated first; nothing changes
