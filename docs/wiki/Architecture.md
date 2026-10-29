@@ -12,7 +12,7 @@ One shared core and a thin platform layer per OS. The source code is the referen
  +------------------------------------------------------------+
  | UI: dofscroll-ui (Qt6: tray icon and settings window)      |
  +----------------------+-------------------------------------+
-                        | writes config, asks for reload
+                        | writes the profile files, asks for reload
  +----------------------v-------------------------------------+
  | Daemon core (src/daemon_core.*)                            |
  |   config, dsp, modes + mode_runner, profile_match, seed    |
@@ -30,7 +30,7 @@ One shared core and a thin platform layer per OS. The source code is the referen
 - **Daemon core** ([src/daemon_core.*](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/daemon_core.cpp)): platform independent. A reader thread stores the newest raw axis values; the main thread runs a fixed tick (`TICK_HZ`, default 250 Hz) and turns them into events, so scrolling is even and independent of the driver's event rate. Reloads on `SIGHUP` (Linux) and when files change; reconnects to `spacenavd` by itself.
 - **Platform layer** ([src/platform/platform.hpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/platform/platform.hpp)): interfaces `InputSource`, `ActiveWindowProvider`, paths, `ReloadListener`. Implementations live in `src/platform/linux/`, `win/` and `mac/`. A scripted `FakeInputSource` makes the core testable without hardware.
 - **File layer** (`src/platform/fs_posix.cpp`, `fs_win.cpp`, `path_rules.hpp`): bounded, symlink-aware reads and atomic writes with private permissions, one implementation per OS family.
-- **Pure logic** (unit-tested everywhere): `config`, `dsp`, `modes`, `mode_runner`, `profile_match`, `device_db`, `hid_descriptor`, `key_tables`, `seed`.
+- **Pure logic** (unit-tested everywhere): `config`, `profile_files`, `profile_migrate`, `dsp`, `key_engine`, `modes`, `mode_runner`, `profile_match`, `axis_convention`, `mouse_move_math`, `device_db`, `hid_descriptor`, `key_tables`, `seed`.
 
 ## Data flow
 

@@ -39,7 +39,7 @@ The checklist in short:
 
 ## Design principle
 
-- **Joystick modes** put functions on the three channels, and the response should be analog: the effect follows the deflection (scroll speed, key repeat rate). Sensitivity overrides are fine.
+- **Joystick modes** put functions on the motions of the cap (the three channels, push and tilt separately, the lift), and the response should be analog: the effect follows the deflection (scroll speed, key repeat rate). Sensitivity overrides are fine.
 - **A binding that is always the same** (a button that always sends Esc or a click) belongs in the vendor driver, not in dofscroll. dofscroll's button actions are for what depends on dofscroll's state: bindings that only apply in a joystick mode, joystick mode switching, latches and cycles, and anything that works together with the axis handling. Such proposals are declined or redirected.
 
 ## Safety

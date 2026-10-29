@@ -2,7 +2,7 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Joystick modes
 
-A joystick mode decides what the three channels and the device buttons do. Joystick modes are plain text files, no recompiling needed. Full reference: [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md). Parser: [src/modes.cpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/modes.cpp); key names: [src/keys.hpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/keys.hpp).
+A joystick mode decides what the motions of the cap (the three channels, push and tilt separately, and the lift) and the device buttons do. Joystick modes are plain text files, no recompiling needed. Full reference: [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md). Parser: [src/modes.cpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/modes.cpp); key names: [src/keys.hpp](https://github.com/HoZe-Lukas/dofScroll/blob/main/src/keys.hpp).
 
 Exactly one joystick mode is active: the one named by `MODE` in the resolved profile, otherwise `normal`. Select it in `[global]`, `[device:*]` or `[app:*]` (see [Profiles](Profiles)), from the tray "Joystick mode" menu (switches the running daemon until the next reload; it does not write `MODE`), or with a button action.
 
@@ -62,7 +62,7 @@ The daemon reloads the directory when it changes (about a second), or run `syste
 
 ## Channel actions
 
-`V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`) and `TWIST_ACTION` (`ZOOM`):
+`V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`), `TWIST_ACTION` (`ZOOM`) and `LIFT_ACTION` (the lift, default `none`, no analog `keys:`):
 
 | Value | Effect |
 |---|---|
@@ -70,8 +70,21 @@ The daemon reloads the directory when it changes (about a second), or run `syste
 | `none` | Channel off |
 | `wheel_v`, `wheel_h` | Vertical or horizontal mouse wheel |
 | `zoom` | Hold the zoom key (`ZOOM_MODIFIER`, default Ctrl) and send the mouse wheel |
-| `keys:<neg>,<pos>` | Key presses for negative and positive deflection; the rate follows the deflection. Each key can be a chord such as `ctrl+pageup` (up to four modifiers, then one key) |
-| `step:<neg>,<pos>` | One key tap per push (no repeat while held); fires at `STEP_TRIGGER` (steps per second after sensitivity, default 20) and re-arms at half of it. Same keys and chords as `keys:` |
+| `keys:<neg>,<pos>` | Analog key presses for negative and positive deflection; the rate follows the deflection. Each key can be a chord such as `ctrl+pageup` (up to four modifiers, then one key) or `none`. Only keys that are safe to repeat: a letter, digit, Enter, Delete, Esc, Alt or Super chord is refused ("this key can only be used digitally, use step:") |
+| `step:<neg>,<pos>` | One key tap per push (no repeat while held); fires at `STEP_TRIGGER` (steps per second after sensitivity, default 20) and re-arms at half of it. Same keys and chords as `keys:` (any key is allowed, with the load warning); a side can also be `click`, `rightclick` or `middleclick` |
+| `hold:<neg>,<pos>` | A key, chord (modifiers alone are fine) or mouse button is held while the motion is deflected beyond the trigger and let go at half of it (digital) |
+
+## The key engine: analog and digital
+
+Every motion (vertical and horizontal push and tilt, twist, lift; both directions) can press a key or chord per direction, in a joystick mode and in a profile. `keys:` is **analog**, `step:` is **digital**; the interface has the check box **Analog**, which only switches the prefix. Three keys per motion tune it, with the prefix `SCROLL_V_PUSH_`, `SCROLL_V_TILT_`, `SCROLL_H_PUSH_`, `SCROLL_H_TILT_`, `ZOOM_` or `LIFT_`:
+
+| Key | Meaning |
+|---|---|
+| `<prefix>KEY_RATE_MIN` | Analog: lowest repeat rate in presses per second while deflected (0 to 1000, default 0 = none) |
+| `<prefix>KEY_RATE_MAX` | Analog: highest repeat rate (default 0 = no limit; never above `min(100, TICK_HZ / 2)`) |
+| `<prefix>TRIGGER` | Level that gives one press (digital) or the first press (analog); default `STEP_TRIGGER` |
+
+At most 4 key presses per tick and function and 8 per tick in total are sent (older versions up to 200). Mouse clicks and holds are digital only and release on a joystick mode change, a reload, suspend, `ENABLED = 0`, an unplugged device and the safety net. Feel and thresholds are not verified on a real device. Full text: [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#the-key-engine-analog-and-digital).
 
 ## Split push and tilt
 
@@ -109,7 +122,7 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 | `toggle:mode:<id>` | First press switches to joystick mode `<id>`, the next press goes back to the profile's joystick mode |
 | `buttonmode:<id>` | Behaves like the action of `buttons/<id>.conf` (a button mode); unknown ids do nothing |
 
-Toggle state is shown in the tray ("Navigation mode on") and cleared by a reload (also the tray's "Release all keys"), a restart, suspend or `ENABLED = 0`, and any joystick mode change. A joystick mode binding wins over a `BUTTON_<n>` binding in the main config. A switch by `mode:` lasts until the daemon restarts, the config or joystick modes reload, or another switch happens; held keys and buttons are released on every switch. An unknown joystick mode id in a joystick mode file is dropped with a warning.
+Toggle state is shown in the tray ("Navigation mode on") and cleared by a reload (also the tray's "Release all keys"), a restart, suspend or `ENABLED = 0`, and any joystick mode change. A joystick mode binding wins over a `BUTTON_<n>` binding of `[global]` and `[device:*]`; a `BUTTON_<n>` of an `[app:*]` profile wins over the joystick mode. A switch by `mode:` lasts until the daemon restarts, the config or joystick modes reload, or another switch happens; held keys and buttons are released on every switch. An unknown joystick mode id in a joystick mode file is dropped with a warning.
 
 Key names are lower case: `ctrl shift alt super`, `up down left right home end pageup pagedown insert delete`, `space enter esc tab backspace`, `f1`-`f24` (macOS: up to `f20`), `a`-`z`, `0`-`9`, `plus minus`, the keypad (`kp_0`-`kp_9 kp_enter kp_plus kp_minus kp_multiply kp_divide kp_decimal`), punctuation (`comma period slash backslash semicolon apostrophe bracket_left bracket_right grave equal`), `caps_lock print scroll_lock pause menu num_lock` and the media keys (`play_pause media_next media_prev media_stop volume_up volume_down volume_mute`). macOS cannot send `f21`-`f24`, `print`, `scroll_lock`, `pause`, `num_lock` or the media keys.
 

@@ -21,9 +21,9 @@ The RPM and DEB files are install-tested in CI containers only (not on a real de
 
 ## First-time setup (Linux)
 
-**Install the package, then open dofScroll from the application menu.** That is the whole first start: the interface starts the daemon by itself and shows a short setup guide (daemon running, SpaceMouse found, "Start at login" on by default). The RPM and DEB enable the `spacenavd` service on every install and upgrade (best effort, as root; a fresh install does not start your dofscroll units, the interface does that). The steps below are the alternative: a TGZ install, a machine without a desktop, or when the automatic way did not work.
+**Install the package, then open dofScroll from the application menu.** That is the whole first start: the interface starts the daemon by itself and shows a short setup guide (daemon running, SpaceMouse found, "Start at login" on by default). The RPM and DEB never enable or start the `spacenavd` service (they print the command when the service exists but is off); a fresh install does not start your dofscroll units either, the interface does that, and the setup guide changes "Start at login" only when you press Finish. The steps below are the alternative: a TGZ install, a machine without a desktop, or when the automatic way did not work.
 
-1. `sudo systemctl enable --now spacenavd` (done by the RPM and DEB)
+1. `sudo systemctl enable --now spacenavd` (the packages do not do this for you)
 2. `systemctl --user daemon-reload`, then check `systemctl --user list-unit-files 'dofscroll*'`
 3. `systemctl --user enable --now dofscroll.service dofscroll-ui.service`. The interface's "Start at login" switch does the same through one interface on all systems.
 4. Wayland only (or `BACKEND = uinput`): activate the udev rule yourself, it is not active by default.
@@ -60,7 +60,7 @@ Uninstall: Settings > Apps > dofscroll; your configuration stays. Details: [docs
 
 ## macOS (unsigned, unverified on hardware)
 
-CI builds `dofscroll-<version>-macos-arm64.dmg` (Apple silicon). It is signed ad hoc only and **not notarized**, and it has **not been run with a real SpaceMouse**.
+CI builds `dofscroll-<version>-macos-arm64.dmg` (Apple silicon). It is signed ad hoc only (with the hardened runtime; the signature changes with an update, so macOS asks for the Input Monitoring and Accessibility grants again) and **not notarized**, and it has **not been run with a real SpaceMouse**.
 
 1. Open the DMG and drag `dofscroll.app` to Applications.
 2. Gatekeeper blocks the first start: right-click the app > **Open** > **Open**. On macOS 15 and later use System Settings > Privacy & Security > **Open Anyway**. Alternative: `xattr -dr com.apple.quarantine /Applications/dofscroll.app`.

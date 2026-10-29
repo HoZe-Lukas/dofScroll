@@ -8,7 +8,8 @@ User documentation is in `readme.md` and `docs/`; this file only gives the short
 dofscroll: a C++17 bridge for a 3Dconnexion SpaceMouse, two processes. The daemon
 (`src/dofscroll.cpp`) reads the device through `spacenavd`/`libspnav` and produces scroll, zoom,
 key and mouse-button events through X11/XTest or uinput. The Qt6 interface
-(`src/ui/`, `dofscroll-ui`, tray icon and settings window) writes the same config file and triggers a
+(`src/ui/`, `dofscroll-ui`, tray icon and settings window) writes the configuration (`dofscroll.conf` for `[global]`,
+one file per profile in `devices/` and `apps/`; the daemon only reads and never migrates) and triggers a
 live reload: SIGHUP on Linux, the reload socket on macOS (there SIGHUP quits the daemon), a named event on Windows. Windows and macOS daemons are built by CI,
 not run on hardware (`docs/work-plan.md`).
 
@@ -18,7 +19,7 @@ not run on hardware (`docs/work-plan.md`).
 |---|---|
 | `src/` | Sources (UI: `src/ui/model` toolkit-free, `src/ui/qt` Qt6 views). Headers are the contract. Shared logic: `config`, `dsp`, `modes`, `seed`, `device_db`; output: `output*`; platform code in `src/platform/` |
 | `tests/` | Unit and scenario tests (`tests/test_*.cpp`, plain `assert`) |
-| `examples/` | Example configs (CI-validated), `default/` (seeded on first start), `modes/` |
+| `examples/` | Example configs (CI-validated), `default/` (seeded on first start), `split/` (one file per profile), `modes/` and `buttons/` (built into the program) |
 | `devices/` | Device descriptions, format in `docs/devices.md` |
 | `po/` | gettext catalogs. The only place for non-English text, apart from the German website `site/de/` |
 | `site/` | Static website (GitHub Pages, `.github/workflows/pages.yml`): English at the root, German in `site/de/`; checked by `scripts/check-site.sh`, see `docs/discoverability.md` |
@@ -54,7 +55,7 @@ open (`Text file busy`); stop it before rebuilding.
 - The Qt version of every package that ships Qt (Linux, Windows, macOS) is set only in `packaging/qt.env`; never
   hard-code it in a workflow or a script. The Linux packages bundle Qt (`scripts/bundle-qt-linux.sh`,
   `docs/release-process.md`): new bundled libraries need their license text in the package.
-- Precedence of profiles: global < device < mode overrides < app.
+- Precedence of profiles: global < device < mode overrides < app. Profiles of one kind are applied by `PRIORITY` ascending (`src/profile_files.hpp`, `docs/plan-config-split.md`); a program's `BUTTON_<n>` beats the joystick mode's binding.
 - A UI change brings the screenshots that show it up to date in the same change (`scripts/make-site-screenshots.sh` for `site/img/`, plus any wiki or docs images) and their captions.
 - On a behavior change update the matching doc (`docs/configuration.md`, `docs/modes.md`,
   `docs/installation.md`, `docs/troubleshooting.md`) in the same change.
