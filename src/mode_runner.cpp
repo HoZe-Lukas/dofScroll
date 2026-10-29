@@ -57,6 +57,7 @@ void ModeRunner::resetCustomState() {
         trig_[i].reset();
         hold_time_[i] = 0.0;
         hold_logged_[i] = false;
+        ptr_[i].reset();
     }
     for (int i = 0; i < PART_COUNT; ++i) {
         ch_part_[i].reset();
@@ -414,6 +415,7 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
         acc_lift_.reset();
         for (int i = 0; i < KM_COUNT; ++i) {
             rep_[i].reset();
+            ptr_[i].reset();
             if (slot[i].t == ChannelActionType::Hold ||
                 (i == KM_LIFT && (slot[i].t == ChannelActionType::Step || slot[i].t == ChannelActionType::Macro))) {
                 // A hold keeps following its motion while the twist zooms (it is released when the motion falls back). The
@@ -440,6 +442,12 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
                 return t == ChannelActionType::Step ? n : 0;
             }
             trig_[km].reset();
+            if (t == ChannelActionType::PointerX || t == ChannelActionType::PointerY) {
+                acc.reset();
+                rep_[km].reset();
+                return ptr_[km].step(rate, dt, s.mouse_speed);  // pixels, not steps
+            }
+            ptr_[km].reset();
             if (t == ChannelActionType::Keys) {
                 acc.reset();
                 return rep_[km].step(rate, dt, keyParamsOf(s, km));
@@ -541,6 +549,7 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
     syncKeys(keys);
 
     int pressBudget = kMaxPressesPerTick;  // key presses of all functions together in this tick
+    int pointerDx = 0, pointerDy = 0;      // pixels of all pointer motions together in this tick (one moveMouse call)
     auto emit = [&](const ChannelAction &a, ChannelActionType t, int n, int sgn) {
         if (n == 0) return;
         switch (t) {
@@ -556,6 +565,8 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
             else out_->wheelH(n);
             break;
         case ChannelActionType::Hold: break;  // held through the state above, never tapped
+        case ChannelActionType::PointerX: pointerDx += n; break;  // positive: right
+        case ChannelActionType::PointerY: pointerDy += n; break;  // positive: down
         case ChannelActionType::Macro: break;  // run by the macro engine above
         case ChannelActionType::Step:
         case ChannelActionType::Keys:
@@ -581,6 +592,7 @@ void ModeRunner::tickCustom(const Settings &s, const ChannelActions &ca, const R
     for (int i = PART_H_PUSH; i <= PART_H_TILT; ++i) emit(*part_a[i], part_t[i], np[i], 1);
     emit(at, tt, nt, -1);
     emit(al, tl, nl, 1);
+    if (pointerDx != 0 || pointerDy != 0) out_->moveMouse(clampMouseDelta(pointerDx), clampMouseDelta(pointerDy));
     info_ = Info{rate_h, rate_v, twist, lateral, zooming, nav_active, rate_zoom, rate_lift};
     for (int i = 0; i < PART_COUNT; ++i) info_.rate_part[i] = split[i / 2] ? part_rate[i] : 0.0;
 }

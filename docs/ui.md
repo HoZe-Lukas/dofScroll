@@ -233,6 +233,7 @@ to the picture shows the selected item:
   swap them, hold Ctrl (Cmd on macOS) while dropping to copy (a dashed frame marks the motion the drop would
   land on). Lift / press and the buttons cannot be dragged; the two lists are the way without a mouse. "Tune this motion" (closed until used) edits sensitivity, dead zone, curve and
   smoothing of that motion as overrides of the joystick mode.
+- **Move the pointer.** The list "What it does" of every motion (profile Motions page and joystick mode editor) has the entries "Move the pointer left and right" and "Move the pointer up and down". They have no analog / digital check box and no key fields: the pointer is always analog. Its speed is the field **Pointer speed** (`MOUSE_SPEED`, pixels per step, 0.1 to 200) in the group "Pointer" of the Channels settings; like every setting it is shown with its origin in words (for example "Inherited from Global: 8", "Set in this profile") and "Reset" removes the override. The field has an accessible name and the explanation as description. Whether the pointer speed feels right can only be tried with a device.
 - **Analog or digital.** Every motion that presses keys (the "Keys" box) has the check box **Analog** (accessible name: "Analog (the key repeats faster the
   further you push)**: checked is `keys:`, unchecked is `step:` (one press per push, like a click); it only switches the
   prefix of the stored action, the keys stay. Two more check boxes, "No key for the negative / positive direction", write

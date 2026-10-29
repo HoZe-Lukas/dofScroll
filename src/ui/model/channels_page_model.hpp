@@ -32,6 +32,7 @@ inline std::vector<SettingsModel::Group> channelPageGroups() {
     }
     out.push_back({"axes", "Axis directions", {"INVERT_AXES"}, false});
     out.push_back({"steps", "Step actions", {"STEP_TRIGGER"}, false});
+    out.push_back({"pointer", "Pointer", {"MOUSE_SPEED"}, false});
     return out;
 }
 

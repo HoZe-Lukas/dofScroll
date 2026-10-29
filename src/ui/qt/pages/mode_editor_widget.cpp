@@ -49,6 +49,8 @@ const KindEntry kKinds[] = {
     {ChannelActionType::WheelV, "Vertical wheel"},
     {ChannelActionType::WheelH, "Horizontal wheel"},
     {ChannelActionType::Zoom, "Zoom (Ctrl + wheel)"},
+    {ChannelActionType::PointerX, "Move the pointer left and right"},
+    {ChannelActionType::PointerY, "Move the pointer up and down"},
     {ChannelActionType::Keys, "Keys (a rate of key presses)"},
     {ChannelActionType::Step, "Step (one key press per push)"},
 };

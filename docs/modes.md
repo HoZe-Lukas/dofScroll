@@ -32,7 +32,7 @@ A SpaceMouse cap moves in six ways. Every joystick mode says what each of them d
 
 - A key that is not split gives push and tilt of its channel the same action: `V_ACTION` covers motions 1 and 2, `H_ACTION` motions 3 and 4. Set a split key to give push and tilt different jobs ([Split push and tilt](#split-push-and-tilt)).
 - `default` is the channel's normal behavior: vertical = scroll, horizontal = scroll sideways, twist = zoom (the zoom modifier, by default Ctrl, plus the wheel).
-- Lift / press has one key, `LIFT_ACTION`, and no split. It does nothing by default and is not used by any built-in joystick mode ([Lift/press](#liftpress-is-unused)); it takes `none`, `wheel_v`, `wheel_h`, `zoom` and `step:<neg>,<pos>`, never an analog `keys:`.
+- Lift / press has one key, `LIFT_ACTION`, and no split. It does nothing by default and is not used by any built-in joystick mode ([Lift/press](#liftpress-is-unused)); it takes `none`, `wheel_v`, `wheel_h`, `zoom`, `pointer_x`, `pointer_y` and `step:<neg>,<pos>`, never an analog `keys:`.
 - A joystick mode that sets none of these keys behaves like `normal`: every motion does its default.
 
 The [table of the built-in joystick modes](#built-in-joystick-modes) lists what each of the six motions does in each of them.
@@ -129,6 +129,7 @@ For `V_ACTION` (channel `SCROLL_V`), `H_ACTION` (`SCROLL_H`), `TWIST_ACTION` (`Z
 | `default` | The channel's normal behavior: vertical wheel, horizontal wheel, twist = zoom with dominance detection. |
 | `none` | Channel off. |
 | `wheel_v`, `wheel_h` | Vertical or horizontal mouse wheel. |
+| `pointer_x`, `pointer_y` | Move the mouse pointer: `pointer_x` right (positive) and left, `pointer_y` down (positive) and up. Continuous and analog, the further you push the faster it moves, always: there is no digital variant. The speed is the global `MOUSE_SPEED` (pixels per step, default 8, 0.1 to 200); dead zone, curve, smoothing, sensitivity and direction (`*_SIGN`) of the channel apply. At most 127 pixels per tick and axis; the pixel remainder is dropped when the motion returns to rest, on a mode switch, reload, suspend, `ENABLED = 0` and when the device is removed, so the pointer never drifts on. The same function on two motions adds up (push and tilt together), `pointer_x` on one and `pointer_y` on another move diagonally. Valid on every motion, in a profile and in a joystick mode. Nothing is held on the output, so a stuck pointer is not possible. Alt/Super-like chord warnings do not apply. |
 | `zoom` | Hold the zoom modifier (`ZOOM_MODIFIER`, default Ctrl) and send the mouse wheel. |
 | `keys:<neg>,<pos>` | Analog key presses: `<neg>` for negative, `<pos>` for positive deflection. The rate follows the deflection (limits: [key engine](#the-key-engine-analog-and-digital)). Dead zone, curve, smoothing and sensitivity of the channel apply. Each argument can be a chord or `none`, see below. Only for keys that are safe to repeat (tier A, see below): a letter, digit, Enter, Delete, Esc, Alt or Super chord is refused with "this key can only be used digitally, use step:". |
 | `step:<neg>,<pos>` | One key tap per push instead of a rate, with hysteresis (digital); see below. Any key. A side can also be `click`, `rightclick` or `middleclick` (one mouse click per push). |
@@ -457,7 +458,7 @@ part and a **tilt** part:
 | `H_PUSH_ACTION` | horizontal, push sideways | `x` |
 | `H_TILT_ACTION` | horizontal, tilt sideways | `-rz` |
 
-The values are the same as for `V_ACTION` (`default`, `none`, `wheel_v`, `wheel_h`, `zoom`,
+The values are the same as for `V_ACTION` (`default`, `none`, `wheel_v`, `wheel_h`, `zoom`, `pointer_x`, `pointer_y`,
 `keys:<neg>,<pos>`, `step:<neg>,<pos>`, chords allowed).
 
 Example: scroll with push, flip pages with tilt, zoom with the twist as usual:
@@ -524,7 +525,7 @@ Validate a joystick mode file with `build/tests/check_config --modes <directory>
 ## Lift/press is unused
 
 Lift and press of the cap (axis `y`) have an action of their own since the lift motion exists: `LIFT_ACTION`
-(`none`, `wheel_v`, `wheel_h`, `zoom`, `step:<neg>,<pos>`; no analog `keys:`; the joystick mode editor offers the same list as
+(`none`, `wheel_v`, `wheel_h`, `zoom`, `pointer_x`, `pointer_y`, `step:<neg>,<pos>`; no analog `keys:`; the joystick mode editor offers the same list as
 the profile's Motions page), tuned by `LIFT_MIX` (default `y`; the
 Windows and macOS seeds say `z`), `LIFT_SENS`, `LIFT_DEADZONE` (default 80), `LIFT_SIGN`, `LIFT_CURVE` and
 `LIFT_SMOOTH_MS`, all valid in a joystick mode file and in a profile. It is still deliberately not used by any default

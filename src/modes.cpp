@@ -367,6 +367,8 @@ std::string channelActionText(const ChannelAction &a) {
         case ChannelActionType::WheelV: return "wheel_v";
         case ChannelActionType::WheelH: return "wheel_h";
         case ChannelActionType::Zoom: return "zoom";
+        case ChannelActionType::PointerX: return "pointer_x";
+        case ChannelActionType::PointerY: return "pointer_y";
         case ChannelActionType::Macro: return "macro:" + (a.macro ? macroActionText(*a.macro) : std::string("none,none"));
         case ChannelActionType::Step:
         case ChannelActionType::Keys:
@@ -393,6 +395,8 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
     else if (t == "wheel_v") a.type = ChannelActionType::WheelV;
     else if (t == "wheel_h") a.type = ChannelActionType::WheelH;
     else if (t == "zoom") a.type = ChannelActionType::Zoom;
+    else if (t == "pointer_x") a.type = ChannelActionType::PointerX;
+    else if (t == "pointer_y") a.type = ChannelActionType::PointerY;
     else if (t.compare(0, 5, "keys:") == 0 || t.compare(0, 5, "step:") == 0 || t.compare(0, 5, "hold:") == 0) {
         const ChannelActionType ty = t[0] == 'k' ? ChannelActionType::Keys : t[0] == 's' ? ChannelActionType::Step : ChannelActionType::Hold;
         const std::string word = t.substr(0, 4);
@@ -421,7 +425,7 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
                 if (!side.none && !keyAnalogAllowed(side.key, side.mods)) return fail(err, "this key can only be used digitally, use step:");
         }
     } else {
-        return fail(err, "expected default | none | wheel_v | wheel_h | zoom | keys:<neg>,<pos> | step:<neg>,<pos> | hold:<neg>,<pos> | macro:<neg>,<pos> (keys may be chords like ctrl+pageup; step: and hold: also take click, rightclick, middleclick)");
+        return fail(err, "expected default | none | wheel_v | wheel_h | zoom | pointer_x | pointer_y | keys:<neg>,<pos> | step:<neg>,<pos> | hold:<neg>,<pos> | macro:<neg>,<pos> (keys may be chords like ctrl+pageup; step: and hold: also take click, rightclick, middleclick)");
     }
     if (out) *out = a;
     return true;

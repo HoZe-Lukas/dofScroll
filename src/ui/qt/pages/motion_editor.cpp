@@ -526,6 +526,8 @@ const KindCard kCards[] = {
     {ChannelActionType::WheelV, "Scroll up and down", "Vertical mouse wheel"},
     {ChannelActionType::WheelH, "Scroll sideways", "Horizontal mouse wheel"},
     {ChannelActionType::Zoom, "Zoom", "Ctrl + wheel"},
+    {ChannelActionType::PointerX, "Move the pointer left and right", "The mouse pointer follows the motion; the speed is MOUSE_SPEED"},
+    {ChannelActionType::PointerY, "Move the pointer up and down", "The mouse pointer follows the motion; the speed is MOUSE_SPEED"},
     {ChannelActionType::Keys, "Keys: a rate of key presses", "Press a key for each direction; the harder you push, the faster it repeats"},
     {ChannelActionType::Step, "One key tap per push", "One key press for each push or tilt"},
 };
