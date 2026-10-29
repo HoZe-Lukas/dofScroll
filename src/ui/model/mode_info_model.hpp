@@ -43,6 +43,8 @@ inline std::string channelActionWords(const ChannelAction &a, const StringProvid
         case ChannelActionType::WheelV: return s.tr("scrolls vertically");
         case ChannelActionType::WheelH: return s.tr("scrolls horizontally");
         case ChannelActionType::Zoom: return s.tr("zooms (Ctrl + wheel)");
+        case ChannelActionType::PointerX: return s.tr("moves the mouse pointer left and right");
+        case ChannelActionType::PointerY: return s.tr("moves the mouse pointer up and down");
         case ChannelActionType::Keys:
             return format(s.tr("taps %1 in one direction and %2 in the other, faster the further you push"),
                           {modelist::negChordText(a), modelist::posChordText(a)});

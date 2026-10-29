@@ -59,6 +59,8 @@ inline ChannelForm presetForm(const std::string &id, Motion m, const ChannelForm
     if (id == "scroll") c.type = ChannelActionType::WheelV;
     else if (id == "scroll_h") c.type = ChannelActionType::WheelH;
     else if (id == "zoom") c.type = ChannelActionType::Zoom;
+    else if (id == "pointer_x") c.type = ChannelActionType::PointerX;
+    else if (id == "pointer_y") c.type = ChannelActionType::PointerY;
     else if (id == "pages") c = keys(ChannelActionType::Keys, "pageup", "pagedown");
     else if (id == "arrows") c = isHorizontalLike(m) ? keys(ChannelActionType::Keys, "left", "right") : keys(ChannelActionType::Keys, "up", "down");
     else if (id == "keys" || id == "taps") {
@@ -79,6 +81,8 @@ inline std::string activePreset(Motion m, const ChannelForm &f) {
         case ChannelActionType::WheelV: return "scroll";
         case ChannelActionType::WheelH: return "scroll_h";
         case ChannelActionType::Zoom: return "zoom";
+        case ChannelActionType::PointerX: return "pointer_x";
+        case ChannelActionType::PointerY: return "pointer_y";
         case ChannelActionType::Step: return f.anyMouse() && !f.anyKeySide() ? "click" : "taps";
         case ChannelActionType::Hold: return "hold";
         case ChannelActionType::Keys:

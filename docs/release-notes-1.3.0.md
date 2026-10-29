@@ -20,6 +20,9 @@ change a lot; the configuration stays readable by the daemon in both layouts.
   deflection, with lowest and highest rate) or digital (`step:`, one press per push, with an own trigger level).
 - **Mouse clicks and holds on every motion.** `step:` takes `click`, `rightclick` and `middleclick` per side; the new
   `hold:<neg>,<pos>` holds a key, chord or mouse button while the motion is deflected.
+- **The pointer as a motion function.** Any motion can move the mouse pointer (`pointer_x`, `pointer_y`, with the global
+  `MOUSE_SPEED`, pixels per step, default 8), in profiles and joystick modes, on X11, uinput, Windows and macOS. Analog only; at most
+  127 pixels per tick and axis. Not verified: feel and speed on real hardware, Wayland, Windows and macOS.
 - **Take over and New profile.** Copy the action (optionally the tuning) of a motion or button from another profile or
   mode; build a whole profile from parts of others.
 - **Key picker as a tree in columns**, and a reworked axis assistant that starts and ends steps by your movement.

@@ -44,7 +44,7 @@ struct MotionRow {
     std::string action;   // "Scroll", "Keys: Up / Down", "Off", "Not used"
     std::string chip;     // short word for the list chip: "Scroll", "Sideways", "Zoom", "Keys", "Taps", "Off", "Unused"
     std::string detail;   // keys of a Keys / Step action ("Left / Right"), "" otherwise: the chip shows it instead of the word
-    std::string symbol;   // icon key: "scroll", "scroll_h", "zoom", "keys", "step", "off", "unused"
+    std::string symbol;   // icon key: "scroll", "scroll_h", "zoom", "keys", "step", "pointer", "off", "unused"
     std::string source;   // where the action comes from ("from the joystick mode", "inherited"); "" = not said
     MotionKind kind = MotionKind::Active;
     bool muted() const { return kind != MotionKind::Active; }
@@ -57,6 +57,7 @@ inline std::string motionGlyph(const std::string &symbol) {
     if (symbol == "zoom") return "\xE2\x8A\x95";      // circled plus
     if (symbol == "keys") return "\xE2\x8C\xA8";      // keyboard
     if (symbol == "step") return "\xE2\x87\xA5";      // arrow to bar (one tap)
+    if (symbol == "pointer") return "\xE2\x86\x96";  // north west arrow (a pointer)
     if (symbol == "off") return "\xE2\x8A\x98";       // circled slash
     if (symbol == "lift_in") return "+";              // lift / press added to another motion
     return "\xE2\x80\x93";                            // en dash: not used
@@ -137,6 +138,16 @@ inline MotionRow rowFor(const char *id, const std::string &name, const std::stri
                 r.detail = mods + "+" + s.tr("Wheel");
             }
             r.symbol = "zoom";
+            break;
+        case ChannelActionType::PointerX:
+            r.action = s.tr("Move the pointer left and right");
+            r.chip = s.tr("Pointer");
+            r.symbol = "pointer";
+            break;
+        case ChannelActionType::PointerY:
+            r.action = s.tr("Move the pointer up and down");
+            r.chip = s.tr("Pointer");
+            r.symbol = "pointer";
             break;
         case ChannelActionType::Keys:
             r.action = format(s.tr("Keys: %1 / %2"), {neg, pos});

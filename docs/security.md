@@ -755,6 +755,15 @@ by a file). Assessment and limits:
   than 60 seconds is only logged once. A hold unions with the zoom modifier and with other holds. The key presses are also capped per tick (4 per function, 8 in all) and the repeat rate at
   `min(100, TICK_HZ / 2)` presses per second. `ENABLED`, `BACKEND` and `TICK_HZ`
   are rejected in mode files so that a mode cannot switch output off.
+- **Pointer movement:** `pointer_x` / `pointer_y` (stage 5 of `docs/plan-motion-functions.md`) let a mode file or profile move the
+  mouse pointer, which is new output capability next to keys and buttons (a pointer plus a click binding can click anywhere on the
+  screen). It adds no new key and holds nothing, so there is no stuck state; the loader applies the same validation as for every
+  action (unknown values are refused, `MOUSE_SPEED` must be 0.1 to 200). Limits: relative movement only, at most 127 pixels per tick
+  and axis (31750 pixels per second at 250 Hz), one `Output::moveMouse` call per tick; the remainder is dropped at rest and on every
+  release path (mode switch, reload, suspend, `ENABLED = 0`, device removal, stale-data watchdog, the safety net), so nothing keeps
+  moving after the input stops. Like the other actions it is not gated; read mode files from strangers before using them (the
+  load warning concerns key chords and does not mention the pointer). X11 uses XTest (as the keys do), uinput `REL_X/REL_Y`,
+  Windows `SendInput`, macOS `CGEvent` (needs the accessibility permission as the keys do).
 - **Held state:** keys and buttons held by a mode are released on mode change, suspend,
   `ENABLED = 0` and at daemon exit/start (`forceReleaseAll`, `--release-keys`), so a faulty
   mode file cannot leave a key stuck beyond those events.

@@ -77,6 +77,15 @@ int main() {
     // ---- back: inherit removes the key, switch on gives the old action back ----
     assert(inheritMotion(m, code, "twist", &mem));
     assert(sectionText(m, code).empty() && motionEdit(m, code, "twist", id).state == MotionState::Inherited);
+    {  // the pointer is a choice of every motion (and of the lift), the write is the plain action text
+        int n = 0, nl = 0;
+        for (const MotionActionChoice &c : motionActionChoices()) n += c.type == ChannelActionType::PointerX || c.type == ChannelActionType::PointerY;
+        for (const MotionActionChoice &c : liftActionChoices()) nl += c.type == ChannelActionType::PointerX || c.type == ChannelActionType::PointerY;
+        assert(n == 2 && nl == 2);
+        assert(setMotionAction(m, code, "h_push", form(ChannelActionType::PointerX, "", ""), &err));
+        assert(sectionText(m, code) == "H_PUSH_ACTION=pointer_x;");
+        assert(inheritMotion(m, code, "h_push", &mem) && sectionText(m, code).empty());
+    }
     assert(setMotionAction(m, code, "twist", form(ChannelActionType::Keys, "ctrl+minus", "ctrl+plus"), &err));  // another action
     assert(sectionText(m, code) == "TWIST_ACTION=keys:ctrl+minus,ctrl+plus;");
     e = motionEdit(m, code, "twist", id);

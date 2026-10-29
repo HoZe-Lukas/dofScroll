@@ -48,6 +48,8 @@ struct ChannelForm {
             case ChannelActionType::WheelV: return "wheel_v";
             case ChannelActionType::WheelH: return "wheel_h";
             case ChannelActionType::Zoom: return "zoom";
+            case ChannelActionType::PointerX: return "pointer_x";
+            case ChannelActionType::PointerY: return "pointer_y";
             case ChannelActionType::Keys: return "keys:" + neg + "," + pos;
             case ChannelActionType::Step: return "step:" + neg + "," + pos;
             case ChannelActionType::Hold: return "hold:" + neg + "," + pos;
