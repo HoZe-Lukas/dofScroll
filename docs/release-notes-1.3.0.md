@@ -126,7 +126,7 @@ Plan and rules: [plan-config-split.md](plan-config-split.md).
 - **Release job** (#287, issue #263). The `release` job runs `scripts/release-gate.sh` first (the tagged commit must be on
   `main`, every required check green), waits for the approval of the environment `release`, and publishes a draft
   release with all files (needed for immutable releases). The repository settings are set by hand:
-  [release-checklist-1.3.0.md](release-checklist-1.3.0.md).
+  `docs/release-checklist-1.3.0.md`.
 - **Qt archives** (#291, issue #265). Every Qt installation verifies the downloaded archives against
   `packaging/ci/qt-archives.sha256`; **the list is still empty** until the workflow `qt-archive-hashes` has run once
   (issue #295). A weekly workflow warns when an advisory fixes a bundled library.
