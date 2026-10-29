@@ -2,7 +2,9 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Releasing
 
-A release is built and published by GitHub Actions when a tag `v<version>` is pushed.
+A release is built and published by GitHub Actions when a tag `v<version>` is pushed. The maintainer's by-hand steps of
+the release in preparation (repository settings, hashes, pins, device tests, the tag, after the release) are listed with exact
+commands in [release-checklist-1.3.0.md](release-checklist-1.3.0.md).
 
 1. Refresh the pins: start the workflow `refresh-ci-pins` (Actions tab; it also runs monthly) and merge the pull
    request "Refresh CI pins" (the job starts its checks itself; wait for them to be green) so the
@@ -53,16 +55,21 @@ of the repository; the maintainer sets them once, by hand** (`scripts/configure-
 `.github/rulesets/tags.json`; read the notes below before running it).
 
 1. **Environment `release` with a required reviewer and a tag rule.** Settings > Environments > New environment, name
-   `release`; tick **Required reviewers** and add the maintainer; under **Deployment branches and tags** choose
+   `release`; tick **Required reviewers** and add the maintainer, and untick **Allow administrators to bypass configured protection
+   rules** (otherwise an administrator skips the approval); under **Deployment branches and tags** choose
    *Selected branches and tags* and add a rule of type **Tag** with the pattern `v*`. With one maintainer leave
    **Prevent self-review** off (otherwise nobody can approve). From then on the release job waits for an approval in the
    Actions run before it publishes. The same with the CLI (`26377753` is the numeric id of the maintainer's account;
    check it with `gh api users/HoZe-Lukas --jq .id`):
 
-        gh api -X PUT repos/HoZe-Lukas/dofScroll/environments/release \
-          -F 'reviewers[][type]=User' -F 'reviewers[][id]=26377753' \
-          -F 'deployment_branch_policy[protected_branches]=false' \
-          -F 'deployment_branch_policy[custom_branch_policies]=true'
+        gh api -X PUT repos/HoZe-Lukas/dofScroll/environments/release --input - <<'JSON'
+        {
+          "can_admins_bypass": false,
+          "prevent_self_review": false,
+          "reviewers": [ { "type": "User", "id": 26377753 } ],
+          "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true }
+        }
+        JSON
         gh api -X POST repos/HoZe-Lukas/dofScroll/environments/release/deployment-branch-policies \
           -f name='v*' -f type=tag
 
