@@ -780,6 +780,11 @@ by a file). Assessment and limits:
   nothing stuck and there is no "never released" warning. A running macro counts as activity for the safety net (a pause is not
   cut after 250 ms); it is bounded by its own steps (at most 256 pauses of 60 s). A hand-written file with a macro that waits for
   hours holds its keys that long: "Release all keys" in the tray ends it at once.
+  **Button mode files (audit round 2):** a file in `buttons/` may have `ACTION = macro:...`, and `buttonmode:<id>` in a profile
+  or joystick mode runs it. The loader named a risky macro only for profiles and joystick mode files; a button mode file got no
+  warning. It now gets the same plain warning (`button mode <id> runs a macro that presses ...`). Also, a joystick mode that
+  pointed at a macro button mode lost the steps (the expansion copied the type but not the macro, so the button did nothing);
+  `expandMode` carries them over now.
 - **Held state:** keys and buttons held by a mode are released on mode change, suspend,
   `ENABLED = 0` and at daemon exit/start (`forceReleaseAll`, `--release-keys`), so a faulty
   mode file cannot leave a key stuck beyond those events.

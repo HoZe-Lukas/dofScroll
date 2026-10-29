@@ -334,6 +334,30 @@ int main() {
         assert(s.buttons[1] == "mode:next:b,a,ghost");
     }
 
+    // A button mode file with a macro: the tier B load warning names the keys (as for a profile), a macro of calm keys gets none,
+    // and a joystick mode that points at it runs the macro (expandMode carries the steps over).
+    {
+        clearDir();
+        writeFile("typer.conf", "ACTION = macro:+ctrl +c -c -ctrl\n");
+        writeFile("calm.conf", "ACTION = macro:+pagedown -pagedown | +pageup -pageup\n");
+        w.clear();
+        const ButtonModeSet macroSet = loadButtonModes(g_dir, &w);
+        const ButtonMode *t = macroSet.find("typer"), *c = macroSet.find("calm");
+        assert(t && t->type == ButtonActionType::Macro && t->macro && t->macro->press.size() == 4);
+        assert(hasWarning(w, "button mode typer runs a macro that presses ctrl"));
+        assert(c && c->macro && c->macro->release.size() == 2 && !hasWarning(w, "button mode calm"));
+        ModeDef md;
+        md.id = "m";
+        ButtonBinding bb;
+        bb.button = 3;
+        bb.type = ButtonActionType::ButtonMode;
+        bb.mode = "typer";
+        md.buttons.push_back(bb);
+        std::set<std::string> miss;
+        const ModeDef ex = expandMode(md, macroSet, &miss);
+        assert(miss.empty() && ex.buttons[0].type == ButtonActionType::Macro && ex.buttons[0].macro && ex.buttons[0].macro->press.size() == 4);
+    }
+
     tu::removeAll(g_dir);
     std::puts("test_button_modes OK");
     return 0;
