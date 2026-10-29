@@ -46,6 +46,8 @@ constexpr int MAX_DELAY_MS = 5000;
 constexpr int64_t HEALTHY_NS = 10'000'000'000;  // 10 s
 // Poll granularity of InputSource::wait() in the reader thread.
 constexpr int WAIT_TIMEOUT_MS = 250;
+// Largest axis magnitude the core accepts from a source (see DeviceReader::handle).
+constexpr int kMaxAxisValue = 32767;
 
 std::string describeMatches(const ProfileSet &ps, const std::string &device,
                             const std::string &wm_class) {
@@ -182,11 +184,15 @@ void DeviceReader::handle(const InputEvent &e) {
     if (e.type != InputEventType::DevicesChanged) events_since_connect.fetch_add(1, std::memory_order_relaxed);
     switch (e.type) {
     case InputEventType::Motion: {
-        for (int i = 0; i < AX_COUNT; ++i) axes[i].store(e.axes[i], std::memory_order_relaxed);
+        // A source may report any int (a hostile device, a driver): +-32767 is the range of every real device. It
+        // keeps -axis (INVERT_AXES) and the weight products of the mix away from overflow.
+        std::array<int, AX_COUNT> ax;
+        for (int i = 0; i < AX_COUNT; ++i) ax[size_t(i)] = std::clamp(e.axes[size_t(i)], -kMaxAxisValue, kMaxAxisValue);
+        for (int i = 0; i < AX_COUNT; ++i) axes[i].store(ax[size_t(i)], std::memory_order_relaxed);
         const int64_t now = clock_();
         last_motion_ns.store(now, std::memory_order_release);
         if (Slot *sl = claimSlot(e.device)) {
-            for (int i = 0; i < AX_COUNT; ++i) sl->axes[i].store(e.axes[i], std::memory_order_relaxed);
+            for (int i = 0; i < AX_COUNT; ++i) sl->axes[i].store(ax[size_t(i)], std::memory_order_relaxed);
             sl->last_motion_ns.store(now, std::memory_order_release);
         }
         break;

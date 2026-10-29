@@ -62,8 +62,20 @@ inline std::string truncate(const std::string &s, size_t maxBytes) {
     return s.substr(0, i);
 }
 
-// Display text: valid UTF-8 is kept; C0 controls, DEL and C1 controls are dropped; every
-// invalid byte becomes U+FFFD. The result is cut to at most maxBytes on a character boundary.
+// True for the 3-byte character at s[i] that can spoof or hide text: zero-width characters (U+200B..U+200F, U+2060),
+// bidirectional controls (U+202A..U+202E, U+2066..U+2069) and the byte order mark U+FEFF.
+inline bool isSpoofing(const std::string &s, size_t i) {
+    if (i + 2 >= s.size()) return false;
+    const unsigned char a = static_cast<unsigned char>(s[i]), b = static_cast<unsigned char>(s[i + 1]),
+                        c = static_cast<unsigned char>(s[i + 2]);
+    if (a == 0xe2 && b == 0x80) return (c >= 0x8b && c <= 0x8f) || (c >= 0xaa && c <= 0xae);
+    if (a == 0xe2 && b == 0x81) return c == 0xa0 || (c >= 0xa6 && c <= 0xa9);
+    return a == 0xef && b == 0xbb && c == 0xbf;
+}
+
+// Display text: valid UTF-8 is kept; C0 controls, DEL and C1 controls are dropped, and so are the characters of
+// isSpoofing (a right-to-left override must not reorder a name); every invalid byte becomes U+FFFD. The result is
+// cut to at most maxBytes on a character boundary.
 inline std::string sanitizeDisplay(const std::string &s, size_t maxBytes) {
     std::string out;
     size_t i = 0;
@@ -76,7 +88,7 @@ inline std::string sanitizeDisplay(const std::string &s, size_t maxBytes) {
             i += 1;
         } else {
             const bool c1 = l == 2 && c == 0xc2 && static_cast<unsigned char>(s[i + 1]) < 0xa0;
-            if (!(l == 1 && (c < 0x20 || c == 0x7f)) && !c1) piece.assign(s, i, l);
+            if (!(l == 1 && (c < 0x20 || c == 0x7f)) && !c1 && !(l == 3 && isSpoofing(s, i))) piece.assign(s, i, l);
             i += l;
         }
         if (out.size() + piece.size() > maxBytes) break;

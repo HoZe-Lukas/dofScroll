@@ -1107,3 +1107,36 @@ Open, tracked as issues: root removes a dangling
 tray link through a glob in a directory the user controls (only that fixed name, no practical harm); look-alike texts
 (see section 11). Plain `key:ctrl`, `key:super`, `key:enter` and `keys:` pairs get no warning on load, only chords do
 (known, F2).
+
+## 15. Core and parser hardening (issue #272)
+
+An audit of the daemon core and the parsers found nothing high or critical and ten smaller points (L1-L10). Fixed, each
+with a test in `tests/test_parser_hardening.cpp`:
+
+- **L1** A control character (C0 except the tab, DEL) in a key or value is refused when the file is read, with a warning.
+  `parseMix` takes a carriage return as white space, so such a value used to load but could never be saved again (the
+  writer and the interface autosave refuse a line break). Parser and writer now use the same rule.
+- **L2** A section name that cannot be kept (empty, over `kMaxPatternBytes`, control character) is announced with a warning
+  instead of being dropped silently; its keys are ignored, as for any invalid section.
+- **L3** `applyKey` no longer copies the whole `Settings` per key (about 40 ms per `resolve()` for a hostile 550 KB file, an
+  80 ms stall per active-window change). Every branch of `applyKeyImpl` parses into locals and writes only on success, so
+  a failed key still changes nothing. The comparison of `migrateToSplit` (`sameResolve`) is bounded to the single probes plus
+  256 device x program pairs instead of 48 x 48.
+- **L4** `DeviceReader::handle` clamps every axis to +-32767, so `INVERT_AXES` (`-INT_MIN`) and the products of the mix
+  cannot overflow whatever a source reports.
+- **L5** `dofscroll.conf` that belongs to another user, or that others (or a foreign group) can write, is read as before
+  but noted in the log. `writeFileReplace` keeps the mode of an existing file without group and other write (a file loosened
+  to 0666 is written 0644). `mkdirsPrivate` refuses an existing target directory of another user (root excepted) and one that
+  every user can write without the sticky bit. Not done: a group-writable directory is accepted (private groups are common),
+  and the file is not refused, only noted: a same-user attacker (A2) can write it anyway.
+- **L6** `joinWmClass` cuts at a character boundary (`utf8::truncate`); the picker and two UI helpers use the ASCII-only
+  helpers of `src/utf8.hpp`; `sanitizeForLog` and `utf8::sanitizeDisplay` drop bidirectional controls (U+202A-202E,
+  U+2066-2069), zero-width characters (U+200B-200F, U+2060) and U+FEFF.
+- **L7** The daemon ignores `SIGPIPE`: libspnav writes to the socket of `spacenavd` from the reader thread.
+- **L8** Two messages said "Punkt"; they say "point".
+- **L9** `NAV_BUTTON` and `CLICK_BUTTON` are ignored by a custom channel path (documented in `docs/modes.md`); the interface
+  does not offer them any more and migrates them to `BUTTON_<n>` (`docs/configuration.md`).
+- **L10** The button count from `spnav_dev_buttons()` is clamped to 0..32, like `driver_input_core.hpp`.
+
+Not verifiable here: the behavior with a real `spacenavd` (L7, L10) and on Windows and macOS, where the owner and mode
+checks of L5 do not apply (the file-system layer there uses ACLs, section 9).

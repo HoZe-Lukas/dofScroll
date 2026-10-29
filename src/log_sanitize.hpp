@@ -7,10 +7,13 @@
 #include <cstddef>
 #include <string>
 
+#include "utf8.hpp"
+
 namespace spn {
 
 // Kept: printable ASCII (0x20-0x7e) and valid UTF-8 (no overlongs, surrogates,
-// > U+10FFFF and no C1 control characters U+0080-U+009F). Everything else
+// > U+10FFFF and no C1 control characters U+0080-U+009F). Bidirectional controls and zero-width
+// characters (utf8::isSpoofing) are dropped, so a name cannot reorder or hide the log line. Everything else
 // (incl. NUL, ESC, DEL, broken sequences) becomes '?' byte by byte. The length is
 // truncated to maxLen bytes (at a character boundary), followed by "...".
 inline std::string sanitizeForLog(const std::string &in, size_t maxLen = 128) {
@@ -39,6 +42,10 @@ inline std::string sanitizeForLog(const std::string &in, size_t maxLen = 128) {
                 }
                 if (ok) len = need;
             }
+        }
+        if (len == 3 && utf8::isSpoofing(in, i)) {
+            i += len;
+            continue;
         }
         if (out.size() + (len ? len : 1) > maxLen) {
             out += "...";

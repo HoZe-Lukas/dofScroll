@@ -48,6 +48,10 @@ struct ReadOptions {
 struct ReadResult {
     ReadStatus status = ReadStatus::Ok;
     std::string sysError;       // OS error text for OpenFailed / ReadFailed
+    // POSIX, set on a successful open of a regular file (never set on Windows): the file belongs to another user, or
+    // others (or a group that is not the user's own) can write it. The read goes on; the caller decides whether to say so.
+    bool foreignOwner = false;
+    bool looseMode = false;
     bool ok() const { return status == ReadStatus::Ok; }
 };
 // Opens the file once and works only through the handle (no stat/open race): regular-file check,

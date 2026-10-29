@@ -245,9 +245,9 @@ bool parseCurve(const std::string &text, ChannelCfg *c, std::string *err) {
         if (p == std::string::npos || !parseDouble(t.substr(0, p), &in) ||
             !parseDouble(t.substr(p + 1), &f))
             return setErr(err, "CURVE: invalid point '" + t + "'");
-        if (in < 0 || f < 0) return setErr(err, "CURVE: Punkt '" + t + "' must not be negative");
+        if (in < 0 || f < 0) return setErr(err, "CURVE: point '" + t + "' must not be negative");
         // Upper bounds: otherwise step-rate/click flood or overflow (see docs/security.md S2).
-        if (in > 100000 || f > 100) return setErr(err, "CURVE: Punkt '" + t + "' outside the allowed range (factor <= 100)");
+        if (in > 100000 || f > 100) return setErr(err, "CURVE: point '" + t + "' outside the allowed range (factor <= 100)");
         if (!pts.empty() && in <= pts.back().first)
             return setErr(err, "CURVE: inputs must be ascending ('" + t + "')");
         pts.emplace_back(in, f);
@@ -299,7 +299,8 @@ bool applyChannel(ChannelCfg &c, const std::string &suffix, const std::string &v
     return false;
 }
 
-// The actual logic, works directly on s (the caller ensures atomicity).
+// The actual logic, works directly on s. Contract: s changes only when the function returns true (parse into locals,
+// commit at the end of the branch); applyKey relies on it and does not copy s.
 bool applyKeyImpl(Settings &s, const std::string &keyIn, const std::string &value,
                   std::string *err) {
     const std::string key = upper(trim(keyIn));
@@ -655,13 +656,14 @@ bool applyKey(Settings &s, const std::string &key, const std::string &value, std
         if (err) *err = "contains a NUL byte";
         return false;
     }
-    Settings tmp = s;
+    // In place: every branch of applyKeyImpl parses into locals and writes to s only after the value was accepted, so
+    // a failure leaves s unchanged (tests/test_parser_hardening.cpp). A copy of the whole Settings per key cost
+    // ~40 ms per resolve() for a hostile 550 KB file (docs/security.md).
     std::string e;
-    if (!applyKeyImpl(tmp, key, value, &e)) {
+    if (!applyKeyImpl(s, key, value, &e)) {
         if (err) *err = e.empty() ? "invalid value" : e;
         return false;
     }
-    s = std::move(tmp);
     return true;
 }
 
@@ -972,6 +974,14 @@ bool readBounded(int fd, size_t cap, std::string *out, bool *toobig, int *err) {
 }
 #endif
 
+// A control character (C0 except the tab, DEL) in a key or value: the parser refuses it and the writer too, so a file
+// that loads can always be saved again (parseMix, for one, takes a CR as white space).
+bool hasControlChar(const std::string &t) {
+    for (const unsigned char c : t)
+        if ((c < 0x20 && c != '\t') || c == 0x7f) return true;
+    return false;
+}
+
 // Checks a raw pair of a section before writing.
 bool validPair(const KV &p, std::string *why) {
     const std::string &k = p.first, &v = p.second;
@@ -980,6 +990,7 @@ bool validPair(const KV &p, std::string *why) {
         *why = "key/value with line break or '=' in key: '" + k + "'";
         return false;
     }
+    if (hasControlChar(k) || hasControlChar(v)) { *why = "key/value with a control character: '" + k + "'"; return false; }
     Settings probe;
     std::string e;
     if (!applyKey(probe, k, v, &e)) { *why = k + ": " + e; return false; }
@@ -1203,6 +1214,8 @@ bool parseProfilesText(const std::string &data, const std::string &path, Profile
                     cur = -1;
                 } else {
                     size_t idx = ps.findOrAdd(kind, pat);
+                    if (idx == ProfileSet::npos)
+                        warn(lineno, "invalid section name (too long or control character) - section ignored");
                     cur = idx == ProfileSet::npos ? -1 : static_cast<long>(idx);
                 }
             } else {
@@ -1234,6 +1247,10 @@ bool parseProfilesText(const std::string &data, const std::string &path, Profile
         }
         value = trim(value);
         if (key.empty()) { warn(lineno, "line without key ignored"); continue; }
+        if (hasControlChar(key) || hasControlChar(value)) {
+            warn(lineno, "control character in the line - ignored");
+            continue;
+        }
         Settings probe;
         std::string err;
         if (!applyKey(probe, key, value, &err)) {
@@ -1275,6 +1292,10 @@ bool loadProfiles(const std::string &path, ProfileSet *out, std::vector<std::str
     const fs::ReadResult rr = fs::readFileBounded(path, kMaxConfigBytes, fs::ReadOptions(), &data);
     switch (rr.status) {
     case fs::ReadStatus::Ok:
+        // The file steers what the daemon types and clicks: a file of another user, or one that group or others can
+        // write, is read as before but noted (docs/security.md).
+        if (warnings && rr.foreignOwner) warnings->push_back(path + ": owned by another user - anyone who can write it steers the input");
+        if (warnings && rr.looseMode) warnings->push_back(path + ": writable by others or by a foreign group - chmod go-w the file");
         break;
     case fs::ReadStatus::NotFound:
         if (out) *out = ProfileSet();  // missing file = defaults

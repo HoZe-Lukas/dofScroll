@@ -17,6 +17,7 @@ namespace {
 
 constexpr size_t kMaxWarningsKept = 50;
 constexpr size_t kMaxProbes = 48;
+constexpr size_t kMaxResolvePairs = 256;  // device x program pairs compared after the single probes
 
 // A profile as the loader resolves it: (kind, folded name).
 std::string keyOf(Section::Kind k, const std::string &name) {
@@ -176,9 +177,23 @@ std::vector<std::string> probesFor(const ProfileSet &ps, Section::Kind kind) {
 
 bool sameResolve(const ProfileSet &a, const ProfileSet &b) {
     const std::vector<std::string> dev = probesFor(a, Section::DEVICE), app = probesFor(a, Section::APP);
+    // Every device probe with no program and every program probe with no device first, then the pairs, up to a budget:
+    // 48 x 48 resolves of two trees are too many for a hostile file (docs/security.md).
+    size_t budget = kMaxResolvePairs;
+    auto same = [&](const std::string &d, const std::string &p) { return sameSettings(a.resolve(d, p), b.resolve(d, p)); };
     for (const std::string &d : dev)
-        for (const std::string &p : app)
-            if (!sameSettings(a.resolve(d, p), b.resolve(d, p))) return false;
+        if (!same(d, std::string())) return false;
+    for (const std::string &p : app)
+        if (!p.empty() && !same(std::string(), p)) return false;
+    for (const std::string &d : dev) {
+        if (d.empty()) continue;
+        for (const std::string &p : app) {
+            if (p.empty()) continue;
+            if (budget == 0) return true;
+            --budget;
+            if (!same(d, p)) return false;
+        }
+    }
     return true;
 }
 

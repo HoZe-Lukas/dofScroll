@@ -86,6 +86,9 @@ static int releaseKeysAndExit() {
 }
 
 int main(int argc, char **argv) {
+    // libspnav writes to spacenavd's socket from the reader thread; a daemon that has gone away must give an error
+    // there, not kill the process with SIGPIPE.
+    std::signal(SIGPIPE, SIG_IGN);
     // The window query runs in its own thread (own display), the output in the main
     // thread: Xlib must be made thread-safe before the first call.
     XInitThreads();

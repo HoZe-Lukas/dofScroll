@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // InputSource backed by spacenavd via libspnav. spacenavd merges all attached SpaceMice into
 // one stream, so there is a single DeviceInfo with id 0 and the events carry device 0.
+#include <algorithm>
 #include <cerrno>
 #include <cstring>
 #include <poll.h>
@@ -61,7 +62,7 @@ public:
         DeviceInfo d;
         d.id = 0;  // merged stream
         d.name = nm;
-        d.reportedButtons = spnav_dev_buttons();
+        d.reportedButtons = std::max(0, std::min(spnav_dev_buttons(), 32));  // the core tracks at most 32 buttons
         d.axes = spnav_dev_axes();
         v.push_back(d);
         return v;
