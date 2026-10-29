@@ -30,6 +30,7 @@ CycleEditorWidget::CycleEditorWidget(QWidget *parent) : QGroupBox(T("Cycle throu
     choice_->addItem(T("Only these joystick modes"));
     choice_->setItemData(0, T("All joystick modes, in alphabetical order of their ids"), Qt::ToolTipRole);
     choice_->setAccessibleName(T("Which joystick modes the button goes through"));
+    choice_->setAccessibleDescription(T("Which joystick modes the button goes through"));  // the name of a drop-down is its current text
     // a fixed number of characters: the widths of radio buttons and long texts follow the font and made the editor
     // column wider than the window on Windows
     choice_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);

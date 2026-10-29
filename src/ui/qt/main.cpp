@@ -307,6 +307,37 @@ static bool buttonModesSelfTest(const UiContext &ctx, const QString &tmpPath) {
     return ok;
 }
 
+// Reports the controls under `root` that a screen reader cannot name or explain: a control without an accessible name, a
+// drop-down (its accessible name is its current text) without a purpose (accessible description) or a visible buddy label,
+// and a button without text and name. Returns how many were reported.
+static int auditAccessibility(QWidget *root, const QString &where) {
+    int bad = 0;
+    auto hasBuddy = [root](QWidget *c) {
+        for (QLabel *l : root->findChildren<QLabel *>())
+            if (l->buddy() == c) return true;
+        return false;
+    };
+    for (QWidget *c : root->findChildren<QWidget *>()) {
+        if (!c->isVisibleTo(root) || c->objectName() == QStringLiteral("qt_scrollarea_viewport")) continue;
+        auto *combo = qobject_cast<QComboBox *>(c);
+        const bool input = combo || qobject_cast<QAbstractSpinBox *>(c) || (qobject_cast<QLineEdit *>(c) && !qobject_cast<QAbstractSpinBox *>(c->parentWidget()) && !qobject_cast<QComboBox *>(c->parentWidget()));
+        auto *btn = qobject_cast<QAbstractButton *>(c);
+        const bool silentButton = btn && btn->text().isEmpty() && c->accessibleName().isEmpty() && btn->toolTip().isEmpty();
+        if (!input && !silentButton) continue;
+        QAccessibleInterface *iface = QAccessible::queryAccessibleInterface(c);
+        const QString name = iface ? iface->text(QAccessible::Name) : QString();
+        const char *problem = nullptr;
+        if (silentButton) problem = "button without text or name";
+        else if (name.isEmpty()) problem = "no accessible name";
+        else if (combo && c->accessibleDescription().isEmpty() && !hasBuddy(c)) problem = "drop-down without a purpose (accessible description or buddy label)";
+        if (!problem) continue;
+        ++bad;
+        std::fprintf(stderr, "accessibility audit: %s: %s \"%s\" (%s): %s\n", qPrintable(where), c->metaObject()->className(), qPrintable(name.left(40)),
+                     qPrintable(c->objectName()), problem);
+    }
+    return bad;
+}
+
 // Accessibility: every input control on every page has an accessible name (screen readers), and the tab
 // order reaches the first control of each page. Reports the controls without a name.
 static bool accessibilitySelfTest(MainWindow &w) {
@@ -3356,6 +3387,91 @@ static bool withModal(const std::function<void()> &act, const std::function<void
     return handled;
 }
 
+// Every page at 1100 px with glyphs 1.6 times wider than the font as it is (the fonts of Windows): a page is a column of
+// cards that may scroll vertically, but a horizontal scroll bar means that something does not wrap or that columns do not stack.
+static bool wideGlyphPagesSelfTest() {
+    bool ok = true;
+    EditorRig rig("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\nBUTTON_1 = key:ctrl+space\n");
+    MainWindow &w = *rig.win;
+    const QFont baseFont = QApplication::font();
+    for (const int spacing : {100, 160}) {
+        applyTheme(spn::ui::Theme::Light);
+        QFont f = baseFont;
+        f.setLetterSpacing(QFont::PercentageSpacing, spacing);
+        QApplication::setFont(f);
+        w.resize(1100, 900);
+        settle();
+        for (const std::string &id : w.pageIds()) {
+            w.showPage(QString::fromStdString(id));
+            settle();
+            QWidget *page = w.currentPage();
+            if (!page) continue;
+            for (QScrollArea *area : page->findChildren<QScrollArea *>()) {
+                if (!area->isVisibleTo(page) || !area->widgetResizable() || !area->horizontalScrollBar() || area->horizontalScrollBar()->maximum() <= 0) continue;
+                std::fprintf(stderr, "wide glyph pages self-test failed: spacing %d page %s: a horizontal scroll bar (%d px too wide)\n", spacing, id.c_str(),
+                             area->horizontalScrollBar()->maximum());
+                for (QWidget *c : area->widget()->findChildren<QWidget *>())
+                    if (c->isVisibleTo(area->widget()) && c->minimumSizeHint().width() > 400)
+                        std::fprintf(stderr, "  wide: %s \"%s\" min %d\n", c->metaObject()->className(),
+                                     qPrintable(qobject_cast<QLabel *>(c) ? qobject_cast<QLabel *>(c)->text().left(40) : qobject_cast<QAbstractButton *>(c) ? qobject_cast<QAbstractButton *>(c)->text().left(40) : c->objectName()),
+                                     c->minimumSizeHint().width());
+                ok = false;
+            }
+        }
+    }
+    QApplication::setFont(baseFont);
+    applyTheme(spn::ui::Theme::System);
+    std::printf("wide glyph pages self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
+// Names and purposes of the controls beyond the pages themselves: every tab of the profile editor, every kind of selection in the
+// Motions and buttons tab and in the Editor page. A drop-down's accessible name is its current text, so each needs an
+// accessible description or a visible buddy label (auditAccessibility).
+static bool accessibilityPurposeSelfTest() {
+    EditorRig rig("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\nBUTTON_1 = key:ctrl+space\nBUTTON_2 = mode:next\n");
+    MainWindow &w = *rig.win;
+    int bad = 0;
+    w.resize(1500, 900);
+    w.showPage(QStringLiteral("profiles"));
+    settle();
+    if (ProfilesPage *pp = w.profilesPage()) {
+        for (size_t section : {size_t(0), size_t(2)})
+            for (const QString &tab : pp->tabIds()) {
+                pp->selectSection(section);
+                pp->selectTab(tab);
+                settle();
+                bad += auditAccessibility(&w, QStringLiteral("profile %1 %2").arg(section).arg(tab));
+            }
+        pp->selectSection(2);
+        pp->selectTab(QStringLiteral("motions"));
+        for (const char *id : {"m:v_push", "m:h_tilt", "m:twist", "m:lift", "b:1", "b:2", "b:3"})
+            if (ProfileMotionsView *mv = pp->motionsView(); mv && mv->select(QLatin1String(id))) {
+                settle();
+                bad += auditAccessibility(&w, QLatin1String(id));
+            }
+    }
+    for (const std::string &id : w.pageIds()) {
+        w.showPage(QString::fromStdString(id));
+        settle();
+        bad += auditAccessibility(&w, QStringLiteral("page ") + QString::fromStdString(id));
+    }
+    EditorPage ep(rig.ctx);
+    ep.resize(1500, 1300);
+    ep.show();
+    settle();
+    if (ep.selectMode(QStringLiteral("timeline")) || ep.selectMode(QStringLiteral("slides"))) {
+        if (ep.editorWidget() && ep.editorWidget()->motionEditor())
+            for (const char *id : {"m:v_push", "m:h_tilt", "m:twist", "m:lift", "b:1"}) {
+                ep.editorWidget()->motionEditor()->select(QLatin1String(id));
+                settle();
+                bad += auditAccessibility(&ep, QStringLiteral("editor ") + QLatin1String(id));
+            }
+    }
+    std::printf("accessibility purpose self-test: %s\n", bad == 0 ? "ok" : "failed");
+    return bad == 0;
+}
+
 // The inspector of a button with a key binding (four modifier boxes and a key picker) must fit the Motions and buttons tab like
 // the one of a motion: no horizontal scroll bar in the window of a user with a larger or a wider font, and the picture stays
 // next to the inspector where it fits (found by the layout audit: the row used to need 1200 px).
@@ -4788,6 +4904,7 @@ int main(int argc, char **argv) {
                             if (c->isVisibleTo(sa) && c->minimumSizeHint().width() > 380)
                                 std::fprintf(stderr, "  wide: %s \"%s\" min %d\n", c->metaObject()->className(),
                                              qPrintable(qobject_cast<QLabel *>(c) ? qobject_cast<QLabel *>(c)->text().left(50) : c->objectName()), c->minimumSizeHint().width());
+                if (std::string(th) == "light") auditAccessibility(&w, name);
                 if (w.grab().save(dir + QStringLiteral("/%1-audit-%2.png").arg(QString::fromLatin1(th), name))) ++written;
             };
             pp->selectSection(size_t(kFirefoxProfile));
@@ -4801,6 +4918,7 @@ int main(int argc, char **argv) {
             if (mv->select(QStringLiteral("m:v_tilt")) && find("motionTakeOver"))
                 withModal([&] { find("motionTakeOver")->click(); }, [&](QDialog *d) {
                     settle();
+                    auditAccessibility(d, QStringLiteral("take over dialog"));
                     if (d->grab().save(dir + QStringLiteral("/%1-audit-dialog-takeover.png").arg(QString::fromLatin1(th)))) ++written;
                     d->reject();
                 });
@@ -4818,6 +4936,7 @@ int main(int argc, char **argv) {
                         if (auto *add = d->findChild<QPushButton *>(QLatin1String(n))) add->click();
                     if (auto *name = d->findChild<QLineEdit *>(QStringLiteral("builderName"))) name->setText(QStringLiteral("firefox"));
                     settle();
+                    auditAccessibility(d, QStringLiteral("profile builder"));
                     if (d->grab().save(dir + QStringLiteral("/%1-audit-dialog-builder-filled.png").arg(QString::fromLatin1(th)))) ++written;
                     d->reject();
                 });
@@ -4829,6 +4948,32 @@ int main(int argc, char **argv) {
             }
             w.showPage(QStringLiteral("settings"));
             shot(QStringLiteral("settings"));
+            if (std::string(th) == "light") {  // the accessible names and purposes of the tabs and pages the shots above do not show
+                w.resize(1500, 900);
+                w.showPage(QStringLiteral("profiles"));
+                for (const char *who : {"global", "program"})
+                    for (const QString &tab : pp->tabIds()) {
+                        pp->selectSection(std::string(who) == "global" ? 0 : size_t(kFirefoxProfile));
+                        pp->selectTab(tab);
+                        settle();
+                        auditAccessibility(&w, QStringLiteral("profile %1 %2").arg(QLatin1String(who), tab));
+                    }
+                for (const std::string &id : w.pageIds()) {
+                    w.showPage(QString::fromStdString(id));
+                    settle();
+                    auditAccessibility(&w, QStringLiteral("page ") + QString::fromStdString(id));
+                }
+                EditorPage ep(ctx);
+                ep.resize(1500, 1200);
+                ep.show();
+                settle();
+                if (ep.selectMode(QStringLiteral("slides")) && ep.editorWidget() && ep.editorWidget()->motionEditor())
+                    for (const char *id : {"m:v_push", "m:h_tilt", "m:twist", "m:lift", "b:1"}) {
+                        ep.editorWidget()->motionEditor()->select(QLatin1String(id));
+                        settle();
+                        auditAccessibility(&ep, QStringLiteral("editor ") + QLatin1String(id));
+                    }
+            }
         }
         {   // the tray menu
             Tray tray(&w, icon, ctx);
@@ -4925,6 +5070,8 @@ int main(int argc, char **argv) {
         if (!profileEditorSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
         if (!borrowBuildSelfTest()) return 1;
         if (!buttonInspectorSelfTest()) return 1;
+        if (!wideGlyphPagesSelfTest()) return 1;
+        if (!accessibilityPurposeSelfTest()) return 1;
         if (!autosaveAuditSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
         if (!legacyButtonsSelfTest()) return 1;
         if (!profileFilesSelfTest()) return 1;

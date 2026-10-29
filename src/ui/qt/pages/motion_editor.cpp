@@ -845,6 +845,8 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
     auto *swap = new QComboBox(more);
     same->setAccessibleName(qs8(l.name) + QStringLiteral(": ") + T("Same as ..."));
     swap->setAccessibleName(qs8(l.name) + QStringLiteral(": ") + T("Swap with ..."));
+    same->setAccessibleDescription(T("Copy the setting of another motion to %1").arg(qs8(l.name)));  // the name of a drop-down is its current text
+    swap->setAccessibleDescription(T("Swap the settings of %1 with another motion").arg(qs8(l.name)));
     same->addItem(T("Same as ..."), QString());
     swap->addItem(T("Swap with ..."), QString());
     for (Motion o : allMotions()) {
@@ -1107,6 +1109,7 @@ void MotionEditor::buildTop(QVBoxLayout *left, QHBoxLayout *tools) {
     tryBtn_->setToolTip(T("Switch to this joystick mode now, on all profiles, to try it in a program"));
     templates_ = new QComboBox(this);
     templates_->setAccessibleName(T("Start from a template"));
+    templates_->setAccessibleDescription(T("Start from a template"));  // the name of a drop-down is its current text
     templates_->addItem(T("Start from a template..."), -1);
     const std::vector<MotionTemplate> all = motionTemplates(*env_.strings);
     for (size_t i = 0; i < all.size(); ++i) {

@@ -116,6 +116,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     description_->setPlaceholderText(T("No description"));
     kind_ = new QComboBox(right);
     kind_->setAccessibleName(T("Action"));
+    kind_->setAccessibleDescription(T("Action"));  // the name of a drop-down is its current text
     for (const spn::ui::BindingKindInfo &k : spn::ui::bindingKindsFor(spn::ui::BindingContext::Specific, false))
         kind_->addItem(T(k.label), int(k.kind));
     // The width of the page must not follow the longest action text (platform fonts differ a lot):
@@ -387,6 +388,7 @@ void ButtonModesPage::rebuildActionArg() {
                binding_.kind == BindingKind::HoldMode) {
         auto *mc = new QComboBox(argHost_);
         mc->setAccessibleName(T("Joystick mode"));
+        mc->setAccessibleDescription(T("Joystick mode"));
         std::vector<std::string> ids = spn::ui::bindingModeIds(spn::loadModes(ctx_.modesDir, nullptr));
         if (!binding_.arg.empty() && std::find(ids.begin(), ids.end(), binding_.arg) == ids.end()) ids.push_back(binding_.arg);
         for (const std::string &id : ids) mc->addItem(qs(id), qs(id));

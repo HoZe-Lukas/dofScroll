@@ -3180,3 +3180,11 @@ msgstr ""
 #: src/ui/qt/pages/driver_cleanup_dialog.cpp
 msgid "The folder holds more files than are listed here; the list is not complete."
 msgstr ""
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Copy the setting of another motion to %1"
+msgstr ""
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Swap the settings of %1 with another motion"
+msgstr ""
