@@ -432,6 +432,14 @@ How macros behave in real programs (timing, recording, release at the end) is no
 
 An old daemon does not know `macro:`: it ignores the line with its usual warning, nothing else changes.
 
+### Own functions made in the interface
+
+The interface can compose any of the actions above for you: **New function ...** in the drop-down of a motion or a button of a
+profile (see [ui.md](ui.md#new-function--and-the-own-functions-of-a-profile)). It writes the same action text into the profile
+(`H_TILT_ACTION = keys:ctrl+pageup,ctrl+pagedown`, `BUTTON_3 = key:ctrl+0`) and the rate and trigger keys of the motion; there is
+no other storage. **Save as joystick mode** copies such a function into `modes/<id>.conf`, **Save as button mode** into
+`buttons/<id>.conf`.
+
 ### Key chords in `keys:`
 
 Each of the two arguments is either a key or a chord: zero to four modifiers (`ctrl`, `shift`,

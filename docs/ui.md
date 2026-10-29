@@ -817,6 +817,51 @@ names it; a later change of the mode changes the profile) and **Make my own copy
 folder, named "<mode> (<profile>)"). A sentence under the form says what will be created; a name that exists is refused with
 the reason next to the field; while the name is empty the line says "Enter the name of the program or device" and no summary is shown. New rows pick the next motion or button that is not used yet; **Add a button mode ...** is off (with the reason in the text) when there are no button modes; the lift is not offered yet. The dialog is sized from its content and the screen, and its Tab order follows the screen, also for added rows. A copy of a joystick or button mode gets a free name even for long profile names. The result is a normal profile, selected afterwards, editable on its Motions and buttons tab.
 
+### New function ... and the own functions of a profile
+
+The drop-down of every motion and of every button on the Motions and buttons tab of a profile ends with **New function ...**.
+It opens a window that composes one function and ends in exactly one action text of that motion or button, checked by the same
+parsers as the configuration file. There is no Save button: as soon as every field is valid the function is assigned (the
+autosave writes it), a field that is not valid is explained next to it and nothing is written, and a line under the window says
+in words that it is assigned and where it applies (inheritance: Global < device profile < joystick mode < program profile). The
+window has one button, **Close**, and the function stays as it is.
+
+| Kind | Fields | Stored as |
+|---|---|---|
+| Key or key combination | a key per direction (or **No key**); for a button one key | `keys:` / `step:` per side, `key:<chord>` on a button |
+| Mouse click | a mouse button per direction (or Nothing); for a button one | `step:` with `click`, `rightclick`, `middleclick`; a button `click` ... |
+| Hold a key or button | a key or mouse button per direction | `hold:<neg>,<pos>` (motions only) |
+| Scroll or zoom | scroll, scroll sideways, zoom | `wheel_v`, `wheel_h`, `zoom` (motions only) |
+| Move the pointer | left and right, up and down | `pointer_x`, `pointer_y` (greyed until the pointer actions exist) |
+| Macro | the steps of the macro per direction (below) | `macro:` (greyed until the daemon knows macros) |
+
+Every key field is built from the check boxes **Ctrl**, **Shift**, **Alt** and **Super key** plus either the key list or
+**Press a key ...** (click it, press the key or combination); there is never a text field for a key. The check box **Analog**
+exists for the key function of a motion (the key repeats faster the further you push, with the lowest and highest rate); for a
+mouse click, a hold, a macro, scroll, zoom, the pointer and every button it is greyed and the reason is written next to it
+("A macro always runs once per trigger."). The rate fields start with 3 and 25 presses a second for a new analog function;
+the trigger level field of the digital functions shows the level that applies when it is empty. The line **Action text**
+shows the text that is stored. What a motion or button cannot do is greyed in the kind list and the reason is written under the
+list.
+
+**The macro editor** (kind Macro) has **Record** and **Record stop**. The check box **Record the times** ("Also record the
+times between the keys") decides how pauses are made: on, they are the measured gaps; off, a pause of 30 ms is put between
+the steps. Recording happens only in this window, while the recording area has the keyboard focus: there is no global key
+logger, a key pressed in another window or after Record stop is not seen, the recording ends by itself when the focus leaves
+the area, and Esc pressed three times in a row ends it from the keyboard (those three presses are not recorded). After
+recording every step can be changed (press a key, release a key, pause in milliseconds; the key field is the one above),
+deleted, moved up or down, or added by hand; a macro has at most 256 steps (a pause counts as a step). A macro is digital: it
+runs once per trigger. Keys that dofscroll cannot send are not recorded and the window says so.
+
+**Own functions of this profile** is a list under the picture on the same tab: every function the profile holds itself (a key
+function, a hold, a macro or the pointer on a motion; a key or a macro on a button), each once with **used by** the motions and
+buttons that hold the same text. **Edit** opens the window for the first user. **Delete** (asks first) removes the function
+from every user; they inherit again and the line under the list says so in words for each of them ("Deleted. Horizontal tilt
+and Button 3 inherit again. Now: ..."). **Save as joystick mode ...** writes `modes/<id>.conf` and **Save as button mode ...**
+`buttons/<id>.conf` (only for a function of a button) as a copy; the profile keeps its own function. Not done yet: a name for
+a function and a table of named functions (`FUNC_<name>`, stage 7e), duplicating a function, and taking over from a joystick mode
+into a function (stage 7d).
+
 ### Add application and the device list
 
 - Add a device profile from the list of connected devices. The list and the factory button count
