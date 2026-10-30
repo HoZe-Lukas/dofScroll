@@ -3411,7 +3411,7 @@ static bool wideGlyphPagesSelfTest() {
                 std::fprintf(stderr, "wide glyph pages self-test failed: spacing %d page %s: a horizontal scroll bar (%d px too wide)\n", spacing, id.c_str(),
                              area->horizontalScrollBar()->maximum());
                 for (QWidget *c : area->widget()->findChildren<QWidget *>())
-                    if (c->isVisibleTo(area->widget()) && c->minimumSizeHint().width() > 400)
+                    if (c->isVisibleTo(area->widget()) && c->minimumSizeHint().width() > 250)
                         std::fprintf(stderr, "  wide: %s \"%s\" min %d\n", c->metaObject()->className(),
                                      qPrintable(qobject_cast<QLabel *>(c) ? qobject_cast<QLabel *>(c)->text().left(40) : qobject_cast<QAbstractButton *>(c) ? qobject_cast<QAbstractButton *>(c)->text().left(40) : c->objectName()),
                                      c->minimumSizeHint().width());
