@@ -21,6 +21,7 @@
 //   ZOOM_ENTER_MS = 40
 //   ZOOM_EXIT_RATIO = 1.5
 //   STEP_TRIGGER = 20              # level at which a step: channel action fires (steps/s)
+//   MOUSE_SPEED = 8                # pixels per step of a pointer_x / pointer_y motion (0.1 .. 200)
 //   BACKEND = auto                 # auto | x11 | uinput
 //   INPUT = auto                   # auto | driver | hid; Windows and macOS only (ignored on Linux)
 //   TICK_HZ = 250
@@ -79,6 +80,8 @@ constexpr size_t kMaxCurvePoints = 64;         // points per CURVE
 constexpr size_t kMaxLateralAxes = 6;          // axes in ZOOM_LATERAL
 constexpr double kMaxZoomExitRatio = 100.0;
 constexpr double kMinStepTrigger = 0.5, kMaxStepTrigger = 10000.0;
+// MOUSE_SPEED: pixels the pointer moves per step of a pointer_x / pointer_y motion (stage 5 of docs/plan-motion-functions.md).
+constexpr double kDefaultMouseSpeed = 8.0, kMinMouseSpeed = 0.1, kMaxMouseSpeed = 200.0;
 // Key engine (stage 3 of docs/plan-motion-functions.md): at most this many key presses per tick and function, and per tick in total.
 constexpr int kMaxPressesPerFunction = 4, kMaxPressesPerTick = 8;
 // Largest accepted KEY_RATE_* value (presses per second); the hard cap min(100, tick_hz / 2) applies below it.
@@ -198,6 +201,7 @@ struct Settings {
     int zoom_enter_ms = 40;
     double zoom_exit_ratio = 1.5;
     double step_trigger = 20.0;       // step: channel actions fire at this rate (steps/s after the channel processing)
+    double mouse_speed = kDefaultMouseSpeed;  // MOUSE_SPEED: pixels per step of a pointer_x / pointer_y motion
     std::string backend = "auto";     // auto | x11 | uinput
     std::string input = "auto";       // auto | driver | hid (Windows/macOS input path; ignored on Linux)
     int tick_hz = 250;                // 30..1000

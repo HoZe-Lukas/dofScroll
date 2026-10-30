@@ -110,6 +110,13 @@ inline std::string motionSentence(const ModeForm &form, const Settings &base, Mo
             text = s.tr("zooms (mouse wheel with the zoom keys held)");
             if (moving) text += s.tr(", now: zooming");
             break;
+        case ChannelActionType::PointerX:
+        case ChannelActionType::PointerY:
+            text = format(a.type == ChannelActionType::PointerX ? s.tr("moves the mouse pointer left and right, about %1 steps a second at full deflection")
+                                                                 : s.tr("moves the mouse pointer up and down, about %1 steps a second at full deflection"),
+                          {help_detail::number(full)});
+            if (moving) text += format(s.tr(", now: %1 a second"), {help_detail::number(now)});
+            break;
         case ChannelActionType::Keys: {
             const std::string neg = help_detail::keyName(modelist::negChordText(a)),
                               pos = help_detail::keyName(modelist::posChordText(a));

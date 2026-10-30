@@ -169,8 +169,9 @@ void parseCand(const std::string &text, Section::Kind dirKind, Cand *c) {
 
 // false when the directory exists but cannot be listed or opened (the caller keeps what it has: an unreadable
 // directory must not look like "no profiles"). A missing directory is no error.
+// *budgetLeft: bytes of profile files that may still be read in this load (kMaxProfileTotalBytes over devices/ and apps/).
 bool readProfileDir(const std::string &baseDir, Section::Kind kind, std::vector<Cand> *cands,
-                    std::vector<FileDiag> *dirDiags) {
+                    std::vector<FileDiag> *dirDiags, size_t *budgetLeft) {
     const std::string dir = profileDirOf(baseDir, kind);
     std::vector<std::string> names;
     bool capped = false;
@@ -214,10 +215,21 @@ bool readProfileDir(const std::string &baseDir, Section::Kind kind, std::vector<
         c.d.kind = kind;
         c.d.path = dir + "/" + n;
         c.d.stamp = profileFileStamp(c.d.path, false);  // before reading: a change while reading shows up later
+        // The size decides before anything is read. A file over the per-file limit is not read either (it is
+        // reported below), so it costs nothing.
+        fs::FileInfo fi;
+        if (fs::lstatPath(c.d.path, &fi) && fi.isFile && !fi.isLink && fi.size >= 0 &&
+            static_cast<uint64_t>(fi.size) <= kMaxProfileFileBytes && static_cast<uint64_t>(fi.size) > *budgetLeft) {
+            failCand(&c, "skipped: the profile files together would exceed the budget of " + std::to_string(kMaxProfileTotalBytes) +
+                             " bytes (16 MiB; " + std::to_string(*budgetLeft) + " bytes left)");
+            cands->push_back(std::move(c));
+            continue;
+        }
         std::string text;
         const fs::ReadResult rr = dh.readFileBounded(n, kMaxProfileFileBytes, opt, &text);
         switch (rr.status) {
         case fs::ReadStatus::Ok:
+            *budgetLeft -= std::min(*budgetLeft, text.size());
             parseCand(text, kind, &c);
             break;
         case fs::ReadStatus::NotFound:
@@ -496,8 +508,9 @@ bool loadProfileTreeAt(const std::string &globalFile, ProfileSet *out, std::vect
     std::vector<FileDiag> dirDiags;
     bool dirsOk = true;
     if (hasProfileDirs(globalFile)) {
-        dirsOk = readProfileDir(base, Section::DEVICE, &cands, &dirDiags) && dirsOk;
-        dirsOk = readProfileDir(base, Section::APP, &cands, &dirDiags) && dirsOk;
+        size_t budgetLeft = kMaxProfileTotalBytes;
+        dirsOk = readProfileDir(base, Section::DEVICE, &cands, &dirDiags, &budgetLeft) && dirsOk;
+        dirsOk = readProfileDir(base, Section::APP, &cands, &dirDiags, &budgetLeft) && dirsOk;
     }
     if (!dirsOk) {
         if (diag) *diag = std::move(dirDiags);

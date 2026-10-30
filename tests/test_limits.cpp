@@ -102,6 +102,109 @@ static void testProfileFileSize() {
     tu::removeAll(d);
 }
 
+// ---------------------------------------------------------------- the total budget of the profile tree (#317)
+static const FileDiag *budgetDiagOf(const std::vector<FileDiag> &diag, const std::string &path) {
+    for (const FileDiag &x : diag)
+        if (x.path == path) return &x;
+    return nullptr;
+}
+
+static std::string budgetName(const char *dir, int i) {
+    char b[32];
+    std::snprintf(b, sizeof b, "/%s/f%03d.conf", dir, i);
+    return b;
+}
+
+static void testProfileTotalBudget() {
+    CHECK(kMaxProfileTotalBytes == 16u * 1024u * 1024u, "the total budget: 16 MiB");
+    CHECK(kMaxProfileTotalBytes % kMaxProfileFileBytes == 0 && kMaxProfileTotalBytes >= 2 * kMaxProfileFileBytes,
+          "the budget holds several full files");
+    const size_t nFull = kMaxProfileTotalBytes / kMaxProfileFileBytes - 1;  // 15 files of 1 MiB, the 16th is cut to size
+    for (int variant = 0; variant < 2; variant++) {  // 0: exactly the budget, 1: one byte over
+        const std::string d = tu::makeTempDir("limits-budget");
+        limitPut(d + "/dofscroll.conf", "[global]\nZOOM_SENS = 9\n");
+        for (size_t i = 0; i < nFull; i++)
+            limitPut(d + budgetName("devices", static_cast<int>(i)),
+                     padTo("[device:D" + std::to_string(i) + "]\nENABLED = 0\n", kMaxProfileFileBytes));
+        const size_t rest = kMaxProfileTotalBytes - nFull * kMaxProfileFileBytes;  // 1 MiB left for two files
+        limitPut(d + "/apps/a.conf", padTo("[app:A]\nENABLED = 0\n", rest - 100));
+        limitPut(d + "/apps/b.conf", padTo("[app:B]\nENABLED = 0\n", 100 + static_cast<size_t>(variant)));
+        ProfileSet ps;
+        std::vector<FileDiag> diag;
+        CHECK(loadProfileTree(d, &ps, &diag), "the tree loads");
+        CHECK(ps.resolve("", "").zoom.sensitivity == 9, "the global file is loaded");
+        const FileDiag *dA = budgetDiagOf(diag, d + "/apps/a.conf"), *dB = budgetDiagOf(diag, d + "/apps/b.conf");
+        CHECK(dA && !dA->fatal && dA->section != ProfileSet::npos, "variant %d: a.conf within the budget", variant);
+        if (variant == 0) {
+            CHECK(dB && !dB->fatal && dB->section != ProfileSet::npos, "exactly the budget loads");
+            CHECK(ps.find(Section::APP, "B") != ProfileSet::npos, "B is in the set");
+        } else {
+            CHECK(dB && dB->fatal && dB->section == ProfileSet::npos, "one byte over the budget: skipped");
+            CHECK(dB && anyContains(dB->warnings, d + "/apps/b.conf") && anyContains(dB->warnings, std::to_string(kMaxProfileTotalBytes)),
+                  "the warning names the file and the budget: %s", dB && !dB->warnings.empty() ? dB->warnings[0].c_str() : "-");
+            CHECK(ps.find(Section::APP, "B") == ProfileSet::npos && ps.find(Section::APP, "A") != ProfileSet::npos,
+                  "the daemon keeps what was loaded");
+        }
+        CHECK(ps.find(Section::DEVICE, "D0") != ProfileSet::npos && ps.find(Section::DEVICE, "D" + std::to_string(nFull - 1)) != ProfileSet::npos,
+              "the files read first are loaded");
+        tu::removeAll(d);
+    }
+}
+
+static void testProfileBudgetGlobalFirst() {
+    // devices/ alone fills the budget; the global file and the files in sort order up to the budget are loaded, the rest is named.
+    const std::string d = tu::makeTempDir("limits-budget-global");
+    limitPut(d + "/dofscroll.conf", "[global]\nZOOM_SENS = 4\n");
+    const size_t n = kMaxProfileTotalBytes / kMaxProfileFileBytes + 3;
+    for (size_t i = 0; i < n; i++)
+        limitPut(d + budgetName("devices", static_cast<int>(i)), padTo("[device:G" + std::to_string(i) + "]\nENABLED = 0\n", kMaxProfileFileBytes));
+    limitPut(d + "/apps/x.conf", "[app:X]\nENABLED = 0\n");
+    ProfileSet ps;
+    std::vector<FileDiag> diag;
+    CHECK(loadProfileTree(d, &ps, &diag), "the tree loads");
+    CHECK(ps.resolve("", "").zoom.sensitivity == 4, "the global file is loaded first, whatever the profile files hold");
+    size_t loaded = 0, skipped = 0;
+    for (size_t i = 0; i < n; i++) {
+        const FileDiag *x = budgetDiagOf(diag, d + budgetName("devices", static_cast<int>(i)));
+        CHECK(x != nullptr, "every file has an entry");
+        if (!x) continue;
+        if (x->section != ProfileSet::npos) {
+            loaded++;
+            CHECK(skipped == 0, "files load in sort order, no loaded file after a skipped one (file %zu)", i);
+        } else {
+            skipped++;
+            CHECK(x->fatal && anyContains(x->warnings, x->path) && anyContains(x->warnings, std::to_string(kMaxProfileTotalBytes)),
+                  "a skipped file is named with the budget");
+        }
+    }
+    CHECK(loaded == kMaxProfileTotalBytes / kMaxProfileFileBytes && skipped == 3, "loaded %zu skipped %zu", loaded, skipped);
+    const FileDiag *dx = budgetDiagOf(diag, d + "/apps/x.conf");
+    CHECK(dx && dx->fatal && dx->section == ProfileSet::npos, "apps/ is read after devices/: the budget is used up");
+    tu::removeAll(d);
+}
+
+static void testProfileBudgetManyFiles() {
+    const std::string d = tu::makeTempDir("limits-budget-many");
+    limitPut(d + "/dofscroll.conf", "[global]\nZOOM_SENS = 6\n");
+    for (int i = 0; i < 1000; i++) {
+        const char *dir = i < 600 ? "devices" : "apps";
+        const std::string head = std::string(i < 600 ? "[device:M" : "[app:M") + std::to_string(i) + "]\nENABLED = 0\n";
+        limitPut(d + budgetName(dir, i), padTo(head, 40 * 1024));
+    }
+    ProfileSet ps;
+    std::vector<FileDiag> diag;
+    CHECK(loadProfileTree(d, &ps, &diag), "1000 files: the tree loads");
+    CHECK(ps.resolve("", "").zoom.sensitivity == 6, "the global file is loaded");
+    size_t bytes = 0, skipped = 0;
+    for (const FileDiag &x : diag) {
+        if (x.origin != FileDiag::PROFILE_FILE) continue;
+        if (x.section != ProfileSet::npos) bytes += 40 * 1024;
+        else if (x.fatal) skipped++;
+    }
+    CHECK(bytes <= kMaxProfileTotalBytes && skipped > 0, "loaded %zu bytes, skipped %zu", bytes, skipped);
+    tu::removeAll(d);
+}
+
 static void testMainFileSize() {
     const std::string d = tu::makeTempDir("limits-main");
     const std::string p = d + "/dofscroll.conf";
@@ -221,6 +324,9 @@ static void testKeysPerSection() {
 int main() {
     testConstants();
     testProfileFileSize();
+    testProfileTotalBudget();
+    testProfileBudgetGlobalFirst();
+    testProfileBudgetManyFiles();
     testMainFileSize();
     testActionTextLimit();
     testLinesInFiles();

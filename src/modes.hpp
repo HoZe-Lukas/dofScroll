@@ -105,9 +105,10 @@ namespace spn {
 // Keys: a rate of key taps (keys:<neg>,<pos>); Step: one tap per push (step:<neg>,<pos>), both use neg/pos.
 // Hold: hold:<neg>,<pos> (stage 4 of docs/plan-motion-functions.md): per side a key, a chord or a mouse button is held while the
 // motion is deflected beyond the trigger and released when it has fallen back to half of it (digital only).
+// PointerX / PointerY: relative pointer movement (pointer_x, pointer_y), continuous, no keys (src/pointer_engine.hpp).
 // Macro: macro:<neg>,<pos> (stage 7b, macro.hpp): per side a list of key down, key up and pause steps that runs once per
 // trigger, with the digital trigger of step: (digital only).
-enum class ChannelActionType { Default, Off, WheelV, WheelH, Zoom, Keys, Step, Hold, Macro };
+enum class ChannelActionType { Default, Off, WheelV, WheelH, Zoom, Keys, Step, Hold, Macro, PointerX, PointerY };
 // The mouse buttons a side can name (numbering of Output::mouseButton): click = 1, middleclick = 2, rightclick = 3.
 constexpr uint8_t kMouseLeft = 1, kMouseMiddle = 2, kMouseRight = 3;
 struct ChannelAction {

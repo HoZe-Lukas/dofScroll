@@ -20,6 +20,9 @@ change a lot; the configuration stays readable by the daemon in both layouts.
   deflection, with lowest and highest rate) or digital (`step:`, one press per push, with an own trigger level).
 - **Mouse clicks and holds on every motion.** `step:` takes `click`, `rightclick` and `middleclick` per side; the new
   `hold:<neg>,<pos>` holds a key, chord or mouse button while the motion is deflected.
+- **The pointer as a motion function.** Any motion can move the mouse pointer (`pointer_x`, `pointer_y`, with the global
+  `MOUSE_SPEED`, pixels per step, default 8), in profiles and joystick modes, on X11, uinput, Windows and macOS. Analog only; at most
+  127 pixels per tick and axis. Not verified: feel and speed on real hardware, Wayland, Windows and macOS.
 - **Ready choices in the joystick mode editor:** the tiles "Switch tabs", "Volume" and "Change track" next to "Page up /
   Page down", made from the built-in modes `tabs`, `volume` and `tracks` (new) and `slides`; the volume and media keys are
   not sent on macOS.
@@ -100,8 +103,8 @@ Plan and rules: [plan-config-split.md](plan-config-split.md).
   "Mouse click per push" and "Hold a key or button while pushed" in words.
 - Lift fix: the lift filter and key state no longer survive a switch to the normal path, and no lift step fires when a
   twist zoom ends while the cap is lifted.
-- Pointer movement exists in the output layer for all four backends (`Output::moveMouse`), but **no action uses it on
-  `main` yet** (see "Not on main yet").
+- Pointer movement (`Output::moveMouse`, all four backends) is used by the new motion actions `pointer_x` and `pointer_y`
+  (see "The pointer as a motion function" above).
 
 ## Axis assistant and Axes page
 
@@ -260,8 +263,7 @@ can verify these; none of them has been tested:
 These were planned for 1.3.0 but are **not merged at the time of writing**. They must not be announced until they are; this
 section is finalized (moved up or removed) before the tag.
 
-From [plan-motion-functions.md](plan-motion-functions.md) (issues #224, #225), stages 5 to 7: the motion actions
-`pointer_x` / `pointer_y` and `MOUSE_SPEED` (stage 5), presets such as "turn pages", "switch tabs", "volume" and "change
+From [plan-motion-functions.md](plan-motion-functions.md) (issues #224, #225), stages 6 and 7: presets such as "turn pages", "switch tabs", "volume" and "change
 track" (stage 6), the `macro:` function with a recording dialog, own functions in profiles (`New function...`), raised
 size limits and `TWIST_GUARD` (stage 7). Also pending: parser hardening (issue #272) and the rest of the UI robustness
 findings of issue #275 (see Known limitations). Today the size limits are the old ones.

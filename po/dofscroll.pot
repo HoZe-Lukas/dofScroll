@@ -3179,6 +3179,53 @@ msgstr ""
 
 #: src/ui/qt/pages/driver_cleanup_dialog.cpp
 msgid "The folder holds more files than are listed here; the list is not complete."
+
+#: src/ui/model/mode_info_model.hpp
+msgid "moves the mouse pointer left and right"
+msgstr ""
+
+#: src/ui/model/mode_info_model.hpp
+msgid "moves the mouse pointer up and down"
+msgstr ""
+
+#: src/ui/model/motion_help_model.hpp
+msgid "moves the mouse pointer left and right, about %1 steps a second at full deflection"
+msgstr ""
+
+#: src/ui/model/motion_help_model.hpp
+msgid "moves the mouse pointer up and down, about %1 steps a second at full deflection"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Move the pointer left and right"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Move the pointer up and down"
+msgstr ""
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Pointer"
+msgstr ""
+
+#: src/ui/model/borrow_model.hpp
+msgid "move the pointer left and right"
+msgstr ""
+
+#: src/ui/model/borrow_model.hpp
+msgid "move the pointer up and down"
+msgstr ""
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "The mouse pointer follows the motion; the speed is MOUSE_SPEED"
+msgstr ""
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "Pointer speed"
+msgstr ""
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "How far the mouse pointer moves per step, in pixels, for a motion set to move the pointer. Higher is faster. The normal value is 8."
 msgstr ""
 
 #: src/ui/qt/pages/motion_editor.cpp

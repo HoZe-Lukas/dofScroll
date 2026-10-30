@@ -405,6 +405,8 @@ inline const std::vector<MotionActionChoice> &motionActionChoices() {
                                                       {ChannelActionType::WheelV, "Scroll"},
                                                       {ChannelActionType::WheelH, "Scroll sideways"},
                                                       {ChannelActionType::Zoom, "Zoom"},
+                                                      {ChannelActionType::PointerX, "Move the pointer left and right"},
+                                                      {ChannelActionType::PointerY, "Move the pointer up and down"},
                                                       {ChannelActionType::Keys, "Keys (one key per direction)"},
                                                       {ChannelActionType::Step, "One key tap per push"},
                                                       {ChannelActionType::Step, "Mouse click per push", kChoiceMouseClick},
@@ -419,6 +421,8 @@ inline const std::vector<MotionActionChoice> &liftActionChoices() {
                                                       {ChannelActionType::WheelV, "Scroll"},
                                                       {ChannelActionType::WheelH, "Scroll sideways"},
                                                       {ChannelActionType::Zoom, "Zoom"},
+                                                      {ChannelActionType::PointerX, "Move the pointer left and right"},
+                                                      {ChannelActionType::PointerY, "Move the pointer up and down"},
                                                       {ChannelActionType::Step, "One key tap per push"},
                                                       {ChannelActionType::Step, "Mouse click per push", kChoiceMouseClick},
                                                       {ChannelActionType::Hold, "Hold a key or button while pushed"}};

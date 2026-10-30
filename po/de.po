@@ -6078,3 +6078,51 @@ msgstr "Die Einstellung einer anderen Bewegung für %1 übernehmen"
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "Swap the settings of %1 with another motion"
 msgstr "Die Einstellungen von %1 mit einer anderen Bewegung tauschen"
+
+#: src/ui/model/mode_info_model.hpp
+msgid "moves the mouse pointer left and right"
+msgstr "bewegt den Mauszeiger nach links und rechts"
+
+#: src/ui/model/mode_info_model.hpp
+msgid "moves the mouse pointer up and down"
+msgstr "bewegt den Mauszeiger nach oben und unten"
+
+#: src/ui/model/motion_help_model.hpp
+msgid "moves the mouse pointer left and right, about %1 steps a second at full deflection"
+msgstr "bewegt den Mauszeiger nach links und rechts, bei voller Auslenkung etwa %1 Schritte pro Sekunde"
+
+#: src/ui/model/motion_help_model.hpp
+msgid "moves the mouse pointer up and down, about %1 steps a second at full deflection"
+msgstr "bewegt den Mauszeiger nach oben und unten, bei voller Auslenkung etwa %1 Schritte pro Sekunde"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Move the pointer left and right"
+msgstr "Mauszeiger nach links und rechts bewegen"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Move the pointer up and down"
+msgstr "Mauszeiger nach oben und unten bewegen"
+
+#: src/ui/model/motion_summary_model.hpp
+msgid "Pointer"
+msgstr "Zeiger"
+
+#: src/ui/model/borrow_model.hpp
+msgid "move the pointer left and right"
+msgstr "den Mauszeiger nach links und rechts bewegen"
+
+#: src/ui/model/borrow_model.hpp
+msgid "move the pointer up and down"
+msgstr "den Mauszeiger nach oben und unten bewegen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "The mouse pointer follows the motion; the speed is MOUSE_SPEED"
+msgstr "Der Mauszeiger folgt der Bewegung; die Geschwindigkeit stellst du mit MOUSE_SPEED ein"
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "Pointer speed"
+msgstr "Zeigergeschwindigkeit"
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "How far the mouse pointer moves per step, in pixels, for a motion set to move the pointer. Higher is faster. The normal value is 8."
+msgstr "Wie weit sich der Mauszeiger pro Schritt bewegt (in Pixeln), wenn du eine Bewegung auf den Mauszeiger legst. Höher ist schneller. Der Normalwert ist 8."

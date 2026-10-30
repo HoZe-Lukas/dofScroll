@@ -81,7 +81,8 @@ bool parseButtonModeText(const std::string &text, ButtonMode *out, std::vector<s
             ButtonActionType t;
             Key k;
             ChordMods cm;
-            if (!parseButtonAction(value, &t, &k, &err, &target, &cm)) { warn(lineno, "ACTION: " + err + " - line ignored"); continue; }
+            MacroSide macro;
+            if (!parseButtonAction(value, &t, &k, &err, &target, &cm, &macro)) { warn(lineno, "ACTION: " + err + " - line ignored"); continue; }
             if (t == ButtonActionType::ButtonMode) {
                 warn(lineno, "ACTION: a button mode cannot refer to another button mode - line ignored");
                 continue;
@@ -90,6 +91,7 @@ bool parseButtonModeText(const std::string &text, ButtonMode *out, std::vector<s
             out->key = k;
             out->mods = cm;
             out->target = target;
+            out->macro = t == ButtonActionType::Macro ? std::make_shared<const MacroSide>(std::move(macro)) : nullptr;
             out->action = utf8::lowerAscii(value);
             haveAction = true;
         } else if (key == "CYCLE") {
@@ -148,6 +150,11 @@ ButtonModeSet loadButtonModes(const std::string &dir, std::vector<std::string> *
         // that is not a navigation key, is worth a warning. The built-in button modes ship with the program: no warning.
         if (b.type == ButtonActionType::Key && chordNeedsWarning(b.key, b.mods))
             warnAll("button mode " + b.id + " presses the shortcut chord " + keyActionText(b.key, b.mods).substr(4) + " - read the file before use");
+        // A macro presses what its steps say (tier B, docs/security.md section 7): the same plain warning as in a profile.
+        if (b.type == ButtonActionType::Macro && b.macro) {
+            const std::string risk = macroRiskText(*b.macro);
+            if (!risk.empty()) warnAll("button mode " + b.id + " runs a macro that presses " + risk + " - read the file before use");
+        }
         bool replaced = false;
         for (ButtonMode &x : set.modes)
             if (x.id == b.id) { x = b; replaced = true; break; }
@@ -184,6 +191,7 @@ ModeDef expandMode(const ModeDef &m, const ButtonModeSet &set, std::set<std::str
             b.key = bm->key;
             b.mods = bm->mods;
             b.mode = bm->target;
+            b.macro = bm->macro;
         } else {
             if (missing) missing->insert(b.mode);
             b.type = ButtonActionType::Unbound;

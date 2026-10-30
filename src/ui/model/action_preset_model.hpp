@@ -122,6 +122,8 @@ inline ChannelForm presetForm(const std::string &id, Motion m, const ChannelForm
     if (id == "scroll") c.type = ChannelActionType::WheelV;
     else if (id == "scroll_h") c.type = ChannelActionType::WheelH;
     else if (id == "zoom") c.type = ChannelActionType::Zoom;
+    else if (id == "pointer_x") c.type = ChannelActionType::PointerX;
+    else if (id == "pointer_y") c.type = ChannelActionType::PointerY;
     else if (const char *mode = exampleModeOf(id)) {
         if (!exampleAction(mode, &c)) c.type = ChannelActionType::Default;  // cannot happen: the test needs every example
     }
@@ -145,6 +147,8 @@ inline std::string activePreset(Motion m, const ChannelForm &f) {
         case ChannelActionType::WheelV: return "scroll";
         case ChannelActionType::WheelH: return "scroll_h";
         case ChannelActionType::Zoom: return "zoom";
+        case ChannelActionType::PointerX: return "pointer_x";
+        case ChannelActionType::PointerY: return "pointer_y";
         case ChannelActionType::Step:
             if (presetForm("tracks", m, f) == f) return "tracks";
             if (m == Motion::Lift)

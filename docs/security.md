@@ -755,6 +755,15 @@ by a file). Assessment and limits:
   than 60 seconds is only logged once. A hold unions with the zoom modifier and with other holds. The key presses are also capped per tick (4 per function, 8 in all) and the repeat rate at
   `min(100, TICK_HZ / 2)` presses per second. `ENABLED`, `BACKEND` and `TICK_HZ`
   are rejected in mode files so that a mode cannot switch output off.
+- **Pointer movement:** `pointer_x` / `pointer_y` (stage 5 of `docs/plan-motion-functions.md`) let a mode file or profile move the
+  mouse pointer, which is new output capability next to keys and buttons (a pointer plus a click binding can click anywhere on the
+  screen). It adds no new key and holds nothing, so there is no stuck state; the loader applies the same validation as for every
+  action (unknown values are refused, `MOUSE_SPEED` must be 0.1 to 200). Limits: relative movement only, at most 127 pixels per tick
+  and axis (31750 pixels per second at 250 Hz), one `Output::moveMouse` call per tick; the remainder is dropped at rest and on every
+  release path (mode switch, reload, suspend, `ENABLED = 0`, device removal, stale-data watchdog, the safety net), so nothing keeps
+  moving after the input stops. Like the other actions it is not gated; read mode files from strangers before using them (the
+  load warning concerns key chords and does not mention the pointer). X11 uses XTest (as the keys do), uinput `REL_X/REL_Y`,
+  Windows `SendInput`, macOS `CGEvent` (needs the accessibility permission as the keys do).
   **Macros (tier B, stage 7b):** `macro:` (on a device button and on a motion direction, `docs/modes.md`, "Macros") is a list of key
   down, key up and pause steps (`+ctrl+c`, `-c`, `wait:30`) that types or presses whatever the file says into the window with
   the focus, so a macro from a stranger is as powerful as the key list allows and no more: the key names are the closed list of
@@ -771,6 +780,11 @@ by a file). Assessment and limits:
   nothing stuck and there is no "never released" warning. A running macro counts as activity for the safety net (a pause is not
   cut after 250 ms); it is bounded by its own steps (at most 256 pauses of 60 s). A hand-written file with a macro that waits for
   hours holds its keys that long: "Release all keys" in the tray ends it at once.
+  **Button mode files (audit round 2):** a file in `buttons/` may have `ACTION = macro:...`, and `buttonmode:<id>` in a profile
+  or joystick mode runs it. The loader named a risky macro only for profiles and joystick mode files; a button mode file got no
+  warning. It now gets the same plain warning (`button mode <id> runs a macro that presses ...`). Also, a joystick mode that
+  pointed at a macro button mode lost the steps (the expansion copied the type but not the macro, so the button did nothing);
+  `expandMode` carries them over now.
 - **Held state:** keys and buttons held by a mode are released on mode change, suspend,
   `ENABLED = 0` and at daemon exit/start (`forceReleaseAll`, `--release-keys`), so a faulty
   mode file cannot leave a key stuck beyond those events.
@@ -789,7 +803,7 @@ by a file). Assessment and limits:
   `~/.config/dofscroll` (all covered by the `ReadWritePaths` of the UI unit); the daemon only reads
   them (its unit stays read-only for the configuration folder). The files are read through the
   bounded directory reader: owner check, no links, at most 1 MiB each (the same limit as `dofscroll.conf`; it was 64 KiB), the first 255 per directory
-  in sort order, and only next to a file named `dofscroll.conf` (a legacy `spnav-scroll.conf` in a
+  in sort order, and at most 16 MiB of profile file bytes per load for `devices/` and `apps/` together (`kMaxProfileTotalBytes`, issue #317: 255 files of 1 MiB took about 3 s and 766 MiB of memory on every reload; `devices/` is read before `apps/`, a file that no longer fits is skipped with a warning that names the file and the budget, `dofscroll.conf` is read first and not counted, the daemon keeps working with what was loaded), and only next to a file named `dofscroll.conf` (a legacy `spnav-scroll.conf` in a
   generic folder has no profile directories). A directory that exists but cannot be read makes the
   whole load fail and the daemon keeps its previous settings. Leftover temporary files of an
   interrupted write (`*.conf.tmp.<16 hex>`) older than a day are removed by the next write.
@@ -804,6 +818,10 @@ by a file). Assessment and limits:
   the interface checks the real buttons folder, so a user file that replaces a built-in Button mode id (for example
   `next-mode`) counts as the user's own; only the unmodified built-in ones are not flagged. An id that is in neither
   place is flagged too, because a file of that name could appear later.
+  **Audit round 2 (before 1.3.0):** the check used to look only at the key fields of a motion action, so `step:` and `hold:`
+  with `click`, `rightclick` or `middleclick` (a mouse side carries no key) passed the import without a question although the
+  same click on a device button was flagged. A mouse side of a motion action is now risky like `BUTTON_<n> = click`
+  (`SettingsModel::bindingIsRisky`, test `testMouseSidesOfMotionsAreRisky` in `tests/test_ui_profile_import.cpp`).
 
 ---
 
@@ -1118,6 +1136,14 @@ CI supply chain (issue #149), status after the fix:
   the install smoke test still uses the distribution images by tag (it tests the
   current distributions on purpose and produces no release file). Windows and macOS
   runner images are GitHub's own and not pinned.
+  **Audit round 2 (before 1.3.0):** the write-token job of `refresh-ci-pins.yml` checked the taken-over files with an
+  inline diff filter that dropped every changed line whose content began with `-` or `+` (it took them for diff headers),
+  and it accepted any line that merely contained `@sha256:`. A compromised generator (PyPI code in the read-only job) could
+  therefore add `--index-url ...` or `-r ...` to `aqt-requirements.txt`, or an extra Dockerfile line, past the gate, and the
+  job would then approve the checks of the PR that runs it. The gate is now `scripts/check-pin-diff.sh`: headers are skipped
+  by position, and every changed line must have exactly the shape of an image digest line, a `FROM` line with a digest, a
+  pin or a hash (`tests/test_pin_diff.sh`, ctest `pin_diff`); `scripts/check-ci-pins.sh` fails if the workflow goes back to a
+  hand-written filter. A reviewer still reads the PR before it is merged; the gate is the automatic part.
 
 Open, tracked as issues: root removes a dangling
 tray link through a glob in a directory the user controls (only that fixed name, no practical harm); look-alike texts

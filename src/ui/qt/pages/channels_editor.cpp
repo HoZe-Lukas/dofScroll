@@ -448,7 +448,7 @@ QGroupBox *ChannelsEditor::buildGroup(const SettingsModel::Group &g) {
     grid->setHorizontalSpacing(tk::kRowGap);
     grid->setContentsMargins(tk::kSpaceMd, tk::kCardPadding, tk::kSpaceMd, tk::kCardPadding);
     int row = 0;
-    const bool isChannel = g.id != "steps" && g.id != "axes";
+    const bool isChannel = g.id != "steps" && g.id != "axes" && g.id != "pointer";
     const std::string pre = g.id == "scroll_v" ? "SCROLL_V_" : g.id == "scroll_h" ? "SCROLL_H_" : "ZOOM_";
 
     if (isChannel) {
@@ -489,6 +489,11 @@ QGroupBox *ChannelsEditor::buildGroup(const SettingsModel::Group &g) {
         if (g.id == "zoom") addZoomDetection(grid, &row);
     } else if (g.id == "axes") {
         addInvertAxes(grid, &row);
+    } else if (g.id == "pointer") {
+        const QString speedHelp = T("How far the mouse pointer moves per step, in pixels, for a motion set to move the pointer. "
+                                    "Higher is faster. The normal value is 8.");
+        spinRow(grid, &row, "MOUSE_SPEED", T("Pointer speed"), speedHelp,
+                [&](QLabel *hl) -> QWidget * { return dblSpin("MOUSE_SPEED", 0.1, 200, 1, 1, speedHelp, hl); });
     } else {
         const QString stepHelp = T("Push strength at which a step: channel action taps its key once "
                                    "(steps per second after sensitivity)");
