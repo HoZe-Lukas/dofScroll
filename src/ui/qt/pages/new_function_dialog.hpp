@@ -23,7 +23,6 @@ class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
-class QStackedWidget;
 
 struct NewFunctionEnv {
     spn::ui::FunctionTarget target;
@@ -77,7 +76,8 @@ private:
     int writes_ = 0;
     QComboBox *kind_ = nullptr;
     QLabel *splitWords_ = nullptr, *kindNotes_ = nullptr, *actionNote_ = nullptr, *preview_ = nullptr, *status_ = nullptr, *summary_ = nullptr;
-    QStackedWidget *pages_ = nullptr;
+    QWidget *pages_ = nullptr;  // the pages of the kinds, only the page of the chosen kind is shown
+    std::vector<QWidget *> pageWidgets_;
     std::vector<spn::ui::FunctionKind> pageKinds_;
     ChordField *keyNeg_ = nullptr, *keyPos_ = nullptr, *holdNeg_ = nullptr, *holdPos_ = nullptr;
     QComboBox *clickNeg_ = nullptr, *clickPos_ = nullptr, *wheel_ = nullptr, *pointer_ = nullptr;

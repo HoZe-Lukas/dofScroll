@@ -19,7 +19,7 @@ ChordField::ChordField(const QString &accessible, const Options &options, QWidge
     setObjectName(QStringLiteral("chordField"));
     auto *v = new QVBoxLayout(this);
     v->setContentsMargins(0, 0, 0, 0);
-    // modifiers: one below the other; boxes side by side are wider than a dialog allows with a wide font ("Windows key")
+    // modifiers: two columns (a column of four is as tall as the rest of the field); two boxes side by side fit a dialog even with a wide font
     auto *grid = new QGridLayout;
     grid->setContentsMargins(0, 0, 0, 0);
     int i = 0;
@@ -32,10 +32,12 @@ ChordField::ChordField(const QString &accessible, const Options &options, QWidge
         cb->setAccessibleName(accessible + QStringLiteral(": ") + label);
         cb->setAccessibleDescription(T("Hold this modifier together with the key"));
         cb->setMinimumHeight(24);
-        grid->addWidget(cb, i, 0);
+        grid->addWidget(cb, i / 2, i % 2);
         mods_.push_back(cb);
         ++i;
     }
+    grid->setColumnStretch(0, 1);
+    grid->setColumnStretch(1, 1);
     v->addLayout(grid);
     spn::ui::KeyTreeOptions opt;
     opt.mouse = options.mouse;

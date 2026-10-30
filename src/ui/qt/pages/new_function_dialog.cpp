@@ -9,7 +9,6 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QStackedWidget>
 #include <QStandardItemModel>
 #include <QVBoxLayout>
 
@@ -99,8 +98,12 @@ void NewFunctionDialog::build() {
     v->addWidget(kindNotes_);
 
     // ---- the fields of the kind ----
-    pages_ = new QStackedWidget(content);
+    // Not a QStackedWidget: its layout is as tall as its tallest page and has no height-for-width, so the wrapped labels of a
+    // short kind (a mouse click) sat between screens of empty space. Only the page of the kind is shown.
+    pages_ = new QWidget(content);
     pages_->setObjectName(QStringLiteral("newFunctionPages"));
+    auto *pagesLayout = new QVBoxLayout(pages_);
+    pagesLayout->setContentsMargins(0, 0, 0, 0);
     for (FunctionKind k : pageKinds_) {
         QWidget *p = nullptr;
         switch (k) {
@@ -111,7 +114,9 @@ void NewFunctionDialog::build() {
             case FunctionKind::Pointer: p = buildPointerPage(); break;
             case FunctionKind::Macro: p = buildMacroPage(); break;
         }
-        pages_->addWidget(p);
+        pagesLayout->addWidget(p);
+        pageWidgets_.push_back(p);
+        p->setVisible(pageWidgets_.size() == 1);
     }
     v->addWidget(pages_);
     actionNote_ = label(QString(), "newFunctionActionNote");
@@ -382,7 +387,7 @@ void NewFunctionDialog::syncWidgets() {
     for (int i = 0; i < kind_->count(); ++i)
         if (FunctionKind(kind_->itemData(i).toInt()) == draft_.kind) {
             kind_->setCurrentIndex(i);
-            pages_->setCurrentIndex(i);
+            for (size_t j = 0; j < pageWidgets_.size(); ++j) pageWidgets_[j]->setVisible(int(j) == i);
         }
     auto pick = [](QComboBox *c, const std::string &value) {
         if (!c) return;
@@ -521,7 +526,7 @@ void NewFunctionDialog::showResult(bool ok, const std::vector<FunctionProblem> &
     QString action;
     QString rateMin, rateMax, trigger;
     for (const FunctionProblem &p : problems) {
-        const QString m = mark(StatusKind::Error, T("Invalid value: ") + qs8(p.message));
+        const QString m = mark(StatusKind::Error, T("Invalid value: ") + qs8(env_.strings->tr(p.message.c_str())));  // the models give English source text
         if (p.field == "action") action = m;
         else if (p.field == "rate_min") rateMin = m;
         else if (p.field == "rate_max") rateMax = m;

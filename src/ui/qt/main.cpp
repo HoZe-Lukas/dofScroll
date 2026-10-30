@@ -3404,12 +3404,15 @@ static bool wideGlyphPagesSelfTest() {
     EditorRig rig("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\nBUTTON_1 = key:ctrl+space\n");
     MainWindow &w = *rig.win;
     const QFont baseFont = QApplication::font();
-    for (const int spacing : {100, 130}) {
+    // 1100 px is the usual window; glyphs 1.6 times wider are a German translation on a Windows font (the Settings page
+    // stacks its two columns then)
+    for (const std::pair<int, int> &cfg : {std::make_pair(1100, 100), std::make_pair(1100, 130), std::make_pair(1100, 160)}) {
+        const int spacing = cfg.second;
         applyTheme(spn::ui::Theme::Light);
         QFont f = baseFont;
         f.setLetterSpacing(QFont::PercentageSpacing, spacing);
         QApplication::setFont(f);
-        w.resize(1100, 900);
+        w.resize(cfg.first, 900);
         settle();
         for (const std::string &id : w.pageIds()) {
             w.showPage(QString::fromStdString(id));
@@ -3754,6 +3757,14 @@ static bool newFunctionSelfTest() {
     };
     chooseKind(FunctionKind::Click);
     check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("step:none,click"), "a mouse click: left click in the positive direction");
+    {   // the short kinds are short: the pages of the kinds do not take the height of the tallest one (a macro)
+        QWidget *pages = dlg->findChild<QWidget *>(QStringLiteral("newFunctionPages"));
+        const int click = pages ? pages->sizeHint().height() : 0;
+        chooseKind(FunctionKind::Macro);
+        const int macro = pages ? pages->sizeHint().height() : 0;
+        chooseKind(FunctionKind::Click);
+        check(click > 0 && macro > click * 3 && pages->sizeHint().height() == click, "the page of a mouse click is as tall as its own controls, not as the macro page");
+    }
     check(!an->isEnabled() && why && why->text().contains(QStringLiteral("mouse click")), "a mouse click: the Analog box is greyed with its reason");
     if (auto *cp = dlg->findChild<QComboBox *>(QStringLiteral("newFunctionClickPos"))) {
         const int i = cp->findData(QStringLiteral("rightclick"));
@@ -5608,6 +5619,80 @@ int main(int argc, char **argv) {
                     if (d->grab().save(dir + QStringLiteral("/%1-audit-dialog-builder-filled.png").arg(QString::fromLatin1(th)))) ++written;
                     d->reject();
                 });
+            {   // the New function... dialog for every kind and both targets, the own functions list, the macro recorder
+                auto closeDialogs = [&] {
+                    for (NewFunctionDialog *d : w.findChildren<NewFunctionDialog *>()) d->close();
+                    settle();
+                };
+                auto dialogShot = [&](const QString &name) {
+                    settle();
+                    NewFunctionDialog *d = w.findChild<NewFunctionDialog *>();
+                    if (!d) return;
+                    if (std::string(th) == "light") auditAccessibility(d, QStringLiteral("new function ") + name);
+                    for (QAbstractScrollArea *sa : d->findChildren<QAbstractScrollArea *>())
+                        if (sa->isVisible() && sa->horizontalScrollBar() && sa->horizontalScrollBar()->isVisible())
+                            std::fprintf(stderr, "screenshots: %s new function %s: horizontal scroll bar of a %s (%d px too wide)\n", th, qPrintable(name),
+                                         sa->metaObject()->className(), sa->horizontalScrollBar()->maximum());
+                    const QSize normal = d->size();  // the default size is shown as it is (the content scrolls), then once tall: all of it
+                    if (d->grab().save(dir + QStringLiteral("/%1-audit-nfd-%2.png").arg(QString::fromLatin1(th), name))) ++written;
+                    d->resize(normal.width(), 1700);
+                    settle();
+                    if (d->grab().save(dir + QStringLiteral("/%1-audit-nfd-%2-tall.png").arg(QString::fromLatin1(th), name))) ++written;
+                    d->resize(normal);
+                };
+                using spn::ui::FunctionKind;
+                const struct { FunctionKind k; const char *n; } kinds[] = {{FunctionKind::Key, "key"}, {FunctionKind::Click, "click"},
+                                                                         {FunctionKind::HoldKey, "hold"}, {FunctionKind::Wheel, "wheel"},
+                                                                         {FunctionKind::Pointer, "pointer"}, {FunctionKind::Macro, "macro"}};
+                for (const char *target : {"m:h_tilt", "m:v_push"}) {
+                    pp->selectSection(size_t(kFirefoxProfile));
+                    pp->selectTab(QStringLiteral("motions"));
+                    mv->select(QLatin1String(target));
+                    mv->newFunction(QLatin1String(target + 2));
+                    settle();
+                    NewFunctionDialog *d = w.findChild<NewFunctionDialog *>();
+                    if (!d) continue;
+                    for (const auto &kn : kinds) {
+                        d->chooseKind(kn.k);
+                        if (kn.k == FunctionKind::Macro)
+                            if (auto *me = d->findChild<MacroEditor *>(QStringLiteral("newFunctionMacroNeg"))) {
+                                spn::ui::MacroList ml;
+                                ml.add(spn::ui::macroDown("ctrl"));
+                                ml.add(spn::ui::macroDown("c"));
+                                ml.add(spn::MacroStep::wait(30));
+                                ml.add(spn::ui::macroUp("c"));
+                                ml.add(spn::ui::macroUp("ctrl"));
+                                me->setSteps(ml);
+                            }
+                        dialogShot(QString::fromLatin1(std::string(target + 2) + "-" + kn.n));
+                        if (kn.k == FunctionKind::Macro && std::string(target) == "m:h_tilt")  // the recorder while it records
+                            if (auto *me = d->findChild<MacroEditor *>(QStringLiteral("newFunctionMacroNeg")))
+                                if (auto *rec = me->findChild<QPushButton *>(QStringLiteral("macroRecord"))) {
+                                    rec->click();
+                                    dialogShot(QStringLiteral("macro-recording"));
+                                    if (auto *stop = me->findChild<QPushButton *>(QStringLiteral("macroRecordStop"))) stop->click();
+                                }
+                    }
+                    closeDialogs();
+                }
+                mv->select(QStringLiteral("b:3"));
+                mv->newFunctionForButton(3);
+                settle();
+                if (NewFunctionDialog *d = w.findChild<NewFunctionDialog *>()) {
+                    for (const auto &kn : kinds) {
+                        d->chooseKind(kn.k);
+                        dialogShot(QStringLiteral("button3-") + QLatin1String(kn.n));
+                    }
+                }
+                closeDialogs();
+                shot(QStringLiteral("own-functions"));
+                if (OwnFunctionsWidget *own = mv->ownFunctions()) {  // the list itself (it sits below the buttons)
+                    own->setSection(size_t(kFirefoxProfile));
+                    own->selectRow(0);
+                    settle();
+                    if (own->grab().save(dir + QStringLiteral("/%1-audit-own-functions-list.png").arg(QString::fromLatin1(th)))) ++written;
+                }
+            }
             w.showPage(QStringLiteral("axes"));
             if (auto *ap = w.findChild<AxesPage *>()) {
                 ap->openWizard();

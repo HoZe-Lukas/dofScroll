@@ -6646,3 +6646,99 @@ msgstr "diesem Profil"
 #: src/ui/qt/pages/new_function_dialog.cpp
 msgid "used by %1"
 msgstr "benutzt von %1"
+
+#: src/ui/model/new_function_model.hpp
+msgid "vertical"
+msgstr "vertikale"
+
+#: src/ui/model/new_function_model.hpp
+msgid "horizontal"
+msgstr "horizontale"
+
+#: src/ui/model/new_function_model.hpp
+msgid "tilt"
+msgstr "das Kippen"
+
+#: src/ui/model/new_function_model.hpp
+msgid "push"
+msgstr "das Schieben"
+
+#: src/ui/model/new_function_model.hpp
+msgid "The %1 channel is not split yet. This function splits it: push and tilt are then set separately, and the %2 keeps doing what the whole channel does now."
+msgstr "Der %1 Kanal ist noch nicht geteilt. Diese Funktion teilt ihn: Schieben und Kippen werden dann getrennt festgelegt, und %2 macht weiter, was der ganze Kanal jetzt tut."
+
+#: src/ui/model/new_function_model.hpp
+msgid "The %1 channel is split. This function sets only the %2; the %3 is set separately."
+msgstr "Der %1 Kanal ist geteilt. Diese Funktion legt nur %2 fest; %3 wird getrennt festgelegt."
+
+#: src/ui/qt/button_row.cpp
+msgid "New function..."
+msgstr "Neue Funktion ..."
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Use it on a button"
+msgstr "Auf einer Taste verwenden"
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose a key for each direction, or tick No key"
+msgstr "Wähle für jede Richtung eine Taste oder setze das Häkchen bei „Keine Taste“"
+
+#: src/ui/model/new_function_model.hpp
+msgid "at least one direction needs a key"
+msgstr "Mindestens eine Richtung braucht eine Taste"
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose a key first"
+msgstr "Wähle zuerst eine Taste"
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose a mouse button for each direction, or Nothing"
+msgstr "Wähle für jede Richtung eine Maustaste oder „Nichts“"
+
+#: src/ui/model/new_function_model.hpp
+msgid "at least one direction needs a mouse button"
+msgstr "Mindestens eine Richtung braucht eine Maustaste"
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose a mouse button first"
+msgstr "Wähle zuerst eine Maustaste"
+
+#: src/ui/model/new_function_model.hpp
+msgid "a button holds a plain key already: use Key or key combination"
+msgstr "Eine Taste hält eine einfache Taste schon: nimm „Taste oder Tastenkombination“"
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose a key or button for each direction, or Nothing"
+msgstr "Wähle für jede Richtung eine Taste oder Maustaste oder „Nichts“"
+
+#: src/ui/model/new_function_model.hpp
+msgid "at least one direction needs a key or button"
+msgstr "Mindestens eine Richtung braucht eine Taste oder Maustaste"
+
+#: src/ui/model/new_function_model.hpp
+msgid "a button cannot scroll or zoom"
+msgstr "Eine Taste kann nicht scrollen oder zoomen"
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose scroll, scroll sideways or zoom"
+msgstr "Wähle Scrollen, Seitwärts scrollen oder Zoomen"
+
+#: src/ui/model/new_function_model.hpp
+msgid "a button cannot move the pointer"
+msgstr "Eine Taste kann den Mauszeiger nicht bewegen"
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose the sideways or the up and down movement"
+msgstr "Wähle die Bewegung zur Seite oder nach oben und unten"
+
+#: src/ui/model/new_function_model.hpp
+msgid "record or add at least one step"
+msgstr "Nimm mindestens einen Schritt auf oder füge einen hinzu"
+
+#: src/ui/model/new_function_model.hpp
+msgid "unknown kind"
+msgstr "Unbekannte Art"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "choose a key for every field first"
+msgstr "Wähle zuerst für jedes Feld eine Taste"
