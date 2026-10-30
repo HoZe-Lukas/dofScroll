@@ -114,10 +114,10 @@ int MotionPicture::minimumWidth() const {
     const int pad = itemPad(fm), gap = std::max(6, fm.height() / 2);
     bool anyMotion = false;
     for (const Item &it : items_) anyMotion = anyMotion || it.id.startsWith(QLatin1String("m:"));
-    if (!anyMotion) {  // only buttons (the Button modes page): two columns of buttons are enough
+    if (!anyMotion) {  // only buttons (the Button modes page): one column of buttons is the least, more wrap in when there is room
         int bw = kMinTarget;
         for (const Item &it : items_) bw = std::max(bw, std::min(bold.horizontalAdvance(it.text) + 2 * pad, 9 * fm.height()));
-        return 2 * bw + gap;
+        return bw;
     }
     int cw = 0;
     for (const Item &it : items_)
@@ -847,6 +847,8 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
     auto *swap = new QComboBox(more);
     same->setAccessibleName(qs8(l.name) + QStringLiteral(": ") + T("Same as ..."));
     swap->setAccessibleName(qs8(l.name) + QStringLiteral(": ") + T("Swap with ..."));
+    same->setAccessibleDescription(T("Copy the setting of another motion to %1").arg(qs8(l.name)));  // the name of a drop-down is its current text
+    swap->setAccessibleDescription(T("Swap the settings of %1 with another motion").arg(qs8(l.name)));
     same->addItem(T("Same as ..."), QString());
     swap->addItem(T("Swap with ..."), QString());
     for (Motion o : allMotions()) {
@@ -1109,6 +1111,7 @@ void MotionEditor::buildTop(QVBoxLayout *left, QHBoxLayout *tools) {
     tryBtn_->setToolTip(T("Switch to this joystick mode now, on all profiles, to try it in a program"));
     templates_ = new QComboBox(this);
     templates_->setAccessibleName(T("Start from a template"));
+    templates_->setAccessibleDescription(T("Start from a template"));  // the name of a drop-down is its current text
     templates_->addItem(T("Start from a template..."), -1);
     const std::vector<MotionTemplate> all = motionTemplates(*env_.strings);
     for (size_t i = 0; i < all.size(); ++i) {

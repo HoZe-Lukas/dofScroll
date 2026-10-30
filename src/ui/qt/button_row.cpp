@@ -43,6 +43,7 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
 
     auto *kind = new QComboBox(parent);
     kind->setAccessibleName(T("Action of button") + QStringLiteral(" %1").arg(row.number));
+    kind->setAccessibleDescription(T("Action of button") + QStringLiteral(" %1").arg(row.number));  // the name of a drop-down is its current text
     // long entries (button mode names) are elided, they never widen the inspector
     kind->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     kind->setMinimumContentsLength(12);
@@ -91,6 +92,7 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
     } else if (bk == BindingKind::Mode || bk == BindingKind::ToggleMode || bk == BindingKind::HoldMode) {
         auto *mc = new QComboBox(parent);
         mc->setAccessibleName(T("Joystick mode of button") + QStringLiteral(" %1").arg(row.number));
+        mc->setAccessibleDescription(T("Joystick mode of button") + QStringLiteral(" %1").arg(row.number));
         mc->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
         mc->setMinimumContentsLength(12);
         mc->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);

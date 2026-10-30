@@ -6071,6 +6071,14 @@ msgstr "Das Profil deines Geräts konnte nicht angelegt werden: %1"
 msgid "The folder holds more files than are listed here; the list is not complete."
 msgstr "Der Ordner enthält mehr Dateien, als hier aufgelistet sind; die Liste ist nicht vollständig."
 
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Copy the setting of another motion to %1"
+msgstr "Die Einstellung einer anderen Bewegung für %1 übernehmen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Swap the settings of %1 with another motion"
+msgstr "Die Einstellungen von %1 mit einer anderen Bewegung tauschen"
+
 #: src/ui/model/mode_info_model.hpp
 msgid "moves the mouse pointer left and right"
 msgstr "bewegt den Mauszeiger nach links und rechts"
