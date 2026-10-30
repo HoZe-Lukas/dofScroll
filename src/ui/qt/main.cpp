@@ -3356,6 +3356,65 @@ static bool withModal(const std::function<void()> &act, const std::function<void
     return handled;
 }
 
+// The inspector of a button with a key binding (four modifier boxes and a key picker) must fit the Motions and buttons tab like
+// the one of a motion: no horizontal scroll bar in the window of a user with a larger or a wider font, and the picture stays
+// next to the inspector where it fits (found by the layout audit: the row used to need 1200 px).
+static bool buttonInspectorSelfTest() {
+    bool ok = true;
+    auto check = [&ok](bool cond, const QString &what) {
+        if (!cond) std::fprintf(stderr, "button inspector self-test failed: %s\n", qPrintable(what));
+        ok = ok && cond;
+    };
+    EditorRig rig("[global]\n\n[app:firefox]\nMODE = timeline\nBUTTON_1 = key:ctrl+space\nBUTTON_2 = mode:next\n");
+    MainWindow &w = *rig.win;
+    w.showPage(QStringLiteral("profiles"));
+    settle();
+    ProfilesPage *page = w.profilesPage();
+    check(page && page->selectSection(1) && page->selectTab(QStringLiteral("motions")), QStringLiteral("firefox, Motions and buttons tab"));
+    ProfileMotionsView *mv = page ? page->motionsView() : nullptr;
+    if (!mv) return false;
+    const QFont baseFont = QApplication::font();
+    const struct { double scale; int spacing; } cases[] = {{1.0, 100}, {1.5, 100}, {2.0, 100}, {1.0, 160}, {1.5, 160}};
+    for (const auto &fc : cases) {
+        applyTheme(spn::ui::Theme::Light);
+        QFont f = baseFont;
+        f.setPointSizeF(f.pointSizeF() * fc.scale);
+        f.setLetterSpacing(QFont::PercentageSpacing, fc.spacing);
+        QApplication::setFont(f);
+        w.resize(std::min(int(fc.scale * 1100), 1920), 900);
+        settle();
+        // The picture itself (its chips) may need more than the window gives at an extreme font, with a motion selected as well: that
+        // is the limit, and a button inspector may not need more than a motion inspector does (the fonts of a CI machine are wider
+        // than the ones of a developer).
+        int limit = 0;
+        for (const char *id : {"m:h_tilt", "b:1", "b:2"}) {
+            const QString what = QStringLiteral("x%1 spacing %2 %3").arg(fc.scale).arg(fc.spacing).arg(QLatin1String(id));
+            check(mv->select(QLatin1String(id)), what + QStringLiteral(": select"));
+            settle();
+            int over = 0;
+            for (QWidget *p = mv->inspector(); p; p = p->parentWidget())
+                if (auto *sa = qobject_cast<QAbstractScrollArea *>(p))
+                    if (sa->horizontalScrollBar() && sa->horizontalScrollBar()->isVisible()) {
+                        over = std::max(over, sa->horizontalScrollBar()->maximum());
+                        if (id[0] == 'b' && over > limit) {
+                            std::fprintf(stderr, "  viewport %d, scroll %d (a motion needs %d), motions view min %d, picture min %d\n", sa->viewport()->width(), over, limit,
+                                         mv->minimumSizeHint().width(), mv->picture()->minimumSizeHint().width());
+                            for (QWidget *c : sa->findChildren<QWidget *>())
+                                if (c->isVisibleTo(sa) && c->minimumSizeHint().width() > 300)
+                                    std::fprintf(stderr, "  wide: %s \"%s\" min %d\n", c->metaObject()->className(),
+                                                 qPrintable(qobject_cast<QLabel *>(c) ? qobject_cast<QLabel *>(c)->text().left(40) : c->objectName()), c->minimumSizeHint().width());
+                        }
+                    }
+            if (id[0] == 'm') limit = over;
+            else check(over <= limit, what + QStringLiteral(": needs no more width than a motion"));
+        }
+    }
+    QApplication::setFont(baseFont);
+    applyTheme(spn::ui::Theme::System);
+    std::printf("button inspector self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
 // Take over from other profiles (A), any action on any motion (B) and the profile builder (C): the dialogs of the Motions and
 // buttons tab, of the Joystick-mode editor and "New profile ...", with the model underneath (borrow_model.hpp, profile_builder_model.hpp).
 static bool borrowBuildSelfTest() {
@@ -4495,6 +4554,16 @@ int main(int argc, char **argv) {
         QDir().mkpath(tmp.path() + QStringLiteral("/modes"));
         QDir().mkpath(tmp.path() + QStringLiteral("/buttons"));
         QDir().mkpath(QString::fromUtf8(screenshotDir));
+        {   // DOFSCROLL_SHOT_FONT=1.5 (font scale) and DOFSCROLL_SHOT_SPACING=160 (letter spacing in percent: a wide font of another
+            // platform) render the same pictures with a larger or wider font, for the visual check of the layout
+            QFont f = QApplication::font();
+            bool numOk = false;
+            const double scale = qEnvironmentVariable("DOFSCROLL_SHOT_FONT").toDouble(&numOk);
+            if (numOk && scale > 0 && f.pointSizeF() > 0) f.setPointSizeF(f.pointSizeF() * scale);
+            const int spacing = qEnvironmentVariable("DOFSCROLL_SHOT_SPACING").toInt(&numOk);
+            if (numOk && spacing > 0) f.setLetterSpacing(QFont::PercentageSpacing, spacing);
+            QApplication::setFont(f);
+        }
         {
             QFile mf(tmp.path() + QStringLiteral("/modes/slides.conf"));
             if (!mf.open(QIODevice::WriteOnly)) return 1;
@@ -4700,6 +4769,73 @@ int main(int argc, char **argv) {
             settle();
             if (w.grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/site-overview-%1.png").arg(QString::fromLatin1(th)))) ++written;
         }
+        for (const char *th : {"light", "dark"}) {  // the Motions and buttons tab with every kind of selection, and the dialogs it opens
+            applyTheme(spn::ui::themeFromId(th));
+            w.resize(1500, 900);
+            w.showPage(QStringLiteral("profiles"));
+            ProfilesPage *pp = w.profilesPage();
+            if (!pp) continue;
+            const QString dir = QString::fromUtf8(screenshotDir);
+            auto shot = [&](const QString &name) {
+                settle();
+                for (QAbstractScrollArea *sa : w.findChildren<QAbstractScrollArea *>())  // a horizontal scroll bar is a layout defect
+                    if (sa->isVisible() && sa->horizontalScrollBar() && sa->horizontalScrollBar()->isVisible())
+                        std::fprintf(stderr, "screenshots: %s %s: horizontal scroll bar of a %s (%d px too wide)\n", th, qPrintable(name),
+                                     sa->metaObject()->className(), sa->horizontalScrollBar()->maximum());
+                for (QAbstractScrollArea *sa : w.findChildren<QAbstractScrollArea *>())
+                    if (sa->isVisible() && sa->horizontalScrollBar() && sa->horizontalScrollBar()->isVisible())
+                        for (QWidget *c : sa->findChildren<QWidget *>())
+                            if (c->isVisibleTo(sa) && c->minimumSizeHint().width() > 380)
+                                std::fprintf(stderr, "  wide: %s \"%s\" min %d\n", c->metaObject()->className(),
+                                             qPrintable(qobject_cast<QLabel *>(c) ? qobject_cast<QLabel *>(c)->text().left(50) : c->objectName()), c->minimumSizeHint().width());
+                if (w.grab().save(dir + QStringLiteral("/%1-audit-%2.png").arg(QString::fromLatin1(th), name))) ++written;
+            };
+            pp->selectSection(size_t(kFirefoxProfile));
+            pp->selectTab(QStringLiteral("motions"));
+            ProfileMotionsView *mv = pp->motionsView();
+            auto find = [&](const char *name) { return mv->inspector()->findChild<QPushButton *>(QLatin1String(name)); };
+            for (const char *id : {"m:v_push", "m:v_tilt", "m:h_push", "m:lift", "m:twist", "b:1", "b:2", "b:3", "b:4"}) {
+                if (!mv->select(QString::fromLatin1(id))) continue;
+                shot(QString::fromLatin1(id).replace(QLatin1Char(':'), QLatin1Char('-')));
+            }
+            if (mv->select(QStringLiteral("m:v_tilt")) && find("motionTakeOver"))
+                withModal([&] { find("motionTakeOver")->click(); }, [&](QDialog *d) {
+                    settle();
+                    if (d->grab().save(dir + QStringLiteral("/%1-audit-dialog-takeover.png").arg(QString::fromLatin1(th)))) ++written;
+                    d->reject();
+                });
+            if (mv->select(QStringLiteral("b:1")) && find("buttonTakeOver"))
+                withModal([&] { find("buttonTakeOver")->click(); }, [&](QDialog *d) {
+                    settle();
+                    if (d->grab().save(dir + QStringLiteral("/%1-audit-dialog-takeover-button.png").arg(QString::fromLatin1(th)))) ++written;
+                    d->reject();
+                });
+            if (QPushButton *np = pp->findChild<QPushButton *>(QStringLiteral("newProfile")))
+                withModal([&] { np->click(); }, [&](QDialog *d) {
+                    settle();
+                    if (d->grab().save(dir + QStringLiteral("/%1-audit-dialog-builder.png").arg(QString::fromLatin1(th)))) ++written;
+                    for (const char *n : {"builderAddMotion", "builderAddButton"})
+                        if (auto *add = d->findChild<QPushButton *>(QLatin1String(n))) add->click();
+                    if (auto *name = d->findChild<QLineEdit *>(QStringLiteral("builderName"))) name->setText(QStringLiteral("firefox"));
+                    settle();
+                    if (d->grab().save(dir + QStringLiteral("/%1-audit-dialog-builder-filled.png").arg(QString::fromLatin1(th)))) ++written;
+                    d->reject();
+                });
+            w.showPage(QStringLiteral("axes"));
+            if (auto *ap = w.findChild<AxesPage *>()) {
+                ap->openWizard();
+                shot(QStringLiteral("axes-wizard"));
+                ap->cancelWizard();
+            }
+            w.showPage(QStringLiteral("settings"));
+            shot(QStringLiteral("settings"));
+        }
+        {   // the tray menu
+            Tray tray(&w, icon, ctx);
+            for (QWidget *tl : QApplication::allWidgets())
+                if (auto *m = qobject_cast<QMenu *>(tl); m && !m->actions().isEmpty() && !m->parentWidget())
+                    if (m->grab().save(QString::fromUtf8(screenshotDir) + QStringLiteral("/light-audit-tray-menu.png"))) ++written;
+        }
         std::printf("screenshots: %d files in %s\n", written, screenshotDir);
         return written > 0 ? 0 : 1;
     }
@@ -4788,6 +4924,7 @@ int main(int argc, char **argv) {
         if (!keyboardSelfTest(w)) return 1;
         if (!profileEditorSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
         if (!borrowBuildSelfTest()) return 1;
+        if (!buttonInspectorSelfTest()) return 1;
         if (!autosaveAuditSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
         if (!legacyButtonsSelfTest()) return 1;
         if (!profileFilesSelfTest()) return 1;

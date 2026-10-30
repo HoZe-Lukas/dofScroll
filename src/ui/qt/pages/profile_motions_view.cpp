@@ -462,7 +462,7 @@ void ProfileMotionsView::buildButton(QVBoxLayout *col, int n) {
         }
     }
     auto *grid = new QGridLayout;
-    grid->setColumnStretch(2, 1);
+    grid->setColumnStretch(1, 1);
     col->addLayout(grid);
     if (addButtonRow_) addButtonRow_(inspector_, grid, 0, section_, n);
     // Clear: BUTTON_<n> = none in this profile (explicitly nothing, even when Global or the device binds the button); the

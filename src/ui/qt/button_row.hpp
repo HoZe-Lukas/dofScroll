@@ -37,6 +37,6 @@ struct ButtonRowHandlers {
     std::function<void()> reset;                                // "Inherit" / "Unbind"
 };
 
-// Adds the widgets of one row to grid row r (columns 0..3). Connections live as long as owner.
+// Adds the widgets of one row to grid row r (columns 0..2). Connections live as long as owner.
 void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, const spn::ui::BindingRow &row,
                   const ButtonRowEnv &env, const ButtonRowHandlers &handlers);
