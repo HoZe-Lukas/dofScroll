@@ -2523,7 +2523,12 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                     applyTheme(spn::ui::Theme::Light);  // our own style sheet: its lengths are in em, so it follows the font
                     QFont f = QApplication::font();
                     f.setPointSizeF(f.pointSizeF() * scale);
-                    f.setLetterSpacing(QFont::PercentageSpacing, fc.spacing);
+                    // The 900 % case is "9 times the glyph width of a normal font": a bare container without fonts falls back to a font
+                    // whose glyphs are twice as wide already (the packaging smoke test), so the stretch is scaled to the font at hand
+                    // (never below the 400 % case, which every font passes).
+                    int spacing = fc.spacing;
+                    if (spacing >= 900) spacing = std::clamp(900 * 7 / std::max(1, QFontMetrics(baseFont).averageCharWidth()), 400, 900);
+                    f.setLetterSpacing(QFont::PercentageSpacing, spacing);
                     QApplication::setFont(f);
                     // 1100 px at the normal font; someone with a larger font also uses a wider window (up to a 1920 px screen)
                     w.resize(std::min(int(scale * 1100), 1920), 900);
