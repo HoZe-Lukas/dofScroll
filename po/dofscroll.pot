@@ -3331,3 +3331,7 @@ msgstr ""
 #: src/ui/qt/pages/new_function_dialog.cpp
 msgid "choose a key for every field first"
 msgstr ""
+
+#: src/ui/model/own_functions_model.hpp
+msgid "%1 and %2"
+msgstr ""
