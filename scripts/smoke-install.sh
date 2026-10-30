@@ -91,7 +91,7 @@ if command -v dofscroll-ui >/dev/null 2>&1; then
     [ -z "${EXPECT_QT_VERSION:-}" ] || [ "$qtv" = "$EXPECT_QT_VERSION" ] || fail "dofscroll-ui runs on Qt $qtv, expected $EXPECT_QT_VERSION"
     # 4. Headless self-test of the widgets.
     QT_QPA_PLATFORM=offscreen dofscroll-ui --self-test >"$out/ui-selftest.txt" 2>&1 \
-        || { tail -n 20 "$out/ui-selftest.txt"; fail "dofscroll-ui --self-test exited non-zero: $(tail -c 150 "$out/ui-selftest.txt" | tr '\n|' '  ')"; }
+        || { grep -E 'failed|too wide|scroll bar|inspector|does not wrap' "$out/ui-selftest.txt" | head -n 40; tail -n 20 "$out/ui-selftest.txt"; fail "dofscroll-ui --self-test exited non-zero: $(tail -c 150 "$out/ui-selftest.txt" | tr '\n|' '  ')"; }
     echo "dofscroll-ui --self-test: ok"
     # 5. The X11 and Wayland plugins load (without a display the plugin starts and then reports that
     #    it cannot connect; a missing library would say "cannot open shared object file").
