@@ -18,7 +18,8 @@ dofscroll injects keyboard and mouse input into your session, so it protects the
 - **Helper programs from fixed directories.** The interface starts `systemctl` and `launchctl` (and PowerShell on Windows) only from fixed system directories, never through `PATH`; a helper that is not found is an error.
 - **Build and release pipeline.** The CI container images are pinned by digest, the Qt installer (aqtinstall) is installed with pinned hashes, and the release packages carry a build provenance attestation (`gh attestation verify`). A weekly job proposes a pull request that refreshes the pins. Details and what remains: section 14 of docs/security.md.
 - **Joystick mode files are code-like.** They can press any key from the key list, including modifier chords. Read them before use, see [Modes](Modes).
-- **Parser limits.** Config, joystick mode, button mode and device files have size and count limits and invalid values are rejected.
+- **Parser limits.** Config, joystick mode, button mode and device files have size and count limits (profile files 1 MiB each and 16 MiB together per load) and invalid values are rejected; a control character in a value is refused.
+- **Macros are code-like too.** A macro presses whatever its steps say into the focused window; the key list is closed (no commands, no key codes), the keys are released when it ends, and a macro with letters, Delete, Enter or an Alt/Super chord gets a load warning. A running macro survives a change of the active program (issue #318).
 - **Windows file layer.** The Windows file-system layer refuses reparse points and hazardous paths (documented in section 9 of docs/security.md; unverified on hardware).
 
 ## Known limitations (0.1)
@@ -26,7 +27,7 @@ dofscroll injects keyboard and mouse input into your session, so it protects the
 From the October 2026 review, kept open for 0.1:
 
 - Keys held through XTest are not released if the daemon is killed with SIGKILL; there is no watchdog for a stalled tick. `dofscroll --release-keys` fixes it by hand.
-- Config and joystick mode loaders do not reject group- or world-writable files. Keep `~/.config/dofscroll` private (`0700`).
+- Config and joystick mode loaders do not reject group- or world-writable files; the daemon notes a `dofscroll.conf` that others can write or that belongs to another user in the log, and the interface refuses a configuration folder that every user can write to. Keep `~/.config/dofscroll` private (`0700`).
 - The daemon unit may write the whole `$XDG_RUNTIME_DIR`.
 - The tray sandbox cannot save a config that is a symlink into another directory.
 - Example files are copied from a directory chosen by environment or by the executable's location.

@@ -42,7 +42,7 @@ It consists of two programs. The Qt interface is the only tray and settings wind
 
 ## What is new on `main` (1.3.0, not released yet)
 
-One file per profile with an automatic, backed-up migration; every motion can have its own action in a profile, the lift is the sixth motion; **Take over**, **New profile**, **Import** and **Export** build and share profiles; keys on every motion, **analog** (repeats faster with more deflection) or **digital** (once per push), mouse clicks and holds; a key picker as a tree in columns; a reworked axis assistant; macOS binaries with the hardened runtime. Nothing of it was tested with a real SpaceMouse. See [docs/release-notes-1.3.0.md](docs/release-notes-1.3.0.md) for the list, the breaking changes and what is not verified.
+One file per profile with an automatic, backed-up migration; every motion can have its own action in a profile, the lift is the sixth motion; **Take over**, **New profile**, **Import** and **Export** build and share profiles; keys on every motion, **analog** (repeats faster with more deflection) or **digital** (once per push), mouse clicks and holds; **macros** (`macro:`, recorded or written) and a **New function ...** window that composes a key, click, hold, scroll or zoom, pointer or macro; the **pointer** as a motion function; ready tiles for tabs, volume and tracks; a key picker as a tree in columns; a reworked axis assistant; hardened parsers with raised size limits; macOS binaries with the hardened runtime. Nothing of it was tested with a real SpaceMouse. See [docs/release-notes-1.3.0.md](docs/release-notes-1.3.0.md) for the list, the breaking changes and what is not verified.
 
 ## Design principle
 
@@ -89,6 +89,7 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
   not possible there. On Windows and macOS (direct HID) every device has its own profile and joystick mode, one
   device per model; tested with a fake source only ([docs/multi-device.md](docs/multi-device.md)).
 - Wayland: not tested; the uinput udev rule is opt-in; active-window profiles need `kdotool`.
+- A macro that is running keeps running when the active program changes (by design, issue #318); other aborts release everything it holds. Macros, the recorder and the pointer have not been tried with a real device ([release notes](docs/release-notes-1.3.0.md)).
 - Supported devices: models that `spacenavd` supports (Linux) or that report a known HID layout
   (Windows, macOS); the factory button count is known for SpaceMouse Pro, Pro Wireless, Compact,
   Wireless, Enterprise and SpaceNavigator.
@@ -162,7 +163,7 @@ reading and never written; case-insensitive matching folds ASCII letters only. D
 - **Joystick mode files are code-like.** A joystick mode file can press any key from the key list (including Ctrl,
   Alt and Super, and chords such as Ctrl+W through the zoom channel) while a button is held or an
   axis is deflected. Only use joystick mode files from sources you trust and read them first: look for
-  `key:`, `keys:`, `zoom` and `mode:`. The daemon warns at load time about modifier-capable
+  `key:`, `keys:`, `macro:`, `zoom` and `mode:`. The daemon warns at load time about modifier-capable
   bindings. Details in [docs/modes.md](docs/modes.md#safety-and-sharing-modes). `ENABLED`,
   `BACKEND` and `TICK_HZ` are not allowed in joystick mode files.
 - **The uinput udev rule is opt-in.** Packages do not enable `/dev/uinput` access. Only Wayland

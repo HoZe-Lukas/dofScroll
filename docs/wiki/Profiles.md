@@ -75,9 +75,17 @@ V_TILT_ACTION = step:pageup,pagedown             # one page per push
 
 The keys and their limits are in [Joystick modes](Modes) and in [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#the-key-engine-analog-and-digital). How the thresholds feel on a real device is not verified.
 
+### New function ... and macros
+
+The drop-down of every motion and every button on the **Motions and buttons** tab ends with **New function ...**. The window composes one function from a kind: a key or key combination, a mouse click, a hold, scroll or zoom, moving the pointer, or a **macro**. Keys are chosen with the check boxes Ctrl, Shift, Alt and Super key plus a key list or **Press a key ...**; there is no text field for a key. There is no Save button: as soon as every field is valid the function is assigned and a line says in words where it applies; a field that is not valid is explained next to it. What a motion or button cannot do is greyed with the reason next to it.
+
+The macro editor has **Record** (it records only inside this window while the recording area has the keyboard focus; there is no global key logger), a check box **Also record the times between the keys** (on: the measured gaps, off: 30 ms), and steps that can be edited, deleted, moved or added by hand (at most 256, a pause counts as a step). The list **Own functions of this profile** shows every function the profile holds, with the motions and buttons that use it; **Edit**, **Delete** and **Save as joystick mode ...** work from there. A macro is digital: it runs once per push or button press. The syntax is in [Joystick modes](Writing-modes#3-channel-actions) and [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#macros). Not verified: the recorder and macros in real programs.
+
+The same window offers **Move the pointer** (`pointer_x`, `pointer_y`; the speed is `MOUSE_SPEED`).
+
 ### Profile files: import, export, order
 
-Every profile is a file, so sharing one is copying it: **Export...** on the profile (General tab, box **This profile**) writes the file, **Import profile...** (below the list) reads one after checking it completely. The import drops `PRIORITY`, `ENABLED`, `BACKEND`, `TICK_HZ` and `INPUT`, asks before accepting a very short name or bindings that can do harm (key chords with ctrl, alt or super, Delete, clicks, a joystick mode or button mode of your own), and applies an imported profile **before** yours, so yours win where both set the same key. **Move up** and **Move down** change the order of overlapping profiles of one kind (they change `PRIORITY`). A file that cannot be used is listed as "(defective)" with the reason and is never overwritten while the problem stands; **Remove** can be undone right after.
+Every profile is a file, so sharing one is copying it: **Export...** on the profile (General tab, box **This profile**) writes the file, **Import profile...** (below the list) reads one after checking it completely. The import drops `PRIORITY`, `ENABLED`, `BACKEND`, `TICK_HZ` and `INPUT`, asks before accepting a very short name or bindings that can do harm (key chords with ctrl, alt or super, Delete, clicks, macros with such keys, a joystick mode or button mode of your own) and lists those bindings in the question (the first six), and applies an imported profile **before** yours, so yours win where both set the same key. **Move up** and **Move down** change the order of overlapping profiles of one kind (they change `PRIORITY`). A file that cannot be used is listed as "(defective)" with the reason and is never overwritten while the problem stands; **Remove** can be undone right after.
 
 ## Finding the program name
 

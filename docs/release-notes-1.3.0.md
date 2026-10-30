@@ -20,17 +20,30 @@ change a lot; the configuration stays readable by the daemon in both layouts.
   deflection, with lowest and highest rate) or digital (`step:`, one press per push, with an own trigger level).
 - **Mouse clicks and holds on every motion.** `step:` takes `click`, `rightclick` and `middleclick` per side; the new
   `hold:<neg>,<pos>` holds a key, chord or mouse button while the motion is deflected.
-- **The pointer as a motion function.** Any motion can move the mouse pointer (`pointer_x`, `pointer_y`, with the global
-  `MOUSE_SPEED`, pixels per step, default 8), in profiles and joystick modes, on X11, uinput, Windows and macOS. Analog only; at most
-  127 pixels per tick and axis. Not verified: feel and speed on real hardware, Wayland, Windows and macOS.
-- **Ready choices in the joystick mode editor:** the tiles "Switch tabs", "Volume" and "Change track" next to "Page up /
-  Page down", made from the built-in modes `tabs`, `volume` and `tracks` (new) and `slides`; the volume and media keys are
-  not sent on macOS.
+- **Macros.** `macro:` is a list of key down, key up and pause steps (`+ctrl +c wait:30 -c -ctrl`) that runs once per push of
+  a motion (one macro per direction) or once per press of a button, with an optional second part for the release. Up to 256
+  steps, pauses up to 60 s, everything a macro holds is released at its end and on every abort path. Details and limits:
+  [modes.md](modes.md), "Macros".
+- **New function ... dialog and macro recorder.** The drop-down of every motion and button ends with **New function ...**:
+  one window composes a key or chord, a mouse click, a hold, scroll or zoom, the pointer or a macro, in words and with check
+  boxes (no text field for a key). The macro editor has **Record** (only inside the window, while it has the keyboard focus;
+  no global key logger), a check box to also record the times between the keys, and steps that can be edited, deleted and
+  moved. The list **Own functions of this profile** shows, edits and deletes them, and saves one as a joystick or button mode.
+- **The pointer as a motion function.** Any part of the cap (vertical and horizontal push and tilt, twist, lift) can move the
+  mouse pointer (`pointer_x`, `pointer_y`, with the global `MOUSE_SPEED`, pixels per step, default 8, independent signs per
+  part), in profiles and joystick modes, on X11, uinput, Windows and macOS. Analog only; at most 127 pixels per tick and
+  axis. Not verified: feel and speed on real hardware, Wayland, Windows and macOS.
+- **Ready choices (tiles) in the joystick mode editor:** "Switch tabs", "Volume" and "Change track" next to "Page up /
+  Page down", read from the built-in example modes `tabs`, `volume` and `tracks` (new) and `slides`; the volume and media
+  keys are not sent on macOS.
+- **Importing a profile names what it would press.** The question lists the risky bindings as they stand
+  (`BUTTON_3 = macro:+ctrl +c ...`, `V_ACTION = step:click,none`; the first six, then "... and N more") instead of one general
+  sentence.
 - **Take over and New profile.** Copy the action (optionally the tuning) of a motion or button from another profile or
   mode; build a whole profile from parts of others.
 - **Key picker as a tree in columns**, and a reworked axis assistant that starts and ends steps by your movement.
 - Live feed names the device of each sample, so the Axes page and the assistant can follow one of several devices.
-- Security and robustness: the macOS binaries are signed with the hardened runtime, the packages never enable `spacenavd`,
+- Security and robustness: core and parser hardening, a total size budget for profile files, the macOS binaries are signed with the hardened runtime, the packages never enable `spacenavd`,
   the interface flushes pending edits on SIGTERM and Restart and shows foreign text (profile names, tooltips) as plain
   text; the release job gates on `main`, green checks and an approval.
 - CI: the monthly pin refresh no longer runs package code next to a write token; pins live in `packaging/ci/images.env`.
@@ -106,6 +119,30 @@ Plan and rules: [plan-config-split.md](plan-config-split.md).
 - Pointer movement (`Output::moveMouse`, all four backends) is used by the new motion actions `pointer_x` and `pointer_y`
   (see "The pointer as a motion function" above).
 
+## Macros, the New function dialog and the pointer
+
+Plan: [plan-motion-functions.md](plan-motion-functions.md) (issues #224, #225).
+
+- **Macro core** (#309). `macro:<steps>` on a button, `macro:<neg>,<pos>` on a motion, `|` for a part that runs on release.
+  Steps: `+key` (down), `-key` (up), `wait:<ms>` (1 to 60000). One macro at a time (a trigger while one runs is ignored),
+  keys from the closed list of `src/keys.hpp` only (no key codes, characters, commands). A macro that presses a letter,
+  digit, function key, Enter, Delete, Backspace, Esc, space, an Alt or Super chord, play/pause or a lone modifier gets the
+  plain load warning naming the first keys. When a macro ends, and on a mode switch, reload, suspend, `ENABLED = 0`, a
+  removed device, "Release all keys" and exit, every key it still holds is released (the second audit fuzzed about 11000
+  sessions: no stuck key). **A running macro survives a change of the active program; see "Known limitations".**
+- **New function ...** (#305) and the **macro recorder**: see [ui.md](ui.md), "New function ... and the own functions of a
+  profile". It has no Save button (it assigns as soon as every field is valid and says so in words), greys out what a
+  kind cannot do on that motion or button with the reason next to it, and uses the same checks as the configuration file.
+  The recorder records only while its area has the focus, ends by itself when the focus leaves and with Esc pressed
+  three times.
+- **Pointer** (#310). `pointer_x` and `pointer_y` per part; the remainder is dropped at rest and on every release path,
+  so nothing keeps moving after the input stops. `MOUSE_SPEED` 0.1 to 200.
+- **Tiles** (#311). "Switch tabs", "Volume" and "Change track" are made from the example modes; a test keeps them equal.
+- **The import question names the keys** (#305, issue #319). **Import profile ...** lists the risky bindings of the file
+  (the first six, then "... and N more") using the same rule (`SettingsModel::bindingIsRisky`) as the header of the
+  profile. #313 (clicks and holds on a motion) and #314 (macros in button mode files, carried into joystick modes) closed
+  gaps the second audit found.
+
 ## Axis assistant and Axes page
 
 - A step starts when you move the cap and ends when you moved it out and back and let go; a valid result is shown for one
@@ -142,6 +179,12 @@ Plan and rules: [plan-config-split.md](plan-config-split.md).
   zero-width characters are stripped from status names. The first-run guide changes **Start at login** only when you
   press **Finish**. The default window is wider (1800x1100, clamped to 92% of the screen) and the list/editor splitters
   are proportional.
+- **Core and parser hardening** (#308, issue #272; [security.md](security.md), section 15). A control character in a key
+  or value is refused with a warning; a section name that cannot be kept is announced; the daemon notes in the log when
+  `dofscroll.conf` belongs to another user or can be written by others (still read; `chmod go-w`); the interface writes
+  files without group and other write permission and refuses a configuration folder that every user can write to (without
+  the sticky bit) or that belongs to another user; the axis values are clamped, `SIGPIPE` is ignored, the button count from
+  `spacenavd` is clamped to 0..32. On Windows the owner and mode checks do not apply (ACLs).
 - **Audits** (#279, #280, #282, #294, #267). Helper lookup, socket timeout, close-on-exec, no-follow file access, the
   session fallback and HID ids; low supply-chain findings (`persist-credentials: false`, hardening check on more
   binaries, uninstall only below the prefix); a fuzz driver for the profile loader and the migration (ASan/UBSan).
@@ -164,6 +207,14 @@ Plan and rules: [plan-config-split.md](plan-config-split.md).
   must be changed to `step:j,l`.
 - **At most 4 key presses per tick and function, and 8 per tick in total** (it was 200). A very high rate no longer
   produces a burst; the analog hard cap is `min(100, TICK_HZ/2)` presses per second.
+- **Raised limits.** A profile file may be 1 MiB (it was 64 KiB; the same as `dofscroll.conf`), a line 33 KiB (it was
+  8 KiB), the text of one action 32 KiB, 10000 keys per section (it was 512). Mode files stay at 64 KiB. Together the files
+  of `devices/` and `apps/` may hold at most **16 MiB per load**: `devices/` is read first, a file that no longer fits is
+  skipped with a warning that names it and the budget (`dofscroll.conf` is not counted). An older daemon refuses a file over
+  its old limits.
+- **New warnings.** A line with a control character in a value is now ignored with a warning, so a file that loads can
+  always be saved again. A `dofscroll.conf` that belongs to another user or that others can write is noted in the log (it is
+  still read). The interface refuses a configuration folder that every user can write to or that belongs to another user.
 - Settings search on the Profiles page no longer filters button rows.
 - **Packages no longer enable `spacenavd`.** If you relied on the package to start it, run
   `sudo systemctl enable --now spacenavd.service` once.
@@ -190,6 +241,13 @@ Credits: pull requests by the maintainer unless marked.
 - Output: relative pointer movement, all backends (#236); macOS clamps to all displays and drags while a button is held,
   security note on pointer motion, Button mode risk check (#267)
 - Mouse click and hold on every motion, lift audit fix (stage 4 of #224, #283)
+- Core and parser hardening (#308, issue #272)
+- Macro core and raised limits (stage 7b, #309); the pointer as a motion function (stage 5, #310); the tiles from the example
+  modes (stage 6, #311); the **New function ...** dialog and macro recorder (stage 7a, #305)
+- Second audit round: import check for clicks and holds on a motion (#313), macros in button mode files (#314), a total
+  budget for the profile files (#321, issue #317), a gate for `refresh-ci-pins` that no changed line can slip past (#316)
+- UI: the button inspector fits a narrow window (#315); purpose descriptions for drop-downs and self-tests with widened
+  glyphs (#320)
 - Security and robustness: I/O audit round 3 (#279); supply-chain low findings (#280, part of #266); fuzz driver for the
   profile loader (#282, #294); packages never enable `spacenavd` (#286, issue #264); release gate, environment `release`
   and tag creation rule (#287, issue #263; #296); first-run guide changes Start at login only on Finish (#288, issue #276);
@@ -214,7 +272,7 @@ Credits: pull requests by the maintainer unless marked.
 - German texts use "du", checked by `scripts/check-german-du.sh` (#208)
 - Docs and rules: release rule for docs and issues, readme status (#203); wiki and website status after 1.2.3 (#204);
   plans (#231, #238); release status (#233); website accessibility audit and a clearer first screen (#261); statements
-  that contradicted the code (#289); the draft of these notes (#284)
+  that contradicted the code (#289); the draft of these notes (#284, #300); website (#307); one file per profile (#301); the final text of these notes
 
 ## Thank you
 
@@ -243,6 +301,13 @@ can verify these; none of them has been tested:
   fonts, dark mode, high-DPI, screen readers); the device selector with two real devices; the axis assistant thresholds.
 - The `release` job against the real GitHub API (gate, environment approval, draft then publish, immutable release):
   it has never run on a tag.
+- **Macros** in real programs (timing, a macro that switches windows, a pause of seconds, the release at the end), the macro
+  **recorder** (keyboard layouts, key repeat, the focus rules, input methods), the pointer feel and the **New function ...**
+  window on a real desktop with a screen reader. Fuzzing and unit tests show that no key stays held in the tests; they do
+  not show it on a real X server, uinput, Windows or macOS.
+- Parser hardening, the owner and permission notes, the budget and the raised limits against a real, large configuration
+  on Windows and macOS (where the owner and mode checks do not apply).
+- The `refresh-ci-pins` gate (#316) has not run live: run the workflow once and read the `propose` job (issue #285).
 - The tiles "Switch tabs", "Volume" and "Change track" in real programs (browsers, terminals, players); the volume and media
   keys on each desktop. They are not sent on macOS.
 
@@ -254,16 +319,18 @@ can verify these; none of them has been tested:
 - Media keys are not sent on macOS.
 - Windows and macOS packages are unsigned (issue #42); the Qt archive hash list is empty until it is recorded (issue #295).
 - The macOS and Windows daemons load the vendor library and are not protected against DYLD or DLL injection.
-- Open from the audits and not in this release: daemon core and parser hardening (issue #272), the rest of the UI
-  robustness findings (issue #275: waits of `qt_action_runner` outside the setup guide, Tab handling in the key capture
-  button, accessibility alerts for validation and "Saved" labels), systemd unit shadowing (issue #270).
-
-## Not on main yet
-
-These were planned for 1.3.0 but are **not merged at the time of writing**. They must not be announced until they are; this
-section is finalized (moved up or removed) before the tag.
-
-From [plan-motion-functions.md](plan-motion-functions.md) (issues #224, #225), stages 6 and 7: presets such as "turn pages", "switch tabs", "volume" and "change
-track" (stage 6), the `macro:` function with a recording dialog, own functions in profiles (`New function...`), raised
-size limits and `TWIST_GUARD` (stage 7). Also pending: parser hardening (issue #272) and the rest of the UI robustness
-findings of issue #275 (see Known limitations). Today the size limits are the old ones.
+- **A running macro survives a change of the active program (issue #318, by design).** A macro with a `wait:` (up to 60 s)
+  keeps typing into whatever window has the focus when you switch to another program during the pause. A macro that
+  switches windows itself (`+alt +tab`, then types) depends on this. Everything else ends a macro and releases its keys: a
+  joystick mode change, reload, suspend, `ENABLED = 0`, an unplugged device, "Release all keys" and exit. Do not put long
+  pauses into a macro that you start from a window you may leave. Whether a program change should abort a macro that is in
+  a pause is open (issue #318).
+- Macros are digital only, one runs at a time (a second trigger is ignored, not queued), they send keys but no mouse buttons
+  or pointer movement. A name for a function (`FUNC_<name>`), duplicating a function and taking over from a joystick mode
+  into a function are not there yet (stages 7d and 7e of the plan); `TWIST_GUARD` is not implemented.
+- The import question does not mention that a moving pointer combined with a click lands anywhere on the screen (the
+  daemon's load warning does not either).
+- Open from the audits and not in this release: the rest of the UI robustness findings (issue #275: waits of
+  `qt_action_runner` outside the setup guide, Tab handling in the key capture button, accessibility alerts for validation
+  and "Saved" labels), systemd unit shadowing (issue #270). A keyboard-only, German and high-DPI audit of every page and
+  dialog after the New function window landed has not been done.

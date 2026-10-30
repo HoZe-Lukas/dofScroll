@@ -748,7 +748,7 @@ confirmation before the profile is added: key chords with Ctrl, Alt or Super (ho
 reads them), other chords with a key that is not a navigation key (for example Shift+Delete), plain Delete, Backspace,
 Enter, Esc, F4 or a modifier key, mouse clicks as button action (also the old `CLICK_BUTTON`) and a `MODE` or
 `mode:` binding that points to a Joystick mode of your own, or a `buttonmode:<id>` binding that points to a Button mode of your own (a file in the `buttons/` folder, also one that replaces a built-in Button mode of the same id; the three built-in ones are not flagged). The values are written in their canonical form (what the
-editor would write), not as typed in the file. A profile that binds such things shows the same warning in its header
+editor would write), not as typed in the file. The question lists the bindings themselves (`KEY = value`, the first six and "... and N more"), so you see which key, click or macro would run before you confirm. A profile that binds such things shows the same warning in its header
 ("Only keep profile files from sources you trust ..."). A file whose profile name contains control, zero-width,
 bidirectional or BOM characters is refused. If the profiles change while the question is open (the configuration was
 reloaded), nothing is imported and the footer asks you to import again. Names, file names and messages from files are
