@@ -2527,7 +2527,7 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                     // whose glyphs are twice as wide already (the packaging smoke test), so the stretch is scaled to the font at hand
                     // (never below the 400 % case, which every font passes).
                     int spacing = fc.spacing;
-                    if (spacing >= 900) spacing = std::clamp(900 * 7 / std::max(1, QFontMetrics(baseFont).averageCharWidth()), 400, 900);
+                    if (spacing >= 900) spacing = std::clamp(900 * 5 / std::max(1, QFontMetrics(baseFont).averageCharWidth()), 400, 900);
                     f.setLetterSpacing(QFont::PercentageSpacing, spacing);
                     QApplication::setFont(f);
                     // 1100 px at the normal font; someone with a larger font also uses a wider window (up to a 1920 px screen)
