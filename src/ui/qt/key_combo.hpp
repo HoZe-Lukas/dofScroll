@@ -4,6 +4,7 @@
 #pragma once
 #include <QCheckBox>
 #include <QComboBox>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QLabel>
@@ -77,9 +78,10 @@ inline QWidget *chordPicker(QWidget *parent, QObject *owner, std::string *chord,
     // does not fit the narrow inspector of the Motions and buttons tab (found by the layout audit).
     auto *col = new QVBoxLayout(w);
     col->setContentsMargins(0, 0, 0, 0);
-    auto *h = new QHBoxLayout;
+    auto *h = new QGridLayout;  // two boxes per line: four boxes in a row need 500 px in a wide font and a check box cannot wrap
+    h->setContentsMargins(0, 0, 0, 0);
     col->addLayout(h);
-    h->addStretch(0);
+    int modIndex = 0;
     std::vector<std::string> mods;
     std::string key;
     splitChord(*chord, &mods, &key);
@@ -90,11 +92,12 @@ inline QWidget *chordPicker(QWidget *parent, QObject *owner, std::string *chord,
         cb->setProperty("chordMod", QString::fromLatin1(m));  // the stored name; the text is for the people
         cb->setChecked(std::find(mods.begin(), mods.end(), m) != mods.end());
         cb->setAccessibleName(accessible + QStringLiteral(" ") + label);
-        h->addWidget(cb);
+        h->addWidget(cb, modIndex / 2, modIndex % 2);
+        ++modIndex;
     }
+    h->setColumnStretch(2, 1);
     auto *kc = makeKeyTreePicker(QString::fromStdString(key), w);
     kc->setAccessibleName(accessible);
-    h->addStretch(1);
     auto *keyRow = new QHBoxLayout;
     col->addLayout(keyRow);
     kc->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);  // a long key name must not widen the row
