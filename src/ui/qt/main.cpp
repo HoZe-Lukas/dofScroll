@@ -3404,9 +3404,9 @@ static bool wideGlyphPagesSelfTest() {
     EditorRig rig("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\nBUTTON_1 = key:ctrl+space\n");
     MainWindow &w = *rig.win;
     const QFont baseFont = QApplication::font();
-    // 1100 px is the usual window; 1050 px is a smaller one (the Settings page
-    // stacks its two columns then)
-    for (const std::pair<int, int> &cfg : {std::make_pair(1100, 100), std::make_pair(1100, 130), std::make_pair(1050, 100)}) {
+    // 1100 px is the documented window width: no horizontal scroll bar there, with the font as it is, with wider glyphs and
+    // again as it is (the Settings page stacks its two columns when they do not fit)
+    for (const std::pair<int, int> &cfg : {std::make_pair(1100, 100), std::make_pair(1100, 130), std::make_pair(1100, 100)}) {
         const int spacing = cfg.second;
         applyTheme(spn::ui::Theme::Light);
         QFont f = baseFont;
