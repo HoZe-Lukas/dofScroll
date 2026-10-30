@@ -3404,9 +3404,9 @@ static bool wideGlyphPagesSelfTest() {
     EditorRig rig("[global]\n\n[device:SpaceMouse Pro]\nSCROLL_V_SENS = 9\n\n[app:firefox]\nMODE = timeline\nBUTTON_1 = key:ctrl+space\n");
     MainWindow &w = *rig.win;
     const QFont baseFont = QApplication::font();
-    // 1100 px is the usual window; glyphs 1.6 times wider are a German translation on a Windows font (the Settings page
+    // 1100 px is the usual window; 1050 px is a smaller one (the Settings page
     // stacks its two columns then)
-    for (const std::pair<int, int> &cfg : {std::make_pair(1100, 100), std::make_pair(1100, 130), std::make_pair(1100, 160)}) {
+    for (const std::pair<int, int> &cfg : {std::make_pair(1100, 100), std::make_pair(1100, 130), std::make_pair(1050, 100)}) {
         const int spacing = cfg.second;
         applyTheme(spn::ui::Theme::Light);
         QFont f = baseFont;
