@@ -4928,8 +4928,12 @@ msgid "%1 was not imported (an imported profile does not switch the output off o
 msgstr "%1 wurde nicht importiert (ein importiertes Profil schaltet die Ausgabe nicht ab und ändert nicht, wie Ereignisse gesendet werden)."
 
 #: src/ui
-msgid "It presses shortcut chords or keys that can do harm (Ctrl, Alt, Super, Delete, ...) or clicks, or uses a Joystick mode of your own, when a button is pressed or the mouse is moved."
-msgstr "Es drückt Tastenkombinationen oder Tasten, die Schaden anrichten können (Strg, Alt, Super, Entf, ...), oder klickt, oder nutzt einen eigenen Joystick-Modus, wenn eine Taste gedrückt oder die Maus bewegt wird."
+msgid "It presses shortcut chords or keys that can do harm (Ctrl, Alt, Super, Delete, ...) or clicks, or uses a Joystick mode of your own, when a button is pressed or the mouse is moved:"
+msgstr "Es drückt Tastenkombinationen oder Tasten, die Schaden anrichten können (Strg, Alt, Super, Entf, ...), oder klickt, oder nutzt einen eigenen Joystick-Modus, wenn eine Taste gedrückt oder die Maus bewegt wird:"
+
+#: src/ui/model/profile_import.hpp
+msgid "... and %1 more"
+msgstr "... und %1 weitere"
 
 #: src/ui
 msgid "The profile name contains control, invisible or direction-changing characters and cannot be imported."

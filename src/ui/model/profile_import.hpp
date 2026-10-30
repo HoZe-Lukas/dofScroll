@@ -80,7 +80,7 @@ inline ImportPlan planProfileImport(const SettingsModel &m, const std::string &f
         return p;
     }
     Settings t;
-    bool chordRisk = false;
+    std::vector<std::string> riskyKeys;  // "KEY = value" of every binding bindingIsRisky flags (named in the question)
     for (const KV &kv : sec.kv) {
         const std::string uk = utf8::upperAscii(kv.first);
         if (uk == "PRIORITY") {
@@ -91,17 +91,21 @@ inline ImportPlan planProfileImport(const SettingsModel &m, const std::string &f
             p.notes.push_back(format(s.tr("%1 was not imported (an imported profile does not switch the output off or change how events are sent)."), {uk}));
             continue;
         }
-        if (!chordRisk && m.bindingIsRisky(kv.first, kv.second)) {
-            chordRisk = true;
-            p.risks.push_back(s.tr("It presses shortcut chords or keys that can do harm (Ctrl, Alt, Super, Delete, ...) or clicks, "
-                                   "or uses a Joystick mode of your own, when a button is pressed or the mouse is moved."));
-        }
+        if (m.bindingIsRisky(kv.first, kv.second)) riskyKeys.push_back(displayText(kv.first) + " = " + displayText(kv.second));
         std::string e;
         if (!applyKey(t, kv.first, kv.second, &e)) {
             p.error = format(s.tr("The setting %1 = %2 is not valid: %3"), {kv.first, kv.second, e});
             return p;
         }
         p.keys.push_back(kv);
+    }
+    if (!riskyKeys.empty()) {  // one risk however many keys; it names them (at most 6) so the user sees what would be pressed or clicked
+        constexpr size_t kShown = 6;
+        std::string list;
+        for (size_t i = 0; i < riskyKeys.size() && i < kShown; ++i) list += (i ? "\n" : "") + std::string("  ") + riskyKeys[i];
+        if (riskyKeys.size() > kShown) list += "\n  " + format(s.tr("... and %1 more"), {std::to_string(riskyKeys.size() - kShown)});
+        p.risks.push_back(s.tr("It presses shortcut chords or keys that can do harm (Ctrl, Alt, Super, Delete, ...) or clicks, "
+                               "or uses a Joystick mode of your own, when a button is pressed or the mouse is moved:") + "\n" + list);
     }
     size_t chars = 0;
     for (unsigned char c : p.name) chars += (c & 0xc0) != 0x80;
