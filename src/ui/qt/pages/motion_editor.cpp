@@ -114,10 +114,10 @@ int MotionPicture::minimumWidth() const {
     const int pad = itemPad(fm), gap = std::max(6, fm.height() / 2);
     bool anyMotion = false;
     for (const Item &it : items_) anyMotion = anyMotion || it.id.startsWith(QLatin1String("m:"));
-    if (!anyMotion) {  // only buttons (the Button modes page): two columns of buttons are enough
+    if (!anyMotion) {  // only buttons (the Button modes page): one column of buttons is the least, more wrap in when there is room
         int bw = kMinTarget;
         for (const Item &it : items_) bw = std::max(bw, std::min(bold.horizontalAdvance(it.text) + 2 * pad, 9 * fm.height()));
-        return 2 * bw + gap;
+        return bw;
     }
     int cw = 0;
     for (const Item &it : items_)

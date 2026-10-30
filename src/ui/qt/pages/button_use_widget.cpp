@@ -28,12 +28,12 @@ ButtonUseWidget::ButtonUseWidget(const UiContext &ctx, QWidget *parent) : QWidge
     selected_->setWordWrap(true);
     selected_->setTextFormat(Qt::PlainText);
     col->addWidget(selected_);
-    auto *row = new QHBoxLayout;
+    auto *row = new QVBoxLayout;  // one under the other: two buttons side by side do not fit the editor column in a wide font
     use_ = new QPushButton(this);
     unbind_ = new QPushButton(T("Unbind"), this);
     unbind_->setToolTip(T("Remove the binding of this button in the Global profile"));
-    row->addWidget(use_, 1);
-    row->addWidget(unbind_);
+    row->addWidget(use_);
+    row->addWidget(unbind_, 0, Qt::AlignLeft);
     col->addLayout(row);
     status_ = new QLabel(this);
     status_->setWordWrap(true);
