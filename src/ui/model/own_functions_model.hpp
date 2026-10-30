@@ -118,8 +118,11 @@ inline std::vector<OwnFunction> ownFunctions(const SettingsModel &m, size_t sect
         }
         if (key.rfind("BUTTON_", 0) == 0 && ownButtonText(text)) {
             OwnUse u;
-            u.button = std::atoi(key.c_str() + 7);
-            if (u.button < 1) continue;
+            // BUTTON_<n> with n = 1..32 and nothing else (atoi on a long digit string is undefined; "3x" is no button)
+            const std::string digits = key.substr(7);
+            if (digits.empty() || digits.size() > 2 || digits.find_first_not_of("0123456789") != std::string::npos) continue;
+            u.button = std::atoi(digits.c_str());
+            if (u.button < 1 || u.button > 32) continue;
             u.key = key;
             u.name = format(s.tr("Button %1"), {std::to_string(u.button)});
             add(text, u, buttonActionWords(text, s));

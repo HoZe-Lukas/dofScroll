@@ -185,6 +185,31 @@ int main() {
         assert(!fresh && d.kind == FunctionKind::Macro && d.macroNeg.size() == 4);
         d = draftFromText(tilt, "macro:none,wait:30 +a", "h_push", none, &fresh);
         assert(!fresh && d.kind == FunctionKind::Macro && d.macroNeg.empty() && d.macroPos.size() == 2);
+        // a macro with a release part ("press | release") cannot be shown by the dialog: the draft is refused, so an edit of
+        // another field never rewrites the stored text without the release part
+        d = draftFromText(btn, "macro:+ctrl | -ctrl", "", none, &fresh);
+        assert(!fresh && d.kind == FunctionKind::Macro && d.macroNotEditable);
+        assert(!checkFunction(btn, d).empty() && checkFunction(btn, d)[0].field == "action");
+        d = draftFromText(tilt, "macro:+a -a | -b,wait:30 +a", "h_push", none, &fresh);
+        assert(d.macroNotEditable && !checkFunction(tilt, d).empty());
+        {
+            ModeSet modes = loadModes("/nonexistent-dir-for-test", nullptr);
+            ProfileSet ps;
+            const size_t app = ps.findOrAdd(Section::APP, "browser");
+            SettingsModel m;
+            m.setProfiles(ps, "");
+            m.setModes(modes, "");
+            assert(m.setValue(app, "H_TILT_ACTION", "macro:+a | -a,wait:30 +b", nullptr));
+            const std::string before = nfSection(m, app);
+            d.trigger = "20";  // the user edits another field of the dialog
+            std::vector<FunctionProblem> pr;
+            assert(!applyFunction(m, app, tilt, d, &pr) && !pr.empty() && nfSection(m, app) == before);
+            // choosing another kind is the deliberate replacement
+            changeKind(&d, tilt, FunctionKind::Wheel);
+            assert(!d.macroNotEditable);
+        }
+        d = draftFromText(btn, "macro:+ctrl +c -c -ctrl", "", none, &fresh);
+        assert(!d.macroNotEditable);
         // the tuning keys of the motion are read with the action
         d = draftFromText(tilt, "keys:left,right", "h_push", [](const std::string &k) { return k == "SCROLL_H_PUSH_KEY_RATE_MAX" ? std::string("8") : std::string(); }, &fresh);
         assert(d.rateMax == "8" && d.rateMin.empty());

@@ -120,6 +120,9 @@ struct FunctionDraft {
     std::string wheel = "wheel_v";             // Wheel: wheel_v, wheel_h or zoom
     std::string pointer = "pointer_x";         // Pointer: pointer_x or pointer_y
     MacroList macroNeg, macroPos;             // Macro (a button uses macroNeg only)
+    // Set by draftFromText for a stored macro that has a part the dialog cannot show (the release part after '|', or steps its
+    // parser refuses): the draft would be a lossy copy, so checkFunction refuses it and nothing is written over the file's text.
+    bool macroNotEditable = false;
     std::string rateMin, rateMax, trigger;     // the tuning keys of the motion, "" = not set
 };
 
@@ -270,7 +273,9 @@ inline FunctionFields functionFields(const FunctionTarget &t, const FunctionDraf
 inline std::vector<FunctionProblem> checkFunction(const FunctionTarget &t, const FunctionDraft &d) {
     std::vector<FunctionProblem> out;
     std::string text, err;
-    if (!composeFunction(t, d, &text, &err)) out.push_back({"action", err});
+    if (d.kind == FunctionKind::Macro && d.macroNotEditable)
+        out.push_back({"action", "this macro has a release part (steps after '|') that this window cannot show; edit the configuration file, or choose another kind to replace it"});
+    else if (!composeFunction(t, d, &text, &err)) out.push_back({"action", err});
     else if (!new_function_detail::parses(t, text, &err)) out.push_back({"action", err});
     if (!t.isMotion()) return out;
     const FunctionFields fields = functionFields(t, d);
@@ -397,10 +402,10 @@ inline FunctionDraft draftFromText(const FunctionTarget &t, const std::string &t
         if (t.isMotion()) {
             const size_t comma = body.find(',');
             const std::string n = body.substr(0, comma), p = comma == std::string::npos ? std::string("none") : body.substr(comma + 1);
-            if (n != "none") d.macroNeg.parse(n, nullptr);
-            if (p != "none") d.macroPos.parse(p, nullptr);
-        } else {
-            d.macroNeg.parse(body, nullptr);
+            if (n != "none" && !d.macroNeg.parse(n, nullptr)) d.macroNotEditable = true;
+            if (p != "none" && !d.macroPos.parse(p, nullptr)) d.macroNotEditable = true;
+        } else if (!d.macroNeg.parse(body, nullptr)) {
+            d.macroNotEditable = true;
         }
         return d;
     }

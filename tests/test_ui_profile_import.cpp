@@ -11,6 +11,9 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#ifndef _WIN32
+#include <sys/stat.h>
+#endif
 
 #include "platform/fs.hpp"
 #include "profile_files.hpp"
@@ -68,6 +71,16 @@ static void testBomCrlfAndFileKinds() {
     p = planProfileImport(m, d + "/adir.conf", id);
     assert(!p.ok && has(p.error, "cannot be read") && has(p.error, "adir.conf"));
 #ifndef _WIN32
+    // a named pipe or a device file picked in the file dialog is refused at once: the read never blocks and reads nothing
+    // (a FIFO with no writer would otherwise hang the window)
+    if (::mkfifo((d + "/pipe.conf").c_str(), 0600) == 0) {
+        p = planProfileImport(m, d + "/pipe.conf", id);
+        assert(!p.ok && has(p.error, "cannot be read") && !m.dirty());
+    }
+    for (const char *dev : {"/dev/zero", "/dev/null"}) {
+        p = planProfileImport(m, dev, id);
+        assert(!p.ok && !m.dirty());
+    }
     std::error_code ec;
     std::filesystem::create_symlink(d + "/imp.conf", d + "/link.conf", ec);
     if (!ec) {
