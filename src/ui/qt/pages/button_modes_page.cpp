@@ -174,7 +174,7 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     split->setStretchFactor(0, 1);
     split->setStretchFactor(1, 2);
     split->setSizes({300, 700});
-    new spn::ui::SplitDefaults(split, 30, 260);  // the list would otherwise follow its longest description and squeeze the editor
+    new spn::ui::SplitDefaults(split, 30, 200);  // the list would otherwise follow its longest description and squeeze the editor
     row->addWidget(split, 1);
 
     auto *buttons = new QVBoxLayout;
