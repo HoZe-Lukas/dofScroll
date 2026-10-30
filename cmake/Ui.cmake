@@ -98,6 +98,14 @@ if(DOFSCROLL_UI)
     src/ui/qt/pages/add_device_dialog.cpp
     src/ui/qt/pages/add_device_dialog.hpp
     src/ui/qt/pages/take_over_dialog.cpp
+    src/ui/qt/pages/new_function_dialog.cpp
+    src/ui/qt/pages/new_function_dialog.hpp
+    src/ui/qt/pages/own_functions_widget.cpp
+    src/ui/qt/pages/own_functions_widget.hpp
+    src/ui/qt/chord_field.cpp
+    src/ui/qt/chord_field.hpp
+    src/ui/qt/macro_editor.cpp
+    src/ui/qt/macro_editor.hpp
     src/ui/qt/pages/take_over_dialog.hpp
     src/ui/qt/pages/profile_builder_dialog.cpp
     src/ui/qt/pages/profile_builder_dialog.hpp

@@ -35,6 +35,7 @@ struct ButtonRowHandlers {
     std::function<void(const spn::ui::ButtonChoice &)> choose;  // an entry of the drop-down was picked
     std::function<void(const spn::ui::Binding &)> setArgument;  // key or mode argument changed
     std::function<void()> reset;                                // "Inherit" / "Unbind"
+    std::function<void()> newFunction;                          // "New function..." (the entry is there only when this is set)
 };
 
 // Adds the widgets of one row to grid row r (columns 0..2). Connections live as long as owner.

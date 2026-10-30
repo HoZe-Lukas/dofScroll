@@ -4928,8 +4928,12 @@ msgid "%1 was not imported (an imported profile does not switch the output off o
 msgstr "%1 wurde nicht importiert (ein importiertes Profil schaltet die Ausgabe nicht ab und ändert nicht, wie Ereignisse gesendet werden)."
 
 #: src/ui
-msgid "It presses shortcut chords or keys that can do harm (Ctrl, Alt, Super, Delete, ...) or clicks, or uses a Joystick mode of your own, when a button is pressed or the mouse is moved."
-msgstr "Es drückt Tastenkombinationen oder Tasten, die Schaden anrichten können (Strg, Alt, Super, Entf, ...), oder klickt, oder nutzt einen eigenen Joystick-Modus, wenn eine Taste gedrückt oder die Maus bewegt wird."
+msgid "It presses shortcut chords or keys that can do harm (Ctrl, Alt, Super, Delete, ...) or clicks, or uses a Joystick mode of your own, when a button is pressed or the mouse is moved:"
+msgstr "Es drückt Tastenkombinationen oder Tasten, die Schaden anrichten können (Strg, Alt, Super, Entf, ...), oder klickt, oder nutzt einen eigenen Joystick-Modus, wenn eine Taste gedrückt oder die Maus bewegt wird:"
+
+#: src/ui/model/profile_import.hpp
+msgid "... and %1 more"
+msgstr "... und %1 weitere"
 
 #: src/ui
 msgid "The profile name contains control, invisible or direction-changing characters and cannot be imported."
@@ -6026,8 +6030,10 @@ msgstr "Halten"
 msgid "Runs a macro once per push"
 msgstr "Führt pro Schub ein Makro aus"
 
+#: src/ui/qt/pages/new_function_dialog.cpp
 #: src/ui/model/motion_summary_model.hpp
 #: src/ui/model/button_chip_model.hpp
+#: src/ui/qt/pages/new_function_dialog.cpp
 msgid "Macro"
 msgstr "Makro"
 
@@ -6095,10 +6101,12 @@ msgstr "bewegt den Mauszeiger nach links und rechts, bei voller Auslenkung etwa 
 msgid "moves the mouse pointer up and down, about %1 steps a second at full deflection"
 msgstr "bewegt den Mauszeiger nach oben und unten, bei voller Auslenkung etwa %1 Schritte pro Sekunde"
 
+#: src/ui/qt/pages/new_function_dialog.cpp
 #: src/ui/model/motion_summary_model.hpp
 msgid "Move the pointer left and right"
 msgstr "Mauszeiger nach links und rechts bewegen"
 
+#: src/ui/qt/pages/new_function_dialog.cpp
 #: src/ui/model/motion_summary_model.hpp
 msgid "Move the pointer up and down"
 msgstr "Mauszeiger nach oben und unten bewegen"
@@ -6126,3 +6134,515 @@ msgstr "Zeigergeschwindigkeit"
 #: src/ui/qt/pages/channels_editor.cpp
 msgid "How far the mouse pointer moves per step, in pixels, for a motion set to move the pointer. Higher is faster. The normal value is 8."
 msgstr "Wie weit sich der Mauszeiger pro Schritt bewegt (in Pixeln), wenn du eine Bewegung auf den Mauszeiger legst. Höher ist schneller. Der Normalwert ist 8."
+#: src/ui/qt/pages/new_function_dialog.cpp
+
+msgid "%1 of %2 steps."
+msgstr "%1 von %2 Schritten."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "%1 of %2 steps: the macro is full."
+msgstr "%1 von %2 Schritten: Das Makro ist voll."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "(not complete yet)"
+msgstr "(noch nicht vollständig)"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "A button cannot move the pointer: that needs a motion of the cap."
+msgstr "Eine Taste kann den Zeiger nicht bewegen: Dafür braucht es eine Bewegung der Kappe."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "A button cannot scroll or zoom: those need a motion of the cap."
+msgstr "Eine Taste kann nicht scrollen oder zoomen: Dafür braucht es eine Bewegung der Kappe."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "A button holds a plain key already while you hold the button: choose Key or key combination without a modifier."
+msgstr "Eine Taste hält eine einfache Taste schon, solange du sie gedrückt hältst: Wähle „Taste oder Tastenkombination“ ohne Zusatztaste."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "A button is always digital: one press per press of the button."
+msgstr "Eine Taste ist immer digital: ein Tastendruck pro Druck auf die Taste."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "A key without a modifier is held while you hold the button. A combination, such as Ctrl and C, is pressed once when you press the button."
+msgstr "Eine Taste ohne Zusatztaste wird gehalten, solange du die Taste hältst. Eine Kombination wie Strg und C wird einmal gedrückt, wenn du die Taste drückst."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "A macro always runs once per trigger."
+msgstr "Ein Makro läuft immer einmal pro Auslösung."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "A mouse click each time you push past the trigger level."
+msgstr "Ein Mausklick jedes Mal, wenn du über die Auslöseschwelle schiebst."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Action text"
+msgstr "Aktionstext"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Action text:"
+msgstr "Aktionstext:"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Add a pause, after the chosen step"
+msgstr "Eine Pause nach dem gewählten Schritt einfügen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Add a step that lets go of a key, after the chosen step"
+msgstr "Einen Schritt einfügen, der eine Taste loslässt, nach dem gewählten Schritt"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Add a step that presses a key, after the chosen step"
+msgstr "Einen Schritt einfügen, der eine Taste drückt, nach dem gewählten Schritt"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Add key press"
+msgstr "Tastendruck hinzufügen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Add key release"
+msgstr "Loslassen hinzufügen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Add pause"
+msgstr "Pause hinzufügen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Also record the times between the keys"
+msgstr "Auch die Zeiten zwischen den Tasten aufnehmen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Also record the times between the keys. Off: a pause of 30 ms is put between the steps."
+msgstr "Auch die Zeiten zwischen den Tasten aufnehmen. Aus: Zwischen die Schritte kommt eine Pause von 30 ms."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Assigned."
+msgstr "Zugewiesen."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Choose the key from the list"
+msgstr "Wähle die Taste aus der Liste"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Clear all"
+msgstr "Alle löschen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Click, then press the key or key combination on your keyboard"
+msgstr "Klicke und drücke dann die Taste oder Tastenkombination auf deiner Tastatur"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Close the window. The function stays as it is."
+msgstr "Das Fenster schließen. Die Funktion bleibt, wie sie ist."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Delete all steps of this macro"
+msgstr "Alle Schritte dieses Makros löschen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Delete function"
+msgstr "Funktion löschen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Delete the chosen step"
+msgstr "Den gewählten Schritt löschen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Delete this function? %1 will inherit again."
+msgstr "Diese Funktion löschen? %1 erben dann wieder."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Deleted. %1 inherit again. Now: %2"
+msgstr "Gelöscht. %1 erben wieder. Jetzt: %2"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Direction of the macro"
+msgstr "Richtung des Makros"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Direction of the macro:"
+msgstr "Richtung des Makros:"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Direction of the pointer"
+msgstr "Richtung des Zeigers"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Direction of the pointer:"
+msgstr "Richtung des Zeigers:"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Follows how far you push."
+msgstr "Folgt dem, wie weit du schiebst."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Function of %1"
+msgstr "Funktion von %1"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Hold a key or button"
+msgstr "Taste oder Maustaste halten"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Hold this modifier together with the key"
+msgstr "Diese Zusatztaste zusammen mit der Taste halten"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "How long the macro waits at this step, 1 to 60000 milliseconds"
+msgstr "Wie lange das Makro bei diesem Schritt wartet, 1 bis 60000 Millisekunden"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Key of the button"
+msgstr "Taste der Taste"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Key of the chosen step"
+msgstr "Taste des gewählten Schritts"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Key of the step:"
+msgstr "Taste des Schritts:"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Key or key combination"
+msgstr "Taste oder Tastenkombination"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Kind of function"
+msgstr "Art der Funktion"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Kind of function:"
+msgstr "Art der Funktion:"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Kind of the chosen step"
+msgstr "Art des gewählten Schritts"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Left click"
+msgstr "Linksklick"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Macro for the negative direction"
+msgstr "Makro für die negative Richtung"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Macro for the positive direction"
+msgstr "Makro für die positive Richtung"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Macro of the button"
+msgstr "Makro der Taste"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Mouse button for the negative direction"
+msgstr "Maustaste für die negative Richtung"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Mouse button for the positive direction"
+msgstr "Maustaste für die positive Richtung"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Mouse button of the button"
+msgstr "Maustaste der Taste"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Mouse click"
+msgstr "Mausklick"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Move the chosen step one place down"
+msgstr "Den gewählten Schritt eine Stelle nach unten schieben"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Move the chosen step one place up"
+msgstr "Den gewählten Schritt eine Stelle nach oben schieben"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Move the pointer"
+msgstr "Zeiger bewegen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Moves the pointer by how far you push."
+msgstr "Bewegt den Zeiger entsprechend dem, wie weit du schiebst."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Negative direction"
+msgstr "Negative Richtung"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "New function for %1"
+msgstr "Neue Funktion für %1"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Not assigned yet: nothing is written until every field is valid."
+msgstr "Noch nicht zugewiesen: Es wird nichts geschrieben, bis jedes Feld gültig ist."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Not available here: "
+msgstr "Hier nicht verfügbar: "
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Not recording."
+msgstr "Keine Aufnahme."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Nothing happens in this direction"
+msgstr "In dieser Richtung passiert nichts"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "On: the pauses are the measured times. Off: a pause of 30 ms is put between the steps."
+msgstr "An: Die Pausen sind die gemessenen Zeiten. Aus: Zwischen die Schritte kommt eine Pause von 30 ms."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "One key press each time you push past the trigger level."
+msgstr "Ein Tastendruck jedes Mal, wenn du über die Auslöseschwelle schiebst."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "One macro for each direction of %1; a direction without steps does nothing"
+msgstr "Ein Makro für jede Richtung von %1; eine Richtung ohne Schritte tut nichts"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Only a function of a button can be a button mode"
+msgstr "Nur eine Funktion einer Taste kann ein Tastenmodus sein"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Only a function of a button can be a button mode."
+msgstr "Nur eine Funktion einer Taste kann ein Tastenmodus sein."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Open the chosen function in the New function window"
+msgstr "Die gewählte Funktion im Fenster „Neue Funktion“ öffnen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Own functions of this profile"
+msgstr "Eigene Funktionen dieses Profils"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Pause in milliseconds"
+msgstr "Pause in Millisekunden"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Pause in milliseconds:"
+msgstr "Pause in Millisekunden:"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Positive direction"
+msgstr "Positive Richtung"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Press %1"
+msgstr "%1 drücken"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Press a key"
+msgstr "Taste drücken"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Press a key, release a key or pause, for the chosen step"
+msgstr "Taste drücken, Taste loslassen oder Pause für den gewählten Schritt"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Pressing the button presses %1."
+msgstr "Ein Druck auf die Taste drückt %1."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Record stop"
+msgstr "Aufnahme stopp"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Record the keys you press, or add the steps by hand below. Recording happens only in this window, while the recording area has the focus."
+msgstr "Nimm die Tasten auf, die du drückst, oder füge die Schritte unten von Hand hinzu. Aufgenommen wird nur in diesem Fenster, solange der Aufnahmebereich den Fokus hat."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Record the times"
+msgstr "Zeiten aufnehmen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Record"
+msgstr "Aufnahme"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Recorded. Change, delete or move any step below."
+msgstr "Aufgenommen. Du kannst jeden Schritt unten ändern, löschen oder verschieben."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Recording area"
+msgstr "Aufnahmebereich"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Recording: press the keys now. Press Esc three times in a row, or use Record stop, to end it."
+msgstr "Aufnahme läuft: Drücke jetzt die Tasten. Drücke dreimal hintereinander Esc oder nutze „Aufnahme stopp“, um sie zu beenden."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Release %1"
+msgstr "%1 loslassen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Release a key"
+msgstr "Taste loslassen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Remove the chosen function from every motion and button that uses it; they inherit again"
+msgstr "Die gewählte Funktion von jeder Bewegung und Taste entfernen, die sie nutzt; sie erben dann wieder"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Result of the last change to the own functions"
+msgstr "Ergebnis der letzten Änderung an den eigenen Funktionen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Save as button mode"
+msgstr "Als Tastenmodus speichern"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Save as button mode..."
+msgstr "Als Tastenmodus speichern ..."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Save as joystick mode"
+msgstr "Als Joystick-Modus speichern"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Save as joystick mode..."
+msgstr "Als Joystick-Modus speichern ..."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Saved as the button mode %1. This profile keeps its own function."
+msgstr "Als Tastenmodus %1 gespeichert. Dieses Profil behält seine eigene Funktion."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Saved as the joystick mode %1. This profile keeps its own function."
+msgstr "Als Joystick-Modus %1 gespeichert. Dieses Profil behält seine eigene Funktion."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Scroll or zoom"
+msgstr "Scrollen oder zoomen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Scroll, scroll sideways or zoom for %1"
+msgstr "Scrollen, seitlich scrollen oder zoomen für %1"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Scrolling, zooming and moving the pointer follow how far you push: they are always analog."
+msgstr "Scrollen, Zoomen und Zeigerbewegung folgen dem, wie weit du schiebst, und sind immer analog."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Start recording the keys you press into the steps below"
+msgstr "Die Aufnahme der gedrückten Tasten in die Schritte unten starten"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "State of the function"
+msgstr "Zustand der Funktion"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Steps of the macro"
+msgstr "Schritte des Makros"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Steps:"
+msgstr "Schritte:"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Stop recording"
+msgstr "Aufnahme beenden"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "The chosen step:"
+msgstr "Der gewählte Schritt:"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "The functions you made with New function... in this profile. A function that several motions or buttons use is listed once."
+msgstr "Die Funktionen, die du in diesem Profil mit „Neue Funktion ...“ gemacht hast. Eine Funktion, die mehrere Bewegungen oder Tasten nutzen, steht nur einmal in der Liste."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "The key or button is held while you push past the trigger level."
+msgstr "Die Taste oder Maustaste wird gehalten, solange du über die Auslöseschwelle schiebst."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "The key repeats faster the further you push."
+msgstr "Die Taste wiederholt sich schneller, je weiter du schiebst."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "The list of functions; each says what it does and which motions and buttons use it"
+msgstr "Die Liste der Funktionen; jede sagt, was sie tut und welche Bewegungen und Tasten sie nutzen"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "The list of steps; choose one to change it below"
+msgstr "Die Liste der Schritte; wähle einen, um ihn unten zu ändern"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "The macro is full (%1 steps): the recording ended."
+msgstr "Das Makro ist voll (%1 Schritte): Die Aufnahme ist beendet."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "The recording ended with Esc pressed three times; those presses are not part of the macro."
+msgstr "Die Aufnahme wurde durch dreimal Esc beendet; diese Tastendrücke gehören nicht zum Makro."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "The recording stopped because the keyboard focus left the recording area."
+msgstr "Die Aufnahme wurde beendet, weil der Tastaturfokus den Aufnahmebereich verlassen hat."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "The steps run once for each trigger; further triggers during a run are ignored."
+msgstr "Die Schritte laufen einmal pro Auslösung; weitere Auslösungen während eines Ablaufs werden ignoriert."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "The text of the function as it is stored in the configuration file"
+msgstr "Der Text der Funktion, wie er in der Konfigurationsdatei steht"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "This profile has no functions of its own yet. Choose New function... in the list of a motion or a button."
+msgstr "Dieses Profil hat noch keine eigenen Funktionen. Wähle „Neue Funktion ...“ in der Liste einer Bewegung oder Taste."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "This sets what %1 does in %2. Every change is applied as soon as all fields are valid; there is no Save button. A field that is not valid is explained next to it and nothing is written."
+msgstr "Hier legst du fest, was %1 in %2 tut. Jede Änderung gilt, sobald alle Felder gültig sind; es gibt keinen Speichern-Knopf. Ein ungültiges Feld wird daneben erklärt und es wird nichts geschrieben."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "This version of dofscroll cannot move the pointer from a motion yet."
+msgstr "Diese Version von dofscroll kann den Zeiger noch nicht von einer Bewegung aus bewegen."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "This version of dofscroll does not know macros yet."
+msgstr "Diese Version von dofscroll kennt noch keine Makros."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Wait %1 ms"
+msgstr "%1 ms warten"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "What %1 should do"
+msgstr "Was %1 tun soll"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "What the motion does:"
+msgstr "Was die Bewegung tut:"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Which way the pointer moves for %1"
+msgstr "In welche Richtung sich der Zeiger für %1 bewegt"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "While recording, the keys you press here become steps of the macro"
+msgstr "Während der Aufnahme werden die Tasten, die du hier drückst, zu Schritten des Makros"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Write a copy of the chosen button function as a new button mode; this profile keeps its own function"
+msgstr "Eine Kopie der gewählten Tastenfunktion als neuen Tastenmodus schreiben; dieses Profil behält seine eigene Funktion"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "Write a copy of the chosen function as a new joystick mode; this profile keeps its own function"
+msgstr "Eine Kopie der gewählten Funktion als neuen Joystick-Modus schreiben; dieses Profil behält seine eigene Funktion"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "dofscroll cannot send this key, so it is not recorded. Add it by hand from the list if you can."
+msgstr "dofscroll kann diese Taste nicht senden, deshalb wird sie nicht aufgenommen. Füge sie, wenn möglich, von Hand aus der Liste hinzu."
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "this profile"
+msgstr "diesem Profil"
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "used by %1"
+msgstr "benutzt von %1"

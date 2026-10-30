@@ -18,6 +18,7 @@
 #include "ui_context.hpp"
 
 class MotionPicture;
+class OwnFunctionsWidget;
 class QGridLayout;
 class QVBoxLayout;
 class QBoxLayout;
@@ -46,6 +47,11 @@ public:
     // reason is shown in the inspector).
     bool takeOverMotion(const QString &motionId);
     bool takeOverButton(int n);
+    // "New function...": the dialog that composes a function for a motion (see pages/new_function_dialog.hpp). Window-modal and
+    // not blocking; every valid edit is assigned at once and the view redraws.
+    void newFunction(const QString &motionId);
+    void newFunctionForButton(int n);
+    OwnFunctionsWidget *ownFunctions() const { return ownFunctions_; }
     std::function<void()> inspectorBuilt;  // the inspector was rebuilt: its width need may have changed
     std::function<void()> changed;  // a value was written; the page queues a rebuild of the other tabs
 
@@ -65,6 +71,7 @@ private:
     size_t section_ = 0;
     bool bindingEditor_ = true;
     MotionPicture *picture_ = nullptr;
+    OwnFunctionsWidget *ownFunctions_ = nullptr;
     QWidget *inspector_ = nullptr;
     QVBoxLayout *col_ = nullptr, *extras_ = nullptr;
     QBoxLayout *root_ = nullptr;  // picture and inspector: side by side, or the inspector below when narrow

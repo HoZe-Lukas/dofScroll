@@ -141,6 +141,11 @@ static void testNotesAndRiskBoundaries() {
     // a short name and a risky chord are two separate risks; the chord is reported once however many keys
     p = planOf(m, d, "[app:ab]\nBUTTON_1 = key:ctrl+w\nBUTTON_2 = key:alt+f4\nV_ACTION = keys:ctrl+a,ctrl+b\n");
     assert(p.ok && p.risks.size() == 2 && p.needsConfirm());
+    // the risk names the risky bindings (issue 319), at most six, then how many more
+    assert(has(p.risks[0], "BUTTON_1 = key:ctrl+w") && has(p.risks[0], "BUTTON_2 = key:alt+f4"));
+    p = planOf(m, d, "[app:programname]\nBUTTON_1 = key:ctrl+1\nBUTTON_2 = key:ctrl+2\nBUTTON_3 = key:ctrl+3\nBUTTON_4 = key:ctrl+4\n"
+                     "BUTTON_5 = key:ctrl+5\nBUTTON_6 = key:ctrl+6\nBUTTON_7 = key:ctrl+7\nBUTTON_8 = key:ctrl+8\n");
+    assert(p.ok && p.risks.size() == 1 && has(p.risks[0], "BUTTON_6 = key:ctrl+6") && !has(p.risks[0], "BUTTON_7 =") && has(p.risks[0], "2 more"));
     // a risk plus a collision still needs one confirmation (needsConfirm), a plain new profile none
     assert(!planOf(m, d, "[app:programname]\nZOOM_SENS = 1\n").needsConfirm());
     tu::removeAll(d);

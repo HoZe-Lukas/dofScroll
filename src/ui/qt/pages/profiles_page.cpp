@@ -60,6 +60,7 @@
 #include "platform_hooks.hpp"
 #include "a11y_announce.hpp"
 #include "undo_focus.hpp"
+#include "pages/new_function_dialog.hpp"
 #include "split_defaults.hpp"
 #include "theme.hpp"
 #include "ui/model/undo_rules.hpp"
@@ -1036,6 +1037,9 @@ void ProfilesPage::addBindingRow(QWidget *parent, QGridLayout *grid, int gridRow
     h.reset = [this, section, row, changed] {
         ctx_.settings->clearButton(section, row.number);
         changed(true, std::string());
+    };
+    h.newFunction = [this, section, row] {
+        openNewFunctionDialog(ctx_, section, spn::ui::FunctionTarget::buttonNumber(row.number), this, [this] { queueRebuild(); });
     };
     addButtonRow(this, parent, grid, gridRow, row, env, h);
 }
