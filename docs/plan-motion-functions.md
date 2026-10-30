@@ -204,6 +204,7 @@ hostile or broken files. Rate and output limits stay as they are.
 | Limit | Before | New | Stage |
 |---|---|---|---|
 | Profile file size (`kMaxProfileFileBytes`, `src/profile_files.*`) | 64 KiB | 1 MiB | 7a (done with 7b core: `kMaxProfileFileBytes == kMaxConfigBytes`) |
+| Profile files per load, `devices/` + `apps/` together (`kMaxProfileTotalBytes`, issue #317) | none (255 x 64 KiB = 16 MiB at most) | 16 MiB | the per-file raise made the tree worst case 254 MiB; the budget keeps the old one |
 | Action text | 256 bytes | 32 KiB | 7a (done: `kMaxActionTextBytes`; the line limit `kMaxLineBytes` is 33 KiB) |
 | Own functions (`FUNC_*`) per section | 32 | 1000 | 7a (constant done: `kMaxOwnFunctionsPerSection`), 7e (table) |
 | Keys per section | 512 | 10 000 | 7a (done: `kMaxKeysPerSection`) |
