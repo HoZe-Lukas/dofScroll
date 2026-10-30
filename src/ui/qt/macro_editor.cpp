@@ -120,8 +120,8 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     record_ = smallButton(T("Record"), "macroRecord", T("Start recording the keys you press into the steps below"), this);
     stop_ = smallButton(T("Record stop"), "macroRecordStop", T("Stop recording"), this);
     stop_->setEnabled(false);
-    recordRow->addWidget(record_, 0, 0);
-    recordRow->addWidget(stop_, 0, 1);
+    recordGrid_ = recordRow;
+    recordButtons_ = {record_, stop_};
     v->addLayout(recordRow);
     // a check box does not wrap: a short text, the sentence in the label below
     times_ = new QCheckBox(T("Record the times"), this);
@@ -162,14 +162,10 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     up_ = smallButton(T("Move up"), "macroMoveUp", T("Move the chosen step one place up"), this);
     down_ = smallButton(T("Move down"), "macroMoveDown", T("Move the chosen step one place down"), this);
     clear_ = smallButton(T("Clear all"), "macroClear", T("Delete all steps of this macro"), this);
-    buttons->addWidget(addDown_, 0, 0);
-    buttons->addWidget(addUp_, 0, 1);
-    buttons->addWidget(addWait_, 1, 0);
-    buttons->addWidget(del_, 1, 1);
-    buttons->addWidget(up_, 2, 0);
-    buttons->addWidget(down_, 2, 1);
-    buttons->addWidget(clear_, 3, 0);
+    buttonGrid_ = buttons;
+    stepButtons_ = {addDown_, addUp_, addWait_, del_, up_, down_, clear_};
     v->addLayout(buttons);
+    arrangeButtons(true);
 
     // ---- the chosen step ----
     auto *typeLabel = wrapLabel(T("The chosen step:"), this);
@@ -293,6 +289,27 @@ QString MacroEditor::stepWords(const MacroStep &s) const {
 void MacroEditor::setSteps(const MacroList &steps) {
     steps_ = steps;
     refreshList(steps_.empty() ? -1 : 0);
+}
+
+// The buttons sit in two columns while the longest text fits in half the width (a wide font or a long translation cuts the
+// text of a button that is too narrow), else in one column.
+void MacroEditor::arrangeButtons(bool force) {
+    int need = 0;
+    for (const auto *list : {&recordButtons_, &stepButtons_})
+        for (QPushButton *b : *list) need = std::max(need, b->sizeHint().width());
+    const int cols = 2 * need + 12 <= width() ? 2 : 1;
+    if (!force && cols == columns_) return;
+    columns_ = cols;
+    const std::pair<QGridLayout *, const std::vector<QPushButton *> *> sets[] = {{recordGrid_, &recordButtons_}, {buttonGrid_, &stepButtons_}};
+    for (const auto &set : sets) {
+        for (QPushButton *b : *set.second) set.first->removeWidget(b);
+        for (size_t i = 0; i < set.second->size(); ++i) set.first->addWidget((*set.second)[i], int(i) / cols, int(i) % cols);
+    }
+}
+
+void MacroEditor::resizeEvent(QResizeEvent *e) {
+    QWidget::resizeEvent(e);
+    arrangeButtons(false);
 }
 
 void MacroEditor::refreshList(int select) {

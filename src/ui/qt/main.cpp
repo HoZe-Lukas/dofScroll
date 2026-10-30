@@ -4066,6 +4066,24 @@ static bool macroEditorSelfTest() {
     check(rec && stop && times, "Record, Record stop and the check box for the times are there");
     if (!rec || !stop || !times) return false;
     check(rec->isEnabled() && !stop->isEnabled() && times->isChecked(), "Record is ready, Record stop is greyed, the times are recorded by default");
+    {   // no text of a button is cut, also with a wide font (the buttons go from two columns to one)
+        const QFont plain = host.font();
+        for (const int spacing : {100, 160}) {
+            QFont f = plain;
+            f.setLetterSpacing(QFont::PercentageSpacing, spacing);
+            if (spacing > 100 && f.pointSizeF() > 0) f.setPointSizeF(f.pointSizeF() * 1.5);
+            host.setFont(f);
+            host.resize(520, 900);
+            settle();
+            int cut = 0;
+            for (QPushButton *b : ed->findChildren<QPushButton *>())
+                if (b->isVisibleTo(&host) && b->width() < b->sizeHint().width() - 2) ++cut;
+            check(cut == 0, "no button of the macro editor cuts its text, also with a wide font");
+        }
+        host.setFont(plain);
+        host.resize(520, 900);
+        settle();
+    }
     check(times->accessibleName() == QStringLiteral("Also record the times between the keys"), "the check box has the full sentence as its name");
     MacroRecordPad *pad = ed->pad();
     check(pad->focusPolicy() == Qt::NoFocus, "outside a recording the area takes no focus");
