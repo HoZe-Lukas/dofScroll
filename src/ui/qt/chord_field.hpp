@@ -30,6 +30,7 @@ public:
     void setValue(const std::string &chord);  // does not emit changed()
     bool isNone() const;
     QWidget *keyPicker() const;     // the drop-down, the buddy of the label
+    QWidget *firstControl() const;  // the first control in the Tab order (the first modifier box)
     KeyCaptureButton *captureButton() const { return capture_; }
     // For the self-test: ticks a modifier / chooses a key as the user would (emits changed()).
     void chooseKey(const QString &key);

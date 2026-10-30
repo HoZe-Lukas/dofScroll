@@ -190,7 +190,7 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     chordLabel_ = wrapLabel(T("Key of the step:"), this);
     v->addWidget(chordLabel_);
     ChordField::Options opt;
-    chord_ = new ChordField(T("Key of the chosen step"), opt, this);
+    chord_ = new ChordField(accessible + QStringLiteral(": ") + T("Key of the chosen step"), opt, this);
     chordLabel_->setBuddy(chord_->keyPicker());
     v->addWidget(chord_);
     waitLabel_ = wrapLabel(T("Pause in milliseconds:"), this);
@@ -219,7 +219,7 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     QWidget::setTabOrder(up_, down_);
     QWidget::setTabOrder(down_, clear_);
     QWidget::setTabOrder(clear_, type_);
-    QWidget::setTabOrder(type_, chord_->keyPicker());  // the key field's own controls follow each other from there
+    QWidget::setTabOrder(type_, chord_->firstControl());  // the key field's own controls follow each other from there
     QWidget::setTabOrder(chord_->captureButton(), wait_);
 
     connect(record_, &QPushButton::clicked, this, [this] { startRecording(); });
@@ -268,6 +268,16 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     connect(type_, &QComboBox::activated, this, [this](int) { stepEdited(); });
     connect(chord_, &ChordField::changed, this, [this] { stepEdited(); });
     connect(wait_, &QSpinBox::valueChanged, this, [this](int) { if (!quiet_) stepEdited(); });
+    // A dialog can hold several macro editors (one per direction of a motion): every control says which one it belongs to, in its
+    // name (the buttons) or its description (the fields). The key field of a step names itself.
+    for (QWidget *c : findChildren<QWidget *>()) {
+        if (chord_->isAncestorOf(c) || c == chord_) continue;
+        const bool button = qobject_cast<QPushButton *>(c) != nullptr;
+        const bool field = c == list_ || c == type_ || c == wait_ || c == times_;
+        if (!button && !field) continue;
+        if (button) c->setAccessibleName(c->accessibleName() + QStringLiteral(", ") + accessible);
+        c->setAccessibleDescription(accessible + QStringLiteral(": ") + c->accessibleDescription());
+    }
     refreshList(-1);
 }
 

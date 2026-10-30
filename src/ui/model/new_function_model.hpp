@@ -356,6 +356,25 @@ inline std::string functionSummary(const FunctionTarget &t, const FunctionDraft 
     return std::string();
 }
 
+// Push and tilt are set separately (docs/modes.md, "Split push and tilt"): the dialog writes the part key of the motion
+// (V_PUSH_ACTION ... H_TILT_ACTION), never the merged V_ACTION / H_ACTION. A channel that is not split yet is split by the first
+// part key; the other part keeps doing what the whole channel did. "" for the twist, the lift and a button.
+inline std::string splitWords(const SettingsModel &m, size_t section, const FunctionTarget &t, const StringProvider &s) {
+    const std::string &id = t.motionId;
+    if (id != "v_push" && id != "v_tilt" && id != "h_push" && id != "h_tilt") return std::string();
+    const Settings st = m.effectiveWithMode(section);
+    ModeDef normal;
+    const ModeDef *def = m.modeDef(m.effectiveMode(section));
+    const ChannelActions ca = effectiveChannelActions(def ? *def : normal, st);
+    const bool vertical = id[0] == 'v', tilt = id.find("tilt") != std::string::npos;
+    const bool split = vertical ? ca.vSplit.active() : ca.hSplit.active();
+    const std::string channel = vertical ? s.tr("vertical") : s.tr("horizontal");
+    const std::string mine = tilt ? s.tr("tilt") : s.tr("push"), other = tilt ? s.tr("push") : s.tr("tilt");
+    if (!split)
+        return format(s.tr("The %1 channel is not split yet. This function splits it: push and tilt are then set separately, and the %2 keeps doing what the whole channel does now."), {channel, other});
+    return format(s.tr("The %1 channel is split. This function sets only the %2; the %3 is set separately."), {channel, mine, other});
+}
+
 // The draft that shows an action text (the text a motion or button has now), and the tuning keys it holds. `fresh` (optional)
 // is set when the text is no function of this dialog ("default", "none", unset): the draft is then a new one.
 inline FunctionDraft draftFromText(const FunctionTarget &t, const std::string &textIn, const std::string &tuningMotion,

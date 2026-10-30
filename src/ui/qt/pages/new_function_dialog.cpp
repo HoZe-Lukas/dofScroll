@@ -70,6 +70,10 @@ void NewFunctionDialog::build() {
 
     v->addWidget(label(T("This sets what %1 does in %2. Every change is applied as soon as all fields are valid; there is no Save button. A field that is not valid is explained next to it and nothing is written.").arg(env_.targetName, env_.scopeName), "newFunctionIntro"));
 
+    splitWords_ = label(env_.splitWords ? env_.splitWords() : QString(), "newFunctionSplitWords");
+    splitWords_->setVisible(!splitWords_->text().isEmpty());
+    v->addWidget(splitWords_);
+
     // ---- the kind ----
     auto *kindLabel = label(T("Kind of function:"));
     v->addWidget(kindLabel);
@@ -529,6 +533,10 @@ void NewFunctionDialog::showResult(bool ok, const std::vector<FunctionProblem> &
         n.first->setText(n.second);
         n.first->setVisible(!n.second.isEmpty());
     }
+    if (env_.splitWords) {
+        splitWords_->setText(env_.splitWords());
+        splitWords_->setVisible(!splitWords_->text().isEmpty());
+    }
     if (ok) {
         const QString words = env_.stateWords ? env_.stateWords() : QString();
         status_->setText(mark(StatusKind::Success, T("Assigned.") + (words.isEmpty() ? QString() : QLatin1Char(' ') + words)));
@@ -597,6 +605,7 @@ NewFunctionDialog *openNewFunctionDialog(const UiContext &ctx, size_t section, c
         if (target.isMotion()) return qs8(motionEdit(*model, section, target.motionId, *sp).words);
         return qs8(originBadgeText(buttonOrigin(*model, section, target.button), *sp));
     };
+    env.splitWords = [model, section, target, sp]() -> QString { return qs8(splitWords(*model, section, target, *sp)); };
     auto *dlg = new NewFunctionDialog(env, parent);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->setWindowModality(Qt::WindowModal);

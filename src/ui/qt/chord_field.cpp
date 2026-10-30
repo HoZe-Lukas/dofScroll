@@ -115,6 +115,7 @@ ChordField::ChordField(const QString &accessible, const Options &options, QWidge
 
 bool ChordField::isNone() const { return none_ && none_->isChecked(); }
 QWidget *ChordField::keyPicker() const { return picker_; }
+QWidget *ChordField::firstControl() const { return mods_.empty() ? static_cast<QWidget *>(picker_) : static_cast<QWidget *>(mods_.front()); }
 
 std::string ChordField::value() const {
     if (isNone()) return "none";

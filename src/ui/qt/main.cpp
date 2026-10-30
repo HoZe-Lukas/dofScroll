@@ -3780,6 +3780,70 @@ static bool newFunctionSelfTest() {
     }
     chooseKind(FunctionKind::Key);
 
+    // ---- push and tilt are set separately: the part key, the words, one key field and one macro per direction ----
+    {
+        QLabel *sw = dlg->findChild<QLabel *>(QStringLiteral("newFunctionSplitWords"));
+        check(sw && !sw->isHidden() && sw->wordWrap() && sw->text().contains(QStringLiteral("horizontal channel")) && sw->text().contains(QStringLiteral("push")),
+              "a tilt says in words how push and tilt of its channel are set separately");
+        check(!stored("H_ACTION") && stored("H_TILT_ACTION"), "the part key H_TILT_ACTION is written, never the merged H_ACTION");
+        check(neg->keyPicker()->accessibleName().contains(QStringLiteral("Horizontal tilt")) && neg->keyPicker()->accessibleName().contains(QStringLiteral("negative direction")) &&
+                  pos->keyPicker()->accessibleName().contains(QStringLiteral("positive direction")),
+              "the key fields are named by the motion and the direction");
+        // a macro: one per direction, digital only
+        bool macroOn = false;
+        for (int i = 0; i < kindBox->count(); ++i)
+            if (FunctionKind(kindBox->itemData(i).toInt()) == FunctionKind::Macro) macroOn = kindBox->model()->index(i, 0).flags() & Qt::ItemIsEnabled;
+        if (macroOn) {
+            chooseKind(FunctionKind::Macro);
+            auto *mneg = dlg->findChild<MacroEditor *>(QStringLiteral("newFunctionMacroNeg"));
+            auto *mpos = dlg->findChild<MacroEditor *>(QStringLiteral("newFunctionMacroPos"));
+            auto *mdir = dlg->findChild<QComboBox *>(QStringLiteral("newFunctionMacroDirection"));
+            check(mneg && mpos && mdir, "the macro page has an editor per direction and a direction list");
+            check(!an->isEnabled() && why && why->text().contains(QStringLiteral("A macro always runs once per trigger.")), "a macro: the Analog box is greyed with 'A macro always runs once per trigger.'");
+            if (mneg && mpos && mdir) {
+                check(mneg->isVisibleTo(dlg) && !mpos->isVisibleTo(dlg), "one direction is edited at a time");
+                check(mneg->accessibleName().contains(QStringLiteral("Horizontal tilt")) && mneg->accessibleName().contains(QStringLiteral("negative direction")) &&
+                          mpos->accessibleName().contains(QStringLiteral("positive direction")) &&
+                          mneg->findChild<QPushButton *>(QStringLiteral("macroRecord"))->accessibleName().contains(QStringLiteral("Horizontal tilt")),
+                      "the macro editors and their buttons are named by the motion and the direction");
+                // the keyboard alone: Record with the Space key, the key, Esc three times, no mouse
+                mneg->findChild<QCheckBox *>(QStringLiteral("macroRecordTimes"))->setChecked(false);
+                QPushButton *recordBtn = mneg->findChild<QPushButton *>(QStringLiteral("macroRecord"));
+                recordBtn->setFocus();
+                sendKeyTo(recordBtn, Qt::Key_Space);
+                settle();
+                check(mneg->recording(), "Record works with the Space key");
+                sendKeyTo(mneg->pad(), Qt::Key_A);
+                for (int i = 0; i < 3; ++i) sendKeyTo(mneg->pad(), Qt::Key_Escape);
+                settle();
+                check(!mneg->recording() && mneg->steps().text() == "+a wait:30 -a", "recorded with the keyboard alone, left with Esc three times");
+                check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("macro:+a wait:30 -a,none"), "the macro of the negative direction is stored");
+                mdir->setCurrentIndex(1);
+                Q_EMIT mdir->activated(1);
+                settle();
+                check(!mneg->isVisibleTo(dlg) && mpos->isVisibleTo(dlg), "the direction list switches the editor");
+                QPushButton *addDown = mpos->findChild<QPushButton *>(QStringLiteral("macroAddDown"));
+                addDown->setFocus();
+                sendKeyTo(addDown, Qt::Key_Space);
+                settle();
+                check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("macro:+a wait:30 -a,+space") && dlg->previewText() == QStringLiteral("macro:+a wait:30 -a,+space"),
+                      "a step added by hand to the other direction: both macros in one action text");
+                const QString mp = dialogControlProblem(dlg);
+                if (!mp.isEmpty()) std::fprintf(stderr, "  %s\n", qPrintable(mp));
+                check(mp.isEmpty(), "every control of the macro page has a name; fields have a purpose and a label");
+                const QString mt = dialogTabOrderProblem(dlg, kindBox);
+                if (!mt.isEmpty()) std::fprintf(stderr, "  %s\n", qPrintable(mt));
+                check(mt.isEmpty(), "the Tab order of the macro page follows the screen");
+                mdir->setCurrentIndex(0);
+                Q_EMIT mdir->activated(0);
+                settle();
+            }
+        }
+        chooseKind(FunctionKind::Key);
+        neg->setValue("up");
+        pos->setValue("down");
+    }
+
     // ---- accessibility: names, descriptions, buddies, the Tab order, the keyboard alone ----
     {
         const QString p = dialogControlProblem(dlg);

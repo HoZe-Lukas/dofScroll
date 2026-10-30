@@ -37,6 +37,8 @@ struct NewFunctionEnv {
     std::function<bool(const spn::ui::FunctionDraft &, std::vector<spn::ui::FunctionProblem> *)> apply;
     // Where the function applies and what it replaces, in words (after every assignment).
     std::function<QString()> stateWords;
+    // Push and tilt of a scroll channel are set separately: whether the channel is split yet, in words ("" for other targets).
+    std::function<QString()> splitWords;
 };
 
 class NewFunctionDialog : public QDialog {
@@ -74,7 +76,7 @@ private:
     bool assigned_ = false, quiet_ = false;
     int writes_ = 0;
     QComboBox *kind_ = nullptr;
-    QLabel *kindNotes_ = nullptr, *actionNote_ = nullptr, *preview_ = nullptr, *status_ = nullptr, *summary_ = nullptr;
+    QLabel *splitWords_ = nullptr, *kindNotes_ = nullptr, *actionNote_ = nullptr, *preview_ = nullptr, *status_ = nullptr, *summary_ = nullptr;
     QStackedWidget *pages_ = nullptr;
     std::vector<spn::ui::FunctionKind> pageKinds_;
     ChordField *keyNeg_ = nullptr, *keyPos_ = nullptr, *holdNeg_ = nullptr, *holdPos_ = nullptr;
