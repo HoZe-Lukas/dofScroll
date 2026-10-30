@@ -169,9 +169,9 @@ the result into the issue: what you ran, on what, what happened. Close an issue 
 
 ## E. Version bump (one pull request, merged last)
 
-- [ ] **E1.** `CMakeLists.txt`: `project(dofscroll VERSION 1.3.0 ...)` (the tag must start with this version; the
+- [x] **E1. Done in this pull request.** `CMakeLists.txt`: `project(dofscroll VERSION 1.3.0 ...)` (the tag must start with this version; the
   `tag-release` workflow and the release job check it).
-- [ ] **E2.** Status lines that say "1.2.3": `readme.md` ("Current stable version"), `docs/wiki/Home.md` ("Status: version
+- [x] **E2. Done in this pull request.** Status lines that say "1.2.3": `readme.md` ("Current stable version"), `docs/wiki/Home.md` ("Status: version
   1.2.3"), `docs/wiki/FAQ.md`, `docs/wiki/Requirements.md`, `site/index.html` and `site/de/index.html` (`softwareVersion` in the
   JSON-LD block and the status texts that name 1.2.3; the contributor's Ubuntu report was for 1.2.3), `docs/wiki/Release-notes.md`
   (replace the "draft text" wording of the 1.3.0 entry). `grep -rn "1\.2\.3" readme.md docs/wiki site` lists them.
