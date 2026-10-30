@@ -109,7 +109,7 @@ void OwnFunctionsWidget::rebuild() {
     if (ctx_.settings) functions_ = ownFunctions(*ctx_.settings, section_, strings());
     list_->clear();
     for (const OwnFunction &f : functions_) {
-        auto *item = new QListWidgetItem(qs8(f.words) + QStringLiteral(" - ") + T("used by %1").arg(qs8(usesWords(f.uses))));
+        auto *item = new QListWidgetItem(qs8(f.words) + QStringLiteral(" - ") + T("used by %1").arg(qs8(usesWords(f.uses, strings()))));
         spn::ui::qt::setPlainToolTip(item, T("Stored as:") + QLatin1Char(' ') + qs8(f.text));
         list_->addItem(item);
     }
@@ -149,7 +149,7 @@ void OwnFunctionsWidget::deleteSelected(bool confirmed) {
     if (row < 0 || size_t(row) >= functions_.size() || !ctx_.settings) return;
     const OwnFunction fn = functions_[size_t(row)];
     if (!confirmed) {
-        const QString q = T("Delete this function? %1 will inherit again.").arg(qs8(usesWords(fn.uses)));
+        const QString q = T("Delete this function? %1 will inherit again.").arg(qs8(usesWords(fn.uses, strings())));
         if (spn::ui::qt::plainBox(QMessageBox::Question, this, T("Delete function"), q) != QMessageBox::Yes) return;
     }
     const OwnDeleteResult r = deleteOwnFunction(ctx_.settings, section_, fn, strings());

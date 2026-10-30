@@ -3,7 +3,9 @@
 #include "general_page.hpp"
 
 #include <QApplication>
+#include <QBoxLayout>
 #include <QCheckBox>
+#include <algorithm>
 #include <QGridLayout>
 #include <cstdlib>
 #include <QComboBox>
@@ -52,9 +54,12 @@ public:
         using namespace spn::ui::tokens;
         col->setContentsMargins(kPageMargin, kSpaceLg, kPageMargin, kPageMargin);
         col->setSpacing(kSectionGap);
-        auto *cols = new QHBoxLayout;
+        cols_ = new QBoxLayout(QBoxLayout::LeftToRight);
+        auto *cols = cols_;
         cols->setSpacing(kSectionGap);
         auto *left = new QVBoxLayout, *right = new QVBoxLayout;
+        left_ = left;
+        right_ = right;
         left->setSpacing(kSectionGap);
         right->setSpacing(kSectionGap);
         cols->addLayout(left, 1);
@@ -332,8 +337,24 @@ protected:
         statusTimer_.stop();
         QWidget::hideEvent(e);
     }
+    // Two columns while both fit; below that one column under the other (a wide font or a long translation must not make the
+    // page scroll sideways). The width the page asks for is that of one column.
+    QSize minimumSizeHint() const override {
+        QSize s = QWidget::minimumSizeHint();
+        if (left_ && right_) s.setWidth(std::max(left_->minimumSize().width(), right_->minimumSize().width()) + margins_);
+        return s;
+    }
+    void resizeEvent(QResizeEvent *e) override {
+        QWidget::resizeEvent(e);
+        const bool wide = width() >= left_->minimumSize().width() + right_->minimumSize().width() + cols_->spacing() + margins_;
+        const QBoxLayout::Direction want = wide ? QBoxLayout::LeftToRight : QBoxLayout::TopToBottom;
+        if (cols_->direction() != want) cols_->setDirection(want);
+    }
 
 private:
+    QBoxLayout *cols_ = nullptr;
+    QVBoxLayout *left_ = nullptr, *right_ = nullptr;
+    int margins_ = 2 * spn::ui::tokens::kPageMargin;
     QLabel *makeNote() {
         auto *l = new QLabel;
         l->setTextFormat(Qt::PlainText);

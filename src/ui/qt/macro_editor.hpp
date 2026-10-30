@@ -10,12 +10,14 @@
 #include <QElapsedTimer>
 #include <QFrame>
 #include <QWidget>
+#include <vector>
 
 #include "ui/model/macro_model.hpp"
 
 class ChordField;
 class QCheckBox;
 class QComboBox;
+class QGridLayout;
 class QLabel;
 class QListWidget;
 class QPushButton;
@@ -59,7 +61,11 @@ public:
 signals:
     void stepsChanged();
 
+protected:
+    void resizeEvent(QResizeEvent *e) override;
+
 private:
+    void arrangeButtons(bool force);
     void refreshList(int select = -1);
     void refreshEditor();
     void refreshButtons();
@@ -81,6 +87,9 @@ private:
     QPushButton *record_ = nullptr, *stop_ = nullptr;
     QCheckBox *times_ = nullptr;
     MacroRecordPad *pad_ = nullptr;
+    QGridLayout *recordGrid_ = nullptr, *buttonGrid_ = nullptr;
+    std::vector<QPushButton *> recordButtons_, stepButtons_;
+    int columns_ = 0;
     bool quiet_ = false;
     int ignored_ = 0;
 };

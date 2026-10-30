@@ -35,6 +35,7 @@
 #include "ui/model/mode_info_model.hpp"
 #include "motion_view.hpp"
 #include "ui/model/motion_summary_model.hpp"
+#include "narrow_row.hpp"
 #include "split_defaults.hpp"
 #include "theme.hpp"
 #include "ui/model/design_tokens.hpp"
@@ -230,11 +231,11 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     connect(split, &QSplitter::splitterMoved, this, [this] { list_->doItemsLayout(); });
     row->addWidget(split, 1);
 
-    auto *buttons = new QVBoxLayout;
+    auto *buttons = new spn::ui::ButtonGrid(this);
     auto mk = [&](const QString &text, const QString &tip) {
         auto *b = new QPushButton(text, this);
         b->setToolTip(tip);
-        buttons->addWidget(b);
+        buttons->add(b);
         return b;
     };
     newBtn_ = mk(T("New joystick mode"), T("Create a joystick mode file from a commented template and open it in your editor"));
@@ -246,9 +247,13 @@ ModesPage::ModesPage(const UiContext &ctx, QWidget *parent)
     renameBtn_ = mk(T("Rename..."), T("Give the joystick mode file a new name and id (profiles that use it are listed first)"));
     exportBtn_ = mk(T("Export..."), T("Save a copy of the joystick mode file somewhere else"));
     folderBtn_ = mk(T("Open joystick modes folder"), T("Show the folder with the joystick mode files"));
-    buttons->addStretch(1);
-    row->addLayout(buttons);
+    row->addWidget(buttons);
     root->addLayout(row, 1);
+    // narrow page: the buttons go under the list and the details, in rows
+    new spn::ui::NarrowRow(this, row, buttons, [this, split] {
+        const int bar = detail_->style()->pixelMetric(QStyle::PM_ScrollBarExtent);
+        return 120 + split->handleWidth() + detail_->widget()->minimumSizeHint().width() + bar + spn::ui::tokens::kRowGap;
+    });
 
     // Tab order follows the creation order: list, details, buttons.
     setTabOrder(list_, detail_);

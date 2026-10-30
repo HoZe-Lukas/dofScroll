@@ -132,10 +132,18 @@ inline std::vector<OwnFunction> ownFunctions(const SettingsModel &m, size_t sect
 }
 
 // What a user does after its function was removed, in words (the profile inherits again).
-inline std::string usesWords(const std::vector<OwnUse> &uses) {
+inline std::string usesWords(const std::vector<OwnUse> &uses, const StringProvider &s) {
     std::string t;
-    for (size_t i = 0; i < uses.size(); ++i) t += (i ? (i + 1 == uses.size() ? " and " : ", ") : "") + uses[i].name;
+    for (size_t i = 0; i < uses.size(); ++i) {
+        if (i == 0) t = uses[i].name;
+        else if (i + 1 == uses.size()) t = format(s.tr("%1 and %2"), {t, uses[i].name});
+        else t += ", " + uses[i].name;
+    }
     return t;
+}
+inline std::string usesWords(const std::vector<OwnUse> &uses) {
+    static const IdentityStrings identity;
+    return usesWords(uses, identity);
 }
 
 struct OwnDeleteResult {
@@ -167,7 +175,7 @@ inline OwnDeleteResult deleteOwnFunction(SettingsModel *m, size_t section, const
         now += (now.empty() ? "" : " ") + u.name + ": " + what + ".";
     }
     r.ok = true;
-    r.words = format(s.tr("Deleted. %1 inherit again. Now: %2"), {usesWords(fn.uses), now});
+    r.words = format(s.tr("Deleted. %1 inherit again. Now: %2"), {usesWords(fn.uses, s), now});
     return r;
 }
 
