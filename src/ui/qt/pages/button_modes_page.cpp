@@ -24,6 +24,7 @@
 #include <QScrollArea>
 #include <QSplitter>
 
+#include "narrow_row.hpp"
 #include "split_defaults.hpp"
 #include <QStyle>
 #include <QTimer>
@@ -185,11 +186,11 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
         [] { return 120; });
     row->addWidget(split, 1);
 
-    auto *buttons = new QVBoxLayout;
+    auto *buttons = new spn::ui::ButtonGrid(this);
     auto mk = [&](const QString &text, const QString &tip) {
         auto *b = new QPushButton(text, this);
         b->setToolTip(tip);
-        buttons->addWidget(b);
+        buttons->add(b);
         return b;
     };
     newBtn_ = mk(T("New button mode"), T("Create a button mode file from a commented template"));
@@ -201,9 +202,13 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     exportBtn_ = mk(T("Export..."), T("Save a copy of the button mode file somewhere else"));
     delBtn_ = mk(T("Delete"), T("Delete the button mode file"));
     folderBtn_ = mk(T("Open button modes folder"), T("Show the folder with the button mode files"));
-    buttons->addStretch(1);
-    row->addLayout(buttons);
+    row->addWidget(buttons);
     root->addLayout(row, 1);
+    // narrow page: the buttons go under the list and the editor, in rows
+    new spn::ui::NarrowRow(this, row, buttons, [rightScroll, right, split] {
+        const int bar = rightScroll->style()->pixelMetric(QStyle::PM_ScrollBarExtent);
+        return 120 + split->handleWidth() + right->minimumSizeHint().width() + bar + spn::ui::tokens::kRowGap;
+    });
 
     setTabOrder(list_, name_);
     setTabOrder(name_, description_);
