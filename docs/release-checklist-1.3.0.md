@@ -11,8 +11,8 @@ maintainer. `REPO=HoZe-Lukas/dofScroll` is used below.
     export REPO=HoZe-Lukas/dofScroll
 
 **Rule of the maintainer (`docs/status-release-1.2.4.md`, now removed): the release is only made when everything is
-finished, reviewed and audited. Nothing ships half done.** Features that are not merged are not announced; the section
-"Not on main yet" of the release notes is finalized last (step 12).
+finished, reviewed and audited. Nothing ships half done.** Features that are not merged are not announced. All planned features of stages 2 to 7a are on `main` and in the notes
+(the section "Not on main yet" is gone); stages 7c to 7e and `TWIST_GUARD` are named in "Known limitations".
 
 ## A. Repository settings (before the tag, once)
 
@@ -98,7 +98,10 @@ its gate, but it would not wait for an approval and anybody with write access co
         gh workflow run refresh-ci-pins.yml --repo $REPO --ref main
         gh run watch --repo $REPO "$(gh run list --repo $REPO --workflow refresh-ci-pins.yml --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
 
-  Check: the job `refresh` produced the artifact, the job `propose` changed exactly `packaging/ci/images.env`,
+  Since #316 the `propose` job has a gate that no changed line can slip past (`scripts/check-pin-diff.sh`: the artifact
+  holds exactly the three files below, and every changed line must be an image digest or a requirement pin or hash). **It has never run live**: read the `propose` job log
+  to the end; if the gate refuses a legitimate change, that is a finding for the workflow (`scripts/check-pin-diff.sh`,
+  `tests/test_pin_diff.sh`), not a reason to bypass it. Check: the job `refresh` produced the artifact, the job `propose` changed exactly `packaging/ci/images.env`,
   `packaging/ci/aqt-requirements.txt` and `packaging/ci/rocky9.Dockerfile`, the pull request "Refresh CI pins" is open
   (`gh pr list --repo $REPO --search "Refresh CI pins"`) and its checks ran (the job approves them itself; if they sit in
   `action_required`, approve them in the Actions tab). Review the diff, merge the pull request, comment on and close #285.
@@ -128,6 +131,12 @@ the result into the issue: what you ran, on what, what happened. Close an issue 
 - [ ] **#250** the axis assistant and the axis names on real Windows and macOS.
 - [ ] **#254** Take over (with and without the tuning) and New profile on a real desktop.
 - [ ] **#130** the interface on real Windows and macOS machines (themes, font sizes, focus ring, symbols).
+- [ ] **Macros, recorder and the New function window** (new, no issue yet: open one and link it here): a macro on a button
+  and on a motion in a real program (timing, `wait:`, the release part, the keys released at the end), the recorder with
+  your keyboard layout (with and without the times), a macro that switches windows, the behavior of #318 (a pause while you
+  change the program), "Release all keys" during a macro, the pointer (`pointer_x`, `pointer_y`, `MOUSE_SPEED`) on X11,
+  uinput, Windows and macOS, the tiles in a browser, a terminal and a player, and the import question with a file that has
+  a macro.
 - [ ] Not in the list above but part of "Not verified": analog and digital keys (feel, thresholds, crosstalk on tilt with
   digital keys), click and hold (trigger and half-level re-arm; a drag with a hold on macOS, uinput, Windows), the lift
   (misfires when grabbing), zoom from a tilt, an RPM and a DEB install, upgrade and removal on a real desktop (the new
@@ -145,15 +154,17 @@ the result into the issue: what you ran, on what, what happened. Close an issue 
 - [ ] **D3. Wayland self-test (issues #193 and #258):** the text for the Qt bug (SHM overflow, part 2 of #193) has to be
   submitted by someone with a Qt account; the "Known limitations" of the release notes name the issue.
 - [ ] **D4. Pull requests of other agents.** Re-check `git log origin/main` and the open pull requests
-  (`gh pr list --repo $REPO`). For every feature that landed after the notes were written (pointer movement from a motion,
-  presets, macros and "New function", parser hardening, UI robustness): move it from "Not on main yet" into the notes,
-  add its line to "All changes", and update the wiki, the website (English and German, informal "du") and the screenshots
-  (`scripts/make-site-screenshots.sh`, with `QT_QPA_PLATFORM=offscreen`). Anything not merged stays out and stays in
-  "Not on main yet" or is removed from the notes.
+  (`gh pr list --repo $REPO`). The notes, the wiki, the website (English and German) and the screenshots cover everything
+  up to #321 (pointer #310, tiles #311, macros #309, New function #305, parser hardening #308, audit fixes #313, #314, #316,
+  #321, UI #315, #320). For every pull request that landed after that: add its line to "All changes", update the matching
+  doc, the wiki and the website (informal "du" in German) and the screenshots (`scripts/make-site-screenshots.sh`, with
+  `QT_QPA_PLATFORM=offscreen`). Anything not merged stays out of the text.
 - [ ] **D5. `gh issue list --repo $REPO --state open`**. Many issues of the audits are
   already closed by their pull request (#263, #264, #265, #268, #269, #273, #274, #276, #240, #260, #193); the rest of the
-  list: #224 and #225 stay open (stages 5 to 7 are not merged), #272 and #275 stay open until the parser hardening and the
-  UI robustness land, #266 (low findings L1 to L9 of the supply-chain audit) is partly done by #280, #184, #42,
+  list: #224 and #225 stay open (stages 7c to 7e are not done), #272 is fixed by #308 (check its list L1 to L10 before you
+  close it), #275 stays open (the rest is named in "Known limitations"), #317 is closed by #321, #318 stays open (a
+  decision: keep a macro running over a program change, or abort it in a pause; the notes say "by design"), #319 is handled
+  by #305 and #313 (close it after you looked at the import question once on a real desktop), #266 (low findings L1 to L9 of the supply-chain audit) is partly done by #280, #184, #42,
   #258 are known limitations of the notes (#245, #249 and most of #275 are fixed by #304). Settle each in step G1 after the release.
 
 ## E. Version bump (one pull request, merged last)
@@ -166,8 +177,7 @@ the result into the issue: what you ran, on what, what happened. Close an issue 
   (replace the "draft text" wording of the 1.3.0 entry). `grep -rn "1\.2\.3" readme.md docs/wiki site` lists them.
   The site's inline script hash (`Content-Security-Policy`) only changes if you edit the inline script; `scripts/check-site.sh`
   checks it.
-- [ ] **E3.** Finalize `docs/release-notes-1.3.0.md`: remove "(draft)" wording if any is left, finalize "Not on main yet",
-  check "Not verified" against section C (what you did test moves out of it, what you did not stays), check every
+- [ ] **E3.** Finalize `docs/release-notes-1.3.0.md`: remove "(draft)" wording if any is left, check "Not verified" against section C (what you did test moves out of it, what you did not stays), check every
   statement against the code.
 - [ ] **E4.** Run the checks on the merged `main`: `cmake --build build --target check-fast`, `ctest --test-dir build`,
   `scripts/check-english.sh`, `scripts/check-site.sh`, `scripts/check-german-du.sh`, `scripts/check-spdx.sh`,

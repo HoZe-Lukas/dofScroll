@@ -45,6 +45,7 @@ The seeded config uses different values than these built-in defaults; it is a st
 |---|---|---|
 | `V_ACTION`, `H_ACTION`, `TWIST_ACTION`, `LIFT_ACTION` | none (the joystick mode decides; the lift: `none`) | What a channel does, in a profile or a joystick mode: `default`, `none`, `wheel_v`, `wheel_h`, `zoom`, `keys:<neg>,<pos>` (analog), `step:<neg>,<pos>` (digital, also `click`, `rightclick`, `middleclick`), `hold:<neg>,<pos>` |
 | `V_PUSH_ACTION`, `V_TILT_ACTION`, `H_PUSH_ACTION`, `H_TILT_ACTION` | none | The same for a push or tilt part on its own |
+| `MOUSE_SPEED` | `8` | Pixels per step for the actions `pointer_x` and `pointer_y` (0.1 to 200) |
 | `<prefix>KEY_RATE_MIN`, `<prefix>KEY_RATE_MAX`, `<prefix>TRIGGER` | `0`, `0`, `STEP_TRIGGER` | Analog rate limits and trigger level per motion; prefix `SCROLL_V_PUSH_`, `SCROLL_V_TILT_`, `SCROLL_H_PUSH_`, `SCROLL_H_TILT_`, `ZOOM_` or `LIFT_` (see [Joystick modes](Modes)) |
 
 ## Zoom, backend, buttons

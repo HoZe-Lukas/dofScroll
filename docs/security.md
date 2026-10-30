@@ -779,7 +779,10 @@ by a file). Assessment and limits:
   `releaseAll()` path of the safety net) every key the macro still holds is released, so a press-only macro such as `+ctrl` leaves
   nothing stuck and there is no "never released" warning. A running macro counts as activity for the safety net (a pause is not
   cut after 250 ms); it is bounded by its own steps (at most 256 pauses of 60 s). A hand-written file with a macro that waits for
-  hours holds its keys that long: "Release all keys" in the tray ends it at once.
+  hours holds its keys that long: "Release all keys" in the tray ends it at once. **A change of the active program does not abort a
+  running macro** (by design, issue #318: a macro that switches windows itself would break): a macro in a `wait:` keeps typing
+  into the window that has the focus afterwards. It does not need a hostile file (your own macro does it when you leave the
+  window during a pause), nothing stays held, and it is named in the "Known limitations" of the release notes.
   **Button mode files (audit round 2):** a file in `buttons/` may have `ACTION = macro:...`, and `buttonmode:<id>` in a profile
   or joystick mode runs it. The loader named a risky macro only for profiles and joystick mode files; a button mode file got no
   warning. It now gets the same plain warning (`button mode <id> runs a macro that presses ...`). Also, a joystick mode that

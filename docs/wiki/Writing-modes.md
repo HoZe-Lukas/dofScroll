@@ -97,6 +97,8 @@ Set per channel with `V_ACTION`, `H_ACTION` or `TWIST_ACTION`.
 | `keys:<neg>,<pos>` | Key taps at the channel's rate, `<neg>` for negative, `<pos>` for positive deflection | `V_ACTION = keys:pageup,pagedown` |
 | `step:<neg>,<pos>` | One key tap per push (no repeat while held); a side can be `none`, `click`, `rightclick` or `middleclick` | `V_ACTION = step:pageup,pagedown` |
 | `hold:<neg>,<pos>` | A key, chord or mouse button held while the motion is deflected (digital) | `TWIST_ACTION = hold:click,none` |
+| `pointer_x`, `pointer_y` | Moves the mouse pointer sideways or up and down; analog, the speed is `MOUSE_SPEED` (pixels per step, default 8) | `H_PUSH_ACTION = pointer_x` |
+| `macro:<neg>,<pos>` | A list of key down, key up and pause steps that runs once per push, one macro per direction; `\|` adds a part for the release (digital) | `V_TILT_ACTION = macro:none,+ctrl +s -s -ctrl` |
 
 Rules:
 
@@ -434,6 +436,8 @@ A joystick mode file is code-like. While a button is held or an axis is deflecte
 - The daemon warns at load time about chords with `alt` or `super`, about `ctrl` / `shift` chords with a non-navigation key, about modifier keys on buttons or channels, and about `zoom` combined with non-navigation `keys:`. No warning does not mean harmless.
 - If you share a joystick mode, say in the `DESCRIPTION` and in your post which keys it presses. If you receive one, read it before putting it into your joystick modes folder: look for `key:`, `keys:`, `step:`, `zoom`, `mode:` and settings overrides.
 - A joystick mode that turns output off (like `off`) leaves the device inactive. Get out through the tray "Joystick mode" menu, a `mode:<id>` button bound in the main config, or by editing `MODE` and reloading. Do not bind a way out only inside the joystick mode you cannot leave.
+
+**Macros** press whatever the steps say into the window that has the focus: a letter, `ctrl+w` or `delete` are all allowed. Every key a macro still holds is released when it ends and on a joystick mode change, reload, suspend, `ENABLED = 0`, an unplugged device and "Release all keys". **A change of the active program does not stop a running macro** (a macro that waits keeps typing into the window you switched to). Read a macro from somebody else step by step.
 
 More: [Security](Security).
 

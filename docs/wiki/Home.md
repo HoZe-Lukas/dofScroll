@@ -26,7 +26,9 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 - **Every motion can do something in a profile**, the lift is the sixth motion, **Take over** copies a motion or a button from another profile, **New profile** builds one from parts.
 - **Keys on every motion, analog or digital**, and **mouse clicks and holds**; a key picker as a tree in columns ([Joystick modes](Modes)).
 - A reworked axis assistant, a device selector on the Axes page, and a setup guide that changes nothing until you press Finish.
-- Not in this release yet unless the release notes say so: pointer movement from a motion, presets and macros ([Roadmap](Roadmap)).
+- **Macros** (`macro:`, key down, key up and pauses, once per push or button press) and the **New function ...** window that composes a key, a click, a hold, scroll or zoom, the pointer or a recorded macro ([Profiles](Profiles#new-function-and-macros)).
+- **The pointer as a motion function** (`pointer_x`, `pointer_y`, `MOUSE_SPEED`) and ready tiles "Switch tabs", "Volume" and "Change track" in the joystick mode editor.
+- Hardened parsers and raised size limits (1 MiB per profile file, 16 MiB together per load). **Not verified:** nothing was tested with a SpaceMouse in hand; see the [release notes](Release-notes).
 
 ## Highlight: no doubled input next to the official driver (Windows)
 

@@ -17,7 +17,7 @@ not run on hardware (`docs/work-plan.md`).
 
 | Path | Purpose |
 |---|---|
-| `src/` | Sources (UI: `src/ui/model` toolkit-free, `src/ui/qt` Qt6 views). Headers are the contract. Shared logic: `config`, `dsp`, `modes`, `seed`, `device_db`; output: `output*`; platform code in `src/platform/` |
+| `src/` | Sources (UI: `src/ui/model` toolkit-free, `src/ui/qt` Qt6 views). Headers are the contract. Shared logic: `config`, `dsp`, `modes`, `seed`, `device_db`, `key_engine`, `pointer_engine`, `macro`, `profile_files`; output: `output*`; platform code in `src/platform/` |
 | `tests/` | Unit and scenario tests (`tests/test_*.cpp`, plain `assert`) |
 | `examples/` | Example configs (CI-validated), `default/` (seeded on first start), `split/` (one file per profile), `modes/` and `buttons/` (built into the program) |
 | `devices/` | Device descriptions, format in `docs/devices.md` |
@@ -51,7 +51,7 @@ open (`Text file busy`); stop it before rebuilding.
 - New files carry the SPDX header (`GPL-3.0-or-later`, copyright line as in existing files).
 - The number of configurable buttons comes from `factoryButtonCount(deviceName, reported)`, never
   from the reported count alone. `BUTTON_<n>` is 1-based and at most 32.
-- Fixed interfaces: `src/modes.hpp`, `src/keys.hpp`, `src/seed.hpp`, `src/device_db.hpp`.
+- Fixed interfaces: `src/modes.hpp`, `src/keys.hpp`, `src/seed.hpp`, `src/device_db.hpp`, `src/macro.hpp` (macro grammar and limits; the daemon and the New function dialog use the same parser).
 - The Qt version of every package that ships Qt (Linux, Windows, macOS) is set only in `packaging/qt.env`; never
   hard-code it in a workflow or a script. The Linux packages bundle Qt (`scripts/bundle-qt-linux.sh`,
   `docs/release-process.md`): new bundled libraries need their license text in the package.
