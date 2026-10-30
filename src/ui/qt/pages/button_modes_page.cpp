@@ -174,7 +174,15 @@ ButtonModesPage::ButtonModesPage(const UiContext &ctx, QWidget *parent)
     split->setStretchFactor(0, 1);
     split->setStretchFactor(1, 2);
     split->setSizes({300, 700});
-    new spn::ui::SplitDefaults(split, 24, 200);  // the list would otherwise follow its longest description and squeeze the editor
+    auto *defaults = new spn::ui::SplitDefaults(split, 30, 260);  // the list would otherwise follow its longest description and squeeze the editor
+    // ... and the editor gets what it needs (its content and the vertical bar that may come with it) when the window is small or
+    // the font wide: the list gives up width down to a floor
+    defaults->setRightNeed(
+        [right, rightScroll] {
+            const int bar = rightScroll->style()->pixelMetric(QStyle::PM_ScrollBarExtent);
+            return right->minimumSizeHint().width() + bar + spn::ui::tokens::kRowGap;
+        },
+        [] { return 120; });
     row->addWidget(split, 1);
 
     auto *buttons = new QVBoxLayout;
