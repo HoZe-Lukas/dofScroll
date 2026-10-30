@@ -411,6 +411,15 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
     auto *boxHead = new QLabel(QStringLiteral("<b>") + T("Tuning in this profile").toHtmlEscaped() + QStringLiteral("</b>"), box);
     boxHead->setTextFormat(Qt::RichText);
     boxHead->setWordWrap(true);
+    // an unbreakable word of very wide glyphs must not set the minimum width of the whole box: the wrapped labels may shrink (clipped)
+    auto shrinkable = [](QLabel *l) {
+        QSizePolicy sp = l->sizePolicy();
+        sp.setHorizontalPolicy(QSizePolicy::Ignored);
+        sp.setHeightForWidth(true);
+        l->setSizePolicy(sp);
+        l->setMinimumWidth(0);
+    };
+    shrinkable(boxHead);
     g->addWidget(boxHead, 0, 0, 1, 3);
     static const char *const fields[][2] = {{"SENS", "Sensitivity"}, {"DEADZONE", "Dead zone"}, {"SIGN", "Direction (sign)"},
                                             {"CURVE", "Curve"}, {"SMOOTH_MS", "Smoothing (ms)"}};
@@ -426,6 +435,7 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         auto *origin = new QLabel(qs8(originBadgeText(keyOrigin(*ctx_.settings, section_, key), strings)), box);
         origin->setWordWrap(true);
         origin->setTextFormat(Qt::PlainText);
+        shrinkable(origin);
         {   // the layouts around do not size a wrapped label by its width: reserve the lines it needs at a narrow inspector
             const QFontMetrics fm(origin->font());
             origin->setMinimumHeight(fm.boundingRect(QRect(0, 0, 20 * fm.height(), 10000), Qt::TextWordWrap, origin->text()).height() + 4);
@@ -437,6 +447,7 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         reset->setAccessibleName(T(f[1]) + QStringLiteral(": ") + reset->text());
         // the label above its field (and wrapping): a wide font must not widen the inspector
         label->setWordWrap(true);
+        shrinkable(label);
         label->setBuddy(lineEdit);
         lineEdit->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
         lineEdit->setMinimumWidth(80);
