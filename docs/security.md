@@ -785,6 +785,13 @@ by a file). Assessment and limits:
   warning. It now gets the same plain warning (`button mode <id> runs a macro that presses ...`). Also, a joystick mode that
   pointed at a macro button mode lost the steps (the expansion copied the type but not the macro, so the button did nothing);
   `expandMode` carries them over now.
+  **"New function..." dialog (audit round 3):** opening a stored macro that has a release part (`macro:+ctrl | -ctrl`) showed an
+  empty editor, and the next edit of any other field of the dialog wrote the macro back without that part. The dialog now refuses
+  a draft it cannot show completely (`FunctionDraft::macroNotEditable`), says so in words and writes nothing until the user
+  chooses another kind on purpose. The recorder takes keys only while its pad has the focus (focus loss, a modal box or another
+  window ends it; Esc three times ends it; no key reaches another widget or a log). `BUTTON_<n>` keys of a hand-written profile are
+  read as a button number only for 1 to 32. Choosing a named pipe or a device file in the import dialog is refused by the
+  bounded reader (opened non-blocking, `S_ISREG` checked); a test pins it.
 - **Held state:** keys and buttons held by a mode are released on mode change, suspend,
   `ENABLED = 0` and at daemon exit/start (`forceReleaseAll`, `--release-keys`), so a faulty
   mode file cannot leave a key stuck beyond those events.

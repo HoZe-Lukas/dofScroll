@@ -51,6 +51,7 @@ NewFunctionDialog::NewFunctionDialog(const NewFunctionEnv &env, QWidget *parent)
     keyMouse_ = env.target.isMotion() && draft_.kind == FunctionKind::Key && (ChannelForm::isMouseWord(draft_.neg) || ChannelForm::isMouseWord(draft_.pos));
     build();
     syncWidgets();
+    if (draft_.kind == FunctionKind::Macro && draft_.macroNotEditable) showResult(false, checkFunction(env_.target, draft_));  // said at once
     resize(520, 680);
 }
 

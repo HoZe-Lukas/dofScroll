@@ -64,6 +64,21 @@ int main() {
     assert(ofHas(usesWords(list[0].uses), " and "));
     assert(list[1].text == "key:ctrl+0" && list[1].uses.size() == 1 && list[1].onButton() && list[1].uses[0].button == 3 && list[1].uses[0].name == "Button 3");
 
+    // a hand-written key that is no button (a long digit string, a suffix, 0, above 32) is never read as a button number
+    {
+        ProfileSet ps2;
+        const size_t sec = ps2.findOrAdd(Section::APP, "odd");
+        ps2.sections[sec].kv.push_back({"BUTTON_99999999999999999999", "key:ctrl+0"});
+        ps2.sections[sec].kv.push_back({"BUTTON_3x", "key:ctrl+0"});
+        ps2.sections[sec].kv.push_back({"BUTTON_0", "key:ctrl+0"});
+        ps2.sections[sec].kv.push_back({"BUTTON_33", "key:ctrl+0"});
+        ps2.sections[sec].kv.push_back({"BUTTON_32", "key:ctrl+0"});
+        SettingsModel m2;
+        m2.setProfiles(ps2, "");
+        const std::vector<OwnFunction> odd = ownFunctions(m2, sec, s);
+        assert(odd.size() == 1 && odd[0].uses.size() == 1 && odd[0].uses[0].button == 32);
+    }
+
     // the lines of a joystick mode that is a copy: the action keys, the buttons, the tuning the profile holds
     const std::string lines = joystickModeLines(list[0], [&](const std::string &k) {
         std::string held;
