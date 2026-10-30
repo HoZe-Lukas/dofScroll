@@ -418,6 +418,9 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         sp.setHeightForWidth(true);
         l->setSizePolicy(sp);
         l->setMinimumWidth(0);
+        // and its size hint is capped too (the layouts hand out the hint when the viewport is wide enough, and a hint of
+        // very wide glyphs reaches beyond the box): about 30 line heights, wrapping does the rest
+        l->setMaximumWidth(30 * QFontMetrics(l->font()).height());
     };
     shrinkable(boxHead);
     g->addWidget(boxHead, 0, 0, 1, 3);
@@ -444,6 +447,7 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         reset->setEnabled(v.overridden);
         reset->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
         reset->setMinimumWidth(80);
+        reset->setMaximumWidth(std::max(80, 10 * QFontMetrics(reset->font()).height()));  // very wide glyphs clip the text, not the box
         reset->setAccessibleName(T(f[1]) + QStringLiteral(": ") + reset->text());
         // the label above its field (and wrapping): a wide font must not widen the inspector
         label->setWordWrap(true);

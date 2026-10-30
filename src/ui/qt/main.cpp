@@ -3683,7 +3683,12 @@ static bool newFunctionSelfTest() {
         check(cap && !cap->accessibleName().isEmpty(), "the Press a key... button has a name");
         if (cap) {
             cap->click();
-            QKeyEvent k(QEvent::KeyPress, Qt::Key_PageDown, Qt::ControlModifier | Qt::ShiftModifier);
+            #ifdef Q_OS_MACOS
+            const Qt::KeyboardModifier ctrlMod = Qt::MetaModifier;  // Qt swaps Ctrl and Cmd on macOS
+#else
+            const Qt::KeyboardModifier ctrlMod = Qt::ControlModifier;
+#endif
+            QKeyEvent k(QEvent::KeyPress, Qt::Key_PageDown, ctrlMod | Qt::ShiftModifier);
             cap->press(&k);
             settle();
             check(neg->value() == "ctrl+shift+pagedown", "the capture button takes the key with its modifiers");
@@ -4056,17 +4061,24 @@ static bool macroEditorSelfTest() {
     settle();
     check(ed->recording() && stop->isEnabled() && !rec->isEnabled(), "Record starts the recording");
     check(pad->focusPolicy() != Qt::NoFocus, "the recording area takes the focus while recording");
-    QKeyEvent ctrlDown(QEvent::KeyPress, Qt::Key_Control, Qt::ControlModifier);
+#ifdef Q_OS_MACOS
+    const Qt::Key ctrlKeyCode = Qt::Key_Meta;  // Qt swaps Ctrl and Cmd on macOS
+    const Qt::KeyboardModifier ctrlMod = Qt::MetaModifier;
+#else
+    const Qt::Key ctrlKeyCode = Qt::Key_Control;
+    const Qt::KeyboardModifier ctrlMod = Qt::ControlModifier;
+#endif
+    QKeyEvent ctrlDown(QEvent::KeyPress, ctrlKeyCode, ctrlMod);
     QApplication::sendEvent(pad, &ctrlDown);
     QThread::msleep(15);
-    QKeyEvent cDown(QEvent::KeyPress, Qt::Key_C, Qt::ControlModifier, QStringLiteral("c"));
+    QKeyEvent cDown(QEvent::KeyPress, Qt::Key_C, ctrlMod, QStringLiteral("c"));
     QApplication::sendEvent(pad, &cDown);
-    QKeyEvent cRepeat(QEvent::KeyPress, Qt::Key_C, Qt::ControlModifier, QStringLiteral("c"), true);
+    QKeyEvent cRepeat(QEvent::KeyPress, Qt::Key_C, ctrlMod, QStringLiteral("c"), true);
     QApplication::sendEvent(pad, &cRepeat);
     QThread::msleep(15);
-    QKeyEvent cUp(QEvent::KeyRelease, Qt::Key_C, Qt::ControlModifier, QStringLiteral("c"));
+    QKeyEvent cUp(QEvent::KeyRelease, Qt::Key_C, ctrlMod, QStringLiteral("c"));
     QApplication::sendEvent(pad, &cUp);
-    QKeyEvent ctrlUp(QEvent::KeyRelease, Qt::Key_Control, Qt::NoModifier);
+    QKeyEvent ctrlUp(QEvent::KeyRelease, ctrlKeyCode, Qt::NoModifier);
     QApplication::sendEvent(pad, &ctrlUp);
     settle();
     {
