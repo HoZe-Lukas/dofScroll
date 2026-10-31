@@ -22,12 +22,14 @@
 // Safety: a mode file can press any key (including Ctrl/Alt/Super chords) while a button or the
 // mouse is moved; importSafetyNote() is the text the view shows before an imported file is kept.
 #pragma once
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include "utf8.hpp"
 #include <string>
 #include <vector>
 
+#include "button_modes.hpp"
 #include "config.hpp"
 #include "mode_list.hpp"
 #include "modes.hpp"
@@ -341,13 +343,53 @@ public:
                     std::string err, target;
                     if (!parseButtonAction(val, &t, &k, &err, &target)) continue;
                     if ((t == ButtonActionType::ModeSwitch || t == ButtonActionType::ToggleMode ||
-                         t == ButtonActionType::HoldMode) && target == id) {
+                         t == ButtonActionType::HoldMode) && targetsMode(target, id)) {
                         const int n = std::atoi(key.c_str() + 7);
                         if (n >= 1) u.buttons.push_back(n);
                     }
                 }
             }
             if (u.selects || !u.buttons.empty()) out.push_back(u);
+        }
+        return out;
+    }
+    // True when a mode switch target (a mode id, or a cycle list "next:a,b" / "prev:a,b") reaches the mode.
+    static bool targetsMode(const std::string &target, const std::string &id) {
+        std::vector<std::string> ids;
+        if (splitCycleTarget(target, nullptr, &ids)) return std::find(ids.begin(), ids.end(), id) != ids.end();
+        return target == id;
+    }
+    // Another joystick mode file or a button mode whose buttons switch to a mode (profiles are in usedBy). Removing,
+    // renaming or switching off the mode leaves such a button doing nothing, so the views list them as well.
+    struct ModeRef {
+        bool buttonMode = false;     // false: a joystick mode file; true: a button mode (ACTION / CYCLE)
+        std::string owner;           // its id
+        std::vector<int> buttons;    // joystick mode: the 1-based buttons that switch to the mode
+    };
+    static std::vector<ModeRef> referencedElsewhere(const ModeSet &modes, const ButtonModeSet &buttonModes, const std::string &id) {
+        std::vector<ModeRef> out;
+        if (id.empty()) return out;
+        auto switches = [](ButtonActionType t) {
+            return t == ButtonActionType::ModeSwitch || t == ButtonActionType::ToggleMode || t == ButtonActionType::HoldMode;
+        };
+        for (const ModeDef &m : modes.modes) {
+            if (m.id == id) continue;
+            ModeRef r;
+            r.owner = m.id;
+            for (const ButtonBinding &b : m.buttons)
+                if (switches(b.type) && targetsMode(b.mode, id)) r.buttons.push_back(b.button);
+            if (!r.buttons.empty()) out.push_back(r);
+        }
+        for (const ButtonMode &b : buttonModes.modes) {
+            if (!switches(b.type)) continue;
+            bool uses = targetsMode(b.target, id);
+            if (!uses && !b.cycle.empty() && splitCycleTarget(b.target, nullptr, nullptr))
+                uses = std::find(b.cycle.begin(), b.cycle.end(), id) != b.cycle.end();
+            if (!uses) continue;
+            ModeRef r;
+            r.buttonMode = true;
+            r.owner = b.id;
+            out.push_back(r);
         }
         return out;
     }

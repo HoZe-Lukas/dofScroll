@@ -1665,8 +1665,8 @@ msgid "Export..."
 msgstr "Exportieren..."
 
 #: src/ui/qt/pages/modes_page.cpp
-msgid "Used by: no profile"
-msgstr "Verwendet von: kein Profil"
+msgid "Used by: nothing"
+msgstr "Verwendet von: nichts"
 
 #: src/ui/qt/pages/modes_page.cpp
 msgid "Used by:"
@@ -2520,13 +2520,21 @@ msgstr ""
 
 #: src/ui
 msgid ""
-"The id of the joystick mode changes from \"%1\" to \"%2\". These profiles "
-"still refer to the old id and will fall back to the Global joystick mode "
-"until you change them:"
+"The id of the joystick mode changes from \"%1\" to \"%2\". These still "
+"refer to the old id: profiles fall back to the Global joystick mode, and "
+"buttons that switch to it do nothing, until you change them:"
 msgstr ""
 "Die ID des Joystick-Modus ändert sich von \"%1\" auf \"%2\". Diese "
-"Profile verweisen noch auf die alte ID und fallen auf den "
-"Global-Joystick-Modus zurück, bis du sie änderst:"
+"verweisen noch auf die alte ID: Profile fallen auf den Global-Joystick-Modus "
+"zurück, und Tasten, die zu ihm wechseln, tun nichts, bis du sie änderst:"
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Button mode \"%1\""
+msgstr "Tastenmodus \"%1\""
+
+#: src/ui/qt/pages/modes_page.cpp
+msgid "Joystick mode \"%1\": switched to by button %2"
+msgstr "Joystick-Modus \"%1\": Wechsel durch Taste %2"
 
 #: src/ui
 msgid ""

@@ -648,11 +648,12 @@ joystick mode that does not exist is shown with a warning instead of being chang
 
 Mode library: "Export..." saves a copy of the selected joystick mode file (a built-in one as its
 template text) to a place you choose and never overwrites without asking. "Rename..." gives a file
-a new name; the id (and file name) follows the name. Profiles that still use the old id are listed
-and confirmed first; they are not rewritten and fall back to the Global joystick mode until you change
-them. A built-in joystick mode, or a file that replaces one, cannot be renamed. The details of every
+a new name; the id (and file name) follows the name. Profiles, other joystick modes and button modes that still use the old id are listed
+and confirmed first; they are not rewritten, profiles fall back to the Global joystick mode and buttons that switch to
+it do nothing until you change them. A built-in joystick mode, or a file that replaces one, cannot be renamed. The details of every
 joystick mode show "What it does" and "Used by": the profile sections whose `MODE` selects it or
-whose `BUTTON_<n>` is `mode:<id>`, `toggle:mode:<id>` or `hold:mode:<id>`. Dropping `.conf` files
+whose `BUTTON_<n>` is `mode:<id>`, `toggle:mode:<id>`, `hold:mode:<id>` or a `mode:next:<ids>` list that names it, plus
+the other joystick modes and the button modes whose buttons switch to it. Dropping `.conf` files
 onto the Joystick modes page imports them with the same checks, warnings and confirmation as
 Import; files are only read, never run.
 

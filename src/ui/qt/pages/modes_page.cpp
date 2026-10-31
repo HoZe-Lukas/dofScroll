@@ -471,7 +471,7 @@ void ModesPage::updateDetail() {
     }
     if (m) {
         const QStringList uses = usedByLines(QString::fromStdString(m->id));
-        usedByLabel_->setText(uses.isEmpty() ? T("Used by: no profile") : T("Used by:") + QLatin1Char('\n') + uses.join(QLatin1Char('\n')));
+        usedByLabel_->setText(uses.isEmpty() ? T("Used by: nothing") : T("Used by:") + QLatin1Char('\n') + uses.join(QLatin1Char('\n')));
     }
     QString warn;
     if (m && !m->warnings.empty()) {
@@ -505,6 +505,18 @@ QStringList ModesPage::usedByLines(const QString &id) const {
             how += T("switched to by button %1").arg(nums.join(QStringLiteral(", ")));
         }
         out << QString::fromStdString(ModeCatalog::useTitle(u)) + QStringLiteral(": ") + how;
+    }
+    // Buttons of other joystick modes and button modes that switch to it
+    if (ctx_.buttonModes) {
+        for (const ModeCatalog::ModeRef &r : ModeCatalog::referencedElsewhere(catalog_.modeSet(), ctx_.buttonModes->set(), id.toStdString())) {
+            if (r.buttonMode) {
+                out << T("Button mode \"%1\"").arg(QString::fromStdString(r.owner));
+                continue;
+            }
+            QStringList nums;
+            for (int b : r.buttons) nums << QString::number(b);
+            out << T("Joystick mode \"%1\": switched to by button %2").arg(QString::fromStdString(r.owner), nums.join(QStringLiteral(", ")));
+        }
     }
     return out;
 }
@@ -754,8 +766,9 @@ void ModesPage::onRename() {
     const std::string nid = ModeCatalog::deriveId(ModeCatalog::cleanLabel(name.toStdString()));
     const QStringList uses = nid == m->id ? QStringList() : usedByLines(id);
     if (!uses.isEmpty()) {
-        const QString text = T("The id of the joystick mode changes from \"%1\" to \"%2\". These profiles still refer to the "
-                               "old id and will fall back to the Global joystick mode until you change them:")
+        const QString text = T("The id of the joystick mode changes from \"%1\" to \"%2\". These still refer to the old id: "
+                               "profiles fall back to the Global joystick mode, and buttons that switch to it do nothing, "
+                               "until you change them:")
                                  .arg(id, QString::fromStdString(nid)) +
                              QStringLiteral("\n\n - ") + uses.join(QStringLiteral("\n - "));
         QMessageBox box(QMessageBox::Warning, T("Rename"), text, QMessageBox::NoButton, this);
