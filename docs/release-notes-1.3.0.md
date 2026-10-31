@@ -92,6 +92,13 @@ Plan and rules: [plan-config-split.md](plan-config-split.md).
   editor: copies the effective assignment of another profile, joystick mode or (for buttons) Button mode as explicit keys.
   A copy, no link. The check box **Also take over the tuning** (off by default) copies sensitivity, dead zone, direction,
   curve and smoothing too.
+- **Push and tilt are tuned independently** in Global, device and program profiles: sensitivity, dead zone, direction,
+  curve and smoothing of the vertical and horizontal push and tilt are written as `SCROLL_<V|H>_<PUSH|TILT>_<...>`, never
+  as the keys of the whole channel (which stay valid and are the starting values of both parts). The first edit of a part
+  splits the channel without changing what any motion does; each field shows its origin in words. One difference remains:
+  in a split channel a push and a tilt deflected at the same moment are two motions with their own dead zone and curve,
+  not one sum through one curve (identical with a linear curve and no dead zone). Before this, the profile editor showed
+  separate fields for push and tilt that changed the whole channel.
 - **New profile...** builds a profile: kind, name, base, joystick mode, Button modes (by name or own copy), single motions
   and buttons taken over from others.
 
@@ -246,6 +253,8 @@ Credits: pull requests by the maintainer unless marked.
   modes (stage 6, #311); the **New function ...** dialog and macro recorder (stage 7a, #305)
 - Second audit round: import check for clicks and holds on a motion (#313), macros in button mode files (#314), a total
   budget for the profile files (#321, issue #317), a gate for `refresh-ci-pins` that no changed line can slip past (#316)
+- Push and tilt tuned independently in profiles (#332); deleting the function of `V_ACTION` keeps the tuning of a tilt that
+  has its own key (#331, issue #325)
 - UI: the button inspector fits a narrow window (#315); purpose descriptions for drop-downs and self-tests with widened
   glyphs (#320)
 - Security and robustness: I/O audit round 3 (#279); supply-chain low findings (#280, part of #266); fuzz driver for the
@@ -308,6 +317,8 @@ can verify these; none of them has been tested:
 - Parser hardening, the owner and permission notes, the budget and the raised limits against a real, large configuration
   on Windows and macOS (where the owner and mode checks do not apply).
 - The `refresh-ci-pins` gate (#316) has not run live: run the workflow once and read the `propose` job (issue #285).
+- The feel of a split channel in use: a push and a tilt deflected together as two motions with their own curves (#332), on every
+  system.
 - The tiles "Switch tabs", "Volume" and "Change track" in real programs (browsers, terminals, players); the volume and media
   keys on each desktop. They are not sent on macOS.
 
