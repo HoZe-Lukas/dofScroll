@@ -14,6 +14,8 @@
 
 #include "builtin_counts.hpp"
 #include "testutil.hpp"
+#include <algorithm>
+#include "button_modes.hpp"
 #include "ui/model/mode_catalog.hpp"
 
 using namespace spn;
@@ -216,6 +218,34 @@ int main() {
         assert(ModeCatalog::usedBy(ps, "nosuch").empty() && ModeCatalog::usedBy(ps, "").empty());
         ps.sections[0].kv = {{"MODE", "normal"}};
         assert(ModeCatalog::usedBy(ps, "normal").empty());
+    }
+
+    // ---- used by other modes and button modes, and by cycle lists ----
+    {
+        ProfileSet ps;
+        const size_t viewer = ps.findOrAdd(Section::APP, "viewer");
+        ps.sections[viewer].kv = {{"BUTTON_7", "mode:next:other,late"}, {"BUTTON_8", "mode:prev"}, {"BUTTON_9", "mode:next:other"}};
+        const std::vector<ModeCatalog::ModeUse> u = ModeCatalog::usedBy(ps, "late");
+        assert(u.size() == 1 && u[0].buttons == std::vector<int>({7}));  // a cycle list that names the mode, not 'next' alone
+        put(dir + "/hub.conf", "NAME = Hub\nBUTTON_2 = mode:late\nBUTTON_3 = mode:next:other,late\nBUTTON_4 = key:space\nBUTTON_5 = mode:other\n");
+        put(dir + "/hub2.conf", "NAME = Hub2\nBUTTON_1 = toggle:mode:late\n");
+        c.refresh();
+        const std::string bdir = root + "/buttons";
+        std::filesystem::create_directories(bdir);
+        put(bdir + "/go-late.conf", "ACTION = mode:late\n");
+        put(bdir + "/cyc.conf", "ACTION = mode:next\nCYCLE = other, late\n");
+        put(bdir + "/cyc2.conf", "ACTION = mode:next\nCYCLE = other\n");
+        put(bdir + "/latch.conf", "ACTION = toggle:nav\n");
+        const ButtonModeSet bs = loadButtonModes(bdir, nullptr);
+        const std::vector<ModeCatalog::ModeRef> refs = ModeCatalog::referencedElsewhere(c.modeSet(), bs, "late");
+        std::vector<std::string> names;
+        for (const ModeCatalog::ModeRef &x : refs) names.push_back((x.buttonMode ? "b:" : "j:") + x.owner);
+        std::sort(names.begin(), names.end());
+        assert((names == std::vector<std::string>{"b:cyc", "b:go-late", "j:hub", "j:hub2"}));
+        for (const ModeCatalog::ModeRef &x : refs)
+            if (x.owner == "hub") assert(x.buttons == std::vector<int>({2, 3}));
+        assert(ModeCatalog::referencedElsewhere(c.modeSet(), bs, "nosuch").empty());
+        assert(ModeCatalog::referencedElsewhere(c.modeSet(), bs, "hub").empty());  // a mode does not use itself
     }
 
     // ---- export ----

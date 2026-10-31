@@ -104,6 +104,9 @@ std::vector<QString> ExtensionsPage::usedBy(ExtensionKind kind, const std::strin
     if (!ctx_.settings) return out;
     if (kind == ExtensionKind::JoystickMode) {
         for (const ModeCatalog::ModeUse &u : ModeCatalog::usedBy(ctx_.settings->profiles(), id)) out.push_back(qs8(ModeCatalog::useTitle(u)));
+        if (ctx_.buttonModes && ctx_.modes)
+            for (const ModeCatalog::ModeRef &r : ModeCatalog::referencedElsewhere(ctx_.modes->modeSet(), ctx_.buttonModes->set(), id))
+                out.push_back(qs8((r.buttonMode ? "button mode " : "joystick mode ") + r.owner));
     } else if (ctx_.buttonModes) {
         const spn::ModeSet modes = spn::loadModes(ctx_.modesDir, nullptr);
         for (const std::string &s : ctx_.buttonModes->referencedBy(id, *ctx_.settings, modes)) out.push_back(qs8(s));
