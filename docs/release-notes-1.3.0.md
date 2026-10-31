@@ -255,6 +255,19 @@ Credits: pull requests by the maintainer unless marked.
   budget for the profile files (#321, issue #317), a gate for `refresh-ci-pins` that no changed line can slip past (#316)
 - Push and tilt tuned independently in profiles (#332); deleting the function of `V_ACTION` keeps the tuning of a tilt that
   has its own key (#331, issue #325)
+- Audit of the interface against the daemon (issue fixes found by comparing what the window shows with what the daemon does):
+  "Used by" and the rename question list the buttons of other joystick modes and Button modes that switch to a mode (#334);
+  the New function dialog compares the rates in the C number format, so a decimal-comma locale no longer misreads `5.5`
+  (#335); editing a profile of an old single `dofscroll.conf` keeps the order of overlapping profiles with equal `PRIORITY`
+  (#336); differential tests between the window and the daemon over thousands of random layered configurations (#339,
+  found no difference in the inheritance); on Linux a daemon that does not run under `dofscroll.service` now gets the
+  reload (through the process id in its status file) and takes the tray's mode request (#340, issue #338); the axis
+  assistant's Apply also clears `INVERT_AXES` in Global, lists it in the change list and Undo, and names the device and
+  program profiles that keep their own direction settings (#341, issue #337)
+- UX round 3 decisions (#342, issue #327): German key names in the interface (display only; files and the parser keep the
+  English names), no default button on "Press a key...", the Joystick modes page fits at 1000 px with wide glyphs, the
+  drop-down "Key or combination", full action text as tooltip on motion tiles, the recording area of the macro editor
+  right under Record
 - UI: the button inspector fits a narrow window (#315); purpose descriptions for drop-downs and self-tests with widened
   glyphs (#320)
 - Security and robustness: I/O audit round 3 (#279); supply-chain low findings (#280, part of #266); fuzz driver for the
@@ -319,6 +332,8 @@ can verify these; none of them has been tested:
 - The `refresh-ci-pins` gate (#316) has not run live: run the workflow once and read the `propose` job (issue #285).
 - The feel of a split channel in use: a push and a tilt deflected together as two motions with their own curves (#332), on every
   system.
+- A daemon started by hand or without a systemd user session receiving the reload and the tray's mode request (#340); the
+  German key names on a real German desktop and keyboard (#342).
 - The tiles "Switch tabs", "Volume" and "Change track" in real programs (browsers, terminals, players); the volume and media
   keys on each desktop. They are not sent on macOS.
 
