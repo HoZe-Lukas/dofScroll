@@ -3617,11 +3617,10 @@ static bool wideGlyphPagesSelfTest() {
         w.resize(cfg.first, 900);
         settle();
         for (const std::string &id : w.pageIds()) {
-            if (spacing == 160 && id != "modes") continue;
-            w.showPage(QString::fromStdString(id));
+            w.showPage(QString::fromStdString(id));  // every page is shown in every configuration: a page that is skipped keeps stale size hints
             settle();
             QWidget *page = w.currentPage();
-            if (!page) continue;
+            if (!page || (spacing == 160 && id != "modes")) continue;
             for (QScrollArea *area : page->findChildren<QScrollArea *>()) {
                 if (!area->isVisibleTo(page) || !area->widgetResizable() || !area->horizontalScrollBar() || area->horizontalScrollBar()->maximum() <= 0) continue;
                 std::fprintf(stderr, "wide glyph pages self-test failed: spacing %d page %s: a horizontal scroll bar (%d px too wide)\n", spacing, id.c_str(),
