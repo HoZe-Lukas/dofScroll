@@ -152,13 +152,16 @@ struct OwnDeleteResult {
 };
 
 // Removes the function from every motion and button that uses it: the key goes (the user inherits again; never "none"). The
-// tuning keys of the motions (rate and trigger) go with a key function. The words say for every user what applies now.
+// tuning keys of the motions (rate and trigger) go with a key function (not those of a part that has a key of its own). The words say for every user what applies now.
 inline OwnDeleteResult deleteOwnFunction(SettingsModel *m, size_t section, const OwnFunction &fn, const StringProvider &s) {
     OwnDeleteResult r;
     if (!m || section >= m->sectionCount() || fn.uses.empty()) return r;
     for (const OwnUse &u : fn.uses) {
         m->clearOverride(section, u.key);
-        if (!u.motionId.empty()) {
+        // a channel key (V_ACTION) does not drive a part whose own key (V_TILT_ACTION) is set: that part's tuning is not ours
+        std::string partText;
+        const bool partHasOwn = u.key != motion_edit_detail::partKeyOf(u.motionId) && motion_edit_detail::ownText(*m, section, motion_edit_detail::partKeyOf(u.motionId), &partText);
+        if (!u.motionId.empty() && !partHasOwn) {
             const std::string tm = motion_edit_detail::keyTuningMotion(*m, section, u.motionId);
             for (KeyField f : {KeyField::RateMin, KeyField::RateMax, KeyField::Trigger}) m->clearOverride(section, keyEngineKey(tm, f));
         }
