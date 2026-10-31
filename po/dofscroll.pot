@@ -3235,3 +3235,103 @@ msgstr ""
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "Swap the settings of %1 with another motion"
 msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "vertical"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "horizontal"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "tilt"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "push"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "The %1 channel is not split yet. This function splits it: push and tilt are then set separately, and the %2 keeps doing what the whole channel does now."
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "The %1 channel is split. This function sets only the %2; the %3 is set separately."
+msgstr ""
+
+#: src/ui/qt/button_row.cpp
+msgid "New function..."
+msgstr ""
+
+#: src/ui/qt/pages/button_modes_page.cpp
+msgid "Use it on a button"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose a key for each direction, or tick No key"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "at least one direction needs a key"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose a key first"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose a mouse button for each direction, or Nothing"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "at least one direction needs a mouse button"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose a mouse button first"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "a button holds a plain key already: use Key or key combination"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose a key or button for each direction, or Nothing"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "at least one direction needs a key or button"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "a button cannot scroll or zoom"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose scroll, scroll sideways or zoom"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "a button cannot move the pointer"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "choose the sideways or the up and down movement"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "record or add at least one step"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "unknown kind"
+msgstr ""
+
+#: src/ui/qt/pages/new_function_dialog.cpp
+msgid "choose a key for every field first"
+msgstr ""
+
+#: src/ui/model/own_functions_model.hpp
+msgid "%1 and %2"
+msgstr ""

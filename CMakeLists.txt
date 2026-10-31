@@ -272,6 +272,10 @@ if(BUILD_TESTING)
   if(SH_EXECUTABLE AND PYTHON3_EXECUTABLE)
     add_test(NAME check_site COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/check-site.sh)
   endif()
+  # every text of the interface has a German translation (a missing one shows English in the German interface)
+  if(PYTHON3_EXECUTABLE)
+    add_test(NAME check_po_ui COMMAND ${PYTHON3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/check-po-ui.py)
+  endif()
 
   # config validation: examples/*.conf and examples/default/<os>/dofscroll.conf
   add_executable(check_config tests/check_config.cpp)

@@ -21,6 +21,9 @@ namespace {
 struct OfEnglish : StringProvider {
     std::string tr(const char *s) const override { return s; }
 };
+struct OfGerman : StringProvider {  // the join word comes from the provider (it was a fixed English " and " in the German interface)
+    std::string tr(const char *s) const override { return std::string(s) == "%1 and %2" ? "%1 und %2" : s; }
+};
 bool ofHas(const std::string &text, const char *part) { return text.find(part) != std::string::npos; }
 std::string ofSection(const SettingsModel &m, size_t i) {
     std::string t;
@@ -62,6 +65,7 @@ int main() {
     assert(list[0].text == "step:ctrl+pageup,ctrl+pagedown" && list[0].uses.size() == 2 && list[0].onMotion() && !list[0].onButton());
     assert(list[0].uses[0].key == "H_TILT_ACTION" && list[0].uses[1].key == "V_TILT_ACTION");
     assert(ofHas(usesWords(list[0].uses), " and "));
+    assert(ofHas(usesWords(list[0].uses, OfGerman()), " und ") && !ofHas(usesWords(list[0].uses, OfGerman()), " and "));
     assert(list[1].text == "key:ctrl+0" && list[1].uses.size() == 1 && list[1].onButton() && list[1].uses[0].button == 3 && list[1].uses[0].name == "Button 3");
 
     // a hand-written key that is no button (a long digit string, a suffix, 0, above 32) is never read as a button number
