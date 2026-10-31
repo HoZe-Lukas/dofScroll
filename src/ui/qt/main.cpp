@@ -4051,8 +4051,11 @@ static bool newFunctionSelfTest() {
                         settle();
                         const QRect padRect(mneg->pad()->mapTo(scroll->viewport(), QPoint(0, 0)), mneg->pad()->size());
                         const int below = mneg->pad()->mapTo(mneg, QPoint(0, 0)).y() - recBtn->mapTo(mneg, QPoint(0, 0)).y();
-                        check(scroll->viewport()->rect().contains(padRect) && below >= 0 && below < 3 * recBtn->height() + 40,
-                              "the recording area sits under the Record button and is visible without scrolling");
+                        const bool inSight = scroll->viewport()->rect().contains(padRect) && below >= 0 && below < 3 * recBtn->height() + 40;
+                        if (!inSight)
+                            std::fprintf(stderr, "  recording area at y %d..%d of a viewport %d px high, %d px under the Record button\n", padRect.top(), padRect.bottom(),
+                                         scroll->viewport()->height(), below);
+                        check(inSight, "the recording area sits under the Record button and is visible without scrolling");
                     }
                 }
                 // the keyboard alone: Record with the Space key, the key, Esc three times, no mouse

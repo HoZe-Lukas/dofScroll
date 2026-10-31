@@ -117,7 +117,6 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     v->setContentsMargins(0, 0, 0, 0);
 
     // ---- the recorder ----
-    v->addWidget(wrapLabel(T("Record the keys you press, or add the steps by hand below. Recording happens only in this window, while the recording area has the focus."), this, "macroIntro"));
     auto *recordRow = new QGridLayout;
     record_ = smallButton(T("Record"), "macroRecord", T("Start recording the keys you press into the steps below"), this);
     stop_ = smallButton(T("Record stop"), "macroRecordStop", T("Stop recording"), this);
@@ -132,6 +131,8 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     recordNote_ = wrapLabel(QString(), this, "macroRecordNote");
     recordNote_->hide();
     v->addWidget(recordNote_);
+    // the explanation follows the recording area: Record and the area come first, they are what is needed to start
+    v->addWidget(wrapLabel(T("Record the keys you press, or add the steps by hand below. Recording happens only in this window, while the recording area has the focus."), this, "macroIntro"));
     // a check box does not wrap: a short text, the sentence in the label below
     times_ = new QCheckBox(T("Record the times"), this);
     times_->setObjectName(QStringLiteral("macroRecordTimes"));
