@@ -1025,6 +1025,38 @@ public:
             problems_[keyOf(sec.kind, sec.pattern)] = m;
             msgs.push_back("\"" + displayText(sec.pattern) + "\": " + m);
         };
+        // 0. A profile of the single file that moves into its own file is applied after the profiles that stay in
+        // dofscroll.conf (the loader puts those first) and, among files, by file name. Where that changes the order of
+        // profiles of one kind with equal PRIORITY, number them first so the order the window shows survives the move.
+        for (Section::Kind kind : {Section::DEVICE, Section::APP}) {
+            if (!newInFiles_) break;
+            auto moves = [&](size_t k) {
+                return k < st_.size() && st_[k].home == SecState::LEGACY && (forceAll_ || st_[k].dirty) &&
+                       !defectiveFor(kind, ps_.sections[k].pattern);
+            };
+            bool changes = false;
+            for (size_t a = 1; a < ps_.sections.size() && !changes; ++a) {
+                if (ps_.sections[a].kind != kind || !moves(a)) continue;
+                // the tie group of a: in the displayed order, then in the order the loader will give after the move
+                std::vector<size_t> shown, loader;
+                for (size_t b = 1; b < ps_.sections.size(); ++b)
+                    if (ps_.sections[b].kind == kind && sectionPriority(ps_.sections[b]) == sectionPriority(ps_.sections[a])) shown.push_back(b);
+                if (shown.size() < 2) continue;
+                loader = shown;
+                auto isFile = [&](size_t k) { return st_[k].home == SecState::FILE || moves(k); };
+                auto fileName = [&](size_t k) {
+                    return st_[k].home == SecState::FILE && !st_[k].dirty ? baseName(st_[k].file.path) : profileSlug(ps_.sections[k].pattern) + ".conf";
+                };
+                std::stable_sort(loader.begin(), loader.end(), [&](size_t x, size_t y) {
+                    const bool fx = isFile(x), fy = isFile(y);
+                    if (fx != fy) return fy;
+                    return fx && fileName(x) < fileName(y);
+                });
+                changes = loader != shown;
+            }
+            std::string pe;
+            if (changes) renumberKind(kind, &pe);
+        }
         // 1. one file per changed profile (a profile of the single file moves into its own file once it is edited)
         std::vector<size_t> toSingle;
         for (size_t i = 1; i < ps_.sections.size() && i < st_.size(); ++i) {
