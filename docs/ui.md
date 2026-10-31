@@ -741,7 +741,8 @@ listed as an entry of its own with the file name and "(defective)", explained in
 never overwritten while the problem stands. If an old `dofscroll.conf` still holds a section of the same name, that
 section stays active and the profile's header says so ("This profile is still read from dofscroll.conf because its
 own file ... is defective ..."). A profile that is still in an old single `dofscroll.conf` (or in a symlinked one) moves
-into its own file when you edit it, unless its file is defective; with a symlinked `dofscroll.conf` the interface
+into its own file when you edit it, unless its file is defective (profiles of that kind with the same `PRIORITY` get
+numbered first, so the order in which they are applied stays what the list shows); with a symlinked `dofscroll.conf` the interface
 keeps writing the single file and new profiles stay in it.
 
 Below the list: **Add application...** (running-program picker), **Add device...**, **Import profile...** and **New profile...** (see

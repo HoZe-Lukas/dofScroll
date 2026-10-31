@@ -189,10 +189,14 @@ static void testDefectiveAndLegacy() {
     const size_t solo = m3.profiles().find(Section::APP, "solo"), duo = m3.profiles().find(Section::APP, "duo");
     assert(m3.inSingleFile(solo) && m3.inSingleFile(duo));
     assert(m3.setValue(solo, "ZOOM_SENS", "9", &err) && m3.save(id).saved);
-    assert(has(get(d + "/apps/solo.conf"), "ZOOM_SENS = 9") && !tu::exists(d + "/apps/duo.conf"));
-    assert(!has(get(d + "/dofscroll.conf"), "solo") && has(get(d + "/dofscroll.conf"), "[app:duo]"));  // duo stays where it is
+    // solo and duo have the same PRIORITY and solo came first in the old file; a file is applied after what stays in
+    // dofscroll.conf, so both are numbered (10, 20) and move, and solo is still applied before duo
+    assert(has(get(d + "/apps/solo.conf"), "ZOOM_SENS = 9") && has(get(d + "/apps/solo.conf"), "PRIORITY = 10"));
+    assert(has(get(d + "/apps/duo.conf"), "ZOOM_SENS = 4") && has(get(d + "/apps/duo.conf"), "PRIORITY = 20"));
+    assert(!has(get(d + "/dofscroll.conf"), "solo") && !has(get(d + "/dofscroll.conf"), "duo"));
     SettingsModel m4 = load(d);
     assert(m4.sectionCount() == 3 && m4.effective(m4.profiles().find(Section::APP, "solo")).zoom.sensitivity == 9);
+    assert(m4.profiles().find(Section::APP, "solo") < m4.profiles().find(Section::APP, "duo"));
     tu::removeAll(d);
 }
 
