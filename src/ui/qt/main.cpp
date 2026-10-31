@@ -695,7 +695,7 @@ static bool germanKeyNamesSelfTest(QWidget *host) {
     QApplication::installTranslator(&de);
     check(TK("Delete") == QStringLiteral("Entf") && T("Delete") == QStringLiteral("L\u00f6schen"), "Delete is Entf on the key and L\u00f6schen on a button");
     check(TK("Left arrow") == QStringLiteral("Pfeil links") && TK("Space") == QStringLiteral("Leertaste") && TK("Page up") == QStringLiteral("Bild auf") &&
-              TK("Escape") == QStringLiteral("Esc") && TK("Enter") == QStringLiteral("Eingabe") && TK("Ctrl") == QStringLiteral("Strg"),
+              TK("Escape") == QStringLiteral("Esc") && TK("Enter") == QStringLiteral("Eingabe") && TK("Ctrl") == QStringLiteral("Strg"), // check-english: allow
           "the names of a German keyboard");
     auto *picker = makeKeyTreePicker(QStringLiteral("delete"), host);
     picker->show();

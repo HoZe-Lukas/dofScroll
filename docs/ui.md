@@ -1014,7 +1014,7 @@ English is the source language; the German catalog (`po/de.po`, `dofscroll_de.qm
 with the interface.
 
 **Names of keys.** In the German interface the keys are shown by the names a German keyboard has ("Pfeil links", "Leertaste",
-"Entf", "Eingabe", "Bild auf", "Esc", "Rücktaste", "Strg", "Umschalt"): in the key picker, the chord field, the tiles, the
+"Entf", "Eingabe", "Bild auf", "Esc", "Rücktaste", "Strg", "Umschalt"): in the key picker, the chord field, the tiles, the <!-- check-english: allow -->
 lists of own functions and the steps of a macro. Only what is shown is translated. What is written to the files and what the
 parser accepts stays English (`delete`, `pageup`, `ctrl+left`), and the tooltip of a key in the picker ("Stored as: delete")
 and the line **Action text** show that text. In the picker, typing finds a key by the name that is shown and by the name of the

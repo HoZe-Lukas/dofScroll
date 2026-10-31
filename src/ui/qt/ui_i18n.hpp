@@ -12,7 +12,7 @@
 
 inline QString T(const char *english) { return QCoreApplication::translate("", english); }
 
-// The name of a key as the German keyboard shows it ("Delete" is "Entf" on the key and "Löschen" on a button): msgctxt "key" in the catalog
+// The name of a key as the German keyboard shows it ("Delete" is "Entf" on the key and "Löschen" on a button): msgctxt "key" in the catalog // check-english: allow
 // (lconvert makes it the disambiguation comment of the entry). Only the displayed name; what files hold stays English.
 inline QString TK(const char *english) { return QCoreApplication::translate("", english, "key"); }
 

@@ -95,9 +95,9 @@ int main() {
 
     // ---- the names a German keyboard shows ----
     assert(keyDisplayName("left", de, "Left") == "Pfeil links" && keyDisplayName("space", de, "Space") == "Leertaste");
-    assert(keyDisplayName("delete", de, "Delete") == "Entf" && keyDisplayName("enter", de, "Enter") == "Eingabe");
+    assert(keyDisplayName("delete", de, "Delete") == "Entf" && keyDisplayName("enter", de, "Enter") == "Eingabe"); // check-english: allow
     assert(keyDisplayName("pageup", de, "Page up") == "Bild auf" && keyDisplayName("esc", de, "Esc") == "Esc");
-    assert(keyDisplayName("backspace", de, "Backspace") == "Rücktaste" && keyDisplayName("ctrl", de, "Ctrl") == "Strg");
+    assert(keyDisplayName("backspace", de, "Backspace") == "Rücktaste" && keyDisplayName("ctrl", de, "Ctrl") == "Strg"); // check-english: allow
     assert(keyDisplayName("a", de, "A") == "A" && keyDisplayName("f5", de, "F5") == "F5");
     // the English interface keeps the text each place always showed
     IdentityStrings en;
