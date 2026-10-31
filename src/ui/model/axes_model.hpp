@@ -553,6 +553,8 @@ public:
             if (!tmp.setValue(0, p.first, *p.second, err)) return false;
         for (const char *k : {"SCROLL_V_SIGN", "SCROLL_H_SIGN", "ZOOM_SIGN"})
             if (!tmp.setValue(0, k, "1", err)) return false;
+        // The measurement saw the raw axes (before INVERT_AXES), so an inverted axis would flip the detected direction again.
+        if (!tmp.setValue(0, "INVERT_AXES", "none", err)) return false;
         // Zoom must dominate against the axes the two scroll channels use, never against its own
         // twist axis (the seeded x z rx rz would block zoom on a device whose twist is rz).
         std::string lat;
@@ -709,7 +711,7 @@ inline Axis wizardFallbackLiftAxis(const Settings &g, const std::string &osName)
 // new" before anything is written, and a snapshot taken just before Apply lets one click bring the old values back.
 inline const std::vector<std::string> &wizardGlobalKeys() {
     static const std::vector<std::string> k = {"SCROLL_V_MIX",  "SCROLL_H_MIX",  "ZOOM_MIX",    "SCROLL_V_SIGN",
-                                               "SCROLL_H_SIGN", "ZOOM_SIGN",     "ZOOM_LATERAL"};
+                                               "SCROLL_H_SIGN", "ZOOM_SIGN",     "ZOOM_LATERAL", "INVERT_AXES"};
     return k;
 }
 
@@ -738,7 +740,22 @@ inline std::vector<WizardChangeRow> wizardChangeRows(const SettingsModel &m, con
         if (!v.empty() && v != "1") reversed += (reversed.empty() ? "" : ", ") + std::string(k);
     }
     if (!reversed.empty()) rows.push_back({N_("Reversed directions"), reversed, "none"});
+    const std::string inverted = now("INVERT_AXES");
+    if (!inverted.empty() && inverted != "none") rows.push_back({N_("Inverted axes"), inverted, "none"});
     return rows;
+}
+
+// The device and program profiles that set their own direction values (INVERT_AXES or a *_SIGN key): Apply writes the
+// Global profile only, so these keep what they say. Their names, in list order.
+inline std::vector<std::string> wizardProfilesKeepingDirections(const SettingsModel &m) {
+    std::vector<std::string> out;
+    for (size_t i = 1; i < m.sectionCount(); ++i)
+        for (const char *k : {"INVERT_AXES", "SCROLL_V_SIGN", "SCROLL_H_SIGN", "ZOOM_SIGN"})
+            if (m.isOverridden(i, k)) {
+                out.push_back(m.sections()[i].pattern);
+                break;
+            }
+    return out;
 }
 
 struct GlobalSnapshot {

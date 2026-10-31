@@ -5911,8 +5911,16 @@ msgid "%1: %2 (unchanged)"
 msgstr "%1: %2 (unverändert)"
 
 #: src/ui/qt/pages/axes_page.cpp
-msgid "\"Apply\" sets these axis mixes in the Global profile and resets the direction switches to normal. You can undo it afterwards. \"Cancel\" changes nothing."
-msgstr "„Anwenden“ setzt diese Achsen-Mixe im Profil Global und stellt die Richtungsschalter auf normal zurück. Du kannst das danach rückgängig machen. „Abbrechen“ ändert nichts."
+msgid "\"Apply\" sets these axis mixes in the Global profile and resets the direction switches and the inverted axes to normal. You can undo it afterwards. \"Cancel\" changes nothing."
+msgstr "„Anwenden“ setzt diese Achsen-Mixe im Profil Global und stellt die Richtungsschalter und die umgekehrten Achsen auf normal zurück. Du kannst das danach rückgängig machen. „Abbrechen“ ändert nichts."
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Inverted axes"
+msgstr "Umgekehrte Achsen"
+
+#: src/ui/qt/pages/axes_page.cpp
+msgid "Device and program profiles with their own direction settings (inverted axes or reversed directions) keep them: %1"
+msgstr "Geräte- und Programmprofile mit eigenen Richtungseinstellungen (umgekehrte Achsen oder umgekehrte Richtungen) behalten sie: %1"
 
 #: src/ui/qt/pages/axes_page.cpp
 msgid "Reversed directions"

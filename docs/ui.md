@@ -559,8 +559,11 @@ the Axes page offers **Undo**, which puts the old values of the same keys back (
 press Next and never skips an optional step by itself. The axis rows show a plain second name ("z: Push forward /
 back") where the configuration says what the axis is; the Device selector exists only with two or more devices;
 the Pause, Reset peaks and Axis assistant buttons are in the top row, so a low window does not cut them off. Apply
-writes exactly the keys it always wrote (`SCROLL_V_MIX`, `SCROLL_H_MIX`, `ZOOM_MIX`, the three
-`*_SIGN` switches and `ZOOM_LATERAL`). The state is always text ("Waiting...", "Measuring...",
+writes the Global profile only: `SCROLL_V_MIX`, `SCROLL_H_MIX`, `ZOOM_MIX`, `ZOOM_LATERAL`, and it sets the three
+`*_SIGN` switches to `1` and `INVERT_AXES` to `none` (the assistant measures the raw axes, before any inversion, so an
+inverted axis would flip the detected direction again; the result page lists "Inverted axes" when there is one, and Undo
+brings it back). Device and program profiles that set their own `INVERT_AXES` or `*_SIGN` keep them, and the result page
+names them. The state is always text ("Waiting...", "Measuring...",
 "Detected"), the whole page works with the keyboard (Tab order: Apply, Next, Start/Measure again, Skip,
 Back, Cancel), and the daemon output stays paused while the assistant is open.
 

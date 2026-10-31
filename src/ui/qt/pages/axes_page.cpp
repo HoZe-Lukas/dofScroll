@@ -751,9 +751,20 @@ void AxesPage::refreshWizard(int64_t nowNs) {
                        T("Scroll H") + QStringLiteral(" = ") + qs(f.mix_h) + QStringLiteral("\n    ") + T("Zoom") +
                        QStringLiteral(" = ") + qs(f.mix_zoom);
             }
+            if (ctx_.settings) {
+                const std::vector<std::string> kept = spn::ui::wizardProfilesKeepingDirections(*ctx_.settings);
+                if (!kept.empty()) {
+                    QStringList names;
+                    for (size_t i = 0; i < kept.size() && i < 5; ++i) names << qs8(kept[i]);
+                    if (kept.size() > 5) names << T("... and %1 more").arg(int(kept.size() - 5));
+                    msg += QStringLiteral("\n\n") +
+                           T("Device and program profiles with their own direction settings (inverted axes or reversed "
+                             "directions) keep them: %1").arg(names.join(QStringLiteral(", ")));
+                }
+            }
             msg += QStringLiteral("\n\n") +
                    T("\"Apply\" sets these axis mixes in the Global profile and resets the direction "
-                     "switches to normal. You can undo it afterwards. \"Cancel\" changes nothing.");
+                     "switches and the inverted axes to normal. You can undo it afterwards. \"Cancel\" changes nothing.");
         } else {
             msg += QStringLiteral("\n\n") + T("The mapping is incomplete and cannot be applied.");
         }
