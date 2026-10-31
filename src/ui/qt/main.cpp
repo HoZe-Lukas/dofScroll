@@ -1166,7 +1166,7 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
                 b->press(&letter);
                 break;
             }
-        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = step:j,down")), "a letter is written digitally");
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("V_PUSH_ACTION = step:j,down")), "a letter is written digitally");
         sel(QStringLiteral("m:v_push"));
         check(box("keyAnalog") && !box("keyAnalog")->isEnabled() && me()->inspector()->findChild<QLabel *>(QStringLiteral("keyAnalogReason")),
               "analog is greyed for a key that cannot repeat, with the reason");
