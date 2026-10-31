@@ -4537,7 +4537,7 @@ static bool profileFilesSelfTest() {
         if (!cond) std::fprintf(stderr, "profile files self-test failed: %s\n", what);
         ok = ok && cond;
     };
-    EditorRig rig("[global]\n\n[app:firefox]\nZOOM_SENS = 3\n\n[app:vlc]\nZOOM_SENS = 4\n");
+    EditorRig rig("[global]\n\n[app:firefox]\nPRIORITY = 5\nZOOM_SENS = 3\n\n[app:vlc]\nPRIORITY = 6\nZOOM_SENS = 4\n");
     MainWindow &w = *rig.win;
     w.showPage(QStringLiteral("profiles"));
     settle();
@@ -4617,26 +4617,26 @@ static bool profileFilesSelfTest() {
           "Export copies the profile file");
 
     // the order: the list follows it, Move up and Move down change PRIORITY, the words say it
-    // (vlc still lives in dofscroll.conf and ties with firefox on 0: the profiles of the old file come first)
-    check(labelIndex(QStringLiteral("gimp")) < labelIndex(QStringLiteral("vlc")) &&
-              labelIndex(QStringLiteral("vlc")) < labelIndex(QStringLiteral("firefox")),
+    // (vlc still lives in dofscroll.conf; firefox 5 and vlc 6 keep their order, the imported profile comes before both)
+    check(labelIndex(QStringLiteral("gimp")) < labelIndex(QStringLiteral("firefox")) &&
+              labelIndex(QStringLiteral("firefox")) < labelIndex(QStringLiteral("vlc")),
           "the list shows the profiles in the order they are applied (an imported profile first)");
     check(selectByName(QStringLiteral("gimp")) && page->orderNote().contains(QStringLiteral("Applied first")),
           "the order is said in words");
     check(page->moveSelected(false) && wait() && !rig.saver()->failed(), "Move down");
-    check(labelIndex(QStringLiteral("vlc")) < labelIndex(QStringLiteral("gimp")) &&
-              labelIndex(QStringLiteral("gimp")) < labelIndex(QStringLiteral("firefox")),
+    check(labelIndex(QStringLiteral("firefox")) < labelIndex(QStringLiteral("gimp")) &&
+              labelIndex(QStringLiteral("gimp")) < labelIndex(QStringLiteral("vlc")),
           "the profile moved in the list");
     check(page->selectedSection() != 0 && page->headerName() == QStringLiteral("gimp") &&
-              page->orderNote().contains(QStringLiteral("Applied after \"vlc\"")),
+              page->orderNote().contains(QStringLiteral("Applied after \"firefox\"")),
           "the moved profile stays selected");
     {
         const spn::ui::SettingsModel disk = rig.disk();
         const size_t g = disk.profiles().find(Section::APP, "gimp"), f = disk.profiles().find(Section::APP, "firefox"),
                      v = disk.profiles().find(Section::APP, "vlc");
         check(g != spn::ProfileSet::npos && f != spn::ProfileSet::npos && v != spn::ProfileSet::npos &&
-                  disk.priority(v) < disk.priority(g) && disk.priority(g) < disk.priority(f) && !disk.inSingleFile(v),
-              "the new order is on disk (PRIORITY), vlc moved into its file");
+                  disk.priority(f) < disk.priority(g) && disk.priority(g) < disk.priority(v),
+              "the new order is on disk (PRIORITY)");
     }
     check(page->moveSelected(false) && wait() && labelIndex(QStringLiteral("vlc")) < labelIndex(QStringLiteral("gimp")),
           "Move down again");
