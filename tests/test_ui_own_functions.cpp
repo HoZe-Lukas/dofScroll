@@ -139,6 +139,25 @@ int main() {
             assert(!ofHas(ofSection(m, app), "V_ACTION"));
         }
     assert(!ofHas(ofSection(m, app), "BUTTON_3=none") && !ofHas(ofSection(m, app), "V_ACTION=none"));  // nothing pinned off
+
+    // #325: V_ACTION and V_TILT_ACTION both set (a hand-edited file): deleting the function of V_ACTION must not clear the tuning
+    // keys of the tilt, whose function is the one of V_TILT_ACTION
+    {
+        const std::string pushRate = keyEngineKey("v_push", KeyField::RateMin), tiltRate = keyEngineKey("v_tilt", KeyField::RateMin);
+        assert(m.setValue(app, "V_TILT_ACTION", "keys:home,end", nullptr));
+        assert(m.setValue(app, "V_ACTION", "keys:pageup,pagedown", nullptr));
+        assert(m.setValue(app, pushRate, "3", nullptr));
+        assert(m.setValue(app, tiltRate, "4", nullptr));
+        bool deleted = false;
+        for (const OwnFunction &f : ownFunctions(m, app, s))
+            if (f.text == "keys:pageup,pagedown") {
+                assert(deleteOwnFunction(&m, app, f, s).ok);
+                deleted = true;
+            }
+        assert(deleted);
+        assert(!m.isOverridden(app, "V_ACTION") && !m.isOverridden(app, pushRate));  // the push part is back to inherited
+        assert(m.isOverridden(app, "V_TILT_ACTION") && m.isOverridden(app, tiltRate));  // the tilt keeps its function and its tuning
+    }
     assert(!deleteOwnFunction(nullptr, app, list[0], s).ok);
 
     std::puts("test_ui_own_functions: ok");
