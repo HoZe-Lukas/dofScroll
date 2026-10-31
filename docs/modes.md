@@ -180,6 +180,8 @@ it writes the joystick mode id into `dofscroll-mode-request` in the runtime dire
 valid id only) and asks the daemon to reload; the daemon applies it after re-reading config and
 joystick modes, then deletes the file. Like a button switch it lasts until the next reload, a restart or
 another switch (so toggling "Enabled" or saving the config drops it).
+A daemon that no reload reaches (started by hand or without the systemd unit) takes a request that is still
+there at two of its one-second polls in a row, without re-reading the config.
 
 The request file is treated as untrusted input: the writer never follows a link (it removes
 whatever is at the name and creates the file exclusively, user-only); the daemon opens it without

@@ -762,6 +762,30 @@ void DaemonCore::updateProfile(int64_t now_ns) {
             need_resolve = true;
             modes_changed = true;
         }
+        // The tray's mode request normally comes with a reload (above), which consumes the file within milliseconds. A
+        // daemon that no reload reaches (not started by dofscroll.service) would never see it, so a request that is
+        // still there at two polls in a row is taken here.
+        const std::string req_path = modeRequestPath(d_.paths.runtimeDir);
+        if (!req_path.empty() && fs::pathExists(req_path)) {
+            if (mode_request_seen_) {
+                mode_request_seen_ = false;
+                const std::string req = takeModeRequest(d_.paths.runtimeDir);
+                if (!req.empty() && modes_.find(req)) {
+                    for (auto &lp : lanes_) {
+                        lp->mode_override = req;
+                        lp->hold_active = false;
+                    }
+                    std::cerr << LOG << "Mode requested: " << sanitizeForLog(req) << std::endl;
+                    need_resolve = true;
+                } else if (!req.empty()) {
+                    std::cerr << LOG << "WARNING: requested mode '" << sanitizeForLog(req) << "' is not loaded" << std::endl;
+                }
+            } else {
+                mode_request_seen_ = true;
+            }
+        } else {
+            mode_request_seen_ = false;
+        }
     }
 
     uint64_t gen = reader_.dev_generation.load(std::memory_order_acquire);
