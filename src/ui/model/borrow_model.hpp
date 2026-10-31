@@ -32,6 +32,7 @@
 #include "button_modes.hpp"
 #include "profile_actions.hpp"
 #include "ui/model/button_chip_model.hpp"
+#include "ui/model/key_tree_model.hpp"
 #include "ui/model/mode_editor_model.hpp"
 #include "ui/model/motion_edit_model.hpp"
 #include "ui/model/motion_map_model.hpp"
@@ -77,9 +78,9 @@ inline std::string actionWords(const ChannelAction &a, bool off, const StringPro
         case ChannelActionType::Zoom: return s.tr("zoom");
         case ChannelActionType::PointerX: return s.tr("move the pointer left and right");
         case ChannelActionType::PointerY: return s.tr("move the pointer up and down");
-        case ChannelActionType::Keys: return format(s.tr("keys %1 / %2"), {modelist::negChordText(a), modelist::posChordText(a)});
-        case ChannelActionType::Step: return format(s.tr("one key tap per push: %1 / %2"), {modelist::negChordText(a), modelist::posChordText(a)});
-        case ChannelActionType::Hold: return format(s.tr("hold %1 / %2 while pushed"), {modelist::negChordText(a), modelist::posChordText(a)});
+        case ChannelActionType::Keys: return format(s.tr("keys %1 / %2"), {chordDisplay(modelist::negChordText(a), s), chordDisplay(modelist::posChordText(a), s)});
+        case ChannelActionType::Step: return format(s.tr("one key tap per push: %1 / %2"), {chordDisplay(modelist::negChordText(a), s), chordDisplay(modelist::posChordText(a), s)});
+        case ChannelActionType::Hold: return format(s.tr("hold %1 / %2 while pushed"), {chordDisplay(modelist::negChordText(a), s), chordDisplay(modelist::posChordText(a), s)});
         case ChannelActionType::Macro: return s.tr("run a macro");
         case ChannelActionType::Off: break;
     }

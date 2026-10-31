@@ -30,6 +30,7 @@
 #include "modes.hpp"
 #include "ui/model/axis_roles_model.hpp"
 #include "ui/model/fresh_state.hpp"
+#include "ui/model/key_tree_model.hpp"
 #include "ui/model/strings.hpp"
 #include "utf8.hpp"
 
@@ -73,24 +74,22 @@ inline std::string motionMarker(const std::string &id) {
 
 namespace motion_detail {
 
-// "pageup" -> "Page up", "ctrl+pageup" -> "Ctrl+Page up" (ASCII key names).
+// The English words of one key name: "pageup" -> "Page up" (ASCII key names).
+inline std::string keyWord(std::string part) {
+    if (part == "pageup") part = "page up";
+    else if (part == "pagedown") part = "page down";
+    else if (part == "rightclick") part = "right click";
+    else if (part == "middleclick") part = "middle click";
+    if (!part.empty() && part[0] >= 'a' && part[0] <= 'z') part[0] = char(part[0] - 'a' + 'A');
+    return part;
+}
+
+// "pageup" -> "Page up", "ctrl+pageup" -> "Ctrl+Page up"; in the German interface the names of the keys of the German
+// keyboard ("Strg+Bild auf"). The English words are what the English interface always showed.
+inline std::string keyWords(const std::string &chord, const StringProvider &s) { return chordDisplay(chord, s, keyWord); }
 inline std::string keyWords(const std::string &chord) {
-    std::string out;
-    size_t start = 0;
-    while (start <= chord.size()) {
-        size_t plus = chord.find('+', start);
-        if (plus == std::string::npos) plus = chord.size();
-        std::string part = chord.substr(start, plus - start);
-        if (part == "pageup") part = "page up";
-        else if (part == "pagedown") part = "page down";
-        else if (part == "rightclick") part = "right click";
-        else if (part == "middleclick") part = "middle click";
-        if (!part.empty() && part[0] >= 'a' && part[0] <= 'z') part[0] = char(part[0] - 'a' + 'A');
-        if (start != 0) out += "+";
-        out += part;
-        start = plus + 1;
-    }
-    return out;
+    static const IdentityStrings identity;
+    return keyWords(chord, identity);
 }
 
 inline bool hasAxis(const Mix &m, Axis a) {
@@ -107,7 +106,7 @@ inline MotionRow rowFor(const char *id, const std::string &name, const std::stri
     r.how = how;
     ChannelActionType t = a.type;
     if (t == ChannelActionType::Default) t = twist ? ChannelActionType::Zoom : vertical ? ChannelActionType::WheelV : ChannelActionType::WheelH;
-    const std::string neg = keyWords(modelist::negChordText(a)), pos = keyWords(modelist::posChordText(a));
+    const std::string neg = keyWords(modelist::negChordText(a), s), pos = keyWords(modelist::posChordText(a), s);
     switch (t) {
         case ChannelActionType::Off:
             r.kind = MotionKind::Off;
@@ -133,7 +132,7 @@ inline MotionRow rowFor(const char *id, const std::string &name, const std::stri
                 r.action = s.tr("Zoom: mouse wheel");
                 r.detail = s.tr("Wheel");
             } else {
-                const std::string mods = keyWords(zoomModifierToString(zoomModifier));
+                const std::string mods = keyWords(zoomModifierToString(zoomModifier), s);
                 r.action = format(s.tr("Zoom: %1 + mouse wheel"), {mods});
                 r.detail = mods + "+" + s.tr("Wheel");
             }

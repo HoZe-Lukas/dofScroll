@@ -218,8 +218,9 @@ class MotionGrid : public QWidget {
 public:
     // columns 3: vertical, horizontal, twist/lift side by side (wide panes); columns 2: push and tilt of a channel
     // side by side, three rows (narrow panes such as the profile tab, wider fonts of Windows and macOS)
-    explicit MotionGrid(QWidget *parent = nullptr, int columns = 3) : QWidget(parent) {
+    explicit MotionGrid(QWidget *parent = nullptr, int columns = 3) : QWidget(parent), adaptive_(columns == 3) {
         auto *grid = new QGridLayout(this);
+        grid_ = grid;
         grid->setContentsMargins(0, 0, 0, 0);
         grid->setSpacing(spn::ui::tokens::kSpaceXs);  // three cards side by side: tight gaps keep the page narrow
         for (int i = 0; i < 6; ++i) {
@@ -246,13 +247,23 @@ public:
             cl->addWidget(c.how);
             cl->addWidget(c.source);
             cl->addStretch(1);
-            const int row = columns == 2 ? i / 2 : i % 2, col = columns == 2 ? i % 2 : i / 2;
-            grid->addWidget(c.frame, row, col);
-            grid->setColumnStretch(col, 1);
             cards_.push_back(c);
         }
+        place(columns);
         setAccessibleName(T("What each motion does"));
     }
+    // Three columns only while they fit: in a narrow pane (a window of 1000 px with the wide glyphs of Windows) the cards go
+    // to two columns instead of making the pane scroll sideways.
+    QSize minimumSizeHint() const override { return QSize(2 * cardMin() + grid_->spacing(), QWidget::minimumSizeHint().height()); }
+    int columns() const { return columns_; }
+
+protected:
+    void resizeEvent(QResizeEvent *e) override {
+        QWidget::resizeEvent(e);
+        if (adaptive_) place(width() >= 3 * cardMin() + 2 * grid_->spacing() ? 3 : 2);
+    }
+
+public:
     void setMotions(const std::vector<spn::ui::MotionRow> &rows) {
         for (size_t i = 0; i < cards_.size(); ++i) {
             Card &c = cards_[i];
@@ -284,6 +295,25 @@ private:
         QFrame *frame = nullptr;
         QLabel *name = nullptr, *action = nullptr, *how = nullptr, *source = nullptr;
     };
+    int cardMin() const {
+        int w = 0;
+        for (const Card &c : cards_) w = std::max(w, c.frame->minimumSizeHint().width());
+        return w;
+    }
+    void place(int columns) {
+        if (columns == columns_) return;
+        columns_ = columns;
+        for (int i = 0; i < 3; ++i) grid_->setColumnStretch(i, 0);
+        for (size_t i = 0; i < cards_.size(); ++i) {
+            grid_->removeWidget(cards_[i].frame);
+            const int row = columns == 2 ? int(i) / 2 : int(i) % 2, col = columns == 2 ? int(i) % 2 : int(i) / 2;
+            grid_->addWidget(cards_[i].frame, row, col);
+            grid_->setColumnStretch(col, 1);
+        }
+    }
+    QGridLayout *grid_ = nullptr;
+    int columns_ = 0;
+    bool adaptive_ = false;
     static QLabel *label(QWidget *parent, bool muted) {
         auto *l = new QLabel(parent);
         l->setWordWrap(true);

@@ -6,11 +6,13 @@
 // by adding nodes here, the view needs no change. Titles and labels are English source strings; the view
 // translates them.
 #pragma once
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "key_list.hpp"
+#include "strings.hpp"
 
 namespace spn::ui {
 
@@ -18,6 +20,7 @@ struct KeyTreeNode {
     std::string id;     // stable id of a branch; empty for a leaf
     std::string title;  // English label of the branch or leaf
     std::string value;  // leaf only: the stored text
+    bool key = false;   // leaf only: the label is the name of a key (the view translates it as a key name, see StringProvider::keyLabel)
     std::vector<KeyTreeNode> children;
     bool isLeaf() const { return children.empty(); }
 };
@@ -106,6 +109,30 @@ inline std::string keyTreeLabel(const std::string &name) {
     return name;  // digits, and any future key until it has a label
 }
 
+// The name of a key (a config name such as "left" or "pageup") as it is shown: the translated key label in the interface
+// language, else `plain` (the English text the place always showed, so the English interface does not change).
+inline std::string keyDisplayName(const std::string &name, const StringProvider &s, const std::string &plain) {
+    const std::string label = keyTreeLabel(name);
+    const std::string shown = s.keyLabel(label.c_str());
+    return shown != label ? shown : plain;
+}
+
+// A chord text ("ctrl+shift+pageup") with every key shown by keyDisplayName, joined by "+". `plain` gives the English text of a part.
+inline std::string chordDisplay(const std::string &chord, const StringProvider &s,
+                                const std::function<std::string(const std::string &)> &plain = [](const std::string &p) { return p; }) {
+    std::string out;
+    size_t start = 0;
+    while (start <= chord.size()) {
+        size_t plus = chord.find('+', start);
+        if (plus == std::string::npos) plus = chord.size();
+        const std::string part = chord.substr(start, plus - start);
+        if (start != 0) out += "+";
+        out += keyDisplayName(part, s, plain(part));
+        start = plus + 1;
+    }
+    return out;
+}
+
 // The category and subcategory id of a key name.
 inline std::pair<std::string, std::string> keyTreeCategoryOf(const std::string &name) {
     const std::string g = keyGroupIdOf(name);
@@ -148,7 +175,10 @@ inline KeyTree buildKeyTree(const KeyTreeOptions &opt = {}) {
         const auto cat = keyTreeCategoryOf(name);
         KeyTreeNode &top = cat.first == "media" ? media : keyboard;
         for (KeyTreeNode &sub : top.children)
-            if (sub.id == cat.second) sub.children.push_back(leaf(keyTreeLabel(name), name));
+            if (sub.id == cat.second) {
+                sub.children.push_back(leaf(keyTreeLabel(name), name));
+                sub.children.back().key = true;
+            }
     }
     KeyTree t;
     t.roots.push_back(std::move(keyboard));

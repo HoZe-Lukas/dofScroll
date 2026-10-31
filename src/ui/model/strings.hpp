@@ -13,6 +13,11 @@ public:
     virtual ~StringProvider() = default;
     // Translation of an English source string (return the source if there is none).
     virtual std::string tr(const char *source) const = 0;
+    // The name of a key as the keyboard of the interface language shows it: translation of an English key label
+    // ("Left arrow", "Delete") from its own context, because a key name and a word can read differently ("Delete" is
+    // "Entf" on the key and "Löschen" on a button). Returns the source if there is none. Only the display names are
+    // translated; the names that files hold stay English.
+    virtual std::string keyLabel(const char *source) const { return source; }
 };
 
 // Provider without translation (tests, fallback).

@@ -66,7 +66,7 @@ inline std::string number(double v) {
     return std::to_string(long(std::lround(a)));
 }
 
-inline std::string keyName(const std::string &chord) { return motion_detail::keyWords(chord); }
+inline std::string keyName(const std::string &chord, const StringProvider &s) { return motion_detail::keyWords(chord, s); }
 
 }  // namespace help_detail
 
@@ -118,15 +118,15 @@ inline std::string motionSentence(const ModeForm &form, const Settings &base, Mo
             if (moving) text += format(s.tr(", now: %1 a second"), {help_detail::number(now)});
             break;
         case ChannelActionType::Keys: {
-            const std::string neg = help_detail::keyName(modelist::negChordText(a)),
-                              pos = help_detail::keyName(modelist::posChordText(a));
+            const std::string neg = help_detail::keyName(modelist::negChordText(a), s),
+                              pos = help_detail::keyName(modelist::posChordText(a), s);
             text = format(s.tr("presses %1 or %2, about %3 times a second at full deflection"), {neg, pos, help_detail::number(full)});
             if (moving) text += format(s.tr(", now: %1, %2 a second"), {now < 0 ? neg : pos, help_detail::number(now)});
             break;
         }
         default: {  // Step
-            const std::string neg = help_detail::keyName(modelist::negChordText(a)),
-                              pos = help_detail::keyName(modelist::posChordText(a));
+            const std::string neg = help_detail::keyName(modelist::negChordText(a), s),
+                              pos = help_detail::keyName(modelist::posChordText(a), s);
             text = format(s.tr("taps %1 or %2 once per push"), {neg, pos});
             if (moving) text += format(s.tr(", now: %1"), {now < 0 ? neg : pos});
             break;
@@ -295,7 +295,7 @@ inline std::vector<MotionHint> motionHints(const ModeForm &form, const Settings 
                 if (!k.empty() && std::find(kb.begin(), kb.end(), k) != kb.end()) shared = k;
             if (!shared.empty())
                 out.push_back({std::string("keys:") + motionId(a) + ":" + motionId(b),
-                               format(s.tr("%1 and %2 both press %3"), {labels[i].name, labels[j].name, help_detail::keyName(shared)}),
+                               format(s.tr("%1 and %2 both press %3"), {labels[i].name, labels[j].name, help_detail::keyName(shared, s)}),
                                format(s.tr("Show %1"), {labels[j].name}), std::string("select:") + motionId(b)});
         }
     // a channel mix of the mode that differs from the profile's

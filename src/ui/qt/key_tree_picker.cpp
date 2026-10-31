@@ -4,6 +4,7 @@
 
 #include <QApplication>
 #include <QColumnView>
+#include <QElapsedTimer>
 #include <QFrame>
 #include <QListView>
 #include <QScrollBar>
@@ -45,6 +46,28 @@ public:
     using QColumnView::QColumnView;
     std::function<void(const QModelIndex &)> chosen;
 
+    // Typing finds a key by the name that is shown ("Entf") and by the name of the file ("delete"): the entries of the column of
+    // the selection that start with what was typed in the last second (the default search knows only the shown text).
+    void keyboardSearch(const QString &search) override {
+        if (search.isEmpty() || !model()) return;
+        if (typed_.isValid() && typed_.elapsed() > 1000) buffer_.clear();
+        typed_.start();
+        buffer_ += search;
+        const QModelIndex cur = currentIndex();
+        const QModelIndex parent = cur.isValid() ? cur.parent() : QModelIndex();
+        const int rows = model()->rowCount(parent);
+        if (rows == 0) return;
+        const int first = cur.isValid() ? cur.row() + (buffer_.size() == 1 ? 1 : 0) : 0;  // a second letter refines, the first moves on
+        for (int i = 0; i < rows; ++i) {
+            const QModelIndex idx = model()->index((first + i) % rows, 0, parent);
+            const QString shown = idx.data(Qt::DisplayRole).toString(), stored = idx.data(kValueRole).toString();
+            if (shown.startsWith(buffer_, Qt::CaseInsensitive) || (!stored.isEmpty() && stored.startsWith(buffer_, Qt::CaseInsensitive))) {
+                setCurrentIndex(idx);
+                return;
+            }
+        }
+    }
+
     bool handleKey(QKeyEvent *e) {
         const QModelIndex cur = currentIndex();
         QModelIndex next;
@@ -71,6 +94,10 @@ public:
         return true;
     }
 
+private:
+    QString buffer_;
+    QElapsedTimer typed_;
+
 protected:
     QAbstractItemView *createColumn(const QModelIndex &root) override {
         QAbstractItemView *col = QColumnView::createColumn(root);
@@ -92,7 +119,7 @@ protected:
 
 void addNodes(QStandardItem *parent, const std::vector<spn::ui::KeyTreeNode> &nodes) {
     for (const spn::ui::KeyTreeNode &n : nodes) {
-        auto *item = new QStandardItem(T(n.title.c_str()));
+        auto *item = new QStandardItem(n.key ? TK(n.title.c_str()) : T(n.title.c_str()));
         item->setEditable(false);
         item->setAccessibleText(item->text());
         if (n.isLeaf()) {
@@ -142,7 +169,11 @@ void KeyTreePicker::refreshText() {
     }
     const auto titles = tree_.titlesOf(path);
     QStringList parts;
-    for (const std::string &t : titles) parts << T(t.c_str());
+    for (size_t i = 0; i < titles.size(); ++i) {
+        // the last title is the leaf: a key is shown by the name its keyboard has, the branches are words
+        const bool keyName = i + 1 == titles.size() && tree_.at(path) && tree_.at(path)->key;
+        parts << (keyName ? TK(titles[i].c_str()) : T(titles[i].c_str()));
+    }
     setText(parts.last());
     setAccessibleDescription(parts.join(QStringLiteral(" > ")));
     setToolTip(parts.join(QStringLiteral(" > ")));

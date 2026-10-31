@@ -43,7 +43,7 @@ inline std::string buttonActionWords(const std::string &configText, const String
         case ButtonActionType::RightClick: return s.tr("Right click");
         case ButtonActionType::MiddleClick: return s.tr("Middle click");
         case ButtonActionType::Nav: return s.tr("Navigation");
-        case ButtonActionType::Key: return motion_detail::keyWords(keyActionText(key, mods).substr(4));  // after "key:"
+        case ButtonActionType::Key: return motion_detail::keyWords(keyActionText(key, mods).substr(4), s);  // after "key:"
         case ButtonActionType::ToggleNav: return s.tr("Toggle navigation");
         case ButtonActionType::ModeSwitch: {
             bool forward = true;

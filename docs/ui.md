@@ -851,7 +851,7 @@ window has one button, **Close**, and the function stays as it is.
 
 | Kind | Fields | Stored as |
 |---|---|---|
-| Key or key combination | a key per direction (or **No key**); for a button one key | `keys:` / `step:` per side, `key:<chord>` on a button |
+| Key or combination | a key per direction (or **No key**); for a button one key | `keys:` / `step:` per side, `key:<chord>` on a button |
 | Mouse click | a mouse button per direction (or Nothing); for a button one | `step:` with `click`, `rightclick`, `middleclick`; a button `click` ... |
 | Hold a key or button | a key or mouse button per direction | `hold:<neg>,<pos>` (motions only) |
 | Scroll or zoom | scroll, scroll sideways, zoom | `wheel_v`, `wheel_h`, `zoom` (motions only) |
@@ -867,7 +867,7 @@ the trigger level field of the digital functions shows the level that applies wh
 shows the text that is stored. What a motion or button cannot do is greyed in the kind list and the reason is written under the
 list.
 
-**The macro editor** (kind Macro) has **Record** and **Record stop**. The check box **Record the times** ("Also record the
+**The macro editor** (kind Macro) has **Record** and **Record stop**; the recording area sits right under them, so it is in sight without scrolling. The check box **Record the times** ("Also record the
 times between the keys") decides how pauses are made: on, they are the measured gaps; off, a pause of 30 ms is put between
 the steps. Recording happens only in this window, while the recording area has the keyboard focus: there is no global key
 logger, a key pressed in another window or after Record stop is not seen, the recording ends by itself when the focus leaves
@@ -1012,3 +1012,11 @@ overview_model,tray_menu_model,examples_model}.hpp`, and the German catalog "Joy
 
 English is the source language; the German catalog (`po/de.po`, `dofscroll_de.qm`) is installed
 with the interface.
+
+**Names of keys.** In the German interface the keys are shown by the names a German keyboard has ("Pfeil links", "Leertaste",
+"Entf", "Eingabe", "Bild auf", "Esc", "Rücktaste", "Strg", "Umschalt"): in the key picker, the chord field, the tiles, the
+lists of own functions and the steps of a macro. Only what is shown is translated. What is written to the files and what the
+parser accepts stays English (`delete`, `pageup`, `ctrl+left`), and the tooltip of a key in the picker ("Stored as: delete")
+and the line **Action text** show that text. In the picker, typing finds a key by the name that is shown and by the name of the
+file. The names are in the context `key` of `po/de.po` (`TK()` in the code, `StringProvider::keyLabel` in the models);
+`tests/test_ui_key_names.cpp` fails when a key of the picker has no entry there and is not listed as the same in German.

@@ -27,4 +27,5 @@ public:
 class QtStrings : public spn::ui::StringProvider {
 public:
     std::string tr(const char *source) const override;
+    std::string keyLabel(const char *source) const override;
 };
