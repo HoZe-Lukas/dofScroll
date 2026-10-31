@@ -654,7 +654,8 @@ void MotionEditor::rebuildPicture() {
         it.glyph = qs8(motionGlyph(l.symbol));
         it.text = qs8(l.tile) + (l.reversed ? QStringLiteral(", ") + T("reversed") : QString());
         it.muted = l.kind != MotionKind::Active;
-        it.tooltip = qs8(l.name) + QStringLiteral(" (") + qs8(l.how) + QStringLiteral("): ") + it.text +
+        it.tooltip = qs8(l.name) + QStringLiteral(" (") + qs8(l.how) + QStringLiteral("): ") + qs8(l.action) +  // the full action: the tile shows it elided when it is long
+                     (l.reversed ? QStringLiteral(", ") + T("reversed") : QString()) +
                      (l.badge.empty() ? QString() : QStringLiteral(". ") + qs8(l.badge));
         if (l.motion != Motion::Lift) it.tooltip += QStringLiteral("\n") + T("Drag onto another motion to swap them, with Ctrl to copy.");
         items << it;

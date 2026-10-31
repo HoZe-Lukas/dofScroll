@@ -596,7 +596,7 @@ static bool keyTreePickerSelfTest(QWidget *host) {
     picker->show();
     QStringList emitted;
     QObject::connect(picker, &KeyTreePicker::valueChosen, [&emitted](const QString &v) { emitted << v; });
-    check(picker->text() == T("Page up") && picker->value() == QStringLiteral("pageup"), "the button shows the current choice");
+    check(picker->text() == TK("Page up") && picker->value() == QStringLiteral("pageup"), "the button shows the current choice");
     check(!picker->accessibleName().isEmpty() && picker->accessibleDescription().contains(QStringLiteral(">")), "accessible name and path");
     KeyTreePicker *active = picker;  // the picker whose popup gets the keys
     auto press = [&](int key) {
@@ -610,12 +610,12 @@ static bool keyTreePickerSelfTest(QWidget *host) {
     picker->openPopup();
     check(picker->popupOpen() && picker->popupView() != nullptr, "the popup opens");
     if (!picker->popupOpen() || !picker->popupView()) return false;
-    check(currentText() == T("Page up"), "the current choice is preselected");
+    check(currentText() == TK("Page up"), "the current choice is preselected");
     press(Qt::Key_Down);
-    check(currentText() == T("Page down"), "Down moves in the column");
+    check(currentText() == TK("Page down"), "Down moves in the column");
     press(Qt::Key_Return);
     check(!picker->popupOpen() && emitted == QStringList{QStringLiteral("pagedown")} && picker->value() == QStringLiteral("pagedown") &&
-              picker->text() == T("Page down"),
+              picker->text() == TK("Page down"),
           "Enter chooses, closes and emits the stored value");
     // Left goes back to the subcategory, Up/Down change it, Right opens it again
     picker->openPopup();
@@ -651,8 +651,78 @@ static bool keyTreePickerSelfTest(QWidget *host) {
         check(chord == "ctrl+shift+pagedown" && changes == 1, "the chord editor stores modifiers and key as before");
     }
     delete cp;
+    // typing finds a key by the name that is shown and by the name of the file
+    {
+        auto typeText = [&](QWidget *target, const QString &text) {
+            for (const QChar c : text) {
+                const int code = c == QLatin1Char(' ') ? int(Qt::Key_Space) : Qt::Key_A + (c.toLower().unicode() - u'a');
+                QKeyEvent down(QEvent::KeyPress, code, Qt::NoModifier, QString(c));
+                QApplication::sendEvent(target, &down);
+            }
+        };
+        picker->setValue(QStringLiteral("pagedown"));  // typing searches the column of the selection (Navigation)
+        picker->openPopup();
+        if (picker->popupOpen() && picker->popupView()) {
+            active = picker;
+            QColumnView *view = picker->popupView();
+            typeText(view, QStringLiteral("pageu"));
+            const QString shown = view->currentIndex().data().toString();
+            check(shown == TK("Page up"), "typing the name of the file finds the key (pageup is shown as Page up)");
+            QThread::msleep(1100);  // the typed letters are forgotten after a second
+            typeText(view, QStringLiteral("pagedo"));
+            check(view->currentIndex().data().toString() == TK("Page down"), "typing again after a pause starts a new search");
+            picker->closePopup();
+        }
+    }
     delete picker;
     std::printf("key tree picker self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
+// The names of keys in the German interface: the names a German keyboard shows are displayed, the stored names stay English.
+// Loads the catalog built next to the program for the duration of the test (the self-test runs in English otherwise).
+static bool germanKeyNamesSelfTest(QWidget *host) {
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "German key names self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    QTranslator de;
+    if (!de.load(QStringLiteral("dofscroll_de"), QApplication::applicationDirPath())) {
+        std::printf("German key names self-test: skipped (no catalog)\n");
+        return true;
+    }
+    QApplication::installTranslator(&de);
+    check(TK("Delete") == QStringLiteral("Entf") && T("Delete") == QStringLiteral("L\u00f6schen"), "Delete is Entf on the key and L\u00f6schen on a button");
+    check(TK("Left arrow") == QStringLiteral("Pfeil links") && TK("Space") == QStringLiteral("Leertaste") && TK("Page up") == QStringLiteral("Bild auf") &&
+              TK("Escape") == QStringLiteral("Esc") && TK("Enter") == QStringLiteral("Eingabe") && TK("Ctrl") == QStringLiteral("Strg"), // check-english: allow
+          "the names of a German keyboard");
+    auto *picker = makeKeyTreePicker(QStringLiteral("delete"), host);
+    picker->show();
+    check(picker->text() == QStringLiteral("Entf") && picker->value() == QStringLiteral("delete"), "the picker shows Entf and holds delete");
+    check(picker->toolTip().endsWith(QStringLiteral("Entf")), "the path in the tooltip names the key as shown");
+    picker->openPopup();
+    if (picker->popupOpen() && picker->popupView()) {
+        QColumnView *view = picker->popupView();
+        check(view->currentIndex().data().toString() == QStringLiteral("Entf") && view->currentIndex().data(Qt::UserRole + 1).toString() == QStringLiteral("delete") &&
+                  view->currentIndex().data(Qt::ToolTipRole).toString().endsWith(QStringLiteral("delete")),
+              "the list shows Entf and the tooltip says what is stored");
+        for (const QChar c : QStringLiteral("entf")) {
+            QKeyEvent down(QEvent::KeyPress, Qt::Key_A + (c.unicode() - u'a'), Qt::NoModifier, QString(c));
+            QApplication::sendEvent(view, &down);
+        }
+        check(view->currentIndex().data().toString() == QStringLiteral("Entf"), "typing the shown name finds the key");
+        QThread::msleep(1100);
+        for (const QChar c : QStringLiteral("backs")) {  // the file name of Backspace
+            QKeyEvent down(QEvent::KeyPress, Qt::Key_A + (c.unicode() - u'a'), Qt::NoModifier, QString(c));
+            QApplication::sendEvent(view, &down);
+        }
+        check(view->currentIndex().data().toString() == QStringLiteral("R\u00fccktaste"), "typing the English name of the file finds the key in the German list");
+        picker->closePopup();
+    }
+    delete picker;
+    QApplication::removeTranslator(&de);
+    std::printf("German key names self-test: %s\n", ok ? "ok" : "failed");
     return ok;
 }
 
@@ -3537,7 +3607,9 @@ static bool wideGlyphPagesSelfTest() {
     const QFont baseFont = QApplication::font();
     // 1100 px is the documented window width: no horizontal scroll bar there, with the font as it is, with wider glyphs and
     // again as it is (the Settings page stacks its two columns when they do not fit)
-    for (const std::pair<int, int> &cfg : {std::make_pair(1100, 100), std::make_pair(1100, 130), std::make_pair(1100, 100)}) {
+    // 1000 px with glyphs 1.6 times wider is the hardest case of the Joystick modes page (its detail pane): only that page is checked there,
+    // and it is the last configuration (the window may have grown to the size those glyphs need)
+    for (const std::pair<int, int> &cfg : {std::make_pair(1100, 100), std::make_pair(1100, 130), std::make_pair(1100, 100), std::make_pair(1000, 160)}) {
         const int spacing = cfg.second;
         applyTheme(spn::ui::Theme::Light);
         QFont f = baseFont;
@@ -3546,13 +3618,13 @@ static bool wideGlyphPagesSelfTest() {
         w.resize(cfg.first, 900);
         settle();
         for (const std::string &id : w.pageIds()) {
-            w.showPage(QString::fromStdString(id));
+            w.showPage(QString::fromStdString(id));  // every page is shown in every configuration: a page that is skipped keeps stale size hints
             settle();
             QWidget *page = w.currentPage();
-            if (!page) continue;
+            if (!page || (spacing == 160 && id != "modes")) continue;
             for (QScrollArea *area : page->findChildren<QScrollArea *>()) {
                 if (!area->isVisibleTo(page) || !area->widgetResizable() || !area->horizontalScrollBar() || area->horizontalScrollBar()->maximum() <= 0) continue;
-                std::fprintf(stderr, "wide glyph pages self-test failed: spacing %d page %s: a horizontal scroll bar (%d px too wide)\n", spacing, id.c_str(),
+                std::fprintf(stderr, "wide glyph pages self-test failed: %d px, spacing %d, window %d px wide, page %s: a horizontal scroll bar (%d px too wide)\n", cfg.first, spacing, w.width(), id.c_str(),
                              area->horizontalScrollBar()->maximum());
                 for (QWidget *c : area->widget()->findChildren<QWidget *>())
                     if (c->isVisibleTo(area->widget()) && c->minimumSizeHint().width() > 250)
@@ -3789,7 +3861,20 @@ static bool newFunctionSelfTest() {
     auto *an = dlg->findChild<QCheckBox *>(QStringLiteral("newFunctionAnalog"));
     check(kindBox && neg && pos && an, "the dialog has the kind list, both key fields and the Analog box");
     if (!kindBox || !neg || !pos || !an) return false;
-    check(kindBox->count() == 6 && kindBox->itemText(0) == QStringLiteral("Key or key combination"), "six kinds, the key function first");
+    check(kindBox->count() == 6 && kindBox->itemText(0) == QStringLiteral("Key or combination"), "six kinds, the key function first");
+    {   // the dialog has no main action: no button is painted as the default button (the first "Press a key..." was), and Enter still works
+        int defaults = 0;
+        for (QPushButton *b : dlg->findChildren<QPushButton *>()) defaults += (b->isDefault() || b->autoDefault()) ? 1 : 0;
+        check(defaults == 0, "no button of the New function dialog is the default or an auto-default button");
+        KeyCaptureButton *capture = neg->captureButton();
+        if (capture) {
+            capture->setFocus();
+            sendKeyTo(capture, Qt::Key_Return);
+            check(capture->capturing(), "Enter on the focused Press a key button starts the capture");
+            sendKeyTo(capture, Qt::Key_Escape);
+            check(!capture->capturing(), "Esc cancels the capture");
+        }
+    }
     check(dlg->draft().kind == FunctionKind::Key && dlg->writes() == 0, "opening the dialog writes nothing");
     check(rig.waitSaved() && !stored("H_TILT_ACTION"), "nothing is stored before the first edit");
 
@@ -3958,6 +4043,21 @@ static bool newFunctionSelfTest() {
                           mpos->accessibleName().contains(QStringLiteral("positive direction")) &&
                           mneg->findChild<QPushButton *>(QStringLiteral("macroRecord"))->accessibleName().contains(QStringLiteral("Horizontal tilt")),
                       "the macro editors and their buttons are named by the motion and the direction");
+                {   // the recording area is under the Record button: in sight at the top of the dialog, no scrolling needed
+                    auto *scroll = dlg->findChild<QScrollArea *>(QStringLiteral("newFunctionScroll"));
+                    QWidget *recBtn = mneg->findChild<QPushButton *>(QStringLiteral("macroRecord"));
+                    if (scroll && mneg->pad() && recBtn) {
+                        scroll->verticalScrollBar()->setValue(0);
+                        settle();
+                        const QRect padRect(mneg->pad()->mapTo(scroll->viewport(), QPoint(0, 0)), mneg->pad()->size());
+                        const int below = mneg->pad()->mapTo(mneg, QPoint(0, 0)).y() - recBtn->mapTo(mneg, QPoint(0, 0)).y();
+                        const bool inSight = scroll->viewport()->rect().contains(padRect) && below >= 0 && below < 3 * recBtn->height() + 40;
+                        if (!inSight)
+                            std::fprintf(stderr, "  recording area at y %d..%d of a viewport %d px high, %d px under the Record button\n", padRect.top(), padRect.bottom(),
+                                         scroll->viewport()->height(), below);
+                        check(inSight, "the recording area sits under the Record button and is visible without scrolling");
+                    }
+                }
                 // the keyboard alone: Record with the Space key, the key, Esc three times, no mouse
                 mneg->findChild<QCheckBox *>(QStringLiteral("macroRecordTimes"))->setChecked(false);
                 QPushButton *recordBtn = mneg->findChild<QPushButton *>(QStringLiteral("macroRecord"));
@@ -5929,6 +6029,7 @@ int main(int argc, char **argv) {
         if (!modeLibrarySelfTest(ctx, tmp.path())) return 1;
         if (!modeEditorTabsSelfTest(ctx)) return 1;
         if (!keyTreePickerSelfTest(&w)) return 1;
+        if (!germanKeyNamesSelfTest(&w)) return 1;
         ModesPage modes(ctx);  // standalone (own catalog): built-in normal, off, timeline + the file mode
         modes.show();
         Tray tray(&w, icon, ctx);

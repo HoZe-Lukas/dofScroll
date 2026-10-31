@@ -12,6 +12,10 @@
 
 inline QString T(const char *english) { return QCoreApplication::translate("", english); }
 
+// The name of a key as the German keyboard shows it ("Delete" is "Entf" on the key and "Löschen" on a button): msgctxt "key" in the catalog // check-english: allow
+// (lconvert makes it the disambiguation comment of the entry). Only the displayed name; what files hold stays English.
+inline QString TK(const char *english) { return QCoreApplication::translate("", english, "key"); }
+
 // std::string in the models is always UTF-8.
 inline QString qs8(const std::string &s) { return QString::fromUtf8(s.data(), qsizetype(s.size())); }
 

@@ -2910,174 +2910,207 @@ msgid "Playback"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Ctrl"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Shift"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
-msgid "Alt"
-msgstr ""
-
-#: src/ui/model/key_tree_model.hpp
-msgid "Super"
-msgstr ""
-
-#: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Up arrow"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Down arrow"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Left arrow"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Right arrow"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Home"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "End"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Page up"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Page down"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Enter"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
-msgid "Tab"
-msgstr ""
-
-#: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Space"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
+msgid "Delete"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Backspace"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Escape"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Insert"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
-msgid "Plus"
-msgstr ""
-
-#: src/ui/model/key_tree_model.hpp
-msgid "Minus"
-msgstr ""
-
-#: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Multiply"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Divide"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Decimal point"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Comma"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Period"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Slash"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Backslash"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Semicolon"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Apostrophe"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Left bracket"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Right bracket"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Grave accent"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Equal sign"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Caps Lock"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Print Screen"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Scroll Lock"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Menu"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Num Lock"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Play / Pause"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Next track"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Previous track"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Stop"
 msgstr ""
 
 #: src/ui/model/key_tree_model.hpp
+msgctxt "key"
+msgid "Volume up"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgctxt "key"
+msgid "Volume down"
+msgstr ""
+
+#: src/ui/model/key_tree_model.hpp
+msgctxt "key"
 msgid "Mute"
 msgstr ""
 
@@ -3293,7 +3326,7 @@ msgid "choose a mouse button first"
 msgstr ""
 
 #: src/ui/model/new_function_model.hpp
-msgid "a button holds a plain key already: use Key or key combination"
+msgid "a button holds a plain key already: use Key or combination"
 msgstr ""
 
 #: src/ui/model/new_function_model.hpp
@@ -3394,4 +3427,8 @@ msgstr ""
 
 #: src/ui/model/part_tuning_model.hpp
 msgid "Inherited from the whole channel: %1"
+msgstr ""
+
+#: src/ui/model/new_function_model.hpp
+msgid "Key or combination"
 msgstr ""

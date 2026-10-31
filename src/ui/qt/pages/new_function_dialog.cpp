@@ -13,6 +13,8 @@
 #include <QVBoxLayout>
 
 #include "chord_field.hpp"
+#include "enter_button.hpp"
+#include "key_capture.hpp"
 #include "macro_editor.hpp"
 #include "plain_text.hpp"
 #include "ui/model/inheritance_model.hpp"
@@ -85,6 +87,11 @@ void NewFunctionDialog::build() {
     for (const FunctionKindInfo &k : functionKinds(env_.target, strings)) {
         kind_->addItem(qs8(k.label), int(k.kind));
         pageKinds_.push_back(k.kind);
+        if (k.kind == FunctionKind::Key) {
+            // the entry is short so that it is not cut in a narrow dialog; the full words stay for a screen reader and the tooltip
+            kind_->setItemData(kind_->count() - 1, T("Key or key combination"), Qt::AccessibleTextRole);
+            kind_->setItemData(kind_->count() - 1, T("Key or key combination"), Qt::ToolTipRole);
+        }
         auto *model = qobject_cast<QStandardItemModel *>(kind_->model());
         if (!k.available && model && model->item(kind_->count() - 1)) {
             model->item(kind_->count() - 1)->setEnabled(false);
@@ -172,13 +179,16 @@ void NewFunctionDialog::build() {
     auto *close = new QPushButton(T("Close"), this);
     close->setObjectName(QStringLiteral("newFunctionClose"));
     close->setAccessibleDescription(T("Close the window. The function stays as it is."));
-    close->setDefault(false);
-    close->setAutoDefault(false);
+    enterOnlyButton(close);
     connect(close, &QPushButton::clicked, this, &QDialog::accept);
     auto *row = new QHBoxLayout;
     row->addStretch(1);
     row->addWidget(close);
     outer->addLayout(row);
+
+    // The dialog has no main action (every change is applied at once): none of its buttons is the default button.
+    for (QPushButton *b : findChildren<QPushButton *>())
+        if (!qobject_cast<KeyCaptureButton *>(b)) enterOnlyButton(b);
 
     connect(kind_, &QComboBox::activated, this, [this](int idx) {
         if (quiet_) return;

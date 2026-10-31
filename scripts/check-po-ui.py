@@ -5,7 +5,8 @@
 
 A text without one is shown in English inside the German interface. The check reads the string literals that are
 passed to T() or tr() (and to fail() in the New function model, whose messages the dialog shows; adjacent literals are joined) and fails for those without a non-empty msgstr.
-A literal that is meant to stay as it is (a key name) is listed in KEEP.
+A literal that is meant to stay as it is (a key name) is listed in KEEP. The names of keys have their own context ("key",
+TK(), msgctxt "key"): they do not count here, tests/test_ui_key_names.cpp checks that every key has one.
 Usage: scripts/check-po-ui.py
 """
 import re
@@ -29,9 +30,11 @@ def joined(block):
 def main():
     po = (ROOT / "po" / "de.po").read_text(encoding="utf-8")
     done = set()
-    for m in re.finditer(r"^msgid ((?:%s\s*)+)\nmsgstr ((?:%s\s*)+)" % (LIT, LIT), po, re.M):
-        if joined(m.group(2)):
-            done.add(unescape(joined(m.group(1))))
+    for m in re.finditer(r"^(msgctxt %s\n)?msgid ((?:%s\s*)+)\nmsgstr ((?:%s\s*)+)" % (LIT, LIT, LIT), po, re.M):
+        if m.group(1):
+            continue  # another context (the names of keys): not the one of T()
+        if joined(m.group(3)):
+            done.add(unescape(joined(m.group(2))))
     files = sorted((ROOT / "src" / "ui").rglob("*.cpp")) + sorted((ROOT / "src" / "ui").rglob("*.hpp"))
     bad = []
     for f in files:

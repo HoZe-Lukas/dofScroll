@@ -100,10 +100,10 @@ inline std::vector<FunctionKindInfo> functionKinds(const FunctionTarget &t, cons
         out.push_back(i);
     };
     const bool motion = t.isMotion();
-    add(FunctionKind::Key, "Key or key combination", true, "");
+    add(FunctionKind::Key, "Key or combination", true, "");
     add(FunctionKind::Click, "Mouse click", true, "");
     add(FunctionKind::HoldKey, "Hold a key or button", motion,
-        s.tr("A button holds a plain key already while you hold the button: choose Key or key combination without a modifier."));
+        s.tr("A button holds a plain key already while you hold the button: choose Key or combination without a modifier."));
     add(FunctionKind::Macro, "Macro", new_function_detail::macroKnown(),
         s.tr("This version of dofscroll does not know macros yet."));
     add(FunctionKind::Wheel, "Scroll or zoom", motion, s.tr("A button cannot scroll or zoom: those need a motion of the cap."));
@@ -208,7 +208,7 @@ inline bool composeFunction(const FunctionTarget &t, const FunctionDraft &d, std
             }
             return true;
         case FunctionKind::HoldKey:
-            if (!motion) return fail("a button holds a plain key already: use Key or key combination");
+            if (!motion) return fail("a button holds a plain key already: use Key or combination");
             if (d.neg.empty() || d.pos.empty()) return fail("choose a key or button for each direction, or Nothing");
             if (d.neg == "none" && d.pos == "none") return fail("at least one direction needs a key or button");
             *text = "hold:" + d.neg + "," + d.pos;

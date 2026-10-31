@@ -101,6 +101,9 @@ public:
         setAccessibleName(accessible);
         setToolTip(T("Click, then press the key or key combination. Esc cancels."));
         setCheckable(false);
+        // not the default button of a dialog (Qt would make the first one blue); Enter on the focused button still starts the capture
+        setAutoDefault(false);
+        setDefault(false);
         idle();
         connect(this, &QPushButton::clicked, this, [this] {
             capturing_ = true;
@@ -117,6 +120,11 @@ public:
 protected:
     void keyPressEvent(QKeyEvent *e) override {
         if (!capturing_) {
+            if ((e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) && (e->modifiers() & ~Qt::KeypadModifier) == Qt::NoModifier) {
+                e->accept();  // Qt clicks a button with Enter only if it is a default or auto-default button
+                click();
+                return;
+            }
             QPushButton::keyPressEvent(e);
             return;
         }

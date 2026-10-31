@@ -58,9 +58,9 @@ inline std::string joinChord(const std::vector<std::string> &mods, const std::st
 
 // The label of a modifier for the people: translated, capitalised, the super key by the platform's name.
 inline QString modifierLabel(const std::string &mod) {
-    if (mod == "ctrl") return T("Ctrl");
-    if (mod == "shift") return T("Shift");
-    if (mod == "alt") return T("Alt");
+    if (mod == "ctrl") return TK("Ctrl");
+    if (mod == "shift") return TK("Shift");
+    if (mod == "alt") return TK("Alt");
 #if defined(Q_OS_MACOS)
     return T("Cmd");
 #elif defined(Q_OS_WIN)

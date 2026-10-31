@@ -221,3 +221,4 @@ bool QtActionRunner::restartInterface(std::string *err) {
 }
 
 std::string QtStrings::tr(const char *source) const { return T(source).toStdString(); }
+std::string QtStrings::keyLabel(const char *source) const { return TK(source).toStdString(); }

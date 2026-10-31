@@ -18,6 +18,8 @@
 #include "chord_field.hpp"
 #include "key_capture.hpp"
 #include "plain_text.hpp"
+#include "qt_action_runner.hpp"
+#include "ui/model/key_tree_model.hpp"
 #include "ui_i18n.hpp"
 
 using spn::MacroStep;
@@ -115,7 +117,6 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     v->setContentsMargins(0, 0, 0, 0);
 
     // ---- the recorder ----
-    v->addWidget(wrapLabel(T("Record the keys you press, or add the steps by hand below. Recording happens only in this window, while the recording area has the focus."), this, "macroIntro"));
     auto *recordRow = new QGridLayout;
     record_ = smallButton(T("Record"), "macroRecord", T("Start recording the keys you press into the steps below"), this);
     stop_ = smallButton(T("Record stop"), "macroRecordStop", T("Stop recording"), this);
@@ -123,6 +124,15 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     recordGrid_ = recordRow;
     recordButtons_ = {record_, stop_};
     v->addLayout(recordRow);
+    // the recording area right under the Record button: it is where the keys go, so it is visible without scrolling (the
+    // options for the times follow it)
+    pad_ = new MacroRecordPad(this);
+    v->addWidget(pad_);
+    recordNote_ = wrapLabel(QString(), this, "macroRecordNote");
+    recordNote_->hide();
+    v->addWidget(recordNote_);
+    // the explanation follows the recording area: Record and the area come first, they are what is needed to start
+    v->addWidget(wrapLabel(T("Record the keys you press, or add the steps by hand below. Recording happens only in this window, while the recording area has the focus."), this, "macroIntro"));
     // a check box does not wrap: a short text, the sentence in the label below
     times_ = new QCheckBox(T("Record the times"), this);
     times_->setObjectName(QStringLiteral("macroRecordTimes"));
@@ -133,11 +143,6 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     times_->setMinimumHeight(24);
     v->addWidget(times_);
     v->addWidget(wrapLabel(T("Also record the times between the keys. Off: a pause of 30 ms is put between the steps."), this, "macroTimesWords"));
-    pad_ = new MacroRecordPad(this);
-    v->addWidget(pad_);
-    recordNote_ = wrapLabel(QString(), this, "macroRecordNote");
-    recordNote_->hide();
-    v->addWidget(recordNote_);
 
     // ---- the steps ----
     auto *listLabel = wrapLabel(T("Steps:"), this);
@@ -278,9 +283,10 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
 }
 
 QString MacroEditor::stepWords(const MacroStep &s) const {
+    static const QtStrings strings;  // the keys are shown by their names in the interface language (the English text stays the chord)
     switch (s.kind) {
-        case MacroStep::Kind::Down: return T("Press %1").arg(qs8(spn::ui::macroStepChord(s)));
-        case MacroStep::Kind::Up: return T("Release %1").arg(qs8(spn::ui::macroStepChord(s)));
+        case MacroStep::Kind::Down: return T("Press %1").arg(qs8(spn::ui::chordDisplay(spn::ui::macroStepChord(s), strings)));
+        case MacroStep::Kind::Up: return T("Release %1").arg(qs8(spn::ui::chordDisplay(spn::ui::macroStepChord(s), strings)));
         case MacroStep::Kind::Wait: return T("Wait %1 ms").arg(s.waitMs);
     }
     return QString();

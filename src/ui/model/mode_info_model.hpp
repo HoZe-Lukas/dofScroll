@@ -18,6 +18,7 @@
 #include "mode_list.hpp"
 #include "modes.hpp"
 #include "ui/model/button_chip_model.hpp"
+#include "ui/model/key_tree_model.hpp"
 #include "ui/model/motion_summary_model.hpp"
 #include "ui/model/strings.hpp"
 
@@ -47,13 +48,13 @@ inline std::string channelActionWords(const ChannelAction &a, const StringProvid
         case ChannelActionType::PointerY: return s.tr("moves the mouse pointer up and down");
         case ChannelActionType::Keys:
             return format(s.tr("taps %1 in one direction and %2 in the other, faster the further you push"),
-                          {modelist::negChordText(a), modelist::posChordText(a)});
+                          {chordDisplay(modelist::negChordText(a), s), chordDisplay(modelist::posChordText(a), s)});
         case ChannelActionType::Step:
             return format(s.tr("taps %1 or %2 once per push"),
-                          {modelist::negChordText(a), modelist::posChordText(a)});
+                          {chordDisplay(modelist::negChordText(a), s), chordDisplay(modelist::posChordText(a), s)});
         case ChannelActionType::Hold:
             return format(s.tr("holds %1 or %2 while pushed"),
-                          {modelist::negChordText(a), modelist::posChordText(a)});
+                          {chordDisplay(modelist::negChordText(a), s), chordDisplay(modelist::posChordText(a), s)});
         case ChannelActionType::Macro: return s.tr("runs a macro once per push");
     }
     return std::string();
