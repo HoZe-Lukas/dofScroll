@@ -135,7 +135,8 @@ before happens by itself:
 
 - **The interface starts the daemon** when none runs: it waits about 6 seconds after its own start (so a
   login autostart, which starts both at the same moment, does not produce two daemons), then starts it
-  once: on Linux `systemctl --user start dofscroll.service` (the daemon binary directly if that fails),
+  once: on Linux `systemctl --user start dofscroll.service` (the daemon binary directly if that fails; the interface
+  then reloads it through the process id in its status file instead of the unit),
   on macOS `launchctl kickstart` when the LaunchAgent is loaded (otherwise the daemon inside the app),
   on Windows `dofscroll.exe` next to the interface. The daemon itself refuses to run twice (a lock in its
   private runtime directory on Linux and macOS, a named mutex on Windows).

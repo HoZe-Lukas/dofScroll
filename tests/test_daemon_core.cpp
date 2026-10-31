@@ -757,6 +757,27 @@ static void testModeRequest() {
     CHECK(r.core->runner().mode().id == "normal" && !tu::exists(modeRequestPath(r.dir)), "invalid id ignored");
 }
 
+// A daemon that no reload reaches (not under dofscroll.service, issue #338) still takes the tray's request: the one-second
+// poll sees the file twice in a row, which a reload that is on its way never allows (it consumes the file within
+// milliseconds).
+static void testModeRequestWithoutReload() {
+    Rig r(std::string(BASE_CONF), {{"alpha.conf", "BUTTON_3 = key:space\n"}});
+    r.run(0.1);
+    CHECK(statusKey(r, "pid") == std::to_string(fs::processId()), "the status file names the daemon process (%s)", statusKey(r, "pid").c_str());
+    std::string err;
+    CHECK(writeModeRequest(r.dir, "alpha", &err), "write request: %s", err.c_str());
+    r.run(0.1);
+    CHECK(r.core->runner().mode().id == "normal", "a request that was just written waits for its reload");
+    r.run(3.0);
+    CHECK(r.core->runner().mode().id == "alpha", "the poll applies it without a reload (%s)", r.core->runner().mode().id.c_str());
+    CHECK(!tu::exists(modeRequestPath(r.dir)), "request file is consumed");
+    // a reload that arrives in time wins and is not undone by the poll
+    CHECK(writeModeRequest(r.dir, "normal", &err), "write");
+    r.reload.pending = true;
+    r.run(3.0);
+    CHECK(r.core->runner().mode().id == "normal", "reload path unchanged (%s)", r.core->runner().mode().id.c_str());
+}
+
 // Precedence: global < device < mode overrides < app.
 static void testModeVsAppPrecedence() {
     Rig r("[global]\nTICK_HZ = 250\nMODE = m\n[app:x]\nZOOM_SENS = 8\n",
@@ -972,6 +993,7 @@ int main() {
     testReload();
     testInputMode();
     testModeRequest();
+    testModeRequestWithoutReload();
     testAutoReload();
     testDeviceAndWindowProfiles();
     testProgramLayerSwitch();

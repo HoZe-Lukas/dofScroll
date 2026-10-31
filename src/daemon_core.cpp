@@ -762,6 +762,30 @@ void DaemonCore::updateProfile(int64_t now_ns) {
             need_resolve = true;
             modes_changed = true;
         }
+        // The tray's mode request normally comes with a reload (above), which consumes the file within milliseconds. A
+        // daemon that no reload reaches (not started by dofscroll.service) would never see it, so a request that is
+        // still there at two polls in a row is taken here.
+        const std::string req_path = modeRequestPath(d_.paths.runtimeDir);
+        if (!req_path.empty() && fs::pathExists(req_path)) {
+            if (mode_request_seen_) {
+                mode_request_seen_ = false;
+                const std::string req = takeModeRequest(d_.paths.runtimeDir);
+                if (!req.empty() && modes_.find(req)) {
+                    for (auto &lp : lanes_) {
+                        lp->mode_override = req;
+                        lp->hold_active = false;
+                    }
+                    std::cerr << LOG << "Mode requested: " << sanitizeForLog(req) << std::endl;
+                    need_resolve = true;
+                } else if (!req.empty()) {
+                    std::cerr << LOG << "WARNING: requested mode '" << sanitizeForLog(req) << "' is not loaded" << std::endl;
+                }
+            } else {
+                mode_request_seen_ = true;
+            }
+        } else {
+            mode_request_seen_ = false;
+        }
     }
 
     uint64_t gen = reader_.dev_generation.load(std::memory_order_acquire);
@@ -980,7 +1004,7 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
         d_.writeStatus("profile=" + sanitizeForLog(first.match_desc) + "\ndevice=" + sanitizeForLog(first.device) +
                            "\napp=" + sanitizeForLog(wm_class_) + "\nmode=" + sanitizeForLog(first.runner->mode().id) +
                            "\ntoggle=" + toggleState(first) +
-                           "\nenabled=" + (first.settings.enabled ? "1" : "0") +
+                           "\npid=" + std::to_string(fs::processId()) + "\nenabled=" + (first.settings.enabled ? "1" : "0") +
                            "\npaused=" + (suspended_ ? "1" : "0") +
                            "\ndevices_seen=" + std::to_string(devices_seen_) +
                            (multi ? "\nlanes=" + std::to_string(lanes_.size()) : std::string()) +

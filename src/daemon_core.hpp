@@ -229,6 +229,7 @@ private:
 
     // Loop state (formerly locals of run())
     int64_t next_win_poll_ = 0, next_cfg_poll_ = 0, next_debug_ = 0, next_susp_poll_ = 0;
+    bool mode_request_seen_ = false;  // the one-second poll found the tray's mode request file at the previous poll too
     int64_t next_devcount_ = 0;
     int64_t next_session_poll_ = 0;
     bool session_active_ = true;
