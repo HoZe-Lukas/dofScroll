@@ -6,6 +6,7 @@
 // all fields are valid (and never before), and reading a stored action back into a draft.
 #undef NDEBUG
 #include <cassert>
+#include <clocale>
 #include <cstdio>
 #include <string>
 
@@ -242,6 +243,24 @@ int main() {
         bad.rateMin = "30";
         bad.rateMax = "5";
         assert(!applyFunction(m, app, tilt, bad, &pr) && pr[0].field == "rate_min" && nfHas(pr[0].message, "higher") && nfSection(m, app) == before);
+        // The interface runs with setlocale(LC_ALL, ""): in a decimal-comma locale "5.5" must still read as 5.5 (std::stod
+        // stops at the '.' and read both numbers as 5). Skipped where no such locale is installed.
+        {
+            const std::string prevNumeric = std::setlocale(LC_NUMERIC, nullptr) ? std::setlocale(LC_NUMERIC, nullptr) : "C";
+            bool comma = false;
+            for (const char *loc : {"de_DE.UTF-8", "it_IT.UTF-8", "fr_FR.UTF-8"})
+                if (std::setlocale(LC_NUMERIC, loc)) {
+                    comma = true;
+                    break;
+                }
+            if (comma) {
+                bad = d;
+                bad.rateMin = "5.5";
+                bad.rateMax = "5.2";
+                assert(!applyFunction(m, app, tilt, bad, &pr) && pr[0].field == "rate_min" && nfHas(pr[0].message, "higher") && nfSection(m, app) == before);
+                std::setlocale(LC_NUMERIC, prevNumeric.c_str());
+            }
+        }
         // a letter cannot repeat: the parser refuses analog, nothing is written
         bad = d;
         bad.neg = "a";

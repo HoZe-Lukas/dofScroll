@@ -296,7 +296,7 @@ inline std::vector<FunctionProblem> checkFunction(const FunctionTarget &t, const
             numbers = false;
         }
     }
-    if (numbers && fields.rates && !d.rateMin.empty() && !d.rateMax.empty() && std::stod(d.rateMin) > std::stod(d.rateMax))
+    if (numbers && fields.rates && !d.rateMin.empty() && !d.rateMax.empty() && strtodC(d.rateMin.c_str(), nullptr) > strtodC(d.rateMax.c_str(), nullptr))  // the C format, whatever LC_NUMERIC is
         out.push_back({"rate_min", "the lowest rate is higher than the highest"});
     return out;
 }
