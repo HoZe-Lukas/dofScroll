@@ -3607,8 +3607,9 @@ static bool wideGlyphPagesSelfTest() {
     const QFont baseFont = QApplication::font();
     // 1100 px is the documented window width: no horizontal scroll bar there, with the font as it is, with wider glyphs and
     // again as it is (the Settings page stacks its two columns when they do not fit)
-    // 1000 px with glyphs 1.6 times wider is the hardest case of the Joystick modes page (its detail pane): only that page is checked there
-    for (const std::pair<int, int> &cfg : {std::make_pair(1100, 100), std::make_pair(1100, 130), std::make_pair(1000, 160), std::make_pair(1100, 100)}) {
+    // 1000 px with glyphs 1.6 times wider is the hardest case of the Joystick modes page (its detail pane): only that page is checked there,
+    // and it is the last configuration (the window may have grown to the size those glyphs need)
+    for (const std::pair<int, int> &cfg : {std::make_pair(1100, 100), std::make_pair(1100, 130), std::make_pair(1100, 100), std::make_pair(1000, 160)}) {
         const int spacing = cfg.second;
         applyTheme(spn::ui::Theme::Light);
         QFont f = baseFont;
@@ -3623,7 +3624,7 @@ static bool wideGlyphPagesSelfTest() {
             if (!page || (spacing == 160 && id != "modes")) continue;
             for (QScrollArea *area : page->findChildren<QScrollArea *>()) {
                 if (!area->isVisibleTo(page) || !area->widgetResizable() || !area->horizontalScrollBar() || area->horizontalScrollBar()->maximum() <= 0) continue;
-                std::fprintf(stderr, "wide glyph pages self-test failed: spacing %d page %s: a horizontal scroll bar (%d px too wide)\n", spacing, id.c_str(),
+                std::fprintf(stderr, "wide glyph pages self-test failed: %d px, spacing %d, window %d px wide, page %s: a horizontal scroll bar (%d px too wide)\n", cfg.first, spacing, w.width(), id.c_str(),
                              area->horizontalScrollBar()->maximum());
                 for (QWidget *c : area->widget()->findChildren<QWidget *>())
                     if (c->isVisibleTo(area->widget()) && c->minimumSizeHint().width() > 250)
