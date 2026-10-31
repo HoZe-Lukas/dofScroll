@@ -23,7 +23,7 @@ journalctl --user -u dofscroll.service -n 50
 | Daemon log | `journalctl --user -u dofscroll.service` (`-f` to follow) |
 | Interface log | `journalctl --user -u dofscroll-ui.service` |
 | Log copy for the tray | `$XDG_RUNTIME_DIR/dofscroll.log` (at most 300 lines) |
-| Status file | `$XDG_RUNTIME_DIR/dofscroll-status` (`profile`, `device`, `app`, `enabled`, `paused`, `devices_seen`, `updated`); removed on clean exit |
+| Status file | `$XDG_RUNTIME_DIR/dofscroll-status` (`profile`, `device`, `app`, `enabled`, `paused`, `devices_seen`, `updated`, and `pid`, which the interface uses to reload a daemon that does not run under the unit); removed on clean exit |
 | Config | `~/.config/dofscroll/dofscroll.conf`, `devices/` and `apps/` (one file per profile), `modes/`, `buttons/` |
 
 For button indices and live axis values, stop the service and run `dofscroll --debug` in a terminal; it prints the axes about ten times per second and every button press with its index.
@@ -72,7 +72,7 @@ Force a backend with `BACKEND = x11` or `uinput` in `[global]` and restart the d
 - **Wrong direction or axis:** set `<CH>_SIGN = -1`, change `<CH>_MIX`, or run the axis assistant ("Axis assistant..." on the Axes page). Changes in `/etc/spnavrc` change axis meaning too.
 - **Keys stay pressed after a crash:** run `dofscroll --release-keys` or restart the service. After SIGKILL under X11 keys held through XTest are not released (known limitation, see [Security](Security)).
 - **Scrolling happens in another user's session:** the 3D mouse is shared, so every logged-in user's daemon sees it; each pauses while its own session is not the active one (`session=inactive` in the status file, `session inactive: output paused` in the log). If it still happens, check that `XDG_SESSION_ID` is set for the service, see [Security](Security).
-- **Config changes do not apply:** `systemctl --user kill -s HUP dofscroll.service` and check the journal for a rejected line; `BACKEND` needs a restart.
+- **Config changes do not apply:** `systemctl --user kill -s HUP dofscroll.service` and check the journal for a rejected line; `BACKEND` needs a restart. A daemon that does not run under that unit (started by hand) is reloaded by the interface through the `pid=` line of the status file, or by hand with `kill -HUP <pid>`; it also reads changed files within a second.
 - **A profile does not load, or is "defective":** the journal names the file. A `[device:...]` header in `apps/` (or the reverse), several sections in one file, or an unreadable file drops only that profile. Fix or remove the file; the settings window never overwrites a defective file. Two files with the same header name: the first one wins, the other is ignored with a warning.
 - **Profiles are gone after the upgrade (1.3.0):** each profile is now its own file in `devices/` and `apps/`; the first start of the interface moves them and keeps the old file as `backup/dofscroll.conf.pre-split`. Downgrade: `cat devices/*.conf apps/*.conf >> dofscroll.conf`. Details: [docs/troubleshooting.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/troubleshooting.md#after-the-upgrade-profiles-are-missing-or-defective).
 - **Doubled input in a 3D program:** `[app:<WM_CLASS>]` with `ENABLED = 0`.

@@ -17,7 +17,7 @@ not run on hardware (`docs/work-plan.md`).
 
 | Path | Purpose |
 |---|---|
-| `src/` | Sources (UI: `src/ui/model` toolkit-free, `src/ui/qt` Qt6 views). Headers are the contract. Shared logic: `config`, `dsp`, `modes`, `seed`, `device_db`, `key_engine`, `pointer_engine`, `macro`, `profile_files`; output: `output*`; platform code in `src/platform/` |
+| `src/` | Sources (UI: `src/ui/model` toolkit-free, `src/ui/qt` Qt6 views). Headers are the contract. Shared logic: `config`, `dsp`, `modes`, `seed`, `device_db`, `key_engine`, `pointer_engine`, `macro`, `profile_files`; output: `output*`; platform code in `src/platform/` (Linux reload by process id: `src/platform/linux/reload_fallback.hpp`). In `src/ui/model`: `part_tuning*.hpp` writes the independent tuning of a push or tilt in a profile (`SCROLL_<V|H>_<PUSH|TILT>_*`, splits the channel on the first edit) |
 | `tests/` | Unit and scenario tests (`tests/test_*.cpp`, plain `assert`) |
 | `examples/` | Example configs (CI-validated), `default/` (seeded on first start), `split/` (one file per profile), `modes/` and `buttons/` (built into the program) |
 | `devices/` | Device descriptions, format in `docs/devices.md` |
@@ -44,7 +44,7 @@ open (`Text file busy`); stop it before rebuilding.
 
 - Text is UTF-8 everywhere (BOM read, never written, LF written); case-insensitive matching folds ASCII only; never use `isalpha`/`tolower` on UTF-8 bytes (use `src/utf8.hpp`); see `docs/encoding.md`.
 
-- UI: no Save, Revert or "unsaved changes" question anywhere. Every edit goes into the model and is written by the autosave (`UiContext::saveSoon()` / `saveTyped()`, `src/ui/model/autosave.hpp`); an invalid value is never written and is shown next to its field. The two kinds of modes are called "Joystick mode" and "Button mode" in the UI (never plain "mode"; `src/ui/model/ui_terms.hpp`). Inheritance (Global < device < joystick mode overrides < program) is always shown in words.
+- UI: key names are shown translated (`StringProvider::keyLabel`, gettext context `key`, `tests/test_ui_key_names.cpp`); files, config text and the parser keep the English names. No Save, Revert or "unsaved changes" question anywhere. Every edit goes into the model and is written by the autosave (`UiContext::saveSoon()` / `saveTyped()`, `src/ui/model/autosave.hpp`); an invalid value is never written and is shown next to its field. The two kinds of modes are called "Joystick mode" and "Button mode" in the UI (never plain "mode"; `src/ui/model/ui_terms.hpp`). Inheritance (Global < device < joystick mode overrides < program) is always shown in words.
 
 - English everywhere (code, comments, docs, logs, commits). Only `po/*.po` has other languages. One documented exception: the website under `site/de/` is German (the maintainer's decision, so German users find the project); `site/` (English) and `docs/discoverability.md` stay English, and `scripts/check-english.sh` stays strict everywhere else. `scripts/check-site.sh` keeps both languages in parity.
   UI strings are English in the source and translated through gettext.
