@@ -155,8 +155,12 @@ the result into the issue: what you ran, on what, what happened. Close an issue 
   submitted by someone with a Qt account; the "Known limitations" of the release notes name the issue.
 - [ ] **D4. Pull requests of other agents.** Re-check `git log origin/main` and the open pull requests
   (`gh pr list --repo $REPO`). The notes, the wiki, the website (English and German) and the screenshots cover everything
-  up to #321 (pointer #310, tiles #311, macros #309, New function #305, parser hardening #308, audit fixes #313, #314, #316,
-  #321, UI #315, #320). For every pull request that landed after that: add its line to "All changes", update the matching
+  up to #343 (pointer #310, tiles #311, macros #309, New function #305, parser hardening #308, audit fixes #313, #314, #316,
+  #321, UI #315, #320, #326, push and tilt tuned independently #332, the UI-vs-daemon audit #334 to #341, UX round 3 #342).
+  The release notes list all of them; the pages of `docs/` were updated in the same pull requests, the wiki pages FAQ,
+  Profiles and Writing-modes with #332. Not done: the German website screenshots in `site/img/de/` (issue #344, needs a
+  machine with the usual font setup), and a check of the other wiki pages and the English and German website texts against
+  #332, #340 and #342. For every pull request that landed after that: add its line to "All changes", update the matching
   doc, the wiki and the website (informal "du" in German) and the screenshots (`scripts/make-site-screenshots.sh`, with
   `QT_QPA_PLATFORM=offscreen`). Anything not merged stays out of the text.
 - [ ] **D5. `gh issue list --repo $REPO --state open`**. Many issues of the audits are
