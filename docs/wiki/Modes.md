@@ -96,7 +96,7 @@ The vertical channel mixes push forward/back (`z`) and tilt forward/back (`rx`),
 
 - The push part is the translation terms of the channel's mix (`x`, `y`, `z`), the tilt part the rotation terms (`rx`, `rz`), with the weights and signs you configured (defaults: V push `z`, V tilt `rx`, H push `x`, H tilt `-rz`). The twist term `ry` belongs to neither.
 - A joystick mode without these keys behaves exactly as before. If a joystick mode sets at least one split key of a channel, that channel runs as two independent sub-channels; a part without its own key uses `V_ACTION` / `H_ACTION`.
-- Each part uses the sensitivity, dead zone, curve, smoothing and sign of its channel. `SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>` replace single values with absolute values (not multipliers).
+- Each part uses the sensitivity, dead zone, curve, smoothing and sign of its channel. In Global, device and program profiles the parts can be tuned independently as well; the interface writes the keys for you on the first edit. `SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>` replace single values with absolute values (not multipliers).
 
 Details: [docs/modes.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/modes.md#split-push-and-tilt).
 
@@ -141,7 +141,7 @@ A joystick mode that turns output off (like `off`) leaves the device inactive. G
 ## Joystick mode library
 
 In the interface (page Joystick modes) you can export a joystick mode file, rename it (new name and id; profiles that
-use the old id are listed first and keep pointing at it), see which profiles use a joystick mode, and import
+use the old id are listed first and keep pointing at it), see which profiles, joystick modes and button modes use a joystick mode, and import
 `.conf` files by dropping them onto the page. Imports get the same checks and the safety
 confirmation as the Import button. The id `release` is a normal joystick mode id.
 

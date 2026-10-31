@@ -20,13 +20,13 @@ The file is UTF-8 (a BOM is accepted, never written; LF written, CRLF accepted);
 | Legacy paths | `~/.config/spnav-scroll/spnav-scroll.conf` and `~/.config/spnav-scroll.conf`, read only if the new file is missing |
 | Windows | `%APPDATA%\dofscroll\` with `dofscroll.conf`, `devices\`, `apps\`, same format (unverified on hardware) |
 
-Format: `KEY = value`, sections `[name]`, comments with `#` or `;`. Keys are case-sensitive and upper case. The daemon reloads on `SIGHUP` and when `dofscroll.conf` or a profile file changes; only `BACKEND` needs a restart. The settings window rewrites only the changed files, without keeping comments (atomically, keeping the file mode). Older versions kept the profiles as sections in `dofscroll.conf`; that format is still read (a profile file wins over a section of the same name), and the first start of the interface moves the sections into files and keeps the old file as `backup/dofscroll.conf.pre-split`. Downgrade: `cat devices/*.conf apps/*.conf >> dofscroll.conf` in the config folder. Details: [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
+Format: `KEY = value`, sections `[name]`, comments with `#` or `;`. Keys are case-sensitive and upper case. The daemon reloads on `SIGHUP` (the interface sends it through the unit, or through the process id in the status file when no unit runs the daemon) and when `dofscroll.conf` or a profile file changes; only `BACKEND` needs a restart. The settings window rewrites only the changed files, without keeping comments (atomically, keeping the file mode). Older versions kept the profiles as sections in `dofscroll.conf`; that format is still read (a profile file wins over a section of the same name), and the first start of the interface moves the sections into files and keeps the old file as `backup/dofscroll.conf.pre-split`. Downgrade: `cat devices/*.conf apps/*.conf >> dofscroll.conf` in the config folder. Details: [docs/configuration.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/configuration.md).
 
 Limits: `dofscroll.conf` and a profile file up to 1 MiB each, at most 255 profile files per folder, line up to 33 KiB, an action text up to 32 KiB, 256 sections, 10000 keys per section, 12 mix terms, 64 curve points. Duplicate key in one section: the last wins. Invalid values are rejected with a message in the log.
 
 ## Channels
 
-Three channels, each with its own axis mix, sensitivity, dead zone, direction, curve and smoothing: `SCROLL_V` (vertical), `SCROLL_H` (horizontal) and `ZOOM` (twist). The push and tilt parts of V and H can be tuned on their own (`SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>`), and the lift is a sixth motion with `LIFT_MIX` (default `y`; the Windows and macOS seeds use `z`), `LIFT_SENS`, `LIFT_DEADZONE` (default 80), `LIFT_SIGN`, `LIFT_CURVE` and `LIFT_SMOOTH_MS`.
+Three channels, each with its own axis mix, sensitivity, dead zone, direction, curve and smoothing: `SCROLL_V` (vertical), `SCROLL_H` (horizontal) and `ZOOM` (twist). The push and tilt parts of V and H can be tuned on their own (`SCROLL_<V|H>_<PUSH|TILT>_<SENS|DEADZONE|SIGN|CURVE|SMOOTH_MS>`, in joystick modes and in Global, device and program profiles; they act while the channel is split, the interface splits it on your first edit, and the keys of the whole channel are the starting values of both parts), and the lift is a sixth motion with `LIFT_MIX` (default `y`; the Windows and macOS seeds use `z`), `LIFT_SENS`, `LIFT_DEADZONE` (default 80), `LIFT_SIGN`, `LIFT_CURVE` and `LIFT_SMOOTH_MS`.
 
 | Key | Default V / H / ZOOM | Meaning |
 |---|---|---|
@@ -52,7 +52,7 @@ The seeded config uses different values than these built-in defaults; it is a st
 
 | Key | Default | Meaning |
 |---|---|---|
-| `INVERT_AXES` | `none` | Axes whose direction is flipped in every joystick mode: a list of `x y z rx ry rz`, or `none`; per device and per program as well |
+| `INVERT_AXES` | `none` | Axes whose direction is flipped in every joystick mode: a list of `x y z rx ry rz`, or `none`; per device and per program as well. Applying the axis assistant sets it to `none` in `[global]` (profiles with their own value keep it) |
 | `ZOOM_MODIFIER` | `ctrl` | Keys held while a zoom action sends the mouse wheel: `ctrl`, `shift`, `alt`, `super` (Command on macOS), a combination such as `ctrl+shift`, or `none` |
 | `ZOOM_LATERAL` | `x z rx rz` | Axes the twist must dominate to enter zoom |
 | `ZOOM_ENTER_MS` | `40` | How long the twist must dominate before zoom latches |
