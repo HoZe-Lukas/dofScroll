@@ -452,6 +452,14 @@ QGroupBox *ChannelsEditor::buildGroup(const SettingsModel::Group &g) {
     const std::string pre = g.id == "scroll_v" ? "SCROLL_V_" : g.id == "scroll_h" ? "SCROLL_H_" : "ZOOM_";
 
     if (isChannel) {
+        if (g.id == "scroll_v" || g.id == "scroll_h") {  // these keys belong to push AND tilt: said in words, with the way to tune them apart
+            auto *both = new QLabel(T("These values apply to the push and the tilt of this direction together. To give the push and the tilt their own sensitivity, dead zone, direction, curve or smoothing, use the Motions and buttons tab of a profile or the Joystick modes page."));
+            both->setObjectName(QStringLiteral("channelBothNote"));
+            both->setWordWrap(true);
+            both->setTextFormat(Qt::PlainText);
+            grid->addWidget(both, row, 0, 1, 3);
+            ++row;
+        }
         for (const KeyText &kt : kChannelKeys) {
             const std::string key = pre + kt.suffix;
             const QString help = T(kt.help);

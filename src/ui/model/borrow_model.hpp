@@ -416,6 +416,7 @@ inline bool borrowMotionIntoMode(const SettingsModel &m, ModeForm &form, const S
         return false;
     }
     if (!tuning) return true;
+    splitForEdit(form, base, motion, std::string());  // the part keys act only while the channel is split (assign collapses two equal actions)
     const TuningSink sink = [&](const std::string &k, const std::string &v, std::string *) {
         form.setOverride(k, v);
         return true;

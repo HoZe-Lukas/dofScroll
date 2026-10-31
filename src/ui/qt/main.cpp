@@ -952,7 +952,7 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
         settle();
         QComboBox *vk = nullptr;
         for (QComboBox *cb : ed->findChildren<QComboBox *>())
-            if (cb->accessibleName() == QStringLiteral("Vertical push") && cb->isVisibleTo(ed)) vk = cb;
+            if (cb->accessibleName() == QStringLiteral("Vertical push and tilt") && cb->isVisibleTo(ed)) vk = cb;
         check(vk && vk->currentData().toInt() == int(spn::ChannelActionType::Keys), "the Settings tab shows the same action");
         ed->selectTab(QStringLiteral("motions"));
         settle();
@@ -964,13 +964,53 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
         if (cb->accessibleName() == QStringLiteral("Vertical push: Reverse direction")) rev = cb;
     check(rev != nullptr, "the inspector has a reverse switch");
     if (rev) rev->click();
-    check(settleWrite() && fileText(rel).contains(QStringLiteral("SCROLL_V_SIGN = -1")), "reverse writes the sign");
+    // a push reverses itself only: the channel is split (both parts keep their action) and the tilt keeps its direction
+    check(settleWrite() && fileText(rel).contains(QStringLiteral("SCROLL_V_PUSH_SIGN = -1")) && !fileText(rel).contains(QStringLiteral("SCROLL_V_SIGN")) &&
+              !fileText(rel).contains(QStringLiteral("SCROLL_V_TILT_SIGN")) && fileText(rel).contains(QStringLiteral("V_TILT_ACTION = keys:up,down")),
+          "reverse of the push writes the sign of the push only and splits the channel");
     sel(QStringLiteral("m:v_push"));
     for (QCheckBox *cb : me()->inspector()->findChildren<QCheckBox *>())
         if (cb->accessibleName() == QStringLiteral("Vertical push: Reverse direction")) rev = cb;
     check(rev && rev->isChecked(), "and the switch shows it");
+    {
+        sel(QStringLiteral("m:v_tilt"));
+        QCheckBox *tiltRev = nullptr;
+        for (QCheckBox *cb : me()->inspector()->findChildren<QCheckBox *>())
+            if (cb->accessibleName() == QStringLiteral("Vertical tilt: Reverse direction")) tiltRev = cb;
+        check(tiltRev && !tiltRev->isChecked(), "the tilt is not reversed with the push");
+        if (tiltRev) tiltRev->click();
+        check(settleWrite() && fileText(rel).contains(QStringLiteral("SCROLL_V_TILT_SIGN = -1")) && fileText(rel).contains(QStringLiteral("SCROLL_V_PUSH_SIGN = -1")),
+              "reverse of the tilt writes the sign of the tilt and leaves the push alone");
+        if (tiltRev) {
+            tiltRev->click();
+            check(settleWrite() && !fileText(rel).contains(QStringLiteral("SCROLL_V_TILT_SIGN")) && fileText(rel).contains(QStringLiteral("SCROLL_V_PUSH_SIGN = -1")),
+                  "and the push stays reversed when the tilt is switched back");
+        }
+        sel(QStringLiteral("m:v_push"));
+        for (QCheckBox *cb : me()->inspector()->findChildren<QCheckBox *>())
+            if (cb->accessibleName() == QStringLiteral("Vertical push: Reverse direction")) rev = cb;
+        // the tuning box: curve of the tilt does not change the push (and a tilt of an unsplit channel would split it first)
+        sel(QStringLiteral("m:v_tilt"));
+        QLineEdit *tcurve = nullptr;
+        for (QLineEdit *e : me()->inspector()->findChildren<QLineEdit *>())
+            if (e->toolTip() == QStringLiteral("SCROLL_V_TILT_CURVE")) tcurve = e;
+        check(tcurve != nullptr && !tcurve->accessibleDescription().isEmpty(), "the tuning of the tilt is a field of the tilt, with a description");
+        if (tcurve) {
+            tcurve->setText(QStringLiteral("2"));
+            emit tcurve->textEdited(QStringLiteral("2"));
+            check(settleWrite() && fileText(rel).contains(QStringLiteral("SCROLL_V_TILT_CURVE = 2")) && !fileText(rel).contains(QStringLiteral("SCROLL_V_PUSH_CURVE")) &&
+                      !fileText(rel).contains(QStringLiteral("SCROLL_V_CURVE")),
+                  "the curve of the tilt is the key of the tilt");
+            tcurve->clear();
+            emit tcurve->textEdited(QString());
+            check(settleWrite() && !fileText(rel).contains(QStringLiteral("SCROLL_V_TILT_CURVE")), "an empty field removes it again");
+        }
+    }
+    sel(QStringLiteral("m:v_push"));
+    for (QCheckBox *cb : me()->inspector()->findChildren<QCheckBox *>())
+        if (cb->accessibleName() == QStringLiteral("Vertical push: Reverse direction")) rev = cb;
     if (rev) rev->click();
-    check(settleWrite() && !fileText(rel).contains(QStringLiteral("SCROLL_V_SIGN")), "switching it off removes the line");
+    check(settleWrite() && !fileText(rel).contains(QStringLiteral("SCROLL_V_PUSH_SIGN")), "switching it off removes the line");
     // lift / press: a warning in words, and it joins a channel mix
     sel(QStringLiteral("m:lift"));
     {
@@ -2271,6 +2311,97 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                 settle();
                 check(originOf(QStringLiteral("Inherited")), "Inherit removes the override");
             }
+            {   // Push and tilt are tuned independently (part_tuning_model.hpp): the tuning of one motion is written as the keys of that motion
+                // only; the other motion keeps what it inherits. Twist and lift have keys of their own.
+                auto field = [&](const char *suffix) { return mv->inspector()->findChild<QLineEdit *>(QStringLiteral("tune_") + QLatin1String(suffix)); };
+                auto resetOf = [&](const char *suffix) { return mv->inspector()->findChild<QPushButton *>(QStringLiteral("tuneReset_") + QLatin1String(suffix)); };
+                auto originWords = [&](const char *suffix) {
+                    QLabel *l = mv->inspector()->findChild<QLabel *>(QStringLiteral("tuneOrigin_") + QLatin1String(suffix));
+                    return l ? l->text() : QString();
+                };
+                auto onDisk = [&](const char *key) { return diskKey(rig, Section::APP, "firefox", key); };
+                auto type = [&](QLineEdit *e, const char *text) {
+                    e->setText(QLatin1String(text));
+                    emit e->textEdited(QLatin1String(text));
+                };
+                check(mv->select(QStringLiteral("m:v_tilt")), "select the vertical tilt for its own tuning");
+                settle();
+                check(mv->inspector()->findChild<QLabel *>(QStringLiteral("partTuningNote")) != nullptr, "the tuning of a tilt says how push and tilt relate");
+                bool described = true;
+                for (const char *s : {"SENS", "DEADZONE", "SIGN", "CURVE", "SMOOTH_MS"})
+                    described = described && field(s) && !field(s)->accessibleName().isEmpty() && !field(s)->accessibleDescription().isEmpty() && resetOf(s) &&
+                                !resetOf(s)->accessibleName().isEmpty() && !resetOf(s)->accessibleDescription().isEmpty();
+                check(described, "every tuning field and its Inherit button have an accessible name and description");
+                if (field("CURVE") && field("SIGN")) {
+                    type(field("CURVE"), "2");
+                    check(rig.waitSaved() && onDisk("SCROLL_V_TILT_CURVE") == std::optional<std::string>("2"), "the curve of the tilt is written as the key of the tilt");
+                    check(!onDisk("SCROLL_V_CURVE") && !onDisk("SCROLL_V_PUSH_CURVE") && !onDisk("SCROLL_H_TILT_CURVE"), "and no other key: the push and the channel are not changed");
+                    check(onDisk("V_PUSH_ACTION") && onDisk("V_TILT_ACTION"), "the channel is split for it (both parts keep what they did)");
+                    type(field("SIGN"), "-1");
+                    check(rig.waitSaved() && onDisk("SCROLL_V_TILT_SIGN") == std::optional<std::string>("-1") && !onDisk("SCROLL_V_SIGN") && !onDisk("SCROLL_V_PUSH_SIGN"),
+                          "the direction of the tilt is the key of the tilt");
+                    mv->setSection(2, true);  // as after the autosave
+                    settle();
+                    check(mv->select(QStringLiteral("m:v_tilt")), "select the tilt again");
+                    settle();
+                    check(originWords("CURVE").startsWith(QStringLiteral("Set in this profile for this motion only")) && resetOf("CURVE") && resetOf("CURVE")->isEnabled(),
+                          "the tilt says in words that the curve is its own");
+                    // the push of the same direction keeps the inherited values and says so
+                    check(mv->select(QStringLiteral("m:v_push")), "select the vertical push");
+                    settle();
+                    check(field("CURVE") && field("CURVE")->text() == QStringLiteral("1") && field("SIGN") && field("SIGN")->text() == QStringLiteral("1"),
+                          "the push still shows the inherited curve and direction");
+                    check(originWords("CURVE").startsWith(QStringLiteral("Inherited from the whole channel")) && resetOf("CURVE") && !resetOf("CURVE")->isEnabled(),
+                          "the push says it inherits from the whole channel");
+                    // and the other way round: the direction of the push does not reverse the tilt
+                    if (field("SIGN")) type(field("SIGN"), "-1");
+                    check(rig.waitSaved() && onDisk("SCROLL_V_PUSH_SIGN") == std::optional<std::string>("-1") && onDisk("SCROLL_V_TILT_SIGN") == std::optional<std::string>("-1") &&
+                              !onDisk("SCROLL_V_SIGN"),
+                          "the direction of the push is the key of the push");
+                    check(mv->select(QStringLiteral("m:v_tilt")), "select the tilt for Inherit");
+                    settle();
+                    if (resetOf("SIGN")) resetOf("SIGN")->click();
+                    settle();
+                    check(rig.waitSaved() && !onDisk("SCROLL_V_TILT_SIGN") && onDisk("SCROLL_V_PUSH_SIGN") == std::optional<std::string>("-1"),
+                          "Inherit of the tilt removes its key and leaves the push as it is");
+                    check(mv->select(QStringLiteral("m:v_tilt")), "select the tilt for the last Inherit");
+                    settle();
+                    if (resetOf("CURVE")) resetOf("CURVE")->click();
+                    settle();
+                    check(rig.waitSaved() && !onDisk("SCROLL_V_TILT_CURVE") && field("CURVE") && field("CURVE")->text() == QStringLiteral("1") &&
+                              originWords("CURVE").startsWith(QStringLiteral("Inherited from the whole channel")),
+                          "Inherit of the curve of the tilt: it follows the whole channel again");
+                    check(mv->select(QStringLiteral("m:v_push")), "select the push for Inherit");
+                    settle();
+                    if (resetOf("SIGN")) resetOf("SIGN")->click();
+                    settle();
+                    check(rig.waitSaved() && !onDisk("SCROLL_V_PUSH_SIGN") && !onDisk("V_PUSH_ACTION") && !onDisk("V_TILT_ACTION"),
+                          "when no value of the push or the tilt is left, the split that was only there for it goes too");
+                }
+                // the horizontal direction is independent of the vertical one and has the same fields
+                check(mv->select(QStringLiteral("m:h_push")) && (settle(), field("DEADZONE") != nullptr), "the horizontal push has its own tuning");
+                if (field("DEADZONE")) {
+                    type(field("DEADZONE"), "44");
+                    check(rig.waitSaved() && onDisk("SCROLL_H_PUSH_DEADZONE") == std::optional<std::string>("44") && !onDisk("SCROLL_H_DEADZONE") && !onDisk("SCROLL_H_TILT_DEADZONE"),
+                          "the dead zone of the horizontal push is the key of that motion");
+                    if (resetOf("DEADZONE")) resetOf("DEADZONE")->click();
+                    settle();
+                    check(rig.waitSaved() && !onDisk("SCROLL_H_PUSH_DEADZONE"), "and goes again with Inherit");
+                }
+                // twist and lift keep their own keys
+                check(mv->select(QStringLiteral("m:twist")), "select the twist for its tuning");
+                settle();
+                if (field("SENS")) {
+                    check(field("SENS")->accessibleDescription().contains(QStringLiteral("Twist")), "the twist fields name their motion");
+                    type(field("SENS"), "6");
+                    check(rig.waitSaved() && onDisk("ZOOM_SENS") == std::optional<std::string>("6") && !onDisk("SCROLL_V_PUSH_SENS"), "the sensitivity of the twist is ZOOM_SENS");
+                    if (resetOf("SENS")) resetOf("SENS")->click();
+                    settle();
+                    check(rig.waitSaved() && !onDisk("ZOOM_SENS"), "and goes with Inherit");
+                }
+                mv->setSection(2, true);
+                settle();
+            }
             // a button: the shared row (the Global profile always has the binding editor)
             check(page->selectSection(0) && page->selectTab(QStringLiteral("motions")), "Global, Motions and buttons tab");
             settle();
@@ -3203,8 +3334,8 @@ static bool modeFilesAutosaveSelfTest(const UiContext &ctx, const QString &tmpPa
                     if (cb->accessibleName() == channel + QStringLiteral(": Split push and tilt")) return cb;
                 return nullptr;
             };
-            QCheckBox *vs = splitSwitch(QStringLiteral("Vertical push"));
-            QCheckBox *hs = splitSwitch(QStringLiteral("Horizontal push"));
+            QCheckBox *vs = splitSwitch(QStringLiteral("Vertical push and tilt"));
+            QCheckBox *hs = splitSwitch(QStringLiteral("Horizontal push and tilt"));
             check(vs && hs && !vs->isChecked() && !hs->isChecked(), "both channels have a 'Split push and tilt' switch, off by default");
             if (vs) vs->click();
             check(waitFor([&] { return !ed->pending(); }, 2000) && fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("V_PUSH_ACTION = default")) &&
@@ -3248,7 +3379,7 @@ static bool modeFilesAutosaveSelfTest(const UiContext &ctx, const QString &tmpPa
                       !fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("SCROLL_V_TILT_SENS")),
                   "an empty tuning field removes the key (follows the channel)");
             // switching it off removes the keys again
-            vs = splitSwitch(QStringLiteral("Vertical push"));
+            vs = splitSwitch(QStringLiteral("Vertical push and tilt"));
             if (vs) vs->click();
             check(waitFor([&] { return !ed->pending(); }, 2000) && !fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("V_PUSH_ACTION")) &&
                       !fileText(QStringLiteral("/modes/mine.conf")).contains(QStringLiteral("V_TILT_ACTION")),

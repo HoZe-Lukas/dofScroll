@@ -32,6 +32,7 @@
 #include "profile_actions.hpp"
 #include "ui/model/inheritance_model.hpp"
 #include "ui/model/mode_editor_model.hpp"
+#include "ui/model/part_tuning.hpp"
 #include "ui/model/settings_model.hpp"
 #include "ui/model/strings.hpp"
 #include "utf8.hpp"
@@ -140,7 +141,16 @@ inline std::string keyTuningMotion(const SettingsModel &m, size_t section, const
 inline bool effectiveOn(const SettingsModel &m, size_t section, const std::string &id) {
     const ChannelActionType t = effectiveAction(m, section, id).type;
     if (t == ChannelActionType::Off || (id == "lift" && t == ChannelActionType::Default)) return false;  // the lift's default is none
-    return sensOf(m.effectiveWithMode(section), prefixOf(id)) != 0;
+    const Settings s = m.effectiveWithMode(section);
+    int sens = sensOf(s, prefixOf(id));
+    const int part = part_tuning::partIndex(id);
+    if (part >= 0 && (s.parts[part].set & PartTuning::F_SENS)) {  // the sensitivity of a part counts while the channel is split
+        ModeDef normal;
+        const ModeDef *def = m.modeDef(m.effectiveMode(section));
+        const ChannelActions ca = effectiveChannelActions(def ? *def : normal, s);
+        if (part < 2 ? ca.vSplit.active() : ca.hSplit.active()) sens = s.parts[part].cfg.sensitivity;
+    }
+    return sens != 0;
 }
 
 // The same without what the profile sets for this motion itself: what it would inherit.
@@ -149,6 +159,8 @@ inline bool inheritedOn(const SettingsModel &m, size_t section, const std::strin
     tmp.clearOverride(section, partKeyOf(id));
     tmp.clearOverride(section, channelKeyOf(id));
     tmp.clearOverride(section, prefixOf(id) + "SENS");
+    const int part = part_tuning::partIndex(id);
+    if (part >= 0) tmp.clearOverride(section, part_tuning::partPrefix(part) + "SENS");
     return effectiveOn(tmp, section, id);
 }
 
@@ -159,6 +171,17 @@ inline bool writeAction(SettingsModel &m, size_t section, const std::string &id,
                         const std::string &text, std::string *err) {
     std::string before;
     const bool had = ownText(m, section, key, &before);
+    // A part action of an unsplit channel splits it: tuning keys of the parts that did not act so far (and the key function values of
+    // the tilt, which ran on the push slot) are pinned to what the motions do now, so the split switches nothing on (part_tuning.hpp).
+    const int part = part_tuning::partIndex(id);
+    const Settings unsplit = m.effectiveWithMode(section);
+    bool wasSplit = true;
+    if (part >= 0) {
+        ModeDef normal;
+        const ModeDef *def = m.modeDef(m.effectiveMode(section));
+        const ChannelActions ca = effectiveChannelActions(def ? *def : normal, unsplit);
+        wasSplit = part < 2 ? ca.vSplit.active() : ca.hSplit.active();
+    }
     if (!m.setValue(section, key, text, err)) return false;  // invalid: nothing written
     ChannelAction want;
     parseChannelAction(text, &want, nullptr);
@@ -168,6 +191,8 @@ inline bool writeAction(SettingsModel &m, size_t section, const std::string &id,
         if (err) *err = "the joystick mode of this profile sets this motion; only a program profile can change it, or change it in the joystick mode";
         return false;
     }
+    if (part >= 0 && !wasSplit)
+        for (const KV &kv : part_tuning::splitPins(unsplit, part / 2, std::string())) m.setValue(section, kv.first, kv.second, nullptr);
     return true;
 }
 }  // namespace motion_edit_detail
@@ -186,9 +211,17 @@ inline MotionEdit motionEdit(const SettingsModel &m, size_t section, const std::
     const bool hasChan = !hasPart && ownText(m, section, channelKeyOf(motionId), &chanText);
     if (hasChan) own = chanText;
     const bool hasSens = ownText(m, section, e.prefix + "SENS", &ownSens);
+    // The tuning of a push or tilt is the tuning of that motion (its own SCROLL_<V|H>_<PUSH|TILT>_ keys); the keys of the whole
+    // channel belong to push and tilt together and are not "this motion's" (part_tuning_model.hpp).
     bool tuned = false;
-    for (const char *k : kChannelKeys)
-        if (m.isOverridden(section, e.prefix + k)) tuned = true;
+    const int part = part_tuning::partIndex(motionId);
+    if (part >= 0) {
+        for (int i = 0; i < part_tuning::kFieldCount; ++i)
+            if (m.isOverridden(section, part_tuning::partPrefix(part) + part_tuning::fields()[i].suffix)) tuned = true;
+    } else {
+        for (const char *k : kChannelKeys)
+            if (m.isOverridden(section, e.prefix + k)) tuned = true;
+    }
     e.on = effectiveOn(m, section, motionId);
     e.action = channelFormOf(effectiveAction(m, section, motionId));
     const bool clearedHere = (hasPart || hasChan) ? utf8::lowerAscii(own) == "none" : (hasSens && ownSens == "0");
@@ -270,8 +303,13 @@ inline bool inheritMotion(SettingsModel &m, size_t section, const std::string &m
         m.clearOverride(section, prefix + "SENS");
         removed = true;
     }
-    if (!removed)
+    const int part = part_tuning::partIndex(motionId);
+    if (part >= 0) {  // what the profile tuned for this motion goes; the keys of the whole channel are not this motion's
+        for (int i = 0; i < part_tuning::kFieldCount; ++i)
+            m.clearOverride(section, part_tuning::partPrefix(part) + part_tuning::fields()[i].suffix);
+    } else if (!removed) {
         for (const char *k : kChannelKeys) m.clearOverride(section, prefix + k);
+    }
     if (memory) {
         memory->erase(memoryKey(m, section, motionId, "action"));
         memory->erase(memoryKey(m, section, motionId, "sens"));
@@ -305,6 +343,18 @@ inline bool switchOnMotion(SettingsModel &m, size_t section, const std::string &
         return false;
     if (effectiveAction(m, section, motionId).type == ChannelActionType::Off && !writeAction(m, section, motionId, key, "default", err))
         return false;
+    {   // a sensitivity 0 of this part itself (SCROLL_V_TILT_SENS = 0, acts while the channel is split)
+        const int part = part_tuning::partIndex(motionId);
+        if (part >= 0 && (m.effectiveWithMode(section).parts[part].set & PartTuning::F_SENS) &&
+            m.effectiveWithMode(section).parts[part].cfg.sensitivity == 0) {
+            const std::string pkey = part_tuning::partPrefix(part) + "SENS";
+            std::string own0;
+            if (ownText(m, section, pkey, &own0) && own0 == "0") m.clearOverride(section, pkey);
+            if (m.effectiveWithMode(section).parts[part].cfg.sensitivity == 0 &&
+                !m.setValue(section, pkey, std::to_string(factorySens(prefix)), err))
+                return false;
+        }
+    }
     if (!effectiveOn(m, section, motionId)) {
         if (err) *err = "the joystick mode of this profile keeps this motion off; change it there";
         return false;

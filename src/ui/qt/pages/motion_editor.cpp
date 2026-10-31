@@ -538,7 +538,7 @@ std::string tuningPrefix(const ModeForm &form, const Settings &base, Motion m) {
     if (!p.found) return std::string();
     if (p.channel == MotionChannel::Twist) return "ZOOM_";
     const std::string ch = p.channel == MotionChannel::V ? "SCROLL_V_" : "SCROLL_H_";
-    return p.split && p.part ? ch + (isTilt(m) ? "TILT_" : "PUSH_") : ch;
+    return p.part ? ch + (isTilt(m) ? "TILT_" : "PUSH_") : ch;  // a push or tilt is tuned on its own (splitForEdit splits the channel on the first edit)
 }
 
 }  // namespace
@@ -889,18 +889,26 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
 // keys are overrides of this joystick mode. A tilt of an unsplit channel runs as the push part, so it uses the push keys.
 KeyEngineEnv MotionEditor::keyEngineEnv(ChannelForm *ref, Motion m) {
     KeyEngineEnv env;
-    std::string id = motionId(m);
-    if (isTilt(m) && !placeOf(*env_.form, env_.base, m).split) id = m == Motion::VTilt ? "v_push" : "h_push";
-    env.motionId = id;
+    const std::string id = motionId(m);
+    env.motionId = id;  // the keys of THIS motion; a channel that is not split is split by the first write (splitForEdit)
     env.motionName = qs8(motionLabel(*env_.form, env_.base, m, *env_.strings).name);
     env.form = ref;
     env.effective = effectiveSettings(*env_.form, env_.base);
+    if (isTilt(m) && !placeOf(*env_.form, env_.base, m).split) {  // an unsplit channel runs its tilt on the push slot
+        const int slot = m == Motion::VTilt ? KM_V_TILT : KM_H_TILT;
+        env.effective.key_tuning[slot] = env.effective.key_tuning[slot - 1];
+    }
     ModeForm *form = env_.form;
-    env.get = [form](const std::string &key) {
-        const std::string *v = form->overrideValue(key);
+    const Settings base = env_.base;
+    env.get = [form, base, m](const std::string &key) {
+        std::string k = key;
+        const size_t at = k.find("_TILT_");
+        if (isTilt(m) && at != std::string::npos && !placeOf(*form, base, m).split) k.replace(at, 6, "_PUSH_");  // what the tilt runs with now
+        const std::string *v = form->overrideValue(k);
         return v ? *v : std::string();
     };
-    env.set = [form](const std::string &key, const std::string &value, std::string *) {
+    env.set = [form, base, m](const std::string &key, const std::string &value, std::string *) {
+        if (!value.empty()) splitForEdit(*form, base, m, key);  // push and tilt keep their values
         form->setOverride(key, value);
         return true;
     };
@@ -922,6 +930,8 @@ void MotionEditor::buildTuning(QVBoxLayout *col, Motion m) {
     static const char *const fields[][2] = {{"SENS", "Sensitivity"}, {"DEADZONE", "Dead zone"}, {"CURVE", "Curve"}, {"SMOOTH_MS", "Smoothing (ms)"}};
     bool anySet = false;
     for (const auto &f : fields) anySet = anySet || env_.form->overrideValue(prefix + f[0]);
+    const bool isPart = placeOf(*env_.form, env_.base, m).part;
+    const QString motionName = qs8(motionLabel(*env_.form, env_.base, m, *env_.strings).name);
     auto *box = new QGroupBox(T("Tune this motion"), inspectorBox_);
     box->setToolTip(T("Optional: values that apply while this joystick mode is active"));
     auto *fl = new QFormLayout(box);
@@ -930,11 +940,14 @@ void MotionEditor::buildTuning(QVBoxLayout *col, Motion m) {
         auto *e = new QLineEdit(box);
         const std::string *cur = env_.form->overrideValue(key);
         e->setText(cur ? qs8(*cur) : QString());
-        e->setPlaceholderText(T("As the profile"));
+        e->setPlaceholderText(isPart ? T("As the whole channel") : T("As the profile"));
         e->setAccessibleName(T(f[1]));
+        e->setAccessibleDescription(isPart ? T("Tuning of %1 only; the other motions of the channel are not changed").arg(motionName)
+                                           : T("Tuning of %1").arg(motionName));
         e->setToolTip(qs8(key));
         fl->addRow(T(f[1]) + QLatin1Char(':'), e);
-        connect(e, &QLineEdit::textEdited, this, [this, key](const QString &text) {
+        connect(e, &QLineEdit::textEdited, this, [this, key, m, isPart](const QString &text) {
+            if (isPart && !text.trimmed().isEmpty()) splitForEdit(*env_.form, env_.base, m, key);  // the other motion keeps its tuning
             env_.form->setOverride(key, text.trimmed().toUtf8().toStdString());
             if (env_.typed) env_.typed();
         });

@@ -136,7 +136,9 @@ entry). The grouping comes from `src/ui/model/navigation_model.hpp`, the registr
 
 The Channels settings (sensitivity, dead zone, direction, curve, zoom detection, smoothing) are not a
 page of their own: they belong to a profile and are the Channels tab of the profile editor, for
-Global and for every other profile. No setting appears in two places: the output switch is on the
+Global and for every other profile. The vertical and the horizontal scroll group there are the values of the
+push and the tilt of that direction together (a note in the group says so); for each of the four motions on its
+own use the Motions and buttons tab. No setting appears in two places: the output switch is on the
 Settings page (not in the Global profile), the daemon settings (tick rate, backend) are on the
 Settings page too (they do not belong to a profile).
 
@@ -184,7 +186,7 @@ the button modes and "Default (inherit from Global)", which removes the binding)
 overrides (key, value, Add, Remove; `MODE`, `ENABLED`, `BACKEND` and `TICK_HZ` are not offered).
 
 Each scroll channel (vertical, horizontal) has a **Split push and tilt** switch. Off, the channel is
-one action row. On, it becomes two rows, push (forward/back or sideways) and tilt, each with the
+one action row, labelled "Vertical push and tilt" (it is the action of both). On, it becomes two rows, push (forward/back or sideways) and tilt, each with the
 same action picker as the channel, and each part gets a "Tuning" box with its own sensitivity,
 dead zone, direction, curve and smoothing; an empty field means "as the channel" and writes no key.
 The switch writes `V_PUSH_ACTION` / `V_TILT_ACTION` (`H_...`) and the per-part keys
@@ -227,12 +229,15 @@ to the picture shows the selected item:
   The lift is digital only: the same choices there would write `step:`, never `keys:`. The tile of the motion's action now is lit (thick border, bold text). The editor hides "channel" and "split": push and tilt of one channel with the same
   action are written as `V_ACTION` / `H_ACTION`, different actions as `V_PUSH_ACTION` / `V_TILT_ACTION`
   (`H_...`), the same keys the Settings tab writes. **Reverse direction** writes the existing sign
-  (`SCROLL_V_SIGN`, `SCROLL_H_SIGN`, `ZOOM_SIGN`, or `SCROLL_<V|H>_<PUSH|TILT>_SIGN` while the channel is
-  split) as `-1` and removes the line again. "Same as ..." copies the action of another motion, "Swap
+  (`SCROLL_<V|H>_<PUSH|TILT>_SIGN` for a push or tilt, `ZOOM_SIGN` for the twist) as `-1` and removes the line
+  again. Reversing a push or a tilt reverses that motion only: a channel that is not split is split first
+  (both parts keep their action), so the other motion keeps its direction. The same goes for the key rate and
+  trigger fields of a push or tilt. "Same as ..." copies the action of another motion, "Swap
   with ..." exchanges two. The same works with the mouse: drag one motion in the picture onto another to
   swap them, hold Ctrl (Cmd on macOS) while dropping to copy (a dashed frame marks the motion the drop would
   land on). Lift / press and the buttons cannot be dragged; the two lists are the way without a mouse. "Tune this motion" (closed until used) edits sensitivity, dead zone, curve and
-  smoothing of that motion as overrides of the joystick mode.
+  smoothing of that motion as overrides of the joystick mode (`SCROLL_<V|H>_<PUSH|TILT>_*` for a push or tilt, which splits an unsplit
+  channel on the first change, as above).
 - **Move the pointer.** The list "What it does" of every motion (profile Motions page and joystick mode editor) has the entries "Move the pointer left and right" and "Move the pointer up and down". They have no analog / digital check box and no key fields: the pointer is always analog. Its speed is the field **Pointer speed** (`MOUSE_SPEED`, pixels per step, 0.1 to 200) in the group "Pointer" of the Channels settings; like every setting it is shown with its origin in words (for example "Inherited from Global: 8", "Set in this profile") and "Reset" removes the override. The field has an accessible name and the explanation as description. Whether the pointer speed feels right can only be tried with a device.
 - **Analog or digital.** Every motion that presses keys (the "Keys" box) has the check box **Analog** (accessible name: "Analog (the key repeats faster the
   further you push)**: checked is `keys:`, unchecked is `step:` (one press per push, like a click); it only switches the
@@ -337,9 +342,23 @@ write the last change first.
 The **Motions and buttons** tab of a profile (Global, device or program; between Channels and Overrides) shows the
 same picture for that profile. The six motions say what the profile's joystick mode does with them, in words;
 that action belongs to the joystick mode, so the inspector points to the Joystick modes page. What the profile
-sets itself is edited here: for a motion the **tuning of its channel** (sensitivity, dead zone, direction,
-curve, smoothing) as overrides of the profile, each with where its value comes from ("Inherited from Global: 5",
-"Set in this profile (inherited: 5)") and an Inherit or Reset button; for a button the button row (every button
+sets itself is edited here: for a motion the **tuning of that motion** (sensitivity, dead zone, direction,
+curve, smoothing) as overrides of the profile, each with where its value comes from ("Inherited from the whole
+channel: 5", "Set in this profile for this motion only (inherited: 5)") and an Inherit or Reset button. The
+four scroll motions are tuned independently: a value you change for the vertical tilt is written as
+`SCROLL_V_TILT_*` and never changes the vertical push (and the other way round); the same for the horizontal
+push and tilt. A value you do not set follows the keys of the whole channel (`SCROLL_V_SENS`, ... of this
+profile, Global or the built-in default), so existing profiles keep working. The keys of a push or tilt act
+only while the channel is split, so the first change of such a value splits the channel for you
+without changing what any motion does: the profile gets `V_PUSH_ACTION` and `V_TILT_ACTION` (both with the
+action the channel had, `default` when it had none), values of a part that did not act so far are pinned to
+what the motion really does, and a note above the fields says whether push and tilt share one tuning yet.
+Inherit on the last value removes those two action keys again. (Splitting makes a push and a tilt that you
+deflect at the same moment two motions, each with its own dead zone and curve, instead of one sum through
+one curve; with a linear curve and no dead zone it is the same.) Where a joystick mode keeps the channel
+unsplit (a Global or device profile below a mode that sets the channel action), the change is refused with
+the reason; a program profile has the last word. The twist and the lift have keys of their own and are tuned
+the same way as before (`ZOOM_*`, `LIFT_*`); for a button the button row (every button
 of the device, one row each, with its origin in words; in Global the plain key and click bindings sit behind a
 collapsed "Advanced" section; the notes about moved old button settings are shown above the picture). A profile
 whose joystick mode brings its own button bindings shows the buttons read-only. There is no separate Buttons tab

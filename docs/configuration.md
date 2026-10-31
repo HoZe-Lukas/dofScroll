@@ -153,7 +153,17 @@ into a push part (translation terms of the mix) and a tilt part (rotation terms)
 actions, see [modes.md](modes.md#split-push-and-tilt); each part starts with the parent channel's
 values and these keys replace single values with **absolute** values (not multipliers, same ranges as
 the channel keys). They have no default, are not written to the config unless set, and act only while
-the active joystick mode splits that channel.
+the channel is split, that is while a part action (`V_PUSH_ACTION`, `V_TILT_ACTION`, `H_PUSH_ACTION`,
+`H_TILT_ACTION`) is set in some layer (the joystick mode or a profile). They are valid in `[global]`, `[device:*]` and
+`[app:*]` too, so push and tilt can have a different sensitivity, dead zone, direction (`SIGN`), curve and
+smoothing in every profile. The interface writes exactly these keys when you tune a push or a tilt (the
+Motions and buttons tab of a profile, "Tune this motion" in the joystick mode editor); the first change of an
+unsplit channel also writes both part actions of that profile with the action the channel has (`default`
+when it has none). A part action `default` means the normal wheel, not "as the channel", which is why the
+channel's action text is written; values of a part key that did not act so far are pinned so the split changes
+nothing for the other motion. The keys of the whole channel (`SCROLL_V_SENS`, ...) stay valid and are the
+starting values of both parts. A push and a tilt deflected at the same moment are two motions in a split
+channel (own dead zone, curve and remainder each) instead of one sum through one curve.
 
 Key functions per motion: `keys:<neg>,<pos>` (analog) and `step:<neg>,<pos>` (digital) can sit on every motion, with a key,
 a chord or `none` per side. Three keys per motion tune them: `<P>KEY_RATE_MIN` and `<P>KEY_RATE_MAX` (presses per second, 0 to
