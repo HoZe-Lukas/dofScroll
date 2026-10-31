@@ -421,8 +421,9 @@ void ModeEditorWidget::rebuild() {
     auto *cg = new QGridLayout(chBox);
     cg->setColumnStretch(1, 1);
     int crow = 0;
-    crow += addSplitChannel(cg, crow, T("Vertical push"), T("Vertical push"), T("Vertical tilt"), &f.v, &f.vSplit, "V");
-    crow += addSplitChannel(cg, crow, T("Horizontal push"), T("Horizontal push"), T("Horizontal tilt"), &f.h, &f.hSplit, "H");
+    // not split: one action for push AND tilt, said in the label; split: one row for each
+    crow += addSplitChannel(cg, crow, T("Vertical push and tilt"), T("Vertical push"), T("Vertical tilt"), &f.v, &f.vSplit, "V");
+    crow += addSplitChannel(cg, crow, T("Horizontal push and tilt"), T("Horizontal push"), T("Horizontal tilt"), &f.h, &f.hSplit, "H");
     crow += addChannelRow(cg, crow, T("Twist"), &f.twist);
     col->addWidget(chBox);
 

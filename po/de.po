@@ -6746,3 +6746,63 @@ msgstr "Wähle zuerst für jedes Feld eine Taste"
 #: src/ui/model/own_functions_model.hpp
 msgid "%1 and %2"
 msgstr "%1 und %2"
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "These values apply to the push and the tilt of this direction together. To give the push and the tilt their own sensitivity, dead zone, direction, curve or smoothing, use the Motions and buttons tab of a profile or the Joystick modes page."
+msgstr "Diese Werte gelten für die Auslenkung und das Kippen dieser Richtung gemeinsam. Für eine eigene Empfindlichkeit, Totzone, Richtung, Kurve oder Glättung von Auslenkung und Kippen nutze den Reiter Bewegungen und Tasten eines Profils oder die Seite Joystick-Modi."
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Vertical push and tilt"
+msgstr "Vertikale Auslenkung und Kippen"
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Horizontal push and tilt"
+msgstr "Horizontale Auslenkung und Kippen"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "As the whole channel"
+msgstr "Wie der ganze Kanal"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Tuning of %1 only; the other motions of the channel are not changed"
+msgstr "Feineinstellung nur für %1; die anderen Bewegungen des Kanals bleiben unverändert"
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Tuning of %1"
+msgstr "Feineinstellung für %1"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Removes the own value of %1; it follows the whole channel again"
+msgstr "Entfernt den eigenen Wert von %1; die Bewegung folgt wieder dem ganzen Kanal"
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Removes the value of this profile for %1; the inherited value applies again"
+msgstr "Entfernt den Wert dieses Profils für %1; der geerbte Wert gilt wieder"
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "Push and tilt of this direction have their own tuning. A value you do not set follows the whole channel."
+msgstr "Auslenkung und Kippen dieser Richtung haben je eine eigene Feineinstellung. Ein Wert, den du nicht setzt, folgt dem ganzen Kanal."
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "Push and tilt of this direction share one tuning for now. Changing a value here gives this motion its own; the other motion keeps its tuning."
+msgstr "Auslenkung und Kippen dieser Richtung teilen sich vorerst eine Feineinstellung. Wenn du hier einen Wert änderst, bekommt diese Bewegung ihre eigene; die andere Bewegung behält ihre."
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "Set in Global for this motion only (otherwise: %1)"
+msgstr "In Global nur für diese Bewegung gesetzt (sonst: %1)"
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "Set in this profile for this motion only (inherited: %1)"
+msgstr "In diesem Profil nur für diese Bewegung gesetzt (geerbt: %1)"
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "Inherited from Global (this motion only): %1"
+msgstr "Von Global geerbt (nur diese Bewegung): %1"
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "The same as the whole channel: %1"
+msgstr "Wie der ganze Kanal: %1"
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "Inherited from the whole channel: %1"
+msgstr "Vom ganzen Kanal geerbt: %1"

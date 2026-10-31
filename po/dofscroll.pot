@@ -3335,3 +3335,63 @@ msgstr ""
 #: src/ui/model/own_functions_model.hpp
 msgid "%1 and %2"
 msgstr ""
+
+#: src/ui/qt/pages/channels_editor.cpp
+msgid "These values apply to the push and the tilt of this direction together. To give the push and the tilt their own sensitivity, dead zone, direction, curve or smoothing, use the Motions and buttons tab of a profile or the Joystick modes page."
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Vertical push and tilt"
+msgstr ""
+
+#: src/ui/qt/pages/mode_editor_widget.cpp
+msgid "Horizontal push and tilt"
+msgstr ""
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "As the whole channel"
+msgstr ""
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Tuning of %1 only; the other motions of the channel are not changed"
+msgstr ""
+
+#: src/ui/qt/pages/motion_editor.cpp
+msgid "Tuning of %1"
+msgstr ""
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Removes the own value of %1; it follows the whole channel again"
+msgstr ""
+
+#: src/ui/qt/pages/profile_motions_view.cpp
+msgid "Removes the value of this profile for %1; the inherited value applies again"
+msgstr ""
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "Push and tilt of this direction have their own tuning. A value you do not set follows the whole channel."
+msgstr ""
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "Push and tilt of this direction share one tuning for now. Changing a value here gives this motion its own; the other motion keeps its tuning."
+msgstr ""
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "Set in Global for this motion only (otherwise: %1)"
+msgstr ""
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "Set in this profile for this motion only (inherited: %1)"
+msgstr ""
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "Inherited from Global (this motion only): %1"
+msgstr ""
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "The same as the whole channel: %1"
+msgstr ""
+
+#: src/ui/model/part_tuning_model.hpp
+msgid "Inherited from the whole channel: %1"
+msgstr ""

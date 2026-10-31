@@ -30,6 +30,7 @@
 #include "ui/model/axis_roles_model.hpp"
 #include "ui/model/mode_editor_model.hpp"
 #include "ui/model/motion_summary_model.hpp"
+#include "ui/model/part_tuning.hpp"
 #include "ui/model/strings.hpp"
 #include "utf8.hpp"
 
@@ -245,8 +246,22 @@ inline AssignResult assign(ModeForm &form, const Settings &base, Motion m, const
     return r;
 }
 
-// "Reverse direction": the sign of the motion (SCROLL_V_SIGN, SCROLL_H_SIGN, ZOOM_SIGN, or the sign of the
-// part while the channel is split). Lift has no sign of its own: false.
+// Before a value of a push or tilt is written (direction, sensitivity, curve, key rates ...): splits the channel when it is not split,
+// without changing what any motion does (part_tuning.hpp has the rules; both parts get the channel's action, tuning keys that do
+// not act yet are pinned, the tilt's key function values follow the push slot). `editedKey` is the key the caller writes itself right
+// after. Nothing happens for a split channel, the twist, the lift and a motion that is in no mix.
+inline void splitForEdit(ModeForm &form, const Settings &base, Motion m, const std::string &editedKey) {
+    using namespace motion_map_detail;
+    const MotionPlace p = placeOf(form, base, m);
+    if (!p.found || !p.part || p.split) return;
+    for (const KV &kv : part_tuning::splitPins(effectiveSettings(form, base), p.channel == MotionChannel::V ? 0 : 1, editedKey))
+        form.setOverride(kv.first, kv.second);
+    splitForm(form, p.channel)->setSplit(true, channelForm(form, p.channel));
+}
+
+// "Reverse direction": the sign of the motion (SCROLL_V_PUSH_SIGN ... of a push or tilt, ZOOM_SIGN of the twist). A push or tilt
+// reverses itself only: a channel that is not split is split first (splitForEdit), so the other motion keeps its direction.
+// Lift has no sign of its own: false.
 // Drag and drop and the "Same as" / "Swap with" lists: the action of `from` goes to `to` (copy), or both swap
 // (the default of a drop). All or nothing: when one of the two cannot take an action (lift / press, a motion
 // outside the channel mixes) the form stays as it was. Dropping a motion on itself changes nothing.
@@ -300,8 +315,14 @@ inline AssignResult setReversed(ModeForm &form, const Settings &base, Motion m, 
         return r;
     }
     const int want = reversed ? -1 : 1;
-    const bool partKey = p.split && p.part;
+    const bool partKey = p.part;
     const std::string key = signKey(p.channel, partKey, isTilt(m));
+    // nothing to do when the motion already runs in that direction: a split is only made for a real change
+    if (isReversed(form, base, m) == reversed && !(partKey && form.overrideValue(key))) {
+        r.ok = true;
+        return r;
+    }
+    if (partKey && !p.split) splitForEdit(form, base, m, key);
     ModeForm without = form;
     without.setOverride(key, "");
     const int follow = cfgOf(effectiveSettings(without, base), p.channel).sign;

@@ -505,7 +505,7 @@ or `SCROLL_H_PUSH_DEADZONE`. These are **absolute values**, not multipliers: sam
 as the parent keys, and a key that is not set keeps the parent's value (so changing the channel's
 `SCROLL_V_SENS` still moves every part that has no value of its own). They are ordinary settings
 keys: valid in a joystick mode file (where they belong) and in a profile section, and they act only while
-the active joystick mode splits that channel. `STEP_TRIGGER` applies to every `step:` part and
+the channel is split (by the joystick mode or by a part action in a profile, see [configuration.md](configuration.md)). `STEP_TRIGGER` applies to every `step:` part and
 is measured after the part's sensitivity, as for a channel.
 
 Several parts can hold the zoom modifier (by default Ctrl) at once for `zoom` (it is released when the last of them is back at

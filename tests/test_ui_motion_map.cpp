@@ -149,10 +149,18 @@ static void testReverse() {
     const Settings base;
     ModeForm f;
     assert(!isReversed(f, base, Motion::VPush));
+    // a push reverses itself only: the channel is split first (both parts keep the channel's action), the tilt keeps its direction
     assert(setReversed(f, base, Motion::VPush, true).ok);
-    assert(*f.overrideValue("SCROLL_V_SIGN") == "-1" && isReversed(f, base, Motion::VPush) && isReversed(f, base, Motion::VTilt));
+    assert(*f.overrideValue("SCROLL_V_PUSH_SIGN") == "-1" && !f.overrideValue("SCROLL_V_SIGN") && !f.overrideValue("SCROLL_V_TILT_SIGN"));
+    assert(f.vSplit.active() && f.vSplit.pushSet && f.vSplit.tiltSet && f.vSplit.push.type == ChannelActionType::Default);
+    assert(isReversed(f, base, Motion::VPush) && !isReversed(f, base, Motion::VTilt));
     assert(setReversed(f, base, Motion::VPush, false).ok);
     assert(f.overrides.empty() && !isReversed(f, base, Motion::VPush));  // no line for the normal direction
+    f = ModeForm();
+    assert(setReversed(f, base, Motion::VTilt, true).ok && *f.overrideValue("SCROLL_V_TILT_SIGN") == "-1");
+    assert(isReversed(f, base, Motion::VTilt) && !isReversed(f, base, Motion::VPush) && !f.overrideValue("SCROLL_V_PUSH_SIGN"));
+    f = ModeForm();
+    assert(setReversed(f, base, Motion::VPush, false).ok && !f.vSplit.active());  // nothing to change: no split for nothing
     // twist uses ZOOM_SIGN
     assert(setReversed(f, base, Motion::Twist, true).ok && *f.overrideValue("ZOOM_SIGN") == "-1");
     // a split channel reverses one part: SCROLL_V_TILT_SIGN, the other part keeps the channel's sign
@@ -166,7 +174,8 @@ static void testReverse() {
     rev.scroll_h.sign = -1;
     ModeForm h;
     assert(isReversed(h, rev, Motion::HPush));
-    assert(setReversed(h, rev, Motion::HPush, false).ok && *h.overrideValue("SCROLL_H_SIGN") == "1" && !isReversed(h, rev, Motion::HPush));
+    assert(setReversed(h, rev, Motion::HPush, false).ok && *h.overrideValue("SCROLL_H_PUSH_SIGN") == "1" && !isReversed(h, rev, Motion::HPush));
+    assert(isReversed(h, rev, Motion::HTilt));  // the tilt of the same direction still follows the profile's channel sign
     // lift has no direction
     assert(!setReversed(f, base, Motion::Lift, true).ok && !isReversed(f, base, Motion::Lift));
 }

@@ -30,6 +30,7 @@
 #include "ui/model/inheritance_model.hpp"
 #include "ui/model/motion_edit_model.hpp"
 #include "ui/model/motion_map_model.hpp"
+#include "ui/model/part_tuning_model.hpp"
 #include "ui/model/profile_assignment_model.hpp"
 #include "ui_i18n.hpp"
 
@@ -323,19 +324,26 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
             }
             // analog or digital, the rate and trigger fields of this motion (stage 3 of #224)
             KeyEngineEnv env;
-            env.motionId = motion_edit_detail::keyTuningMotion(*ctx_.settings, section_, motion);
+            env.motionId = motion;  // the keys of THIS motion; an unsplit channel is split by the first write (splitChannelFor)
             env.motionName = qs8(row->name);
             env.form = form.get();
-            env.effective = ctx_.settings->effectiveWithMode(section_);
+            env.effective = keyEngineSettings(*ctx_.settings, section_, motion);
             const size_t section = section_;
             SettingsModel *model = ctx_.settings;
-            env.get = [model, section](const std::string &key) {
+            // an unsplit channel runs its tilt on the push slot: the tilt shows what the push slot holds (it is copied by the split)
+            env.get = [model, section, motion](const std::string &key) {
+                std::string k = key;
+                const int part = part_tuning::partIndex(motion);
+                const size_t at = k.find("_TILT_");
+                if ((part == PART_V_TILT || part == PART_H_TILT) && at != std::string::npos && !part_tuning_detail::splitNow(*model, section, part))
+                    k.replace(at, 6, "_PUSH_");
                 std::string held;
-                motion_edit_detail::ownText(*model, section, key, &held);
+                motion_edit_detail::ownText(*model, section, k, &held);
                 return held;
             };
-            env.set = [model, section](const std::string &key, const std::string &value, std::string *err) {
+            env.set = [model, section, motion](const std::string &key, const std::string &value, std::string *err) {
                 if (value.empty()) return model->clearOverride(section, key);
+                if (!splitChannelFor(*model, section, motion, key, err)) return false;  // push and tilt keep their values
                 return model->setValue(section, key, value, err);
             };
             env.commit = applyForm;
@@ -424,18 +432,47 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
     };
     shrinkable(boxHead);
     g->addWidget(boxHead, 0, 0, 1, 3);
-    static const char *const fields[][2] = {{"SENS", "Sensitivity"}, {"DEADZONE", "Dead zone"}, {"SIGN", "Direction (sign)"},
-                                            {"CURVE", "Curve"}, {"SMOOTH_MS", "Smoothing (ms)"}};
-    int r = 1;
-    for (const auto &f : fields) {
-        const std::string key = prefix + f[0];
-        SettingsModel::Value v;
-        if (!ctx_.settings->value(section_, key, &v)) continue;
-        auto *label = new QLabel(T(f[1]) + QLatin1Char(':'), box);
-        auto *lineEdit = new QLineEdit(qs8(v.text), box);
-        lineEdit->setAccessibleName(T(f[1]));
+    // The rows: the five tuning values of the motion. A push or tilt has its own keys (SCROLL_<V|H>_<PUSH|TILT>_..., part_tuning_model.hpp),
+    // so the tuning of one never changes the other; the twist and the lift have keys of their own anyway (ZOOM_*, LIFT_*).
+    struct TuneRow { std::string suffix, label, key, value, words; bool own; };
+    std::vector<TuneRow> tuneRows;
+    const std::string motionStd = motionId.toStdString();
+    const PartTuningView partView = partTuningView(*ctx_.settings, section_, motionStd, strings);
+    QLabel *partNote = nullptr;
+    if (partView.partMotion) {
+        for (const PartTuningField &f : partView.fields) tuneRows.push_back({f.suffix, f.label, f.key, f.value, f.words, f.own});
+    } else {
+        static const char *const fields[][2] = {{"SENS", "Sensitivity"}, {"DEADZONE", "Dead zone"}, {"SIGN", "Direction (sign)"},
+                                                {"CURVE", "Curve"}, {"SMOOTH_MS", "Smoothing (ms)"}};
+        for (const auto &f : fields) {
+            const std::string key = prefix + f[0];
+            SettingsModel::Value v;
+            if (!ctx_.settings->value(section_, key, &v)) continue;
+            tuneRows.push_back({f[0], f[1], key, v.text, originBadgeText(keyOrigin(*ctx_.settings, section_, key), strings), v.overridden});
+        }
+    }
+    if (partView.partMotion) {
+        partNote = new QLabel(qs8(partView.note), box);
+        partNote->setObjectName(QStringLiteral("partTuningNote"));
+        partNote->setWordWrap(true);
+        partNote->setTextFormat(Qt::PlainText);
+        shrinkable(partNote);
+        g->addWidget(partNote, 1, 0, 1, 3);
+    }
+    int r = partNote ? 2 : 1;
+    const QString motionName = qs8(row->name);
+    for (const TuneRow &tr : tuneRows) {
+        const std::string key = tr.key;
+        const QString fieldLabel = T(tr.label.c_str());
+        auto *label = new QLabel(fieldLabel + QLatin1Char(':'), box);
+        auto *lineEdit = new QLineEdit(qs8(tr.value), box);
+        lineEdit->setObjectName(qs8("tune_" + tr.suffix));
+        lineEdit->setAccessibleName(fieldLabel);
+        lineEdit->setAccessibleDescription(partView.partMotion ? T("Tuning of %1 only; the other motions of the channel are not changed").arg(motionName)
+                                                               : T("Tuning of %1").arg(motionName));
         lineEdit->setToolTip(qs8(key));
-        auto *origin = new QLabel(qs8(originBadgeText(keyOrigin(*ctx_.settings, section_, key), strings)), box);
+        auto *origin = new QLabel(qs8(tr.words), box);
+        origin->setObjectName(qs8("tuneOrigin_" + tr.suffix));
         origin->setWordWrap(true);
         origin->setTextFormat(Qt::PlainText);
         shrinkable(origin);
@@ -444,11 +481,14 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
             origin->setMinimumHeight(fm.boundingRect(QRect(0, 0, 20 * fm.height(), 10000), Qt::TextWordWrap, origin->text()).height() + 4);
         }
         auto *reset = new QPushButton(section_ == 0 ? T("Reset") : T("Inherit"), box);
-        reset->setEnabled(v.overridden);
+        reset->setObjectName(qs8("tuneReset_" + tr.suffix));
+        reset->setEnabled(tr.own);
         reset->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
         reset->setMinimumWidth(80);
         reset->setMaximumWidth(std::max(80, 10 * QFontMetrics(reset->font()).height()));  // very wide glyphs clip the text, not the box
-        reset->setAccessibleName(T(f[1]) + QStringLiteral(": ") + reset->text());
+        reset->setAccessibleName(fieldLabel + QStringLiteral(": ") + reset->text());
+        reset->setAccessibleDescription(partView.partMotion ? T("Removes the own value of %1; it follows the whole channel again").arg(motionName)
+                                                            : T("Removes the value of this profile for %1; the inherited value applies again").arg(motionName));
         // the label above its field (and wrapping): a wide font must not widen the inspector
         label->setWordWrap(true);
         shrinkable(label);
@@ -460,20 +500,33 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
         g->addWidget(reset, r + 1, 2);
         g->addWidget(origin, r + 2, 0, 1, 3);
         r += 3;
-        const std::string value = v.text;
-        connect(lineEdit, &QLineEdit::textEdited, this, [this, key, origin, box](const QString &t) {
+        const bool part = partView.partMotion;
+        const std::string suffix = tr.suffix;
+        connect(lineEdit, &QLineEdit::textEdited, this, [this, key, suffix, motionStd, part, origin, reset, partNote](const QString &t) {
             std::string err;
-            if (ctx_.settings->setValue(section_, key, t.trimmed().toUtf8().toStdString(), &err)) {
-                const IdentityStrings fb;
-                origin->setText(qs8(originBadgeText(keyOrigin(*ctx_.settings, section_, key), ctx_.strings ? *ctx_.strings : fb)));
+            const std::string typed = t.trimmed().toUtf8().toStdString();
+            const IdentityStrings fb;
+            const StringProvider &sp = ctx_.strings ? *ctx_.strings : fb;
+            const bool ok = part ? setPartTuning(*ctx_.settings, section_, motionStd, suffix, typed, &err)
+                                 : ctx_.settings->setValue(section_, key, typed, &err);
+            if (ok) {
+                if (part) {
+                    const PartTuningView now = partTuningView(*ctx_.settings, section_, motionStd, sp);
+                    for (const PartTuningField &f : now.fields)
+                        if (f.key == key) origin->setText(qs8(f.words));
+                    if (partNote) partNote->setText(qs8(now.note));
+                } else {
+                    origin->setText(qs8(originBadgeText(keyOrigin(*ctx_.settings, section_, key), sp)));
+                }
+                reset->setEnabled(true);
                 ctx_.saveTyped();
             } else {
                 origin->setText(mark(StatusKind::Error, qs8(err)));
             }
-            (void)box;
         });
-        connect(reset, &QPushButton::clicked, this, [this, key] {
-            ctx_.settings->clearOverride(section_, key);
+        connect(reset, &QPushButton::clicked, this, [this, key, suffix, motionStd, part] {
+            if (part) clearPartTuning(*ctx_.settings, section_, motionStd, suffix);
+            else ctx_.settings->clearOverride(section_, key);
             ctx_.saveSoon();
             if (changed) changed();
             rebuild();
