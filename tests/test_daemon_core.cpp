@@ -763,6 +763,7 @@ static void testModeRequest() {
 static void testModeRequestWithoutReload() {
     Rig r(std::string(BASE_CONF), {{"alpha.conf", "BUTTON_3 = key:space\n"}});
     r.run(0.1);
+    CHECK(statusKey(r, "pid") == std::to_string(fs::processId()), "the status file names the daemon process (%s)", statusKey(r, "pid").c_str());
     std::string err;
     CHECK(writeModeRequest(r.dir, "alpha", &err), "write request: %s", err.c_str());
     r.run(0.1);

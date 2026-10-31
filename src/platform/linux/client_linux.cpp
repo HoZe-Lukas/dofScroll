@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 // Client side of the Linux platform layer, linked by the daemon AND the UI (no libspnav, no X11):
 // XDG paths and the reload request (the user's systemd instance sends SIGHUP to the daemon unit).
+#include <csignal>
 #include <cstdlib>
 #include <string>
 #include <sys/wait.h>
@@ -10,6 +11,7 @@
 #include "../exec_lookup.hpp"
 #include "../../modes.hpp"  // modesDir(): "<config base>/dofscroll/modes"
 #include "../platform.hpp"
+#include "reload_fallback.hpp"
 
 namespace spn {
 
@@ -28,10 +30,9 @@ PlatformPaths platformPaths() {
     return p;
 }
 
-// Same mechanism the tray uses today: ask the user's systemd instance to send SIGHUP to the
-// daemon unit.
-bool requestReload(std::string *err) {
-    // systemctl from the fixed system directories, never through PATH (exec_lookup.hpp)
+namespace {
+// systemctl from the fixed system directories, never through PATH (exec_lookup.hpp)
+bool requestReloadThroughUnit(std::string *err) {
     const std::string systemctl = findHelper("systemctl");
     if (systemctl.empty()) {
         if (err) *err = "systemctl not found in /usr/bin, /bin, /usr/sbin or /sbin (root-owned)";
@@ -53,6 +54,21 @@ bool requestReload(std::string *err) {
         return false;
     }
     return true;
+}
+}  // namespace
+
+// Same mechanism the tray uses today: ask the user's systemd instance to send SIGHUP to the
+// daemon unit.
+bool requestReload(std::string *err) {
+    // The daemon of the unit: the user's systemd instance sends SIGHUP to it. A daemon that does not run under the unit
+    // (started by the interface without it, by hand, no systemd) is signalled through the process id in its status file.
+    std::string unitErr;
+    if (requestReloadThroughUnit(&unitErr)) return true;
+    std::string pidErr;
+    if (reloadByStatusPid(platformPaths().runtimeDir, "/proc", [](long pid) { return ::kill(static_cast<pid_t>(pid), SIGHUP); }, &pidErr))
+        return true;
+    if (err) *err = unitErr + " (and " + pidErr + ")";
+    return false;
 }
 
 }  // namespace spn

@@ -1004,7 +1004,7 @@ void DaemonCore::tickOnce(int64_t now_ns, double dt) {
         d_.writeStatus("profile=" + sanitizeForLog(first.match_desc) + "\ndevice=" + sanitizeForLog(first.device) +
                            "\napp=" + sanitizeForLog(wm_class_) + "\nmode=" + sanitizeForLog(first.runner->mode().id) +
                            "\ntoggle=" + toggleState(first) +
-                           "\nenabled=" + (first.settings.enabled ? "1" : "0") +
+                           "\npid=" + std::to_string(fs::processId()) + "\nenabled=" + (first.settings.enabled ? "1" : "0") +
                            "\npaused=" + (suspended_ ? "1" : "0") +
                            "\ndevices_seen=" + std::to_string(devices_seen_) +
                            (multi ? "\nlanes=" + std::to_string(lanes_.size()) : std::string()) +

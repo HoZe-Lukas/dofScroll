@@ -278,7 +278,11 @@ active. A locked screen is not detected on Windows and macOS. See
 ### Config changes do not apply
 
 The daemon reloads when `dofscroll.conf` or a file in `devices/`, `apps/` or `modes/` changes. Force it:
-`systemctl --user kill -s HUP dofscroll.service`.
+`systemctl --user kill -s HUP dofscroll.service`. A daemon that does not run under that unit (started by the
+interface without it, by hand, or on a system without a systemd user session) is told by the interface through the
+process id in its status file (`pid=` in `$XDG_RUNTIME_DIR/dofscroll-status`); by hand: `kill -HUP <pid>`. Without
+that the daemon still reads changed files within a second, and takes the tray's joystick mode request at its
+second poll.
 Check the journal for a rejected line. `BACKEND` needs a restart. Validate a file with
 `build/tests/check_config FILE` (source build only); the same program checks a whole config folder when you
 give it the folder.
