@@ -626,16 +626,32 @@ static void testApplyPreviewUndoAndWords() {
     m.setProfiles(ProfileSet(), "unused.conf");
     std::string err;
     assert(m.setValue(0, "SCROLL_V_SIGN", "-1", &err));
+    assert(m.setValue(0, "INVERT_AXES", "z", &err));  // issue #337: the live feed is raw, so an inverted axis would flip the result again
     const std::vector<WizardChangeRow> rows = wizardChangeRows(m, w);
-    assert(rows.size() == 4 && std::string(rows[0].label) == "Scroll V" && rows[0].next == "z" && rows[0].changed());
+    assert(rows.size() == 5 && std::string(rows[0].label) == "Scroll V" && rows[0].next == "z" && rows[0].changed());
     assert(std::string(rows[3].label) == "Reversed directions" && rows[3].now == "SCROLL_V_SIGN");
+    assert(std::string(rows[4].label) == "Inverted axes" && rows[4].now == "z" && rows[4].next == "none");
+    // device and program profiles keep their own direction values; the result page names them
+    {
+        SettingsModel withProfiles;
+        ProfileSet ps;
+        ps.sections[ps.findOrAdd(Section::DEVICE, "Pro")].kv = {{"INVERT_AXES", "rx"}};
+        ps.sections[ps.findOrAdd(Section::APP, "blender")].kv = {{"ZOOM_SIGN", "-1"}, {"SCROLL_V_SENS", "3"}};
+        ps.sections[ps.findOrAdd(Section::APP, "plain")].kv = {{"SCROLL_V_SENS", "3"}};
+        withProfiles.setProfiles(ps, "unused.conf");
+        const std::vector<std::string> kept = wizardProfilesKeepingDirections(withProfiles);
+        assert((kept == std::vector<std::string>{"Pro", "blender"}));
+        assert(wizardProfilesKeepingDirections(m).empty());
+    }
     SettingsModel::Value v;
     assert(m.value(0, "SCROLL_V_MIX", &v) && v.text != "z");  // nothing was written by the preview
     const GlobalSnapshot before = snapshotGlobal(m);
     assert(before.valid() && w.applyTo(m, &err));
     assert(m.value(0, "SCROLL_V_MIX", &v) && v.text == "z" && m.value(0, "SCROLL_V_SIGN", &v) && v.text == "1");
+    assert(m.value(0, "INVERT_AXES", &v) && v.text == "none");  // Apply clears the inverted axes like the signs
     assert(restoreGlobal(m, before, &err));
     assert(m.value(0, "SCROLL_V_MIX", &v) && v.text != "z" && m.value(0, "SCROLL_V_SIGN", &v) && v.text == "-1");
+    assert(m.value(0, "INVERT_AXES", &v) && v.text == "z");  // Undo brings them back
     assert(!restoreGlobal(m, GlobalSnapshot(), &err));
     // The offer has no time limit: it knows no clock, so 60 s, 10 minutes and 1 hour later it is the same offer and
     // restores the same state. Only a change of the Global values since Apply makes it obsolete.
