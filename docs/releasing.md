@@ -4,7 +4,7 @@
 
 A release is built and published by GitHub Actions when a tag `v<version>` is pushed. The maintainer's by-hand steps of
 the release in preparation (repository settings, hashes, pins, device tests, the tag, after the release) are listed with exact
-commands in [release-checklist-1.3.0.md](release-checklist-1.3.0.md).
+commands in [release-checklist-1.3.1.md](release-checklist-1.3.1.md).
 
 1. Refresh the pins: start the workflow `refresh-ci-pins` (Actions tab; it also runs monthly) and merge the pull
    request "Refresh CI pins" (the job starts its checks itself; wait for them to be green) so the

@@ -436,7 +436,7 @@ Target platform RHEL 9 = **systemd 252**; only directives available there were u
 
 ### Write paths with one file per profile
 
-Since 1.3.0 the configuration is a folder with one file per profile: `dofscroll.conf`, `devices/<name>.conf`,
+Since 1.3.1 the configuration is a folder with one file per profile: `dofscroll.conf`, `devices/<name>.conf`,
 `apps/<name>.conf`, `modes/`, `buttons/` and `backup/dofscroll.conf.pre-split`
 (see [configuration.md](configuration.md#file-and-location)). `ReadWritePaths=%E/dofscroll` covers the whole
 tree below that directory, so the interface can write every one of these files and create the subdirectories
@@ -828,7 +828,7 @@ by a file). Assessment and limits:
   the interface checks the real buttons folder, so a user file that replaces a built-in Button mode id (for example
   `next-mode`) counts as the user's own; only the unmodified built-in ones are not flagged. An id that is in neither
   place is flagged too, because a file of that name could appear later.
-  **Audit round 2 (before 1.3.0):** the check used to look only at the key fields of a motion action, so `step:` and `hold:`
+  **Audit round 2 (before 1.3.1):** the check used to look only at the key fields of a motion action, so `step:` and `hold:`
   with `click`, `rightclick` or `middleclick` (a mouse side carries no key) passed the import without a question although the
   same click on a device button was flagged. A mouse side of a motion action is now risky like `BUTTON_<n> = click`
   (`SettingsModel::bindingIsRisky`, test `testMouseSidesOfMotionsAreRisky` in `tests/test_ui_profile_import.cpp`).
@@ -1146,7 +1146,7 @@ CI supply chain (issue #149), status after the fix:
   the install smoke test still uses the distribution images by tag (it tests the
   current distributions on purpose and produces no release file). Windows and macOS
   runner images are GitHub's own and not pinned.
-  **Audit round 2 (before 1.3.0):** the write-token job of `refresh-ci-pins.yml` checked the taken-over files with an
+  **Audit round 2 (before 1.3.1):** the write-token job of `refresh-ci-pins.yml` checked the taken-over files with an
   inline diff filter that dropped every changed line whose content began with `-` or `+` (it took them for diff headers),
   and it accepted any line that merely contained `@sha256:`. A compromised generator (PyPI code in the read-only job) could
   therefore add `--index-url ...` or `-r ...` to `aqt-requirements.txt`, or an extra Dockerfile line, past the gate, and the

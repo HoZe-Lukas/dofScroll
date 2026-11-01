@@ -4,7 +4,7 @@
 
 Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons](Buttons).
 
-Source of truth: [docs/work-plan.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/work-plan.md) (the "Done" list below is brought up to date for 1.3.0). If this page and the work plan differ, the work plan wins.
+Source of truth: [docs/work-plan.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/work-plan.md) (the "Done" list below is brought up to date for 1.3.1). If this page and the work plan differ, the work plan wins.
 
 ## Parity rule
 
@@ -46,7 +46,7 @@ Every user-visible feature must work on Linux, Windows and macOS. A feature is "
 |---|---|
 | W9 | Verify device descriptors and factory button counts on real hardware |
 | W7 / W8 | Follow-up security fixes; keep documentation in sync |
-| Motion functions, stages 7c to 7e ([plan](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/plan-motion-functions.md), issues #224, #225) | Taking over from a joystick mode into a function, named functions (`FUNC_<name>`) and a table of them, duplicating a function, `TWIST_GUARD`. Stages 1 to 7b (key engine, lift, clicks and holds, the pointer, tiles, macros, the New function window) are in 1.3.0. |
+| Motion functions, stages 7c to 7e ([plan](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/plan-motion-functions.md), issues #224, #225) | Taking over from a joystick mode into a function, named functions (`FUNC_<name>`) and a table of them, duplicating a function, `TWIST_GUARD`. Stages 1 to 7b (key engine, lift, clicks and holds, the pointer, tiles, macros, the New function window) are in 1.3.1. |
 | Later | Signed installers |
 
 Decisions: version 0.1 is released without waiting for the Qt interface (Windows and macOS daemons configured by file at first); the Qt interface and unsigned installers shipped with 0.1.0-beta.1 after all. Installers are unsigned and not notarized. Known limitation: on Linux `spacenavd` reports one merged device, so two mice with different modes at once need direct HID access.
