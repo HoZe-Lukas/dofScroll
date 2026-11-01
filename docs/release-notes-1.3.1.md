@@ -1,12 +1,13 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
-# dofscroll 1.3.0
+# dofscroll 1.3.1
 
 > **Tested extensively only on RHEL 9** (X11, KDE Plasma, SpaceMouse Pro and Compact). Windows: first tests on one real
 > machine (SpaceMouse Pro, official 3Dconnexion driver). macOS: built and unit-tested by CI, never run with a real device.
 > **Nothing in this release was tested with a SpaceMouse in hand**: see "Not verified".
 
-Release after [1.2.3](release-notes-1.2.3.md). The profile pages, the way profiles are stored and what a motion can do
+Release after [1.2.3](release-notes-1.2.3.md). **There is no 1.3.0**: its tag was set but the release was never published
+(the ASan check of the CI crashed on the hosted runners, see #349), so everything announced for 1.3.0 ships as 1.3.1. The profile pages, the way profiles are stored and what a motion can do
 change a lot; the configuration stays readable by the daemon in both layouts.
 
 **Highlights**
@@ -176,7 +177,7 @@ Plan: [plan-motion-functions.md](plan-motion-functions.md) (issues #224, #225).
 - **Release job** (#287, issue #263). The `release` job runs `scripts/release-gate.sh` first (the tagged commit must be on
   `main`, every required check green), waits for the approval of the environment `release`, and publishes a draft
   release with all files (needed for immutable releases). The repository settings are set by hand:
-  [release-checklist-1.3.0.md](release-checklist-1.3.0.md).
+  [release-checklist-1.3.1.md](release-checklist-1.3.1.md).
 - **Qt archives** (#291, issue #265). Every Qt installation verifies the downloaded archives against
   `packaging/ci/qt-archives.sha256`; **the list is still empty** until the workflow `qt-archive-hashes` has run once
   (issue #295). A weekly workflow warns when an advisory fixes a bundled library.
@@ -264,6 +265,8 @@ Credits: pull requests by the maintainer unless marked.
   reload (through the process id in its status file) and takes the tray's mode request (#340, issue #338); the axis
   assistant's Apply also clears `INVERT_AXES` in Global, lists it in the change list and Undo, and names the device and
   program profiles that keep their own direction settings (#341, issue #337)
+- CI: the ASan/UBSan tests run without address space randomization, because the older libasan of Rocky Linux 9 crashed
+  at start on runners with a larger `vm.mmap_rnd_bits` (#349)
 - UX round 3 decisions (#342, issue #327): German key names in the interface (display only; files and the parser keep the
   English names), no default button on "Press a key...", the Joystick modes page fits at 1000 px with wide glyphs, the
   drop-down "Key or combination", full action text as tooltip on motion tiles, the recording area of the macro editor
