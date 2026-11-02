@@ -120,7 +120,7 @@ jobs:
           . packaging/qt.env
           echo "QT_PIN=$QT_VERSION" >> "$GITHUB_ENV"
       - name: Install Qt6 (aqtinstall, version of packaging/qt.env)
-        uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125  # v4.4.1
+        uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06  # v4.5.0
         with:
           version: ${{ env.QT_PIN }}
           arch: win64_msvc2022_64
@@ -151,7 +151,7 @@ jobs:
           . packaging/qt.env
           echo "QT_PIN=$QT_VERSION" >> "$GITHUB_ENV"
       - name: Install Qt6 (aqtinstall, version of packaging/qt.env)
-        uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125  # v4.4.1
+        uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06  # v4.5.0
         with:
           version: ${{ env.QT_PIN }}  # not below 6.9: 6.8.x links the AGL framework, which the macOS 15 SDK dropped
           cache: true
