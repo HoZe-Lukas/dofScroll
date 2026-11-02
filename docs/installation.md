@@ -320,7 +320,7 @@ notes.
 ### Upgrading the configuration: one file per profile
 
 Older versions kept everything in one `dofscroll.conf` (`[global]`, `[device:...]`, `[app:...]`). From
-version 1.3.0 on every device profile and every program profile is its own file (layout and file format:
+version 1.3.1 on every device profile and every program profile is its own file (layout and file format:
 [configuration.md](configuration.md#file-and-location)). The **first start of the new interface** converts an
 existing configuration once, automatically; a package upgrade does not touch your files, and the daemon never
 converts anything (it may not write), it reads both layouts, so a start without the interface keeps working.

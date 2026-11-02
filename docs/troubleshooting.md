@@ -289,7 +289,7 @@ give it the folder.
 
 ### After the upgrade: profiles are missing or defective
 
-Since version 1.3.0 every device and program profile is its own file in `devices/` and `apps/` of the config
+Since version 1.3.1 every device and program profile is its own file in `devices/` and `apps/` of the config
 folder (see [configuration.md](configuration.md#file-and-location)). The first start of the new interface moves
 the profiles of an old `dofscroll.conf` there and keeps the old file as `backup/dofscroll.conf.pre-split`
 (see [installation.md](installation.md#upgrading-the-configuration-one-file-per-profile)). If something is wrong:

@@ -6,7 +6,7 @@ dofscroll turns a 6DoF 3D mouse such as the 3Dconnexion SpaceMouse into smooth s
 
 dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch or toggle joystick modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [Buttons](Buttons).
 
-**Status: version 1.3.0.** Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact). Other Linux distributions were install-tested in CI containers (a contributor reports that 1.2.3 starts and shows its window on Ubuntu 26.04, GNOME, Wayland, SpaceMouse Compact; not tested by the maintainer); on Windows the basic functions work on one real machine (SpaceMouse Pro, official 3Dconnexion driver; first tests, not extensive); the macOS build is built and unit-tested by CI but has never been run with a real device.
+**Status: version 1.3.1.** Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact). Other Linux distributions were install-tested in CI containers (a contributor reports that 1.2.3 starts and shows its window on Ubuntu 26.04, GNOME, Wayland, SpaceMouse Compact; not tested by the maintainer); on Windows the basic functions work on one real machine (SpaceMouse Pro, official 3Dconnexion driver; first tests, not extensive); the macOS build is built and unit-tested by CI but has never been run with a real device.
 
 ## Tested on
 
@@ -20,7 +20,7 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 | macOS | Daemon, Qt interface and unsigned, not notarized DMG built by CI; **not run on hardware** |
 | SpaceMouse Wireless, Pro Wireless, Enterprise, SpaceNavigator | Not tested |
 
-## New in 1.3.0
+## New in 1.3.1
 
 - **One file per profile** (`devices/`, `apps/`) with an automatic, backed-up migration, Import and Export, and an order for overlapping profiles ([Profiles](Profiles)).
 - **Every motion can do something in a profile**, the lift is the sixth motion, **Take over** copies a motion or a button from another profile, **New profile** builds one from parts.

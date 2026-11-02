@@ -40,9 +40,9 @@ It consists of two programs. The Qt interface is the only tray and settings wind
 | `dofscroll` | Background daemon. Reads the SpaceMouse, produces the input events. |
 | `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Overview, Profiles (tabs General, Channels, Motions and buttons, Overrides), Editor and Joystick modes with a visual editor (a picture of the cap: click a motion or button and choose what it does), Button modes, User modes, Device, Axes, Settings). Writes the configuration files (`dofscroll.conf` and one file per profile in `devices/` and `apps/`) and tells the daemon to reload. See [docs/ui.md](docs/ui.md). |
 
-## What is new on `main` (1.3.0, not released yet)
+## What is new on `main` (1.3.1, not released yet)
 
-One file per profile with an automatic, backed-up migration; every motion can have its own action in a profile, the lift is the sixth motion; **Take over**, **New profile**, **Import** and **Export** build and share profiles; keys on every motion, **analog** (repeats faster with more deflection) or **digital** (once per push), mouse clicks and holds; **macros** (`macro:`, recorded or written) and a **New function ...** window that composes a key, click, hold, scroll or zoom, pointer or macro; the **pointer** as a motion function; ready tiles for tabs, volume and tracks; a key picker as a tree in columns; a reworked axis assistant; push and tilt tuned independently in profiles; hardened parsers with raised size limits; macOS binaries with the hardened runtime. Nothing of it was tested with a real SpaceMouse. See [docs/release-notes-1.3.0.md](docs/release-notes-1.3.0.md) for the list, the breaking changes and what is not verified.
+One file per profile with an automatic, backed-up migration; every motion can have its own action in a profile, the lift is the sixth motion; **Take over**, **New profile**, **Import** and **Export** build and share profiles; keys on every motion, **analog** (repeats faster with more deflection) or **digital** (once per push), mouse clicks and holds; **macros** (`macro:`, recorded or written) and a **New function ...** window that composes a key, click, hold, scroll or zoom, pointer or macro; the **pointer** as a motion function; ready tiles for tabs, volume and tracks; a key picker as a tree in columns; a reworked axis assistant; push and tilt tuned independently in profiles; hardened parsers with raised size limits; macOS binaries with the hardened runtime. Nothing of it was tested with a real SpaceMouse. See [docs/release-notes-1.3.1.md](docs/release-notes-1.3.1.md) for the list, the breaking changes and what is not verified.
 
 ## Design principle
 
@@ -50,7 +50,7 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 
 ## Status and testing
 
-Current stable version: **1.3.0**. Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact).
+Current stable version: **1.3.1**. Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact).
 Other Linux distributions were install-tested in CI containers; on Windows the basic functions work on one real machine
 (SpaceMouse Pro, official driver; first tests, not extensive); the macOS build is unit-tested by CI but has never been run with a real device.
 
@@ -89,12 +89,12 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
   not possible there. On Windows and macOS (direct HID) every device has its own profile and joystick mode, one
   device per model; tested with a fake source only ([docs/multi-device.md](docs/multi-device.md)).
 - Wayland: not tested; the uinput udev rule is opt-in; active-window profiles need `kdotool`.
-- A macro that is running keeps running when the active program changes (by design, issue #318); other aborts release everything it holds. Macros, the recorder and the pointer have not been tried with a real device ([release notes](docs/release-notes-1.3.0.md)).
+- A macro that is running keeps running when the active program changes (by design, issue #318); other aborts release everything it holds. Macros, the recorder and the pointer have not been tried with a real device ([release notes](docs/release-notes-1.3.1.md)).
 - Supported devices: models that `spacenavd` supports (Linux) or that report a known HID layout
   (Windows, macOS); the factory button count is known for SpaceMouse Pro, Pro Wireless, Compact,
   Wireless, Enterprise and SpaceNavigator.
 
-Release notes: [docs/release-notes-1.3.0.md](docs/release-notes-1.3.0.md) (nothing in it was tried with a real device: see "Not verified"). Earlier: [docs/release-notes-1.2.3.md](docs/release-notes-1.2.3.md) (and [1.2.2](docs/release-notes-1.2.2.md), [1.2.1](docs/release-notes-1.2.1.md), [1.2.0](docs/release-notes-1.2.0.md), [1.1.2](docs/release-notes-1.1.2.md), [1.1.1](docs/release-notes-1.1.1.md), [1.1.0](docs/release-notes-1.1.0.md), [1.0.0](docs/release-notes-1.0.0.md), [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
+Release notes: [docs/release-notes-1.3.1.md](docs/release-notes-1.3.1.md) (nothing in it was tried with a real device: see "Not verified"). Earlier: [docs/release-notes-1.2.3.md](docs/release-notes-1.2.3.md) (and [1.2.2](docs/release-notes-1.2.2.md), [1.2.1](docs/release-notes-1.2.1.md), [1.2.0](docs/release-notes-1.2.0.md), [1.1.2](docs/release-notes-1.1.2.md), [1.1.1](docs/release-notes-1.1.1.md), [1.1.0](docs/release-notes-1.1.0.md), [1.0.0](docs/release-notes-1.0.0.md), [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
 
 ## Download and install
 
@@ -146,7 +146,7 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 | [docs/security.md](docs/security.md) | Threat model, systemd hardening, uinput permissions, loading the driver interface |
 | [docs/legal-notes.md](docs/legal-notes.md) | What dofscroll uses of the 3Dconnexion driver, what it does not ship, where the rights lie |
 | [docs/releasing.md](docs/releasing.md) | How a release is made |
-| [docs/release-notes-1.3.0.md](docs/release-notes-1.3.0.md) | Release notes of 1.3.0 |
+| [docs/release-notes-1.3.1.md](docs/release-notes-1.3.1.md) | Release notes of 1.3.1 |
 | [docs/release-notes-1.2.3.md](docs/release-notes-1.2.3.md) | Release notes of 1.2.3; 1.2.2 in [docs/release-notes-1.2.2.md](docs/release-notes-1.2.2.md), 1.2.1 in [docs/release-notes-1.2.1.md](docs/release-notes-1.2.1.md), 1.2.0 in [docs/release-notes-1.2.0.md](docs/release-notes-1.2.0.md), 1.1.2 in [docs/release-notes-1.1.2.md](docs/release-notes-1.1.2.md), 1.1.1 in [docs/release-notes-1.1.1.md](docs/release-notes-1.1.1.md), 1.1.0 in [docs/release-notes-1.1.0.md](docs/release-notes-1.1.0.md), 1.0.0 in [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md), 0.1.1 in [docs/release-notes-0.1.1.md](docs/release-notes-0.1.1.md), beta.2 in [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-beta.2.md), beta.1 notes in [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) |
 | [docs/work-plan.md](docs/work-plan.md) | Roadmap and the Windows/macOS ports |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, pull requests, adding a joystick mode or language |

@@ -75,10 +75,10 @@ jobs:
           $setup = (Get-ChildItem dist-installers -Filter '*-setup.exe' | Select-Object -First 1).FullName
           $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
           # every program runs with a time limit, so that a hang fails the step instead of the job
-          function Invoke-Limited($file, $argList, $label) {
+          function Invoke-Limited($file, $argList, $label, $limitMs = 120000) {
             Write-Output "run: $label"
             $pr = Start-Process -FilePath $file -ArgumentList $argList -PassThru -WindowStyle Hidden
-            if (-not $pr.WaitForExit(120000)) { Stop-Process -Id $pr.Id -Force; throw "$label timed out" }
+            if (-not $pr.WaitForExit($limitMs)) { Stop-Process -Id $pr.Id -Force; throw "$label timed out" }
             if ($pr.ExitCode -ne 0) { throw "$label failed: exit code $($pr.ExitCode)" }
           }
           function Test-RoundTrip($dir, $twice) {
@@ -123,7 +123,9 @@ jobs:
           # modal error box in this GUI program and waits forever.
           New-Item -ItemType Directory -Force -Path (Join-Path $dir 'platforms') | Out-Null
           Copy-Item -LiteralPath (Join-Path $env:QT_ROOT_DIR 'plugins\platforms\qoffscreen.dll') -Destination (Join-Path $dir 'platforms')
-          Invoke-Limited $ui @('--self-test') 'dofscroll-ui.exe --self-test'
+          # the self-test runs about two minutes on the hosted Windows runner since the interface got many more cases
+          # (127 s on 2026-11-01): ten minutes, a hang still fails the step
+          Invoke-Limited $ui @('--self-test') 'dofscroll-ui.exe --self-test' 600000
           # _?= keeps the uninstaller in place so that the wait really waits for it
           Invoke-Limited (Join-Path $dir 'uninstall.exe') "/S _?=$dir" 'silent uninstall'
           if (Get-ItemProperty -Path $runKey -Name 'dofscroll' -ErrorAction SilentlyContinue) { throw 'autostart value still present after uninstall' }

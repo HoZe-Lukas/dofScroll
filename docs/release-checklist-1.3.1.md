@@ -1,10 +1,14 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
-# Release checklist 1.3.0 (the maintainer's steps by hand)
+# Release checklist 1.3.1 (the maintainer's steps by hand)
+
+> The tag `v1.3.0` (commit `d2acddd`) was set but its release was never published; the ASan check of the CI crashed on the
+> hosted runners (fixed by #349), so the release is 1.3.1. Delete the unused tag `v1.3.0` when the ruleset allows it. The
+> steps below say 1.3.1 where they said 1.3.0.
 
 Everything in this list is something only the maintainer can do: it changes repository settings, needs a real device, or
 needs the release approval. The documentation, the notes and the code are prepared in pull requests (see
-[release-notes-1.3.0.md](release-notes-1.3.0.md) and [releasing.md](releasing.md), which explains why each setting
+[release-notes-1.3.1.md](release-notes-1.3.1.md) and [releasing.md](releasing.md), which explains why each setting
 exists). Work top to bottom; tick a box only after you saw the result. Commands use the GitHub CLI (`gh`), logged in as the
 maintainer. `REPO=HoZe-Lukas/dofScroll` is used below.
 
@@ -112,7 +116,7 @@ its gate, but it would not wait for an approval and anybody with write access co
 
 ## C. Tests that need a person (issues stay open until you checked)
 
-None of the 1.3.0 features was tested with a SpaceMouse (see "Not verified" in the release notes). Build or download the
+None of the 1.3.1 features was tested with a SpaceMouse (see "Not verified" in the release notes). Build or download the
 release candidate packages from the `ci` run of `main` (Actions > ci > the run > Artifacts) and test as far as you can. Write
 the result into the issue: what you ran, on what, what happened. Close an issue only when fully done.
 
@@ -173,15 +177,15 @@ the result into the issue: what you ran, on what, what happened. Close an issue 
 
 ## E. Version bump (one pull request, merged last)
 
-- [x] **E1. Done in this pull request.** `CMakeLists.txt`: `project(dofscroll VERSION 1.3.0 ...)` (the tag must start with this version; the
+- [x] **E1. Done in this pull request.** `CMakeLists.txt`: `project(dofscroll VERSION 1.3.1 ...)` (the tag must start with this version; the
   `tag-release` workflow and the release job check it).
 - [x] **E2. Done in this pull request.** Status lines that say "1.2.3": `readme.md` ("Current stable version"), `docs/wiki/Home.md` ("Status: version
   1.2.3"), `docs/wiki/FAQ.md`, `docs/wiki/Requirements.md`, `site/index.html` and `site/de/index.html` (`softwareVersion` in the
   JSON-LD block and the status texts that name 1.2.3; the contributor's Ubuntu report was for 1.2.3), `docs/wiki/Release-notes.md`
-  (replace the "draft text" wording of the 1.3.0 entry). `grep -rn "1\.2\.3" readme.md docs/wiki site` lists them.
+  (replace the "draft text" wording of the 1.3.1 entry). `grep -rn "1\.2\.3" readme.md docs/wiki site` lists them.
   The site's inline script hash (`Content-Security-Policy`) only changes if you edit the inline script; `scripts/check-site.sh`
   checks it.
-- [ ] **E3.** Finalize `docs/release-notes-1.3.0.md`: remove "(draft)" wording if any is left, check "Not verified" against section C (what you did test moves out of it, what you did not stays), check every
+- [ ] **E3.** Finalize `docs/release-notes-1.3.1.md`: remove "(draft)" wording if any is left, check "Not verified" against section C (what you did test moves out of it, what you did not stays), check every
   statement against the code.
 - [ ] **E4.** Run the checks on the merged `main`: `cmake --build build --target check-fast`, `ctest --test-dir build`,
   `scripts/check-english.sh`, `scripts/check-site.sh`, `scripts/check-german-du.sh`, `scripts/check-spdx.sh`,
@@ -195,17 +199,17 @@ the result into the issue: what you ran, on what, what happened. Close an issue 
 - [ ] **F1.** Start the tag from the Actions tab, or by CLI (it checks the version against `CMakeLists.txt` and that the
   checks of the tip of `main` are green, creates the tag and starts `ci.yml` on it):
 
-        gh workflow run tag-release.yml --repo $REPO --ref main -f version=1.3.0
+        gh workflow run tag-release.yml --repo $REPO --ref main -f version=1.3.1
 
-  or, as the administrator, by hand: `git fetch origin && git tag v1.3.0 origin/main && git push origin v1.3.0`.
+  or, as the administrator, by hand: `git fetch origin && git tag v1.3.1 origin/main && git push origin v1.3.1`.
 - [ ] **F2. Approve the release.** The `ci` run on the tag builds RPM, DEB, TGZ, the Windows setup and ZIP and the macOS DMG,
   then the job `release` waits for the environment `release`. Open the run (`gh run list --repo $REPO --workflow ci.yml
   --limit 3`), check the gate step passed (the tagged commit is on `main`, the required checks are green), then
   **Review deployments > release > Approve and deploy**. The job writes `SHA256SUMS.txt`, attests every file and creates the
   release as a draft, attaches the files and publishes it. It fails if any of the six packages is missing.
-- [ ] **F3. Verify the release.** `gh release view v1.3.0 --repo $REPO`; download a file and run
+- [ ] **F3. Verify the release.** `gh release view v1.3.1 --repo $REPO`; download a file and run
   `sha256sum -c --ignore-missing SHA256SUMS.txt` and
-  `gh attestation verify dofscroll-1.3.0-1.x86_64.rpm -R $REPO --signer-workflow $REPO/.github/workflows/ci.yml`.
+  `gh attestation verify dofscroll-1.3.1-1.x86_64.rpm -R $REPO --signer-workflow $REPO/.github/workflows/ci.yml`.
   Check that the release is marked immutable and not as pre-release.
 
 ## G. After the release
