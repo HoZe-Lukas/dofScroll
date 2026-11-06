@@ -3719,7 +3719,11 @@ static bool driverWizardSelfTest(const QString &tmpPath) {
             settle();
             if (!grabDir.isEmpty() && c.spacing == 100 && c.theme == spn::ui::Theme::Light)
                 wiz.grab().save(grabDir + QStringLiteral("/driver-wizard-page-%1.png").arg(QString::fromLatin1(what).replace(QLatin1Char(' '), QLatin1Char('-'))));
-            check(wiz.width() <= c.width, QStringLiteral("%1: the window did not have to grow (%2 px)").arg(QLatin1String(what)).arg(wiz.width()));
+            // the window opens at the size hint of its pages; made as narrow as the documented width again, what the layout
+            // needs at least must fit
+            wiz.resize(c.width, 760);
+            settle();
+            check(wiz.width() <= c.width, QStringLiteral("%1: the window fits %2 px (it needs %3 px)").arg(QLatin1String(what)).arg(c.width).arg(wiz.width()));
             if (!page()) return;
             check(page()->minimumSizeHint().width() <= wiz.width(), QStringLiteral("%1: the page fits the window").arg(QLatin1String(what)));
             for (QAbstractScrollArea *a : page()->findChildren<QAbstractScrollArea *>())

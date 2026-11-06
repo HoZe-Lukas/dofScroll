@@ -150,12 +150,20 @@ public:
                                    "3Dconnexion settings window before you continue. Afterwards restart the driver, or sign out and in "
                                    "again, so that it reads the changed files."),
                                  this));
-        consent_ = new QCheckBox(T("I have closed the 3Dconnexion settings window and want to continue"), this);
+        // the text is a wrapping label next to the box (a check box does not wrap its text); a click on it toggles the box
+        auto *consentRow = new QHBoxLayout;
+        consent_ = new QCheckBox(this);
         consent_->setObjectName(QStringLiteral("consent"));
         consent_->setProperty("look", QStringLiteral("box"));
         consent_->setAccessibleName(T("I have closed the 3Dconnexion settings window and want to continue"));
         consent_->setAccessibleDescription(T("Next is available once this is ticked"));
-        col->addWidget(consent_);
+        auto *consentText = paragraph(T("I have closed the 3Dconnexion settings window and want to continue"), this);
+        consentText->setObjectName(QStringLiteral("consent-text"));
+        consentText->setBuddy(consent_);
+        consentText->installEventFilter(this);
+        consentRow->addWidget(consent_, 0, Qt::AlignTop);
+        consentRow->addWidget(consentText, 1);
+        col->addLayout(consentRow);
         auto *row = new QHBoxLayout;
         restore_ = new QPushButton(T("Restore a backup..."), this);
         restore_->setObjectName(QStringLiteral("intro-restore"));
@@ -179,6 +187,10 @@ public:
         if (!any) restore_->setToolTip(T("There is no backup yet: a backup is made when a cleanup changes a file"));
     }
     bool isComplete() const override { return consent_->isChecked(); }
+    bool eventFilter(QObject *o, QEvent *e) override {
+        if (e->type() == QEvent::MouseButtonRelease && o->objectName() == QStringLiteral("consent-text")) consent_->toggle();
+        return QWizardPage::eventFilter(o, e);
+    }
     void setStatus(const QString &t) { status_->setText(t); }
 
 private:
