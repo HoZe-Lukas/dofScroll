@@ -114,7 +114,8 @@ std::string macroActionText(const MacroAction &action);  // canonical "<neg>,<po
 
 // ---- load warning (tier B, docs/security.md section 7) -------------------------------------------------------------------
 // The key presses of the macro that the loader names in its plain warning: every Down chord that is not a tier A key
-// (letters, digits, modifiers, function keys, ...; keyAnalogAllowed in modes.hpp). "" if there is none. No gate, only a warning.
+// (tier A = safe to repeat: arrows, Page up/down, Home, End, Tab, plus, minus, volume and track keys, see keyAnalogAllowed in
+// modes.hpp; so letters, digits, function keys, Enter, Esc and modifiers are named). "" if there is none. No gate, only a warning.
 std::string macroRiskText(const MacroSteps &steps);
 std::string macroRiskText(const MacroSide &side);      // the press and the release part
 std::string macroRiskText(const MacroAction &action);  // both directions
