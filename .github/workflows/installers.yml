@@ -193,8 +193,10 @@ jobs:
           echo "CMAKE_PREFIX_PATH=$root" >> "$GITHUB_ENV"
           echo "$root/bin" >> "$GITHUB_PATH"
       - name: Configure
+        # No test programs: the image needs dofscroll, dofscroll-ui, dofscroll-hidprobe and the translation, and building
+        # the ~160 test executables too made this job slower with every new test (90 minutes on 2026-11-06, cancelled twice)
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DDOFSCROLL_UI=ON
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DDOFSCROLL_UI=ON -DBUILD_TESTING=OFF
       - name: Build
         run: cmake --build build --parallel
       - name: Package
