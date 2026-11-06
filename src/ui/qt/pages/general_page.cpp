@@ -23,7 +23,7 @@
 
 #include "platform/autostart_platform.hpp"
 #include "driver_platform.hpp"
-#include "driver_cleanup_dialog.hpp"
+#include "driver_cleanup_wizard.hpp"
 #include "log_dialog.hpp"
 #include "theme.hpp"
 #include "ui/model/channels_page_model.hpp"
@@ -283,11 +283,11 @@ public:
             dvl->addWidget(drvNote);
             auto *drvBtn = new QPushButton(T("Remove driver axis settings..."));
             drvBtn->setObjectName(QStringLiteral("driver-cleanup"));
-            drvBtn->setToolTip(T("List the programs with active driver axes and switch off the ones you tick"));
+            drvBtn->setToolTip(T("Opens an assistant that lists the programs with active driver axes and switches off the ones you tick"));
             dvl->addWidget(drvBtn, 0, Qt::AlignLeft);
             QObject::connect(drvBtn, &QPushButton::clicked, this, [this, driverDir] {
-                DriverCleanupDialog dlg(driverDir, window());
-                dlg.exec();
+                DriverCleanupWizard wizard(driverDir, window());
+                wizard.exec();
             });
             right->addWidget(drvBox);
         }

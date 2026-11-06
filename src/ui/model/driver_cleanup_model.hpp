@@ -10,8 +10,14 @@
 // Programs whose active axes only pass the motion on to the program (HIDMultiAxis_*: 3D navigation of
 // CAD and 3D programs) are listed but not picked by default. No toolkit, no writing outside `dir`.
 //
-//   std::vector<DriverApp> apps;  scanDriverConfigs(driverConfigDir(), &apps, &err);
-//   apps[i].selected = ...;       applyDriverCleanup(dir, apps, "20261023-101500", &report);
+// The cleanup wizard (src/ui/qt/pages/driver_cleanup_wizard.cpp) is a thin view on this file: the scan with
+// its report of skipped files, the tick rules (all, none, all except 3D and CAD, invert, the rows shown by a
+// filter), the preview, the apply with progress and the list and restore of the backups are all here.
+//
+//   std::vector<DriverApp> apps;  DriverScanReport scan;  scanDriverFolder(driverConfigDir(), &apps, &scan);
+//   applyDriverTick(apps, DriverTick::ExceptNavigation, {});   // the default ticks
+//   const DriverPreview pv = buildDriverPreview(apps);          // what would change; nothing is written
+//   applyDriverCleanup(dir, apps, "20261023-101500", &report);
 //   restoreDriverBackup(dir, "20261023-101500", &report);
 #pragma once
 #include <algorithm>
@@ -46,6 +52,30 @@ struct DriverCleanupReport {
     std::vector<std::string> changed;  // files whose axes were switched off
     std::vector<std::string> failed;   // "<file>: reason"
     std::string backupDir;             // where the originals are
+};
+
+// Why a file of the driver folder could not be looked at (named in words by the wizard).
+enum class DriverSkipReason { Unreadable, TooLarge, Utf16 };
+
+struct DriverSkippedFile {
+    std::string file;
+    DriverSkipReason reason = DriverSkipReason::Unreadable;
+    std::string detail;  // the operating system's text for Unreadable, else empty
+};
+
+// What the scan saw in the folder: the numbers and the files it had to skip, so that "only one program" can be
+// told from "only one program has axes switched on".
+struct DriverScanReport {
+    std::string dir;
+    bool folderFound = false;
+    std::string error;             // set when the folder cannot be read
+    bool truncated = false;        // more entries than kMaxDriverFiles: the list is partial
+    size_t xmlFiles = 0;           // *.xml files read as program files (Global.xml and UserInfo.xml are not counted)
+    size_t programs = 0;           // files with at least one active axis (the list)
+    size_t withoutActiveAxes = 0;  // program files in which every axis is already off
+    size_t withoutAxisBank = 0;    // XML files that hold no axis settings at all
+    bool hasGlobalFile = false;    // Global.xml: the settings of every program without its own file; never touched
+    std::vector<DriverSkippedFile> skipped;
 };
 
 constexpr size_t kMaxDriverFiles = 512;
@@ -214,42 +244,206 @@ inline std::string disableDriverAxes(const std::string &xml, int *changed) {
     return out;
 }
 
-// Lists the programs of the driver folder that have active axes (sorted by name). false + *err when
-// the folder cannot be read. Global.xml and UserInfo.xml are not programs.
-// *truncated is set when the folder holds more entries than are looked at (kMaxDriverFiles): the list is then partial.
-inline bool scanDriverConfigs(const std::string &dir, std::vector<DriverApp> *apps, std::string *err,
-                              bool *truncated = nullptr) {
+// True for text that starts with a UTF-16 byte order mark or looks like UTF-16 (a NUL after the first character):
+// the driver's files are UTF-8; a UTF-16 file cannot be edited as text here and is skipped, not silently dropped.
+inline bool looksLikeUtf16(const std::string &xml) {
+    if (xml.size() >= 2 && ((xml[0] == '\xFF' && xml[1] == '\xFE') || (xml[0] == '\xFE' && xml[1] == '\xFF'))) return true;
+    return xml.size() >= 4 && ((xml[0] == '<' && xml[1] == '\0') || (xml[0] == '\0' && xml[1] == '<'));
+}
+
+// Lists the programs of the driver folder that have active axes (sorted by name) and reports what else was in the
+// folder. false + report->error when the folder cannot be read. Global.xml and UserInfo.xml are not programs.
+inline bool scanDriverFolder(const std::string &dir, std::vector<DriverApp> *apps, DriverScanReport *report) {
     using namespace driver_detail;
     apps->clear();
+    *report = DriverScanReport();
+    report->dir = dir;
     std::vector<std::string> names;
     bool capped = false;
-    if (truncated) *truncated = false;
     if (dir.empty() || !fs::listDir(dir, kMaxDriverFiles, &names, &capped)) {
-        if (err) *err = "the driver's settings folder cannot be read";
+        report->error = "the driver's settings folder cannot be read";
         return false;
     }
-    if (truncated) *truncated = capped;
+    report->folderFound = true;
+    report->truncated = capped;
     for (const std::string &n : names) {
         if (!plainName(n) || !endsWithXml(n)) continue;
         const std::string low = lowerAscii(n);
+        if (low == "global.xml") report->hasGlobalFile = true;
         if (low == "global.xml" || low == "userinfo.xml") continue;
+        ++report->xmlFiles;
         std::string xml;
         fs::ReadOptions opt;
         opt.refuseLinks = true;
-        if (!fs::readFileBounded(dir + "/" + n, kMaxDriverFileBytes, opt, &xml).ok()) continue;
+        const fs::ReadResult rr = fs::readFileBounded(dir + "/" + n, kMaxDriverFileBytes, opt, &xml);
+        if (!rr.ok()) {
+            const bool big = rr.status == fs::ReadStatus::TooLargeBySize || rr.status == fs::ReadStatus::TooLargeWhileReading;
+            report->skipped.push_back({n, big ? DriverSkipReason::TooLarge : DriverSkipReason::Unreadable, rr.sysError});
+            continue;
+        }
+        if (looksLikeUtf16(xml)) {
+            report->skipped.push_back({n, DriverSkipReason::Utf16, std::string()});
+            continue;
+        }
         DriverApp a;
-        if (parseDriverFile(n, xml, &a) && !a.active.empty()) apps->push_back(a);
+        if (!parseDriverFile(n, xml, &a)) {
+            ++report->withoutAxisBank;
+        } else if (a.active.empty()) {
+            ++report->withoutActiveAxes;
+        } else {
+            apps->push_back(a);
+        }
     }
     std::sort(apps->begin(), apps->end(),
               [](const DriverApp &a, const DriverApp &b) { return lowerAscii(a.name) < lowerAscii(b.name); });
+    report->programs = apps->size();
     return true;
+}
+
+// Same list without the report. false + *err when the folder cannot be read.
+// *truncated is set when the folder holds more entries than are looked at (kMaxDriverFiles): the list is then partial.
+inline bool scanDriverConfigs(const std::string &dir, std::vector<DriverApp> *apps, std::string *err,
+                              bool *truncated = nullptr) {
+    DriverScanReport rep;
+    const bool ok = scanDriverFolder(dir, apps, &rep);
+    if (truncated) *truncated = rep.truncated;
+    if (!ok && err) *err = rep.error;
+    return ok;
+}
+
+// ---- choosing the programs: the rules behind the wizard's buttons --------------------------------------------------
+
+enum class DriverTick { All, None, ExceptNavigation, Invert };
+
+inline size_t driverTickedCount(const std::vector<DriverApp> &apps) {
+    return static_cast<size_t>(std::count_if(apps.begin(), apps.end(), [](const DriverApp &a) { return a.selected; }));
+}
+
+inline size_t driverNavigationCount(const std::vector<DriverApp> &apps) {
+    return static_cast<size_t>(std::count_if(apps.begin(), apps.end(), [](const DriverApp &a) { return a.navigation; }));
+}
+
+// Sets the ticks of the programs at `rows` (indices into `apps`; empty = every program). "All except 3D and CAD" ticks
+// the other programs and unticks the 3D and CAD ones (the default of the scan). Independent of any row selection.
+inline void applyDriverTick(std::vector<DriverApp> &apps, DriverTick how, const std::vector<size_t> &rows) {
+    auto one = [how](DriverApp &a) {
+        switch (how) {
+        case DriverTick::All: a.selected = true; break;
+        case DriverTick::None: a.selected = false; break;
+        case DriverTick::ExceptNavigation: a.selected = !a.navigation; break;
+        case DriverTick::Invert: a.selected = !a.selected; break;
+        }
+    };
+    if (rows.empty()) {
+        for (DriverApp &a : apps) one(a);
+        return;
+    }
+    for (size_t i : rows)
+        if (i < apps.size()) one(apps[i]);
+}
+
+// Space on several selected rows: when one of them is not ticked they all get ticked, else they all lose the tick.
+// Returns the new state of the rows (false when `rows` holds no valid row).
+inline bool toggleDriverTicks(std::vector<DriverApp> &apps, const std::vector<size_t> &rows) {
+    bool any = false, anyOff = false;
+    for (size_t i : rows)
+        if (i < apps.size()) {
+            any = true;
+            anyOff = anyOff || !apps[i].selected;
+        }
+    if (!any) return false;
+    for (size_t i : rows)
+        if (i < apps.size()) apps[i].selected = anyOff;
+    return anyOff;
+}
+
+// The filter box: an ASCII case-insensitive match on the program name, the executable or the file name. Empty matches all.
+inline bool driverMatchesFilter(const DriverApp &a, const std::string &text) {
+    using namespace driver_detail;
+    const std::string t = lowerAscii(trim(text));
+    if (t.empty()) return true;
+    return lowerAscii(a.name).find(t) != std::string::npos || lowerAscii(a.exe).find(t) != std::string::npos ||
+           lowerAscii(a.file).find(t) != std::string::npos;
+}
+
+inline std::vector<size_t> driverFilterRows(const std::vector<DriverApp> &apps, const std::string &text) {
+    std::vector<size_t> rows;
+    for (size_t i = 0; i < apps.size(); ++i)
+        if (driverMatchesFilter(apps[i], text)) rows.push_back(i);
+    return rows;
+}
+
+// ---- what the driver does, and the preview of a cleanup -------------------------------------------------------------
+
+// The active axes of a program grouped by what the driver does with them ("mouse wheel: X, Ry; keys: Z"). An axis
+// appears once per group (the driver lists the two directions of an axis separately). Groups of kind Other stay
+// apart by the driver's action id.
+struct DriverAxisGroup {
+    DriverOutput output = DriverOutput::Other;
+    std::string outputId;
+    std::vector<std::string> axes;
+};
+
+inline std::vector<DriverAxisGroup> groupDriverAxes(const DriverApp &a) {
+    std::vector<DriverAxisGroup> groups;
+    for (const DriverAxis &d : a.active) {
+        auto it = std::find_if(groups.begin(), groups.end(), [&d](const DriverAxisGroup &g) {
+            return g.output == d.output && (d.output != DriverOutput::Other || g.outputId == d.outputId);
+        });
+        if (it == groups.end()) {
+            DriverAxisGroup g;
+            g.output = d.output;
+            if (d.output == DriverOutput::Other) g.outputId = d.outputId;
+            groups.push_back(g);
+            it = groups.end() - 1;
+        }
+        if (std::find(it->axes.begin(), it->axes.end(), d.input) == it->axes.end()) it->axes.push_back(d.input);
+    }
+    return groups;
+}
+
+struct DriverPreviewItem {
+    std::string file, name, exe;
+    std::vector<DriverAxisGroup> groups;  // what is switched off
+    size_t axisCount = 0;                 // active <Axis> entries that become inactive
+    bool navigation = false;              // a 3D or CAD program: its 3D navigation through the driver stops
+};
+
+struct DriverPreview {
+    std::vector<DriverPreviewItem> items;  // the ticked programs, in list order
+    size_t files = 0;                      // = items.size(): files that are backed up and changed
+    size_t axes = 0;                       // active axes switched off in total
+    size_t navigationTicked = 0;           // ticked 3D and CAD programs (a warning each)
+};
+
+// What applyDriverCleanup would change for the ticked programs. Reads nothing and writes nothing.
+inline DriverPreview buildDriverPreview(const std::vector<DriverApp> &apps) {
+    DriverPreview pv;
+    for (const DriverApp &a : apps) {
+        if (!a.selected) continue;
+        DriverPreviewItem it;
+        it.file = a.file;
+        it.name = a.name;
+        it.exe = a.exe;
+        it.groups = groupDriverAxes(a);
+        it.axisCount = a.active.size();
+        it.navigation = a.navigation;
+        pv.axes += it.axisCount;
+        if (it.navigation) ++pv.navigationTicked;
+        pv.items.push_back(it);
+    }
+    pv.files = pv.items.size();
+    return pv;
 }
 
 // Switches the axes of the selected programs off. For every file the original is first copied to
 // <dir>/dofscroll-backup/<stamp>/ (no change without a backup), then the file is replaced and read
 // back; if the read-back still shows an active axis the original is put back. Never throws.
+// `progress` (optional) is called before each file with (files done, files to do, the file), and once at the end.
+using DriverProgress = std::function<void(size_t done, size_t total, const std::string &file)>;
+
 inline bool applyDriverCleanup(const std::string &dir, const std::vector<DriverApp> &apps, const std::string &stamp,
-                               DriverCleanupReport *report) {
+                               DriverCleanupReport *report, const DriverProgress &progress = DriverProgress()) {
     using namespace driver_detail;
     *report = DriverCleanupReport();
     if (!validStamp(stamp) || dir.empty()) {
@@ -259,8 +453,12 @@ inline bool applyDriverCleanup(const std::string &dir, const std::vector<DriverA
     std::string bdir = dir + "/" + kDriverBackupDir + "/" + stamp;
     report->backupDir = bdir;
     bool madeDir = false;
+    const size_t total = driverTickedCount(apps);
+    size_t done = 0;
     for (const DriverApp &a : apps) {
         if (!a.selected) continue;
+        if (progress) progress(done, total, a.file);
+        ++done;
         if (!plainName(a.file) || !endsWithXml(a.file)) {
             report->failed.push_back(a.file + ": not a driver file name");
             continue;
@@ -322,6 +520,7 @@ inline bool applyDriverCleanup(const std::string &dir, const std::vector<DriverA
         }
         report->changed.push_back(a.file);
     }
+    if (progress) progress(total, total, std::string());
     return report->failed.empty();
 }
 
@@ -337,6 +536,42 @@ inline std::vector<std::string> listDriverBackups(const std::string &dir, bool *
     for (const std::string &n : names)
         if (validStamp(n)) out.push_back(n);
     std::sort(out.begin(), out.end(), std::greater<std::string>());
+    return out;
+}
+
+// "20261023-101500" -> "2026-10-23 10:15:00"; a second backup of the same second ("20261023-101500-2") ends in " (2)".
+// A stamp of another shape is returned as it is.
+inline std::string driverBackupWhen(const std::string &stamp) {
+    if (stamp.size() < 15 || stamp[8] != '-') return stamp;
+    for (size_t i = 0; i < 15; ++i)
+        if (i != 8 && !std::isdigit(static_cast<unsigned char>(stamp[i]))) return stamp;
+    std::string t = stamp.substr(0, 4) + "-" + stamp.substr(4, 2) + "-" + stamp.substr(6, 2) + " " + stamp.substr(9, 2) + ":" +
+                    stamp.substr(11, 2) + ":" + stamp.substr(13, 2);
+    if (stamp.size() > 16 && stamp[15] == '-') t += " (" + stamp.substr(16) + ")";
+    return t;
+}
+
+struct DriverBackupInfo {
+    std::string stamp;  // the folder name
+    std::string when;   // driverBackupWhen(stamp)
+    size_t files = 0;   // XML files in it
+};
+
+// The backups with the date and the number of files, newest first.
+inline std::vector<DriverBackupInfo> listDriverBackupInfo(const std::string &dir, bool *truncated = nullptr) {
+    using namespace driver_detail;
+    std::vector<DriverBackupInfo> out;
+    for (const std::string &stamp : listDriverBackups(dir, truncated)) {
+        DriverBackupInfo b;
+        b.stamp = stamp;
+        b.when = driverBackupWhen(stamp);
+        std::vector<std::string> names;
+        bool capped = false;
+        if (fs::listDir(dir + "/" + kDriverBackupDir + "/" + stamp, kMaxDriverFiles, &names, &capped))
+            for (const std::string &n : names)
+                if (plainName(n) && endsWithXml(n)) ++b.files;
+        out.push_back(b);
+    }
     return out;
 }
 

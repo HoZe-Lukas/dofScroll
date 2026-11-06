@@ -4451,105 +4451,45 @@ msgstr ""
 "Die Einrichtungshilfe für den ersten Start noch einmal öffnen: Daemon, "
 "SpaceMouse, Start bei der Anmeldung und unter macOS die Berechtigungen"
 
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
 msgid "3Dconnexion driver: remove axis settings"
 msgstr "3Dconnexion-Treiber: Achseneinstellungen entfernen"
 
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "When the 3Dconnexion driver has an axis switched on for a program, that program gets the driver's input and dofscroll's scrolling, so every movement arrives twice. Tick the programs whose driver axes should be switched off. Programs that use the driver for 3D navigation (CAD, 3D) are not ticked: leave them as they are. Every changed file is saved first and can be restored."
-msgstr "Hat der 3Dconnexion-Treiber für ein Programm eine Achse eingeschaltet, erhält das Programm die Eingabe des Treibers und das Scrollen von dofscroll, jede Bewegung kommt also doppelt an. Hake die Programme an, deren Treiberachsen ausgeschaltet werden sollen. Programme, die den Treiber für die 3D-Navigation nutzen (CAD, 3D), sind nicht angehakt: lass sie unverändert. Jede geänderte Datei wird vorher gesichert und lässt sich wiederherstellen."
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
 msgid "Programs with active driver axes"
 msgstr "Programme mit aktiven Treiberachsen"
 
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
 msgid "Switch off the ticked programs"
 msgstr "Angehakte Programme ausschalten"
 
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "Saves each file first, then switches the axes of the ticked programs off"
-msgstr "Sichert jede Datei zuerst und schaltet dann die Achsen der angehakten Programme aus"
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "Restore the last backup"
-msgstr "Letzte Sicherung wiederherstellen"
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "Puts the files of the newest backup back"
-msgstr "Spielt die Dateien der neuesten Sicherung zurück"
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
 msgid "Read again"
 msgstr "Neu einlesen"
 
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "The settings folder of the 3Dconnexion driver was not found. Is the driver installed?"
-msgstr "Der Einstellungsordner des 3Dconnexion-Treibers wurde nicht gefunden. Ist der Treiber installiert?"
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "No program has driver axes switched on. Nothing to clean up."
-msgstr "Bei keinem Programm sind Treiberachsen eingeschaltet. Es gibt nichts zu bereinigen."
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "%1 programs have driver axes switched on. If a change does not take effect, restart the 3Dconnexion driver or sign out and in again."
-msgstr "Bei %1 Programmen sind Treiberachsen eingeschaltet. Wirkt eine Änderung nicht, starte den 3Dconnexion-Treiber neu oder melde dich ab und wieder an."
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "Tick at least one program."
-msgstr "Hake mindestens ein Programm an."
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "Switch off the driver axes of %1 programs? The files are saved first and can be restored."
-msgstr "Die Treiberachsen von %1 Programmen ausschalten? Die Dateien werden vorher gesichert und lassen sich wiederherstellen."
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "Done: %1 files changed. The originals are in %2."
-msgstr "Fertig: %1 Dateien geändert. Die Originale liegen in %2."
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "Not everything worked:"
-msgstr "Nicht alles hat geklappt:"
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
 msgid "There is no backup."
 msgstr "Es gibt keine Sicherung."
 
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "Put the files of the backup %1 back?"
-msgstr "Die Dateien der Sicherung %1 zurückspielen?"
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "Restored: %1 files."
-msgstr "Wiederhergestellt: %1 Dateien."
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "The backup could not be restored completely."
-msgstr "Die Sicherung konnte nicht vollständig wiederhergestellt werden."
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
 msgid "mouse wheel"
 msgstr "Mausrad"
 
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
 msgid "keys"
 msgstr "Tasten"
 
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
 msgid "mouse movement"
 msgstr "Mausbewegung"
 
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
 msgid "joystick"
 msgstr "Joystick"
 
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
 msgid "passed to the program"
 msgstr "ans Programm durchgereicht"
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "only passes the axes on"
-msgstr "reicht die Achsen nur durch"
 
 #: src/ui/qt/pages/general_page.cpp
 msgid "If the driver has axes switched on for a program, that program receives every movement twice: from the driver and from dofscroll. Switch them off here, except for your 3D and CAD programs."
@@ -4563,21 +4503,13 @@ msgstr "Treiber-Achseneinstellungen entfernen..."
 msgid "List the programs with active driver axes and switch off the ones you tick"
 msgstr "Listet die Programme mit aktiven Treiberachsen und schaltet die angehakten aus"
 
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
 msgid "Tick all"
 msgstr "Alle anhaken"
 
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "Tick every program in the list"
-msgstr "Hakt alle Programme in der Liste an"
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
 msgid "Tick none"
 msgstr "Keines anhaken"
-
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "Remove every tick"
-msgstr "Entfernt alle Haken"
 
 #: src/ui/model/axis_roles_model.hpp
 msgid "In this configuration vertical scroll uses the axes %1, horizontal scroll %2 and zoom %3. A joystick mode that splits a channel gives the push and the tilt parts different functions."
@@ -6122,10 +6054,6 @@ msgstr "Das Profil „%1“ gibt es nicht mehr (die Konfiguration wurde neu gela
 msgid "The profile of your device could not be added: %1"
 msgstr "Das Profil deines Geräts konnte nicht angelegt werden: %1"
 
-#: src/ui/qt/pages/driver_cleanup_dialog.cpp
-msgid "The folder holds more files than are listed here; the list is not complete."
-msgstr "Der Ordner enthält mehr Dateien, als hier aufgelistet sind; die Liste ist nicht vollständig."
-
 #: src/ui/qt/pages/motion_editor.cpp
 msgid "Copy the setting of another motion to %1"
 msgstr "Die Einstellung einer anderen Bewegung für %1 übernehmen"
@@ -6859,3 +6787,415 @@ msgstr "Wie der ganze Kanal: %1"
 #: src/ui/model/part_tuning_model.hpp
 msgid "Inherited from the whole channel: %1"
 msgstr "Vom ganzen Kanal geerbt: %1"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "3D/CAD program: ticked, its 3D navigation through the driver will stop"
+msgstr "3D-/CAD-Programm: angehakt, die 3D-Navigation über den Treiber wird aufhören"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "3D/CAD program: keeps the driver's axes"
+msgstr "3D-/CAD-Programm: behält die Achsen des Treibers"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "The driver's axes will be switched off"
+msgstr "Die Achsen des Treibers werden ausgeschaltet"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Left as it is"
+msgstr "Bleibt unverändert"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "the file cannot be read"
+msgstr "die Datei kann nicht gelesen werden"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "the backup cannot be written, so the file was left unchanged"
+msgstr "die Sicherung kann nicht geschrieben werden, deshalb blieb die Datei unverändert"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "the file cannot be written (%1)"
+msgstr "die Datei kann nicht geschrieben werden (%1)"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "the change did not hold, the original was put back"
+msgstr "die Änderung hat nicht gehalten, das Original wurde zurückgelegt"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "the backup folder cannot be created, nothing was changed"
+msgstr "der Sicherungsordner kann nicht angelegt werden, nichts wurde geändert"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "not the name of a driver file"
+msgstr "kein Name einer Treiberdatei"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "the name of the backup is not valid"
+msgstr "der Name der Sicherung ist ungültig"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "the backup cannot be read"
+msgstr "die Sicherung kann nicht gelesen werden"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "larger than 1 MB, not a driver file"
+msgstr "größer als 1 MB, keine Treiberdatei"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "saved as UTF-16, which dofscroll does not change"
+msgstr "als UTF-16 gespeichert, das dofscroll nicht ändert"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "cannot be read"
+msgstr "kann nicht gelesen werden"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Remove the driver's axis settings"
+msgstr "Achseneinstellungen des Treibers entfernen"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "This assistant switches off the 3Dconnexion driver's axes for programs that receive every movement twice."
+msgstr "Dieser Assistent schaltet die Achsen des 3Dconnexion-Treibers für Programme aus, die jede Bewegung doppelt erhalten."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "What the driver does"
+msgstr "Was der Treiber tut"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "When the 3Dconnexion driver has an axis switched on for a program (for example the twist on the mouse wheel), that program gets the driver's input and dofscroll's scrolling, so every movement arrives twice."
+msgstr "Hat der 3Dconnexion-Treiber für ein Programm eine Achse eingeschaltet (zum Beispiel das Drehen auf dem Mausrad), erhält das Programm die Eingabe des Treibers und das Scrollen von dofscroll, jede Bewegung kommt also doppelt an."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "What will be changed, and what not"
+msgstr "Was geändert wird und was nicht"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Only the axis assignments of the programs you choose are switched off, in the driver's file of each program (folder: %1). Everything else stays as it is: the button assignments, the driver's global settings (Global.xml) and every program you do not choose."
+msgstr "Ausgeschaltet werden nur die Achsenzuweisungen der Programme, die du auswählst, und zwar in der Treiberdatei jedes Programms (Ordner: %1). Alles andere bleibt, wie es ist: die Tastenzuweisungen, die globalen Einstellungen des Treibers (Global.xml) und jedes Programm, das du nicht auswählst."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Every changed file is backed up first"
+msgstr "Jede geänderte Datei wird vorher gesichert"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Before a file is changed it is copied to the folder dofscroll-backup inside the driver's folder. You can put a backup back at any time."
+msgstr "Bevor eine Datei geändert wird, wird sie in den Ordner dofscroll-backup im Ordner des Treibers kopiert. Du kannst eine Sicherung jederzeit zurückspielen."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "The driver may be running"
+msgstr "Der Treiber läuft möglicherweise"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "The 3Dconnexion driver may keep these files open or write its own copy back when it quits. Close the 3Dconnexion settings window before you continue. Afterwards restart the driver, or sign out and in again, so that it reads the changed files."
+msgstr "Der 3Dconnexion-Treiber hält diese Dateien möglicherweise geöffnet oder schreibt beim Beenden seine eigene Kopie zurück. Schließe das Einstellungsfenster von 3Dconnexion, bevor du fortfährst. Starte danach den Treiber neu oder melde dich ab und wieder an, damit er die geänderten Dateien einliest."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "I have closed the 3Dconnexion settings window and want to continue"
+msgstr "Ich habe das Einstellungsfenster von 3Dconnexion geschlossen und möchte fortfahren"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Next is available once this is ticked"
+msgstr "Weiter ist verfügbar, sobald dies angehakt ist"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Restore a backup..."
+msgstr "Sicherung zurückspielen ..."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Put the files of an earlier backup back, without cleaning up anything now"
+msgstr "Die Dateien einer früheren Sicherung zurückspielen, ohne jetzt etwas zu bereinigen"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Opens the list of the backups made by this assistant"
+msgstr "Öffnet die Liste der Sicherungen, die dieser Assistent angelegt hat"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Result of the restore"
+msgstr "Ergebnis des Zurückspielens"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "There is no backup yet: a backup is made when a cleanup changes a file"
+msgstr "Es gibt noch keine Sicherung: eine Sicherung entsteht, wenn eine Bereinigung eine Datei ändert"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "What was found"
+msgstr "Das wurde gefunden"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "The assistant has read the driver's settings folder. Nothing has been changed."
+msgstr "Der Assistent hat den Einstellungsordner des Treibers gelesen. Es wurde nichts geändert."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Reads the driver's folder again, for example after you have changed a program's settings in the driver"
+msgstr "Liest den Ordner des Treibers erneut, zum Beispiel nachdem du die Einstellungen eines Programms im Treiber geändert hast"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "The settings folder of the 3Dconnexion driver was not found: %1. Is the driver installed? It keeps one file per program in the folder 3Dconnexion\\3DxWare\\Cfg of your user data (APPDATA)."
+msgstr "Der Einstellungsordner des 3Dconnexion-Treibers wurde nicht gefunden: %1. Ist der Treiber installiert? Er legt eine Datei pro Programm im Ordner 3Dconnexion\\3DxWare\\Cfg deiner Benutzerdaten (APPDATA) ab."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Next is not available: there is no folder to read."
+msgstr "Weiter ist nicht verfügbar: es gibt keinen Ordner zum Lesen."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Folder read: %1"
+msgstr "Gelesener Ordner: %1"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Program files read: %1\nPrograms with driver axes switched on: %2\nPrograms without an active axis (nothing to do): %3\nFiles without axis settings: %4"
+msgstr "Gelesene Programmdateien: %1\nProgramme mit eingeschalteten Treiberachsen: %2\nProgramme ohne aktive Achse (nichts zu tun): %3\nDateien ohne Achseneinstellungen: %4"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Files that were skipped (%1):"
+msgstr "Übersprungene Dateien (%1):"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "  ... and %1 more"
+msgstr "  ... und %1 weitere"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Global.xml holds the driver's settings for every program that has no file of its own. It is never changed here."
+msgstr "Global.xml enthält die Einstellungen des Treibers für jedes Programm ohne eigene Datei. Sie wird hier nie geändert."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "The folder holds more files than are read; the list is not complete."
+msgstr "Der Ordner enthält mehr Dateien, als gelesen werden; die Liste ist nicht vollständig."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Next is not available: no program has driver axes switched on, so there is nothing to clean up."
+msgstr "Weiter ist nicht verfügbar: Bei keinem Programm sind Treiberachsen eingeschaltet, es gibt also nichts zu bereinigen."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Choose the programs"
+msgstr "Programme auswählen"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Tick the programs whose driver axes should be switched off. Programs that use the driver for 3D navigation (CAD, 3D) are not ticked by default: leave them as they are."
+msgstr "Hake die Programme an, deren Treiberachsen ausgeschaltet werden sollen. Programme, die den Treiber für die 3D-Navigation nutzen (CAD, 3D), sind standardmäßig nicht angehakt: lass sie unverändert."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Tick every program shown in the table"
+msgstr "Jedes Programm in der Tabelle anhaken"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Remove the tick of every program shown in the table"
+msgstr "Bei jedem Programm in der Tabelle den Haken entfernen"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Tick all except 3D and CAD programs"
+msgstr "Alle außer 3D- und CAD-Programmen anhaken"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Tick every program shown, but not the 3D and CAD programs that use the driver for 3D navigation"
+msgstr "Jedes angezeigte Programm anhaken, nur nicht die 3D- und CAD-Programme, die den Treiber für die 3D-Navigation nutzen"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Invert"
+msgstr "Umkehren"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Tick what is not ticked and remove the tick of what is ticked, for the programs shown"
+msgstr "Bei den angezeigten Programmen Nicht-Angehaktes anhaken und Angehaktes abhaken"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Filter by program name"
+msgstr "Nach Programmnamen filtern"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Filter the programs by name"
+msgstr "Programme nach Namen filtern"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Only the programs whose name, executable or file contains this text are shown. The buttons above act on the programs shown."
+msgstr "Nur die Programme, deren Name, Programmdatei oder Datei diesen Text enthält, werden angezeigt. Die Schaltflächen darüber wirken auf die angezeigten Programme."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Tick"
+msgstr "Haken"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Executable"
+msgstr "Programmdatei"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Driver axes"
+msgstr "Treiberachsen"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "What the driver does with which axes"
+msgstr "Was der Treiber mit welchen Achsen tut"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "One row per program. Click the box of a row to tick it. Select rows with the arrow keys, Shift or Ctrl, press Space to tick or untick the selected rows, Ctrl+A selects all rows."
+msgstr "Eine Zeile pro Programm. Klicke das Kästchen einer Zeile an, um sie anzuhaken. Wähle Zeilen mit den Pfeiltasten, Umschalt oder Strg aus, drücke die Leertaste, um die ausgewählten Zeilen an- oder abzuhaken; Strg+A wählt alle Zeilen aus."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Number of programs ticked"
+msgstr "Anzahl angehakter Programme"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Switch off the driver axes of %1"
+msgstr "Treiberachsen von %1 ausschalten"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "%1. Ticked: the axes are switched off. Not ticked: the program is left as it is."
+msgstr "%1. Angehakt: die Achsen werden ausgeschaltet. Nicht angehakt: das Programm bleibt unverändert."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "%1 of %2 programs ticked"
+msgstr "%1 von %2 Programmen angehakt"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "(%1 of them are hidden by the filter)"
+msgstr "(%1 davon sind durch den Filter ausgeblendet)"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Next is not available: tick at least one program."
+msgstr "Weiter ist nicht verfügbar: hake mindestens ein Programm an."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Preview"
+msgstr "Vorschau"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "This is what will change. Nothing has been written yet."
+msgstr "So wird es sich ändern. Es wurde noch nichts geschrieben."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "What will change"
+msgstr "Was sich ändern wird"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "For every ticked program the file and the axes that are switched off. Nothing has been written yet."
+msgstr "Für jedes angehakte Programm die Datei und die Achsen, die ausgeschaltet werden. Es wurde noch nichts geschrieben."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "%1 files will be saved to a new folder inside %2 and then changed. %3 axis settings are switched off in total."
+msgstr "%1 Dateien werden in einem neuen Ordner in %2 gesichert und dann geändert. Insgesamt werden %3 Achseneinstellungen ausgeschaltet."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Not touched: the button assignments, Global.xml and the programs you did not tick."
+msgstr "Nicht angefasst werden: die Tastenzuweisungen, Global.xml und die Programme, die du nicht angehakt hast."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "%1 of the ticked programs are 3D or CAD programs. Switching their axes off stops 3D navigation with the driver in them."
+msgstr "%1 der angehakten Programme sind 3D- oder CAD-Programme. Schaltest du ihre Achsen aus, funktioniert die 3D-Navigation mit dem Treiber in ihnen nicht mehr."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Axes switched off (%1): %2"
+msgstr "Ausgeschaltete Achsen (%1): %2"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "3D or CAD program: 3D navigation with the driver stops working in it."
+msgstr "3D- oder CAD-Programm: Die 3D-Navigation mit dem Treiber funktioniert darin nicht mehr."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Switching off the axes"
+msgstr "Achsen werden ausgeschaltet"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Every file is saved first, then changed."
+msgstr "Jede Datei wird zuerst gesichert, dann geändert."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Progress of the cleanup"
+msgstr "Fortschritt der Bereinigung"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Saving the originals and changing %1 files ..."
+msgstr "Die Originale werden gesichert und %1 Dateien geändert ..."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Saving and changing %1 (%2 of %3) ..."
+msgstr "Sichere und ändere %1 (%2 von %3) ..."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Done: %1 files changed."
+msgstr "Fertig: %1 Dateien geändert."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "The originals are saved in the folder %1."
+msgstr "Die Originale liegen im Ordner %1."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Not everything worked. Files changed: %1. Files that were not changed:"
+msgstr "Nicht alles hat geklappt. Geänderte Dateien: %1. Nicht geänderte Dateien:"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Not everything worked."
+msgstr "Nicht alles hat geklappt."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Restart the driver"
+msgstr "Treiber neu starten"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Restart the 3Dconnexion driver, or sign out and in again, so that it reads the changed files. Programs that are running may need a restart too. If a program still receives every movement twice, run this assistant again after the driver has been restarted."
+msgstr "Starte den 3Dconnexion-Treiber neu oder melde dich ab und wieder an, damit er die geänderten Dateien einliest. Laufende Programme müssen eventuell ebenfalls neu gestartet werden. Erhält ein Programm weiterhin jede Bewegung doppelt, führe diesen Assistenten nach dem Neustart des Treibers noch einmal aus."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Restore this backup"
+msgstr "Diese Sicherung zurückspielen"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Puts the original files of this cleanup back"
+msgstr "Spielt die Originaldateien dieser Bereinigung zurück"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Restore an older backup..."
+msgstr "Ältere Sicherung zurückspielen ..."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Choose one of the backups made earlier and put its files back"
+msgstr "Eine früher angelegte Sicherung auswählen und ihre Dateien zurückspielen"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Files changed: %1. Their driver axes are switched off."
+msgstr "Geänderte Dateien: %1. Die Treiberachsen darin sind ausgeschaltet."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Files changed: %1. Not everything worked:"
+msgstr "Geänderte Dateien: %1. Nicht alles hat geklappt:"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "The originals are saved in the folder %1 (backup of %2)."
+msgstr "Die Originale liegen im Ordner %1 (Sicherung vom %2)."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "No backup was made because no file was changed."
+msgstr "Es wurde keine Sicherung angelegt, weil keine Datei geändert wurde."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Restore a backup"
+msgstr "Sicherung zurückspielen"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Choose the backup whose files should be put back. The files of the driver's folder with the same names are replaced by the saved originals."
+msgstr "Wähle die Sicherung, deren Dateien zurückgespielt werden sollen. Die gleichnamigen Dateien im Ordner des Treibers werden durch die gesicherten Originale ersetzt."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Backups"
+msgstr "Sicherungen"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "The backups, newest first, with the date and the number of files."
+msgstr "Die Sicherungen, neueste zuerst, mit Datum und Anzahl der Dateien."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "%1, %2 files"
+msgstr "%1, %2 Dateien"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Put the files of the backup of %1 back?"
+msgstr "Die Dateien der Sicherung vom %1 zurückspielen?"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Restored: %1 files from the backup of %2. Restart the 3Dconnexion driver or sign out and in again."
+msgstr "Zurückgespielt: %1 Dateien aus der Sicherung vom %2. Starte den 3Dconnexion-Treiber neu oder melde dich ab und wieder an."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "The backup could not be restored completely. Files restored: %1."
+msgstr "Die Sicherung konnte nicht vollständig zurückgespielt werden. Zurückgespielte Dateien: %1."
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Opens an assistant that lists the programs with active driver axes and switches off the ones you tick"
+msgstr "Öffnet einen Assistenten, der die Programme mit aktiven Treiberachsen auflistet und die angehakten ausschaltet"

@@ -79,11 +79,14 @@ Your files in `modes/` and `buttons/` in one list. The **switch** turns a file o
 
 ### Driver cleanup (Windows)
 
-The official 3Dconnexion driver keeps one XML file per program (`%APPDATA%\3Dconnexion\3DxWare\Cfg\`). An axis switched on there (for example twist to the mouse wheel) makes the program receive every movement twice, from the driver and from dofscroll. The box **3Dconnexion driver** on the Settings page opens **Remove driver axis settings...**:
+The official 3Dconnexion driver keeps one XML file per program (`%APPDATA%\3Dconnexion\3DxWare\Cfg\`). An axis switched on there (for example twist to the mouse wheel) makes the program receive every movement twice, from the driver and from dofscroll. The box **3Dconnexion driver** on the Settings page opens **Remove driver axis settings...**, an assistant with Back, Next and Cancel:
 
-- A list of the programs with active driver axes: name, program, and what each axis does (mouse wheel, keys, joystick, passed on).
-- Everything is ticked except programs whose axes are only passed on (3D and CAD programs). Tick as many as you want; **Tick all** and **Tick none** set every box.
-- **Switch off the ticked programs** sets the axis flags of those files to off (nothing else in the file changes), after copying the original to `Cfg\dofscroll-backup\<date>-<time>\`. **Restore the last backup** puts them back.
+1. **Introduction:** what the driver does, what is changed (only the axis assignments of the programs you choose) and what is not (button assignments, `Global.xml`, the programs you leave out), the backup, and that a running driver may hold the files. Close the 3Dconnexion settings window and confirm.
+2. **What was found:** the folder, how many program files and programs with active axes, and every skipped file by name and reason.
+3. **Choose the programs:** a table with a check box per program, the executable, what the driver does with which axes and the state. 3D and CAD programs (axes only passed on) are not ticked by default. Click boxes, or select rows (Ctrl, Shift, Ctrl+A) and press Space; **Tick all**, **Tick none**, **Tick all except 3D and CAD programs** and **Invert** act on the rows shown; the filter narrows the rows. Next stays off, with the reason, while nothing is ticked.
+4. **Preview:** per program the file and the axes that will be switched off. Nothing is written yet.
+5. **Apply:** every original is copied to `Cfg\dofscroll-backup\<date>-<time>\`, then the axis flags are set to off. A file that fails is named; the others are still changed.
+6. **Result:** files changed, the backup folder, **Restore this backup** and **Restore an older backup...**, and the reminder to restart the driver or sign out and in again.
 
 Not available on macOS yet. Details: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md#platform-notes-windows-and-macos).
 
