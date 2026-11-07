@@ -46,8 +46,7 @@ public:
             dpy_ = nullptr;
             return false;
         }
-        for (size_t i = 0; i < kKeyCount; ++i)
-            codes_[i] = XKeysymToKeycode(dpy_, keyToKeysym(static_cast<Key>(i)));
+        loadKeycodes();
         return true;
     }
 
@@ -63,12 +62,16 @@ public:
     void setKey(Key k, bool down) override {
         if (!dpy_) return;
         if (k == Key::Plus && down) resolvePlus();
-        const unsigned kc = code(k);
+        // The release goes to the keycode used at the press: the keymap (and with it code(k)) may
+        // have changed while the key was held, and the old keycode must not stay down.
+        const size_t idx = static_cast<size_t>(k);
+        const unsigned kc = (!down && heldCode_[idx]) ? heldCode_[idx] : code(k);
         if (!kc) return;
         if (down == (keysDown_.count(kc) != 0)) return;  // idempotent
         if (k == Key::Plus && down) pressPlusShift();
         XTestFakeKeyEvent(dpy_, kc, down ? True : False, CurrentTime);
         if (down) keysDown_.insert(kc); else keysDown_.erase(kc);
+        heldCode_[idx] = down ? kc : 0;
         if (k == Key::Plus && !down) releasePlusShift();
     }
 
@@ -120,13 +123,40 @@ public:
         doReleaseAll();  // also releases a Shift pressed for "plus"
     }
 
-    void flush() override { if (dpy_) XFlush(dpy_); }
+    void flush() override {
+        if (!dpy_) return;
+        XFlush(dpy_);
+        followKeymap();
+    }
 
 private:
+    // Keys are sent as keycodes, looked up from the keysyms. The keyboard layout can change while we
+    // run (the desktop applies the user's layout after login, setxkbmap, xmodmap): the server then
+    // sends MappingNotify. Xlib keeps its own keymap cache that only XRefreshKeyboardMapping
+    // updates, and codes_ was built from it, so both are refreshed here. Called once per tick from
+    // flush(); XPending reads what the server sent without blocking. Other events are dropped.
+    void followKeymap() {
+        bool remapped = false;
+        while (XPending(dpy_) > 0) {
+            XEvent ev;
+            XNextEvent(dpy_, &ev);
+            if (ev.type == MappingNotify && ev.xmapping.request != MappingPointer) {
+                XRefreshKeyboardMapping(&ev.xmapping);
+                remapped = true;
+            }
+        }
+        if (remapped) loadKeycodes();
+    }
+    void loadKeycodes() {
+        for (size_t i = 0; i < kKeyCount; ++i)
+            codes_[i] = XKeysymToKeycode(dpy_, keyToKeysym(static_cast<Key>(i)));
+    }
+
     void doReleaseAll() {
         if (!dpy_) return;
         for (unsigned kc : keysDown_) XTestFakeKeyEvent(dpy_, kc, False, CurrentTime);
         keysDown_.clear();
+        for (unsigned &h : heldCode_) h = 0;
         releasePlusShift();
         for (int b : buttonsDown_) XTestFakeButtonEvent(dpy_, b, False, CurrentTime);
         buttonsDown_.clear();
@@ -176,6 +206,7 @@ private:
 
     Display *dpy_ = nullptr;
     unsigned codes_[kKeyCount] = {};
+    unsigned heldCode_[kKeyCount] = {};  // keycode a Key was pressed with by setKey(), 0 = not held
     bool plusShift_ = false;   // "plus" needs Shift on the current layout
     bool shiftByUs_ = false;   // Shift pressed on behalf of "plus"
     std::set<unsigned> keysDown_;

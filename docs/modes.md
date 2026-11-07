@@ -276,8 +276,10 @@ Names are lower case.
 
 On macOS Apple has no key codes for `f21` to `f24`, `print`, `scroll_lock`, `pause`, `num_lock` and the media keys, so these are not sent there (the other keys are).
 
-`plus` is the main-keyboard plus. On X11 it is resolved from the keyboard layout. On uinput it
-is sent as Shift and `=` (a US-style layout is assumed). `kp_plus` and `kp_minus` are the keypad keys and
+`plus` is the main-keyboard plus. On X11 all letter, digit and punctuation keys are resolved from the
+keyboard layout, and the daemon follows a layout change while it runs (the desktop applying your layout
+after login, `setxkbmap`, `xmodmap`). On uinput `plus` is
+sent as Shift and `=` (a US-style layout is assumed). `kp_plus` and `kp_minus` are the keypad keys and
 do not depend on the layout. Programs differ in which of them they accept for zoom.
 
 ## Example: timeline joystick mode
