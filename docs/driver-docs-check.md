@@ -112,16 +112,16 @@ alone. Each has a GitHub issue (numbers in the pull request description).
    have other signs than the raw report (nothing official says), or the Windows file was set to
    what was seen on one machine, and the macOS file (copied from it, "experimental") does not
    hold. Needs a measurement with the axis assistant on a real Windows and a real macOS machine
-   (related: issue 250).
-2. **Button reports 0x1c / 0x1d.** See row 18. The HID path would show no buttons for newer
+   (issue 354, related: issue 250).
+2. **Button reports 0x1c / 0x1d** (issue 355). See row 18. The HID path would show no buttons for newer
    models if they send button numbers in report 0x1c instead of the bitmask in report 3.
-3. **USB ids missing from `devices/*.conf`.** `spacenavd` knows `256f:c652` (`VID_3DCONN`/
+3. **USB ids missing from `devices/*.conf`** (issue 356). `spacenavd` knows `256f:c652` (`VID_3DCONN`/
    `PID_WIRELESS`, the receiver; `dev.c` decides by button count whether it is a SpaceMouse Wireless
    or Pro Wireless) and `256f:c636` (SpaceMouse Module). The HID path (Windows, macOS) matches by
    `vid:pid` only, so a receiver is not recognised. A search summary of a 3Dconnexion forum post gives
    product id 0xC641 for the SpaceMouse Module USB, while `spacenavd` lists 0xc636 as "spacemouse
    module" and blacklists 0xc641 as "scout(?)". Which ids are right needs a device.
-4. **Scale and units of the COM interface** (rows 25, 28): `kWinDriverTranslationScale`,
+4. **Scale and units of the COM interface** (issue 357; rows 25, 28): `kWinDriverTranslationScale`,
    `kWinDriverRotationScale`, `kMacDriverAxisScale` are placeholders (1.0). The vendor's SDK
    documentation (developer download) may state them; the maintainer would have to read it.
 5. **Coexistence** (rows 21, 31, 32, 35): no official statement either way. Stays with the guided
