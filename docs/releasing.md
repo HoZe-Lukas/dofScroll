@@ -19,6 +19,8 @@ commands in [release-checklist-1.3.1.md](release-checklist-1.3.1.md).
    limitations, new features, version numbers, links. `scripts/check-site.sh` keeps both website languages in parity. Check the screenshots too: every picture that shows a changed part of the interface must have been regenerated (`scripts/make-site-screenshots.sh`).
 3. Set the new version in `CMakeLists.txt` (`project(dofscroll VERSION x.y.z ...)`), write
    `docs/release-notes-x.y.z.md` (see "Release notes" below) and merge both to `main`; wait for CI to be green.
+   `scripts/check-version.sh` (ctest `check_version`) fails while the Windows manifest, the readme and wiki status lines or the
+   website's `softwareVersion` still name another version.
 4. Tag and push: `git tag v<x.y.z> && git push origin v<x.y.z>`
    (a suffix such as `v0.2.0-rc1` is allowed; the tag must start with the CMake version).
    (With the `creation` rule of "Protecting the release" below, only an administrator and the `tag-release` workflow can create the tag.)
