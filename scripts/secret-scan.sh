@@ -49,6 +49,7 @@ if [ -n "$added" ]; then
   check "Private key"   '-----BEGIN ([A-Z0-9]+ )*PRIVATE KE[Y]'
   check "GitLab token (glpat)"  'glpa[t]-[A-Za-z0-9_-]{20,}'
   check "GitHub token (ghp_)"   'gh[pousr]_[A-Za-z0-9]{30,}'
+  check "GitHub fine-grained token" 'github_pa[t]_[A-Za-z0-9_]{22,}'
   check "Slack token"           'xo[x][baprs]-[A-Za-z0-9-]{10,}'
   check "AWS access key"        '(AKI[A]|ASI[A])[0-9A-Z]{16}'
   check "JWT"                   'eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+'

@@ -388,6 +388,10 @@ if(BUILD_TESTING)
     add_test(NAME bundled_advisories
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_bundled_advisories.sh ${CMAKE_SOURCE_DIR})
   endif()
+  if(SH_EXECUTABLE)  # the secret scan of the pre-commit hook and the CI job finds every kind of token it lists
+    add_test(NAME secret_scan
+             COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_secret_scan.sh ${CMAKE_SOURCE_DIR})
+  endif()
   if(SH_EXECUTABLE)  # the six-motion table of the built-in joystick modes must match the definitions
     add_test(NAME docs_motions
              COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_docs_motions.sh ${CMAKE_SOURCE_DIR})

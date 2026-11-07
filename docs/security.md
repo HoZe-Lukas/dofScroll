@@ -612,6 +612,9 @@ journalctl --user -u dofscroll.service -u dofscroll-ui.service -f
      itself):
      - private keys: header line `-----BEGIN ... PRIVATE KE[Y]-----`
      - GitLab personal access token: `glpa[t]-` + at least 20 characters `[A-Za-z0-9_-]`
+     - GitHub tokens: classic (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` + 30 characters) and fine-grained
+       (`github_pat_` + 22 characters); the same patterns, and the Slack token, JWT and `token`/`secret`/`api_key`
+       assignments, are in `scripts/secret-scan.sh`, tested by `tests/test_secret_scan.sh`
      - AWS access key ID: `AKI[A]` + 16 characters `[0-9A-Z]`
      - password assignment: `passwor[d]`, optional spaces, `=`, non-empty value
        (case-insensitive)
