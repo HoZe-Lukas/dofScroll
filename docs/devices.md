@@ -35,7 +35,13 @@ USB vendor/product IDs come from the spacenavd device table. The report layout u
 shipped files (report 1 = translation, 2 = rotation, 3 = buttons, signed 16-bit little endian
 per axis) is the commonly used 3Dconnexion layout and has **not** been verified on hardware.
 For Pro, Pro Wireless and Enterprise the raw button bits are not numbered sequentially
-(spacenavd remaps them), so their `buttons` line is a placeholder.
+(spacenavd remaps them), so their `buttons` line is a placeholder. Blender's Windows code reads buttons of
+newer devices from report id `0x1c` (an array of 16-bit button numbers) and long presses from `0x1d`, not from
+the bitmask in report 3 (third-party code, not an official description); dofscroll reads neither, so these
+models may show no buttons on Windows and macOS until a device is measured.
+spacenavd also knows ids that are not shipped here, for example `256f:c652` (the wireless receiver) and
+`256f:c636` (SpaceMouse Module). All checks of this page against the official sources:
+[driver-docs-check.md](driver-docs-check.md).
 
 ## File format
 
