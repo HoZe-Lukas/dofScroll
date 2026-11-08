@@ -78,7 +78,7 @@ n="$(grep -c 'environment:' .github/workflows/ci.yml)"
 [ "$n" = 1 ] || bad "ci.yml: 'environment:' must appear exactly once (only the release job), found $n"
 grep -q -E '^      checks: read ' .github/workflows/ci.yml || bad "ci.yml: the release job needs 'checks: read' for the gate"
 grep -q 'creation' .github/rulesets/tags.json || bad ".github/rulesets/tags.json: the creation rule is missing"
-grep -q '"Integration"' .github/rulesets/tags.json || bad ".github/rulesets/tags.json: the GitHub Actions app must be a bypass actor (tag-release.yml)"
+! grep -q '"Integration"' .github/rulesets/tags.json || bad ".github/rulesets/tags.json: only the repository admin may bypass the tag ruleset (tags are created by hand)"
 
 # 6. Qt archives: every aqt install-qt keeps its archives and is followed by the hash check (issue #265)
 inst="$( { grep -rn -E 'aqt"?( |/aqt")? ?install-qt |aqt install-qt ' .github/workflows packaging/ci/rocky9.Dockerfile packaging/ci/debian12-qt.sh 2>/dev/null || true; } \

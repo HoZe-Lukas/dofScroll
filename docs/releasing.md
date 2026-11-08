@@ -21,10 +21,8 @@ commands in [release-checklist-1.3.1.md](release-checklist-1.3.1.md).
    `docs/release-notes-x.y.z.md` (see "Release notes" below) and merge both to `main`; wait for CI to be green.
 4. Tag and push: `git tag v<x.y.z> && git push origin v<x.y.z>`
    (a suffix such as `v0.2.0-rc1` is allowed; the tag must start with the CMake version).
-   (With the `creation` rule of "Protecting the release" below, only an administrator and the `tag-release` workflow can create the tag.)
-   Without a shell (for example on a phone), run the workflow `tag-release` from the Actions tab or the GitHub
-   app on branch `main` with the version (for example `1.2.2`): it checks the version against `CMakeLists.txt`
-   and that the checks of the tip of `main` are green, creates the tag there and starts the `ci` run on it.
+   (With the `creation` rule of "Protecting the release" below, only an administrator can create the tag, by hand.
+   There is no workflow that creates it: the maintainer's decision, see issue #361.)
 5. The workflow `.github/workflows/ci.yml` runs all checks, builds RPM, DEB and TGZ packages,
    the `release` job waits for the approval of the environment `release` and runs the release gate (the tagged commit is on
    `main`, the required checks are green), writes `SHA256SUMS.txt`, attests the build provenance of every file (signed with Sigstore, needs
@@ -73,18 +71,18 @@ of the repository; the maintainer sets them once, by hand** (`scripts/configure-
         gh api -X POST repos/HoZe-Lukas/dofScroll/environments/release/deployment-branch-policies \
           -f name='v*' -f type=tag
 
-2. **Only the maintainer and the release workflow may create `v*` tags.** Settings > Rules > Rulesets > `release tags`:
-   tick **Restrict creations** and put **two** actors on the **Bypass list**, both with mode *Always*: *Repository admin*
-   (the maintainer) and the *GitHub Actions* app (so `tag-release.yml` keeps working). Nobody else can create a `v*`
-   tag. The checked-in copy `.github/rulesets/tags.json` documents exactly that (rules `creation`, `deletion`,
-   `non_fast_forward`; bypass actors: role id 5 = repository admin, and the integration `github-actions`, app id
-   15368). It is documentation of the live ruleset; to apply it by hand:
+2. **Only the maintainer may create `v*` tags, by hand.** Settings > Rules > Rulesets > `release tags`:
+   tick **Restrict creations** and put **one** actor on the **Bypass list**, mode *Always*: *Repository admin*
+   (the maintainer). Nobody else can create a `v*` tag. The checked-in copy `.github/rulesets/tags.json` documents exactly
+   that (rules `creation`, `deletion`, `non_fast_forward`, `required_linear_history` and `required_deployments` for the
+   environment `release`; bypass actor: role id 5 = repository admin). `required_deployments` cannot be met by a new tag
+   (the deployment is made by the release job the tag starts), so only the admin bypass creates tags: that is intended.
+   It is documentation of the live ruleset; to apply it by hand:
 
         id=$(gh api repos/HoZe-Lukas/dofScroll/rulesets --jq '.[] | select(.name == "release tags") | .id')
         gh api -X PUT repos/HoZe-Lukas/dofScroll/rulesets/$id --input .github/rulesets/tags.json
 
-   The Actions app bypass is deliberate: `tag-release` creates the tag with the repository token, which the `creation`
-   rule would otherwise block. The real protection is not the tag creation but the release job: its gate (tagged
+   There is no workflow that creates the tag (the maintainer's decision, issue #361). The real protection is not the tag creation but the release job: its gate (tagged
    commit is an ancestor of `main`, required checks green) and the approval of the `release` environment (step 1)
    must both pass before anything is published.
 

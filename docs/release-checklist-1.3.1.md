@@ -45,10 +45,10 @@ its gate, but it would not wait for an approval and anybody with write access co
   `custom_branch_policies: true`; `gh api repos/$REPO/environments/release/deployment-branch-policies --jq '.branch_policies[] | [.name, .type]'`
   lists `v*` with type `tag`.
 
-- [ ] **A2. Tag ruleset `release tags` with the `creation` rule and two bypass actors.** Settings > Rules > Rulesets >
+- [ ] **A2. Tag ruleset `release tags` with the `creation` rule and the admin as the only bypass actor.** Settings > Rules > Rulesets >
   `release tags`: *Enforcement* active, target *tags*, include `refs/tags/v*`; rules **Restrict creations**, **Restrict
-  deletions**, **Block force pushes**; **Bypass list** with exactly two entries, both *Always*: **Repository admin**
-  (the maintainer; role id 5) and the **GitHub Actions** app (app id 15368, so `tag-release.yml` can create the tag). The
+  deletions**, **Block force pushes**, **Require linear history**, **Require deployments to succeed** (environment `release`);
+  **Bypass list** with exactly one entry, *Always*: **Repository admin** (the maintainer; role id 5). The
   checked-in copy `.github/rulesets/tags.json` documents exactly this. Compare it with the live ruleset; the diff must
   print nothing:
 
@@ -177,8 +177,7 @@ the result into the issue: what you ran, on what, what happened. Close an issue 
 
 ## E. Version bump (one pull request, merged last)
 
-- [x] **E1. Done in this pull request.** `CMakeLists.txt`: `project(dofscroll VERSION 1.3.1 ...)` (the tag must start with this version; the
-  `tag-release` workflow and the release job check it).
+- [x] **E1. Done in this pull request.** `CMakeLists.txt`: `project(dofscroll VERSION 1.3.1 ...)` (the tag must start with this version; the release job checks it).
 - [x] **E2. Done in this pull request.** Status lines that say "1.2.3": `readme.md` ("Current stable version"), `docs/wiki/Home.md` ("Status: version
   1.2.3"), `docs/wiki/FAQ.md`, `docs/wiki/Requirements.md`, `site/index.html` and `site/de/index.html` (`softwareVersion` in the
   JSON-LD block and the status texts that name 1.2.3; the contributor's Ubuntu report was for 1.2.3), `docs/wiki/Release-notes.md`
@@ -196,12 +195,7 @@ the result into the issue: what you ran, on what, what happened. Close an issue 
 
 ## F. The tag
 
-- [ ] **F1.** Start the tag from the Actions tab, or by CLI (it checks the version against `CMakeLists.txt` and that the
-  checks of the tip of `main` are green, creates the tag and starts `ci.yml` on it):
-
-        gh workflow run tag-release.yml --repo $REPO --ref main -f version=1.3.1
-
-  or, as the administrator, by hand: `git fetch origin && git tag v1.3.1 origin/main && git push origin v1.3.1`.
+- [ ] **F1.** As the administrator, by hand (check first that the checks of the tip of `main` are green): `git fetch origin && git tag v1.3.1 origin/main && git push origin v1.3.1`.
 - [ ] **F2. Approve the release.** The `ci` run on the tag builds RPM, DEB, TGZ, the Windows setup and ZIP and the macOS DMG,
   then the job `release` waits for the environment `release`. Open the run (`gh run list --repo $REPO --workflow ci.yml
   --limit 3`), check the gate step passed (the tagged commit is on `main`, the required checks are green), then
