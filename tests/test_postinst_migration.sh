@@ -66,7 +66,7 @@ sed -e "s#/usr/lib/systemd/user/dofscroll-ui.service#$T/ui.service#" \
 grep -q "$T/ui.service" "$T/postinst" || fail "path substitution did not apply"
 
 setup() {  # $1 = with tray link (1/0), $2 = ui unit present (1/0)
-    rm -rf "$T/home" "$T/log" "$T/ui.service"
+    rm -rf "${T:?}/home" "${T:?}/log" "${T:?}/ui.service"
     mkdir -p "$T/home/alice/.config/dofscroll" "$T/home/alice/.config/systemd/user/default.target.wants"
     echo "SCROLL_V_SENS = 7" > "$T/home/alice/.config/dofscroll/dofscroll.conf"
     # split layout (one file per profile): a package step leaves these alone as well
