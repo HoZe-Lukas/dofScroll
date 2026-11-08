@@ -31,5 +31,15 @@ changed packaging/ci/images.env packaging/ci/rocky9.Dockerfile \
 changed packaging/ci/aqt-requirements.txt \
   | grep -v -E '^[-+]([A-Za-z0-9_][A-Za-z0-9_.-]*==[0-9A-Za-z.!+_-]+( ; python_version < "[0-9.]+")? \\| +--hash=sha256:[0-9a-f]{64}( \\)?)$' >&2 \
   && { echo "check-pin-diff: a changed line of aqt-requirements.txt is not a pin or a hash" >&2; bad=1; }
+# Only the digest may change, never the image it belongs to: with the digests removed, the removed and the added lines
+# of images.env and the Dockerfile must be the same (an image from another name, registry or tag with a well-formed
+# digest has the shape of a digest line but is a different image).
+names() {  # $1 = - or +; the lines of that side without their digest, sorted
+  changed packaging/ci/images.env packaging/ci/rocky9.Dockerfile | grep "^[$1]" | sed 's/^.//; s/@sha256:[0-9a-f]\{64\}//' | LC_ALL=C sort
+}
+if [ "$(names -)" != "$(names +)" ]; then
+  echo "check-pin-diff: a changed line of images.env or rocky9.Dockerfile changes the image name or tag, not only the digest" >&2
+  bad=1
+fi
 [ "$bad" -eq 0 ] || exit 1
 echo "check-pin-diff: ok"

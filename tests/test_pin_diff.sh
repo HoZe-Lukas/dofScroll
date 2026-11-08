@@ -82,4 +82,17 @@ printf -- '+evil\n' >> packaging/ci/images.env
 gate && fail "an images.env line starting with + was accepted"
 reset
 
+# only the digest may change: another image name (or registry) with a well-formed digest is refused
+edit "s|^\(ROCKY9_IMAGE=\)[^@]*@sha256:.*|\1ghcr.io/example/other@sha256:$h1|" packaging/ci/images.env
+gate && fail "another image name in images.env was accepted"
+grep -q 'name' "$T/out" || fail "no reason given for the image name: $(cat "$T/out")"
+reset
+edit "s|^FROM rockylinux:9@sha256:\([0-9a-f]*\)|FROM example.invalid/rocky:9@sha256:$h1|" packaging/ci/rocky9.Dockerfile
+gate && fail "another base image in the Dockerfile was accepted"
+reset
+# a tag change with a digest is a name change too
+edit "s|^\(DEBIAN12_IMAGE=debian:\)12@|\113@|" packaging/ci/images.env
+gate && fail "another tag in images.env was accepted"
+reset
+
 echo "test_pin_diff: OK"
