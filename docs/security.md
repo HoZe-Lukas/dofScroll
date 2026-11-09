@@ -342,7 +342,7 @@ description below is the state before the fix.
 
 ### S9 (Low) - `spacenavd` socket writable for everyone
 
-- **Finding:** `/run/spnav.sock` is `srwxrwxrwx root` (default of `spacenavd`). Every local user
+- **Finding:** `/run/spnav.sock` is `srwxrwxrwx root` (default of `spacenavd`; libspnav spells the default `/var/run/spnav.sock`, normally the same file through the `/var/run` link, and first tries `$SPNAV_SOCKET`, a `socket =` line in `/etc/spnavrc` and `$XDG_RUNTIME_DIR/spnav.sock`; checked against the sources of libspnav and spacenavd, see [driver-docs-check.md](driver-docs-check.md)). Every local user
   (A1) can read the SpaceMouse's movements/buttons and - with the libspnav 1.x protocol -
   change `spacenavd` device settings (sensitivity, axes, LED), thereby disturbing operation. A1
   cannot forge the socket (`/run` is root-only). The daemon trusts the axis values from

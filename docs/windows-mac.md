@@ -2,7 +2,11 @@
 
 Design principle: dofscroll complements the vendor driver instead of duplicating it, see [Buttons and the vendor driver](modes.md#buttons-and-the-vendor-driver).
 
-Research date: 2026-10-12. The official 3Dconnexion pages (3dconnexion.com/...) returned HTTP 403
+Second pass (2026-11-06): a check against the official and primary sources is in
+[driver-docs-check.md](driver-docs-check.md): which statements are confirmed, which rest on
+forum posts, third-party code or observation only, and which could not be checked.
+
+Research date of the first pass: 2026-10-12. The official 3Dconnexion pages (3dconnexion.com/...) returned HTTP 403
 when fetched; statements about them come from search-result summaries and forum posts, not from
 full texts read first-hand. Labels:
 
@@ -63,7 +67,14 @@ full texts read first-hand. Labels:
 
 ### Configuration files, export/import
 
-- User-specific files: `%APPDATA%\3Dconnexion\3DxWare\Cfg` (XML). [verified, source 7]
+- User-specific files: `%APPDATA%\3Dconnexion\3DxWare\Cfg` (XML). [verified, source 7] The folder and the
+  extension are named by the official FAQ; the **contents** of the files (`<AxisBank>`, `<Axis>`,
+  `<Enabled>`, `ActionID` values, `HIDMultiAxis_*`, which the Windows driver cleanup reads) are **observed
+  on a real machine and not documented by 3Dconnexion**; they can change with the driver version.
+- Official reset procedure (FAQ "How do I clean up the configuration on Windows?", `3dconnexion.com/lv/?p=5706`,
+  known from a search-result summary): stop the driver (Start > 3Dconnexion > Stop 3DxWare), close 3D
+  programs, rename the `3Dconnexion` folder in `%APPDATA%` and in `%LOCALAPPDATA%` to
+  `3Dconnexion.bak`, start the driver again. It resets everything, not one program.
 - Older drivers: profiles as `.scg`; app-to-profile mapping additionally in the registry
   (`HKCU\Software\3Dconnexion\3DxWare\Applications`); merely copying files was not enough, one user
   reports copied profiles were ignored. [forum, source 8]
@@ -77,6 +88,12 @@ full texts read first-hand. Labels:
 
 ### Settings
 
+- The driver's helper extension must be enabled after installing (official support article "Enabling
+  3Dconnexion Extension After Installing the Driver", `3dconnexion.com/us/?p=103119`, search-result
+  summary): macOS 15 and later, General > Login Items & Extensions > Driver Extensions >
+  3DconnexionHelper; macOS 14 and earlier, Privacy & Security > Allow. Without it navigation may not
+  work and the cursor may move instead. The helper is the driver daemon (a user-mode program without
+  window, per a 3Dconnexion moderator). This matters for the driver input path of dofscroll.
 - Configuration is done in the 3Dconnexion section of System Settings (formerly a preference
   pane); button/axis options are analogous to Windows, details of the current macOS version not
   verified. [unresolved]
@@ -182,6 +199,10 @@ Global settings, CAD/3D programs unticked.
   Check the current wording in the SDK download before use. [verified, source 13]
 - Older C/C++ SDK versions are in an archive area per the forum; a Linux SDK was reportedly
   never planned. [forum, source 12]
+- For Windows, a 3Dconnexion moderator wrote in the forum that developers are now recommended to use the
+  Microsoft Raw Input API instead of the `TDxInput` COM API (search-result summary, thread and date not
+  identified); the Win32 SDK (`Si*` functions) is described as equally capable and kept up to date. The
+  "Windows COM SDK Documentation" is part of the SDK download and was not read for this repository.
 - Because of these terms this project does not ship or link the SDK (see `port-architecture.md`). It
   does load the installed driver's interface at run time when the driver is present; no permission was
   requested from 3Dconnexion (`legal-notes.md`).
