@@ -58,6 +58,10 @@ fix for the keyboard layout on X11; the configuration and the profile files do n
   negative, push right = x positive, tilt right = ry negative, twist clockwise = rz positive, so the Windows default mix
   (`y + rx`, `x - ry`) adds its terms. The signs on the driver's own path were not measured. Lift and press (z) were not
   separated cleanly.
+- **The driver path on Windows:** on the maintainer's machine (3DxWare 10.9) the daemon reads the SpaceMouse Pro through
+  the direct HID path and that works, also while the driver runs. Through the driver's COM interface the daemon received
+  no motion while the driver's own demo did; the reason is not found (the driver may deliver data only to the active
+  program). The defaults were not changed.
 - **#355:** buttons of Pro, Pro Wireless and Enterprise may arrive in a report the direct HID path does not read. The
   device used for the measurement has no buttons, so it stays open.
 - Everything listed under "Not verified" in [1.3.1](release-notes-1.3.1.md) still holds.
