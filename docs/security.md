@@ -646,7 +646,7 @@ active rulesets. They are layered: for the default branch the stricter rule of t
 |---|---|---|
 | `base` | default branch | no deletion, no force push (`non_fast_forward`), no direct update (`update`), linear history, signed commits, pull request with **1 required approval** (stale approvals are *not* dismissed on push, last-push approval not required, code-owner review not required, conversation resolution not required), `code_quality` (severity errors), `copilot_code_review` (not on push). Repository admins bypass it ("always"). |
 | `main branch` | default branch | no deletion, no force push, pull request with 0 approvals and **conversation resolution required**, required status checks: `build + ctest (Rocky Linux 9)`, `ASan/UBSan (Rocky Linux 9)`, `cppcheck (Rocky Linux 9)`, `secret scan`, `lint`, `CodeQL (c-cpp)`. The checks are **not strict** (branches need not be up to date) and carry no `integration_id` (any app may report a check of that name). No bypass actors. |
-| `release tags` | `refs/tags/v*` | no deletion, no force push. |
+| `release tags` | `refs/tags/v*` | only the repository admin creates `v*` tags (by hand); no deletion, no force push, linear history, and the tagged commit needs a successful deployment to the environment `release` (the admin bypass is what lets the tag be created at all). |
 
 Both pull request rules allow all three merge methods (`merge`, `squash`, `rebase`); the repository itself also
 has all three enabled, "delete head branches" and auto-merge on. `scripts/configure-repo.sh` still asks for
