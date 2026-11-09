@@ -282,6 +282,8 @@ if(BUILD_TESTING)
              ${CMAKE_SOURCE_DIR}/scripts/check-wiki-builtin-modes.sh)
     # CI supply chain: images pinned by digest, aqtinstall with hashes, release attestation
     add_test(NAME check_ci_pins COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/check-ci-pins.sh)
+    # the version repeated by hand (Windows manifest, release notes, readme, wiki home, website) follows CMakeLists.txt
+    add_test(NAME check_version COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/check-version.sh)
     # German texts (po/de.po, site/de/) use the informal du, never Sie
     add_test(NAME check_german_du COMMAND ${SH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/check-german-du.sh)
   endif()

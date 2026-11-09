@@ -40,7 +40,7 @@ It consists of two programs. The Qt interface is the only tray and settings wind
 | `dofscroll` | Background daemon. Reads the SpaceMouse, produces the input events. |
 | `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Overview, Profiles (tabs General, Channels, Motions and buttons, Overrides), Editor and Joystick modes with a visual editor (a picture of the cap: click a motion or button and choose what it does), Button modes, User modes, Device, Axes, Settings). Writes the configuration files (`dofscroll.conf` and one file per profile in `devices/` and `apps/`) and tells the daemon to reload. See [docs/ui.md](docs/ui.md). |
 
-## What is new on `main` (1.3.1, not released yet)
+## What is new in 1.3.1
 
 One file per profile with an automatic, backed-up migration; every motion can have its own action in a profile, the lift is the sixth motion; **Take over**, **New profile**, **Import** and **Export** build and share profiles; keys on every motion, **analog** (repeats faster with more deflection) or **digital** (once per push), mouse clicks and holds; **macros** (`macro:`, recorded or written) and a **New function ...** window that composes a key, click, hold, scroll or zoom, pointer or macro; the **pointer** as a motion function; ready tiles for tabs, volume and tracks; a key picker as a tree in columns; a reworked axis assistant; push and tilt tuned independently in profiles; hardened parsers with raised size limits; macOS binaries with the hardened runtime. Nothing of it was tested with a real SpaceMouse. See [docs/release-notes-1.3.1.md](docs/release-notes-1.3.1.md) for the list, the breaking changes and what is not verified.
 
