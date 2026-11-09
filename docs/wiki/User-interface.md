@@ -86,9 +86,11 @@ The official 3Dconnexion driver keeps one XML file per program (`%APPDATA%\3Dcon
 3. **Choose the programs:** a table with a check box per program, the executable, what the driver does with which axes and the state. 3D and CAD programs (axes only passed on) are not ticked by default. Click boxes, or select rows (Ctrl, Shift, Ctrl+A) and press Space; **Tick all**, **Tick none**, **Tick all except 3D and CAD programs** and **Invert** act on the rows shown; the filter narrows the rows. Next stays off, with the reason, while nothing is ticked.
 4. **Preview:** per program the file and the axes that will be switched off. Nothing is written yet.
 5. **Apply:** every original is copied to `Cfg\dofscroll-backup\<date>-<time>\`, then the axis flags are set to off. A file that fails is named; the others are still changed.
-6. **Result:** files changed, the backup folder, **Restore this backup** and **Restore an older backup...**, and the reminder to restart the driver or sign out and in again.
+6. **Result:** files changed, the backup folder, **Restore this backup** and **Restore an older backup...**, and **Restart the driver now**, which closes the driver's settings window and starts the driver again so that it reads the changed files (or sign out and in again).
 
-Not available on macOS yet. Details: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md#platform-notes-windows-and-macos).
+The same restart is in the **3Dconnexion driver** box on the Settings page, **Restart the 3Dconnexion driver...**, on Windows and macOS. It asks first, only touches the driver service and the settings window of your sign-in, and leaves everything else running. On macOS it has not been tried on a Mac yet.
+
+The cleanup itself is not available on macOS yet. Details: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md#platform-notes-windows-and-macos).
 
 ### Settings
 

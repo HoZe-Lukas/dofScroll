@@ -7199,3 +7199,63 @@ msgstr "Die Sicherung konnte nicht vollständig zurückgespielt werden. Zurückg
 #: src/ui/qt/pages/general_page.cpp
 msgid "Opens an assistant that lists the programs with active driver axes and switches off the ones you tick"
 msgstr "Öffnet einen Assistenten, der die Programme mit aktiven Treiberachsen auflistet und die angehakten ausschaltet"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Restart the driver now"
+msgstr "Treiber jetzt neu starten"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Closes the driver's settings window, ends the driver service of your sign-in and starts the driver again, so that it reads the changed files"
+msgstr "Schließt das Einstellungsfenster des Treibers, beendet den Treiberdienst deiner Anmeldung und startet den Treiber neu, damit er die geänderten Dateien liest"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Result of the driver restart"
+msgstr "Ergebnis des Treiber-Neustarts"
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "The driver reads its settings when it starts. After you changed them, or when the SpaceMouse stops reacting, restart the driver here instead of signing out."
+msgstr "Der Treiber liest seine Einstellungen beim Start. Wenn du sie geändert hast oder die SpaceMouse nicht mehr reagiert, starte den Treiber hier neu, statt dich abzumelden."
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Restart the 3Dconnexion driver..."
+msgstr "3Dconnexion-Treiber neu starten..."
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Closes the driver's settings window, ends the driver service of your sign-in and starts the driver again, so that it reads its settings files again"
+msgstr "Schließt das Einstellungsfenster des Treibers, beendet den Treiberdienst deiner Anmeldung und startet den Treiber neu, damit er seine Einstellungsdateien neu liest"
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "Restart the 3Dconnexion driver now? Its settings window is closed and the driver service of your sign-in is ended and started again. The SpaceMouse does not react for a few seconds. Save what you do in the 3Dconnexion settings first."
+msgstr "3Dconnexion-Treiber jetzt neu starten? Sein Einstellungsfenster wird geschlossen, und der Treiberdienst deiner Anmeldung wird beendet und neu gestartet. Die SpaceMouse reagiert einige Sekunden lang nicht. Speichere vorher, was du in den 3Dconnexion-Einstellungen gerade änderst."
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "Restart the 3Dconnexion driver"
+msgstr "3Dconnexion-Treiber neu starten"
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "The 3Dconnexion driver cannot be restarted from here on this system. Sign out and in again instead."
+msgstr "Der 3Dconnexion-Treiber lässt sich auf diesem System von hier aus nicht neu starten. Melde dich stattdessen ab und wieder an."
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "The 3Dconnexion driver was restarted. It reads its settings files again."
+msgstr "Der 3Dconnexion-Treiber wurde neu gestartet. Er liest seine Einstellungsdateien neu."
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "Its settings window was closed."
+msgstr "Sein Einstellungsfenster wurde geschlossen."
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "The 3Dconnexion driver is not running, so there is nothing to restart."
+msgstr "Der 3Dconnexion-Treiber läuft nicht, also gibt es nichts neu zu starten."
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "The 3Dconnexion driver could not be restarted:"
+msgstr "Der 3Dconnexion-Treiber konnte nicht neu gestartet werden:"
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "Sign out and in again instead."
+msgstr "Melde dich stattdessen ab und wieder an."
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "Not ended (they run with more rights than dofscroll has):"
+msgstr "Nicht beendet (sie laufen mit mehr Rechten als dofscroll):"

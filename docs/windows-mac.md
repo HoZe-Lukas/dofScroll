@@ -144,12 +144,39 @@ movement twice. The steps:
    (`<Enabled>`) of that file are set to `false` and read back; a file that fails is named with the
    reason and the others are still changed.
 6. **Result.** Files changed, the backup folder, **Restore this backup**, **Restore an older
-   backup...** (lists the backups with date and number of files), and the reminder to restart the
-   driver or sign out and in again.
+   backup...** (lists the backups with date and number of files), and **Restart the driver now**
+   (see below), or sign out and in again.
 
 All rules and file operations are in `src/ui/model/driver_cleanup_model.hpp` (tests:
 `tests/test_ui_driver_cleanup.cpp`, `--self-test` walks the wizard offscreen). Not run against the
 real driver or on Windows hardware.
+
+### Restarting the driver (Windows, macOS)
+
+The driver reads its settings files when it starts, and its settings window has to be closed first, so a
+restart is part of every change to them. **Restart the 3Dconnexion driver...** (General page, box
+"3Dconnexion driver") and **Restart the driver now** (last page of the cleanup assistant) do it. After a
+question, in this order:
+
+1. The driver's windows are asked to close (Windows: `3DxSmartUi.exe`, `3DxHome.exe`).
+2. The driver service of the signed-in user is ended (Windows: `3DxService.exe`; macOS: `3DconnexionHelper`).
+   The profile server (`3DxProfileServer.exe`) is left running: nothing starts it again once it was ended.
+3. The service is started again (Windows: `3DxService.exe -quiet`, the command of the driver's own
+   Run entry "3DxWare Service"; macOS: the helper from the path it ran from). If the system or the
+   driver already started it, no second copy is started.
+4. It waits (at most 8 seconds) until the service shows up again and says so, or says what did not work.
+
+What it does **not** do: touch a program of another user or session, a program of the same name from
+another folder, or a program that needs more rights than dofscroll has. The profile server is not touched on purpose: on a Windows machine with 3DxWare 10.9 one of its two
+instances runs elevated and cannot be ended without administrator rights, and nothing starts one again
+after it was ended (measured). A program that cannot be ended is named in the result and left running. All rules are in `src/ui/model/driver_restart.hpp`
+(tested with a fake process list in `tests/test_ui_driver_restart.cpp`); the operating-system calls are
+in `src/platform/win/driver_restart_win.cpp` and `src/platform/mac/driver_restart_mac.cpp`.
+
+Checked: the Windows restart by hand on Windows 11 with 3DxWare 10.9 (service ended, started with
+`-quiet`, it came back). **Not checked:** the macOS version (never run on a Mac), whether a restart
+makes the driver take over changed files in every case, and whether a running dofscroll daemon picks
+the driver up again by itself afterwards.
 
 ### macOS driver cleanup: survey (issue #184)
 

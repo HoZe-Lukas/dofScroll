@@ -30,6 +30,8 @@
 #include <utility>
 
 #include "a11y_announce.hpp"
+#include "driver_restart_action.hpp"
+#include "platform/driver_restart_os.hpp"
 #include "plain_text.hpp"
 #include "ui/model/design_tokens.hpp"
 #include "ui_i18n.hpp"
@@ -692,6 +694,31 @@ public:
                                    "running may need a restart too. If a program still receives every movement twice, run this assistant "
                                    "again after the driver has been restarted."),
                                  this));
+        if (m::driverRestartAvailable()) {
+            auto *rrow = new QHBoxLayout;
+            restart_ = new QPushButton(T("Restart the driver now"), this);
+            restart_->setObjectName(QStringLiteral("restart-driver"));
+            restart_->setAutoDefault(false);
+            restart_->setToolTip(T("Closes the driver's settings window, ends the driver service of your sign-in and starts "
+                                   "the driver again, so that it reads the changed files"));
+            rrow->addWidget(restart_);
+            rrow->addStretch(1);
+            col->addLayout(rrow);
+            restartStatus_ = paragraph(QString(), this);
+            restartStatus_->setObjectName(QStringLiteral("restart-status"));
+            restartStatus_->setAccessibleName(T("Result of the driver restart"));
+            col->addWidget(restartStatus_);
+            connect(restart_, &QPushButton::clicked, this, [this] {
+                bool ran = false;
+                const QString t = m::qt::restartDriverInteractive(this, true, &ran);
+                if (ran) {
+                    restartStatus_->setText(t);
+                    m::announce(this, t);
+                } else if (!t.isEmpty()) {
+                    restartStatus_->setText(t);
+                }
+            });
+        }
         auto *row = new QHBoxLayout;
         this_ = new QPushButton(T("Restore this backup"), this);
         this_->setObjectName(QStringLiteral("restore-this"));
@@ -732,6 +759,7 @@ public:
         this_->setEnabled(!s.backupStamp.empty());
         older_->setEnabled(!m::listDriverBackups(s.dir).empty());
         restoreStatus_->setText(QString());
+        if (restartStatus_) restartStatus_->setText(QString());
     }
     void setStatus(const QString &t) { restoreStatus_->setText(t); }
 
@@ -739,6 +767,8 @@ private:
     DriverCleanupWizard *wiz_;
     QLabel *summary_, *restoreStatus_;
     QPushButton *this_, *older_;
+    QPushButton *restart_ = nullptr;
+    QLabel *restartStatus_ = nullptr;
 };
 
 }  // namespace

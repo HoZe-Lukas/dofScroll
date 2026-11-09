@@ -977,8 +977,19 @@ Compiled and unit-tested in CI only; what has to be checked by hand on real mach
   this backup** and **Restore an older backup...** (on the last page, and **Restore a backup...** on the
   first) put those files back. Global.xml and the driver's installed defaults are not touched; a
   program without a file of its own keeps whatever the driver does for it. If a change does not take
-  effect, restart the driver or sign out and in. Not available on macOS yet (the driver's settings
-  location there is not verified). Unchecked on hardware. Steps in detail: `docs/windows-mac.md`.
+  effect, restart the driver (the result page has **Restart the driver now**) or sign out and in. Not
+  available on macOS yet (the driver's settings location there is not verified). Unchecked on hardware.
+  Steps in detail: `docs/windows-mac.md`.
+- **Restarting the driver (Windows, macOS).** The 3Dconnexion driver reads its settings files when it
+  starts, and it has no menu entry for a restart. **Restart the 3Dconnexion driver...** in the
+  **3Dconnexion driver** box on the General page (and **Restart the driver now** on the last page of the
+  cleanup assistant) asks first, then closes the driver's settings window, ends the driver service
+  of the signed-in user and starts it again (the driver's profile server is left running: nothing starts it again once it was ended); the result is said in words. Only
+  programs from the driver's own folder with the driver's own file names are touched, nothing of other
+  users, and a program that needs more rights than dofscroll has is named and left running. Rules and steps: `src/ui/model/driver_restart.hpp`, tested
+  with a fake process list in `tests/test_ui_driver_restart.cpp`. Checked on Windows 11 with 3DxWare 10.9;
+  **not run on a Mac** (the process name 3DconnexionHelper is from the vendor's support pages, and whether
+  macOS starts the helper by itself after it ended is unknown; the code starts it only when nothing did).
 - **Output backend.** The "Output backend" choice (X11, uinput) on the Settings page exists on
   Linux only; Windows uses SendInput and macOS CGEvent.
 - **German catalog.** `dofscroll_de.qm` is next to the executable on every system (Linux
