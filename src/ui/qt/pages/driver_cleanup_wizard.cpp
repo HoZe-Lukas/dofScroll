@@ -30,6 +30,8 @@
 #include <utility>
 
 #include "a11y_announce.hpp"
+#include "ui/model/settings_model.hpp"
+#include "ui_context.hpp"
 #include "driver_restart_action.hpp"
 #include "platform/driver_restart_os.hpp"
 #include "plain_text.hpp"
@@ -556,6 +558,99 @@ private:
     int built_ = -1;
 };
 
+// ---- page 3b: empty profiles for the 3D and CAD programs ------------------------------------------------------------------
+
+class ProfilesPageImpl : public QWizardPage {
+public:
+    explicit ProfilesPageImpl(DriverCleanupWizard *w) : wiz_(w) {
+        setTitle(T("Profiles for 3D and CAD programs"));
+        setSubTitle(T("The 3D and CAD programs you did not tick keep working with the driver. dofscroll can get an empty profile with its "
+                      "output switched off for each, so it does not scroll or zoom there as well. Tick what you want; nothing else is created."));
+        auto *col = new QVBoxLayout(this);
+        auto *row = new QHBoxLayout;
+        auto *all = new QPushButton(T("Tick all"), this);
+        all->setObjectName(QStringLiteral("profiles-all"));
+        all->setAutoDefault(false);
+        auto *none = new QPushButton(T("Tick none"), this);
+        none->setObjectName(QStringLiteral("profiles-none"));
+        none->setAutoDefault(false);
+        row->addWidget(all);
+        row->addWidget(none);
+        row->addStretch(1);
+        col->addLayout(row);
+        table_ = new QTableWidget(this);
+        table_->setObjectName(QStringLiteral("profiles-table"));
+        table_->setColumnCount(3);
+        table_->setHorizontalHeaderLabels({T("Create"), T("Program"), T("State")});
+        table_->horizontalHeader()->setStretchLastSection(true);
+        table_->verticalHeader()->setVisible(false);
+        table_->setSelectionMode(QAbstractItemView::NoSelection);
+        table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        table_->setMinimumHeight(160);
+        table_->setAccessibleName(T("Profiles to create"));
+        table_->setAccessibleDescription(T("One row per 3D or CAD program. Tick the box of a row to create an empty profile for it."));
+        col->addWidget(table_, 1);
+        info_ = paragraph(QString(), this);
+        info_->setObjectName(QStringLiteral("profiles-info"));
+        col->addWidget(info_);
+        connect(all, &QPushButton::clicked, this, [this] { setAll(true); });
+        connect(none, &QPushButton::clicked, this, [this] { setAll(false); });
+        connect(table_, &QTableWidget::itemChanged, this, [this](QTableWidgetItem *it) {
+            if (busy_ || it->column() != 0) return;
+            const int r = it->row();
+            auto &rows = wiz_->state().profileRows;
+            if (r >= 0 && r < int(rows.size()) && !rows[size_t(r)].existing) rows[size_t(r)].selected = it->checkState() == Qt::Checked;
+            refreshInfo();
+        });
+    }
+    void initializePage() override {
+        DriverWizardState &s = wiz_->state();
+        const std::vector<std::string> existing = s.existingProfiles ? s.existingProfiles() : std::vector<std::string>();
+        s.profileRows = m::driverProfileRows(s.apps, existing, s.profileRows);
+        busy_ = true;
+        table_->setRowCount(int(s.profileRows.size()));
+        for (int r = 0; r < int(s.profileRows.size()); ++r) {
+            const m::DriverProfileRow &p = s.profileRows[size_t(r)];
+            auto *c0 = new QTableWidgetItem;
+            c0->setFlags(p.existing || !s.createProfile ? Qt::ItemIsEnabled : (Qt::ItemIsEnabled | Qt::ItemIsUserCheckable));
+            c0->setCheckState(p.selected && s.createProfile ? Qt::Checked : Qt::Unchecked);
+            table_->setItem(r, 0, c0);
+            QString name = qs8(p.name);
+            if (p.name != p.exe) name += QStringLiteral(" (") + qs8(p.exe) + QLatin1Char(')');
+            table_->setItem(r, 1, new QTableWidgetItem(name));
+            table_->setItem(r, 2, new QTableWidgetItem(p.existing ? T("has a profile already, not changed") : T("no profile yet")));
+        }
+        table_->resizeColumnsToContents();
+        busy_ = false;
+        refreshInfo();
+    }
+
+private:
+    void setAll(bool on) {
+        auto &rows = wiz_->state().profileRows;
+        busy_ = true;
+        for (int r = 0; r < int(rows.size()); ++r) {
+            if (rows[size_t(r)].existing) continue;
+            rows[size_t(r)].selected = on;
+            if (QTableWidgetItem *it = table_->item(r, 0)) it->setCheckState(on ? Qt::Checked : Qt::Unchecked);
+        }
+        busy_ = false;
+        refreshInfo();
+    }
+    void refreshInfo() {
+        const DriverWizardState &s = wiz_->state();
+        if (s.profileRows.empty()) info_->setText(T("There is no 3D or CAD program among the programs you did not tick."));
+        else
+            info_->setText(T("%1 of %2 profiles will be created.")
+                               .arg(s.createProfile ? int(m::driverProfileSelectedCount(s.profileRows)) : 0)
+                               .arg(int(s.profileRows.size())));
+    }
+    DriverCleanupWizard *wiz_;
+    QTableWidget *table_;
+    QLabel *info_;
+    bool busy_ = false;
+};
+
 // ---- page 4 ------------------------------------------------------------------------------------------------------
 
 class PreviewPageImpl : public QWizardPage {
@@ -584,6 +679,14 @@ public:
                      .arg(nativeDir(s.dir + "/" + m::kDriverBackupDir))
                      .arg(int(pv.axes));
         lines << T("Not touched: the button assignments, Global.xml and the programs you did not tick.");
+        if (s.createProfile && m::driverProfileSelectedCount(s.profileRows) > 0) {
+            QStringList names;
+            for (const m::DriverProfileRow &p : s.profileRows)
+                if (p.selected && !p.existing) names << qs8(p.exe);
+            lines << T("%1 empty profiles with the output switched off will be created in dofscroll: %2")
+                         .arg(int(names.size()))
+                         .arg(names.join(QStringLiteral(", ")));
+        }
         if (pv.navigationTicked > 0)
             lines << mark(m::StatusKind::Warning,
                           T("%1 of the ticked programs are 3D or CAD programs. Switching their axes off stops 3D navigation with the driver in them.")
@@ -655,6 +758,15 @@ public:
             if (!file.empty()) status_->setText(T("Saving and changing %1 (%2 of %3) ...").arg(qs8(file)).arg(int(done) + 1).arg(int(total)));
             QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
         });
+        s.profilesCreated.clear();
+        s.profilesFailed.clear();
+        if (s.createProfile)
+            for (const m::DriverProfileRow &p : s.profileRows) {
+                if (!p.selected || p.existing) continue;
+                std::string err;
+                if (s.createProfile(p.exe, &err)) s.profilesCreated.push_back(p.exe);
+                else s.profilesFailed.push_back(p.exe + ": " + err);
+            }
         s.report = rep;
         s.applied = true;
         s.backupStamp = rep.changed.empty() ? std::string() : backupName(rep.backupDir).toStdString();
@@ -664,6 +776,12 @@ public:
             t = T("Not everything worked. Files changed: %1. Files that were not changed:").arg(int(rep.changed.size()));
             for (const std::string &f : rep.failed) t += QStringLiteral("\n  ") + failureText(f);
         }
+        if (!s.profilesCreated.empty()) {
+            QStringList names;
+            for (const std::string &n : s.profilesCreated) names << qs8(n);
+            t += QLatin1Char('\n') + T("Empty profiles created in dofscroll: %1").arg(names.join(QStringLiteral(", ")));
+        }
+        for (const std::string &f : s.profilesFailed) t += QLatin1Char('\n') + T("Profile not created:") + QLatin1Char(' ') + qs8(f);
         status_->setText(t);
         done_ = true;
         if (cancel) cancel->setEnabled(true);
@@ -818,6 +936,27 @@ std::string DriverBackupDialog::selectedStamp() const {
 
 // ---- the wizard ------------------------------------------------------------------------------------------------------
 
+void bindDriverWizardProfiles(DriverCleanupWizard &wizard, const UiContext &ctx) {
+    spn::ui::SettingsModel *model = ctx.settings;
+    if (!model) return;
+    DriverWizardState &s = wizard.state();
+    s.existingProfiles = [model] {
+        std::vector<std::string> names;
+        const spn::ProfileSet &ps = model->profiles();
+        for (size_t i = 1; i < ps.sections.size(); ++i)
+            if (ps.sections[i].kind == spn::Section::APP) names.push_back(ps.sections[i].pattern);
+        return names;
+    };
+    s.createProfile = [model, &ctx](const std::string &exe, std::string *err) {
+        if (model->profiles().find(spn::Section::APP, exe) != spn::ProfileSet::npos) return true;  // never touch an existing one
+        const size_t idx = model->addSection(spn::Section::APP, exe, err);
+        if (idx == spn::ProfileSet::npos) return false;
+        if (!model->setValue(idx, "ENABLED", "0", err)) return false;
+        ctx.saveSoon();
+        return true;
+    };
+}
+
 DriverCleanupWizard::DriverCleanupWizard(const std::string &dir, QWidget *parent) : QWizard(parent) {
     state_.dir = dir;
     setWindowTitle(T("3Dconnexion driver: remove axis settings"));
@@ -831,6 +970,7 @@ DriverCleanupWizard::DriverCleanupWizard(const std::string &dir, QWidget *parent
     setPage(IntroPage, new IntroPageImpl(this));
     setPage(ScanPage, new ScanPageImpl(this));
     setPage(ChoosePage, new ChoosePageImpl(this));
+    setPage(ProfilesPage, new ProfilesPageImpl(this));
     setPage(PreviewPage, new PreviewPageImpl(this));
     setPage(ApplyPage, new ApplyPageImpl(this));
     setPage(ResultPage, new ResultPageImpl(this));

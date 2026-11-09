@@ -7212,9 +7212,6 @@ msgstr "Schließt das Einstellungsfenster des Treibers, beendet den Treiberdiens
 msgid "Result of the driver restart"
 msgstr "Ergebnis des Treiber-Neustarts"
 
-#: src/ui/qt/pages/general_page.cpp
-msgid "The driver reads its settings when it starts. After you changed them, or when the SpaceMouse stops reacting, restart the driver here instead of signing out."
-msgstr "Der Treiber liest seine Einstellungen beim Start. Wenn du sie geändert hast oder die SpaceMouse nicht mehr reagiert, starte den Treiber hier neu, statt dich abzumelden."
 
 #: src/ui/qt/pages/general_page.cpp
 msgid "Restart the 3Dconnexion driver..."
@@ -7259,3 +7256,63 @@ msgstr "Melde dich stattdessen ab und wieder an."
 #: src/ui/qt/pages/driver_restart_action.cpp
 msgid "Not ended (they run with more rights than dofscroll has):"
 msgstr "Nicht beendet (sie laufen mit mehr Rechten als dofscroll):"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Profiles for 3D and CAD programs"
+msgstr "Profile für 3D- und CAD-Programme"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "The 3D and CAD programs you did not tick keep working with the driver. dofscroll can get an empty profile with its output switched off for each, so it does not scroll or zoom there as well. Tick what you want; nothing else is created."
+msgstr "Die 3D- und CAD-Programme, die du nicht angehakt hast, arbeiten weiter mit dem Treiber. dofscroll kann für jedes ein leeres Profil mit ausgeschalteter Ausgabe bekommen, damit es dort nicht zusätzlich scrollt oder zoomt. Hake an, was du willst; sonst wird nichts angelegt."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Create"
+msgstr "Anlegen"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Profiles to create"
+msgstr "Anzulegende Profile"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "One row per 3D or CAD program. Tick the box of a row to create an empty profile for it."
+msgstr "Eine Zeile pro 3D- oder CAD-Programm. Hake das Kästchen einer Zeile an, um dafür ein leeres Profil anzulegen."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "has a profile already, not changed"
+msgstr "hat schon ein Profil, bleibt unverändert"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "no profile yet"
+msgstr "noch kein Profil"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "There is no 3D or CAD program among the programs you did not tick."
+msgstr "Unter den Programmen, die du nicht angehakt hast, ist kein 3D- oder CAD-Programm."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "%1 of %2 profiles will be created."
+msgstr "%1 von %2 Profilen werden angelegt."
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "%1 empty profiles with the output switched off will be created in dofscroll: %2"
+msgstr "In dofscroll werden %1 leere Profile mit ausgeschalteter Ausgabe angelegt: %2"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Empty profiles created in dofscroll: %1"
+msgstr "In dofscroll angelegte leere Profile: %1"
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Profile not created:"
+msgstr "Profil nicht angelegt:"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Official 3Dconnexion driver"
+msgstr "Offizieller 3Dconnexion-Treiber"
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "If the driver has axes switched on for a program, that program receives every movement twice. The assistant lists those programs, switches off what you tick, and can create empty profiles for your 3D and CAD programs. You can also do this later on the Settings page."
+msgstr "Wenn der Treiber für ein Programm Achsen eingeschaltet hat, bekommt dieses Programm jede Bewegung doppelt. Der Assistent listet diese Programme auf, schaltet ab, was du anhakst, und kann leere Profile für deine 3D- und CAD-Programme anlegen. Du kannst das auch später auf der Seite Einstellungen tun."
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Open the driver assistant..."
+msgstr "Treiberassistent öffnen..."

@@ -277,6 +277,30 @@ int main() {
         }
     }
 
+    // ---- empty profiles for the 3D and CAD programs left to the driver
+    {
+        auto app = [](const char *name, const char *exe, bool nav, bool sel) {
+            DriverApp x;
+            x.name = name;
+            x.exe = exe;
+            x.navigation = nav;
+            x.selected = sel;
+            return x;
+        };
+        std::vector<DriverApp> list = {app("Fusion", "Fusion360.exe", true, false), app("Chrome", "chrome.exe", false, true),
+                                       app("Blender", "blender.exe", true, false), app("Ticked CAD", "cad.exe", true, true),
+                                       app("No exe", "", true, false), app("Fusion again", "FUSION360.EXE", true, false)};
+        std::vector<DriverProfileRow> rows = driverProfileRows(list, {"BLENDER.exe"});
+        assert(rows.size() == 2);  // only 3D/CAD, not ticked for the cleanup, with an exe, once
+        assert(rows[0].exe == "fusion360.exe" && rows[0].selected && !rows[0].existing);
+        assert(rows[1].exe == "blender.exe" && rows[1].existing && !rows[1].selected);  // exists: shown, never created
+        assert(driverProfileSelectedCount(rows) == 1);
+        rows[0].selected = false;  // the user unticks; a second call keeps it
+        rows = driverProfileRows(list, {"BLENDER.exe"}, rows);
+        assert(!rows[0].selected && driverProfileSelectedCount(rows) == 0);
+        assert(driverProfileRows({}, {}).empty());
+    }
+
     tu::removeAll(root);
     return 0;
 }

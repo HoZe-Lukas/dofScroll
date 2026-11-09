@@ -23,6 +23,7 @@
 #include <QVBoxLayout>
 
 #include "daemon_starter.hpp"
+#include "driver_cleanup_wizard.hpp"
 #include "ui/model/design_tokens.hpp"
 #include "ui/model/general_page_model.hpp"
 #include "ui_i18n.hpp"
@@ -102,6 +103,7 @@ SetupGuideDialog::SetupGuideDialog(const UiContext &ctx, const DaemonStarter *st
 
     spn::ui::SetupInputs in;
     in.os = spn::ui::hostOs();
+    in.driverCleanupAvailable = !spn::ui::driverConfigDir().empty();
     build(spn::ui::buildSetupGuide(in, *ctx_.strings));
 
     timer_ = new QTimer(this);
@@ -225,6 +227,7 @@ void SetupGuideDialog::update(const std::vector<spn::ui::SetupStep> &steps) {
 void SetupGuideDialog::refresh() {
     if (!ctx_.status || !ctx_.strings) return;
     spn::ui::SetupInputs in = spn::ui::setupInputsFrom(*ctx_.status, spn::ui::hostOs());
+    in.driverCleanupAvailable = !spn::ui::driverConfigDir().empty();
     in.waitingForDaemon = !in.daemonRunning && starter_ && starter_->waiting();
     in.daemonStartFailed = !in.daemonRunning && starter_ && starter_->failed();
     if (spn::ui::hostOs() == spn::ui::Os::Linux && in.daemonRunning && !in.deviceSeen && ctx_.runner) {
@@ -282,6 +285,14 @@ void SetupGuideDialog::runAction(spn::ui::StepAction a) {
         case spn::ui::StepAction::OpenInputMonitoring:
             ok = ctx_.runner->openSystemSettings(spn::ui::permissionPaneUrl(spn::ui::PermissionPane::InputMonitoring), &err);
             break;
+        case spn::ui::StepAction::DriverCleanup: {
+            const std::string dir = spn::ui::driverConfigDir();
+            if (dir.empty()) return;
+            DriverCleanupWizard wizard(dir, this);
+            bindDriverWizardProfiles(wizard, ctx_);
+            wizard.exec();
+            return;
+        }
         case spn::ui::StepAction::Autostart:
         case spn::ui::StepAction::None: return;
     }

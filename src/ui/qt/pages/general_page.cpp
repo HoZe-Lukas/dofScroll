@@ -291,16 +291,11 @@ public:
                 dvl->addWidget(drvBtn, 0, Qt::AlignLeft);
                 QObject::connect(drvBtn, &QPushButton::clicked, this, [this, driverDir] {
                     DriverCleanupWizard wizard(driverDir, window());
+                    bindDriverWizardProfiles(wizard, ctx_);
                     wizard.exec();
                 });
             }
             if (spn::ui::driverRestartAvailable()) {
-                if (driverDir.empty()) {  // the cleanup box above has its own text; this page is at its height limit
-                    auto *rNote = makeNote();
-                    rNote->setText(T("The driver reads its settings when it starts. After you changed them, or when the SpaceMouse "
-                                     "stops reacting, restart the driver here instead of signing out."));
-                    dvl->addWidget(rNote);
-                }
                 auto *rBtn = new QPushButton(T("Restart the 3Dconnexion driver..."));
                 rBtn->setObjectName(QStringLiteral("driver-restart"));
                 rBtn->setToolTip(T("Closes the driver's settings window, ends the driver service of your sign-in and "

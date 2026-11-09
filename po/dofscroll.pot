@@ -3854,9 +3854,6 @@ msgstr ""
 msgid "Result of the driver restart"
 msgstr ""
 
-#: src/ui/qt/pages/general_page.cpp
-msgid "The driver reads its settings when it starts. After you changed them, or when the SpaceMouse stops reacting, restart the driver here instead of signing out."
-msgstr ""
 
 #: src/ui/qt/pages/general_page.cpp
 msgid "Restart the 3Dconnexion driver..."
@@ -3900,4 +3897,64 @@ msgstr ""
 
 #: src/ui/qt/pages/driver_restart_action.cpp
 msgid "Not ended (they run with more rights than dofscroll has):"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Profiles for 3D and CAD programs"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "The 3D and CAD programs you did not tick keep working with the driver. dofscroll can get an empty profile with its output switched off for each, so it does not scroll or zoom there as well. Tick what you want; nothing else is created."
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Create"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Profiles to create"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "One row per 3D or CAD program. Tick the box of a row to create an empty profile for it."
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "has a profile already, not changed"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "no profile yet"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "There is no 3D or CAD program among the programs you did not tick."
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "%1 of %2 profiles will be created."
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "%1 empty profiles with the output switched off will be created in dofscroll: %2"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Empty profiles created in dofscroll: %1"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Profile not created:"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Official 3Dconnexion driver"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "If the driver has axes switched on for a program, that program receives every movement twice. The assistant lists those programs, switches off what you tick, and can create empty profiles for your 3D and CAD programs. You can also do this later on the Settings page."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Open the driver assistant..."
 msgstr ""

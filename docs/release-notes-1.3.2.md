@@ -13,8 +13,12 @@ fix for the keyboard layout on X11; the configuration and the profile files do n
 
 - **The driver cleanup is a step-by-step assistant with real check boxes (Windows, #184, #352).** *Settings > General >
   3Dconnexion driver > Remove driver axis settings...* used to be one list in which only one program could be ticked.
-  The assistant has six pages (Back, Next, Cancel, keyboard operable): introduction and confirmation, what was found
-  (folder, counts, every skipped file with its reason), choose the programs, preview, apply with a progress bar, result.
+  The assistant has seven pages (Back, Next, Cancel, keyboard operable): introduction and confirmation, what was found
+  (folder, counts, every skipped file with its reason), choose the programs, profiles for 3D and CAD programs, preview,
+  apply with a progress bar, result. The profile page offers, with a check box each (ticked by default), an empty
+  program profile with the output switched off for every 3D or CAD program that stays with the driver; nothing is
+  created that is not ticked and existing profiles are never changed. The assistant is also a step of the setup guide
+  at the first start (Windows).
   The programs are a table with a real check box per row; ticking does not depend on the row selection. **Tick all**,
   **Tick none**, **Tick all except 3D and CAD programs** (the default) and **Invert** act on the rows shown, a filter
   narrows them, and a counter says "n of m programs ticked". Every changed file is backed up first, and any backup
@@ -50,6 +54,8 @@ fix for the keyboard layout on X11; the configuration and the profile files do n
   all restored), the offscreen self-test of the pages, and the restart of the driver service by hand on Windows 11 with
   3DxWare 10.9. **Not checked:** that the driver takes over the changed files after the restart in every case, that a
   running dofscroll daemon picks the driver up again afterwards, and the look of the assistant in light and dark.
+- **The profile page and the setup guide step** (empty profiles for 3D and CAD programs) were checked by the offscreen
+  self-test only, not clicked through by a person.
 - **macOS:** the restart was never run on a Mac. The helper's name (`3DconnexionHelper`) is from the vendor's support
   pages, and whether macOS starts the helper again by itself after it ended is unknown (the code starts it only when
   nothing did). The cleanup itself still does not exist on macOS: the format of the driver's per-program preferences is

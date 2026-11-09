@@ -3683,6 +3683,7 @@ static bool driverWizardSelfTest(const QString &tmpPath) {
     const QString grabDir = qEnvironmentVariable("DOFSCROLL_SELFTEST_GRABS");
     if (!grabDir.isEmpty()) QDir().mkpath(grabDir);
     struct Sample { const char *name, *exe; bool nav; };
+    std::vector<std::string> profilesMade;
     const Sample samples[] = {{"Chrome", "chrome.exe", false}, {"Code", "code.exe", false}, {"Firefox", "firefox.exe", false},
                               {"Notepad++", "notepad++.exe", false}, {"Fusion 360", "Fusion360.exe", true}};
     const QString root = tmpPath + QStringLiteral("/driver-wizard");
@@ -3709,6 +3710,7 @@ static bool driverWizardSelfTest(const QString &tmpPath) {
         f.setLetterSpacing(QFont::PercentageSpacing, c.spacing);
         QApplication::setFont(f);
         writeSamples();
+        profilesMade.clear();
         DriverCleanupWizard wiz(cfg.toStdString());
         wiz.resize(c.width, 760);
         wiz.show();
@@ -3886,6 +3888,17 @@ static bool driverWizardSelfTest(const QString &tmpPath) {
         check(ticks() == QStringLiteral("xxxxx"), QStringLiteral("all ticked, including the 3D program: ") + ticks());
         wiz.next();
 
+        // 3b profiles: the 3D program is ticked for the cleanup, so there is nothing to create
+        settle();
+        check(wiz.currentId() == DriverCleanupWizard::ProfilesPage, QStringLiteral("the profile page follows the choice"));
+        {
+            auto *pt0 = page()->findChild<QTableWidget *>(QStringLiteral("profiles-table"));
+            auto *pi0 = page()->findChild<QLabel *>(QStringLiteral("profiles-info"));
+            check(pt0 && pt0->rowCount() == 0 && pi0 && pi0->text().contains(QStringLiteral("no 3D or CAD program")),
+                  QStringLiteral("no 3D program left to the driver: no row, and it says so"));
+        }
+        wiz.next();
+
         // 4 preview: what changes, nothing written
         settle();
         check(wiz.currentId() == DriverCleanupWizard::PreviewPage, QStringLiteral("the preview follows"));
@@ -3902,12 +3915,47 @@ static bool driverWizardSelfTest(const QString &tmpPath) {
         layoutFits("preview");
         // the way back keeps the ticks
         wiz.back();
+        wiz.back();
         settle();
         check(wiz.currentId() == DriverCleanupWizard::ChoosePage && ticks() == QStringLiteral("xxxxx"), QStringLiteral("Back keeps the ticks"));
         click("tick-except-3d");
         wiz.next();
         settle();
+        // 3b again: the 3D program is left to the driver, so it is offered, ticked; nothing is created without the function
+        check(wiz.currentId() == DriverCleanupWizard::ProfilesPage, QStringLiteral("the profile page follows again"));
+        {
+            auto *pt1 = page()->findChild<QTableWidget *>(QStringLiteral("profiles-table"));
+            check(pt1 && pt1->rowCount() == 1 && pt1->item(0, 1)->text().contains(QStringLiteral("fusion360.exe")) &&
+                      pt1->item(0, 0)->flags().testFlag(Qt::ItemIsUserCheckable) == false,
+                  QStringLiteral("the 3D program is listed; without a settings model its box cannot be ticked"));
+            check(wiz.state().profileRows.size() == 1 && pt1->item(0, 0)->checkState() == Qt::Unchecked, QStringLiteral("nothing is shown ticked without a settings model"));
+            layoutFits("profiles");
+            // with a model-like creator the row is ticked by default and the box works
+            wiz.state().existingProfiles = [] { return std::vector<std::string>{"other.exe"}; };
+            wiz.state().createProfile = [&profilesMade](const std::string &exe, std::string *) {
+                profilesMade.push_back(exe);
+                return true;
+            };
+            wiz.back();
+            wiz.next();
+            settle();
+            pt1 = page()->findChild<QTableWidget *>(QStringLiteral("profiles-table"));
+            check(pt1 && pt1->rowCount() == 1 && pt1->item(0, 0)->checkState() == Qt::Checked && pt1->item(0, 0)->flags().testFlag(Qt::ItemIsUserCheckable),
+                  QStringLiteral("with a creator the 3D program's box is ticked and can be changed"));
+            pt1->item(0, 0)->setCheckState(Qt::Unchecked);
+            check(!wiz.state().profileRows[0].selected, QStringLiteral("unticking the box is remembered"));
+            page()->findChild<QPushButton *>(QStringLiteral("profiles-all"))->click();
+            check(wiz.state().profileRows[0].selected && pt1->item(0, 0)->checkState() == Qt::Checked, QStringLiteral("Tick all ticks the row"));
+            wiz.state().createProfile = [&profilesMade](const std::string &exe, std::string *) {
+                profilesMade.push_back(exe);
+                return true;
+            };
+        }
+        wiz.next();
+        settle();
         pv = page()->findChild<QPlainTextEdit *>(QStringLiteral("preview-text"));
+        check(pv && pv->toPlainText().contains(QStringLiteral("fusion360.exe")) && pv->toPlainText().contains(QStringLiteral("1 empty profiles")),
+              QStringLiteral("the preview names the profile that will be created"));
         check(pv && !pv->toPlainText().contains(QStringLiteral("Fusion_360.xml")) && pv->toPlainText().contains(QStringLiteral("4 files")),
               QStringLiteral("the preview follows the ticks"));
 
@@ -3925,6 +3973,8 @@ static bool driverWizardSelfTest(const QString &tmpPath) {
         check(!wiz.button(QWizard::BackButton)->isEnabled(), QStringLiteral("no way back after the change"));
         check(wiz.button(QWizard::CommitButton)->isEnabled() && wiz.button(QWizard::CommitButton)->text() == QStringLiteral("Next"), QStringLiteral("the page can be left when it is done"));
         check(wiz.state().report.changed.size() == 3 && wiz.state().report.failed.size() == 1, QStringLiteral("three files changed, one failed"));
+        check(profilesMade.size() == 1 && profilesMade[0] == "fusion360.exe" && wiz.state().profilesCreated.size() == 1,
+              QStringLiteral("exactly the ticked profile was created, once"));
         layoutFits("apply");
         wiz.next();
 
@@ -3965,6 +4015,7 @@ static bool driverWizardSelfTest(const QString &tmpPath) {
         check(table2 && table2->rowCount() == 4, QStringLiteral("the second scan lists the four programs left (Firefox.xml is gone)"));
         second.currentPage()->findChild<QPushButton *>(QStringLiteral("tick-all"))->click();
         second.next();
+        second.next();  // the profile page
         second.button(QWizard::CommitButton)->click();
         for (int i = 0; i < 400 && !(second.currentId() == DriverCleanupWizard::ApplyPage && second.button(QWizard::CommitButton)->isEnabled()); ++i) {
             QApplication::processEvents();
