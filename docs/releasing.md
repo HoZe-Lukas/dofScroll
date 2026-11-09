@@ -51,8 +51,7 @@ check that the ruleset `main branch` requires (`.github/rulesets/main.json`) is 
 run of each name must be `success`; a skipped or missing check is not green). A tag pushed on a side branch, or on a
 commit whose checks failed, therefore never produces a release. The gate cannot stop a person from pushing the tag; the
 repository settings below do that. **They are repository settings and are not changed by any workflow or script
-of the repository; the maintainer sets them once, by hand** (`scripts/configure-repo.sh --apply` would also apply
-`.github/rulesets/tags.json`; read the notes below before running it).
+of the repository; the maintainer sets them once, by hand.**
 
 1. **Environment `release` with a required reviewer and a tag rule.** Settings > Environments > New environment, name
    `release`; tick **Required reviewers** and add the maintainer, and untick **Allow administrators to bypass configured protection
