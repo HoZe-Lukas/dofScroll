@@ -95,9 +95,48 @@ full texts read first-hand. Labels:
 - Official: pull-down menu in the driver pane, "Export Configuration...". [forum, source 9]
 - The path `~/Library/Application Support/3Dconnexion` was not confirmed. [unresolved]
 
+### Windows driver cleanup: the assistant (issue #184)
+
+**Remove driver axis settings...** (General page, box "3Dconnexion driver") opens a step-by-step
+assistant with Back, Next and Cancel (keyboard operable). The driver keeps one XML file per program in
+`%APPDATA%\3Dconnexion\3DxWare\Cfg\`; an axis that is switched on there makes that program receive every
+movement twice. The steps:
+
+1. **Introduction.** What the driver does to doubled input, what is changed (only the axis
+   assignments of the programs you choose) and what is not (button assignments, `Global.xml`, every
+   program you do not choose), that each changed file is backed up first, and that a running driver
+   may hold the files open or write its own copy back: close the 3Dconnexion settings window, tick
+   the confirmation, then Next. "Restore a backup..." is here too.
+2. **What was found.** The folder that was read (or why it was not found), the number of program
+   files read, of programs with active axes, of programs where every axis is already off, of files
+   without axis settings, and every skipped file by name and reason (unreadable, over 1 MB, saved as
+   UTF-16). `Global.xml` is named: it holds the driver's settings for every program without a file of
+   its own, so a program that is not listed there can still get driver input; it is never changed.
+3. **Choose the programs.** A table with one row per program: a check box, program, executable, what
+   the driver does with which axes (`mouse wheel: Ry, X; keys: Z`) and the state ("The driver's axes
+   will be switched off", "Left as it is", "3D/CAD program: keeps the driver's axes"). Ticking is
+   independent of the row selection: click a box, or select rows (arrows, Shift, Ctrl, Ctrl+A) and
+   press Space to tick or untick all selected rows at once. **Tick all**, **Tick none**, **Tick all
+   except 3D and CAD programs** (the default) and **Invert** act on the rows shown; the filter box
+   narrows the rows by program, executable or file name. "n of m programs ticked" is always shown,
+   and Next stays off, with the reason, while nothing is ticked.
+4. **Preview.** Per ticked program the file and the axes that will be switched off; a ticked 3D or
+   CAD program carries a warning. Nothing is written yet. The button here starts the change; after
+   it there is no way back to the choice.
+5. **Apply.** Every original is copied to `Cfg\dofscroll-backup\<date>-<time>\`, then the axis flags
+   (`<Enabled>`) of that file are set to `false` and read back; a file that fails is named with the
+   reason and the others are still changed.
+6. **Result.** Files changed, the backup folder, **Restore this backup**, **Restore an older
+   backup...** (lists the backups with date and number of files), and the reminder to restart the
+   driver or sign out and in again.
+
+All rules and file operations are in `src/ui/model/driver_cleanup_model.hpp` (tests:
+`tests/test_ui_driver_cleanup.cpp`, `--self-test` walks the wizard offscreen). Not run against the
+real driver or on Windows hardware.
+
 ### macOS driver cleanup: survey (issue #184)
 
-The Windows build has a cleanup dialog ("Remove driver axis settings...") that removes the
+The Windows build has a cleanup assistant ("Remove driver axis settings...") that removes the
 driver's per-program axis settings. A macOS version is **not implemented**, because the format of
 the driver's per-program preferences is not documented anywhere we could find:
 

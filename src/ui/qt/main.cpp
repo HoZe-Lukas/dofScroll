@@ -51,6 +51,11 @@
 #include <QTreeView>
 #include <QItemSelectionModel>
 #include <QTreeWidget>
+#include <QTableWidget>
+#include <QProgressBar>
+#include <QStyleFactory>
+#include <QSet>
+#include <QWizard>
 #include <QTextDocument>
 #include <QTimer>
 #include <QTranslator>
@@ -64,6 +69,7 @@
 #include <ctime>
 
 #include "driver_platform.hpp"
+#include "pages/driver_cleanup_wizard.hpp"
 #include "main_window.hpp"
 #include "ui/model/display_text.hpp"
 #include "motion_view.hpp"
@@ -3641,6 +3647,375 @@ static bool wideGlyphPagesSelfTest() {
     return ok;
 }
 
+// The driver cleanup assistant (issue #184), walked through all six pages offscreen with a folder of sample files: Next is
+// held back until the consent and until a program is ticked, the table shows a real check box per row whose state is read
+// back from the widgets (not only from the model), several programs can be ticked (the buttons, Space on selected rows,
+// the boxes), the preview names what changes, the cleanup backs up and changes the files, a failing file is named, the
+// backup is restored. Run in the light and the dark theme and with 1.6 times wider glyphs at 1100 px: no horizontal scroll
+// bar and no page wider than the window. With DOFSCROLL_SELFTEST_GRABS=<dir> the choose page is written as PNG files
+// (every theme, and the styles Qt offers), to look at.
+static void driverSendKey(QWidget *w, Qt::Key key, Qt::KeyboardModifiers mods = Qt::NoModifier) {
+    QKeyEvent press(QEvent::KeyPress, key, mods);
+    QKeyEvent release(QEvent::KeyRelease, key, mods);
+    QApplication::sendEvent(w, &press);
+    QApplication::sendEvent(w, &release);
+}
+
+static QString driverSampleXml(const QString &name, const QString &exe, bool navigation) {
+    auto axis = [](const char *in, const char *out) {
+        return QStringLiteral("<Axis><Enabled>true</Enabled><Input><ActionID>HIDMultiAxis_%1</ActionID></Input><Output><ActionID>%2</ActionID></Output></Axis>")
+            .arg(QLatin1String(in), QLatin1String(out));
+    };
+    const QString axes = navigation ? axis("X", "HIDMultiAxis_X") + axis("Ry", "HIDMultiAxis_Rz")
+                                    : axis("Ry", "HIDMouse_Wheel") + axis("X", "HIDMouse_Wheel") + axis("Z", "KB_Keystroke");
+    return QStringLiteral("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<AppCfg><AppInfo><Signature><Name>%1</Name><ExecutableName>%2</ExecutableName></Signature></AppInfo>"
+                          "<Devices><Device><ButtonBank><Button><Enabled>true</Enabled></Button></ButtonBank><AxisBank>%3</AxisBank></Device></Devices></AppCfg>\n")
+        .arg(name, exe, axes);
+}
+
+static bool driverWizardSelfTest(const QString &tmpPath) {
+    bool ok = true;
+    QString where;
+    auto check = [&ok, &where](bool cond, const QString &what) {
+        if (!cond) std::fprintf(stderr, "driver wizard self-test failed (%s): %s\n", qPrintable(where), qPrintable(what));
+        ok = ok && cond;
+    };
+    const QString grabDir = qEnvironmentVariable("DOFSCROLL_SELFTEST_GRABS");
+    if (!grabDir.isEmpty()) QDir().mkpath(grabDir);
+    struct Sample { const char *name, *exe; bool nav; };
+    const Sample samples[] = {{"Chrome", "chrome.exe", false}, {"Code", "code.exe", false}, {"Firefox", "firefox.exe", false},
+                              {"Notepad++", "notepad++.exe", false}, {"Fusion 360", "Fusion360.exe", true}};
+    const QString root = tmpPath + QStringLiteral("/driver-wizard");
+    const QString cfg = root + QStringLiteral("/Cfg");
+    auto writeSamples = [&] {
+        QDir(cfg).removeRecursively();
+        QDir().mkpath(cfg);
+        for (const Sample &s : samples) {
+            QFile f(cfg + QLatin1Char('/') + QString::fromLatin1(s.name).replace(QLatin1Char(' '), QLatin1Char('_')) + QStringLiteral(".xml"));
+            if (f.open(QIODevice::WriteOnly)) f.write(driverSampleXml(QString::fromLatin1(s.name), QString::fromLatin1(s.exe), s.nav).toUtf8());
+        }
+    };
+    auto readAll = [](const QString &path) {
+        QFile f(path);
+        return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+    };
+    const QFont baseFont = QApplication::font();
+    struct Cfg { const char *tag; spn::ui::Theme theme; int spacing; int width; };
+    const Cfg cfgs[] = {{"light", spn::ui::Theme::Light, 100, 1000}, {"dark", spn::ui::Theme::Dark, 100, 1000}, {"wide glyphs", spn::ui::Theme::Light, 160, 1100}};
+    for (const Cfg &c : cfgs) {
+        where = QString::fromLatin1(c.tag);
+        applyTheme(c.theme);
+        QFont f = baseFont;
+        f.setLetterSpacing(QFont::PercentageSpacing, c.spacing);
+        QApplication::setFont(f);
+        writeSamples();
+        DriverCleanupWizard wiz(cfg.toStdString());
+        wiz.resize(c.width, 760);
+        wiz.show();
+        settle();
+        auto page = [&] { return wiz.currentPage(); };
+        // no horizontal scroll bar anywhere, no page wider than the window
+        auto layoutFits = [&](const char *what) {
+            settle();
+            if (!grabDir.isEmpty() && c.spacing == 100 && c.theme == spn::ui::Theme::Light)
+                wiz.grab().save(grabDir + QStringLiteral("/driver-wizard-page-%1.png").arg(QString::fromLatin1(what).replace(QLatin1Char(' '), QLatin1Char('-'))));
+            // the window opens at the size hint of its pages; made as narrow as the documented width again, what the layout
+            // needs at least must fit
+            wiz.resize(c.width, 760);
+            settle();
+            check(wiz.width() <= c.width, QStringLiteral("%1: the window fits %2 px (it needs %3 px)").arg(QLatin1String(what)).arg(c.width).arg(wiz.width()));
+            if (!page()) return;
+            check(page()->minimumSizeHint().width() <= wiz.width(), QStringLiteral("%1: the page fits the window").arg(QLatin1String(what)));
+            for (QAbstractScrollArea *a : page()->findChildren<QAbstractScrollArea *>())
+                if (a->isVisibleTo(page()) && a->horizontalScrollBar() && a->horizontalScrollBar()->maximum() > 0)
+                    check(false, QStringLiteral("%1: a horizontal scroll bar in %2 (%3 px too wide)")
+                                     .arg(QLatin1String(what), QLatin1String(a->metaObject()->className()))
+                                     .arg(a->horizontalScrollBar()->maximum()));
+            for (QWidget *w : page()->findChildren<QWidget *>())
+                if (w->isVisibleTo(page()) && !qobject_cast<QAbstractScrollArea *>(w) && w->parentWidget() == page() && w->sizeHint().width() > 0 &&
+                    w->minimumSizeHint().width() > page()->width())
+                    check(false, QStringLiteral("%1: %2 is wider than the page (%3 > %4)").arg(QLatin1String(what), QLatin1String(w->metaObject()->className()))
+                                     .arg(w->minimumSizeHint().width())
+                                     .arg(page()->width()));
+        };
+        QAbstractButton *next = wiz.button(QWizard::NextButton);
+        QAbstractButton *commit = wiz.button(QWizard::CommitButton);
+
+        // 1 introduction and consent
+        check(wiz.currentId() == DriverCleanupWizard::IntroPage, QStringLiteral("starts on the introduction"));
+        check(!next->isEnabled(), QStringLiteral("Next waits for the consent"));
+        auto *consent = page()->findChild<QCheckBox *>(QStringLiteral("consent"));
+        check(consent && !consent->accessibleName().isEmpty() && !consent->accessibleDescription().isEmpty(), QStringLiteral("the consent box has a name and a description"));
+        auto *introRestore = page()->findChild<QPushButton *>(QStringLiteral("intro-restore"));
+        check(introRestore && !introRestore->isEnabled(), QStringLiteral("no backup yet: the restore link is off, with a reason in its tooltip"));
+        layoutFits("introduction");
+        if (consent) consent->setChecked(true);
+        settle();
+        check(next->isEnabled(), QStringLiteral("Next is available after the consent"));
+        wiz.next();
+
+        // 2 scan result
+        settle();
+        check(wiz.currentId() == DriverCleanupWizard::ScanPage, QStringLiteral("the scan page follows"));
+        auto *counts = page()->findChild<QLabel *>(QStringLiteral("scan-counts"));
+        check(counts && counts->text().contains(QStringLiteral(": 5")) && wiz.state().scan.programs == 5 && wiz.state().apps.size() == 5,
+              QStringLiteral("the scan found all five programs"));
+        check(page()->findChild<QLabel *>(QStringLiteral("scan-folder"))->text().contains(QStringLiteral("Cfg")), QStringLiteral("the folder is named"));
+        check(next->isEnabled(), QStringLiteral("Next is available when programs were found"));
+        layoutFits("scan result");
+        wiz.next();
+
+        // 3 choose the programs
+        settle();
+        check(wiz.currentId() == DriverCleanupWizard::ChoosePage, QStringLiteral("the choose page follows"));
+        auto *table = page()->findChild<QTableWidget *>(QStringLiteral("programs-table"));
+        if (!table) {
+            check(false, QStringLiteral("the table exists"));
+            continue;
+        }
+        auto boxOf = [&](int row) -> QCheckBox * {
+            QWidget *cell = table->cellWidget(row, 0);
+            return cell ? cell->findChild<QCheckBox *>() : nullptr;
+        };
+        auto ticks = [&] {  // read back from the widgets, one character per row
+            QString s;
+            for (int r = 0; r < table->rowCount(); ++r) s += boxOf(r) && boxOf(r)->isChecked() ? QLatin1Char('x') : QLatin1Char('.');
+            return s;
+        };
+        auto counter = [&] { return page()->findChild<QLabel *>(QStringLiteral("tick-counter"))->text(); };
+        auto click = [&](const char *obj) {
+            auto *b = page()->findChild<QPushButton *>(QLatin1String(obj));
+            check(b && !b->text().isEmpty() && !b->toolTip().isEmpty(), QStringLiteral("%1 exists and is explained").arg(QLatin1String(obj)));
+            if (b) b->click();
+            settle();
+        };
+        check(table->rowCount() == 5 && table->columnCount() == 5, QStringLiteral("one row per program, five columns"));
+        check(table->horizontalScrollBarPolicy() == Qt::ScrollBarAlwaysOff, QStringLiteral("the table never scrolls sideways"));
+        // the order is by name: Chrome, Code, Firefox, Fusion 360, Notepad++; the 3D program is not ticked by default
+        check(table->item(3, 1)->text() == QStringLiteral("Fusion 360") && table->item(3, 4)->text().contains(QStringLiteral("keeps the driver's axes")),
+              QStringLiteral("the 3D program is named and says that it keeps the driver's axes"));
+        check(ticks() == QStringLiteral("xxx.x"), QStringLiteral("default ticks (read from the check boxes): ") + ticks());
+        check(counter().contains(QStringLiteral("4 of 5")), QStringLiteral("counter: ") + counter());
+        check(table->item(0, 2)->text() == QStringLiteral("chrome.exe") && table->item(0, 3)->text().contains(QStringLiteral("mouse wheel: Ry, X")) &&
+                  table->item(0, 3)->text().contains(QStringLiteral("keys: Z")),
+              QStringLiteral("executable and what the driver does with which axes: ") + table->item(0, 3)->text());
+        check(table->item(0, 4)->text() != table->item(3, 4)->text() && !table->item(0, 4)->text().isEmpty(), QStringLiteral("the state column"));
+        // a ticked and an unticked row never look the same: the boxes differ as pictures, and the state texts differ
+        {
+            const QImage on = boxOf(0)->grab().toImage(), off = boxOf(3)->grab().toImage();
+            check(on.size() == off.size() && on != off, QStringLiteral("a ticked and an unticked box look different"));
+            int differing = 0;
+            for (int y = 0; y < on.height(); ++y)
+                for (int x = 0; x < on.width(); ++x)
+                    if (on.pixel(x, y) != off.pixel(x, y)) ++differing;
+            check(differing > 20, QStringLiteral("the boxes differ in more than a pixel (%1)").arg(differing));
+            // the unticked box is drawn at all: its pixels are not one flat colour
+            QSet<QRgb> colours;
+            for (int y = 0; y < off.height(); ++y)
+                for (int x = 0; x < off.width(); ++x) colours.insert(off.pixel(x, y));
+            check(colours.size() > 1, QStringLiteral("the unticked box has an outline"));
+        }
+        // accessibility: names and descriptions
+        check(!table->accessibleName().isEmpty() && !table->accessibleDescription().isEmpty(), QStringLiteral("the table has a name and a description"));
+        for (int r = 0; r < table->rowCount(); ++r)
+            check(boxOf(r) && boxOf(r)->accessibleName().contains(table->item(r, 1)->text()) && !boxOf(r)->accessibleDescription().isEmpty(),
+                  QStringLiteral("row %1: the check box is named after its program").arg(r));
+        check(table->focusPolicy() != Qt::NoFocus && (table->focusPolicy() & Qt::TabFocus), QStringLiteral("the table is reached with Tab"));
+        for (const char *obj : {"tick-all", "tick-none", "tick-except-3d", "tick-invert", "program-filter"}) {
+            QWidget *w = page()->findChild<QWidget *>(QLatin1String(obj));
+            check(w && (w->focusPolicy() & Qt::TabFocus), QStringLiteral("%1 is reached with Tab").arg(QLatin1String(obj)));
+        }
+        check(auditAccessibility(&wiz, QStringLiteral("driver wizard choose page (%1)").arg(where)) == 0, QStringLiteral("every control is named"));
+        layoutFits("choose page");
+        if (!grabDir.isEmpty()) {
+            QDir().mkpath(grabDir);
+            wiz.grab().save(grabDir + QStringLiteral("/driver-wizard-choose-%1.png").arg(where).replace(QLatin1Char(' '), QLatin1Char('-')));
+        }
+
+        // the buttons
+        click("tick-all");
+        check(ticks() == QStringLiteral("xxxxx") && counter().contains(QStringLiteral("5 of 5")), QStringLiteral("Tick all ticks every row, not just the highlighted one: ") + ticks());
+        click("tick-none");
+        check(ticks() == QStringLiteral(".....") && !next->isEnabled() && page()->findChild<QLabel *>(QStringLiteral("choose-reason"))->isVisibleTo(page()) &&
+                  page()->findChild<QLabel *>(QStringLiteral("choose-reason"))->text().contains(QStringLiteral("tick at least one")),
+              QStringLiteral("Tick none: Next is held back and says why"));
+        click("tick-except-3d");
+        check(ticks() == QStringLiteral("xxx.x") && next->isEnabled(), QStringLiteral("Tick all except 3D and CAD: ") + ticks());
+        click("tick-invert");
+        check(ticks() == QStringLiteral("...x.") , QStringLiteral("Invert: ") + ticks());
+        click("tick-none");
+        // ticks are independent of the selection: select three rows and press Space
+        table->setFocus();
+        table->clearSelection();
+        for (int r : {0, 1, 2}) table->selectionModel()->select(table->model()->index(r, 1), QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        driverSendKey(table, Qt::Key_Space);
+        check(ticks() == QStringLiteral("xxx.."), QStringLiteral("Space ticks every selected row: ") + ticks());
+        driverSendKey(table, Qt::Key_Space);
+        check(ticks() == QStringLiteral("....."), QStringLiteral("Space again removes the ticks of the selected rows: ") + ticks());
+        driverSendKey(table, Qt::Key_A, Qt::ControlModifier);
+        check(table->selectionModel()->selectedRows().size() == 5, QStringLiteral("Ctrl+A selects all rows"));
+        driverSendKey(table, Qt::Key_Space);
+        check(ticks() == QStringLiteral("xxxxx"), QStringLiteral("Ctrl+A and Space tick everything: ") + ticks());
+        // one box on its own: the other rows and the selection stay
+        click("tick-none");
+        table->clearSelection();
+        table->selectRow(1);
+        boxOf(3)->click();
+        check(ticks() == QStringLiteral("...x.") && table->selectionModel()->selectedRows().size() == 1 && table->selectionModel()->selectedRows().first().row() == 1,
+              QStringLiteral("a click on one box ticks that row only and leaves the selection: ") + ticks());
+        boxOf(0)->click();
+        boxOf(2)->click();
+        check(ticks() == QStringLiteral("x.xx.") && counter().contains(QStringLiteral("3 of 5")), QStringLiteral("several boxes: ") + ticks());
+        // the filter: the buttons act on the rows shown, the counter says what is hidden
+        auto *filter = page()->findChild<QLineEdit *>(QStringLiteral("program-filter"));
+        filter->setText(QStringLiteral("CODE"));
+        settle();
+        int shown = 0;
+        for (int r = 0; r < table->rowCount(); ++r) shown += table->isRowHidden(r) ? 0 : 1;
+        check(shown == 1 && !table->isRowHidden(1) && counter().contains(QStringLiteral("hidden by the filter")), QStringLiteral("the filter shows one program: ") + counter());
+        click("tick-all");
+        check(ticks() == QStringLiteral("xxxx."), QStringLiteral("Tick all with a filter ticks the shown row only: ") + ticks());
+        filter->setText(QStringLiteral("zzz"));
+        settle();
+        click("tick-none");  // nothing shown: nothing changes (not "everything")
+        check(ticks() == QStringLiteral("xxxx."), QStringLiteral("Tick none with no row shown changes nothing: ") + ticks());
+        filter->clear();
+        settle();
+        for (int r = 0; r < table->rowCount(); ++r) check(!table->isRowHidden(r), QStringLiteral("the cleared filter shows every row"));
+        click("tick-all");
+        check(ticks() == QStringLiteral("xxxxx"), QStringLiteral("all ticked, including the 3D program: ") + ticks());
+        wiz.next();
+
+        // 4 preview: what changes, nothing written
+        settle();
+        check(wiz.currentId() == DriverCleanupWizard::PreviewPage, QStringLiteral("the preview follows"));
+        auto *pv = page()->findChild<QPlainTextEdit *>(QStringLiteral("preview-text"));
+        const QString pt = pv ? pv->toPlainText() : QString();
+        check(pv && pv->isReadOnly() && !pv->accessibleName().isEmpty(), QStringLiteral("the preview is read-only and named"));
+        check(pt.contains(QStringLiteral("Chrome.xml")) && pt.contains(QStringLiteral("Fusion_360.xml")) && pt.contains(QStringLiteral("mouse wheel: Ry, X; keys: Z")) &&
+                  pt.contains(QStringLiteral("5 files")),
+              QStringLiteral("the preview names the files and the axes"));
+        check(pt.contains(QStringLiteral("3D or CAD program")) && pt.contains(QString::fromUtf8("\xE2\x9A\xA0")), QStringLiteral("a ticked 3D program carries a warning"));
+        check(readAll(cfg + QStringLiteral("/Chrome.xml")).count(QStringLiteral("<Enabled>true</Enabled>")) == 4 && !QDir(cfg + QStringLiteral("/dofscroll-backup")).exists(),
+              QStringLiteral("nothing is written by the preview"));
+        check(commit && commit->isVisible() && commit->isEnabled() && !commit->text().isEmpty(), QStringLiteral("the commit button names the action"));
+        layoutFits("preview");
+        // the way back keeps the ticks
+        wiz.back();
+        settle();
+        check(wiz.currentId() == DriverCleanupWizard::ChoosePage && ticks() == QStringLiteral("xxxxx"), QStringLiteral("Back keeps the ticks"));
+        click("tick-except-3d");
+        wiz.next();
+        settle();
+        pv = page()->findChild<QPlainTextEdit *>(QStringLiteral("preview-text"));
+        check(pv && !pv->toPlainText().contains(QStringLiteral("Fusion_360.xml")) && pv->toPlainText().contains(QStringLiteral("4 files")),
+              QStringLiteral("the preview follows the ticks"));
+
+        // 5 apply, with one file that has vanished: it is named, the others are changed
+        QFile::remove(cfg + QStringLiteral("/Firefox.xml"));
+        commit->click();
+        for (int i = 0; i < 400 && !(wiz.currentId() == DriverCleanupWizard::ApplyPage && wiz.button(QWizard::CommitButton)->isEnabled()); ++i) {
+            QApplication::processEvents();
+            QThread::msleep(5);
+        }
+        check(wiz.currentId() == DriverCleanupWizard::ApplyPage, QStringLiteral("the apply page runs"));
+        auto *bar = page()->findChild<QProgressBar *>(QStringLiteral("apply-progress"));
+        check(bar && bar->value() == bar->maximum() && !bar->accessibleName().isEmpty(), QStringLiteral("the progress bar is full and named"));
+        check(page()->findChild<QLabel *>(QStringLiteral("apply-status"))->text().contains(QStringLiteral("Firefox.xml")), QStringLiteral("the failed file is named"));
+        check(!wiz.button(QWizard::BackButton)->isEnabled(), QStringLiteral("no way back after the change"));
+        check(wiz.button(QWizard::CommitButton)->isEnabled() && wiz.button(QWizard::CommitButton)->text() == QStringLiteral("Next"), QStringLiteral("the page can be left when it is done"));
+        check(wiz.state().report.changed.size() == 3 && wiz.state().report.failed.size() == 1, QStringLiteral("three files changed, one failed"));
+        layoutFits("apply");
+        wiz.next();
+
+        // 6 result
+        settle();
+        check(wiz.currentId() == DriverCleanupWizard::ResultPage, QStringLiteral("the result follows"));
+        const QString summary = page()->findChild<QLabel *>(QStringLiteral("result-summary"))->text();
+        check(summary.contains(QStringLiteral("Files changed: 3")) && summary.contains(QStringLiteral("Firefox.xml")) && summary.contains(QStringLiteral("dofscroll-backup")),
+              QStringLiteral("the result names the count, the failure and the backup folder"));
+        check(readAll(cfg + QStringLiteral("/Chrome.xml")).count(QStringLiteral("<Enabled>true</Enabled>")) == 1 &&  // only the button flag is left
+                  readAll(cfg + QStringLiteral("/Fusion_360.xml")).count(QStringLiteral("<Enabled>true</Enabled>")) == 3,
+              QStringLiteral("the ticked programs are cleaned, the 3D program is not"));
+        check(wiz.button(QWizard::FinishButton)->isVisible() && !wiz.button(QWizard::BackButton)->isEnabled(), QStringLiteral("Finish ends the assistant, and Back cannot run the change again"));
+        layoutFits("result");
+        auto *restoreThis = page()->findChild<QPushButton *>(QStringLiteral("restore-this"));
+        auto *restoreOlder = page()->findChild<QPushButton *>(QStringLiteral("restore-older"));
+        check(restoreThis && restoreThis->isEnabled() && restoreOlder && restoreOlder->isEnabled(), QStringLiteral("both restore buttons are available"));
+        // the list of backups, with date and number of files
+        {
+            DriverBackupDialog bd(cfg.toStdString());
+            check(bd.rowCount() == 1 && bd.selectedStamp() == wiz.state().backupStamp && bd.restoreButton()->isEnabled(), QStringLiteral("the backup list shows the backup"));
+        }
+        check(wiz.restoreBackup(wiz.state().backupStamp, false), QStringLiteral("the backup is restored"));
+        check(readAll(cfg + QStringLiteral("/Chrome.xml")) == driverSampleXml(QStringLiteral("Chrome"), QStringLiteral("chrome.exe"), false),
+              QStringLiteral("the original file is back, byte for byte"));
+        check(page()->findChild<QLabel *>(QStringLiteral("restore-status"))->text().contains(QStringLiteral("Restored: 3")), QStringLiteral("the restore is reported"));
+        check(!wiz.restoreBackup(std::string(), false), QStringLiteral("no backup: reported, nothing happens"));
+
+        // a second run: the scan starts again from the restored files; everything is ticked at once, one clean run
+        DriverCleanupWizard second(cfg.toStdString());
+        second.show();
+        settle();
+        second.currentPage()->findChild<QCheckBox *>(QStringLiteral("consent"))->setChecked(true);
+        second.next();
+        second.next();
+        settle();
+        auto *table2 = second.currentPage()->findChild<QTableWidget *>(QStringLiteral("programs-table"));
+        check(table2 && table2->rowCount() == 4, QStringLiteral("the second scan lists the four programs left (Firefox.xml is gone)"));
+        second.currentPage()->findChild<QPushButton *>(QStringLiteral("tick-all"))->click();
+        second.next();
+        second.button(QWizard::CommitButton)->click();
+        for (int i = 0; i < 400 && !(second.currentId() == DriverCleanupWizard::ApplyPage && second.button(QWizard::CommitButton)->isEnabled()); ++i) {
+            QApplication::processEvents();
+            QThread::msleep(5);
+        }
+        check(second.state().report.failed.empty() && second.state().report.changed.size() == 4, QStringLiteral("all four programs cleaned in one run"));
+        second.next();
+        settle();
+        check(second.currentId() == DriverCleanupWizard::ResultPage && second.currentPage()->findChild<QPushButton *>(QStringLiteral("restore-older"))->isEnabled(),
+              QStringLiteral("the older backup can be chosen"));
+        {
+            DriverBackupDialog bd(cfg.toStdString());
+            check(bd.rowCount() == 2, QStringLiteral("two backups are listed"));
+            bd.selectRow(1);
+            check(bd.selectedStamp() == wiz.state().backupStamp, QStringLiteral("the older backup can be selected"));
+            check(second.restoreBackup(bd.selectedStamp(), false), QStringLiteral("the older backup is restored"));
+        }
+    }
+    QApplication::setFont(baseFont);
+    applyTheme(spn::ui::Theme::System);
+
+    // the other styles Qt offers (a Windows style where this build has one): only with DOFSCROLL_SELFTEST_GRABS, to look at
+    if (!grabDir.isEmpty()) {
+        std::fprintf(stderr, "driver wizard: styles available: %s\n", qPrintable(QStyleFactory::keys().join(QStringLiteral(", "))));
+        const QString cfgDir = root + QStringLiteral("/Cfg");
+        for (const QString &key : QStyleFactory::keys()) {
+            if (key.compare(QStringLiteral("fusion"), Qt::CaseInsensitive) != 0 && key.compare(QStringLiteral("windows"), Qt::CaseInsensitive) != 0 &&
+                key.compare(QStringLiteral("windowsvista"), Qt::CaseInsensitive) != 0)
+                continue;
+            applyTheme(spn::ui::Theme::System);  // our style sheet with the colours of the platform
+            QApplication::setStyle(QStyleFactory::create(key));
+            QDir(cfgDir).removeRecursively();
+            QDir().mkpath(cfgDir);
+            for (const Sample &s : samples) {
+                QFile f(cfgDir + QLatin1Char('/') + QString::fromLatin1(s.name).replace(QLatin1Char(' '), QLatin1Char('_')) + QStringLiteral(".xml"));
+                if (f.open(QIODevice::WriteOnly)) f.write(driverSampleXml(QString::fromLatin1(s.name), QString::fromLatin1(s.exe), s.nav).toUtf8());
+            }
+            DriverCleanupWizard w(cfgDir.toStdString());
+            w.resize(1000, 760);
+            w.show();
+            w.page(DriverCleanupWizard::IntroPage)->findChild<QCheckBox *>(QStringLiteral("consent"))->setChecked(true);
+            w.next();
+            w.next();
+            settle();
+            w.grab().save(grabDir + QStringLiteral("/driver-wizard-choose-style-%1.png").arg(key));
+        }
+    }
+    std::printf("driver wizard self-test: %s\n", ok ? "ok" : "failed");
+    return ok;
+}
+
 // Names and purposes of the controls beyond the pages themselves: every tab of the profile editor, every kind of selection in the
 // Motions and buttons tab and in the Editor page. A drop-down's accessible name is its current text, so each needs an
 // accessible description or a visible buddy label (auditAccessibility).
@@ -6074,6 +6449,7 @@ int main(int argc, char **argv) {
         if (!borrowBuildSelfTest()) return 1;
         if (!buttonInspectorSelfTest()) return 1;
         if (!wideGlyphPagesSelfTest()) return 1;
+        if (!driverWizardSelfTest(tmp.path())) return 1;
         if (!accessibilityPurposeSelfTest()) return 1;
         if (!newFunctionSelfTest()) return 1;
         if (!macroEditorSelfTest()) return 1;

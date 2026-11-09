@@ -963,17 +963,22 @@ Compiled and unit-tested in CI only; what has to be checked by hand on real mach
 - **Removing the driver's axis settings (Windows).** The 3Dconnexion driver keeps one XML file per
   program in `%APPDATA%\3Dconnexion\3DxWare\Cfg\`. An axis that is switched on there (for example twist
   to the mouse wheel) makes that program receive every movement twice, from the driver and from
-  dofscroll. The **3Dconnexion driver** box on the General page opens **Remove driver axis settings...**:
-  a list of the programs with active driver axes (program, executable, which axis does what). Programs
-  whose axes only pass the motion on to the program (3D navigation of CAD and 3D programs) are not
-  ticked; everything else is. Tick as many programs as you want (click each box, or select rows with
-  Ctrl or Shift and press Space; **Tick all** and **Tick none** set every box) and choose **Switch off the ticked programs**: the
-  `<Enabled>` flag of every axis in those files is set to `false` (nothing else in the file changes),
-  after the original was copied to `Cfg\dofscroll-backup\<date>-<time>\`. **Restore the last backup**
-  puts those files back. Global.xml and the driver's installed defaults are not touched; a program
-  without a file of its own keeps whatever the driver does for it. If a change does not take effect,
-  restart the driver or sign out and in. Not available on macOS yet (the driver's settings location
-  there is not verified). Unchecked on hardware.
+  dofscroll. The **3Dconnexion driver** box on the General page opens **Remove driver axis settings...**,
+  an assistant with six pages (Back, Next, Cancel): introduction and confirmation, what was found
+  (folder, counts, skipped files), choose the programs, preview, apply, result. The choice is a table
+  with a real check box per program (program, executable, which axis does what, state); programs whose
+  axes only pass the motion on to the program (3D navigation of CAD and 3D programs) are not ticked by
+  default. Ticking does not depend on the row selection: click boxes, or select rows (Ctrl, Shift,
+  Ctrl+A) and press Space; **Tick all**, **Tick none**, **Tick all except 3D and CAD programs** and
+  **Invert** act on the rows shown (the filter narrows them), a counter says "n of m programs ticked",
+  and Next stays off while nothing is ticked. The preview lists the files and axes that will change;
+  the change sets the `<Enabled>` flag of every axis in those files to `false` (nothing else in the
+  file changes), after the original was copied to `Cfg\dofscroll-backup\<date>-<time>\`. **Restore
+  this backup** and **Restore an older backup...** (on the last page, and **Restore a backup...** on the
+  first) put those files back. Global.xml and the driver's installed defaults are not touched; a
+  program without a file of its own keeps whatever the driver does for it. If a change does not take
+  effect, restart the driver or sign out and in. Not available on macOS yet (the driver's settings
+  location there is not verified). Unchecked on hardware. Steps in detail: `docs/windows-mac.md`.
 - **Output backend.** The "Output backend" choice (X11, uinput) on the Settings page exists on
   Linux only; Windows uses SendInput and macOS CGEvent.
 - **German catalog.** `dofscroll_de.qm` is next to the executable on every system (Linux
