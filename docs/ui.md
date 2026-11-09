@@ -964,21 +964,37 @@ Compiled and unit-tested in CI only; what has to be checked by hand on real mach
   program in `%APPDATA%\3Dconnexion\3DxWare\Cfg\`. An axis that is switched on there (for example twist
   to the mouse wheel) makes that program receive every movement twice, from the driver and from
   dofscroll. The **3Dconnexion driver** box on the General page opens **Remove driver axis settings...**,
-  an assistant with six pages (Back, Next, Cancel): introduction and confirmation, what was found
-  (folder, counts, skipped files), choose the programs, preview, apply, result. The choice is a table
+  an assistant with seven pages (Back, Next, Cancel): introduction and confirmation, what was found
+  (folder, counts, skipped files), choose the programs, profiles for 3D and CAD programs, preview, apply, result. The choice is a table
   with a real check box per program (program, executable, which axis does what, state); programs whose
   axes only pass the motion on to the program (3D navigation of CAD and 3D programs) are not ticked by
   default. Ticking does not depend on the row selection: click boxes, or select rows (Ctrl, Shift,
   Ctrl+A) and press Space; **Tick all**, **Tick none**, **Tick all except 3D and CAD programs** and
   **Invert** act on the rows shown (the filter narrows them), a counter says "n of m programs ticked",
-  and Next stays off while nothing is ticked. The preview lists the files and axes that will change;
+  and Next stays off while nothing is ticked. The **profiles** page lists the 3D and CAD programs you did not
+  tick, which keep working with the driver, with a check box each (ticked by default): for every ticked one
+  dofscroll gets an empty program profile with `ENABLED = 0`, so it does not scroll or zoom there as well. Nothing
+  is created that is not ticked, a program that already has a profile is shown and never changed, and a profile
+  can be edited or removed on the Profiles page afterwards. The same assistant is a step of the setup guide on
+  the first start (Windows, when the driver's folder exists). The preview lists the files and axes that will change;
   the change sets the `<Enabled>` flag of every axis in those files to `false` (nothing else in the
   file changes), after the original was copied to `Cfg\dofscroll-backup\<date>-<time>\`. **Restore
   this backup** and **Restore an older backup...** (on the last page, and **Restore a backup...** on the
   first) put those files back. Global.xml and the driver's installed defaults are not touched; a
   program without a file of its own keeps whatever the driver does for it. If a change does not take
-  effect, restart the driver or sign out and in. Not available on macOS yet (the driver's settings
-  location there is not verified). Unchecked on hardware. Steps in detail: `docs/windows-mac.md`.
+  effect, restart the driver (the result page has **Restart the driver now**) or sign out and in. Not
+  available on macOS yet (the driver's settings location there is not verified). Unchecked on hardware.
+  Steps in detail: `docs/windows-mac.md`.
+- **Restarting the driver (Windows, macOS).** The 3Dconnexion driver reads its settings files when it
+  starts, and it has no menu entry for a restart. **Restart the 3Dconnexion driver...** in the
+  **3Dconnexion driver** box on the General page (and **Restart the driver now** on the last page of the
+  cleanup assistant) asks first, then closes the driver's settings window, ends the driver service
+  of the signed-in user and starts it again (the driver's profile server is left running: nothing starts it again once it was ended); the result is said in words. Only
+  programs from the driver's own folder with the driver's own file names are touched, nothing of other
+  users, and a program that needs more rights than dofscroll has is named and left running. Rules and steps: `src/ui/model/driver_restart.hpp`, tested
+  with a fake process list in `tests/test_ui_driver_restart.cpp`. Checked on Windows 11 with 3DxWare 10.9;
+  **not run on a Mac** (the process name 3DconnexionHelper is from the vendor's support pages, and whether
+  macOS starts the helper by itself after it ended is unknown; the code starts it only when nothing did).
 - **Output backend.** The "Output backend" choice (X11, uinput) on the Settings page exists on
   Linux only; Windows uses SendInput and macOS CGEvent.
 - **German catalog.** `dofscroll_de.qm` is next to the executable on every system (Linux

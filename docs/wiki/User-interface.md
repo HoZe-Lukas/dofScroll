@@ -84,11 +84,14 @@ The official 3Dconnexion driver keeps one XML file per program (`%APPDATA%\3Dcon
 1. **Introduction:** what the driver does, what is changed (only the axis assignments of the programs you choose) and what is not (button assignments, `Global.xml`, the programs you leave out), the backup, and that a running driver may hold the files. Close the 3Dconnexion settings window and confirm.
 2. **What was found:** the folder, how many program files and programs with active axes, and every skipped file by name and reason.
 3. **Choose the programs:** a table with a check box per program, the executable, what the driver does with which axes and the state. 3D and CAD programs (axes only passed on) are not ticked by default. Click boxes, or select rows (Ctrl, Shift, Ctrl+A) and press Space; **Tick all**, **Tick none**, **Tick all except 3D and CAD programs** and **Invert** act on the rows shown; the filter narrows the rows. Next stays off, with the reason, while nothing is ticked.
-4. **Preview:** per program the file and the axes that will be switched off. Nothing is written yet.
-5. **Apply:** every original is copied to `Cfg\dofscroll-backup\<date>-<time>\`, then the axis flags are set to off. A file that fails is named; the others are still changed.
-6. **Result:** files changed, the backup folder, **Restore this backup** and **Restore an older backup...**, and the reminder to restart the driver or sign out and in again.
+4. **Profiles for 3D and CAD programs:** the 3D and CAD programs you did not tick keep working with the driver. Each has a check box (ticked by default) to give it an empty dofscroll profile with the output switched off, so dofscroll does not scroll or zoom there as well. Programs that already have a profile are shown and not changed; nothing is created that is not ticked.
+5. **Preview:** per program the file and the axes that will be switched off, and the profiles that will be created. Nothing is written yet.
+6. **Apply:** every original is copied to `Cfg\dofscroll-backup\<date>-<time>\`, then the axis flags are set to off. A file that fails is named; the others are still changed.
+7. **Result:** files changed, the created profiles, the backup folder, **Restore this backup** and **Restore an older backup...**, and **Restart the driver now**, which closes the driver's settings window and starts the driver again so that it reads the changed files (or sign out and in again).
 
-Not available on macOS yet. Details: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md#platform-notes-windows-and-macos).
+The same restart is in the **3Dconnexion driver** box on the Settings page, **Restart the 3Dconnexion driver...**, on Windows and macOS. It asks first, only touches the driver service and the settings window of your sign-in, and leaves everything else running. On macOS it has not been tried on a Mac yet.
+
+The cleanup itself is not available on macOS yet. Details: [docs/ui.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/ui.md#platform-notes-windows-and-macos).
 
 ### Settings
 

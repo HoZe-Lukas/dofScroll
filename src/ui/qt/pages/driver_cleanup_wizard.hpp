@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 
+#include <functional>
+
 #include "ui/model/driver_cleanup_model.hpp"
 
 class QListWidget;
@@ -34,6 +36,13 @@ struct DriverWizardState {
     int generation = 0;                           // counts the scans: the table is rebuilt when it changes
     bool applied = false;                         // the cleanup ran
     std::string backupStamp;                      // the backup of the cleanup (the folder name)
+    // Empty profiles (output off) for the 3D and CAD programs left to the driver. The page that opens the wizard sets the two
+    // functions; without them nothing is created and the profile page only explains.
+    std::vector<spn::ui::DriverProfileRow> profileRows;
+    std::function<std::vector<std::string>()> existingProfiles;                    // names of the program profiles that exist
+    std::function<bool(const std::string &exe, std::string *err)> createProfile;  // creates [app:exe] with ENABLED = 0
+    std::vector<std::string> profilesCreated;
+    std::vector<std::string> profilesFailed;      // "name: reason"
 };
 
 // "Restore an older backup": lists the backups with their date and number of files.
@@ -52,10 +61,17 @@ private:
     QPushButton *restore_;
 };
 
+struct UiContext;
+
+class DriverCleanupWizard;
+// Lets the wizard create empty profiles (output off) in the program's settings: lists the existing program profiles and adds
+// [app:<exe>] with ENABLED = 0 through the settings model, then saves (autosave). Without a model nothing is created.
+void bindDriverWizardProfiles(DriverCleanupWizard &wizard, const UiContext &ctx);
+
 class DriverCleanupWizard : public QWizard {
     Q_OBJECT
 public:
-    enum PageId { IntroPage, ScanPage, ChoosePage, PreviewPage, ApplyPage, ResultPage };
+    enum PageId { IntroPage, ScanPage, ChoosePage, ProfilesPage, PreviewPage, ApplyPage, ResultPage };
 
     // `dir` = the driver's folder with the per-program files.
     explicit DriverCleanupWizard(const std::string &dir, QWidget *parent = nullptr);

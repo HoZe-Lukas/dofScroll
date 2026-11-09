@@ -6,7 +6,7 @@ dofscroll turns a 6DoF 3D mouse such as the 3Dconnexion SpaceMouse into smooth s
 
 dofscroll complements the vendor driver instead of duplicating it: a button mapping that is the same everywhere and always (for example a button that sends Esc) is configured in the driver (spacenavd's spnavrc on Linux, the 3Dconnexion driver on Windows and macOS); dofscroll's own button actions are for bindings that depend on dofscroll's state: they apply only in a joystick mode or profile, switch or toggle joystick modes and behavior, or work together with the axis handling; dofscroll also handles what the driver does not: shaping scroll and zoom from the six axes, keys derived from axes, and per-program and per-device profiles. See [Buttons](Buttons).
 
-**Status: version 1.3.1.** Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact). Other Linux distributions were install-tested in CI containers (a contributor reports that 1.2.3 starts and shows its window on Ubuntu 26.04, GNOME, Wayland, SpaceMouse Compact; not tested by the maintainer); on Windows the basic functions work on one real machine (SpaceMouse Pro, official 3Dconnexion driver; first tests, not extensive); the macOS build is built and unit-tested by CI but has never been run with a real device.
+**Status: version 1.3.2.** Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact). Other Linux distributions were install-tested in CI containers (a contributor reports that 1.2.3 starts and shows its window on Ubuntu 26.04, GNOME, Wayland, SpaceMouse Compact; not tested by the maintainer); on Windows the basic functions work on one real machine (SpaceMouse Pro, official 3Dconnexion driver; first tests, not extensive); the macOS build is built and unit-tested by CI but has never been run with a real device.
 
 ## Tested on
 
@@ -19,6 +19,12 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 | Windows | Daemon, Qt interface and unsigned installer/ZIP built by CI; **basic functions work on one real machine** (SpaceMouse Pro, official driver; first tests) |
 | macOS | Daemon, Qt interface and unsigned, not notarized DMG built by CI; **not run on hardware** |
 | SpaceMouse Wireless, Pro Wireless, Enterprise, SpaceNavigator | Not tested |
+
+## New in 1.3.2
+
+- **Driver cleanup (Windows) as an assistant** with a real check box per program, a preview, a progress page and a restore of any backup ([User interface](User-interface#driver-cleanup-windows)).
+- **Restart the 3Dconnexion driver** from the Settings page (Windows and macOS; the macOS version was never run on a Mac).
+- On X11 the output follows keyboard layout changes. See the [release notes](Release-notes).
 
 ## New in 1.3.1
 

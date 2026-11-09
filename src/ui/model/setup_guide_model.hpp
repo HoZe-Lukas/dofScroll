@@ -56,7 +56,8 @@ enum class StepAction {
     StartDaemon,         // button "Start now"
     OpenAccessibility,   // button that opens the System Settings pane
     OpenInputMonitoring,
-    Autostart            // the check box "Start at login"
+    Autostart,           // the check box "Start at login"
+    DriverCleanup        // button that opens the driver assistant (Windows)
 };
 
 // "Start at login" is only ever changed in the system when the user confirms the guide (issue #276). The check box
@@ -126,6 +127,7 @@ struct SetupInputs {
     bool permissionsKnown = false;   // macOS: the daemon reported them
     bool missingAccessibility = false, missingInputMonitoring = false;
     std::string daemonPath;          // macOS: the file the permissions are given to
+    bool driverCleanupAvailable = false;  // Windows: the official driver's per-program folder exists
 };
 
 struct SetupStep {
@@ -289,6 +291,20 @@ inline std::vector<SetupStep> buildSetupGuide(const SetupInputs &in, const Strin
             }
             add(std::move(s));
         }
+    }
+
+    // 4b. The official driver (Windows): its per-program settings can send every movement twice.
+    if (in.driverCleanupAvailable) {
+        SetupStep s;
+        s.id = "driver";
+        s.title = t.tr("Official 3Dconnexion driver");
+        s.state = StepState::Info;
+        s.text = t.tr("If the driver has axes switched on for a program, that program receives every movement twice. The assistant "
+                      "lists those programs, switches off what you tick, and can create empty profiles for your 3D and CAD programs. "
+                      "You can also do this later on the Settings page.");
+        s.action = StepAction::DriverCleanup;
+        s.actionLabel = t.tr("Open the driver assistant...");
+        add(std::move(s));
     }
 
     // 5. Try it.

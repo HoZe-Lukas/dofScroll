@@ -3841,3 +3841,120 @@ msgstr ""
 #: src/ui/qt/pages/general_page.cpp
 msgid "Opens an assistant that lists the programs with active driver axes and switches off the ones you tick"
 msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Restart the driver now"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Closes the driver's settings window, ends the driver service of your sign-in and starts the driver again, so that it reads the changed files"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Result of the driver restart"
+msgstr ""
+
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Restart the 3Dconnexion driver..."
+msgstr ""
+
+#: src/ui/qt/pages/general_page.cpp
+msgid "Closes the driver's settings window, ends the driver service of your sign-in and starts the driver again, so that it reads its settings files again"
+msgstr ""
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "Restart the 3Dconnexion driver now? Its settings window is closed and the driver service of your sign-in is ended and started again. The SpaceMouse does not react for a few seconds. Save what you do in the 3Dconnexion settings first."
+msgstr ""
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "Restart the 3Dconnexion driver"
+msgstr ""
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "The 3Dconnexion driver cannot be restarted from here on this system. Sign out and in again instead."
+msgstr ""
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "The 3Dconnexion driver was restarted. It reads its settings files again."
+msgstr ""
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "Its settings window was closed."
+msgstr ""
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "The 3Dconnexion driver is not running, so there is nothing to restart."
+msgstr ""
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "The 3Dconnexion driver could not be restarted:"
+msgstr ""
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "Sign out and in again instead."
+msgstr ""
+
+#: src/ui/qt/pages/driver_restart_action.cpp
+msgid "Not ended (they run with more rights than dofscroll has):"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Profiles for 3D and CAD programs"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "The 3D and CAD programs you did not tick keep working with the driver. dofscroll can get an empty profile with its output switched off for each, so it does not scroll or zoom there as well. Tick what you want; nothing else is created."
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Create"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Profiles to create"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "One row per 3D or CAD program. Tick the box of a row to create an empty profile for it."
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "has a profile already, not changed"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "no profile yet"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "There is no 3D or CAD program among the programs you did not tick."
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "%1 of %2 profiles will be created."
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "%1 empty profiles with the output switched off will be created in dofscroll: %2"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Empty profiles created in dofscroll: %1"
+msgstr ""
+
+#: src/ui/qt/pages/driver_cleanup_wizard.cpp
+msgid "Profile not created:"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Official 3Dconnexion driver"
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "If the driver has axes switched on for a program, that program receives every movement twice. The assistant lists those programs, switches off what you tick, and can create empty profiles for your 3D and CAD programs. You can also do this later on the Settings page."
+msgstr ""
+
+#: src/ui/model/setup_guide_model.hpp
+msgid "Open the driver assistant..."
+msgstr ""

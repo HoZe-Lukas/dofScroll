@@ -22,6 +22,8 @@
 #include <QVBoxLayout>
 
 #include "platform/autostart_platform.hpp"
+#include "platform/driver_restart_os.hpp"
+#include "driver_restart_action.hpp"
 #include "driver_platform.hpp"
 #include "driver_cleanup_wizard.hpp"
 #include "log_dialog.hpp"
@@ -274,21 +276,40 @@ public:
 
         // ---- the official 3Dconnexion driver (Windows: its per-program folder is known) ----
         const std::string driverDir = spn::ui::driverConfigDir();
-        if (!driverDir.empty()) {
+        if (!driverDir.empty() || spn::ui::driverRestartAvailable()) {
             auto *drvBox = new QGroupBox(T("3Dconnexion driver"));
+            drvBox->setObjectName(QStringLiteral("driver-box"));
             auto *dvl = new QVBoxLayout(drvBox);
-            auto *drvNote = makeNote();
-            drvNote->setText(T("If the driver has axes switched on for a program, that program receives every movement twice: "
-                               "from the driver and from dofscroll. Switch them off here, except for your 3D and CAD programs."));
-            dvl->addWidget(drvNote);
-            auto *drvBtn = new QPushButton(T("Remove driver axis settings..."));
-            drvBtn->setObjectName(QStringLiteral("driver-cleanup"));
-            drvBtn->setToolTip(T("Opens an assistant that lists the programs with active driver axes and switches off the ones you tick"));
-            dvl->addWidget(drvBtn, 0, Qt::AlignLeft);
-            QObject::connect(drvBtn, &QPushButton::clicked, this, [this, driverDir] {
-                DriverCleanupWizard wizard(driverDir, window());
-                wizard.exec();
-            });
+            if (!driverDir.empty()) {
+                auto *drvNote = makeNote();
+                drvNote->setText(T("If the driver has axes switched on for a program, that program receives every movement twice: "
+                                   "from the driver and from dofscroll. Switch them off here, except for your 3D and CAD programs."));
+                dvl->addWidget(drvNote);
+                auto *drvBtn = new QPushButton(T("Remove driver axis settings..."));
+                drvBtn->setObjectName(QStringLiteral("driver-cleanup"));
+                drvBtn->setToolTip(T("Opens an assistant that lists the programs with active driver axes and switches off the ones you tick"));
+                dvl->addWidget(drvBtn, 0, Qt::AlignLeft);
+                QObject::connect(drvBtn, &QPushButton::clicked, this, [this, driverDir] {
+                    DriverCleanupWizard wizard(driverDir, window());
+                    bindDriverWizardProfiles(wizard, ctx_);
+                    wizard.exec();
+                });
+            }
+            if (spn::ui::driverRestartAvailable()) {
+                auto *rBtn = new QPushButton(T("Restart the 3Dconnexion driver..."));
+                rBtn->setObjectName(QStringLiteral("driver-restart"));
+                rBtn->setToolTip(T("Closes the driver's settings window, ends the driver service of your sign-in and "
+                                   "starts the driver again, so that it reads its settings files again"));
+                dvl->addWidget(rBtn, 0, Qt::AlignLeft);
+                auto *rMsg = makeNote();
+                rMsg->setObjectName(QStringLiteral("driver-restart-status"));
+                dvl->addWidget(rMsg);
+                QObject::connect(rBtn, &QPushButton::clicked, this, [this, rMsg] {
+                    bool ran = false;
+                    const QString t = spn::ui::qt::restartDriverInteractive(window(), true, &ran);
+                    if (ran || !t.isEmpty()) rMsg->setText(t);
+                });
+            }
             right->addWidget(drvBox);
         }
 

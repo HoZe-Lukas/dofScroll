@@ -56,6 +56,8 @@ if(DOFSCROLL_UI)
     src/ui/qt/pages/general_page.hpp
     src/ui/qt/pages/driver_cleanup_wizard.cpp
     src/ui/qt/pages/driver_cleanup_wizard.hpp
+    src/ui/qt/pages/driver_restart_action.cpp
+    src/ui/qt/pages/driver_restart_action.hpp
     src/ui/qt/pages/log_dialog.cpp
     src/ui/qt/pages/setup_guide_dialog.cpp
     src/ui/qt/pages/setup_guide_dialog.hpp
@@ -130,6 +132,9 @@ if(DOFSCROLL_UI)
   # focused program"). Each OS adds its provider when it is available in this tree; otherwise a
   # stub keeps the UI linkable and the page shows a "not available" note.
   set(DOFSCROLL_UI_RUNNING_APPS_STUB ON)
+  if(NOT (WIN32 OR APPLE))
+    target_sources(dofscroll-ui PRIVATE src/platform/driver_restart_none.cpp)  # no vendor driver to restart
+  endif()
   if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
@@ -142,6 +147,7 @@ if(DOFSCROLL_UI)
       set(DOFSCROLL_UI_RUNNING_APPS_STUB OFF)
     endif()
   elseif(WIN32)
+    target_sources(dofscroll-ui PRIVATE src/platform/win/driver_restart_win.cpp)
     # The application icon of the executable (taskbar, Start menu shortcut): a resource, because the
     # window icon alone (an SVG in the Qt resources) does not reach a pinned or not yet started entry.
     enable_language(RC)
@@ -157,6 +163,7 @@ if(DOFSCROLL_UI)
       set(DOFSCROLL_UI_RUNNING_APPS_STUB OFF)
     endif()
   elseif(APPLE)
+    target_sources(dofscroll-ui PRIVATE src/platform/mac/driver_restart_mac.cpp)
     if(EXISTS ${CMAKE_SOURCE_DIR}/src/platform/mac/running_apps_mac.mm AND CMAKE_OBJCXX_COMPILER)
       target_sources(dofscroll-ui PRIVATE src/platform/mac/running_apps_mac.mm
                      src/platform/mac/mac_activewin.mm)
