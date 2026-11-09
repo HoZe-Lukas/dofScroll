@@ -22,7 +22,7 @@ Work top to bottom; tick a box only after you saw the result. Commands use the G
 
 ## B. Tests that need a person
 
-- [ ] **B1. The driver cleanup assistant on real Windows** (issue #184, pull request #352) with the real driver folder:
+- [x] **B1. The driver cleanup assistant on real Windows** (clicked through by the maintainer; it worked) (issue #184, pull request #352) with the real driver folder:
   open it, tick a few programs with the mouse and with Space, read the preview, apply, see the backup folder, restore it,
   apply again. Look at the check boxes in light and dark. Note what the driver does with the changed files.
 - [ ] **B2. Restart the 3Dconnexion driver on real Windows**, from the General page and from the last page of the

@@ -44,12 +44,12 @@ fix for the keyboard layout on X11; the configuration and the profile files do n
 
 ## Not verified
 
-- **The assistant and the restart were not clicked through by a person on Windows before this text was written.**
-  Checked: the rules and the order of the restart with a fake process list (`tests/test_ui_driver_restart.cpp`), the
+- **The assistant was clicked through by the maintainer on Windows 11 and worked (no details recorded); the restart
+  button was not clicked through by a person.** Checked: the rules and the order of the restart with a fake process list (`tests/test_ui_driver_restart.cpp`), the
   assistant's file operations on a copy of a real driver folder (13 programs; 7 switched off, 6 3D/CAD programs left,
   all restored), the offscreen self-test of the pages, and the restart of the driver service by hand on Windows 11 with
   3DxWare 10.9. **Not checked:** that the driver takes over the changed files after the restart in every case, that a
-  running dofscroll daemon picks the driver up again afterwards, and the look of the assistant under the native style.
+  running dofscroll daemon picks the driver up again afterwards, and the look of the assistant in light and dark.
 - **macOS:** the restart was never run on a Mac. The helper's name (`3DconnexionHelper`) is from the vendor's support
   pages, and whether macOS starts the helper again by itself after it ended is unknown (the code starts it only when
   nothing did). The cleanup itself still does not exist on macOS: the format of the driver's per-program preferences is
