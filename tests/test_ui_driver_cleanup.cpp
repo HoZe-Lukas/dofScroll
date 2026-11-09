@@ -279,12 +279,12 @@ int main() {
 
     // ---- empty profiles for the 3D and CAD programs left to the driver
     {
-        auto app = [](const char *name, const char *exe, bool nav, bool sel) {
+        auto app = [](const char *appName, const char *appExe, bool isNavigation, bool isTicked) {
             DriverApp x;
-            x.name = name;
-            x.exe = exe;
-            x.navigation = nav;
-            x.selected = sel;
+            x.name = appName;
+            x.exe = appExe;
+            x.navigation = isNavigation;
+            x.selected = isTicked;
             return x;
         };
         std::vector<DriverApp> list = {app("Fusion", "Fusion360.exe", true, false), app("Chrome", "chrome.exe", false, true),
