@@ -2,9 +2,11 @@
 <!-- SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka -->
 # Repository settings, gates and maintainer workflow
 
-This page describes how the GitHub repository is configured, which checks gate a merge, and how
-to apply the configuration with `scripts/configure-repo.sh`. The ruleset JSON files in
-`.github/rulesets/` are the source of truth for branch and tag protection.
+This page describes how the GitHub repository is configured and which checks gate a merge. **The
+settings are made by hand by the maintainer** (Settings in the web interface); no script applies them
+(`configure-repo.sh` was removed, issue #362: it no longer matched the live state and could undo it).
+The ruleset JSON files in `.github/rulesets/` document the live rulesets (checklist step A2 in the
+release checklist compares them); to apply one by hand, see `docs/releasing.md`.
 
 ## Gates
 
@@ -32,8 +34,7 @@ Notes:
 
 The ports workflow (`ports.yml`) is not on `main` yet, so its jobs are deliberately **not** in
 `.github/rulesets/main.json`. Once the workflow is merged and has run at least once, add these
-status checks to the `main` ruleset (JSON `required_status_checks` list, then re-run
-`scripts/configure-repo.sh --apply`):
+status checks to the `main` ruleset (JSON `required_status_checks` list and Settings > Rules > Rulesets):
 
 ```
 # NOT YET IN THE RULESET - add after ports.yml is on main:
@@ -47,64 +48,29 @@ in a green run first. `Windows (MinGW-w64) build + ctest` runs only for pushes t
 on demand (it is skipped for pull requests, #40): leave it out of the required list, since a
 skipped job would not gate anything.
 
-## One-time manual steps
+## Settings that must stay as they are
 
-1. Nothing needs to be installed. CodeQL, Dependabot and secret scanning are GitHub
-   features and need no secrets.
-2. Optional: enable **Discussions** (Settings, General) for questions, and **Security
-   advisories** for coordinated disclosure (private vulnerability reporting is switched on by
-   `configure-repo.sh`, see `SECURITY.md`).
-4. Run `scripts/configure-repo.sh` (below).
+Read from the live repository; change them only deliberately.
 
-## Running `scripts/configure-repo.sh`
-
-```sh
-scripts/configure-repo.sh            # dry run, prints every gh api call
-scripts/configure-repo.sh --apply    # execute (gh must be logged in with admin rights)
-REPO=owner/name scripts/configure-repo.sh   # another repository
-```
-
-It is idempotent. It sets: squash-only merges, auto-merge allowed, head branches deleted after
-merge, projects off, wiki on; secret scanning with push protection; Dependabot alerts and
-security updates; private vulnerability reporting; Actions with a read-only default token,
-selected actions only plus mandatory SHA pinning, approval for all outside contributors; and it
-creates or updates the rulesets named `main` and `release tags` from `.github/rulesets/`.
-
-Calls that the current plan does not allow (HTTP 403, 404 or 422) are printed as SKIPPED and the
-script continues; anything else is FAILED and gives a non-zero exit status. After the repository
-became public, run it again.
-
-Things to know when the allow-list is active: the `selected` list contains GitHub-owned
-actions and `jurplel/install-qt-action`. A new action
-must be added to the list in the script (and in Settings) or its workflow fails. The CodeQL
-`init`/`analyze` steps belong to `github/*` and are covered.
-
-## Private today, public later
-
-| | private repository (free plan) | public repository |
-|---|---|---|
-| Rulesets / branch protection | API answers 403/422, not enforced | available and enforced |
-| Secret scanning, push protection | not available | free |
-| CodeQL code scanning, dependency graph/review | not available without GitHub Advanced Security | free, results in the Security tab |
-| Dependabot alerts | limited | free |
-| Fork PRs | n/a | run without secrets; first-time and all outside contributors need approval before workflows run (`all_external_contributors`) |
-
-Until then CI, lint and the scripts work, but nothing prevents a direct push
-to `main`. Apply the ruleset right when the repository becomes public (or upgrade the plan).
-The CodeQL and dependency review workflows will fail on a private free-plan repository (the SARIF
-upload and the dependency graph are not available); that is expected and no reason to treat
-them as broken.
-
-Fork PRs never receive secrets.
+- **Actions > General > Workflow permissions:** read-only default token, and **"Allow GitHub Actions to create and approve
+  pull requests" is ON**. The monthly `refresh-ci-pins` workflow opens its PR with the repository token and fails without it.
+- **Actions > General > Fork pull request workflows:** approval required for all outside contributors.
+- **Actions permissions:** `sha_pinning_required` is **off** on purpose: with it on, GitHub also rejects actions that
+  other actions call by tag internally (`jurplel/install-qt-action` calls `setup-python@v5`), and the Qt jobs failed in
+  "Set up job". Our own workflows still pin every action to a full SHA (`scripts/check-ci-pins.sh`).
+- **Merge methods:** merge, squash and rebase are all allowed; head branches are deleted after merge; auto-merge is on.
+- **Security:** secret scanning with push protection, Dependabot alerts and security updates, private vulnerability
+  reporting (see `SECURITY.md`). Optional: Discussions.
+- **Rulesets:** `base`, `main branch`, `release tags` as in `docs/security.md` section 5.
+- **Environment `release`** and **immutable releases:** `docs/releasing.md`, "Protecting the release".
 
 ## Maintainer workflow once the ruleset is active
 
-The ruleset has no bypass actors: nobody can push to `main`, force-push, or delete it, including
-the owner.
+The ruleset `main branch` has no bypass actors; the ruleset `base` is bypassed by repository admins
+(`docs/security.md` section 5).
 
 1. `git switch -c my-change` and commit. Pushing the branch builds nothing; open a PR to start CI.
-2. All required checks must be green and all review conversations resolved. Zero approvals are
-   needed, so you can merge your own PR.
+2. All required checks must be green and all review conversations resolved. The ruleset `main branch` needs zero approvals; `base` asks for one, which repository admins bypass.
 3. Merge with **squash** (auto-merge can be enabled so the PR merges itself when the checks
    pass). The head branch is deleted automatically.
 4. Release: bump the version in `CMakeLists.txt` through a PR, merge, then tag the merge commit

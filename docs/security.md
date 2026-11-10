@@ -638,7 +638,7 @@ repository settings below.
 ## 5. Repository: merge rules and branch protection
 
 These settings cannot be set through a file in the repo, only in the hosting platform's
-interface (maintainer/admin role) or via its API (`scripts/configure-repo.sh`, `docs/repo-settings.md`).
+interface (maintainer/admin role), see `docs/repo-settings.md`.
 For GitHub, the live state read from the public API (`GET /repos/{owner}/{repo}/rulesets`, 2026-10-28) is three
 active rulesets. They are layered: for the default branch the stricter rule of the two branch rulesets wins.
 
@@ -649,8 +649,7 @@ active rulesets. They are layered: for the default branch the stricter rule of t
 | `release tags` | `refs/tags/v*` | only the repository admin creates `v*` tags (by hand); no deletion, no force push, linear history, and the tagged commit needs a successful deployment to the environment `release` (the admin bypass is what lets the tag be created at all). |
 
 Both pull request rules allow all three merge methods (`merge`, `squash`, `rebase`); the repository itself also
-has all three enabled, "delete head branches" and auto-merge on. `scripts/configure-repo.sh` still asks for
-squash-only merges and does not know the ruleset `base`, so the script and the live state differ. The CODEOWNERS
+has all three enabled, "delete head branches" and auto-merge on (no script applies these settings any more, #362). The CODEOWNERS
 file requests reviews but code-owner review is not enforced by either ruleset.
 
 Open differences between this section's earlier recommendation and the live state, for the maintainer to decide
@@ -659,7 +658,7 @@ Open differences between this section's earlier recommendation and the live stat
 - require branches to be up to date (`strict_required_status_checks_policy`): off today;
 - bind the required checks to the GitHub Actions app (`integration_id`): not done;
 - dismiss stale approvals on push, require code-owner review: off today;
-- merge methods: squash-only in the script, all three live.
+- merge methods: all three are allowed.
 
 Verification: open a test pull request with a deliberately failing check or an open conversation - the merge
 button must be blocked; a direct `git push` to `main` must be rejected.
