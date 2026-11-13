@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 # Test of the two upgrade steps of the Linux packages: packaging/cpack/preinst (RPM %pre / DEB preinst) stops the
 # dofscroll user units of every logged-in user before the files are replaced, packaging/cpack/postinst starts
-# both again afterwards, whether they were running before or not. Runs both scripts against fake loginctl,
+# only the units that were active before again afterwards (#364). Runs both scripts against fake loginctl,
 # systemctl, getent and timeout programs; nothing real is touched.
 # Usage: sh tests/test_preinst_upgrade.sh <repo dir>
 set -u
@@ -40,6 +40,7 @@ echo "systemctl \$*" >> "$T/log"
 case "\$*" in
     *"cat spacenavd.service"*) exit \${FAKE_SPACENAVD_EXISTS:-0} ;;
     *"is-active"*spacenavd*) exit \${FAKE_SPACENAVD_ACTIVE:-3} ;;
+    *is-active*dofscroll-ui*) exit \${FAKE_ACTIVE_UI:-\${FAKE_ACTIVE:-0}} ;;
     *is-active*) exit \${FAKE_ACTIVE:-0} ;;
     *is-enabled*) exit 1 ;;
 esac
@@ -56,7 +57,7 @@ chmod +x "$T/bin"/loginctl "$T/bin"/id "$T/bin"/pgrep "$T/bin"/sleep "$T/bin"/ge
 for f in preinst postinst; do
     sed -e "s#/usr/lib/systemd/user/dofscroll-ui.service#$T/ui.service#" \
         -e "s#/proc/#$T/proc/#" -e "s#/etc/systemd/user/#$T/etc/systemd/user/#" \
-        -e "s#/run/systemd/system#$T/run-systemd#" "$SRC/packaging/cpack/$f" > "$T/$f"
+        -e "s#/run/systemd/system#$T/run-systemd#" -e "s#/run/dofscroll-upgrade#$T/state#" "$SRC/packaging/cpack/$f" > "$T/$f"
 done
 grep -q "$T/ui.service" "$T/postinst" || fail "path substitution did not apply to postinst"
 mkdir -p "$T/home/alice" "$T/home/bob@corp.example"
@@ -80,11 +81,41 @@ grep -q "^$M start dofscroll-ui.service" "$T/log" || fail "case 1: interface not
 [ "$(line "start dofscroll.service")" -lt "$(line "start dofscroll-ui.service")" ] || fail "case 1: the daemon must start first"
 [ "$(line "daemon-reload")" -lt "$(line "start dofscroll.service")" ] || fail "case 1: daemon-reload must come before the start"
 
-# 2. Started whether it was running before or not (the units are inactive in the fake).
+# 2. Units that were not running before (stopped or disabled by the user) are NOT started (#364).
 reset
+FAKE_ACTIVE=3 run preinst 2
+: > "$T/log"
 FAKE_ACTIVE=3 run postinst 2
-grep -q "^$M start dofscroll.service" "$T/log" || fail "case 2: daemon not started although it was not running before"
-grep -q "^$M start dofscroll-ui.service" "$T/log" || fail "case 2: interface not started although it was not running before"
+grep -q "^$M start " "$T/log" && fail "case 2: a unit that was not running before was started"
+[ ! -e "$T/state" ] || fail "case 2: state directory left behind"
+
+# 2b. Only the daemon was running: only the daemon is started again.
+reset
+FAKE_ACTIVE=0 FAKE_ACTIVE_UI=3 run preinst 2
+: > "$T/log"
+run postinst 2
+grep -q "^$M start dofscroll.service" "$T/log" || fail "case 2b: daemon not started again"
+grep -q "start dofscroll-ui.service" "$T/log" && fail "case 2b: interface started although it was not running before"
+
+# 2c. Only the interface was running: only the interface is started again.
+reset
+FAKE_ACTIVE=3 FAKE_ACTIVE_UI=0 run preinst 2
+: > "$T/log"
+run postinst 2
+grep -q "start dofscroll.service" "$T/log" && fail "case 2c: daemon started although it was not running before"
+grep -q "^$M start dofscroll-ui.service" "$T/log" || fail "case 2c: interface not started again"
+
+# 2d. Without a preinst record (for example preinst could not run) nothing is started.
+reset
+run postinst 2
+grep -q "^$M start " "$T/log" && fail "case 2d: a unit was started without a record"
+
+# 2e. A record of another user does not start the units of this user.
+reset
+FAKE_USER=carol run preinst 2
+: > "$T/log"
+run postinst 2
+grep -q "^$M start " "$T/log" && fail "case 2e: the record of another user was used"
 
 # 3. Fresh install (RPM $1 = 1, DEB install): nothing at all.
 reset
@@ -129,6 +160,8 @@ done
 # 8. Without a ui unit (a package without the interface) only the daemon is started.
 reset
 rm -f "$T/ui.service"
+run preinst 2
+: > "$T/log"
 run postinst 2
 grep -q "^$M start dofscroll.service" "$T/log" || fail "case 8: daemon not started"
 grep -q "start dofscroll-ui.service" "$T/log" && fail "case 8: interface started although the package has no interface unit"
