@@ -3,8 +3,9 @@
 # SPDX-FileCopyrightText: 2026 Lukas Hois-Zelinka
 # Package upgrade step 1 of 2 (RPM %pre and DEB preinst, same file). Before the files are replaced, the
 # dofscroll user units (the interface first, then the daemon) of every logged-in user are stopped, so
-# no old process keeps running a replaced binary. packaging/cpack/postinst starts both again after the
-# files are in place, whether they were running before or not. Best effort: never fails the package
+# no old process keeps running a replaced binary. A unit that was active is recorded (one empty file per user and
+# unit in $state_dir, root-only, on tmpfs) and packaging/cpack/postinst starts exactly those again after the files
+# are in place; a unit the user stopped or disabled stays off (#364). Best effort: never fails the package
 # transaction (always exit 0), every call is time-limited, nothing in the users' configuration is touched.
 #   RPM: $1 = number of installed instances after this one (1 = fresh install, 2+ = upgrade)
 #   DEB: $1 = upgrade (and $2 = the old version) on an upgrade, install on a fresh install
@@ -26,6 +27,11 @@ limited() {
     timeout 30 "$@"
 }
 
+# Marker files "<user>.<unit>" for the units that were active; read and removed by postinst.
+state_dir=/run/dofscroll-upgrade
+rm -rf "$state_dir" 2>/dev/null
+( umask 077 && mkdir -p "$state_dir" ) 2>/dev/null || state_dir=
+
 users=$(limited loginctl list-users --no-legend 2>/dev/null | while read -r _uid name _rest; do
     printf '%s\n' "$name"
 done)
@@ -35,8 +41,13 @@ for name in $users; do
         '' | -* | *[!A-Za-z0-9._@-]*) continue ;;
     esac
     m="$name@.host"
-    # the interface first (it wants the daemon), then the daemon: the daemon releases held keys on stop
-    limited systemctl --user --machine="$m" stop dofscroll-ui.service >/dev/null 2>&1 || true
-    limited systemctl --user --machine="$m" stop dofscroll.service >/dev/null 2>&1 || true
+    # the interface first (it wants the daemon), then the daemon: the daemon releases held keys on stop.
+    # Only a unit that is active now is recorded for the start after the upgrade.
+    for unit in dofscroll-ui dofscroll; do
+        if [ -n "$state_dir" ] && limited systemctl --user --machine="$m" is-active --quiet "$unit.service" >/dev/null 2>&1; then
+            : > "$state_dir/$name.$unit" 2>/dev/null
+        fi
+        limited systemctl --user --machine="$m" stop "$unit.service" >/dev/null 2>&1 || true
+    done
 done
 exit 0
