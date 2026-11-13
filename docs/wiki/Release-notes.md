@@ -6,6 +6,10 @@ Design principle: dofscroll complements the vendor driver instead of duplicating
 
 Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
 
+## 1.3.3
+
+Small release. The key capture field shows the key or combination that is set (click, press the keys); the Windows daemon receives log-off and shutdown in a hidden top-level window (#358); under systemd a duplicate instance (exit 75) no longer releases the running instance's keys (#359); the website screenshots are rendered again, also the German ones (#344). The authoritative text is [docs/release-notes-1.3.3.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.3.3.md). **Not verified:** the Windows log-off and the systemd unit were not run on real systems; nothing was tested with a SpaceMouse in hand.
+
 ## 1.3.2
 
 The driver cleanup on Windows is a step-by-step assistant with real check boxes, a preview, a progress page and a restore of any backup; **Restart the 3Dconnexion driver** (Windows and macOS) closes the driver's settings window and starts its service again; on X11 the output follows keyboard layout changes. The authoritative text is [docs/release-notes-1.3.2.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.3.2.md). **Not verified:** the macOS restart was never run on a Mac, and the assistant has not been clicked through by a person on Windows.

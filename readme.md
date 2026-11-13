@@ -40,6 +40,10 @@ It consists of two programs. The Qt interface is the only tray and settings wind
 | `dofscroll` | Background daemon. Reads the SpaceMouse, produces the input events. |
 | `dofscroll-ui` | Qt6 tray icon and settings window for Linux, Windows and macOS (pages Overview, Profiles (tabs General, Channels, Motions and buttons, Overrides), Editor and Joystick modes with a visual editor (a picture of the cap: click a motion or button and choose what it does), Button modes, User modes, Device, Axes, Settings). Writes the configuration files (`dofscroll.conf` and one file per profile in `devices/` and `apps/`) and tells the daemon to reload. See [docs/ui.md](docs/ui.md). |
 
+## What is new in 1.3.3
+
+The key capture field shows the key or combination that is set (click, press the keys); on Windows the daemon receives log-off and shutdown and releases held keys; under systemd a duplicate instance no longer releases the running instance's keys; the website screenshots are rendered again. Not verified: the Windows log-off and the systemd change on real systems, nothing with a SpaceMouse in hand: see [docs/release-notes-1.3.3.md](docs/release-notes-1.3.3.md).
+
 ## What is new in 1.3.2
 
 The driver cleanup on Windows is a step-by-step assistant with a real check box per program, a preview, a progress page and a restore of any backup; **Restart the 3Dconnexion driver** (Windows and macOS) closes the driver's settings window and starts its service again so that it reads the changed files; on X11 the output follows keyboard layout changes. Not verified: the macOS restart (never run on a Mac) and the assistant clicked through on real Windows: see [docs/release-notes-1.3.2.md](docs/release-notes-1.3.2.md).
@@ -54,7 +58,7 @@ dofscroll complements the vendor driver instead of duplicating it: a button mapp
 
 ## Status and testing
 
-Current stable version: **1.3.2**. Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact).
+Current stable version: **1.3.3**. Tested extensively only on RHEL 9 (X11, KDE Plasma, SpaceMouse Pro and Compact).
 Other Linux distributions were install-tested in CI containers; on Windows the basic functions work on one real machine
 (SpaceMouse Pro, official driver; first tests, not extensive); the macOS build is unit-tested by CI but has never been run with a real device.
 
@@ -98,7 +102,7 @@ Automated tests (CI) run on Linux, Windows and macOS runners; they cover logic, 
   (Windows, macOS); the factory button count is known for SpaceMouse Pro, Pro Wireless, Compact,
   Wireless, Enterprise and SpaceNavigator.
 
-Release notes: [docs/release-notes-1.3.2.md](docs/release-notes-1.3.2.md) (see "Not verified" in it). Earlier: [docs/release-notes-1.3.1.md](docs/release-notes-1.3.1.md), [docs/release-notes-1.2.3.md](docs/release-notes-1.2.3.md) (and [1.2.2](docs/release-notes-1.2.2.md), [1.2.1](docs/release-notes-1.2.1.md), [1.2.0](docs/release-notes-1.2.0.md), [1.1.2](docs/release-notes-1.1.2.md), [1.1.1](docs/release-notes-1.1.1.md), [1.1.0](docs/release-notes-1.1.0.md), [1.0.0](docs/release-notes-1.0.0.md), [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
+Release notes: [docs/release-notes-1.3.3.md](docs/release-notes-1.3.3.md) (see "Not verified" in it). Earlier: [docs/release-notes-1.3.2.md](docs/release-notes-1.3.2.md), [docs/release-notes-1.3.1.md](docs/release-notes-1.3.1.md), [docs/release-notes-1.2.3.md](docs/release-notes-1.2.3.md) (and [1.2.2](docs/release-notes-1.2.2.md), [1.2.1](docs/release-notes-1.2.1.md), [1.2.0](docs/release-notes-1.2.0.md), [1.1.2](docs/release-notes-1.1.2.md), [1.1.1](docs/release-notes-1.1.1.md), [1.1.0](docs/release-notes-1.1.0.md), [1.0.0](docs/release-notes-1.0.0.md), [beta.2](docs/release-notes-0.1.0-beta.2.md), [beta.1](docs/release-notes-0.1.0-beta.1.md)).
 
 ## Download and install
 
@@ -150,6 +154,7 @@ If nothing happens, see [docs/troubleshooting.md](docs/troubleshooting.md).
 | [docs/security.md](docs/security.md) | Threat model, systemd hardening, uinput permissions, loading the driver interface |
 | [docs/legal-notes.md](docs/legal-notes.md) | What dofscroll uses of the 3Dconnexion driver, what it does not ship, where the rights lie |
 | [docs/releasing.md](docs/releasing.md) | How a release is made |
+| [docs/release-notes-1.3.3.md](docs/release-notes-1.3.3.md) | Release notes of 1.3.3 |
 | [docs/release-notes-1.3.2.md](docs/release-notes-1.3.2.md) | Release notes of 1.3.2 |
 | [docs/release-notes-1.3.1.md](docs/release-notes-1.3.1.md) | Release notes of 1.3.1 |
 | [docs/release-notes-1.2.3.md](docs/release-notes-1.2.3.md) | Release notes of 1.2.3; 1.2.2 in [docs/release-notes-1.2.2.md](docs/release-notes-1.2.2.md), 1.2.1 in [docs/release-notes-1.2.1.md](docs/release-notes-1.2.1.md), 1.2.0 in [docs/release-notes-1.2.0.md](docs/release-notes-1.2.0.md), 1.1.2 in [docs/release-notes-1.1.2.md](docs/release-notes-1.1.2.md), 1.1.1 in [docs/release-notes-1.1.1.md](docs/release-notes-1.1.1.md), 1.1.0 in [docs/release-notes-1.1.0.md](docs/release-notes-1.1.0.md), 1.0.0 in [docs/release-notes-1.0.0.md](docs/release-notes-1.0.0.md), 0.1.1 in [docs/release-notes-0.1.1.md](docs/release-notes-0.1.1.md), beta.2 in [docs/release-notes-0.1.0-beta.2.md](docs/release-notes-0.1.0-beta.2.md), beta.1 notes in [docs/release-notes-0.1.0-beta.1.md](docs/release-notes-0.1.0-beta.1.md) |
