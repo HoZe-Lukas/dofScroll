@@ -206,7 +206,8 @@ For this `main` calls `XInitThreads()`, the error handler is thread-local and se
 - **Status of finding b: fixed.** At start the daemon releases (`forceReleaseAll`) Ctrl, arrow
   keys and the left mouse button regardless of its own state, and the unit calls
   `ExecStopPost=-<bindir>/dofscroll --release-keys` after every stop (also after
-  SIGKILL/crash; shown here for the development install under `/usr/local/bin`; packaged units use
+  SIGKILL/crash, but not after the duplicate-instance exit 75: a second start never releases the
+  running daemon's keys; shown here for the development install under `/usr/local/bin`; packaged units use
   the packaged binary path, see [the October 2026 review](security-review-2026-10.md), F1, for
   the state of that path). What cannot be fixed is the time between kill and restart/StopPost
   (about `RestartSec=1s`).

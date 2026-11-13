@@ -229,7 +229,8 @@ Set `<CH>_SIGN = -1` or change the `<CH>_MIX` line, or run the axis assistant ("
 ### Keys stay pressed after a crash
 
 The daemon releases Ctrl, arrows and the left mouse button at start, and the unit runs
-`dofscroll --release-keys` after it stops. If a key still hangs, restart the service.
+`dofscroll --release-keys` after it stops (not when the unit's daemon gave up because another daemon already runs,
+exit status 75: that daemon keeps its keys). If a key still hangs, restart the service.
 
 ### A key or scrolling gets stuck
 
