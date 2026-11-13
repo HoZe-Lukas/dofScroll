@@ -3,7 +3,8 @@
 // dofscroll, Windows main: wires the platform-independent daemon core (daemon_core.hpp) to the
 // Windows platform layer (src/platform/win/): raw-HID input, SendInput output, foreground-window
 // provider, named-event reload, %APPDATA%/%LOCALAPPDATA% paths, status and log files. GUI
-// subsystem (no console window); a hidden message-only window receives the session-end messages.
+// subsystem (no console window); a hidden top-level window
+// (never shown) receives the session-end messages.
 // Mirrors src/dofscroll.cpp (the Linux main).
 #ifndef _WIN32
 #error "win_main.cpp is built on Windows only"
@@ -267,14 +268,17 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     }
 }
 
-HWND createMessageWindow() {
+// A message-only window (HWND_MESSAGE parent) is not a top-level window and gets no WM_QUERYENDSESSION /
+// WM_ENDSESSION (issue 358). This one is a normal top-level window that is never shown (no WS_VISIBLE,
+// size 0, no ShowWindow), so the system still sends it the session-end messages.
+HWND createHiddenTopLevelWindow() {
     WNDCLASSW wc{};
     wc.lpfnWndProc = wndProc;
     wc.hInstance = ::GetModuleHandleW(nullptr);
     wc.lpszClassName = L"dofscroll_hidden_window";
     if (!::RegisterClassW(&wc)) return nullptr;
-    return ::CreateWindowExW(0, wc.lpszClassName, L"dofscroll", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, wc.hInstance,
-                             nullptr);
+    return ::CreateWindowExW(0, wc.lpszClassName, L"dofscroll", WS_OVERLAPPED, 0, 0, 0, 0, nullptr, nullptr,
+                             wc.hInstance, nullptr);
 }
 
 // --release-keys: open an own output, release everything, exit.
@@ -393,7 +397,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     if (!core->initialize()) return 1;
 
     ::SetConsoleCtrlHandler(onConsoleCtrl, TRUE);
-    g_hwnd = createMessageWindow();
+    g_hwnd = createHiddenTopLevelWindow();
 
     // The core ticks on its own thread; this thread pumps messages (session end, close).
     const DWORD mainThread = ::GetCurrentThreadId();
