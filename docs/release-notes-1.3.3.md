@@ -25,6 +25,10 @@ stopped. The configuration and the profile files do not change.
   ran `--release-keys`, which sent key-ups that released keys the first, healthy daemon was holding. The unit now skips the
   release after exit status 75; after a crash, a kill or a normal stop it runs as before. `dofscroll --release-keys` and the
   tray's "Release all keys" are unchanged.
+- **Package upgrades start only the units that were running (#364, #378).** The upgrade of the RPM or DEB stopped the
+  user's daemon and interface and the new package started both again, also when the user had stopped or disabled them.
+  The preinst step now records which units were active (a root-only marker in `/run/dofscroll-upgrade`), and the postinst
+  step starts only those; a stopped or disabled unit stays off, and a fresh install starts nothing.
 
 **Documentation and checks**
 
@@ -45,6 +49,8 @@ stopped. The configuration and the profile files do not change.
   the rendered text, but the unit was not started under real systemd. How systemd treats the escaped `$` and the quoted
   `sh -c` word under the unit's sandbox (`PrivateUsers`, `SystemCallFilter`) is untested; `/bin/sh` is assumed to exist. The
   scenario itself (a second start while another daemon holds a key) needs a live X11 session.
+- **Package upgrade (#364):** checked with the shell tests of the scriptlets (fake `systemctl`) and by the CI package
+  jobs, which inspect the built RPM and DEB; no real RPM or DEB upgrade was run, and not with a real user manager or `/run`.
 - **The key capture field** was checked by the offscreen self-test only, not on a real desktop. Whether every key reaches
   the field depends on the desktop: system shortcuts such as Alt+Tab or the Windows key are taken by it.
 - **The screenshots** were rendered offscreen, not on a real desktop.

@@ -19,8 +19,7 @@ Work top to bottom; tick a box only after you saw the result. Commands use the G
 - [ ] **A2. Refresh the CI pins.** Start `refresh-ci-pins` (Actions tab), merge the pull request "Refresh CI pins" when its
   checks are green, merge the open Dependabot pull requests. `scripts/check-ci-pins.sh` stays green.
 - [ ] **A3. Open pull requests.** `gh pr list --repo $REPO`: merge or close each. #378 (package upgrades start only the
-  units that were running before, issue #364) is not part of these notes: if it is merged before the tag, add it to
-  `docs/release-notes-1.3.3.md` (Highlights, and under "Not verified": no real RPM or DEB upgrade was run) before you tag.
+  units that were running before, issue #364) is merged and in the notes.
 
 ## B. Tests that need a person
 
