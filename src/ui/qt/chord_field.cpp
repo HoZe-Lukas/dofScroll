@@ -156,7 +156,7 @@ void ChordField::refreshEnabled() {
         static const QtStrings strings;
         const std::string v = value();
         // a mouse button is shown as the list shows it ("Right click"), not as its stored word
-        const QString shown = isMouse ? picker_->text() : QString::fromStdString(spn::ui::chordDisplay(v, strings));
+        const QString shown = isMouse ? picker_->text() : QString::fromStdString(spn::ui::chordDisplay(v, strings, [](const std::string &p) { return spn::ui::keyTreeLabel(p); }));
         capture_->setCurrent(none || v.empty() ? QString() : shown);
     }
     bool anyMod = false;
