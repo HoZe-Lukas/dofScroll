@@ -155,7 +155,9 @@ void ChordField::refreshEnabled() {
     {   // the capture button shows what is set (it is the field to click and press the key in); nothing while there is none
         static const QtStrings strings;
         const std::string v = value();
-        capture_->setCurrent(none || v.empty() ? QString() : QString::fromStdString(spn::ui::chordDisplay(v, strings)));
+        // a mouse button is shown as the list shows it ("Right click"), not as its stored word
+        const QString shown = isMouse ? picker_->text() : QString::fromStdString(spn::ui::chordDisplay(v, strings));
+        capture_->setCurrent(none || v.empty() ? QString() : shown);
     }
     bool anyMod = false;
     for (QCheckBox *cb : mods_) anyMod = anyMod || cb->isChecked();

@@ -118,6 +118,9 @@ public:
     // shows that text, so it reads as a field: click it and press the new key.
     void setCurrent(const QString &shown) {
         current_ = shown;
+        // the accessible name stays "<direction>: Press a key..."; a screen reader hears what is set from the description
+        setAccessibleDescription(shown.isEmpty() ? T("Click, then press the key or key combination. Esc cancels.")
+                                                  : T("Click, then press the key or key combination. Esc cancels.") + QStringLiteral(" ") + shown);
         if (!capturing_) idle();
     }
     const QString &currentText() const { return current_; }
