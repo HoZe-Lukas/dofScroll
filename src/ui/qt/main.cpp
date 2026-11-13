@@ -4343,6 +4343,11 @@ static bool newFunctionSelfTest() {
             settle();
             check(neg->value() == "ctrl+shift+pagedown", "the capture button takes the key with its modifiers");
         }
+        // the button is the field that shows what is set: click it, press the new combination
+        check(cap && cap->text().contains(QStringLiteral("Ctrl")) && cap->text().contains(QStringLiteral("Shift")),
+              "the capture button shows the combination that is set");
+        neg->setValue("none");
+        check(cap && cap->text() == QStringLiteral("Press a key..."), "with no key set the capture button asks for one");
         neg->setValue("ctrl+pageup");
         neg->chooseKey(QStringLiteral("pageup"));
         settle();
