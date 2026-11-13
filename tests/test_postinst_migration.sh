@@ -61,7 +61,7 @@ chmod +x "$T/bin"/*
 # The script under test, with the two absolute system paths redirected into the sandbox.
 sed -e "s#/usr/lib/systemd/user/dofscroll-ui.service#$T/ui.service#" \
     -e "s#/proc/#$T/proc/#" -e "s#kill -TERM#$T/bin/kill -TERM#" \
-    -e "s#/etc/systemd/user/#$T/etc/systemd/user/#" -e "s#/run/systemd/system#$T/run-systemd#" \
+    -e "s#/etc/systemd/user/#$T/etc/systemd/user/#" -e "s#/run/systemd/system#$T/run-systemd#" -e "s#/run/dofscroll-upgrade#$T/state#" \
     "$SRC/packaging/cpack/postinst" > "$T/postinst"
 grep -q "$T/ui.service" "$T/postinst" || fail "path substitution did not apply"
 
@@ -78,6 +78,9 @@ setup() {  # $1 = with tray link (1/0), $2 = ui unit present (1/0)
     fi
     if [ "$2" = 1 ]; then : > "$T/ui.service"; fi
     : > "$T/log"
+    # what preinst records when both units were active before the upgrade
+    rm -rf "${T:?}/state"; mkdir -p "$T/state"
+    for u in alice bob@corp.example; do : > "$T/state/$u.dofscroll"; : > "$T/state/$u.dofscroll-ui"; done
 }
 run() { PATH="$T/bin:$PATH" sh "$T/postinst" "$@" || fail "postinst exited non-zero ($*)"; }
 link="$T/home/alice/.config/systemd/user/default.target.wants/dofscroll-tray.service"

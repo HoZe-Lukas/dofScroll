@@ -9,9 +9,9 @@
 #    same command. A fresh install does NOT start the user's dofscroll units either: the interface starts the
 #    daemon at the first start (the user opens dofscroll from the application menu).
 # 2. Upgrade step 2 of 2: packaging/cpack/preinst stopped the dofscroll user units before the files were
-#    replaced: here, for every logged-in user, the daemon and then the interface are started again, whether
-#    they were running before or not, so the new binaries are used without a re-login. Only after an
-#    UPGRADE (not a fresh install).
+#    replaced and recorded which of them were active: here, for every logged-in user, exactly those are started
+#    again (the daemon first), so the new binaries are used without a re-login. A unit the user stopped or
+#    disabled stays off (#364). Only after an UPGRADE (not a fresh install).
 # Migration: the old GTK tray (dofscroll-tray.service) was removed. A user who had it enabled
 # gets dofscroll-ui.service enabled instead (and started, if the tray was running), so the tray
 # icon does not disappear; only systemd user unit links change, never the dofscroll configuration.
@@ -59,6 +59,8 @@ done)
 
 # Only when this package ships the Qt UI unit; otherwise the old tray link stays as it is.
 ui_unit=/usr/lib/systemd/user/dofscroll-ui.service
+# Written by preinst: "<user>.<unit>" for every unit that was active before the upgrade.
+state_dir=/run/dofscroll-upgrade
 
 # Is the removed dofscroll-tray.service enabled for the user whose home is $1? The unit file is
 # gone by now, so look for the enable link itself (a dangling symlink in a .wants directory).
@@ -145,10 +147,14 @@ for name in $users; do
     # an interface that the desktop's session restore started would keep the new one from starting (single
     # instance): it is stopped first (only when its binary was replaced and the user has the unit enabled)
     restart_stale_ui "$name" || true
-    # always started, also when the units were not running before the upgrade: the daemon first
-    limited systemctl --user --machine="$m" start dofscroll.service >/dev/null 2>&1 || true
-    if [ -f "$ui_unit" ]; then
+    # only what was active before the upgrade (recorded by preinst) is started again, the daemon first;
+    # a unit the user stopped or disabled stays off
+    if [ -f "$state_dir/$name.dofscroll" ]; then
+        limited systemctl --user --machine="$m" start dofscroll.service >/dev/null 2>&1 || true
+    fi
+    if [ -f "$ui_unit" ] && [ -f "$state_dir/$name.dofscroll-ui" ]; then
         limited systemctl --user --machine="$m" start dofscroll-ui.service >/dev/null 2>&1 || true
     fi
 done
+rm -rf "$state_dir" 2>/dev/null
 exit 0
