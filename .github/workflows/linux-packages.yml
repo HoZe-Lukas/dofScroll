@@ -76,7 +76,7 @@ jobs:
           # the upgrade steps: %pre stops the user units, %post starts them again
           rpm -qp --scripts build/dofscroll-*.rpm > /tmp/rpm-scripts.txt
           grep -q 'preinstall scriptlet' /tmp/rpm-scripts.txt
-          grep -q 'stop "$unit.service"' /tmp/rpm-scripts.txt
+          grep -q 'stop "[$]unit.service"' /tmp/rpm-scripts.txt
           grep -q 'start dofscroll.service' /tmp/rpm-scripts.txt
           echo "--- RPM requires:"; rpm -qp --requires build/dofscroll-*.rpm
           echo "--- RPM files:"; rpm -qlp build/dofscroll-*.rpm
@@ -170,7 +170,7 @@ jobs:
           fi
           test -z "$(find /tmp/scan -path '*/usr/lib/udev/*' -type f)"
           # the upgrade steps: preinst stops the user units, postinst starts them again
-          dpkg-deb -I build/dofscroll*.deb preinst | grep -q 'stop "$unit.service"'
+          dpkg-deb -I build/dofscroll*.deb preinst | grep -q 'stop "[$]unit.service"'
           dpkg-deb -I build/dofscroll*.deb postinst | grep -q 'start dofscroll.service'
           . packaging/qt.env
           deps="$(dpkg-deb -f build/dofscroll*.deb Depends)"
