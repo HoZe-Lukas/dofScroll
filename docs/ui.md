@@ -220,7 +220,7 @@ to the picture shows the selected item:
 - **A motion:** "What it does" is a grid of big tiles, one glance each: scroll up and down, scroll sideways,
   zoom, Page up / Page down, arrow keys (up and down on the vertical motions, left and right on the others),
   **Switch tabs** (Ctrl+Page up / Ctrl+Page down), **Volume** (Volume up / Volume down) and **Change track** (one press of
-  Previous track / Next track per push), other keys (any key or chord per direction, set in the Keys box that appears: modifier check boxes and a key list, or **Press a key...**: click it and press the key or combination, which is taken over; Esc cancels, a modifier alone waits for its key, and a key dofscroll cannot send is refused in words), one key tap per push, do
+  Previous track / Next track per push), other keys (any key or chord per direction, set in the Keys box that appears: modifier check boxes and a key list, or the field below the list, which shows the key or combination that is set (**Press a key...** while none is): click it and press the key or combination, which is taken over; Esc cancels, a modifier alone waits for its key, and a key dofscroll cannot send is refused in words), one key tap per push, do
   nothing and as in the profile. The volume and media keys are not sent on macOS (Apple has no key codes for them), so on a Mac
   those two tiles do nothing. The ready choices Page up / Page down, Switch tabs, Volume and Change track are not written down a
   second time: they are the actions of the built-in joystick modes `slides`, `tabs`, `volume` and `tracks`

@@ -11,6 +11,7 @@
 #include "key_capture.hpp"
 #include "key_combo.hpp"
 #include "key_tree_picker.hpp"
+#include "qt_action_runner.hpp"
 #include "ui/model/key_tree_model.hpp"
 #include "ui/model/mode_editor_model.hpp"
 #include "ui_i18n.hpp"
@@ -151,6 +152,13 @@ void ChordField::refreshEnabled() {
     for (QCheckBox *cb : mods_) cb->setEnabled(!none && !isMouse);
     picker_->setEnabled(!none);
     capture_->setEnabled(!none);
+    {   // the capture button shows what is set (it is the field to click and press the key in); nothing while there is none
+        static const QtStrings strings;
+        const std::string v = value();
+        // a mouse button is shown as the list shows it ("Right click"), not as its stored word
+        const QString shown = isMouse ? picker_->text() : QString::fromStdString(spn::ui::chordDisplay(v, strings, [](const std::string &p) { return spn::ui::keyTreeLabel(p); }));
+        capture_->setCurrent(none || v.empty() ? QString() : shown);
+    }
     bool anyMod = false;
     for (QCheckBox *cb : mods_) anyMod = anyMod || cb->isChecked();
     hint_->setVisible(!none && anyMod && picker_->value().isEmpty());
