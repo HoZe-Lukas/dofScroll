@@ -782,15 +782,6 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
                 if (env_.committed) env_.committed();
             };
             // per direction: the picker (modifiers and a key list) and, below it, "Press a key..." which takes the key you press
-            auto *note = new QLabel(keys);
-            note->setWordWrap(true);
-            note->setTextFormat(Qt::PlainText);
-            note->setProperty("warning", true);
-            note->hide();
-            auto refused = [note](const QString &text) {
-                note->setText(mark(StatusKind::Warning, text));
-                note->show();
-            };
             struct Dir {
                 const char *label;
                 std::string ChannelForm::*chord;
@@ -806,19 +797,11 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
                 const QString accessible = qs8(l.name) + QStringLiteral(" ") + T(d.accessible);
                 QWidget *picker = nullptr;
                 KeyTreePicker *kc = nullptr;
-                picker = sidePicker(keys, this, &(ref->*d.chord), accessible, committed, &kc, mouseSides);
+                picker = sidePicker(keys, this, &(ref->*d.chord), accessible, committed, &kc, mouseSides, env_.changed);  // a pressed key rebuilds (analog greys)
                 dirLabel->setBuddy(kc);
                 kg->addWidget(picker, row, 1);
-                auto *capture = new KeyCaptureButton(qs8(l.name) + QStringLiteral(" ") + T(d.accessible) + QStringLiteral(": ") + T("Press a key..."),
-                                                     [this, ref, d](const std::string &chord) {
-                                                         ref->*d.chord = chord;
-                                                         if (env_.changed) env_.changed();
-                                                     },
-                                                     refused, keys);
-                kg->addWidget(capture, row + 1, 1, Qt::AlignLeft);
-                row += 2;
+                row += 1;  // the "Press a key..." button is part of the picker (side_picker.hpp)
             }
-            kg->addWidget(note, row, 0, 1, 2);
             kg->setColumnStretch(1, 1);
             if (QWidget *engine = keyEngineBox(keys, this, keyEngineEnv(ref, m), *env_.strings)) kg->addWidget(engine, row + 1, 0, 1, 2);
             col->addWidget(keys);

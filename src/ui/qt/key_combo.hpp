@@ -14,7 +14,9 @@
 #include <vector>
 #include <QStandardItemModel>
 
+#include "chord_text.hpp"
 #include "key_tree_picker.hpp"
+#include "picker_capture.hpp"
 #include "ui/model/key_list.hpp"
 #include "ui_i18n.hpp"
 
@@ -35,27 +37,6 @@ inline QComboBox *makeKeyCombo(const QString &current, QWidget *parent) {
 
 // Chord editor (modifier check boxes plus the key picker) shared by the keys:/step: channel editor and the
 // key: button action. The chord text is "ctrl+shift+pageup" (modifiers in the fixed order ctrl, shift, alt, super).
-// "ctrl+shift+pageup" -> {ctrl, shift} + "pageup"; a lone modifier is the key itself.
-inline void splitChord(const std::string &chord, std::vector<std::string> *mods, std::string *key) {
-    mods->clear();
-    std::vector<std::string> parts;
-    size_t start = 0;
-    for (size_t p; (p = chord.find('+', start)) != std::string::npos; start = p + 1) parts.push_back(chord.substr(start, p - start));
-    parts.push_back(chord.substr(start));
-    *key = parts.back();
-    parts.pop_back();
-    *mods = parts;
-}
-
-inline constexpr const char *kModNames[4] = {"ctrl", "shift", "alt", "super"};
-
-inline std::string joinChord(const std::vector<std::string> &mods, const std::string &key) {
-    std::string out;
-    for (const char *m : kModNames)
-        if (std::find(mods.begin(), mods.end(), m) != mods.end()) out += std::string(m) + "+";
-    return out + key;
-}
-
 // The label of a modifier for the people: translated, capitalised, the super key by the platform's name.
 inline QString modifierLabel(const std::string &mod) {
     if (mod == "ctrl") return TK("Ctrl");
@@ -127,6 +108,9 @@ inline QWidget *chordPicker(QWidget *parent, QObject *owner, std::string *chord,
     };
     for (QCheckBox *cb : w->findChildren<QCheckBox *>()) QObject::connect(cb, &QCheckBox::toggled, owner, update);
     QObject::connect(kc, &KeyTreePicker::valueChosen, owner, [update](const QString &) { update(); });
+    std::vector<QCheckBox *> boxes;
+    for (QCheckBox *cb : w->findChildren<QCheckBox *>()) boxes.push_back(cb);
+    addPickerCapture(w, col, accessible, boxes, kc, chord, update);  // "Press a key...": the same input as in every other chord field
     return w;
 }
 
