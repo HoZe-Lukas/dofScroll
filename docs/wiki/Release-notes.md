@@ -6,6 +6,10 @@ Design principle: dofscroll complements the vendor driver instead of duplicating
 
 Releases and their generated notes: https://github.com/HoZe-Lukas/dofScroll/releases. Versions `0.x` are marked pre-release.
 
+## 1.3.4
+
+Small release. The driver cleanup assistant offers an empty profile for every program you leave to the driver, not only for 3D and CAD programs; the key capture field is the same on every place that takes a key. The authoritative text is [docs/release-notes-1.3.4.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.3.4.md). **Not verified:** nothing on real Windows or macOS, nothing with a SpaceMouse in hand.
+
 ## 1.3.3
 
 Small release. The key capture field shows the key or combination that is set (click, press the keys); the Windows daemon receives log-off and shutdown in a hidden top-level window (#358); under systemd a duplicate instance (exit 75) no longer releases the running instance's keys (#359); the website screenshots are rendered again, also the German ones (#344). The authoritative text is [docs/release-notes-1.3.3.md](https://github.com/HoZe-Lukas/dofScroll/blob/main/docs/release-notes-1.3.3.md). **Not verified:** the Windows log-off and the systemd unit were not run on real systems; nothing was tested with a SpaceMouse in hand.

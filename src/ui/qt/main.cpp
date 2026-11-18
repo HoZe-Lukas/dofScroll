@@ -656,6 +656,39 @@ static bool keyTreePickerSelfTest(QWidget *host) {
         press(Qt::Key_Return);
         check(chord == "ctrl+shift+pagedown" && changes == 1, "the chord editor stores modifiers and key as before");
     }
+    // the same chord editor takes the keys from the keyboard (the "Press a key..." button every chord field has)
+    {
+        auto *cap = cp->findChild<KeyCaptureButton *>(QStringLiteral("pickerCapture"));
+        check(cap != nullptr, "the chord editor has a Press a key button");
+        if (cap) {
+            check(cap->accessibleName() == QStringLiteral("Chord: Press a key..."), "named after the field");
+            changes = 0;
+            cap->click();
+            QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+            cap->press(&esc);
+            check(!cap->capturing() && chord == "ctrl+shift+pagedown" && changes == 0, "Esc cancels and changes nothing");
+            cap->click();
+#ifdef Q_OS_MACOS
+            const Qt::KeyboardModifier ctrlKey = Qt::MetaModifier;
+#else
+            const Qt::KeyboardModifier ctrlKey = Qt::ControlModifier;
+#endif
+            QKeyEvent ctrlJ(QEvent::KeyPress, Qt::Key_J, ctrlKey, QStringLiteral("j"));
+            cap->press(&ctrlJ);
+            QApplication::processEvents();  // the change is reported after the key event
+            check(chord == "ctrl+j" && changes == 1, "Ctrl+J is stored as ctrl+j and reported once");
+            check(kp && kp->value() == QStringLiteral("j"), "the list shows the key");
+            bool shift = false;
+            for (QCheckBox *cb : cp->findChildren<QCheckBox *>()) shift = shift || (cb->property("chordMod").toString() == QStringLiteral("shift") && cb->isChecked());
+            check(!shift, "the modifier boxes follow the pressed chord");
+            check(cap->text() == QStringLiteral("Ctrl+J"), "the button shows what is set");
+            cap->click();
+            QKeyEvent unsupported(QEvent::KeyPress, Qt::Key_Cancel, Qt::NoModifier);  // a key that has no name in keys.hpp
+            cap->press(&unsupported);
+            auto *why = cp->findChild<QLabel *>(QStringLiteral("pickerCaptureRefused"));
+            check(chord == "ctrl+j" && why && !why->isHidden(), "a key dofscroll cannot send is refused in words and changes nothing");
+        }
+    }
     delete cp;
     // typing finds a key by the name that is shown and by the name of the file
     {
@@ -2650,8 +2683,31 @@ static bool profileEditorSelfTest(const std::function<bool(MainWindow &)> &acces
                     return saved && v ? *v : std::string();
                 };
                 check(storedTilt().compare(0, 5, "hold:") == 0, "the hold is stored as hold:<neg>,<pos>");
-                const QList<QWidget *> sides = mv->inspector()->findChildren<QWidget *>(QStringLiteral("sidePickerBox"));
+                QList<QWidget *> sides = mv->inspector()->findChildren<QWidget *>(QStringLiteral("sidePickerBox"));
                 check(sides.size() == 2, "a side picker per direction");
+                {   // every side takes the key from the keyboard too, as in every other chord field
+                    auto *cap = sides.size() == 2 ? sides[0]->findChild<KeyCaptureButton *>(QStringLiteral("pickerCapture")) : nullptr;
+                    check(cap != nullptr && sides[1]->findChild<KeyCaptureButton *>(QStringLiteral("pickerCapture")) != nullptr, "each side has a Press a key button");
+                    if (cap) {
+                        cap->click();
+                        QKeyEvent ctrlJ(QEvent::KeyPress, Qt::Key_J,
+#ifdef Q_OS_MACOS
+                                        Qt::MetaModifier,
+#else
+                                        Qt::ControlModifier,
+#endif
+                                        QStringLiteral("j"));
+                        cap->press(&ctrlJ);
+                        settle();
+                        std::optional<std::string> held;
+                        check(rig.waitSaved() && (held = diskKey(rig, Section::APP, "firefox", "H_TILT_ACTION")) && held->compare(0, 10, "hold:ctrl+") == 0 &&
+                                  held->find("ctrl+j") == 5,
+                              "a pressed Ctrl+J is stored as the negative key of the hold");
+                        mv->select(QStringLiteral("m:h_tilt"));
+                        settle();
+                        sides = mv->inspector()->findChildren<QWidget *>(QStringLiteral("sidePickerBox"));
+                    }
+                }
                 bool namesOk = true, sizesOk = true, buddiesOk = true;
                 for (QWidget *sp : sides) {
                     auto *kc = sp->findChild<KeyTreePicker *>();
@@ -3888,14 +3944,14 @@ static bool driverWizardSelfTest(const QString &tmpPath) {
         check(ticks() == QStringLiteral("xxxxx"), QStringLiteral("all ticked, including the 3D program: ") + ticks());
         wiz.next();
 
-        // 3b profiles: the 3D program is ticked for the cleanup, so there is nothing to create
+        // 3b profiles: every program is ticked for the cleanup, so there is nothing to create
         settle();
         check(wiz.currentId() == DriverCleanupWizard::ProfilesPage, QStringLiteral("the profile page follows the choice"));
         {
             auto *pt0 = page()->findChild<QTableWidget *>(QStringLiteral("profiles-table"));
             auto *pi0 = page()->findChild<QLabel *>(QStringLiteral("profiles-info"));
-            check(pt0 && pt0->rowCount() == 0 && pi0 && pi0->text().contains(QStringLiteral("no 3D or CAD program")),
-                  QStringLiteral("no 3D program left to the driver: no row, and it says so"));
+            check(pt0 && pt0->rowCount() == 0 && pi0 && pi0->text().contains(QStringLiteral("no program you did not tick")),
+                  QStringLiteral("every program ticked: no row, and it says so"));
         }
         wiz.next();
 

@@ -17,15 +17,17 @@
 
 #include "key_combo.hpp"
 #include "key_tree_picker.hpp"
+#include "picker_capture.hpp"
 #include "ui/model/key_tree_model.hpp"
 #include "ui/model/mode_editor_model.hpp"
 #include "ui_i18n.hpp"
 
 // side: "ctrl+pageup", "none", "click", ... (edited in place). accessible: what the side is ("Pushing forward, key or click").
-// *picker (optional) receives the key picker, the widget a label takes as its buddy. Object names for tests: sidePickerBox,
+// capturedChanged (optional): what runs after a key was pressed on the keyboard instead of changed. *picker (optional) receives the key picker, the widget a label takes as its buddy. Object names for tests: sidePickerBox,
 // sidePickerKey, sidePickerMod_<name>.
 inline QWidget *sidePicker(QWidget *parent, QObject *owner, std::string *side, const QString &accessible,
-                           const std::function<void()> &changed, KeyTreePicker **picker = nullptr, bool mouse = true) {
+                           const std::function<void()> &changed, KeyTreePicker **picker = nullptr, bool mouse = true,
+                           const std::function<void()> &capturedChanged = nullptr) {
     spn::ui::KeyTreeOptions opt;
     opt.mouse = mouse;  // false for the analog keys:, which never take a click
     auto *w = new QWidget(parent);
@@ -66,9 +68,10 @@ inline QWidget *sidePicker(QWidget *parent, QObject *owner, std::string *side, c
     if (picker) *picker = kc;
     for (int i = 1; i < int(boxes.size()); ++i) QWidget::setTabOrder(boxes[size_t(i) - 1], boxes[size_t(i)]);
     QWidget::setTabOrder(boxes.back(), kc);
-    auto update = [side, kc, boxes, changed] {
+    // writes the side from the boxes and the list; true when there is a key (a modifier alone writes nothing)
+    auto write = [side, kc, boxes] {
         const std::string chosen = kc->value().toStdString();
-        if (chosen.empty()) return;
+        if (chosen.empty()) return false;
         if (spn::ui::ChannelForm::isMouseWord(chosen)) {
             *side = chosen;  // a click takes no modifier
         } else {
@@ -77,9 +80,18 @@ inline QWidget *sidePicker(QWidget *parent, QObject *owner, std::string *side, c
                 if (cb->isChecked()) on.push_back(cb->property("chordMod").toString().toStdString());
             *side = joinChord(on, chosen);
         }
-        changed();
+        return true;
+    };
+    auto update = [write, changed] {
+        if (write()) changed();
+    };
+    // a key pressed on the keyboard may need more than a key chosen in the list (the host rebuilds: a key that cannot repeat greys "analog")
+    const std::function<void()> afterCapture = capturedChanged ? capturedChanged : changed;
+    auto captured = [write, afterCapture] {
+        if (write()) afterCapture();
     };
     for (QCheckBox *cb : boxes) QObject::connect(cb, &QCheckBox::toggled, owner, update);
     QObject::connect(kc, &KeyTreePicker::valueChosen, owner, [update](const QString &) { update(); });
+    addPickerCapture(w, v, accessible, boxes, kc, side, captured);  // "Press a key...": the same input as in every other chord field
     return w;
 }

@@ -311,8 +311,8 @@ inline bool scanDriverConfigs(const std::string &dir, std::vector<DriverApp> *ap
     return ok;
 }
 
-// ---- empty profiles for the 3D and CAD programs --------------------------------------------------------------------
-// A 3D or CAD program that is left to the driver (not ticked for the cleanup) gets a program profile with the output
+// ---- empty profiles for the programs left to the driver ------------------------------------------------------------
+// A program that is left to the driver (not ticked for the cleanup; 3D and CAD programs by default) gets a program profile with the output
 // switched off (ENABLED = 0), so dofscroll does not scroll or zoom there as well. The wizard lists them with a check
 // box each; nothing is created that is not ticked, and a program that already has a profile is never touched.
 
@@ -329,20 +329,27 @@ inline std::string driverAsciiLower(std::string s) {
     return s;
 }
 
-// The 3D and CAD programs that are not ticked for the cleanup and have an executable name. `existingExes`: the names of
+// A program profile covers a program when its pattern is a case-insensitive substring of the program's name (that is how the
+// daemon matches the window class): `[app:chrome]` already covers chrome.exe, so no profile is created over it.
+inline bool driverProfileCovers(const std::string &pattern, const std::string &exe) {
+    const std::string p = driverAsciiLower(pattern);
+    return !p.empty() && driverAsciiLower(exe).find(p) != std::string::npos;
+}
+
+// The programs that are not ticked for the cleanup and have an executable name. `existingExes`: the names of
 // the program profiles that exist (any case). `previous`: rows of an earlier call; their ticks are kept by name.
 inline std::vector<DriverProfileRow> driverProfileRows(const std::vector<DriverApp> &apps, const std::vector<std::string> &existingExes,
                                                        const std::vector<DriverProfileRow> &previous = {}) {
     std::vector<DriverProfileRow> rows;
     for (const DriverApp &a : apps) {
-        if (!a.navigation || a.selected || a.exe.empty()) continue;
+        if (a.selected || a.exe.empty()) continue;
         DriverProfileRow r;
         r.exe = driverAsciiLower(a.exe);
         r.name = a.name.empty() ? a.exe : a.name;
         bool dup = false;
         for (const DriverProfileRow &x : rows) dup = dup || x.exe == r.exe;
         if (dup) continue;
-        for (const std::string &e : existingExes) r.existing = r.existing || driverAsciiLower(e) == r.exe;
+        for (const std::string &e : existingExes) r.existing = r.existing || driverProfileCovers(e, r.exe);
         r.selected = !r.existing;
         for (const DriverProfileRow &p : previous)
             if (p.exe == r.exe && !r.existing) r.selected = p.selected;

@@ -558,13 +558,13 @@ private:
     int built_ = -1;
 };
 
-// ---- page 3b: empty profiles for the 3D and CAD programs ------------------------------------------------------------------
+// ---- page 3b: empty profiles for the programs left to the driver ------------------------------------------------------------------
 
 class ProfilesPageImpl : public QWizardPage {
 public:
     explicit ProfilesPageImpl(DriverCleanupWizard *w) : wiz_(w) {
-        setTitle(T("Profiles for 3D and CAD programs"));
-        setSubTitle(T("The 3D and CAD programs you did not tick keep working with the driver. dofscroll can get an empty profile with its "
+        setTitle(T("Profiles for the programs left to the driver"));
+        setSubTitle(T("The programs you did not tick (3D and CAD programs by default) keep working with the driver. dofscroll can get an empty profile with its "
                       "output switched off for each, so it does not scroll or zoom there as well. Tick what you want; nothing else is created."));
         auto *col = new QVBoxLayout(this);
         auto *row = new QHBoxLayout;
@@ -588,7 +588,7 @@ public:
         table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
         table_->setMinimumHeight(160);
         table_->setAccessibleName(T("Profiles to create"));
-        table_->setAccessibleDescription(T("One row per 3D or CAD program. Tick the box of a row to create an empty profile for it."));
+        table_->setAccessibleDescription(T("One row per program you did not tick. Tick the box of a row to create an empty profile for it."));
         col->addWidget(table_, 1);
         info_ = paragraph(QString(), this);
         info_->setObjectName(QStringLiteral("profiles-info"));
@@ -639,7 +639,7 @@ private:
     }
     void refreshInfo() {
         const DriverWizardState &s = wiz_->state();
-        if (s.profileRows.empty()) info_->setText(T("There is no 3D or CAD program among the programs you did not tick."));
+        if (s.profileRows.empty()) info_->setText(T("There is no program you did not tick that dofscroll could get a profile for."));
         else
             info_->setText(T("%1 of %2 profiles will be created.")
                                .arg(s.createProfile ? int(m::driverProfileSelectedCount(s.profileRows)) : 0)
@@ -948,10 +948,16 @@ void bindDriverWizardProfiles(DriverCleanupWizard &wizard, const UiContext &ctx)
         return names;
     };
     s.createProfile = [model, &ctx](const std::string &exe, std::string *err) {
-        if (model->profiles().find(spn::Section::APP, exe) != spn::ProfileSet::npos) return true;  // never touch an existing one
+        const spn::ProfileSet &ps = model->profiles();
+        for (size_t i = 1; i < ps.sections.size(); ++i)  // never touch a profile that already covers the program
+            if (ps.sections[i].kind == spn::Section::APP && m::driverProfileCovers(ps.sections[i].pattern, exe)) return true;
         const size_t idx = model->addSection(spn::Section::APP, exe, err);
         if (idx == spn::ProfileSet::npos) return false;
-        if (!model->setValue(idx, "ENABLED", "0", err)) return false;
+        if (!model->setValue(idx, "ENABLED", "0", err)) {
+            std::string ignored;
+            model->removeSection(idx, &ignored);  // no half-made profile that is on
+            return false;
+        }
         ctx.saveSoon();
         return true;
     };

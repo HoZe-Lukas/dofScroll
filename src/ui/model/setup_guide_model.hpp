@@ -300,7 +300,7 @@ inline std::vector<SetupStep> buildSetupGuide(const SetupInputs &in, const Strin
         s.title = t.tr("Official 3Dconnexion driver");
         s.state = StepState::Info;
         s.text = t.tr("If the driver has axes switched on for a program, that program receives every movement twice. The assistant "
-                      "lists those programs, switches off what you tick, and can create empty profiles for your 3D and CAD programs. "
+                      "lists those programs, switches off what you tick, and can create empty profiles for the programs you leave to the driver. "
                       "You can also do this later on the Settings page.");
         s.action = StepAction::DriverCleanup;
         s.actionLabel = t.tr("Open the driver assistant...");
