@@ -974,7 +974,7 @@ Compiled and unit-tested in CI only; what has to be checked by hand on real mach
   and Next stays off while nothing is ticked. The **profiles** page lists the programs you did not
   tick (the 3D and CAD programs by default), which keep working with the driver, with a check box each (ticked by default): for every ticked one
   dofscroll gets an empty program profile with `ENABLED = 0`, so it does not scroll or zoom there as well. Nothing
-  is created that is not ticked, a program that already has a profile is shown and never changed, and a profile
+  is created that is not ticked, a program that already has a profile (one whose pattern is part of the program name counts) is shown and never changed, and a profile
   can be edited or removed on the Profiles page afterwards. The same assistant is a step of the setup guide on
   the first start (Windows, when the driver's folder exists). The preview lists the files and axes that will change;
   the change sets the `<Enabled>` flag of every axis in those files to `false` (nothing else in the

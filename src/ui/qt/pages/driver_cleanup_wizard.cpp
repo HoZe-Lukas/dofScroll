@@ -948,10 +948,16 @@ void bindDriverWizardProfiles(DriverCleanupWizard &wizard, const UiContext &ctx)
         return names;
     };
     s.createProfile = [model, &ctx](const std::string &exe, std::string *err) {
-        if (model->profiles().find(spn::Section::APP, exe) != spn::ProfileSet::npos) return true;  // never touch an existing one
+        const spn::ProfileSet &ps = model->profiles();
+        for (size_t i = 1; i < ps.sections.size(); ++i)  // never touch a profile that already covers the program
+            if (ps.sections[i].kind == spn::Section::APP && m::driverProfileCovers(ps.sections[i].pattern, exe)) return true;
         const size_t idx = model->addSection(spn::Section::APP, exe, err);
         if (idx == spn::ProfileSet::npos) return false;
-        if (!model->setValue(idx, "ENABLED", "0", err)) return false;
+        if (!model->setValue(idx, "ENABLED", "0", err)) {
+            std::string ignored;
+            model->removeSection(idx, &ignored);  // no half-made profile that is on
+            return false;
+        }
         ctx.saveSoon();
         return true;
     };

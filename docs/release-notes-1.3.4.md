@@ -15,7 +15,7 @@ files do not change.
   and macOS) the profiles page offered an empty profile (`ENABLED = 0`) only for 3D and CAD programs. It now lists every
   program that you did not tick and that has an executable name, ticked by default, so dofscroll does not scroll or zoom
   there on top of the driver and the program works without adding it by hand. A program that already has a profile is
-  shown and never changed; nothing is created that is not ticked. The page, its texts (English and German) and the setup
+  shown and never changed (a profile whose pattern is part of the program name, such as `[app:chrome]` for `chrome.exe`, counts, because the daemon matches by substring); nothing is created that is not ticked. The page, its texts (English and German) and the setup
   guide step say "programs left to the driver".
 - **The key capture field is the same on every place that takes a key.** The key picker with the modifier boxes and the
   **Press a key...** field are now the two ways to set a key or a combination in the keys of a motion (profile and
@@ -26,11 +26,12 @@ files do not change.
 ## Not verified
 
 - **Nothing was tested with a SpaceMouse in hand.**
-- **The profiles page** was changed in the model and its text; the unit test covers the rows, but the cleanup wizard was
-  not run on real Windows or macOS.
-- **The key capture field** was not run on a real desktop; the Qt views were compiled only where Qt was available. Whether
-  every key reaches the field depends on the desktop (system shortcuts such as Alt+Tab are taken by it).
-- **The screenshots** on the website were not rendered again for these changes.
+- **The profiles page** is covered by the unit test of the rows and by the offscreen self-test of the wizard; the cleanup
+  wizard was not run on real Windows or macOS.
+- **The key capture field** was checked by the offscreen self-test only, not on a real desktop. Whether every key reaches
+  the field depends on the desktop (system shortcuts such as Alt+Tab are taken by it).
+- **The screenshots** were rendered again (`scripts/make-site-screenshots.sh`) and did not change: the pages they show
+  (Joystick modes, Overview) do not show the changed fields.
 - Everything listed under "Not verified" in [1.3.3](release-notes-1.3.3.md), [1.3.2](release-notes-1.3.2.md) and
   [1.3.1](release-notes-1.3.1.md) still holds.
 

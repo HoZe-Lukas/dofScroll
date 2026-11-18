@@ -329,6 +329,13 @@ inline std::string driverAsciiLower(std::string s) {
     return s;
 }
 
+// A program profile covers a program when its pattern is a case-insensitive substring of the program's name (that is how the
+// daemon matches the window class): `[app:chrome]` already covers chrome.exe, so no profile is created over it.
+inline bool driverProfileCovers(const std::string &pattern, const std::string &exe) {
+    const std::string p = driverAsciiLower(pattern);
+    return !p.empty() && driverAsciiLower(exe).find(p) != std::string::npos;
+}
+
 // The programs that are not ticked for the cleanup and have an executable name. `existingExes`: the names of
 // the program profiles that exist (any case). `previous`: rows of an earlier call; their ticks are kept by name.
 inline std::vector<DriverProfileRow> driverProfileRows(const std::vector<DriverApp> &apps, const std::vector<std::string> &existingExes,
@@ -342,7 +349,7 @@ inline std::vector<DriverProfileRow> driverProfileRows(const std::vector<DriverA
         bool dup = false;
         for (const DriverProfileRow &x : rows) dup = dup || x.exe == r.exe;
         if (dup) continue;
-        for (const std::string &e : existingExes) r.existing = r.existing || driverAsciiLower(e) == r.exe;
+        for (const std::string &e : existingExes) r.existing = r.existing || driverProfileCovers(e, r.exe);
         r.selected = !r.existing;
         for (const DriverProfileRow &p : previous)
             if (p.exe == r.exe && !r.existing) r.selected = p.selected;

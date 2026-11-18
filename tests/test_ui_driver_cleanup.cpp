@@ -299,6 +299,10 @@ int main() {
         std::vector<DriverApp> mixed = {app("Chrome", "chrome.exe", false, false), app("Ticked", "ticked.exe", false, true)};
         const std::vector<DriverProfileRow> mrows = driverProfileRows(mixed, {});
         assert(mrows.size() == 1 && mrows[0].exe == "chrome.exe" && mrows[0].selected);
+        // an existing profile whose pattern is part of the program name covers it (the daemon matches by substring)
+        const std::vector<DriverProfileRow> crows = driverProfileRows(mixed, {"Chrome"});
+        assert(crows.size() == 1 && crows[0].existing && !crows[0].selected);
+        assert(!driverProfileCovers("", "chrome.exe") && !driverProfileCovers("firefox", "chrome.exe"));
         rows[0].selected = false;  // the user unticks; a second call keeps it
         rows = driverProfileRows(list, {"BLENDER.exe"}, rows);
         assert(!rows[0].selected && driverProfileSelectedCount(rows) == 0);

@@ -3944,14 +3944,14 @@ static bool driverWizardSelfTest(const QString &tmpPath) {
         check(ticks() == QStringLiteral("xxxxx"), QStringLiteral("all ticked, including the 3D program: ") + ticks());
         wiz.next();
 
-        // 3b profiles: the 3D program is ticked for the cleanup, so there is nothing to create
+        // 3b profiles: every program is ticked for the cleanup, so there is nothing to create
         settle();
         check(wiz.currentId() == DriverCleanupWizard::ProfilesPage, QStringLiteral("the profile page follows the choice"));
         {
             auto *pt0 = page()->findChild<QTableWidget *>(QStringLiteral("profiles-table"));
             auto *pi0 = page()->findChild<QLabel *>(QStringLiteral("profiles-info"));
-            check(pt0 && pt0->rowCount() == 0 && pi0 && pi0->text().contains(QStringLiteral("no 3D or CAD program")),
-                  QStringLiteral("no 3D program left to the driver: no row, and it says so"));
+            check(pt0 && pt0->rowCount() == 0 && pi0 && pi0->text().contains(QStringLiteral("no program you did not tick")),
+                  QStringLiteral("every program ticked: no row, and it says so"));
         }
         wiz.next();
 

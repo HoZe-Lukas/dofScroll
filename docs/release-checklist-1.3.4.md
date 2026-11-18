@@ -35,8 +35,8 @@ Work top to bottom; tick a box only after you saw the result. Commands use the G
 - [x] `CMakeLists.txt`, `packaging/windows/dofscroll.manifest`, `readme.md`, `docs/wiki/Home.md`,
   `docs/wiki/Release-notes.md`, `site/index.html` and `site/de/index.html` (`softwareVersion`) say 1.3.4;
   `scripts/check-version.sh` is green.
-- [x] `docs/release-notes-1.3.4.md`. The website screenshots were **not** rendered again
-  (`scripts/make-site-screenshots.sh` needs a Qt build); do that before the tag if the Joystick modes page or the Overview changed.
+- [x] `docs/release-notes-1.3.4.md`. The website screenshots were rendered again with the 1.3.4 build and did not change (the
+  pages they show do not contain the changed fields).
 - [ ] **C1.** Move what you tested in B out of "Not verified" in the notes, the readme and the wiki, and leave what you did not.
 - [ ] **C2.** All checks of the tip of `main` are green (`gh run list --repo $REPO --branch main --limit 10`).
 
