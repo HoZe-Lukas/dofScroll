@@ -277,7 +277,7 @@ int main() {
         }
     }
 
-    // ---- empty profiles for the 3D and CAD programs left to the driver
+    // ---- empty profiles for the programs left to the driver
     {
         auto app = [](const char *appName, const char *appExe, bool isNavigation, bool isTicked) {
             DriverApp x;
@@ -291,10 +291,14 @@ int main() {
                                        app("Blender", "blender.exe", true, false), app("Ticked CAD", "cad.exe", true, true),
                                        app("No exe", "", true, false), app("Fusion again", "FUSION360.EXE", true, false)};
         std::vector<DriverProfileRow> rows = driverProfileRows(list, {"BLENDER.exe"});
-        assert(rows.size() == 2);  // only 3D/CAD, not ticked for the cleanup, with an exe, once
+        assert(rows.size() == 2);  // not ticked for the cleanup, with an exe, once
         assert(rows[0].exe == "fusion360.exe" && rows[0].selected && !rows[0].existing);
         assert(rows[1].exe == "blender.exe" && rows[1].existing && !rows[1].selected);  // exists: shown, never created
         assert(driverProfileSelectedCount(rows) == 1);
+        // a program that is not 3D or CAD (wheel or keys through the driver) that the user did not tick gets a row too
+        std::vector<DriverApp> mixed = {app("Chrome", "chrome.exe", false, false), app("Ticked", "ticked.exe", false, true)};
+        const std::vector<DriverProfileRow> mrows = driverProfileRows(mixed, {});
+        assert(mrows.size() == 1 && mrows[0].exe == "chrome.exe" && mrows[0].selected);
         rows[0].selected = false;  // the user unticks; a second call keeps it
         rows = driverProfileRows(list, {"BLENDER.exe"}, rows);
         assert(!rows[0].selected && driverProfileSelectedCount(rows) == 0);
