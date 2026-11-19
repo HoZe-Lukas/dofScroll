@@ -6,7 +6,7 @@
 # ghcr.io by .github/workflows/ci-image.yml; the jobs only pull it. Two targets:
 #   base  the dependencies of the daemon, plus the analysis and packaging tools
 #   qt    base plus Qt6 (the RPM job builds the Qt interface; the other jobs must not see Qt)
-FROM rockylinux:9@sha256:d7be1c094cc5845ee815d4632fe377514ee6ebcf8efaed6892889657e5ddaaa6 AS base
+FROM rockylinux:9@sha256:03303863808e9cd79f0c58c833db3e5f9cde9f2abe16804a267b05dc54af86e4 AS base
 # Links the package to the repository (visibility, permissions).
 LABEL org.opencontainers.image.source="https://github.com/HoZe-Lukas/dofScroll"
 LABEL org.opencontainers.image.description="Build image for the dofscroll CI (Rocky Linux 9)"
