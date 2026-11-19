@@ -25,6 +25,9 @@
 #include <bitset>
 #include <cmath>
 #include <cstdint>
+#include <memory>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "common.hpp"
@@ -145,20 +148,45 @@ private:
 
     // The macro engine (macro.hpp). One macro runs at a time; a trigger while one runs is ignored. The keys a macro holds
     // (macro_held_) are part of what the output is synced to until the macro ends or is aborted.
+    // The steps are shared with the parsed binding (an aliasing pointer into the MacroSide): a trigger copies nothing.
+    // A repeat block is run in place (loop_begin / loop_left), never expanded.
+    using SharedSteps = std::shared_ptr<const MacroSteps>;
     struct MacroRun {
-        MacroSteps steps;     // the queue (at most kMaxMacroSteps)
-        size_t next = 0;      // the next step to run
-        int64_t wait_us = 0;  // what is left of the current pause
+        SharedSteps steps;
+        size_t next = 0;        // the next step to run
+        int64_t wait_us = 0;    // what is left of the current pause
+        int64_t elapsed_us = 0; // the time of this run so far (bounded by kMaxMacroRunSeconds)
+        size_t loop_begin = 0;  // the first step of the open repeat block
+        int loop_left = 0;      // passes left after the current one; -1 = until the trigger is released
+        bool in_loop = false;
+        bool while_held = false;  // the press part of a while_held side
+        int owner = -1;           // what ends it when released (a button 1..32, a motion 100 + index), -1 none
         bool active = false;
     } macro_;
-    MacroSteps macro_pending_;                // a trigger of this tick, started by runMacro()
+    SharedSteps macro_pending_;               // a trigger of this tick, started by runMacro()
+    bool macro_pending_while_held_ = false;
+    int macro_pending_owner_ = -1;
+    uint8_t macro_mouse_ = 0;                 // mouse buttons pressed by a MouseDown step and not yet released (bit n = button n)
     std::bitset<kKeyCount> macro_held_;       // keys pressed by a Down step and not yet released
     int64_t macro_budget_us_ = 0;             // the time this tick adds to a running macro
     uint32_t macro_armed_ = 0;                // buttons (bit n-1) whose press ran or tried a macro: their release may run one
     int macro_side_[KM_COUNT] = {0, 0, 0, 0, 0, 0};  // motions with a macro armed: +1 / -1 the side that fired, 0 none
-    void requestMacro(const MacroSteps &steps);
-    void runMacro(std::bitset<kKeyCount> &keys);  // advances or starts the macro; keys = what everything else wants
+    void requestMacro(const SharedSteps &steps, bool whileHeld, int owner);
+    void runMacro(std::bitset<kKeyCount> &keys, uint8_t &mouse);  // advances or starts the macro; keys / mouse = what everything else wants
+    void stopMacro();                      // ends the running macro at once and releases what it holds (not the armed state)
+    void stopWhileHeld(int owner);         // the trigger of `owner` was released: a while_held press part of it ends
     void abortMacro();
+    // Parsed button actions by their text, so a press does not parse again. Bounded; cleared when it grows.
+    struct ParsedButton {
+        bool ok = false;
+        ButtonActionType type = ButtonActionType::Unbound;
+        Key key = Key::Space;
+        std::string mode;
+        ChordMods mods;
+        std::shared_ptr<const MacroSide> macro;
+    };
+    const ParsedButton &parsedAction(const std::string &text) const;
+    mutable std::unordered_map<std::string, ParsedButton> action_cache_;
 
     // Desired state derived from the bindings.
     struct Wanted {

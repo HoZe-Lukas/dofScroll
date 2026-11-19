@@ -63,7 +63,7 @@ static void testConstants() {
     CHECK(kMaxConfigBytes == 1024u * 1024u, "dofscroll.conf: 1 MiB");
     CHECK(kMaxProfileFileBytes == 1024u * 1024u, "a profile file: 1 MiB (was 64 KiB)");
     CHECK(kMaxProfileFileBytes == kMaxConfigBytes, "the loader and config.cpp agree on the file size");
-    CHECK(kMaxActionTextBytes == 32u * 1024u, "action text: 32 KiB");
+    CHECK(kMaxActionTextBytes == 256u * 1024u, "action text: 256 KiB");
     CHECK(kMaxKeysPerSection == 10000u, "keys per section: 10000 (was 512)");
     CHECK(kMaxOwnFunctionsPerSection == 1000u, "own functions per section: 1000 (was 32)");
     CHECK(kMaxMacroSteps == 256u, "macro steps: 256");

@@ -12,7 +12,7 @@
 namespace spn::confdir {
 
 constexpr size_t kMaxFiles = 64;
-constexpr size_t kMaxFileBytes = 64 * 1024;
+constexpr size_t kMaxFileBytes = 512 * 1024;  // holds a line of kMaxLineBytes (config.hpp) and the rest of a mode file
 constexpr size_t kMaxDirEntries = 4096;  // readdir cap (names inspected), against huge directories
 
 struct Entry {

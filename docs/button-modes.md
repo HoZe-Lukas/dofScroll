@@ -32,7 +32,7 @@ Every other key (`NAME`, `DESCRIPTION`, `ACTION` and `CYCLE` are the only ones) 
     DESCRIPTION = Press once to switch navigation on, again to switch it off
     ACTION = toggle:nav
 
-Limits and safety are those of joystick mode files: at most 64 files of at most 64 KiB, regular files owned
+Limits and safety are those of joystick mode files: at most 64 files of at most 512 KiB, regular files owned
 by the current user, opened without following links; invalid lines and files are skipped with a
 warning in the log (`Button modes: ...`). The folder is checked about once a second and reloaded
 when its contents change.

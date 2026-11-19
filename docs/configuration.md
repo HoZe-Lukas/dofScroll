@@ -38,10 +38,10 @@ without keeping comments, and only the files whose profile you changed. It write
 (temporary file, then rename), keeps the file mode and follows a symlink of `dofscroll.conf`.
 
 Limits: file up to 1 MiB (the main file and every profile file of `devices/` and `apps/` alike), line up to
-33 KiB, the text of one action (the value of a `*_ACTION` or `BUTTON_<n>` key) up to 32 KiB, up to 256 sections in
+257 KiB, the text of one action (the value of a `*_ACTION` or `BUTTON_<n>` key) up to 256 KiB, up to 256 sections in
 `dofscroll.conf`, 10000 keys per section, 12 mix terms, 64 curve points. Duplicate keys in one section: the last wins.
 Invalid values are rejected with a message in the log (file, line and key are named). Planned for own functions in a
-section: at most 1000 (`kMaxOwnFunctionsPerSection`, no key uses it yet). A macro has at most 256 steps. The profile
+section: at most 1000 (`kMaxOwnFunctionsPerSection`, no key uses it yet). A macro part has at most 256 steps after its repeat blocks are expanded and runs at most 10 minutes. The profile
 folders have limits too (number of files, total number of profiles, and 16 MiB of profile file bytes together for `devices/` and `apps/` per load: `devices/` is read first, in file name order, and a file that no longer fits is skipped; the log and the settings window name it and the budget); a folder over the limit is read up to the limit and
 the log says so. A line whose key or value holds a
 control character (a carriage return inside a value, for example) is ignored with a warning, so a file that loads can always
@@ -180,8 +180,7 @@ uses the push keys. At most 4 presses per tick and function and 8 per tick in to
 that is not safe to repeat (a letter, digit, Enter, Delete, Esc, Alt or Super chord, play/pause) is refused ("this key can
 only be used digitally, use `step:`"), `step:` takes any key. Per side `step:` also takes `click`, `rightclick` and `middleclick`
 (one mouse click per push), and `hold:<neg>,<pos>` holds a key, a chord or a mouse button while the motion is deflected
-(`hold:click,none` drags while you push) and lets go at half of the trigger. `macro:<neg>,<pos>` runs a list of key down,
-key up and pause steps once per push (digital only), on a motion and on a device button (`BUTTON_<n> = macro:<steps>`).
+(`hold:click,none` drags while you push) and lets go at half of the trigger. `macro:<neg>,<pos>` runs a list of key, mouse, pause and repeat steps once per push (digital only), on a motion and on a device button (`BUTTON_<n> = macro:<steps>`).
 Details and the tier rule:
 [modes.md](modes.md#the-key-engine-analog-and-digital), [mouse clicks and holds](modes.md#mouse-clicks-and-holds),
 [macros](modes.md#macros).
