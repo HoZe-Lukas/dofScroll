@@ -24,7 +24,7 @@ static int failures = 0;
     std::fprintf(stderr, __VA_ARGS__); std::fprintf(stderr, "\n"); } } while (0)
 
 // Logs key events ("+a", "-a", "tap:a") and mouse events ("m+1", "m-1", 1 left, 2 middle, 3 right).
-struct Rec : Output {
+struct MacroRec : Output {
     std::vector<std::string> log;
     std::set<int> keys, mouse;
     const char *name() const override { return "rec"; }
@@ -54,14 +54,14 @@ struct Rec : Output {
     }
 };
 
-struct Rig {
-    Rec out;
+struct MacroRig {
+    MacroRec out;
     ModeRunner runner;
     Settings s;
     uint32_t buttons = 0;
     RawAxes raw{};
     static constexpr double kDt = 1.0 / 250.0;
-    Rig() : runner(&out) {
+    MacroRig() : runner(&out) {
         ModeDef m;
         m.id = "normal";
         runner.setMode(m);
@@ -179,7 +179,7 @@ static void testRisk() {
 
 // -------------------------------------------------------------------------------------------------------------- runner
 static void testTapAndMouse() {
-    Rig g;
+    MacroRig g;
     g.apply("BUTTON_1", "macro:tap:ctrl+c click rightclick middleclick");
     g.press(1);
     g.step();
@@ -188,7 +188,7 @@ static void testTapAndMouse() {
 }
 
 static void testMouseHold() {
-    Rig g;
+    MacroRig g;
     g.apply("BUTTON_1", "macro:+click wait:2000 -click");
     g.press(1);
     g.step(10);
@@ -197,7 +197,7 @@ static void testMouseHold() {
     g.step(600);  // 2.4 s: the pause is over
     CHECK(g.out.mouse.empty() && g.out.count("m+1") == 1 && g.out.count("m-1") == 1, "released by the step: %s", g.out.text().c_str());
     // press-only mouse step is released when the macro ends
-    Rig h;
+    MacroRig h;
     h.apply("BUTTON_1", "macro:+rightclick wait:100");
     h.press(1);
     h.step(10);
@@ -205,7 +205,7 @@ static void testMouseHold() {
     h.step(40);
     CHECK(h.out.mouse.empty() && !h.runner.macroRunning(), "released at the end: %s", h.out.text().c_str());
     // an abort releases it
-    Rig a;
+    MacroRig a;
     a.apply("BUTTON_1", "macro:+click +middleclick wait:5000 -click");
     a.press(1);
     a.step(10);
@@ -213,7 +213,7 @@ static void testMouseHold() {
     a.runner.clearToggles();
     a.step(1);
     CHECK(a.out.mouse.empty() && !a.runner.macroRunning(), "clearToggles released the mouse buttons: %s", a.out.text().c_str());
-    Rig r;
+    MacroRig r;
     r.apply("BUTTON_1", "macro:+click wait:5000 -click");
     r.press(1);
     r.step(10);
@@ -222,14 +222,14 @@ static void testMouseHold() {
 }
 
 static void testRepeatRuns() {
-    Rig g;
+    MacroRig g;
     g.apply("BUTTON_1", "macro:tap:x repeat:3 tap:a end tap:y");
     g.press(1);
     g.step(20);
     CHECK(g.out.text() == "tap:x tap:a tap:a tap:a tap:y", "parts that repeat and parts that do not: %s", g.out.text().c_str());
     CHECK(!g.runner.macroRunning(), "done");
     // a pass takes at least one tick, even without a pause
-    Rig h;
+    MacroRig h;
     h.apply("BUTTON_1", "macro:repeat:10 tap:a end");
     h.press(1);
     h.step(1);
@@ -239,13 +239,13 @@ static void testRepeatRuns() {
     h.step(10);
     CHECK(h.out.count("tap:a") == 10 && !h.runner.macroRunning(), "ten in all: %d", h.out.count("tap:a"));
     // with pauses
-    Rig p;
+    MacroRig p;
     p.apply("BUTTON_1", "macro:repeat:4 +a wait:20 -a wait:20 end");
     p.press(1);
     p.step(400);
     CHECK(p.out.count("+a") == 4 && p.out.count("-a") == 4 && p.out.keys.empty(), "4 passes with pauses: %s", p.out.text().c_str());
     // 1000 passes through the longest allowed text
-    Rig m;
+    MacroRig m;
     m.apply("BUTTON_1", "macro:repeat:256 tap:a end");
     m.press(1);
     m.step(300);
@@ -253,7 +253,7 @@ static void testRepeatRuns() {
 }
 
 static void testRepeatAbort() {
-    Rig g;
+    MacroRig g;
     g.apply("BUTTON_1", "macro:repeat:60 +a wait:50 -a wait:50 end");
     g.press(1);
     g.step(30);
@@ -266,7 +266,7 @@ static void testRepeatAbort() {
 }
 
 static void testWhileHeldButton() {
-    Rig g;
+    MacroRig g;
     g.apply("BUTTON_1", "macro:while_held +a wait:5000 -a | tap:z");
     g.press(1);
     g.step(20);
@@ -279,7 +279,7 @@ static void testWhileHeldButton() {
     g.step(2000);
     CHECK(g.out.keys.empty() && !g.runner.macroRunning() && g.out.count("+a") == 1 && g.out.count("tap:z") == 1, "no more events: %s", g.out.text().c_str());
     // the same without the prefix: the release does not stop it (today's behavior), and the release part is dropped
-    Rig h;
+    MacroRig h;
     h.apply("BUTTON_1", "macro:+a wait:1000 -a | tap:z");
     h.press(1);
     h.step(20);
@@ -289,7 +289,7 @@ static void testWhileHeldButton() {
     h.step(400);
     CHECK(h.out.keys.empty() && h.out.count("tap:z") == 0, "default: ran to its end, release part dropped: %s", h.out.text().c_str());
     // a press part that ended by itself: nothing to stop, the release part runs as usual
-    Rig e;
+    MacroRig e;
     e.apply("BUTTON_1", "macro:while_held tap:a | tap:z");
     e.press(1);
     e.step(10);
@@ -297,7 +297,7 @@ static void testWhileHeldButton() {
     e.step(10);
     CHECK(e.out.text() == "tap:a tap:z", "short macro: %s", e.out.text().c_str());
     // held modifiers and the mouse go too
-    Rig m;
+    MacroRig m;
     m.apply("BUTTON_1", "macro:while_held +ctrl+shift +click wait:5000");
     m.press(1);
     m.step(10);
@@ -308,7 +308,7 @@ static void testWhileHeldButton() {
 }
 
 static void testWhileHeldRepeat() {
-    Rig g;
+    MacroRig g;
     g.apply("BUTTON_1", "macro:while_held repeat tap:a end | tap:z");
     g.press(1);
     g.step(100);
@@ -321,7 +321,7 @@ static void testWhileHeldRepeat() {
     g.step(100);
     CHECK(g.out.count("tap:a") == m, "no more taps after the release");
     // a pause inside the block
-    Rig h;
+    MacroRig h;
     h.apply("BUTTON_1", "macro:while_held repeat +b wait:40 -b wait:40 end");
     h.press(1);
     h.step(5);  // inside the first pause (20 ms of 40)
@@ -330,7 +330,7 @@ static void testWhileHeldRepeat() {
     h.step(1);
     CHECK(h.out.keys.empty() && !h.runner.macroRunning(), "abort in a pause: b is up: %s", h.out.text().c_str());
     // between a down and its up: the key is up, not stuck
-    Rig u;
+    MacroRig u;
     u.apply("BUTTON_1", "macro:while_held repeat +c +d -d -c wait:10 end");
     u.press(1);
     u.step(7);
@@ -340,7 +340,7 @@ static void testWhileHeldRepeat() {
 }
 
 static void testTimeBound() {
-    Rig g;
+    MacroRig g;
     g.apply("BUTTON_1", "macro:while_held repeat +a wait:1000 -a wait:1000 end");
     g.press(1);
     g.step(250 * 590);  // 590 s
@@ -353,7 +353,7 @@ static void testTimeBound() {
     g.release(1);
     g.step(10);
     // a normal long macro (60 s pauses) is cut as well
-    Rig h;
+    MacroRig h;
     std::string longMacro = "macro:+a";
     for (int i = 0; i < 12; ++i) longMacro += " wait:60000";
     h.apply("BUTTON_1", longMacro);
@@ -363,7 +363,7 @@ static void testTimeBound() {
 }
 
 static void testWhileHeldMotion() {
-    Rig g;
+    MacroRig g;
     g.apply("H_PUSH_ACTION", "macro:while_held +a wait:5000 -a | tap:c,while_held +b wait:5000 -b | tap:d");
     g.raw[AX_X] = 300;
     g.step(60);
@@ -377,7 +377,7 @@ static void testWhileHeldMotion() {
     g.step(2000);
     CHECK(g.out.log.size() == n, "nothing more");
     // without the prefix the macro runs on
-    Rig h;
+    MacroRig h;
     h.apply("H_PUSH_ACTION", "macro:+a wait:1000 -a,+b wait:1000 -b");
     h.raw[AX_X] = 300;
     h.step(60);
@@ -388,7 +388,7 @@ static void testWhileHeldMotion() {
 
 static void testWhileHeldOwnership() {
     // button 2 releases while a macro of button 1 runs: it is not stopped
-    Rig g;
+    MacroRig g;
     g.apply("BUTTON_1", "macro:while_held +a wait:5000 -a");
     g.apply("BUTTON_2", "macro:while_held +b wait:5000 -b");
     g.press(1);
@@ -422,7 +422,7 @@ static void testLimitsAndText() {
 // Many triggers of a long macro through one runner: no copy per trigger and no parse per edge. The bound is generous (a regression
 // to a vector copy and a parse per press is a factor of many); the time is printed for a human.
 static void testBenchmark() {
-    Rig g;
+    MacroRig g;
     std::string t = "macro:";
     for (int i = 0; i < 128; ++i) t += "+a -a ";
     g.apply("BUTTON_1", t);
