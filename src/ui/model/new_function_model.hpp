@@ -119,9 +119,10 @@ struct FunctionDraft {
     bool analog = false;                       // Key on a motion: keys: instead of step:
     std::string wheel = "wheel_v";             // Wheel: wheel_v, wheel_h or zoom
     std::string pointer = "pointer_x";         // Pointer: pointer_x or pointer_y
-    MacroList macroNeg, macroPos;             // Macro (a button uses macroNeg only)
-    // Set by draftFromText for a stored macro that has a part the dialog cannot show (the release part after '|', or steps its
-    // parser refuses): the draft would be a lossy copy, so checkFunction refuses it and nothing is written over the file's text.
+    MacroList macroNeg, macroPos;             // Macro: the press part per direction (a button uses macroNeg only)
+    MacroList macroNegRelease, macroPosRelease;  // Macro: the release part per direction, after " | " in the stored text
+    // Set by draftFromText for a stored macro that the core's parser refuses (a text from a newer version or a hand edit): the
+    // draft would be a lossy copy, so checkFunction refuses it and nothing is written over the file's text.
     bool macroNotEditable = false;
     std::string rateMin, rateMax, trigger;     // the tuning keys of the motion, "" = not set
 };
@@ -160,6 +161,8 @@ inline void changeKind(FunctionDraft *d, const FunctionTarget &t, FunctionKind k
     d->trigger = before.trigger;
     d->macroNeg = before.macroNeg;
     d->macroPos = before.macroPos;
+    d->macroNegRelease = before.macroNegRelease;
+    d->macroPosRelease = before.macroPosRelease;
     d->wheel = before.wheel;
     d->pointer = before.pointer;
     const bool sides = before.kind == FunctionKind::Key || before.kind == FunctionKind::Click || before.kind == FunctionKind::HoldKey;
@@ -173,10 +176,16 @@ inline void changeKind(FunctionDraft *d, const FunctionTarget &t, FunctionKind k
     }
 }
 
+// The text after "macro:": "<press> | <release>" per side (macroSideText of the core, so "none" for an empty press part and no
+// " | " without a release part), the two sides of a motion joined by a comma.
 inline std::string macroSidesText(const FunctionTarget &t, const FunctionDraft &d) {
-    if (!t.isMotion()) return d.macroNeg.text();
-    const std::string n = d.macroNeg.empty() ? "none" : d.macroNeg.text(), p = d.macroPos.empty() ? "none" : d.macroPos.text();
-    return n + "," + p;
+    MacroSide neg, pos;
+    neg.press = d.macroNeg.steps();
+    neg.release = d.macroNegRelease.steps();
+    if (!t.isMotion()) return macroSideText(neg);
+    pos.press = d.macroPos.steps();
+    pos.release = d.macroPosRelease.steps();
+    return macroSideText(neg) + "," + macroSideText(pos);
 }
 
 // The action text of the draft. false + *err (English source text) when the draft is incomplete.
@@ -224,7 +233,8 @@ inline bool composeFunction(const FunctionTarget &t, const FunctionDraft &d, std
             *text = d.pointer;
             return true;
         case FunctionKind::Macro:
-            if (d.macroNeg.empty() && (!motion || d.macroPos.empty())) return fail("record or add at least one step");
+            if (d.macroNeg.empty() && d.macroNegRelease.empty() && (!motion || (d.macroPos.empty() && d.macroPosRelease.empty())))
+                return fail("record or add at least one step");
             *text = "macro:" + macroSidesText(t, d);
             return true;
     }
@@ -274,7 +284,7 @@ inline std::vector<FunctionProblem> checkFunction(const FunctionTarget &t, const
     std::vector<FunctionProblem> out;
     std::string text, err;
     if (d.kind == FunctionKind::Macro && d.macroNotEditable)
-        out.push_back({"action", "this macro has a release part (steps after '|') that this window cannot show; edit the configuration file, or choose another kind to replace it"});
+        out.push_back({"action", "this macro is not valid for this version of dofscroll, so this window cannot show it; edit the configuration file, or choose another kind to replace it"});
     else if (!composeFunction(t, d, &text, &err)) out.push_back({"action", err});
     else if (!new_function_detail::parses(t, text, &err)) out.push_back({"action", err});
     if (!t.isMotion()) return out;
@@ -356,7 +366,7 @@ inline std::string functionSummary(const FunctionTarget &t, const FunctionDraft 
         case FunctionKind::HoldKey: return s.tr("The key or button is held while you push past the trigger level.");
         case FunctionKind::Wheel: return s.tr("Follows how far you push.");
         case FunctionKind::Pointer: return s.tr("Moves the pointer by how far you push.");
-        case FunctionKind::Macro: return s.tr("The steps run once for each trigger; further triggers during a run are ignored.");
+        case FunctionKind::Macro: return s.tr("The steps run once for each trigger; further triggers during a run are ignored. A release part runs when you let go, if the press part is done by then.");
     }
     return std::string();
 }
@@ -399,13 +409,22 @@ inline FunctionDraft draftFromText(const FunctionTarget &t, const std::string &t
         d.kind = FunctionKind::Macro;
         const std::string body = text.substr(6);
         if (fresh) *fresh = false;
+        auto load = [&](const std::string &side, MacroList *press, MacroList *release) {
+            if (side == "none") return;
+            MacroSide ms;
+            if (!parseMacroSide(side, &ms, nullptr)) {
+                d.macroNotEditable = true;
+                return;
+            }
+            for (const MacroStep &st : ms.press) press->add(st);
+            for (const MacroStep &st : ms.release) release->add(st);
+        };
         if (t.isMotion()) {
             const size_t comma = body.find(',');
-            const std::string n = body.substr(0, comma), p = comma == std::string::npos ? std::string("none") : body.substr(comma + 1);
-            if (n != "none" && !d.macroNeg.parse(n, nullptr)) d.macroNotEditable = true;
-            if (p != "none" && !d.macroPos.parse(p, nullptr)) d.macroNotEditable = true;
-        } else if (!d.macroNeg.parse(body, nullptr)) {
-            d.macroNotEditable = true;
+            load(body.substr(0, comma), &d.macroNeg, &d.macroNegRelease);
+            load(comma == std::string::npos ? std::string("none") : body.substr(comma + 1), &d.macroPos, &d.macroPosRelease);
+        } else {
+            load(body, &d.macroNeg, &d.macroNegRelease);
         }
         return d;
     }

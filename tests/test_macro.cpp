@@ -55,7 +55,7 @@ static void testMacroSteps() {
     CHECK(!parseMacroStep("wait:100000", &s, &err), "six digits");
     CHECK(!parseMacroStep("wait:+3", &s, &err), "a sign");
     CHECK(!parseMacroStep("a", &s, &err) && err.find("+<key>") != std::string::npos, "a bare key is not a step (no tap step): %s", err.c_str());
-    CHECK(!parseMacroStep("tap:a", &s, &err), "there is no tap step");
+    CHECK(parseMacroStep("tap:a", &s, &err) && s.kind == MacroStep::Kind::Tap, "tap is a step");
     CHECK(!parseMacroStep("+", &s, &err), "a plus alone");
     CHECK(!parseMacroStep("+nonsense", &s, &err) && err.find("unknown key") != std::string::npos, "unknown key: %s", err.c_str());
     CHECK(!parseMacroStep("+ctrl+ctrl+a", &s, &err) && err.find("twice") != std::string::npos, "a modifier twice: %s", err.c_str());

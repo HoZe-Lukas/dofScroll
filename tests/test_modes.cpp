@@ -18,6 +18,7 @@
 #include <string>
 
 #include "config.hpp"
+#include "conf_dir.hpp"
 #include "modes.hpp"
 #include "builtin_counts.hpp"
 #include "testutil.hpp"
@@ -400,11 +401,11 @@ static void testLimits() {
     assert(ms.find("m000") && ms.find("m063") && !ms.find("m064"));
     assert(hasWarning(w, "too many mode files"));
 
-    // 64 KiB limit: exactly at the limit ok, one more byte rejected
+    // file size limit (kMaxFileBytes, 512 KiB): exactly at the limit ok, one more byte rejected
     clearDir();
     std::string ok = "NAME = x\n";
-    ok += std::string(64 * 1024 - ok.size(), '#');
-    assert(ok.size() == 64 * 1024);
+    ok += std::string(confdir::kMaxFileBytes - ok.size(), '#');
+    assert(ok.size() == confdir::kMaxFileBytes);
     writeFile("fits.conf", ok);
     writeFile("big.conf", ok + "#");
     w.clear();

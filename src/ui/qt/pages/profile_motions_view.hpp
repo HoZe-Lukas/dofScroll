@@ -51,6 +51,7 @@ public:
     // not blocking; every valid edit is assigned at once and the view redraws.
     void newFunction(const QString &motionId);
     void newFunctionForButton(int n);
+    void newMacro(const QString &motionId);        // "Macro..." of the list of a motion
     OwnFunctionsWidget *ownFunctions() const { return ownFunctions_; }
     std::function<void()> inspectorBuilt;  // the inspector was rebuilt: its width need may have changed
     std::function<void()> changed;  // a value was written; the page queues a rebuild of the other tabs

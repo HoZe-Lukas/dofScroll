@@ -67,8 +67,22 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
     }
     if (selected < 0) kind->setCurrentIndex(-1);
     // the last entry opens the dialog that composes a function (a key, a combination, a click, a macro); not a choice itself
-    const int shownIndex = kind->currentIndex();
-    if (handlers.newFunction) kind->addItem(T("New function..."), spn::ui::kChoiceNewFunction);
+    int shownIndex = kind->currentIndex();
+    // "Macro..." opens the same window with the kind Macro; a button that holds a macro shows it as the current entry
+    int macroIndex = -1;
+    if (handlers.newMacro) {
+        kind->addItem(T("Macro..."), spn::ui::kChoiceMacro);
+        macroIndex = kind->count() - 1;
+        if (row.text.compare(0, 6, "macro:") == 0) {
+            shownIndex = macroIndex;
+            kind->setCurrentIndex(macroIndex);
+        }
+    }
+    int newFunctionIndex = -1;
+    if (handlers.newFunction) {
+        kind->addItem(T("New function..."), spn::ui::kChoiceNewFunction);
+        newFunctionIndex = kind->count() - 1;
+    }
     // The drop-down with the shared button chip under it ("1 Space", muted "N Unassigned"): the same chip as on
     // the other pages. Under the drop-down, so the row does not get wider and the chip wraps with the font size.
     // The page rebuilds after every change, so the chip always shows the effective action.
@@ -118,10 +132,15 @@ void addButtonRow(QObject *owner, QWidget *parent, QGridLayout *grid, int r, con
     // inspector a row of five columns needs more than 1200 px and a horizontal scroll bar (found by the layout audit).
     if (arg) cellLayout->addWidget(arg);
 
-    QObject::connect(kind, &QComboBox::activated, owner, [handlers, kind, choices, shownIndex](int idx) {
+    QObject::connect(kind, &QComboBox::activated, owner, [handlers, kind, choices, shownIndex, macroIndex, newFunctionIndex](int idx) {
         const QVariant data = kind->itemData(idx);
         if (!data.isValid()) return;  // a group header
-        if (data.toInt() == spn::ui::kChoiceNewFunction && idx == kind->count() - 1 && handlers.newFunction) {
+        if (idx == macroIndex && handlers.newMacro) {
+            kind->setCurrentIndex(shownIndex);
+            handlers.newMacro();
+            return;
+        }
+        if (idx == newFunctionIndex && handlers.newFunction) {
             kind->setCurrentIndex(shownIndex);
             handlers.newFunction();
             return;

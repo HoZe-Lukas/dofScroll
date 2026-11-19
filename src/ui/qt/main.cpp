@@ -1041,7 +1041,7 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
 
     // assign: tilt keys -> the channel splits; push the same -> back to the unsplit key
     sel(QStringLiteral("m:v_tilt"));
-    QToolButton *keys = radio(QStringLiteral("Other keys"));
+    QToolButton *keys = radio(QStringLiteral("Keys that repeat while pushed"));
     check(keys != nullptr, "the inspector offers the action cards");
     if (keys) keys->click();
     check(settleWrite() && fileText(rel).contains(QStringLiteral("V_TILT_ACTION = keys:up,down")) && fileText(rel).contains(QStringLiteral("V_PUSH_ACTION = wheel_v")),
@@ -1050,7 +1050,7 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
     check(fileText(rel).contains(QStringLiteral("# demo")), "comments stay");
     check(me()->selectedId() == QStringLiteral("m:v_tilt"), "the selection survives the rebuild");
     sel(QStringLiteral("m:v_push"));
-    keys = radio(QStringLiteral("Other keys"));
+    keys = radio(QStringLiteral("Keys that repeat while pushed"));
     if (keys) keys->click();
     check(settleWrite() && fileText(rel).contains(QStringLiteral("V_ACTION = keys:up,down")) && !fileText(rel).contains(QStringLiteral("V_TILT_ACTION")) &&
               !fileText(rel).contains(QStringLiteral("V_PUSH_ACTION")),
@@ -1063,6 +1063,85 @@ static bool motionEditorSelfTest(const UiContext &ctx, const QString &tmpPath) {
         for (QComboBox *cb : ed->findChildren<QComboBox *>())
             if (cb->accessibleName() == QStringLiteral("Vertical push and tilt") && cb->isVisibleTo(ed)) vk = cb;
         check(vk && vk->currentData().toInt() == int(spn::ChannelActionType::Keys), "the Settings tab shows the same action");
+        ed->selectTab(QStringLiteral("motions"));
+        settle();
+    }
+    // the tile "Macro...": the same window with the kind Macro, without kind list, analog box and trigger field; what is built there goes
+    // into the mode file through the autosave (stage 1 of docs/plan-macro-engine.md)
+    sel(QStringLiteral("m:h_tilt"));
+    {
+        QToolButton *macroTile = radio(QStringLiteral("Macro..."));
+        check(macroTile != nullptr, "the inspector offers the Macro... tile");
+        if (macroTile) {
+            macroTile->click();
+            settle();
+            auto *md = me()->findChild<NewFunctionDialog *>();
+            check(md && md->draft().kind == spn::ui::FunctionKind::Macro, "the tile opens the macro window");
+            if (md) {
+                auto *kindBox = md->findChild<QComboBox *>(QStringLiteral("newFunctionKind"));
+                auto *analog = md->findChild<QCheckBox *>(QStringLiteral("newFunctionAnalog"));
+                auto *trig = md->findChild<QLineEdit *>(QStringLiteral("newFunctionTrigger"));
+                check(kindBox && analog && trig && !kindBox->isVisibleTo(md) && !analog->isVisibleTo(md) && !trig->isVisibleTo(md), "in a joystick mode the window has only the macro: no kind list, analog box or trigger field");
+                auto *mm = md->findChild<MacroEditor *>(QStringLiteral("newFunctionMacroNeg"));
+                if (mm) {
+                    mm->findChild<QPushButton *>(QStringLiteral("macroAddDown"))->click();
+                    mm->findChild<QPushButton *>(QStringLiteral("macroAddUp"))->click();
+                    settle();
+                }
+                check(settleWrite() && fileText(rel).contains(QStringLiteral("H_TILT_ACTION = macro:+space -space,none")), "the macro is written into the joystick mode file");
+                md->findChild<QPushButton *>(QStringLiteral("newFunctionClose"))->click();
+                settle();
+            }
+            // the tile of a motion with a macro is lit, and the picture shows the first steps
+            sel(QStringLiteral("m:h_tilt"));
+            QToolButton *lit = radio(QStringLiteral("Macro..."));
+            check(lit && lit->isChecked(), "the Macro... tile is lit for a macro");
+            if (QToolButton *back = radio(QStringLiteral("As in the profile"))) back->click();
+            settleWrite();
+        }
+    }
+    // a button of the mode: "Macro..." in its list opens the same window and writes the binding into the mode file
+    sel(QStringLiteral("b:2"));
+    {
+        auto buttonList = [&]() {
+            QComboBox *bk = nullptr;
+            for (QComboBox *cb : me()->inspector()->findChildren<QComboBox *>())
+                if (cb->accessibleName().startsWith(QStringLiteral("Action of button"))) bk = cb;
+            return bk;
+        };
+        QComboBox *bk = buttonList();
+        const int at = bk ? bk->findData(spn::ui::kChoiceMacro) : -1;
+        check(at > 0, "the list of a button of a joystick mode has Macro...");
+        if (at > 0) {
+            Q_EMIT bk->activated(at);
+            settle();
+            auto *md = ed->findChild<NewFunctionDialog *>();
+            check(md && md->draft().kind == spn::ui::FunctionKind::Macro, "Macro... opens the macro window for the button of the mode");
+            if (md) {
+                if (auto *mm = md->findChild<MacroEditor *>(QStringLiteral("newFunctionMacroNeg"))) {
+                    mm->findChild<QPushButton *>(QStringLiteral("macroAddDown"))->click();
+                    settle();
+                }
+                check(settleWrite() && fileText(rel).contains(QStringLiteral("BUTTON_2 = macro:+space")), "the macro is the binding of the button in the mode file");
+                md->findChild<QPushButton *>(QStringLiteral("newFunctionClose"))->click();
+                settle();
+            }
+            sel(QStringLiteral("b:2"));
+            if (QComboBox *again = buttonList()) {  // unbind it again: the rest of the test starts from the same file
+                Q_EMIT again->activated(0);
+                settleWrite();
+            }
+        }
+    }
+    // the channel lists of the Settings tab offer Macro..., worded like the other surfaces
+    {
+        ed->selectTab(QStringLiteral("settings"));
+        settle();
+        QComboBox *vk = nullptr;
+        for (QComboBox *cb : ed->findChildren<QComboBox *>())
+            if (cb->accessibleName() == QStringLiteral("Vertical push and tilt") && cb->isVisibleTo(ed)) vk = cb;
+        check(vk && vk->findData(int(spn::ChannelActionType::Macro)) >= 0 && vk->findText(QStringLiteral("Keys that repeat while pushed")) >= 0 && vk->findText(QStringLiteral("One key tap per push")) >= 0,
+              "the Settings tab lists Macro... and the shared words for keys and taps");
         ed->selectTab(QStringLiteral("motions"));
         settle();
     }
@@ -4763,6 +4842,127 @@ static bool newFunctionSelfTest() {
     return ok;
 }
 
+// "Macro..." in the list of a motion and of a button opens the same window with the kind Macro; the release part is edited there,
+// the words under the Action field and the hint come with it (stage 1 of docs/plan-macro-engine.md).
+static bool macroEntrySelfTest() {
+    using spn::Section;
+    using spn::ui::FunctionKind;
+    bool ok = true;
+    auto check = [&ok](bool cond, const char *what) {
+        if (!cond) std::fprintf(stderr, "macro entry self-test failed: %s\n", what);
+        ok = ok && cond;
+    };
+    EditorRig rig("[global]\n\n[app:firefox]\nMODE = timeline\n");
+    MainWindow &w = *rig.win;
+    w.showPage(QStringLiteral("profiles"));
+    settle();
+    ProfilesPage *page = w.profilesPage();
+    if (!page) return false;
+    ProfileMotionsView *mv = page->motionsView();
+    check(page->selectSection(1) && page->selectTab(QStringLiteral("motions")) && mv != nullptr, "program profile, Motions and buttons tab");
+    if (!mv) return false;
+    auto stored = [&](const char *key) { return diskKey(rig, Section::APP, "firefox", key); };
+    // the motion: Macro... before New function...
+    check(mv->select(QStringLiteral("m:h_tilt")), "select the horizontal tilt");
+    settle();
+    QComboBox *kact = mv->inspector()->findChild<QComboBox *>(QStringLiteral("motionAction"));
+    const int macroAt = kact ? kact->findData(spn::ui::kChoiceMacro) : -1;
+    check(macroAt > 0 && kact->itemText(macroAt) == QStringLiteral("Macro...") && kact->itemData(kact->count() - 1).toInt() == spn::ui::kChoiceNewFunction,
+          "the list of a motion has Macro... and ends with New function...");
+    if (!kact || macroAt < 0) return false;
+    bool vocabulary = false;
+    for (int i = 0; i < kact->count(); ++i) vocabulary = vocabulary || kact->itemText(i) == QStringLiteral("Keys that repeat while pushed");
+    check(vocabulary, "the list says 'Keys that repeat while pushed' for keys:");
+    const int shown = kact->currentIndex();
+    Q_EMIT kact->activated(macroAt);
+    settle();
+    check(kact->currentIndex() == shown, "the list keeps showing what the motion does now");
+    auto *dlg = mv->findChild<NewFunctionDialog *>();
+    check(dlg != nullptr && dlg->draft().kind == FunctionKind::Macro, "Macro... opens the window with the kind Macro");
+    if (!dlg) return false;
+    auto *mneg = dlg->findChild<MacroEditor *>(QStringLiteral("newFunctionMacroNeg"));
+    QLabel *you = dlg->findChild<QLabel *>(QStringLiteral("newFunctionWhatYouGet"));
+    QLabel *hint = dlg->findChild<QLabel *>(QStringLiteral("newFunctionSimplerHint"));
+    QLabel *notes = dlg->findChild<QLabel *>(QStringLiteral("newFunctionMacroRunNotes"));
+    check(mneg && you && hint && notes, "the window has the editors, the 'what you get' line, the hint and the notes about the run");
+    if (!(mneg && you && hint && notes)) return false;
+    check(you->text().contains(QStringLiteral("no steps yet")) && hint->isHidden(), "without steps: the line says so, no hint");
+    check(notes->text().contains(QStringLiteral("further triggers are ignored")) && notes->text().contains(QStringLiteral("release part is dropped")),
+          "the notes say that further triggers are ignored and a release part may be dropped");
+    // one key press and release is a single key: the hint names the simpler kind
+    mneg->findChild<QPushButton *>(QStringLiteral("macroAddDown"))->click();
+    settle();
+    mneg->findChild<QPushButton *>(QStringLiteral("macroAddUp"))->click();
+    settle();
+    check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("macro:+space -space,none"), "a macro of the press part is stored");
+    check(!hint->isHidden() && hint->text().contains(QStringLiteral("does not need a macro")), "a single key: the hint names a simpler kind");
+    check(you->text().contains(QStringLiteral("press part 2 steps, release part none")), "the line names the stored form in words");
+    // the release part
+    auto *part = mneg->findChild<QComboBox *>(QStringLiteral("macroPart"));
+    check(part != nullptr, "the macro editor has a part drop-down");
+    if (part) {
+        part->setCurrentIndex(1);
+        Q_EMIT part->activated(1);
+        settle();
+        mneg->findChild<QPushButton *>(QStringLiteral("macroAddWait"))->click();
+        settle();
+        check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("macro:+space -space | wait:30,none"), "the release part is stored behind ' | '");
+        check(hint->isHidden() && you->text().contains(QStringLiteral("release part 1 step")), "with a release part the hint is gone and the line counts it");
+    }
+    {
+        const QString problem = dialogControlProblem(dlg);
+        if (!problem.isEmpty()) std::fprintf(stderr, "  %s\n", qPrintable(problem));
+        check(problem.isEmpty(), "the macro window names every control");
+    }
+    dlg->findChild<QPushButton *>(QStringLiteral("newFunctionClose"))->click();
+    settle();
+    // a stored macro with a release part is shown in full when the window opens again
+    mv->newFunction(QStringLiteral("h_tilt"));
+    settle();
+    dlg = mv->findChild<NewFunctionDialog *>();
+    check(dlg && dlg->draft().kind == FunctionKind::Macro && dlg->draft().macroNegRelease.text() == "wait:30" && !dlg->draft().macroNotEditable,
+          "the stored release part is editable in the window");
+    if (dlg) {
+        dlg->findChild<QPushButton *>(QStringLiteral("newFunctionClose"))->click();
+        settle();
+    }
+    // the chip of the motion shows the first steps
+    check(mv->select(QStringLiteral("m:h_tilt")), "select the tilt again");
+    settle();
+    {
+        QString chips;
+        for (const MotionPicture::Item &it : mv->picture()->items())
+            if (it.id == QLatin1String("m:h_tilt")) chips = it.text;
+        check(chips.contains(QStringLiteral("negative: Space | on release: 30 ms")), "the picture shows the macro with its first steps");
+    }
+    // the button: Macro... before New function..., a button with a macro shows it as current
+    check(mv->select(QStringLiteral("b:3")), "select button 3");
+    settle();
+    QComboBox *bkind = nullptr;
+    for (QComboBox *c : mv->inspector()->findChildren<QComboBox *>())
+        if (c->accessibleName().startsWith(QStringLiteral("Action of button"))) bkind = c;
+    check(bkind && bkind->count() > 2 && bkind->itemData(bkind->count() - 2).toInt() == spn::ui::kChoiceMacro && bkind->itemData(bkind->count() - 1).toInt() == spn::ui::kChoiceNewFunction,
+          "the list of a button ends with Macro... and New function...");
+    if (bkind) {
+        Q_EMIT bkind->activated(bkind->count() - 2);
+        settle();
+        auto *bd = page->findChild<NewFunctionDialog *>();
+        check(bd != nullptr && bd->draft().kind == FunctionKind::Macro, "Macro... opens the window with the kind Macro for the button");
+        if (bd) {
+            auto *m = bd->findChild<MacroEditor *>(QStringLiteral("newFunctionMacroNeg"));
+            check(m && !bd->findChild<MacroEditor *>(QStringLiteral("newFunctionMacroPos")), "a button has one macro");
+            if (m) {
+                m->findChild<QPushButton *>(QStringLiteral("macroAddDown"))->click();
+                settle();
+            }
+            check(rig.waitSaved() && stored("BUTTON_3") == std::optional<std::string>("macro:+space"), "the macro is the binding of the button");
+            bd->findChild<QPushButton *>(QStringLiteral("newFunctionClose"))->click();
+            settle();
+        }
+    }
+    return ok;
+}
+
 // The macro editor: recording only while the recording area has the focus, steps editable afterwards (docs/plan-motion-functions.md).
 static bool macroEditorSelfTest() {
     bool ok = true;
@@ -4910,6 +5110,66 @@ static bool macroEditorSelfTest() {
     ed->findChild<QPushButton *>(QStringLiteral("macroAddWait"))->click();
     settle();
     check(ed->steps().size() == 4 && changes >= 5, "adding a pause");
+    // the release part: a second list behind the part drop-down, named with its count; the press part stays as it is
+    {
+        spn::ui::MacroList press, release;
+        press.add(spn::ui::macroDown("a"));
+        release.add(spn::ui::macroUp("a"));
+        ed->setSteps(press, release);
+        settle();
+        auto *part = ed->findChild<QComboBox *>(QStringLiteral("macroPart"));
+        check(part && part->count() == 2 && part->itemText(0).contains(QStringLiteral("1 step")) && part->itemText(1).contains(QStringLiteral("1 step")), "the part drop-down names both parts with their step counts");
+        if (part) {
+            part->setCurrentIndex(1);
+            Q_EMIT part->activated(1);
+            settle();
+            check(ed->shownPart() == 1 && list->count() == 1 && list->item(0)->text() == QStringLiteral("Release a"), "the release part is shown in the list");
+            ed->findChild<QPushButton *>(QStringLiteral("macroAddWait"))->click();
+            settle();
+            check(ed->releaseSteps().text() == "-a wait:30" && ed->steps().text() == "+a", "a step added to the release part leaves the press part alone");
+            part->setCurrentIndex(0);
+            Q_EMIT part->activated(0);
+            settle();
+            check(ed->shownPart() == 0 && list->count() == 1 && part->itemText(1).contains(QStringLiteral("2 steps")), "back to the press part, the release part counts two steps");
+        }
+    }
+    // the recording goes in behind the chosen step, not only at the end
+    {
+        spn::ui::MacroList s;
+        s.add(spn::ui::macroDown("a"));
+        s.add(spn::ui::macroDown("b"));
+        ed->setSteps(s);
+        list->setCurrentRow(0);
+        settle();
+        times->setChecked(false);
+        rec->click();
+        settle();
+        sendKeyTo(pad, Qt::Key_X);
+        stop->click();
+        settle();
+        check(ed->steps().text() == "+a +x wait:30 -x +b", "the recording is inserted behind the chosen step");
+        check(list->currentRow() == 3, "and the last recorded step is chosen");
+    }
+    // a typed pause outside 1 to 60000 ms is explained, the step keeps its value
+    {
+        spn::ui::MacroList s;
+        s.add(spn::MacroStep::wait(40));
+        ed->setSteps(s);
+        list->setCurrentRow(0);
+        settle();
+        QSpinBox *w2 = ed->findChild<QSpinBox *>(QStringLiteral("macroWait"));
+        QLineEdit *le = w2 ? w2->findChild<QLineEdit *>() : nullptr;
+        QLabel *note = ed->findChild<QLabel *>(QStringLiteral("macroPauseNote"));
+        check(le && note && note->isHidden(), "no pause message while the pause is valid");
+        if (le && note) {
+            Q_EMIT le->textEdited(QStringLiteral("0"));
+            check(!note->isHidden() && note->text().contains(QStringLiteral("between 1 and 60000")) && ed->steps().text() == "wait:40", "a pause of 0 is explained and the step keeps 40 ms");
+            Q_EMIT le->textEdited(QStringLiteral("abc"));
+            check(!note->isHidden() && note->text().contains(QStringLiteral("whole number")), "a pause that is not a number is explained");
+            Q_EMIT le->textEdited(QStringLiteral("45"));
+            check(note->isHidden(), "a valid pause clears the message");
+        }
+    }
     // 256 steps at most
     {
         spn::ui::MacroList s;
@@ -6565,6 +6825,7 @@ int main(int argc, char **argv) {
         if (!accessibilityPurposeSelfTest()) return 1;
         if (!newFunctionSelfTest()) return 1;
         if (!macroEditorSelfTest()) return 1;
+        if (!macroEntrySelfTest()) return 1;
         if (!autosaveAuditSelfTest([](MainWindow &win) { return accessibilitySelfTest(win); })) return 1;
         if (!legacyButtonsSelfTest()) return 1;
         if (!profileFilesSelfTest()) return 1;

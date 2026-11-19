@@ -79,6 +79,8 @@ Pressed collect(Display *obs, Display *fresh, size_t expected) {
 }  // namespace
 
 int main() {
+    // This test runs setxkbmap and would change the layout of a real session: only on a private server (CMake sets this).
+    if (!std::getenv("DOFSCROLL_PRIVATE_X")) return skip("not on a private X server (it would change the keyboard layout)");
     Display *obs = XOpenDisplay(nullptr);
     if (!obs) return skip("no X display");
     int ev = 0, er = 0, maj = 0, min = 0;

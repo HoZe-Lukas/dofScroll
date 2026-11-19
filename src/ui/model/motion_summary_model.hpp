@@ -31,6 +31,7 @@
 #include "ui/model/axis_roles_model.hpp"
 #include "ui/model/fresh_state.hpp"
 #include "ui/model/key_tree_model.hpp"
+#include "ui/model/macro_words_model.hpp"
 #include "ui/model/strings.hpp"
 #include "utf8.hpp"
 
@@ -155,8 +156,13 @@ inline MotionRow rowFor(const char *id, const std::string &name, const std::stri
             r.symbol = "keys";
             break;
         case ChannelActionType::Macro:
-            r.action = s.tr("Runs a macro once per push");
             r.chip = s.tr("Macro");
+            if (a.macro && !macroActionWords(*a.macro, s).empty()) {  // the first steps, not just the word
+                r.action = format(s.tr("Macro, once per push: %1"), {macroActionWords(*a.macro, s)});
+                r.detail = format(s.tr("Macro: %1"), {macroActionWords(*a.macro, s, 2)});
+            } else {
+                r.action = s.tr("Runs a macro once per push");
+            }
             r.symbol = "step";
             break;
         case ChannelActionType::Hold:

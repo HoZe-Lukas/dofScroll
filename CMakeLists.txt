@@ -258,9 +258,10 @@ if(BUILD_TESTING)
       # a private virtual X server when xvfb-run exists; otherwise the test runs on $DISPLAY or skips itself
       find_program(XVFB_RUN_EXECUTABLE xvfb-run)
       if(XVFB_RUN_EXECUTABLE)
-        add_test(NAME ${name} COMMAND ${XVFB_RUN_EXECUTABLE} -a $<TARGET_FILE:${name}> WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+        add_test(NAME ${name} COMMAND ${CMAKE_COMMAND} -E env DOFSCROLL_PRIVATE_X=1 ${XVFB_RUN_EXECUTABLE} -a $<TARGET_FILE:${name}> WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
       else()
-        add_test(NAME ${name} COMMAND ${name} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+        # never on the live session: the test switches the keyboard layout (setxkbmap), so it skips without a private server
+        add_test(NAME ${name} COMMAND ${CMAKE_COMMAND} -E env --unset=DISPLAY $<TARGET_FILE:${name}> WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
       endif()
       set_tests_properties(${name} PROPERTIES SKIP_RETURN_CODE 77)
     else()

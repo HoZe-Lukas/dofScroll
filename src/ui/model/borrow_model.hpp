@@ -81,7 +81,9 @@ inline std::string actionWords(const ChannelAction &a, bool off, const StringPro
         case ChannelActionType::Keys: return format(s.tr("keys %1 / %2"), {chordDisplay(modelist::negChordText(a), s), chordDisplay(modelist::posChordText(a), s)});
         case ChannelActionType::Step: return format(s.tr("one key tap per push: %1 / %2"), {chordDisplay(modelist::negChordText(a), s), chordDisplay(modelist::posChordText(a), s)});
         case ChannelActionType::Hold: return format(s.tr("hold %1 / %2 while pushed"), {chordDisplay(modelist::negChordText(a), s), chordDisplay(modelist::posChordText(a), s)});
-        case ChannelActionType::Macro: return s.tr("run a macro");
+        case ChannelActionType::Macro:
+            if (a.macro && !macroActionWords(*a.macro, s).empty()) return format(s.tr("run a macro (%1)"), {macroActionWords(*a.macro, s)});
+            return s.tr("run a macro");
         case ChannelActionType::Off: break;
     }
     return std::string();

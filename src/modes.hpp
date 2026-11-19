@@ -27,7 +27,7 @@
 //   to repeat (keyAnalogAllowed: "this key can only be used digitally, use step:"); step:<neg>,<pos> is the digital one
 //   (one press per push, any key; a side may also be click, rightclick or middleclick: one mouse click per push) and
 //   hold:<neg>,<pos> (a key, chord or mouse button is held while the motion is deflected, released at half the trigger).
-//   macro:<neg>,<pos> = per side a macro (macro.hpp): key down, key up and pause steps that run once per push, with the
+//   macro:<neg>,<pos> = per side a macro (macro.hpp): key, mouse, pause and repeat steps that run once per push, with the
 //   digital trigger of step: (a side may be none; "<press> | <release>" adds a macro for the release of the trigger).
 //   Rate limits and trigger per motion: <P>KEY_RATE_MIN / <P>KEY_RATE_MAX / <P>TRIGGER
 //   (config.hpp KeyTuning, key_engine.hpp).

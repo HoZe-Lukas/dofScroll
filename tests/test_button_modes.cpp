@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "button_modes.hpp"
+#include "config.hpp"
 #include "builtin_counts.hpp"
 #include "testutil.hpp"
 
@@ -205,7 +206,7 @@ int main() {
     writeFile("has space.conf", "ACTION = click\n");
     writeFile("bom.conf", std::string("\xEF\xBB\xBF") + "ACTION = click\nNAME = a\x01" "b\n");
     writeFile("nulbyte.conf", std::string("ACTION = click\n") + std::string("X\0Y = 1\n", 8));
-    writeFile("long.conf", "ACTION = click\n" + std::string(5000, 'x') + " = 1\n");
+    writeFile("long.conf", "ACTION = click\n" + std::string(kMaxLineBytes + 10, 'x') + " = 1\n");
     writeFile("notconf.txt", "ACTION = click\n");
     w.clear();
     set = loadButtonModes(g_dir, &w);
@@ -215,7 +216,7 @@ int main() {
 
     // limits: file size and file count
     clearDir();
-    writeFile("a-big.conf", "ACTION = click\n" + std::string(70 * 1024, '#'));
+    writeFile("a-big.conf", "ACTION = click\n" + std::string(600 * 1024, '#'));
     for (int i = 0; i < 70; ++i) writeFile("b" + std::to_string(100 + i) + ".conf", "ACTION = click\n");
     w.clear();
     set = loadButtonModes(g_dir, &w);
