@@ -58,8 +58,8 @@ Format: `KEY = value`, no sections, `#` and `;` comments.
 them with a warning). Any other key from [configuration.md](configuration.md) is a settings override. The overrides are applied after the device profile and before the app
 profile.
 
-Limits: up to 64 joystick mode files, each up to 64 KiB, up to 128 overrides per file, regular files only. A line holds up
-to 33 KiB, so an action (up to 32 KiB, a macro of 256 steps fits easily) fits on one line.
+Limits: up to 64 joystick mode files, each up to 512 KiB, up to 128 overrides per file, regular files only. A line holds up
+to 257 KiB, so an action (up to 256 KiB, far more than a macro of 256 steps needs) fits on one line.
 Invalid lines or files are skipped with a warning in the log.
 
 ## Built-in joystick modes
@@ -382,20 +382,28 @@ How click and hold feel on a real device, and a drag with a hold on macOS, are n
 
 ### Macros
 
-A macro is a list of steps that runs once per trigger: key down, key up and pause. It is digital only, so it sits on a device
-button or on a motion direction, never on an analog key repeat. The steps are separated by spaces:
+A macro is a list of steps that runs once per trigger: key and mouse steps, pauses and repeat blocks. It is digital only, so it sits on
+a device button or on a motion direction, never on an analog key repeat. The steps are separated by spaces:
 
 | Step | Meaning |
 |---|---|
 | `+<chord>` | Key down. A chord presses its modifiers in the order written, then the key (`+ctrl+c`); the key stays down until a step lets go of it. |
 | `-<chord>` | Key up. Releases the key first, then the modifiers in the reverse order. |
+| `tap:<chord>` | Press and release in one step: the modifiers down in the order written, the key down and up, the modifiers up in reverse order (`tap:ctrl+c`). Same as `+ctrl+c -ctrl+c`. |
 | `wait:<ms>` | Pause of 1 to 60000 milliseconds. |
+| `click`, `rightclick`, `middleclick` | A mouse button down and up. |
+| `+click`, `+rightclick`, `+middleclick` | A mouse button down; it stays down until the matching `-click`, `-rightclick`, `-middleclick`. |
+| `repeat:<n>` ... `end` | The steps in between run `n` times (1 to 1000). Blocks do not nest. A macro can have parts that repeat and parts that do not. |
+| `repeat` ... `end` | Repeat until the trigger is released. Only valid together with `while_held` (see below). |
 
-There is no "tap" step: pressing and releasing a key is two steps (`+a -a`). Key names are the closed list of `keys.hpp`, as
-everywhere. Example (select all, copy, then type "ab" with shift held, 30 ms between the steps):
+Key names are the closed list of `keys.hpp`, as everywhere. The older form `+a -a` stays valid and does the same as `tap:a`.
+Example (select all, copy, then type "ab" with shift held, 30 ms between the steps):
 
     # [app:editor]
     BUTTON_5 = macro:+ctrl +a wait:30 -a +c wait:30 -c -ctrl +shift wait:30 +a -a +b -b
+    BUTTON_8 = macro:tap:ctrl+a wait:30 tap:ctrl+c               # the same select all and copy, shorter
+    BUTTON_9 = macro:click wait:50 click wait:50 click           # three left clicks
+    BUTTON_10 = macro:tap:down repeat:5 tap:tab wait:20 end tap:enter  # the five Tab presses repeat, the rest does not
 
 On a **device button** the text after `macro:` is the macro that runs when the button is pressed. On a **motion** it is
 `macro:<neg>,<pos>`: one macro per direction, run when the motion is pushed past the trigger on that side (the digital trigger of
@@ -411,10 +419,20 @@ fallen back to half of the trigger). The two parts are separated by `|`; `none` 
     BUTTON_7 = macro:none | +ctrl+a -ctrl+a wait:30 +ctrl+c -ctrl+c   # nothing on the press, select all and copy on the release
     V_PUSH_ACTION = macro:+a -a | +b -b,none      # a on the way in, b on the way back, only for the negative side
 
+**Only while held (`while_held`).** A word in front of the press part. Without it (the default) the press part always runs to its end,
+even if you let go of the button at once. With it, the press part stops as soon as the trigger is released (a button is let go; a
+motion has fallen back to half of the trigger): everything it holds, keys and mouse buttons, is released at once, and then the
+release part, if there is one, runs. `while_held` belongs to one side, so the two directions of a motion can differ, and it only
+affects the press part. A `repeat` without a count (repeat until released) needs `while_held`:
+
+    BUTTON_6 = macro:while_held repeat tap:pagedown wait:100 end    # page down about ten times a second while the button is held
+    BUTTON_7 = macro:while_held +click wait:60000 | tap:esc       # hold the left button while pressed; Esc when let go
+    V_TILT_ACTION = macro:while_held repeat tap:down wait:50 end,while_held repeat tap:up wait:50 end
+
 Rules:
 
-- **Everything a macro holds is released.** When a macro ends, every key a step pressed and nobody let go of is released, so a
-  press-only macro such as `+ctrl` or `+ctrl wait:500` is valid and leaves nothing stuck. The same happens at once, with the macro
+- **Everything a macro holds is released.** When a macro ends, every key and mouse button a step pressed and nobody let go of is
+  released, so a press-only macro such as `+ctrl`, `+click` or `+ctrl wait:500` is valid and leaves nothing stuck. The same happens at once, with the macro
   aborted, on a joystick mode change, a reload, suspend, `ENABLED = 0`, an unplugged device and "Release all keys"
   (the paths of `releaseAll()`), and the safety net clears whatever the output still holds after a macro. A key that something
   else holds as well (a button bound to it, the zoom modifier, a `hold:`) stays down until that lets go too. A change of the
@@ -424,8 +442,11 @@ Rules:
 - **Timing.** The pauses are counted in the daemon's ticks (`TICK_HZ`, 250 per second by default), so a step runs in the first tick
   in which the pause is over (at most one tick late, 4 ms at 250 Hz); time that carries over shortens the next pause. Steps without a
   pause between them run in the same tick, in order. A macro in which a pause is the last step ends after that pause.
-- **Limits.** At most 256 steps per macro part (pauses count as steps); the queue of a running macro is the same 256 steps.
-  The action text is at most 32 KiB.
+- **Limits.** At most 256 steps per macro part **after the repeat blocks are expanded** (pauses count as steps; the `repeat` and
+  `end` words do not, so `repeat:100 tap:a wait:10 end` is 200 steps). A repeat count is 1 to 1000. One run lasts at most
+  10 minutes: a longer one (a long repeat, a `while_held` repeat on a button you never let go of, or 60 s pauses) is ended after
+  10 minutes, what it holds is released and the log says so. Every pass of a repeat block takes at least one daemon tick
+  (4 ms at 250 Hz), so a block without pauses does not flood the output. The action text is at most 256 KiB.
 - **Safety net.** A running macro counts as activity for the safety net (a pause longer than its quiet period of 250 ms must not
   cut the macro); the net does its work as before once the macro is done.
 - **Safety.** The keys come from the closed list of `keys.hpp`. A macro with tier B keys (letters, digits, function keys,
@@ -434,7 +455,8 @@ Rules:
 
 How macros behave in real programs (timing, recording, release at the end) is not verified on a real device.
 
-An old daemon does not know `macro:`: it ignores the line with its usual warning, nothing else changes.
+An old daemon does not know `macro:`, and one before this version does not know `tap:`, the mouse steps, `repeat` and
+`while_held`: it ignores the line with its usual warning, nothing else changes.
 
 ### Own functions made in the interface
 

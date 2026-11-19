@@ -64,9 +64,10 @@ namespace spn {
 // Hard upper limits against resource exhaustion by manipulated files
 // (docs/security.md). Valid configurations are far below them.
 constexpr size_t kMaxConfigBytes = 1u << 20;   // file size (1 MiB)
-// Action text (the value of a *_ACTION or BUTTON_<n> key, parseChannelAction / parseButtonAction): 32 KiB (was 256 bytes in the
-// plan, 8 KiB by the line limit). A line must hold the longest action plus its key and a trailing comment.
-constexpr size_t kMaxActionTextBytes = 32 * 1024;
+// Action text (the value of a *_ACTION or BUTTON_<n> key, parseChannelAction / parseButtonAction): 256 KiB, so large that a
+// macro never meets it (its own limit is 256 steps per part after repeat blocks are expanded). A line must hold the longest
+// action plus its key and a trailing comment.
+constexpr size_t kMaxActionTextBytes = 256 * 1024;
 constexpr size_t kMaxLineBytes = kMaxActionTextBytes + 1024;  // line length (also the line limit of mode files)
 constexpr size_t kMaxPatternBytes = 4096;      // [app:...]/[device:...] name, in bytes
 constexpr size_t kMaxSections = 256;           // sections incl. [global]

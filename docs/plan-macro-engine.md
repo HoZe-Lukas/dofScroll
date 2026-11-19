@@ -1,6 +1,6 @@
 # Plan: a better macro engine
 
-Status: decisions made (see "Decisions"), implementation in waves. Follows stage 7b of `plan-motion-functions.md`.
+Status: decisions made (see "Decisions"), implementation in waves. Engine stages 2, 3 and 4 are done (branch macro-engine-core); UI stage 1 and stages 5, 6 are open. Follows stage 7b of `plan-motion-functions.md`.
 
 ## Goals
 

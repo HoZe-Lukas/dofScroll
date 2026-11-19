@@ -4,13 +4,13 @@
 
 #include "builtin_library.hpp"
 #include "conf_dir.hpp"
+#include "config.hpp"
 #include "utf8.hpp"
 
 namespace spn {
 
 namespace {
 
-constexpr size_t kMaxLine = 4096;
 constexpr size_t kMaxLabel = 64;
 constexpr size_t kMaxDescription = 256;
 
@@ -53,7 +53,7 @@ bool parseButtonModeText(const std::string &text, ButtonMode *out, std::vector<s
         lineno++;
         if (raw.find('\0') != std::string::npos) { warn(lineno, "line contains a NUL byte - ignored"); continue; }
         if (lineno == 1 && raw.compare(0, 3, "\xEF\xBB\xBF") == 0) raw.erase(0, 3);
-        if (raw.size() > kMaxLine) { warn(lineno, "line too long - ignored"); continue; }
+        if (raw.size() > kMaxLineBytes) { warn(lineno, "line too long - ignored"); continue; }
         const std::string line = trim(raw);
         if (line.empty() || line[0] == '#' || line[0] == ';') continue;
         if (line[0] == '[') { warn(lineno, "sections are not supported in button mode files - ignored"); continue; }
