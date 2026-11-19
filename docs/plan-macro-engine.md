@@ -97,7 +97,7 @@ Each stage is one PR, keeps `check-fast` green, updates the matching docs, `po/*
 - Risk text: typed text counts as tier B.
 - No mode step (D4).
 
-### Stage 6: naming and reuse (the old stage 7e)
+### Stage 6: naming and reuse (the old stage 7e) - moved out of this release, issue #383
 
 - Named functions: `FUNC_<name>` table in the config, used by `BUTTON_<n> = func:<name>` and the motion keys. Edit once, used everywhere.
 - Own-functions list gets create and duplicate; "used by ..." stays.
@@ -116,5 +116,5 @@ Timing, recording, the abort on release, typed text on a real keyboard layout an
 - `repeat:<n>` ... `end` blocks are accepted: a macro can have parts that repeat and parts that do not. The block makes clear what repeats.
 - `type:` uses the keyboard layout of the machine.
 - No mode switch inside a macro.
-- Stage 6 (named functions) stays in this plan.
+- Stage 6 (named functions) is moved to a later release and tracked in issue #383.
 - The action text limit is raised so nobody perceives it as a limit (value chosen and documented in stage 2; the step limit stays bounded by D8).
