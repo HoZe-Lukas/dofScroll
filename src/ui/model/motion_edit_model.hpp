@@ -390,6 +390,7 @@ inline MotionChoiceCheck motionChoiceCheck(const SettingsModel &m, size_t sectio
     SettingsModel tmp = m;
     ChannelForm f;
     f.type = type;
+    if (type == ChannelActionType::Macro) f.macro = "+a -a,none";  // any valid macro: the question is only whether the motion can have one
     std::string err;
     if (!setMotionAction(tmp, section, motionId, f, &err)) {
         c.works = false;
@@ -412,6 +413,8 @@ inline MotionChoiceCheck motionChoiceCheck(const SettingsModel &m, size_t sectio
 // Two entries are views of one action type: "Mouse click per push" is Step with mouse sides. `id` is what the list stores
 // (key()), int(type) unless the entry says otherwise; choiceIdOf / applyChoice map between the entry and the form.
 constexpr int kChoiceMouseClick = 100;
+// "Macro...": not a kind of the form but the entry that opens the macro dialog (the form of a macro motion shows it as current).
+constexpr int kChoiceMacro = 901;
 struct MotionActionChoice {
     ChannelActionType type;
     const char *label;
@@ -421,9 +424,12 @@ struct MotionActionChoice {
 // The entry that shows the form now.
 inline int choiceIdOf(const ChannelForm &f) {
     if (f.type == ChannelActionType::Step && f.anyMouse() && !f.anyKeySide()) return kChoiceMouseClick;
+    if (f.type == ChannelActionType::Macro) return kChoiceMacro;
     return int(f.type);
 }
-inline ChannelActionType choiceType(int id) { return id == kChoiceMouseClick ? ChannelActionType::Step : ChannelActionType(id); }
+inline ChannelActionType choiceType(int id) {
+    return id == kChoiceMouseClick ? ChannelActionType::Step : id == kChoiceMacro ? ChannelActionType::Macro : ChannelActionType(id);
+}
 // Chooses the entry for the form: the sides keep what they hold when the new kind can use it, else they start with a click
 // on the positive side (mouse click, hold) or up / down.
 inline void applyChoice(ChannelForm *form, int id) {
@@ -457,10 +463,11 @@ inline const std::vector<MotionActionChoice> &motionActionChoices() {
                                                       {ChannelActionType::Zoom, "Zoom"},
                                                       {ChannelActionType::PointerX, "Move the pointer left and right"},
                                                       {ChannelActionType::PointerY, "Move the pointer up and down"},
-                                                      {ChannelActionType::Keys, "Keys (one key per direction)"},
+                                                      {ChannelActionType::Keys, "Keys that repeat while pushed"},
                                                       {ChannelActionType::Step, "One key tap per push"},
                                                       {ChannelActionType::Step, "Mouse click per push", kChoiceMouseClick},
                                                       {ChannelActionType::Hold, "Hold a key or button while pushed"},
+                                                      {ChannelActionType::Macro, "Macro...", kChoiceMacro},
                                                       {ChannelActionType::Off, "Nothing"}};
     return c;
 }
@@ -475,7 +482,8 @@ inline const std::vector<MotionActionChoice> &liftActionChoices() {
                                                       {ChannelActionType::PointerY, "Move the pointer up and down"},
                                                       {ChannelActionType::Step, "One key tap per push"},
                                                       {ChannelActionType::Step, "Mouse click per push", kChoiceMouseClick},
-                                                      {ChannelActionType::Hold, "Hold a key or button while pushed"}};
+                                                      {ChannelActionType::Hold, "Hold a key or button while pushed"},
+                                                      {ChannelActionType::Macro, "Macro...", kChoiceMacro}};
     return c;
 }
 

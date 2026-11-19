@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "builtin_library.hpp"
+#include "ui/model/action_vocabulary_model.hpp"
 #include "ui/model/motion_map_model.hpp"
 #include "ui/model/strings.hpp"
 
@@ -42,10 +43,11 @@ inline std::vector<ActionPreset> actionPresets(const StringProvider &s) {
             {"tabs", s.tr("Switch tabs"), "\xE2\x87\x84", s.tr("Presses Ctrl+Page up and Ctrl+Page down: previous and next tab in browsers and terminals")},
             {"volume", s.tr("Volume"), "\xE2\x99\xAA", s.tr("Presses Volume up and Volume down (the volume keys are not sent on macOS)")},
             {"tracks", s.tr("Change track"), "\xE2\x99\xAB", s.tr("One press of Previous track or Next track for each push (the media keys are not sent on macOS)")},
-            {"keys", s.tr("Other keys"), motionGlyph("keys"), s.tr("Presses any key or key combination for each direction")},
-            {"taps", s.tr("One key tap per push"), motionGlyph("step"), s.tr("One key press for each push or tilt")},
-            {"click", s.tr("Mouse click per push"), "\xE2\x97\x89", s.tr("One mouse click for each push or tilt")},
-            {"hold", s.tr("Hold a key or button while pushed"), "\xE2\x97\x86", s.tr("Holds a key, a key combination or a mouse button while you push, and lets go when you ease back")},
+            {"keys", vocabularyLabel(Vocab::Keys, s), motionGlyph("keys"), s.tr("Presses any key or key combination for each direction; the harder you push, the faster it repeats")},
+            {"taps", vocabularyLabel(Vocab::Step, s), motionGlyph("step"), s.tr("One key press for each push or tilt")},
+            {"click", vocabularyLabel(Vocab::Click, s), "\xE2\x97\x89", s.tr("One mouse click for each push or tilt")},
+            {"hold", vocabularyLabel(Vocab::Hold, s), "\xE2\x97\x86", s.tr("Holds a key, a key combination or a mouse button while you push, and lets go when you ease back")},
+            {"macro", vocabularyLabel(Vocab::Macro, s) + "...", "\xE2\x96\xB6", s.tr("Key presses and pauses that run one after the other, once for each push or tilt; opens the window to record or build it")},
             {"off", s.tr("Do nothing"), motionGlyph("off"), s.tr("This motion has no effect in this joystick mode")},
             {"default", s.tr("As in the profile"), "\xE2\x86\xBA", s.tr("Scroll and zoom as the profile says")}};
 }
@@ -156,7 +158,7 @@ inline std::string activePreset(Motion m, const ChannelForm &f) {
                     if (presetForm(id, m, f) == f) return id;
             return f.anyMouse() && !f.anyKeySide() ? "click" : "taps";
         case ChannelActionType::Hold: return "hold";
-        case ChannelActionType::Macro: return "macro";  // no tile: the macro dialog sets it
+        case ChannelActionType::Macro: return "macro";  // its tile opens the macro window
         case ChannelActionType::Keys:
             for (const char *id : {"pages", "tabs", "volume"})
                 if (presetForm(id, m, f) == f) return id;

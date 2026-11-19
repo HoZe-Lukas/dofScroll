@@ -1038,6 +1038,10 @@ void ProfilesPage::addBindingRow(QWidget *parent, QGridLayout *grid, int gridRow
         ctx_.settings->clearButton(section, row.number);
         changed(true, std::string());
     };
+    h.newMacro = [this, section, row] {
+        const spn::ui::FunctionKind macro = spn::ui::FunctionKind::Macro;
+        openNewFunctionDialog(ctx_, section, spn::ui::FunctionTarget::buttonNumber(row.number), this, [this] { queueRebuild(); }, &macro);
+    };
     h.newFunction = [this, section, row] {
         openNewFunctionDialog(ctx_, section, spn::ui::FunctionTarget::buttonNumber(row.number), this, [this] { queueRebuild(); });
     };

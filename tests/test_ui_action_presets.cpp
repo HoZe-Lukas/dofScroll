@@ -21,14 +21,14 @@ struct English : StringProvider {
 int main() {
     English s;
     const std::vector<ActionPreset> all = actionPresets(s);
-    assert(all.size() == 14);
+    assert(all.size() == 15);
     std::set<std::string> ids;
     for (const ActionPreset &p : all) {
         assert(!p.id.empty() && !p.label.empty() && !p.glyph.empty() && !p.tip.empty() && ids.insert(p.id).second);
     }
     // on lift (digital only) every tile but "Other keys" writes an action the lift parser accepts, and the same tile is lit
     for (const ActionPreset &p : all) {
-        if (p.id == "keys") continue;
+        if (p.id == "keys" || p.id == "macro") continue;  // "macro" opens the macro window: it writes nothing by itself
         const ChannelForm f = presetForm(p.id, Motion::Lift, ChannelForm());
         ChannelAction a;
         std::string err;
@@ -38,6 +38,7 @@ int main() {
     for (Motion m : allMotions()) {
         if (m == Motion::Lift) continue;
         for (const ActionPreset &p : all) {
+            if (p.id == "macro") continue;
             const ChannelForm f = presetForm(p.id, m, ChannelForm());
             ChannelAction a;
             std::string err;
