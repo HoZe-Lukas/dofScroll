@@ -16,6 +16,7 @@
 #include "keys.hpp"
 #include "mode_list.hpp"
 #include "modes.hpp"
+#include "ui/model/macro_words_model.hpp"
 #include "ui/model/motion_summary_model.hpp"
 #include "ui/model/strings.hpp"
 
@@ -35,8 +36,9 @@ inline std::string buttonActionWords(const std::string &configText, const String
     ButtonActionType type = ButtonActionType::Unbound;
     Key key = Key::Space;
     ChordMods mods;
+    MacroSide macro;
     std::string err, id;
-    if (configText.empty() || !parseButtonAction(configText, &type, &key, &err, &id, &mods)) return s.tr("Unassigned");
+    if (configText.empty() || !parseButtonAction(configText, &type, &key, &err, &id, &mods, &macro)) return s.tr("Unassigned");
     switch (type) {
         case ButtonActionType::Unbound: return s.tr("Unassigned");
         case ButtonActionType::Click: return s.tr("Click");
@@ -54,7 +56,10 @@ inline std::string buttonActionWords(const std::string &configText, const String
         case ButtonActionType::ToggleMode: return format(s.tr("Toggle: %1"), {id});
         case ButtonActionType::HoldMode: return format(s.tr("Hold: %1"), {id});
         case ButtonActionType::ButtonMode: return format(s.tr("Button mode: %1"), {id});
-        case ButtonActionType::Macro: return s.tr("Macro");
+        case ButtonActionType::Macro: {  // the first steps: "Macro: Ctrl+C, 30 ms, ..."
+            const std::string steps = macroSideWords(macro, s);
+            return steps.empty() ? s.tr("Macro") : format(s.tr("Macro: %1"), {steps});
+        }
     }
     return s.tr("Unassigned");
 }

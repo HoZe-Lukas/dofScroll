@@ -101,9 +101,15 @@ public:
     void setRecordTimes(bool on) { times_ = on; }
     bool recordTimes() const { return times_; }
 
-    // Starts a recording that appends to the steps (the earlier ones stay).
-    void start(const MacroList &existing = MacroList()) {
-        steps_ = existing;
+    // Starts a recording. The earlier steps stay; the new ones go in at `insertAt` (a position 0..size, behind the step the
+    // cursor is on), by default at the end. A position past the end means the end.
+    void start(const MacroList &existing = MacroList(), size_t insertAt = static_cast<size_t>(-1)) {
+        const size_t at = std::min(insertAt, existing.size());
+        before_.clear();
+        after_.clear();
+        rec_.clear();
+        for (size_t i = 0; i < existing.size(); ++i) (i < at ? before_ : after_).add(existing.at(i));
+        compose();
         held_.clear();
         recording_ = true;
         full_ = false;
@@ -116,7 +122,10 @@ public:
     }
     bool recording() const { return recording_; }
     bool full() const { return full_; }
-    const MacroList &steps() const { return steps_; }
+    // All steps: the ones before the cursor, the recorded ones, the ones after.
+    const MacroList &steps() const { return all_; }
+    // The position of the last recorded step in steps() (where the list selects after a key), or -1 while nothing is recorded.
+    long lastRecorded() const { return rec_.empty() ? -1L : long(before_.size() + rec_.size()) - 1L; }
     // Escape pressed three times in a row ends the recording (the way out for the keyboard, which the recording would
     // otherwise swallow): those three presses are not part of the macro.
     bool endedByEscape() const { return endedByEscape_; }
@@ -152,7 +161,7 @@ private:
     Result append(const MacroStep &s, long long nowMs) {
         // the pause before the step, then the step: both must fit
         const bool pause = any_;
-        if (steps_.size() + (pause ? 2 : 1) > kMaxMacroSteps) {
+        if (all_.size() + (pause ? 2 : 1) > kMaxMacroSteps) {
             full_ = true;
             recording_ = false;
             return Full;
@@ -160,16 +169,23 @@ private:
         if (pause) {
             long long gap = times_ ? nowMs - lastMs_ : kDefaultMacroWaitMs;
             if (gap > kMaxMacroWaitMs) gap = kMaxMacroWaitMs;
-            if (gap >= kMinMacroWaitMs) steps_.add(MacroStep::wait(int(gap)));
+            if (gap >= kMinMacroWaitMs) rec_.add(MacroStep::wait(int(gap)));
         }
-        steps_.add(s);
+        rec_.add(s);
+        compose();
         lastMs_ = nowMs;
         any_ = true;
         return Recorded;
     }
-    // Takes the two earlier Escape presses (and the pauses around them) away again; the third was not added.
+    void compose() {
+        all_.clear();
+        for (const MacroList *l : {&before_, &rec_, &after_})
+            for (size_t i = 0; i < l->size(); ++i) all_.add(l->at(i));
+    }
+    // Takes the two earlier Escape presses (and the pauses around them) away again; the third was not added. Only the
+    // recorded steps are touched, never what was there before.
     void dropTrailingEscapes() {
-        spn::MacroSteps v = steps_.steps();
+        spn::MacroSteps v = rec_.steps();
         int removed = 0;
         while (!v.empty() && removed < 2) {
             const MacroStep &s = v.back();
@@ -181,15 +197,15 @@ private:
             }
         }
         if (!v.empty() && v.back().kind == MacroStep::Kind::Wait && removed == 2) v.pop_back();  // the pause before the first one
-        MacroList out;
-        for (const MacroStep &s : v) out.add(s);
-        steps_ = out;
+        rec_.clear();
+        for (const MacroStep &s : v) rec_.add(s);
+        compose();
     }
 
     bool times_ = true, recording_ = false, full_ = false, any_ = false, endedByEscape_ = false;
     long long lastMs_ = 0;
     int escRun_ = 0;
-    MacroList steps_;
+    MacroList before_, rec_, after_, all_;
     std::set<std::string> held_;
 };
 

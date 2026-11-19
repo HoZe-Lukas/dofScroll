@@ -1477,14 +1477,6 @@ msgid "Zoom (Ctrl + wheel)"
 msgstr "Zoom (Strg + Mausrad)"
 
 #: src/ui/qt/pages/mode_editor_widget.cpp
-msgid "Keys (a rate of key presses)"
-msgstr "Tasten (eine Rate von Tastendrücken)"
-
-#: src/ui/qt/pages/mode_editor_widget.cpp
-msgid "Step (one key press per push)"
-msgstr "Schritt (ein Tastendruck pro Auslenkung)"
-
-#: src/ui/qt/pages/mode_editor_widget.cpp
 msgid "Problems"
 msgstr "Probleme"
 
@@ -4120,10 +4112,6 @@ msgid "One press of Previous track or Next track for each push (the media keys a
 msgstr "Pro Schub ein Druck auf Vorheriger Titel oder Nächster Titel (die Medientasten werden unter macOS nicht gesendet)"
 
 #: src/ui/qt/pages/editor_page.cpp
-msgid "Other keys"
-msgstr "Andere Tasten"
-
-#: src/ui/qt/pages/editor_page.cpp
 msgid "Presses any key or key combination for each direction"
 msgstr "Drückt je Richtung eine beliebige Taste oder Tastenkombination"
 
@@ -4662,10 +4650,6 @@ msgstr "In diesem Profil geleert: Für diese Bewegung passiert hier nichts (geer
 #: src/ui
 msgid "Normal (scroll, or zoom for the twist)"
 msgstr "Normal (Scrollen, bei der Drehung Zoomen)"
-
-#: src/ui
-msgid "Keys (one key per direction)"
-msgstr "Tasten (eine Taste je Richtung)"
 
 #: src/ui
 msgid "What this motion does in this profile"
@@ -6565,10 +6549,6 @@ msgid "The recording stopped because the keyboard focus left the recording area.
 msgstr "Die Aufnahme wurde beendet, weil der Tastaturfokus den Aufnahmebereich verlassen hat."
 
 #: src/ui/qt/pages/new_function_dialog.cpp
-msgid "The steps run once for each trigger; further triggers during a run are ignored."
-msgstr "Die Schritte laufen einmal pro Auslösung; weitere Auslösungen während eines Ablaufs werden ignoriert."
-
-#: src/ui/qt/pages/new_function_dialog.cpp
 msgid "The text of the function as it is stored in the configuration file"
 msgstr "Der Text der Funktion, wie er in der Konfigurationsdatei steht"
 
@@ -7316,3 +7296,138 @@ msgstr "Wenn der Treiber für ein Programm Achsen eingeschaltet hat, bekommt die
 #: src/ui/model/setup_guide_model.hpp
 msgid "Open the driver assistant..."
 msgstr "Treiberassistent öffnen..."
+
+msgid "Macro..."
+msgstr "Makro..."
+
+msgid "Part of the macro:"
+msgstr "Teil des Makros:"
+
+msgid "Part of the macro"
+msgstr "Teil des Makros"
+
+msgid "Press part"
+msgstr "Teil beim Drücken"
+
+msgid "Release part"
+msgstr "Teil beim Loslassen"
+
+msgid "Press part: %1"
+msgstr "Teil beim Drücken: %1"
+
+msgid "Release part: %1"
+msgstr "Teil beim Loslassen: %1"
+
+msgid "The press part runs when the trigger fires, the release part when you let go"
+msgstr "Der Teil beim Drücken läuft bei der Auslösung, der Teil beim Loslassen, wenn du loslässt"
+
+msgid "The press part runs when the trigger fires: you press the button, or push past the trigger level."
+msgstr "Der Teil beim Drücken läuft bei der Auslösung: Du drückst die Taste oder schiebst über die Auslöseschwelle."
+
+msgid "The release part runs when you let go: you release the button, or ease back to half of the trigger level. It runs only if the press part is finished by then."
+msgstr "Der Teil beim Loslassen läuft, wenn du loslässt: Du lässt die Taste los oder gehst bis auf die Hälfte der Auslöseschwelle zurück. Er läuft nur, wenn der Teil beim Drücken bis dahin fertig ist."
+
+msgid "the step was not changed, the key or the pause is not valid"
+msgstr "der Schritt wurde nicht geändert, die Taste oder die Pause ist nicht gültig"
+
+msgid "The step keeps its last valid value."
+msgstr "Der Schritt behält seinen letzten gültigen Wert."
+
+msgid "A macro with no steps yet: nothing is written until it has some."
+msgstr "Ein Makro ohne Schritte: Es wird erst etwas geschrieben, wenn es welche hat."
+
+msgid "Macro: %1"
+msgstr "Makro: %1"
+
+msgid "this joystick mode"
+msgstr "diesen Joystick-Modus"
+
+msgid "Presses any key or key combination for each direction; the harder you push, the faster it repeats"
+msgstr "Drückt für jede Richtung eine beliebige Taste oder Tastenkombination; je stärker du schiebst, desto schneller wiederholt sie sich"
+
+msgid "Key presses and pauses that run one after the other, once for each push or tilt; opens the window to record or build it"
+msgstr "Tastendrücke und Pausen, die nacheinander ablaufen, einmal für jedes Schieben oder Kippen; öffnet das Fenster zum Aufnehmen oder Zusammenbauen"
+
+msgid "Keys that repeat while pushed"
+msgstr "Tasten, die sich beim Schieben wiederholen"
+
+msgid "A key or combination per direction; the further you push, the faster it repeats."
+msgstr "Eine Taste oder Kombination je Richtung; je weiter du schiebst, desto schneller wiederholt sie sich."
+
+msgid "A key or combination per direction, pressed once each time you push past the trigger level."
+msgstr "Eine Taste oder Kombination je Richtung, einmal gedrückt, jedes Mal wenn du über die Auslöseschwelle schiebst."
+
+msgid "A mouse click per direction, once each time you push past the trigger level."
+msgstr "Ein Mausklick je Richtung, einmal jedes Mal, wenn du über die Auslöseschwelle schiebst."
+
+msgid "A key, combination or mouse button is held while you push past the trigger level and let go when you ease back."
+msgstr "Eine Taste, Kombination oder Maustaste wird gehalten, solange du über der Auslöseschwelle schiebst, und losgelassen, wenn du zurückgehst."
+
+msgid "Key presses and pauses that run one after the other, once per trigger; the part after | runs when you let go."
+msgstr "Tastendrücke und Pausen, die nacheinander ablaufen, einmal pro Auslösung; der Teil nach | läuft, wenn du loslässt."
+
+msgid "run a macro (%1)"
+msgstr "Makro ausführen (%1)"
+
+msgid "Stored as a macro, but it has no steps yet."
+msgstr "Als Makro gespeichert, aber es hat noch keine Schritte."
+
+msgid "Stored as a macro: press part %1, release part %2. The press part runs when you press the button, the release part when you let go."
+msgstr "Als Makro gespeichert: Teil beim Drücken %1, Teil beim Loslassen %2. Der Teil beim Drücken läuft, wenn du die Taste drückst, der Teil beim Loslassen, wenn du loslässt."
+
+msgid "Stored as a macro, one per direction: negative direction: press part %1, release part %2; positive direction: press part %3, release part %4. The press part runs when you push past the trigger level, the release part when you ease back to half of it."
+msgstr "Als Makro gespeichert, eines je Richtung: negative Richtung: Teil beim Drücken %1, Teil beim Loslassen %2; positive Richtung: Teil beim Drücken %3, Teil beim Loslassen %4. Der Teil beim Drücken läuft, wenn du über die Auslöseschwelle schiebst, der Teil beim Loslassen, wenn du bis auf die Hälfte zurückgehst."
+
+msgid "A single key or combination per direction does not need a macro: choose Key or combination (one key tap per push) instead."
+msgstr "Eine einzelne Taste oder Kombination je Richtung braucht kein Makro: Wähle stattdessen Taste oder Kombination (ein Tastendruck pro Schub)."
+
+msgid "A single key or combination does not need a macro: choose Key or combination here, or Press key in the list of the button."
+msgstr "Eine einzelne Taste oder Kombination braucht kein Makro: Wähle hier Taste oder Kombination, oder in der Liste der Taste Taste drücken."
+
+msgid "Press key"
+msgstr "Taste drücken"
+
+msgid "%1 ms"
+msgstr "%1 ms"
+
+msgid "on release: %1"
+msgstr "beim Loslassen: %1"
+
+msgid "negative: %1; positive: %2"
+msgstr "negativ: %1; positiv: %2"
+
+msgid "negative: %1"
+msgstr "negativ: %1"
+
+msgid "positive: %1"
+msgstr "positiv: %1"
+
+msgid "1 step"
+msgstr "1 Schritt"
+
+msgid "%1 steps"
+msgstr "%1 Schritte"
+
+msgid "While a macro runs, further triggers are ignored until it is done. A release part runs only when the press part is finished by then: if the press part still runs when you let go, the release part is dropped."
+msgstr "Solange ein Makro läuft, werden weitere Auslösungen ignoriert, bis es fertig ist. Ein Teil beim Loslassen läuft nur, wenn der Teil beim Drücken bis dahin fertig ist: Läuft er noch, wenn du loslässt, wird der Teil beim Loslassen verworfen."
+
+msgid "runs a macro once per push (%1)"
+msgstr "führt pro Schub ein Makro aus (%1)"
+
+msgid "Macro, once per push: %1"
+msgstr "Makro, einmal pro Schub: %1"
+
+msgid "The steps run once for each trigger; further triggers during a run are ignored. A release part runs when you let go, if the press part is done by then."
+msgstr "Die Schritte laufen einmal pro Auslösung; weitere Auslösungen während eines Ablaufs werden ignoriert. Ein Teil beim Loslassen läuft, wenn du loslässt und der Teil beim Drücken bis dahin fertig ist."
+
+msgid "this macro is not valid for this version of dofscroll, so this window cannot show it; edit the configuration file, or choose another kind to replace it"
+msgstr "dieses Makro ist für diese Version von dofscroll nicht gültig, deshalb kann dieses Fenster es nicht zeigen; bearbeite die Konfigurationsdatei oder wähle eine andere Art, um es zu ersetzen"
+
+msgid "the pause is empty: enter a number of milliseconds"
+msgstr "die Pause ist leer: Gib eine Zahl in Millisekunden ein"
+
+msgid "the pause must be a whole number of milliseconds"
+msgstr "die Pause muss eine ganze Zahl in Millisekunden sein"
+
+msgid "the pause must be between 1 and 60000 milliseconds"
+msgstr "die Pause muss zwischen 1 und 60000 Millisekunden liegen"

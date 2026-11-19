@@ -27,6 +27,7 @@
 #include "button_row.hpp"
 #include "key_combo.hpp"
 #include "pages/motion_editor.hpp"
+#include "pages/new_function_dialog.hpp"
 #include "pages/take_over_dialog.hpp"
 #include "ui/model/borrow_model.hpp"
 #include "ui/model/overview_model.hpp"
@@ -51,8 +52,9 @@ const KindEntry kKinds[] = {
     {ChannelActionType::Zoom, "Zoom (Ctrl + wheel)"},
     {ChannelActionType::PointerX, "Move the pointer left and right"},
     {ChannelActionType::PointerY, "Move the pointer up and down"},
-    {ChannelActionType::Keys, "Keys (a rate of key presses)"},
-    {ChannelActionType::Step, "Step (one key press per push)"},
+    {ChannelActionType::Keys, "Keys that repeat while pushed"},
+    {ChannelActionType::Step, "One key tap per push"},
+    {ChannelActionType::Macro, "Macro..."},
 };
 
 }  // namespace
@@ -144,6 +146,17 @@ int ModeEditorWidget::addChannelRow(QGridLayout *g, int row, const QString &labe
     g->addWidget(name, row, 0);
     g->addWidget(kind, row, 1);
     int used = 1;
+    if (form->type == ChannelActionType::Macro) {  // the first steps in words; "Macro..." in the list opens the window again
+        MacroAction ma;
+        std::string err;
+        const std::string words = parseMacroAction(form->macro, &ma, &err) ? macroActionWords(ma, ctx_.strings ? *ctx_.strings : ownStrings_) : std::string();
+        auto *w = new QLabel(words.empty() ? T("A macro with no steps yet: nothing is written until it has some.") : T("Macro: %1").arg(qs8(words)), this);
+        w->setWordWrap(true);
+        w->setTextFormat(Qt::PlainText);
+        w->setObjectName(QStringLiteral("modeMacroWords"));
+        g->addWidget(w, row + 1, 1);
+        used = 2;
+    }
     if (form->usesKeys()) {
         // One line per direction below the drop-down, so the form never needs a horizontal scroll bar.
         auto changed = [this] { edited(false); };
@@ -153,7 +166,21 @@ int ModeEditorWidget::addChannelRow(QGridLayout *g, int row, const QString &labe
         g->addWidget(chordPicker(this, this, &form->pos, label + QStringLiteral(" ") + T("positive"), changed), row + 2, 1);
         used = 3;
     }
-    connect(kind, &QComboBox::activated, this, [this, kind, form](int idx) {
+    connect(kind, &QComboBox::activated, this, [this, kind, form, label, cur](int idx) {
+        if (ChannelActionType(kind->itemData(idx).toInt()) == ChannelActionType::Macro) {
+            kind->setCurrentIndex(cur);  // "Macro..." opens the window; the list keeps showing what the channel does now
+            openMacroDialog(this, FunctionTarget::motion("h_push"), label, T("this joystick mode"),
+                            form->type == ChannelActionType::Macro ? form->macro : std::string(), ctx_.strings ? ctx_.strings : &ownStrings_,
+                            [this, form](const std::string &text, std::vector<FunctionProblem> *) {
+                                form->type = ChannelActionType::Macro;
+                                form->macro = text;
+                                rebuild();
+                                edited(false);
+                                return true;
+                            },
+                            nullptr);
+            return;
+        }
         form->type = ChannelActionType(kind->itemData(idx).toInt());
         if (form->usesKeys() && (form->neg.empty() || form->pos.empty())) {
             form->neg = "up";
@@ -278,6 +305,19 @@ void ModeEditorWidget::addBindingRow(QWidget *parent, QGridLayout *grid, int gri
         editor_.form().setButton(n, "none");
         rebuild();
         edited(false);
+    };
+    h.newMacro = [this, n, text = row.text] {  // "Macro...": the same window as in a profile; its result is the binding of the button in this mode
+        std::string current;
+        if (text.compare(0, 6, "macro:") == 0) current = text.substr(6);
+        openMacroDialog(this, FunctionTarget::buttonNumber(n), T("Button %1").arg(n), T("this joystick mode"), current,
+                        ctx_.strings ? ctx_.strings : &ownStrings_,
+                        [this, n](const std::string &macroText, std::vector<FunctionProblem> *) {
+                            editor_.form().setButton(n, "macro:" + macroText);
+                            rebuild();
+                            edited(false);
+                            return true;
+                        },
+                        nullptr);
     };
     addButtonRow(this, parent, grid, gridRow, row, env, h);
 }

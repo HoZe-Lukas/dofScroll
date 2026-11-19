@@ -8,8 +8,10 @@
 #include <QComboBox>
 #include <QEvent>
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
 #include <QSpinBox>
@@ -20,10 +22,12 @@
 #include "plain_text.hpp"
 #include "qt_action_runner.hpp"
 #include "ui/model/key_tree_model.hpp"
+#include "ui/model/macro_words_model.hpp"
 #include "ui_i18n.hpp"
 
 using spn::MacroStep;
 using spn::ui::MacroList;
+using spn::ui::StatusKind;
 
 namespace {
 // The key name of keys.hpp for a key event while recording. Like the capture button, except that the modifier keys are keys of
@@ -116,6 +120,26 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     auto *v = new QVBoxLayout(this);
     v->setContentsMargins(0, 0, 0, 0);
 
+    // ---- the part: what runs when the trigger fires, and what runs when it is let go ----
+    auto *partRow = new QHBoxLayout;  // one line: the recording area below stays in sight without scrolling
+    auto *partLabel = wrapLabel(T("Part of the macro:"), this);
+    partRow->addWidget(partLabel);
+    part_box_ = new QComboBox(this);
+    part_box_->setObjectName(QStringLiteral("macroPart"));
+    part_box_->addItem(T("Press part"));
+    part_box_->addItem(T("Release part"));
+    part_box_->setAccessibleName(T("Part of the macro"));
+    part_box_->setAccessibleDescription(T("The press part runs when the trigger fires, the release part when you let go"));
+    part_box_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    part_box_->setMinimumContentsLength(10);
+    part_box_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+    part_box_->setMinimumWidth(100);
+    part_box_->setMinimumHeight(24);
+    partLabel->setBuddy(part_box_);
+    partRow->addWidget(part_box_, 1);
+    v->addLayout(partRow);
+    partWords_ = wrapLabel(QString(), this, "macroPartWords");
+
     // ---- the recorder ----
     auto *recordRow = new QGridLayout;
     record_ = smallButton(T("Record"), "macroRecord", T("Start recording the keys you press into the steps below"), this);
@@ -131,6 +155,7 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     recordNote_ = wrapLabel(QString(), this, "macroRecordNote");
     recordNote_->hide();
     v->addWidget(recordNote_);
+    v->addWidget(partWords_);  // what the shown part does, under the recording area
     // the explanation follows the recording area: Record and the area come first, they are what is needed to start
     v->addWidget(wrapLabel(T("Record the keys you press, or add the steps by hand below. Recording happens only in this window, while the recording area has the focus."), this, "macroIntro"));
     // a check box does not wrap: a short text, the sentence in the label below
@@ -207,8 +232,12 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     wait_->setMinimumWidth(100);
     waitLabel_->setBuddy(wait_);
     v->addWidget(wait_);
+    pauseNote_ = wrapLabel(QString(), this, "macroPauseNote");
+    pauseNote_->hide();
+    v->addWidget(pauseNote_);
 
     // Tab order: the recorder, the list, the buttons, the chosen step
+    QWidget::setTabOrder(part_box_, record_);
     QWidget::setTabOrder(record_, stop_);
     QWidget::setTabOrder(stop_, times_);
     QWidget::setTabOrder(times_, list_);
@@ -223,6 +252,17 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     QWidget::setTabOrder(type_, chord_->firstControl());  // the key field's own controls follow each other from there
     QWidget::setTabOrder(chord_->captureButton(), wait_);
 
+    connect(part_box_, &QComboBox::activated, this, [this](int idx) {
+        if (quiet_) return;
+        if (recorder_.recording()) {
+            quiet_ = true;
+            part_box_->setCurrentIndex(part_);
+            quiet_ = false;
+            return;
+        }
+        showPart(idx);
+    });
+    if (auto *edit = wait_->findChild<QLineEdit *>()) connect(edit, &QLineEdit::textEdited, this, [this](const QString &t) { pauseTyped(t); });  // the line edit inside the spin box
     connect(record_, &QPushButton::clicked, this, [this] { startRecording(); });
     connect(stop_, &QPushButton::clicked, this, [this] { stopRecording(QString()); });
     connect(pad_, &MacroRecordPad::keyDown, this, [this](const QString &k, qint64 ms) { onKey(true, k, ms); });
@@ -244,25 +284,25 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     connect(addWait_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Kind::Wait); });
     connect(del_, &QPushButton::clicked, this, [this] {
         const int row = list_->currentRow();
-        if (row < 0 || !steps_.remove(size_t(row))) return;
-        refreshList(std::min(row, int(steps_.size()) - 1));
+        if (row < 0 || !cur().remove(size_t(row))) return;
+        refreshList(std::min(row, int(cur().size()) - 1));
         emit stepsChanged();
     });
     connect(up_, &QPushButton::clicked, this, [this] {
         const int row = list_->currentRow();
-        if (row < 0 || !steps_.moveUp(size_t(row))) return;
+        if (row < 0 || !cur().moveUp(size_t(row))) return;
         refreshList(row - 1);
         emit stepsChanged();
     });
     connect(down_, &QPushButton::clicked, this, [this] {
         const int row = list_->currentRow();
-        if (row < 0 || !steps_.moveDown(size_t(row))) return;
+        if (row < 0 || !cur().moveDown(size_t(row))) return;
         refreshList(row + 1);
         emit stepsChanged();
     });
     connect(clear_, &QPushButton::clicked, this, [this] {
-        if (steps_.empty()) return;
-        steps_.clear();
+        if (cur().empty()) return;
+        cur().clear();
         refreshList(-1);
         emit stepsChanged();
     });
@@ -274,7 +314,7 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     for (QWidget *c : findChildren<QWidget *>()) {
         if (chord_->isAncestorOf(c) || c == chord_) continue;
         const bool button = qobject_cast<QPushButton *>(c) != nullptr;
-        const bool field = c == list_ || c == type_ || c == wait_ || c == times_;
+        const bool field = c == list_ || c == type_ || c == wait_ || c == times_ || c == part_box_;
         if (!button && !field) continue;
         if (button) c->setAccessibleName(c->accessibleName() + QStringLiteral(", ") + accessible);
         c->setAccessibleDescription(accessible + QStringLiteral(": ") + c->accessibleDescription());
@@ -292,9 +332,31 @@ QString MacroEditor::stepWords(const MacroStep &s) const {
     return QString();
 }
 
-void MacroEditor::setSteps(const MacroList &steps) {
-    steps_ = steps;
-    refreshList(steps_.empty() ? -1 : 0);
+void MacroEditor::setSteps(const MacroList &steps, const MacroList &release) {
+    parts_[0] = steps;
+    parts_[1] = release;
+    refreshPartNames();
+    refreshList(cur().empty() ? -1 : 0);
+}
+
+void MacroEditor::showPart(int part) {
+    if (part < 0 || part > 1 || part == part_ || recorder_.recording()) return;
+    part_ = part;
+    quiet_ = true;
+    part_box_->setCurrentIndex(part);
+    quiet_ = false;
+    refreshList(cur().empty() ? -1 : 0);
+}
+
+int MacroEditor::chosenRow() const { return list_->currentRow(); }
+
+// The names of the two parts say how many steps each has: the release part is easy to miss behind the drop-down.
+void MacroEditor::refreshPartNames() {
+    static const QtStrings strings;
+    part_box_->setItemText(0, T("Press part: %1").arg(qs8(spn::ui::macroCountWords(parts_[0].size(), strings))));
+    part_box_->setItemText(1, T("Release part: %1").arg(qs8(spn::ui::macroCountWords(parts_[1].size(), strings))));
+    partWords_->setText(part_ == 0 ? T("The press part runs when the trigger fires: you press the button, or push past the trigger level.")
+                                   : T("The release part runs when you let go: you release the button, or ease back to half of the trigger level. It runs only if the press part is finished by then."));
 }
 
 // The buttons sit in two columns while the longest text fits in half the width (a wide font or a long translation cuts the
@@ -321,18 +383,19 @@ void MacroEditor::resizeEvent(QResizeEvent *e) {
 void MacroEditor::refreshList(int select) {
     quiet_ = true;
     list_->clear();
-    for (const MacroStep &s : steps_.steps()) list_->addItem(stepWords(s));
+    for (const MacroStep &s : cur().steps()) list_->addItem(stepWords(s));
     if (select >= 0 && select < list_->count()) list_->setCurrentRow(select);
     quiet_ = false;
-    count_->setText(steps_.full() ? T("%1 of %2 steps: the macro is full.").arg(steps_.size()).arg(spn::kMaxMacroSteps)
-                                  : T("%1 of %2 steps.").arg(steps_.size()).arg(spn::kMaxMacroSteps));
+    count_->setText(cur().full() ? T("%1 of %2 steps: the macro is full.").arg(cur().size()).arg(spn::kMaxMacroSteps)
+                                  : T("%1 of %2 steps.").arg(cur().size()).arg(spn::kMaxMacroSteps));
+    refreshPartNames();
     refreshEditor();
     refreshButtons();
 }
 
 void MacroEditor::refreshEditor() {
     const int row = list_->currentRow();
-    const bool have = row >= 0 && size_t(row) < steps_.size();
+    const bool have = row >= 0 && size_t(row) < cur().size();
     type_->setEnabled(have);
     if (!have) {
         chord_->hide();
@@ -341,7 +404,7 @@ void MacroEditor::refreshEditor() {
         wait_->hide();
         return;
     }
-    const MacroStep &s = steps_.at(size_t(row));
+    const MacroStep &s = cur().at(size_t(row));
     quiet_ = true;
     type_->setCurrentIndex(type_->findData(int(s.kind)));
     const bool wait = s.kind == MacroStep::Kind::Wait;
@@ -356,16 +419,17 @@ void MacroEditor::refreshEditor() {
 
 void MacroEditor::refreshButtons() {
     const int row = list_->currentRow();
-    const bool have = row >= 0 && size_t(row) < steps_.size();
+    const bool have = row >= 0 && size_t(row) < cur().size();
     const bool rec = recorder_.recording();
-    for (QPushButton *b : {addDown_, addUp_, addWait_}) b->setEnabled(!steps_.full() && !rec);
+    for (QPushButton *b : {addDown_, addUp_, addWait_}) b->setEnabled(!cur().full() && !rec);
     del_->setEnabled(have && !rec);
     up_->setEnabled(have && row > 0 && !rec);
-    down_->setEnabled(have && size_t(row) + 1 < steps_.size() && !rec);
-    clear_->setEnabled(!steps_.empty() && !rec);
-    record_->setEnabled(!rec && !steps_.full());
+    down_->setEnabled(have && size_t(row) + 1 < cur().size() && !rec);
+    clear_->setEnabled(!cur().empty() && !rec);
+    record_->setEnabled(!rec && !cur().full());
     stop_->setEnabled(rec);
     type_->setEnabled(have && !rec);
+    part_box_->setEnabled(!rec);
     chord_->setEnabled(!rec);
     wait_->setEnabled(!rec);
 }
@@ -374,9 +438,9 @@ void MacroEditor::refreshButtons() {
 void MacroEditor::stepEdited() {
     if (quiet_) return;
     const int row = list_->currentRow();
-    if (row < 0 || size_t(row) >= steps_.size()) return;
+    if (row < 0 || size_t(row) >= cur().size()) return;
     const MacroStep::Kind t = MacroStep::Kind(type_->currentData().toInt());
-    const MacroStep &old = steps_.at(size_t(row));
+    const MacroStep &old = cur().at(size_t(row));
     MacroStep s;
     if (t == MacroStep::Kind::Wait) {
         s = MacroStep::wait(old.kind == MacroStep::Kind::Wait ? wait_->value() : spn::kDefaultMacroWaitMs);
@@ -385,27 +449,47 @@ void MacroEditor::stepEdited() {
         if (old.kind != MacroStep::Kind::Wait && !chord_->value().empty()) chord = chord_->value();
         s = t == MacroStep::Kind::Down ? spn::ui::macroDown(chord) : spn::ui::macroUp(chord);
     }
-    if (!steps_.set(size_t(row), s)) return;
+    if (!cur().set(size_t(row), s)) {  // never silently: the step stays as it was and the window says why
+        pauseNote_->setText(mark(StatusKind::Error, T("Invalid value: ") + T("the step was not changed, the key or the pause is not valid")));
+        pauseNote_->show();
+        return;
+    }
+    pauseNote_->hide();
     if (QListWidgetItem *it = list_->item(row)) it->setText(stepWords(s));
     if (s.kind != old.kind) refreshEditor();  // the fields of the other kind
     emit stepsChanged();
 }
 
+// The text typed into the pause field: a value outside 1 to 60000 ms is explained next to the field (the spin box would only
+// ignore it and keep the old value).
+void MacroEditor::pauseTyped(const QString &text) {
+    std::string err;
+    if (spn::ui::checkPauseText(text.toStdString(), &err)) {
+        pauseNote_->hide();
+        return;
+    }
+    static const QtStrings strings;
+    pauseNote_->setText(mark(StatusKind::Error, T("Invalid value: ") + qs8(strings.tr(err.c_str())) + QLatin1Char(' ') + T("The step keeps its last valid value.")));
+    pauseNote_->show();
+}
+
 void MacroEditor::addStep(MacroStep::Kind type) {
-    if (steps_.full()) return;
+    if (cur().full()) return;
     const int row = list_->currentRow();
-    const size_t at = row < 0 ? steps_.size() : size_t(row) + 1;
+    const size_t at = row < 0 ? cur().size() : size_t(row) + 1;
     const MacroStep s = type == MacroStep::Kind::Wait ? MacroStep::wait(spn::kDefaultMacroWaitMs) : type == MacroStep::Kind::Down ? spn::ui::macroDown("space") : spn::ui::macroUp("space");
-    if (!steps_.insert(at, s)) return;
+    if (!cur().insert(at, s)) return;
     refreshList(int(at));
     emit stepsChanged();
 }
 
 void MacroEditor::startRecording() {
-    if (recorder_.recording() || steps_.full()) return;
+    if (recorder_.recording() || cur().full()) return;
     recorder_.setRecordTimes(times_->isChecked());
     recorder_.resetEndedByEscape();
-    recorder_.start(steps_);
+    const int row = list_->currentRow();
+    recordAt_ = row < 0 ? long(cur().size()) : long(row) + 1;  // behind the chosen step, at the end when none is chosen
+    recorder_.start(cur(), size_t(recordAt_));
     ignored_ = 0;
     recordNote_->hide();
     pad_->setActive(true);
@@ -434,8 +518,8 @@ void MacroEditor::onKey(bool down, const QString &key, qint64 ms) {
     const std::string k = key.toStdString();
     const spn::ui::MacroRecorder::Result r = down ? recorder_.press(k, ms) : recorder_.release(k, ms);
     (void)r;
-    steps_ = recorder_.steps();
-    refreshList(int(steps_.size()) - 1);
+    cur() = recorder_.steps();
+    refreshList(int(recorder_.lastRecorded()));
     if (!recorder_.recording()) stopRecording(QString());
     emit stepsChanged();
 }

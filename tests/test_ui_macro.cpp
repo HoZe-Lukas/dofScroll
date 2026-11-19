@@ -128,6 +128,57 @@ int main() {
     two.press("esc", 30);
     assert(two.recording() && !two.endedByEscape());
 
+    // ---- recording goes in at the cursor, not only at the end ----
+    {
+        MacroList base;
+        assert(base.parse("+ctrl wait:30 -ctrl", nullptr));
+        MacroRecorder mid(false);
+        mid.start(base, 1);  // behind the first step
+        assert(mid.lastRecorded() == -1);
+        mid.press("a", 0);
+        assert(mid.steps().text() == "+ctrl +a wait:30 -ctrl" && mid.lastRecorded() == 1);
+        mid.release("a", 10);
+        assert(mid.steps().text() == "+ctrl +a wait:30 -a wait:30 -ctrl" && mid.lastRecorded() == 3);
+        mid.stop();
+        // at the start, at the end, past the end (the end), and by default (the end)
+        MacroRecorder first(false);
+        first.start(base, 0);
+        first.press("b", 0);
+        assert(first.steps().text() == "+b +ctrl wait:30 -ctrl" && first.lastRecorded() == 0);
+        MacroRecorder end(false);
+        end.start(base, base.size());
+        end.press("b", 0);
+        assert(end.steps().text() == "+ctrl wait:30 -ctrl +b" && end.lastRecorded() == 3);
+        MacroRecorder past(false);
+        past.start(base, 99);
+        past.press("b", 0);
+        assert(past.steps().text() == "+ctrl wait:30 -ctrl +b");
+        MacroRecorder dflt(false);
+        dflt.start(base);
+        dflt.press("b", 0);
+        assert(dflt.steps().text() == "+ctrl wait:30 -ctrl +b");
+        // the limit counts the steps around the cursor too
+        MacroList nearFull;
+        for (size_t i = 0; i < kMaxMacroSteps - 1; ++i) assert(nearFull.add(macroDown("a")));
+        MacroRecorder lim(false);
+        lim.start(nearFull, 3);
+        assert(lim.press("b", 0) == MacroRecorder::Recorded && lim.steps().size() == kMaxMacroSteps);
+        assert(lim.release("b", 5) == MacroRecorder::Full && lim.full() && !lim.recording() && lim.steps().size() == kMaxMacroSteps);
+        // Escape three times drops only what was recorded, never the steps around the cursor
+        MacroList around;
+        assert(around.parse("+esc -esc +x", nullptr));
+        MacroRecorder esc3(true);
+        esc3.start(around, 2);
+        esc3.press("a", 0);
+        esc3.release("a", 10);
+        esc3.press("esc", 100);
+        esc3.release("esc", 110);
+        esc3.press("esc", 200);
+        esc3.release("esc", 210);
+        esc3.press("esc", 300);
+        assert(!esc3.recording() && esc3.endedByEscape() && esc3.steps().text() == "+esc -esc +a wait:10 -a +x");
+    }
+
     std::puts("test_ui_macro: ok");
     return 0;
 }

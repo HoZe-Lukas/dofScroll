@@ -211,6 +211,7 @@ private:
     void rebuildInspector();
     void buildMotionInspector(QVBoxLayout *col, spn::ui::Motion m);
     void buildLiftInspector(QVBoxLayout *col);
+    void editMacro(spn::ui::Motion m);  // the macro window of a motion of this joystick mode (the tile "Macro...", the lift list)
     void buildButtonInspector(QVBoxLayout *col, int n);
     void buildTuning(QVBoxLayout *col, spn::ui::Motion m);
     KeyEngineEnv keyEngineEnv(spn::ui::ChannelForm *ref, spn::ui::Motion m);

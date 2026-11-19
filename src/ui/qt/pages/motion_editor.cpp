@@ -43,6 +43,7 @@
 #include "ui/model/action_preset_model.hpp"
 #include "ui/model/axes_model.hpp"
 #include "ui/model/design_tokens.hpp"
+#include "pages/new_function_dialog.hpp"
 #include "ui/model/button_chip_model.hpp"
 #include "ui/model/motion_edit_model.hpp"
 #include "ui/model/motion_help_model.hpp"
@@ -710,6 +711,32 @@ void MotionEditor::rebuildInspector() {
     refreshDetect();
 }
 
+// The macro window for a motion of the joystick mode being edited: the same editors and words as "Macro..." of a profile, the
+// result goes into the form of the mode (the file is written by the host's autosave, like every other edit).
+void MotionEditor::editMacro(Motion m) {
+    const MotionLabel l = motionLabel(*env_.form, env_.base, m, *env_.strings);
+    const ChannelForm now = m == Motion::Lift ? env_.form->lift : actionOf(*env_.form, env_.base, m);
+    const std::string current = now.type == ChannelActionType::Macro ? now.macro : std::string();
+    openMacroDialog(this, FunctionTarget::motion(motionId(m)), qs8(l.name), T("this joystick mode"), current, env_.strings,
+                    [this, m](const std::string &text, std::vector<FunctionProblem> *problems) {
+                        ChannelForm f;
+                        f.type = ChannelActionType::Macro;
+                        f.macro = text;
+                        if (m == Motion::Lift) {
+                            env_.form->lift = f;
+                        } else {
+                            const AssignResult r = assign(*env_.form, env_.base, m, f);
+                            if (!r.ok) {
+                                problems->push_back({"action", r.error});
+                                return false;
+                            }
+                        }
+                        if (env_.changed) env_.changed();
+                        return true;
+                    },
+                    nullptr);
+}
+
 void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
     const MotionLabel l = motionLabel(*env_.form, env_.base, m, *env_.strings);
     inspectorTitle_ = new QLabel(QStringLiteral("<b>") + qs8(l.name).toHtmlEscaped() + QStringLiteral("</b>"), inspectorBox_);
@@ -765,6 +792,10 @@ void MotionEditor::buildMotionInspector(QVBoxLayout *col, Motion m) {
             ++i;
             const std::string id = p.id;
             connect(tile, &QToolButton::clicked, this, [this, m, id] {
+                if (id == "macro") {  // not a ready choice: the window builds it
+                    editMacro(m);
+                    return;
+                }
                 const ChannelForm now = actionOf(*env_.form, env_.base, m);
                 if (!assign(*env_.form, env_.base, m, presetForm(id, m, now)).ok) return;
                 tourEvent(TourEvent::ActionAssigned);
@@ -1002,7 +1033,12 @@ void MotionEditor::buildLiftInspector(QVBoxLayout *col) {
             }
             if (QWidget *engine = keyEngineBox(what, this, keyEngineEnv(&lift, Motion::Lift), *env_.strings)) wl->addWidget(engine);
         }
-        connect(kind, &QComboBox::activated, this, [this, kind](int idx) {
+        connect(kind, &QComboBox::activated, this, [this, kind, current](int idx) {
+            if (kind->itemData(idx).toInt() == kChoiceMacro) {  // opens the macro window; the list keeps showing the current action
+                kind->setCurrentIndex(current);
+                editMacro(Motion::Lift);
+                return;
+            }
             ChannelForm &f = env_.form->lift;
             applyChoice(&f, kind->itemData(idx).toInt());
             if (f.usesKeys() && f.type != ChannelActionType::Hold && !f.anyMouse() && (f.neg == "none" || f.pos == "none")) {

@@ -845,8 +845,12 @@ the reason next to the field; while the name is empty the line says "Enter the n
 
 ### New function ... and the own functions of a profile
 
-The drop-down of every motion and of every button on the Motions and buttons tab of a profile ends with **New function ...**.
-It opens a window that composes one function and ends in exactly one action text of that motion or button, checked by the same
+The drop-down of every motion and of every button on the Motions and buttons tab of a profile ends with **Macro ...** and
+**New function ...**. **Macro ...** opens the same window with the kind Macro already chosen (a motion or button that has a macro
+shows **Macro ...** as its current entry, and choosing it again opens the macro); **New function ...** opens it with the kind
+list. The joystick mode editor has the same way in: the tile **Macro ...** of a motion, **Macro ...** in the list of lift / press
+and in the channel lists of the Settings tab, and **Macro ...** in the list of a button; there the window has no kind list, no
+analog box and no trigger field, and what you build is written into the joystick mode file by the autosave. The window opens that composes one function and ends in exactly one action text of that motion or button, checked by the same
 parsers as the configuration file. There is no Save button: as soon as every field is valid the function is assigned (the
 autosave writes it), a field that is not valid is explained next to it and nothing is written, and a line under the window says
 in words that it is assigned and where it applies (inheritance: Global < device profile < joystick mode < program profile). The
@@ -859,7 +863,7 @@ window has one button, **Close**, and the function stays as it is.
 | Hold a key or button | a key or mouse button per direction | `hold:<neg>,<pos>` (motions only) |
 | Scroll or zoom | scroll, scroll sideways, zoom | `wheel_v`, `wheel_h`, `zoom` (motions only) |
 | Move the pointer | left and right, up and down | `pointer_x`, `pointer_y` (greyed until the pointer actions exist) |
-| Macro | the steps of the macro per direction (below) | `macro:` (greyed until the daemon knows macros) |
+| Macro | the press part and the release part of the macro, per direction (below) | `macro:<press> \| <release>` per side |
 
 Every key field is built from the check boxes **Ctrl**, **Shift**, **Alt** and **Super key** plus either the key list or
 **Press a key ...** (click it, press the key or combination); there is never a text field for a key. The check box **Analog**
@@ -870,14 +874,46 @@ the trigger level field of the digital functions shows the level that applies wh
 shows the text that is stored. What a motion or button cannot do is greyed in the kind list and the reason is written under the
 list.
 
-**The macro editor** (kind Macro) has **Record** and **Record stop**; the recording area sits right under them, so it is in sight without scrolling. The check box **Record the times** ("Also record the
+**One vocabulary.** The same stored text has the same words on every surface: the list "What this motion does" of a profile, the
+action tiles and the lift list of a joystick mode, the channel lists of the Settings tab and this window. The table is the
+reference (`src/ui/model/action_vocabulary_model.hpp`; `tests/test_ui_macro_words.cpp` checks that the labels and this table
+agree):
+
+| Label | Stored as | What it does |
+|---|---|---|
+| Keys that repeat while pushed | `keys:<neg>,<pos>` | A key or combination per direction; the further you push, the faster it repeats (the **Analog** box of this window). |
+| One key tap per push | `step:<neg>,<pos>` | A key or combination per direction, pressed once each time you push past the trigger level (**Analog** off). |
+| Mouse click per push | `step:<neg>,<pos>` with `click`, `rightclick` or `middleclick` | A mouse click per direction, once each time you push past the trigger level. |
+| Hold a key or button while pushed | `hold:<neg>,<pos>` | A key, combination or mouse button is held while you push past the trigger level and let go when you ease back. |
+| Macro | `macro:<press> \| <release>` | Key presses and pauses that run one after the other, once per trigger; the part after `\|` runs when you let go. |
+
+On a button the same texts are `key:<chord>` (list entry **Press key**) and `macro:<press> \| <release>` (**Macro ...**).
+
+**The macro editor** (kind Macro) works on two parts per direction (a button has one pair): the **press part**, which runs when the
+trigger fires (the button is pressed, or the push goes past the trigger level), and the **release part**, which runs when you
+let go (the button is released, or the push is back at half of the trigger level). The drop-down **Part of the macro** switches
+the list below between the two and shows how many steps each has ("Press part: 4 steps", "Release part: none"); the window
+stores them as `<press> | <release>` and leaves out ` | ` when the release part is empty. A macro that has only a release part
+is stored as `none | <release>`. A macro from the configuration file with a release part is shown in full and can be edited;
+only a text this version of dofscroll refuses (for example a key it does not know) is not shown, and then nothing is written
+over it unless you choose another kind.
+
+Under the **Action text** line the window says in one line what you get, naming the stored form in words ("Stored as a macro:
+press part 4 steps, release part none. ..."), and where a simpler kind does the same it says so: "A single key or combination
+does not need a macro: choose Key or combination here, or Press key in the list of the button." The window also says what a
+macro cannot do: while a macro runs, **further triggers are ignored** until it is done, and a **release part is dropped** when
+the press part still runs at the moment you let go.
+
+The recorder has **Record** and **Record stop**; the recording area sits right under them, so it is in sight without scrolling. The check box **Record the times** ("Also record the
 times between the keys") decides how pauses are made: on, they are the measured gaps; off, a pause of 30 ms is put between
 the steps. Recording happens only in this window, while the recording area has the keyboard focus: there is no global key
 logger, a key pressed in another window or after Record stop is not seen, the recording ends by itself when the focus leaves
 the area, and Esc pressed three times in a row ends it from the keyboard (those three presses are not recorded). After
 recording every step can be changed (press a key, release a key, pause in milliseconds; the key field is the one above),
-deleted, moved up or down, or added by hand; a macro has at most 256 steps (a pause counts as a step). A macro is digital: it
-runs once per trigger. Keys that dofscroll cannot send are not recorded and the window says so.
+deleted, moved up or down, or added by hand; a macro part has at most 256 steps (a pause counts as a step). A macro is digital: it
+runs once per trigger. A recording goes in **behind the chosen step** (at the end when no step is chosen), not only at the end, so a key can be added in the middle; the three Esc presses that end it, and the steps around the cursor, are never touched. Keys that dofscroll cannot send are not recorded and the window says so. A pause typed into the pause field that is not a whole number from 1 to 60000 milliseconds is explained next to the field ("Invalid value: the pause must be between 1 and 60000 milliseconds") and the step keeps its last valid value; a step that cannot be changed says so in the same place.
+
+**Chips and summaries** show the first steps instead of the word "Macro": a button chip reads "3 Macro: Ctrl+C, 30 ms, Ctrl+V", a motion shows "Macro: negative: Ctrl+C, 30 ms, ..." and a release part follows after "| on release:". A press and release of one key or combination counts as one word ("Ctrl+C" for `+ctrl +c -c -ctrl`), a key that is only pressed reads "Press Shift", and at most four words are shown before "...".
 
 **Own functions of this profile** is a list under the picture on the same tab: every function the profile holds itself (a key
 function, a hold, a macro or the pointer on a motion; a key or a macro on a button), each once with **used by** the motions and

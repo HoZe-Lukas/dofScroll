@@ -360,6 +360,11 @@ void ProfileMotionsView::buildMotion(QVBoxLayout *col, const QString &motionId) 
                 newFunction(motionId);
                 return;
             }
+            if (kind->itemData(idx).toInt() == kChoiceMacro) {  // the entry opens the macro window, the list keeps showing the current one
+                kind->setCurrentIndex(current);
+                newMacro(motionId);
+                return;
+            }
             applyChoice(form.get(), kind->itemData(idx).toInt());  // the sides keep what they hold when the new kind can use it
             applyForm();
         });
@@ -609,6 +614,15 @@ bool ProfileMotionsView::takeOverMotion(const QString &motionId) {
     if (changed) changed();
     rebuild();
     return true;
+}
+
+void ProfileMotionsView::newMacro(const QString &motionId) {
+    const FunctionKind macro = FunctionKind::Macro;
+    openNewFunctionDialog(ctx_, section_, FunctionTarget::motion(motionId.toStdString()), this, [this] {
+        ctx_.saveSoon();
+        if (changed) changed();
+        rebuild();
+    }, &macro);
 }
 
 void ProfileMotionsView::newFunctionForButton(int n) {

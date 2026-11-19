@@ -51,8 +51,15 @@ public:
     // `accessible` names the editor ("Macro for the negative direction"); `sideName` is used in the descriptions of the controls.
     MacroEditor(const QString &accessible, QWidget *parent = nullptr);
 
-    const spn::ui::MacroList &steps() const { return steps_; }
-    void setSteps(const spn::ui::MacroList &steps);  // does not emit stepsChanged()
+    // The press part (what runs when the trigger fires) and the release part (after " | ": what runs when it is let go). The
+    // list shows one of them at a time; the part drop-down switches.
+    const spn::ui::MacroList &steps() const { return parts_[0]; }
+    const spn::ui::MacroList &releaseSteps() const { return parts_[1]; }
+    void setSteps(const spn::ui::MacroList &steps, const spn::ui::MacroList &release = spn::ui::MacroList());  // does not emit stepsChanged()
+    int shownPart() const { return part_; }  // 0 press, 1 release
+    void showPart(int part);
+    // The recording goes in behind the chosen step (at the end when none is chosen).
+    int chosenRow() const;
     bool recording() const { return recorder_.recording(); }
 
     // The key events of a real keyboard reach the pad as widget events; the self-test sends the same events.
@@ -71,18 +78,25 @@ private:
     void refreshButtons();
     void stepEdited();
     void addStep(spn::MacroStep::Kind type);
+    spn::ui::MacroList &cur() { return parts_[part_]; }
+    const spn::ui::MacroList &cur() const { return parts_[part_]; }
+    void pauseTyped(const QString &text);
+    void refreshPartNames();
     void startRecording();
     void stopRecording(const QString &why);
     void onKey(bool down, const QString &key, qint64 ms);
     QString stepWords(const spn::MacroStep &s) const;
 
-    spn::ui::MacroList steps_;
+    spn::ui::MacroList parts_[2];
+    int part_ = 0;
+    long recordAt_ = 0;  // where the recording started (the position of its first step)
     spn::ui::MacroRecorder recorder_;
     QListWidget *list_ = nullptr;
     QComboBox *type_ = nullptr;
     ChordField *chord_ = nullptr;
     QSpinBox *wait_ = nullptr;
-    QLabel *waitLabel_ = nullptr, *chordLabel_ = nullptr, *count_ = nullptr, *recordNote_ = nullptr;
+    QLabel *waitLabel_ = nullptr, *chordLabel_ = nullptr, *count_ = nullptr, *recordNote_ = nullptr, *pauseNote_ = nullptr, *partWords_ = nullptr;
+    QComboBox *part_box_ = nullptr;
     QPushButton *del_ = nullptr, *up_ = nullptr, *down_ = nullptr, *clear_ = nullptr, *addDown_ = nullptr, *addUp_ = nullptr, *addWait_ = nullptr;
     QPushButton *record_ = nullptr, *stop_ = nullptr;
     QCheckBox *times_ = nullptr;

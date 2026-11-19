@@ -186,13 +186,32 @@ int main() {
         assert(!fresh && d.kind == FunctionKind::Macro && d.macroNeg.size() == 4);
         d = draftFromText(tilt, "macro:none,wait:30 +a", "h_push", none, &fresh);
         assert(!fresh && d.kind == FunctionKind::Macro && d.macroNeg.empty() && d.macroPos.size() == 2);
-        // a macro with a release part ("press | release") cannot be shown by the dialog: the draft is refused, so an edit of
-        // another field never rewrites the stored text without the release part
+        // a macro with a release part ("press | release") is shown in full: two lists per direction, composed back the same way
         d = draftFromText(btn, "macro:+ctrl | -ctrl", "", none, &fresh);
-        assert(!fresh && d.kind == FunctionKind::Macro && d.macroNotEditable);
-        assert(!checkFunction(btn, d).empty() && checkFunction(btn, d)[0].field == "action");
+        assert(!fresh && d.kind == FunctionKind::Macro && !d.macroNotEditable);
+        assert(d.macroNeg.text() == "+ctrl" && d.macroNegRelease.text() == "-ctrl");
+        assert(checkFunction(btn, d).empty());
+        {
+            std::string text, err;
+            assert(composeFunction(btn, d, &text, &err) && text == "macro:+ctrl | -ctrl");
+        }
         d = draftFromText(tilt, "macro:+a -a | -b,wait:30 +a", "h_push", none, &fresh);
-        assert(d.macroNotEditable && !checkFunction(tilt, d).empty());
+        assert(!d.macroNotEditable && d.macroNeg.text() == "+a -a" && d.macroNegRelease.text() == "-b" && d.macroPos.text() == "wait:30 +a" && d.macroPosRelease.empty());
+        {
+            std::string text, err;
+            assert(composeFunction(tilt, d, &text, &err) && text == "macro:+a -a | -b,wait:30 +a");
+            assert(checkFunction(tilt, d).empty());
+        }
+        // a release part alone (no press steps) is valid: "none | -ctrl"
+        d = draftFromText(btn, "macro:none | -ctrl", "", none, &fresh);
+        assert(!fresh && d.macroNeg.empty() && d.macroNegRelease.text() == "-ctrl" && checkFunction(btn, d).empty());
+        {
+            std::string text, err;
+            assert(composeFunction(btn, d, &text, &err) && text == "macro:none | -ctrl");
+        }
+        // a text the core's parser refuses stays refused: an edit of another field never rewrites it
+        d = draftFromText(tilt, "macro:+nosuchkey,none", "h_push", none, &fresh);
+        assert(!fresh && d.kind == FunctionKind::Macro && d.macroNotEditable && !checkFunction(tilt, d).empty() && checkFunction(tilt, d)[0].field == "action");
         {
             ModeSet modes = loadModes("/nonexistent-dir-for-test", nullptr);
             ProfileSet ps;
@@ -201,10 +220,16 @@ int main() {
             m.setProfiles(ps, "");
             m.setModes(modes, "");
             assert(m.setValue(app, "H_TILT_ACTION", "macro:+a | -a,wait:30 +b", nullptr));
-            const std::string before = nfSection(m, app);
-            d.trigger = "20";  // the user edits another field of the dialog
+            // the release part survives an edit of another field (the trigger level)
+            d = draftFromText(tilt, "macro:+a | -a,wait:30 +b", "h_push", none, &fresh);
+            d.trigger = "20";
             std::vector<FunctionProblem> pr;
-            assert(!applyFunction(m, app, tilt, d, &pr) && !pr.empty() && nfSection(m, app) == before);
+            assert(applyFunction(m, app, tilt, d, &pr) && pr.empty());
+            assert(nfSection(m, app).find("macro:+a | -a,wait:30 +b") != std::string::npos);
+            // an invalid draft changes nothing
+            FunctionDraft bad = draftFromText(tilt, "macro:+nosuchkey,none", "h_push", none, &fresh);
+            const std::string kept = nfSection(m, app);
+            assert(!applyFunction(m, app, tilt, bad, &pr) && !pr.empty() && nfSection(m, app) == kept);
             // choosing another kind is the deliberate replacement
             changeKind(&d, tilt, FunctionKind::Wheel);
             assert(!d.macroNotEditable);

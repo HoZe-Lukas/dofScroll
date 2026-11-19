@@ -18,6 +18,7 @@
 #include "macro_editor.hpp"
 #include "plain_text.hpp"
 #include "ui/model/inheritance_model.hpp"
+#include "ui/model/macro_dialog_words_model.hpp"
 #include "ui/model/profile_assignment_model.hpp"
 #include "ui_i18n.hpp"
 
@@ -78,6 +79,7 @@ void NewFunctionDialog::build() {
 
     // ---- the kind ----
     auto *kindLabel = label(T("Kind of function:"));
+    kindLabel_ = kindLabel;
     v->addWidget(kindLabel);
     kind_ = new QComboBox(content);
     kind_->setObjectName(QStringLiteral("newFunctionKind"));
@@ -103,6 +105,11 @@ void NewFunctionDialog::build() {
     kindNotes_ = label(unavailable.isEmpty() ? QString() : T("Not available here: ") + unavailable.join(QLatin1Char(' ')), "newFunctionKindNotes");
     kindNotes_->setVisible(!unavailable.isEmpty());
     v->addWidget(kindNotes_);
+    if (env_.macroOnly) {  // the one kind of this window: no list to choose from
+        kindLabel->hide();
+        kind_->hide();
+        kindNotes_->hide();
+    }
 
     // ---- the fields of the kind ----
     // Not a QStackedWidget: its layout is as tall as its tallest page and has no height-for-width, so the wrapped labels of a
@@ -169,6 +176,11 @@ void NewFunctionDialog::build() {
     preview_->setAccessibleName(T("Action text"));
     preview_->setAccessibleDescription(T("The text of the function as it is stored in the configuration file"));
     v->addWidget(preview_);
+    // under the Action field: the stored form in words (macro), and the hint where a simpler kind does the same
+    whatYouGet_ = label(QString(), "newFunctionWhatYouGet");
+    v->addWidget(whatYouGet_);
+    simplerHint_ = label(QString(), "newFunctionSimplerHint");
+    v->addWidget(simplerHint_);
     summary_ = label(QString(), "newFunctionSummary");
     v->addWidget(summary_);
     status_ = label(QString(), "newFunctionStatus");
@@ -386,6 +398,8 @@ QWidget *NewFunctionDialog::buildMacroPage() {
         macroNeg_ = make(T("Macro of the button"), "newFunctionMacroNeg");
         v->addWidget(macroNeg_);
     }
+    runNotes_ = label(qs8(macroRunNotes(*env_.strings)), "newFunctionMacroRunNotes");
+    v->addWidget(runNotes_);
     return w;
 }
 
@@ -422,8 +436,8 @@ void NewFunctionDialog::syncWidgets() {
         case FunctionKind::Macro: break;
     }
     if (draft_.kind == FunctionKind::Macro) {
-        macroNeg_->setSteps(draft_.macroNeg);
-        if (macroPos_ && motion) macroPos_->setSteps(draft_.macroPos);
+        macroNeg_->setSteps(draft_.macroNeg, draft_.macroNegRelease);
+        if (macroPos_ && motion) macroPos_->setSteps(draft_.macroPos, draft_.macroPosRelease);
     }
     rateMin_->setText(qs8(draft_.rateMin));
     rateMax_->setText(qs8(draft_.rateMax));
@@ -434,6 +448,17 @@ void NewFunctionDialog::syncWidgets() {
     std::string text, err;
     preview_->setText(composeFunction(env_.target, draft_, &text, &err) ? qs8(text) : T("(not complete yet)"));
     summary_->setText(qs8(functionSummary(env_.target, draft_, *env_.strings)));
+    refreshMacroWords();
+}
+
+// The line under the Action field and the hint, for a macro only.
+void NewFunctionDialog::refreshMacroWords() {
+    const bool macro = draft_.kind == FunctionKind::Macro;
+    whatYouGet_->setText(macro ? qs8(macroWhatYouGet(env_.target, draft_, *env_.strings)) : QString());
+    whatYouGet_->setVisible(macro);
+    const QString hint = macro ? qs8(macroSimplerHint(env_.target, draft_, *env_.strings)) : QString();
+    simplerHint_->setText(hint);
+    simplerHint_->setVisible(!hint.isEmpty());
 }
 
 void NewFunctionDialog::refreshAnalog() {
@@ -446,19 +471,20 @@ void NewFunctionDialog::refreshAnalog() {
     analog_->setAccessibleDescription(env_.targetName + QStringLiteral(": ") + (a.allowed ? T("Switches between a repeating key and one press per push") : qs8(a.reason)));
     analog_->setToolTip(a.allowed ? QString() : qs8(a.reason));
     analogReason_->setText(qs8(a.reason));
-    analogReason_->setVisible(!a.reason.empty());
+    analogReason_->setVisible(!a.reason.empty() && !env_.macroOnly);
+    analog_->setVisible(!env_.macroOnly);
 }
 
 void NewFunctionDialog::refreshFields() {
     const FunctionFields f = functionFields(env_.target, draft_);
     ratesHost_->setVisible(f.rates);
     triggerHost_->setVisible(f.trigger);
-    fieldsHost_->setVisible(f.rates || f.trigger);
+    fieldsHost_->setVisible((f.rates || f.trigger) && !env_.macroOnly);
     const FunctionAnalog a = functionAnalog(env_.target, draft_, *env_.strings);
     const bool hold = draft_.kind == FunctionKind::HoldKey;
     const KeyEngineWords words = keyEngineWords(a.checked, env_.effective, env_.target.motionId, *env_.strings, hold);
     modeWords_->setText(env_.target.isMotion() && (draft_.kind == FunctionKind::Key || hold) ? qs8(words.mode) : QString());
-    modeWords_->setVisible(!modeWords_->text().isEmpty());
+    modeWords_->setVisible(!modeWords_->text().isEmpty() && !env_.macroOnly);
     triggerLabel_->setText(qs8(words.trigger) + QLatin1Char(':'));
     trigger_->setAccessibleName(qs8(words.trigger));
     defaultsWords_->setText(qs8(words.defaults));
@@ -508,7 +534,11 @@ void NewFunctionDialog::edited() {
         case FunctionKind::Pointer: draft_.pointer = pointer_->currentData().toString().toStdString(); break;
         case FunctionKind::Macro:
             draft_.macroNeg = macroNeg_->steps();
-            if (motion) draft_.macroPos = macroPos_->steps();
+            draft_.macroNegRelease = macroNeg_->releaseSteps();
+            if (motion) {
+                draft_.macroPos = macroPos_->steps();
+                draft_.macroPosRelease = macroPos_->releaseSteps();
+            }
             break;
     }
     refreshAnalog();
@@ -516,6 +546,7 @@ void NewFunctionDialog::edited() {
     std::string text, err;
     preview_->setText(composeFunction(env_.target, draft_, &text, &err) && complete ? qs8(text) : T("(not complete yet)"));
     summary_->setText(qs8(functionSummary(env_.target, draft_, *env_.strings)));
+    refreshMacroWords();
     if (!complete) {
         showResult(false, {{"action", "choose a key for every field first"}});
         return;
@@ -564,7 +595,7 @@ void NewFunctionDialog::showResult(bool ok, const std::vector<FunctionProblem> &
 // ---- opening the dialog for a motion or a button of a profile ----
 
 NewFunctionDialog *openNewFunctionDialog(const UiContext &ctx, size_t section, const FunctionTarget &target, QWidget *parent,
-                                         std::function<void()> changed) {
+                                         std::function<void()> changed, const FunctionKind *startKind) {
     if (!ctx.settings || section >= ctx.settings->sectionCount()) return nullptr;
     static const IdentityStrings fallback;
     const StringProvider &strings = ctx.strings ? *ctx.strings : fallback;
@@ -610,6 +641,12 @@ NewFunctionDialog *openNewFunctionDialog(const UiContext &ctx, size_t section, c
             env.initial.neg.clear();
         }
     }
+    // "Macro..." of a list: a function that is no macro yet starts as one (nothing is written until it has steps); a macro is shown as it is
+    if (startKind && !env.editing) {
+        env.initial = newDraft(target, *startKind);
+    } else if (startKind && env.initial.kind != *startKind) {
+        changeKind(&env.initial, target, *startKind);
+    }
     UiContext c = ctx;
     env.apply = [c, section, target](const FunctionDraft &d, std::vector<FunctionProblem> *problems) {
         const bool ok = applyFunction(*c.settings, section, target, d, problems);
@@ -629,6 +666,36 @@ NewFunctionDialog *openNewFunctionDialog(const UiContext &ctx, size_t section, c
         QObject::connect(dlg, &NewFunctionDialog::functionAssigned, dlg, [changed] { changed(); });
         QObject::connect(dlg, &QDialog::finished, dlg, [changed](int) { changed(); });
     }
+    dlg->open();
+    return dlg;
+}
+
+// ---- the macro window of a joystick mode file ----
+
+NewFunctionDialog *openMacroDialog(QWidget *parent, const FunctionTarget &target, const QString &targetName, const QString &scopeName,
+                                   const std::string &current, const StringProvider *strings,
+                                   std::function<bool(const std::string &, std::vector<FunctionProblem> *)> apply, std::function<void()> changed) {
+    static const IdentityStrings fallback;
+    NewFunctionEnv env;
+    env.target = target;
+    env.strings = strings ? strings : &fallback;
+    env.targetName = targetName;
+    env.scopeName = scopeName;
+    env.macroOnly = true;
+    bool fresh = true;
+    if (!current.empty() && current != "none,none") env.initial = draftFromText(target, "macro:" + current, std::string(), nullptr, &fresh);
+    env.editing = !fresh;
+    if (fresh) env.initial = newDraft(target, FunctionKind::Macro);
+    env.apply = [target, apply](const FunctionDraft &d, std::vector<FunctionProblem> *problems) {
+        std::vector<FunctionProblem> &out = *problems;
+        out = checkFunction(target, d);
+        if (!out.empty()) return false;
+        return apply(macroSidesText(target, d), problems);
+    };
+    auto *dlg = new NewFunctionDialog(env, parent);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setWindowModality(Qt::WindowModal);
+    if (changed) QObject::connect(dlg, &NewFunctionDialog::functionAssigned, dlg, [changed] { changed(); });
     dlg->open();
     return dlg;
 }

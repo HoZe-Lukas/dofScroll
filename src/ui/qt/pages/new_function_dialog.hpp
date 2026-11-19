@@ -30,6 +30,9 @@ struct NewFunctionEnv {
     QString scopeName;    // "this profile", "Global"
     spn::ui::FunctionDraft initial;
     bool editing = false;  // the motion or button has a function of its own already (the title says so)
+    // Only the macro: no kind list, no analog box, no rate and trigger fields. For a place that has no tuning keys of its own (a
+    // joystick mode file); `apply` then writes the macro text where it belongs.
+    bool macroOnly = false;
     spn::Settings effective;  // the settings that apply (the words about the trigger level)
     const spn::ui::StringProvider *strings = nullptr;
     // Validates and assigns; false + problems when something is invalid or the joystick mode keeps the motion.
@@ -66,6 +69,7 @@ private:
     void edited();        // the user changed something: check, assign, show
     void refreshAnalog();
     void refreshFields();
+    void refreshMacroWords();
     void showResult(bool ok, const std::vector<spn::ui::FunctionProblem> &problems);
     QLabel *label(const QString &text, const char *objectName = nullptr);
     QLineEdit *addField(QWidget *host, const QString &labelText, const char *objectName, const std::string &key, QLabel **note);
@@ -75,6 +79,8 @@ private:
     bool assigned_ = false, quiet_ = false;
     int writes_ = 0;
     QComboBox *kind_ = nullptr;
+    QLabel *whatYouGet_ = nullptr, *simplerHint_ = nullptr, *runNotes_ = nullptr;
+    QLabel *kindLabel_ = nullptr;
     QLabel *splitWords_ = nullptr, *kindNotes_ = nullptr, *actionNote_ = nullptr, *preview_ = nullptr, *status_ = nullptr, *summary_ = nullptr;
     QWidget *pages_ = nullptr;  // the pages of the kinds, only the page of the chosen kind is shown
     std::vector<QWidget *> pageWidgets_;
@@ -93,5 +99,15 @@ private:
 
 // Opens the dialog for a motion or a button of the profile `section` (window-modal, without a nested event loop; it deletes
 // itself when closed). `changed` runs after every assignment and when the dialog closes (the page redraws).
+// `startKind` (when given) is the kind a new function starts as ("Macro..." in a list: spn::ui::FunctionKind::Macro); a function
+// the target has already keeps its own kind until the user chooses another.
 NewFunctionDialog *openNewFunctionDialog(const UiContext &ctx, size_t section, const spn::ui::FunctionTarget &target, QWidget *parent,
-                                         std::function<void()> changed);
+                                         std::function<void()> changed, const spn::ui::FunctionKind *startKind = nullptr);
+
+// The macro window for a place that is not a profile: a channel or a button of a joystick mode file. `current` is the text after
+// "macro:" ("" when there is none); `apply` gets the text after "macro:" and returns false + problems when it cannot be written.
+// The window has the same macro editors, the same words and the same Close button.
+NewFunctionDialog *openMacroDialog(QWidget *parent, const spn::ui::FunctionTarget &target, const QString &targetName, const QString &scopeName,
+                                   const std::string &current, const spn::ui::StringProvider *strings,
+                                   std::function<bool(const std::string &, std::vector<spn::ui::FunctionProblem> *)> apply,
+                                   std::function<void()> changed);
