@@ -56,10 +56,10 @@ jobs:
           git archive HEAD | tar -x -C "$work"
           cd "$work"
           sh scripts/pin-ci-images.sh
-          # Python 3.11: the oldest Python of the builds decides which versions can be resolved. The container runs
+          # Python 3.10: the oldest Python of the builds decides which versions can be resolved. The container runs
           # unprivileged and sees only the copy; pip installs wheels only (the one sdist-only package, patch, is built inside the container).
           docker run --rm --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
-            -e HOME=/tmp -v "$work":/w -w /w python:3.11-slim sh scripts/update-aqt-requirements.sh
+            -e HOME=/tmp -v "$work":/w -w /w python:3.10-slim sh scripts/update-aqt-requirements.sh
           sh scripts/check-ci-pins.sh
           mkdir -p "$RUNNER_TEMP/out"
           for f in packaging/ci/images.env packaging/ci/aqt-requirements.txt packaging/ci/rocky9.Dockerfile; do
