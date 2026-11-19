@@ -67,7 +67,9 @@ Tray::Tray(MainWindow *window, const QIcon &baseIcon, const UiContext &ctx, QObj
     controller_.hooks().showLog = [this, dir = ctx.runtimeDir] { LogDialog::showFor(window_, dir, strings_); };
     icon_.setContextMenu(&menu_);
     // Closing the window does not quit: say so once per run.
-    connect(window_, &MainWindow::hiddenToTray, this, [this] {
+    connect(window_, &MainWindow::hiddenToTray, this, [this, shown = false]() mutable {
+        if (shown) return;
+        shown = true;
         icon_.showMessage(QStringLiteral("dofscroll"), T("dofscroll is still running in the tray"), QSystemTrayIcon::Information,
                           4000);
     });
