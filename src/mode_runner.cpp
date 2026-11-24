@@ -633,6 +633,8 @@ void ModeRunner::requestMacro(const SharedSteps &steps, bool whileHeld, int owne
 }
 
 // The time limit of one run (kMaxMacroRunSeconds), in microseconds.
+// How long the clipboard keeps the pasted text before the old text is put back: the target must have asked for it by then.
+static const int64_t kPasteHoldUs = 150000;
 static const int64_t kMacroMaxRunUs = static_cast<int64_t>(kMaxMacroRunSeconds) * 1000000;
 
 // Runs the steps that are due: a started macro runs its first steps at once, then every pause takes this tick's time off
@@ -669,6 +671,10 @@ void ModeRunner::runMacro(std::bitset<kKeyCount> &keys, uint8_t &mouse) {
             }
             budget -= macro_.wait_us;
             macro_.wait_us = 0;
+        }
+        if (macro_.clip_pending) {  // the pause after a paste: step is over
+            out_->restoreClipboard();
+            macro_.clip_pending = false;
         }
         const MacroSteps &steps = *macro_.steps;
         if (macro_.next >= steps.size()) {  // the end: everything the macro still holds is released
@@ -713,6 +719,21 @@ void ModeRunner::runMacro(std::bitset<kKeyCount> &keys, uint8_t &mouse) {
             }
             break;
         case MacroStep::Kind::Tap: tapChord(st.key, st.mods); break;
+        case MacroStep::Kind::Paste: {
+            std::string why;
+            if (!out_->setClipboardText(st.text, &why)) {
+                if (!paste_warned_) std::cerr << LOG << "macro: paste: " << why << std::endl;
+                paste_warned_ = true;
+                break;
+            }
+            ChordMods m;
+            m.k[0] = out_->pasteModifier();
+            m.n = 1;
+            tapChord(Key::V, m);
+            macro_.clip_pending = true;
+            macro_.wait_us = kPasteHoldUs;
+            break;
+        }
         case MacroStep::Kind::MouseTap:
             if (!((mouse_held_ >> st.mouse) & 1)) {
                 out_->mouseButton(st.mouse, true);
@@ -767,6 +788,10 @@ void ModeRunner::runMacro(std::bitset<kKeyCount> &keys, uint8_t &mouse) {
 // Ends a running macro at once and lets go of what it holds, keys and mouse buttons (a while_held press part whose trigger was
 // released, and every abort below). Triggers that were waiting are dropped.
 void ModeRunner::stopMacro() {
+    if (macro_.clip_pending) {
+        out_->restoreClipboard();
+        macro_.clip_pending = false;
+    }
     for (size_t i = 0; i < kKeyCount; ++i) {
         if (!macro_held_[i]) continue;
         if (keys_held_[i]) out_->setKey(static_cast<Key>(i), false);

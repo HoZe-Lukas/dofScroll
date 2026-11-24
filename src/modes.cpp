@@ -386,7 +386,7 @@ bool parseChannelAction(const std::string &text, ChannelAction *out, std::string
     ChannelAction a;
     if (t.compare(0, 6, "macro:") == 0) {
         MacroAction m;
-        if (!parseMacroAction(t.substr(6), &m, err)) return false;
+        if (!parseMacroAction(trim(text).substr(6), &m, err)) return false;  // not case folded: paste:"..." keeps its text
         a.type = ChannelActionType::Macro;
         a.macro = std::make_shared<const MacroAction>(std::move(m));
     }
@@ -471,8 +471,8 @@ bool parseButtonAction(const std::string &text, ButtonActionType *type, Key *key
     Key k = Key::Space;
     if (t.compare(0, 6, "macro:") == 0) {
         MacroSide side;
-        if (t.find(',') != std::string::npos) return fail(err, "a button macro is one side (macro:<steps> or macro:<steps> | <steps>), without ','");
-        if (!parseMacroSide(t.substr(6), &side, err)) return false;
+        if (macroTextHasTopLevelComma(t)) return fail(err, "a button macro is one side (macro:<steps> or macro:<steps> | <steps>), without ','");
+        if (!parseMacroSide(trim(text).substr(6), &side, err)) return false;  // not case folded: paste:"..." keeps its text
         if (macro) *macro = std::move(side);
         ty = ButtonActionType::Macro;
     }

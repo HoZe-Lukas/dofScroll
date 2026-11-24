@@ -5,12 +5,17 @@
 #include "output.hpp"
 #include "xerrors.hpp"
 
+#include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/XKBlib.h>
 #include <X11/keysym.h>
 #include <X11/extensions/XTest.h>
 
+#include <poll.h>
+
+#include <chrono>
 #include <set>
+#include <string>
 
 namespace spn {
 namespace {
@@ -25,6 +30,7 @@ public:
         if (dpy_) {
             // In the destructor use the non-virtual helper (no virtual dispatch)
             doReleaseAll();
+            if (win_) XDestroyWindow(dpy_, win_);
             XFlush(dpy_);
             XCloseDisplay(dpy_);
         }
@@ -47,7 +53,47 @@ public:
             return false;
         }
         loadKeycodes();
+        // Clipboard (paste: step): an unmapped 1x1 window owns the selection; atoms are looked up once.
+        win_ = XCreateSimpleWindow(dpy_, DefaultRootWindow(dpy_), 0, 0, 1, 1, 0, 0, 0);
+        aClipboard_ = XInternAtom(dpy_, "CLIPBOARD", False);
+        aUtf8_ = XInternAtom(dpy_, "UTF8_STRING", False);
+        aTargets_ = XInternAtom(dpy_, "TARGETS", False);
+        aText_ = XInternAtom(dpy_, "TEXT", False);
+        aProp_ = XInternAtom(dpy_, "DOFSCROLL_CLIPBOARD", False);
         return true;
+    }
+
+    // Paste: step. The text goes to the CLIPBOARD selection, which this process owns until restoreClipboard(); requests
+    // are answered from flush() (once per tick). What the clipboard held before is read as UTF-8 text (best effort, 100 ms,
+    // text only) and offered again by restoreClipboard(); without such text the selection is just released.
+    bool setClipboardText(const std::string &text, std::string *why) override {
+        if (!dpy_ || !win_) {
+            if (why) *why = "x11: no connection for the clipboard";
+            return false;
+        }
+        if (!ownsClipboard_) hadSaved_ = readClipboard(&saved_);
+        own_ = text;
+        XSetSelectionOwner(dpy_, aClipboard_, win_, CurrentTime);
+        XFlush(dpy_);
+        if (XGetSelectionOwner(dpy_, aClipboard_) != win_) {
+            if (why) *why = "x11: could not become the owner of the clipboard";
+            return false;
+        }
+        ownsClipboard_ = true;
+        return true;
+    }
+    void restoreClipboard() override {
+        if (!dpy_ || !ownsClipboard_) return;
+        if (hadSaved_) {
+            own_ = saved_;  // still the owner, now offering the old text
+        } else {
+            XSetSelectionOwner(dpy_, aClipboard_, None, CurrentTime);
+            own_.clear();
+            ownsClipboard_ = false;
+        }
+        saved_.clear();
+        hadSaved_ = false;
+        XFlush(dpy_);
     }
 
     void wheelV(int n) override {
@@ -140,12 +186,87 @@ private:
         while (XPending(dpy_) > 0) {
             XEvent ev;
             XNextEvent(dpy_, &ev);
-            if (ev.type == MappingNotify && ev.xmapping.request != MappingPointer) {
-                XRefreshKeyboardMapping(&ev.xmapping);
-                remapped = true;
-            }
+            handleEvent(ev, &remapped);
         }
         if (remapped) loadKeycodes();
+    }
+    void handleEvent(XEvent &ev, bool *remapped) {
+        if (ev.type == MappingNotify && ev.xmapping.request != MappingPointer) {
+            XRefreshKeyboardMapping(&ev.xmapping);
+            *remapped = true;
+        } else if (ev.type == SelectionRequest) {
+            answerSelectionRequest(ev.xselectionrequest);
+        } else if (ev.type == SelectionClear && ev.xselectionclear.selection == aClipboard_) {
+            ownsClipboard_ = false;  // another program took the clipboard: nothing to restore any more
+            hadSaved_ = false;
+            own_.clear();
+            saved_.clear();
+        }
+    }
+    // Answers a request for the text we own: TARGETS, UTF8_STRING and TEXT (UTF-8 bytes), STRING for pure ASCII.
+    void answerSelectionRequest(const XSelectionRequestEvent &rq) {
+        XSelectionEvent r = {};
+        r.type = SelectionNotify;
+        r.display = rq.display;
+        r.requestor = rq.requestor;
+        r.selection = rq.selection;
+        r.target = rq.target;
+        r.time = rq.time;
+        r.property = None;
+        const Atom prop = rq.property != None ? rq.property : rq.target;
+        if (ownsClipboard_ && rq.selection == aClipboard_) {
+            bool ascii = true;
+            for (unsigned char c : own_)
+                if (c >= 0x80) ascii = false;
+            if (rq.target == aTargets_) {
+                const Atom list[] = {aTargets_, aUtf8_, aText_, XA_STRING};
+                XChangeProperty(dpy_, rq.requestor, prop, XA_ATOM, 32, PropModeReplace, reinterpret_cast<const unsigned char *>(list), ascii ? 4 : 3);
+                r.property = prop;
+            } else if (rq.target == aUtf8_ || rq.target == aText_ || (rq.target == XA_STRING && ascii)) {
+                XChangeProperty(dpy_, rq.requestor, prop, rq.target == aText_ ? aUtf8_ : rq.target, 8, PropModeReplace,
+                                reinterpret_cast<const unsigned char *>(own_.data()), static_cast<int>(own_.size()));
+                r.property = prop;
+            }
+        }
+        XSendEvent(dpy_, rq.requestor, False, NoEventMask, reinterpret_cast<XEvent *>(&r));
+        XFlush(dpy_);
+    }
+    // The text of the clipboard (owned by another program), as UTF-8. false if there is none, it is not text or it does not
+    // arrive within 100 ms. Never blocks longer; other events that arrive meanwhile are handled.
+    bool readClipboard(std::string *out) {
+        if (XGetSelectionOwner(dpy_, aClipboard_) == None) return false;
+        XDeleteProperty(dpy_, win_, aProp_);
+        XConvertSelection(dpy_, aClipboard_, aUtf8_, aProp_, win_, CurrentTime);
+        XFlush(dpy_);
+        const auto end = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+        bool remapped = false;
+        for (;;) {
+            while (XPending(dpy_) > 0) {
+                XEvent ev;
+                XNextEvent(dpy_, &ev);
+                if (ev.type == SelectionNotify && ev.xselection.requestor == win_) {
+                    if (ev.xselection.property == None) return false;
+                    Atom type = None;
+                    int fmt = 0;
+                    unsigned long n = 0, left = 0;
+                    unsigned char *data = nullptr;
+                    g_xerror = 0;
+                    const int rc = XGetWindowProperty(dpy_, win_, aProp_, 0, 16384, True, AnyPropertyType, &type, &fmt, &n, &left, &data);
+                    bool ok = false;
+                    if (rc == Success && data && type == aUtf8_ && fmt == 8 && left == 0 && !g_xerror) {
+                        out->assign(reinterpret_cast<char *>(data), n);
+                        ok = true;
+                    }
+                    if (data) XFree(data);
+                    return ok;
+                }
+                handleEvent(ev, &remapped);
+            }
+            const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(end - std::chrono::steady_clock::now()).count();
+            if (left <= 0) return false;
+            pollfd pfd = {ConnectionNumber(dpy_), POLLIN, 0};
+            poll(&pfd, 1, static_cast<int>(left));
+        }
     }
     void loadKeycodes() {
         for (size_t i = 0; i < kKeyCount; ++i)
@@ -205,6 +326,11 @@ private:
     unsigned code(Key k) const { return codes_[static_cast<size_t>(k)]; }
 
     Display *dpy_ = nullptr;
+    Window win_ = 0;                       // owner window of the clipboard
+    Atom aClipboard_ = None, aUtf8_ = None, aTargets_ = None, aText_ = None, aProp_ = None;
+    bool ownsClipboard_ = false;           // we own the CLIPBOARD selection (a paste: step is running)
+    bool hadSaved_ = false;                // saved_ holds the text that was on the clipboard before
+    std::string own_, saved_;              // the text we offer, and the one to offer again afterwards
     unsigned codes_[kKeyCount] = {};
     unsigned heldCode_[kKeyCount] = {};  // keycode a Key was pressed with by setKey(), 0 = not held
     bool plusShift_ = false;   // "plus" needs Shift on the current layout

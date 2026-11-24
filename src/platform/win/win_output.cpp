@@ -18,6 +18,7 @@
 #include <windows.h>
 
 #include <iostream>
+#include <string>
 #include <vector>
 
 #include "win_key_tables.hpp"
@@ -32,10 +33,62 @@ bool g_blanketRelease = false;
 class WinOutput : public Output {
 public:
     WinOutput() { pressed_.setShiftSlot(idx(Key::Shift)); }
-    ~WinOutput() override { doReleaseAll(); }
+    ~WinOutput() override {
+        doReleaseAll();
+        if (clipWin_) DestroyWindow(clipWin_);
+    }
 
     const char *name() const override { return "sendinput"; }
-    bool init(std::string *) override { return true; }
+    bool init(std::string *) override {
+        // SetClipboardData fails after OpenClipboard(NULL), so the clipboard is opened with a hidden message-only window
+        // (paste: step). Not fatal if it cannot be created: the paste step then reports it.
+        clipWin_ = CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, nullptr, nullptr);
+        return true;
+    }
+
+    // Paste: step: the text goes to the clipboard as CF_UNICODETEXT; the text that was there is kept (text only) and written
+    // back by restoreClipboard(), unless another program changed the clipboard in between (sequence number).
+    bool setClipboardText(const std::string &utf8, std::string *why) override {
+        auto fail = [&](const char *m) {
+            if (why) *why = m;
+            return false;
+        };
+        if (!clipWin_) return fail("windows: no window for the clipboard");
+        const int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8.data(), static_cast<int>(utf8.size()), nullptr, 0);
+        if (n <= 0) return fail("windows: the text is not valid UTF-8");
+        std::wstring w(static_cast<size_t>(n), L'\0');
+        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8.data(), static_cast<int>(utf8.size()), &w[0], n);
+        if (!openClipboard()) return fail("windows: the clipboard is held by another program");
+        if (!replaced_) {  // a paste that is still pending keeps the text saved by the first one
+            saved_.clear();
+            hadSaved_ = false;
+            if (HANDLE h = GetClipboardData(CF_UNICODETEXT)) {
+                if (const wchar_t *p = static_cast<const wchar_t *>(GlobalLock(h))) {
+                    saved_ = p;
+                    GlobalUnlock(h);
+                    hadSaved_ = true;
+                }
+            }
+        }
+        const bool ok = writeClipboard(w);
+        if (ok) {
+            replaced_ = true;
+            seq_ = GetClipboardSequenceNumber();
+        }
+        CloseClipboard();
+        return ok ? true : fail("windows: could not write to the clipboard");
+    }
+    void restoreClipboard() override {
+        if (!replaced_) return;
+        replaced_ = false;
+        if (GetClipboardSequenceNumber() != seq_) return;  // another program took the clipboard: leave it alone
+        if (!openClipboard()) return;
+        if (hadSaved_) writeClipboard(saved_);
+        else EmptyClipboard();
+        CloseClipboard();
+        saved_.clear();
+        hadSaved_ = false;
+    }
 
     void wheelV(int n) override {
         const int32_t d = winkeys::wheelDetentV(n);
@@ -139,6 +192,33 @@ public:
     void flush() override {}
 
 private:
+    // The clipboard may be open in another program for a moment: a few short retries (at most about 50 ms).
+    bool openClipboard() {
+        for (int i = 0; i < 5; ++i) {
+            if (OpenClipboard(clipWin_)) return true;
+            Sleep(10);
+        }
+        return false;
+    }
+    static bool writeClipboard(const std::wstring &w) {
+        if (!EmptyClipboard()) return false;
+        HGLOBAL g = GlobalAlloc(GMEM_MOVEABLE, (w.size() + 1) * sizeof(wchar_t));
+        if (!g) return false;
+        wchar_t *p = static_cast<wchar_t *>(GlobalLock(g));
+        if (!p) {
+            GlobalFree(g);
+            return false;
+        }
+        for (size_t i = 0; i < w.size(); ++i) p[i] = w[i];
+        p[w.size()] = L'\0';
+        GlobalUnlock(g);
+        if (!SetClipboardData(CF_UNICODETEXT, g)) {
+            GlobalFree(g);
+            return false;
+        }
+        return true;  // the system owns the memory now
+    }
+
     static size_t idx(Key k) { return static_cast<size_t>(k); }
 
     // "plus" is layout dependent (a key with Shift on US, a plain key on German): ask the
@@ -212,6 +292,11 @@ private:
     winkeys::PressedKeys pressed_;  // keys this process holds (with the codes used at key-down)
     bool btnHeld_[3] = {};
     bool blanket_ = false;
+    HWND clipWin_ = nullptr;     // owner window of the clipboard (paste: step)
+    bool replaced_ = false;      // a paste: step replaced the clipboard text and it has not been restored yet
+    bool hadSaved_ = false;      // saved_ holds the text that was there before
+    std::wstring saved_;
+    DWORD seq_ = 0;              // GetClipboardSequenceNumber() right after our write
     bool warned_ = false;
 };
 

@@ -772,7 +772,9 @@ by a file). Assessment and limits:
   the focus, so a macro from a stranger is as powerful as the key list allows and no more: the key names are the closed list of
   `src/keys.hpp` (no key codes, no characters, no commands); since stage 3 of `plan-macro-engine.md` a macro can also click the mouse
   (`click`, `rightclick`, `middleclick`, `+click`/`-click`), which acts on whatever is under the pointer, so a click step is named in
-  the load warning like a key. Every macro whose steps press a tier B key (a letter, digit,
+  the load warning like a key; `paste:"text"` puts a text on the clipboard and pastes it, so it counts as tier B too and the
+  warning names its first 20 characters (the text itself cannot hold control characters, `\`, `"`, `#` or invisible and
+  direction-changing characters, so no escape sequence can be pasted). Every macro whose steps press a tier B key (a letter, digit,
   function key, Enter, Delete, Backspace, Esc, space, an `alt` or `super` chord, play/pause, a lone modifier; `keyAnalogAllowed`
   says no) gets the plain load warning naming the first keys, in profiles and in mode files alike, and the interface's
   import check flags such a profile like a risky chord. There is no gate and no flag that lifts it. Bounds: at most 256 steps per
