@@ -256,7 +256,7 @@ untested: it uses the Windows axis order). It never overwrites an existing file,
 already has files in `devices/` or `apps/` counts as configured. The seeded `dofscroll.conf` holds `[global]`
 only and has no device profile: when the daemon reports the attached device for the first time after a new
 installation, the interface writes the profile of that device as its own file, `devices/<name of that device>.conf`
-(header `[device:<name of that device>]`, button 1 = navigation), once. The joystick modes and button modes are built into the program and are not copied.
+(header `[device:<name of that device>]`, button 1 = navigation), once. For the wired SpaceMouse Pro (reported as `SpaceMouse Pro`, not the Wireless model) the profile also starts with a lower scroll and zoom sensitivity than the global defaults, because the maintainer found them too lively on that device: `SCROLL_V_SENS = 3`, `SCROLL_V_CURVE = 2`, `SCROLL_H_SENS = 2`, `SCROLL_H_CURVE = 2`, `ZOOM_SENS = 1` (an existing device profile is never changed; the values are in `firstDeviceTuning`, `src/ui/model/first_device.hpp`). The joystick modes and button modes are built into the program and are not copied.
 The daemon cannot write to that directory, so only the interface seeds. Without it, copy the file yourself:
 
     mkdir -p -m 0700 ~/.config/dofscroll
