@@ -159,6 +159,9 @@ static void testNotesAndRiskBoundaries() {
     p = planOf(m, d, "[app:programname]\nBUTTON_1 = key:ctrl+1\nBUTTON_2 = key:ctrl+2\nBUTTON_3 = key:ctrl+3\nBUTTON_4 = key:ctrl+4\n"
                      "BUTTON_5 = key:ctrl+5\nBUTTON_6 = key:ctrl+6\nBUTTON_7 = key:ctrl+7\nBUTTON_8 = key:ctrl+8\n");
     assert(p.ok && p.risks.size() == 1 && has(p.risks[0], "BUTTON_6 = key:ctrl+6") && !has(p.risks[0], "BUTTON_7 =") && has(p.risks[0], "2 more"));
+    // a macro is named by what it presses, not by its raw text (issue 319)
+    p = planOf(m, d, "[app:programname]\nBUTTON_5 = macro:+ctrl +a -a -ctrl\n");
+    assert(p.ok && p.risks.size() == 1 && has(p.risks[0], "BUTTON_5 runs a macro that presses or clicks") && !has(p.risks[0], "macro:+ctrl"));
     // a risk plus a collision still needs one confirmation (needsConfirm), a plain new profile none
     assert(!planOf(m, d, "[app:programname]\nZOOM_SENS = 1\n").needsConfirm());
     tu::removeAll(d);

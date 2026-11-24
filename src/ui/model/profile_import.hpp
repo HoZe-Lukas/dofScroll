@@ -47,6 +47,21 @@ struct ImportResult {
     std::string message;               // one line for the status bar (translated); also set on failure
 };
 
+// What a macro binding would press or click, from the daemon's own parsers (the same text as its load warning), or ""
+// when the binding is no macro. The raw macro text can be hundreds of characters; this names at most three keys.
+inline std::string macroBindingRiskText(const std::string &key, const std::string &value) {
+    const std::string k = utf8::upperAscii(utf8::trim(key));
+    if (k.compare(0, 7, "BUTTON_") == 0) {
+        ButtonActionType t;
+        MacroSide macro;
+        if (parseButtonAction(value, &t, nullptr, nullptr, nullptr, nullptr, &macro) && t == ButtonActionType::Macro) return macroRiskText(macro);
+    } else if (k.size() > 7 && k.compare(k.size() - 7, 7, "_ACTION") == 0) {
+        ChannelAction a;
+        if (parseChannelAction(value, &a, nullptr) && a.type == ChannelActionType::Macro && a.macro) return macroRiskText(*a.macro);
+    }
+    return "";
+}
+
 inline ImportPlan planProfileImport(const SettingsModel &m, const std::string &file, const StringProvider &s) {
     ImportPlan p;
     std::string text;
@@ -91,7 +106,11 @@ inline ImportPlan planProfileImport(const SettingsModel &m, const std::string &f
             p.notes.push_back(format(s.tr("%1 was not imported (an imported profile does not switch the output off or change how events are sent)."), {uk}));
             continue;
         }
-        if (m.bindingIsRisky(kv.first, kv.second)) riskyKeys.push_back(displayText(kv.first) + " = " + displayText(kv.second));
+        if (m.bindingIsRisky(kv.first, kv.second)) {
+            const std::string macroKeys = macroBindingRiskText(kv.first, kv.second);
+            riskyKeys.push_back(macroKeys.empty() ? displayText(kv.first) + " = " + displayText(kv.second)
+                                                  : format(s.tr("%1 runs a macro that presses or clicks %2"), {displayText(kv.first), displayText(macroKeys)}));
+        }
         std::string e;
         if (!applyKey(t, kv.first, kv.second, &e)) {
             p.error = format(s.tr("The setting %1 = %2 is not valid: %3"), {kv.first, kv.second, e});
