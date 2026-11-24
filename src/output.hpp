@@ -30,6 +30,16 @@ public:
     // with clampMouseDelta() and send one motion per call; it becomes visible at flush().
     // Default: ignored, so backends and fakes without a pointer keep working.
     virtual void moveMouse(int dx, int dy) { (void)dx; (void)dy; }
+    // Clipboard for the macro step paste:"text". setClipboardText puts the UTF-8 text on the clipboard and remembers what
+    // was there (text only); restoreClipboard puts that back. pasteModifier() is the modifier of the paste shortcut
+    // (Ctrl+V; macOS: Super, which is Cmd). Default: not supported, *why says so.
+    virtual bool setClipboardText(const std::string &utf8, std::string *why) {
+        (void)utf8;
+        if (why) *why = std::string("this output (") + name() + ") cannot paste text";
+        return false;
+    }
+    virtual void restoreClipboard() {}
+    virtual Key pasteModifier() const { return Key::Ctrl; }
     virtual void releaseAll() = 0;                  // release every held key/button
     // Like releaseAll(), but independent of our own state: releases every Key and mouse
     // buttons 1-3 even if an earlier process (crash, SIGKILL) left them pressed.

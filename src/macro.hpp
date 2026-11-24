@@ -13,6 +13,11 @@
 //   click | rightclick | middleclick           a mouse button down and up
 //   +click | +rightclick | +middleclick        a mouse button down, stays held until the matching -<name> step
 //   -click | -rightclick | -middleclick        a mouse button up
+//   paste:"text" puts the text on the clipboard and pastes it (Ctrl+V, Cmd+V on macOS); the clipboard text that was there is put
+//                back afterwards (text only). The text is taken as written, upper and lower case and blanks are kept; there are no
+//                escape sequences. Refused: control characters (ESC, tab, line breaks, NUL, DEL), the backslash, the double
+//                quote, '#' (comment start in config files), invisible and direction-changing characters, invalid UTF-8;
+//                1..kMaxMacroPasteBytes bytes. ',' and '|' are fine inside the quotes. One step, whatever the length.
 //   repeat:<n>   start of a block that runs n times (1..kMaxMacroRepeat), up to the next "end"; blocks do not nest. Every
 //   end          pass of a block takes at least one daemon tick. "repeat" without a count (until the trigger is released,
 //                bounded by kMaxMacroRunSeconds) is only valid in the press part of a side with the while_held prefix.
@@ -49,15 +54,17 @@ constexpr int kMaxMacroRepeat = 1000;               // the count of a repeat blo
 constexpr int kMaxMacroRunSeconds = 600;            // a run longer than this is ended (what it holds is released)
 constexpr int kMinMacroWaitMs = 1, kMaxMacroWaitMs = 60000;
 constexpr int kDefaultMacroWaitMs = 30;             // the pause the recorder puts between steps when times are not recorded
+constexpr size_t kMaxMacroPasteBytes = 1024;        // the text of a paste: step
 constexpr size_t kMaxMacroKeysPerStep = kMaxChordMods + 1;  // the modifiers of a chord plus its key
 
 struct MacroStep {
-    enum class Kind : uint8_t { Down, Up, Wait, Tap, MouseDown, MouseUp, MouseTap, RepeatBegin, RepeatEnd };
+    enum class Kind : uint8_t { Down, Up, Wait, Tap, MouseDown, MouseUp, MouseTap, RepeatBegin, RepeatEnd, Paste };
     Kind kind = Kind::Wait;
     Key key = Key::Space;   // Down, Up, Tap: the chord's key (the last name of the chord)
     ChordMods mods;         // Down, Up, Tap: its modifiers
     int waitMs = 0;         // Wait
     uint8_t mouse = 1;      // MouseDown, MouseUp, MouseTap: 1 left, 2 middle, 3 right (the numbering of Output::mouseButton)
+    std::string text;       // Paste: the text (UTF-8, no control or spoofing characters, no '\\' or '"')
     int count = 0;          // RepeatBegin: the number of passes; 0 = until the trigger is released (while_held only)
 
     static MacroStep down(Key k, const ChordMods &m = ChordMods()) {
@@ -94,6 +101,12 @@ struct MacroStep {
         s.count = n;
         return s;
     }
+    static MacroStep paste(std::string t) {
+        MacroStep s;
+        s.kind = Kind::Paste;
+        s.text = std::move(t);
+        return s;
+    }
     static MacroStep repeatEnd() {
         MacroStep s;
         s.kind = Kind::RepeatEnd;
@@ -108,6 +121,7 @@ struct MacroStep {
             case Kind::MouseTap: return mouse == o.mouse;
             case Kind::RepeatBegin: return count == o.count;
             case Kind::RepeatEnd: return true;
+            case Kind::Paste: return text == o.text;
             default: return key == o.key && mods.n == o.mods.n && mods == o.mods;
         }
     }
@@ -128,8 +142,13 @@ struct MacroAction {
     bool operator==(const MacroAction &o) const { return neg == o.neg && pos == o.pos; }
 };
 
+// "" if the text can be pasted by a paste: step, else the reason with the byte position of the first offender (see the grammar above).
+std::string macroPasteTextProblem(const std::string &text);
+// true if the action text has a ',' outside of double quotes (a button macro is one side, without a comma).
+bool macroTextHasTopLevelComma(const std::string &text);
+
 // ---- one step -------------------------------------------------------------------------------------------------------
-// Parses "+ctrl+c", "-a", "wait:30", "tap:ctrl+c", "click", "+rightclick", "repeat:3", "repeat" or "end" (ASCII case folded). false + *err (a message for the user) otherwise.
+// Parses "+ctrl+c", "-a", "wait:30", "tap:ctrl+c", "click", "+rightclick", "repeat:3", "repeat", "end" (ASCII case folded) or paste:"text" (text kept as written). false + *err (a message for the user) otherwise.
 bool parseMacroStep(const std::string &text, MacroStep *out, std::string *err);
 // Canonical text of a step: "+ctrl+c", "-a", "wait:30", "tap:a", "click", "+click", "repeat:3" ("repeat" for count 0), "end". The inverse of parseMacroStep.
 std::string macroStepText(const MacroStep &step);

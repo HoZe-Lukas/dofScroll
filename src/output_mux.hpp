@@ -80,6 +80,9 @@ private:
         void tapKey(Key k) override { m_->real_->tapKey(k); }
         void mouseButton(int b, bool down) override { m_->mouseButton(slot_, b, down); }
         void moveMouse(int dx, int dy) override { m_->real_->moveMouse(dx, dy); }
+        bool setClipboardText(const std::string &t, std::string *why) override { return m_->real_->setClipboardText(t, why); }
+        void restoreClipboard() override { m_->real_->restoreClipboard(); }
+        Key pasteModifier() const override { return m_->real_->pasteModifier(); }
         void releaseAll() override { m_->releaseSlot(slot_); }
         void flush() override { m_->real_->flush(); }
 

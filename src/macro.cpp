@@ -28,10 +28,24 @@ std::vector<std::string> splitTokens(const std::string &text) {
     while (i < text.size()) {
         while (i < text.size() && isSep(text[i])) ++i;
         const size_t b = i;
-        while (i < text.size() && !isSep(text[i])) ++i;
+        bool inQuote = false;  // a double quote opens and closes a text (paste:"..."): blanks inside it do not split
+        while (i < text.size() && (inQuote || !isSep(text[i]))) {
+            if (text[i] == '"') inQuote = !inQuote;
+            ++i;
+        }
         if (i > b) out.push_back(text.substr(b, i - b));
     }
     return out;
+}
+
+// Position of the first c outside of double quotes at or after from, or npos.
+size_t findOutsideQuotes(const std::string &text, char c, size_t from = 0) {
+    bool inQuote = false;
+    for (size_t i = from; i < text.size(); ++i) {
+        if (text[i] == '"') inQuote = !inQuote;
+        else if (text[i] == c && !inQuote) return i;
+    }
+    return std::string::npos;
 }
 
 std::string quoted(const std::string &tok) {
@@ -106,11 +120,44 @@ std::string structureProblem(const MacroSteps &steps, bool allowInfinite, size_t
 
 }  // namespace
 
+std::string macroPasteTextProblem(const std::string &text) {
+    if (text.empty()) return "paste:\"...\" needs a text";
+    if (text.size() > kMaxMacroPasteBytes)
+        return "the text of paste: is too long (" + std::to_string(text.size()) + " bytes, max. " + std::to_string(kMaxMacroPasteBytes) + ")";
+    size_t i = 0;
+    while (i < text.size()) {
+        const size_t l = utf8::charLen(text, i);
+        const std::string at = "position " + std::to_string(i + 1) + ": ";
+        if (l == 0) return at + "invalid UTF-8";
+        const unsigned char c = static_cast<unsigned char>(text[i]);
+        if (l == 1 && (c < 0x20 || c == 0x7f)) return at + "a control character (ESC, tab, line break, ...) cannot be pasted";
+        if (l == 1 && c == '\\') return at + "the backslash cannot be pasted";
+        if (l == 1 && c == '"') return at + "the double quote cannot be pasted";
+        if (l == 1 && c == '#') return at + "'#' cannot be pasted (the config readers take it as the start of a comment)";
+        if (l == 2 && c == 0xc2 && static_cast<unsigned char>(text[i + 1]) < 0xa0) return at + "a control character cannot be pasted";
+        if (l == 3 && (utf8::isSpoofing(text, i) || (c == 0xe2 && static_cast<unsigned char>(text[i + 1]) == 0x80 &&
+                                                       (static_cast<unsigned char>(text[i + 2]) == 0xa8 || static_cast<unsigned char>(text[i + 2]) == 0xa9))))
+            return at + "an invisible or direction-changing character cannot be pasted";
+        i += l;
+    }
+    return std::string();
+}
+
+bool macroTextHasTopLevelComma(const std::string &text) { return findOutsideQuotes(text, ',') != std::string::npos; }
+
 bool parseMacroStep(const std::string &text, MacroStep *out, std::string *err) {
-    const std::string t = utf8::lowerAscii(utf8::trim(text));
+    const std::string raw = utf8::trim(text);
+    const std::string t = utf8::lowerAscii(raw);
     if (t.empty()) return fail(err, "empty step");
     MacroStep s;
-    if (t.compare(0, 5, "wait:") == 0) {
+    if (t.compare(0, 6, "paste:") == 0) {
+        const std::string q = raw.substr(6);  // the text is kept as written
+        if (q.size() < 2 || q.front() != '"' || q.back() != '"') return fail(err, "paste: needs the text in double quotes (paste:\"text\")");
+        const std::string body = q.substr(1, q.size() - 2);
+        const std::string problem = macroPasteTextProblem(body);
+        if (!problem.empty()) return fail(err, problem);
+        s = MacroStep::paste(body);
+    } else if (t.compare(0, 5, "wait:") == 0) {
         const std::string n = t.substr(5);
         if (n.empty() || n.size() > 5 || n.find_first_not_of("0123456789") != std::string::npos)
             return fail(err, "wait:<ms> needs a whole number of milliseconds (" + std::to_string(kMinMacroWaitMs) + ".." +
@@ -148,7 +195,7 @@ bool parseMacroStep(const std::string &text, MacroStep *out, std::string *err) {
         if (!parseChord(t.substr(1), &key, &mods, &e, true)) return fail(err, e);
         s = t[0] == '+' ? MacroStep::down(key, mods) : MacroStep::up(key, mods);
     } else {
-        return fail(err, "a step is +<key> (press), -<key> (release), tap:<key>, wait:<ms>, click, rightclick, middleclick, +click, -click, repeat:<n> or end, got " + quoted(t));
+        return fail(err, "a step is +<key> (press), -<key> (release), tap:<key>, paste:\"text\", wait:<ms>, click, rightclick, middleclick, +click, -click, repeat:<n> or end, got " + quoted(t));
     }
     if (out) *out = s;
     return true;
@@ -165,6 +212,7 @@ std::string macroStepText(const MacroStep &step) {
         case MacroStep::Kind::MouseUp: return std::string("-") + mouseName(step.mouse);
         case MacroStep::Kind::RepeatBegin: return step.count > 0 ? "repeat:" + std::to_string(step.count) : std::string("repeat");
         case MacroStep::Kind::RepeatEnd: return "end";
+        case MacroStep::Kind::Paste: return "paste:\"" + step.text + "\"";
     }
     return std::string();
 }
@@ -189,16 +237,19 @@ std::string macroStepsProblem(const MacroSteps &steps, bool allowInfinite) {
     const std::string sp = structureProblem(steps, allowInfinite, nullptr);
     if (!sp.empty()) return sp;
     for (size_t i = 0; i < steps.size(); ++i)
-        if (steps[i].kind == MacroStep::Kind::Wait && (steps[i].waitMs < kMinMacroWaitMs || steps[i].waitMs > kMaxMacroWaitMs))
+        if (steps[i].kind == MacroStep::Kind::Paste) {
+            const std::string pp = macroPasteTextProblem(steps[i].text);
+            if (!pp.empty()) return "step " + std::to_string(i + 1) + ": " + pp;
+        } else if (steps[i].kind == MacroStep::Kind::Wait && (steps[i].waitMs < kMinMacroWaitMs || steps[i].waitMs > kMaxMacroWaitMs))
             return "step " + std::to_string(i + 1) + ": a pause must be " + std::to_string(kMinMacroWaitMs) + ".." +
                    std::to_string(kMaxMacroWaitMs) + " ms, got " + std::to_string(steps[i].waitMs);
     return std::string();
 }
 
 bool parseMacroSteps(const std::string &text, MacroSteps *out, std::string *err, bool allowInfinite) {
-    const std::string t = utf8::lowerAscii(utf8::trim(text));
+    const std::string t = utf8::trim(text);  // not case folded: the text of a paste: step is kept as written
     MacroSteps steps;
-    if (!t.empty() && t != "none") {
+    if (!t.empty() && utf8::lowerAscii(t) != "none") {
         const std::vector<std::string> toks = splitTokens(t);
         if (toks.size() > 4 * kMaxMacroSteps)  // repeat blocks expand: the exact limit is checked below
             return fail(err, "too many steps (" + std::to_string(toks.size()) + ", max. " + std::to_string(kMaxMacroSteps) + ")");
@@ -223,16 +274,16 @@ std::string macroStepsText(const MacroSteps &steps) {
 }
 
 bool parseMacroSide(const std::string &text, MacroSide *out, std::string *err) {
-    const size_t bar = text.find('|');
-    if (bar != std::string::npos && text.find('|', bar + 1) != std::string::npos)
+    const size_t bar = findOutsideQuotes(text, '|');
+    if (bar != std::string::npos && findOutsideQuotes(text, '|', bar + 1) != std::string::npos)
         return fail(err, "a macro side has at most one '|' (press part | release part)");
     MacroSide side;
     std::string e;
     std::string pressText = bar == std::string::npos ? text : text.substr(0, bar);
     {
-        const std::string t = utf8::lowerAscii(utf8::trim(pressText));
+        const std::string t = utf8::trim(pressText);
         static const std::string kw = "while_held";
-        if (t.compare(0, kw.size(), kw) == 0 && (t.size() == kw.size() || isSep(t[kw.size()]))) {
+        if (utf8::lowerAscii(t.substr(0, kw.size())) == kw && (t.size() == kw.size() || isSep(t[kw.size()]))) {
             side.whileHeld = true;
             pressText = t.substr(kw.size());
         }
@@ -254,8 +305,8 @@ std::string macroSideText(const MacroSide &side) {
 }
 
 bool parseMacroAction(const std::string &text, MacroAction *out, std::string *err) {
-    const size_t comma = text.find(',');
-    if (comma == std::string::npos || text.find(',', comma + 1) != std::string::npos)
+    const size_t comma = findOutsideQuotes(text, ',');
+    if (comma == std::string::npos || findOutsideQuotes(text, ',', comma + 1) != std::string::npos)
         return fail(err, "macro:<neg>,<pos> expects exactly two sides (a side may be none)");
     MacroAction a;
     std::string e;
@@ -274,6 +325,15 @@ std::string macroRiskText(const MacroSteps &steps) {
     std::string out;
     size_t named = 0, more = 0;
     for (const MacroStep &s : steps) {
+        if (s.kind == MacroStep::Kind::Paste) {  // pasted text lands in whatever has the focus: tier B like a key press
+            if (named >= 3) {
+                ++more;
+                continue;
+            }
+            out += (out.empty() ? "" : ", ") + std::string("paste \"") + utf8::truncate(s.text, 20) + (s.text.size() > 20 ? "..." : "") + "\"";
+            ++named;
+            continue;
+        }
         const bool mouse = s.kind == MacroStep::Kind::MouseDown || s.kind == MacroStep::Kind::MouseTap;  // a click acts on whatever has the focus
         const bool key = s.kind == MacroStep::Kind::Down || s.kind == MacroStep::Kind::Tap;
         if (!mouse && (!key || keyAnalogAllowed(s.key, s.mods))) continue;

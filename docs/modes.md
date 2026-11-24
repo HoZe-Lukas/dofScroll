@@ -391,6 +391,7 @@ a device button or on a motion direction, never on an analog key repeat. The ste
 | `-<chord>` | Key up. Releases the key first, then the modifiers in the reverse order. |
 | `tap:<chord>` | Press and release in one step: the modifiers down in the order written, the key down and up, the modifiers up in reverse order (`tap:ctrl+c`). Same as `+ctrl+c -ctrl+c`. |
 | `wait:<ms>` | Pause of 1 to 60000 milliseconds. |
+| `paste:"<text>"` | Puts the text on the clipboard and pastes it (Ctrl+V; Cmd+V on macOS), then puts the text that was on the clipboard before back (see [Pasted text](#pasted-text)). |
 | `click`, `rightclick`, `middleclick` | A mouse button down and up. |
 | `+click`, `+rightclick`, `+middleclick` | A mouse button down; it stays down until the matching `-click`, `-rightclick`, `-middleclick`. |
 | `repeat:<n>` ... `end` | The steps in between run `n` times (1 to 1000). Blocks do not nest. A macro can have parts that repeat and parts that do not. |
@@ -452,6 +453,24 @@ Rules:
 - **Safety.** The keys come from the closed list of `keys.hpp`. A macro with tier B keys (letters, digits, function keys,
   Enter, Delete, Esc, space, `alt` or `super` chords, a lone modifier, ...) gets the plain load warning, there is no gate; see
   `docs/security.md`, section 7. A macro acts on whatever has the focus: only take over files you have read.
+
+### Pasted text
+
+`paste:"Hello, World"` inserts a text when the macro runs. It is **not typed as keys**: the text goes to the clipboard and
+the paste shortcut is pressed, so the keyboard layout does not matter and every character works (`€` on a US keyboard too).
+
+- The text is taken as written: upper and lower case and blanks are kept, there are no escape sequences. `,` and `|` are
+  fine inside the quotes (they do not split the sides of a macro).
+- **Refused when the file is loaded**, with the position of the first offender: control characters (ESC, tab, line breaks,
+  NUL, DEL), the backslash `\`, the double quote `"`, `#` (a config line is cut at ` #`), invisible and direction-changing
+  Unicode characters, invalid UTF-8. 1 to 1024 bytes. One `paste:` counts as one step.
+- To paste into a terminal that wants Ctrl+Shift+V, hold Shift around it: `+shift paste:"text" -shift`.
+- The text that was on the clipboard is offered again after about 150 ms (text only: an image or a file list on the
+  clipboard is not restored). If another program takes the clipboard meanwhile, nothing is restored.
+- **Support:** Linux with the X11 output (the daemon owns the clipboard until the target has taken the text). With the
+  uinput output (Wayland) the step is skipped and the log says `macro: paste: ...`; the rest of the macro runs.
+  Windows and macOS follow in the same release line.
+- A pasted text is tier B like a key press: the load warning names it (`paste "first 20 characters..."`).
 
 How macros behave in real programs (timing, recording, release at the end) is not verified on a real device.
 

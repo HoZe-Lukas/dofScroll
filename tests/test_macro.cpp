@@ -312,6 +312,68 @@ static void testMacroInModeText() {
     tu::removeAll(dir);
 }
 
+// ---------------------------------------------------------------- paste: step (issue 386)
+static void testPasteStep() {
+    MacroStep st;
+    std::string err;
+    CHECK(parseMacroStep("paste:\"Hello World\"", &st, &err) && st.kind == MacroStep::Kind::Paste && st.text == "Hello World", "plain: %s", err.c_str());
+    CHECK(parseMacroStep("PASTE:\"Ab, c | d\"", &st, &err) && st.text == "Ab, c | d" && macroStepText(st) == "paste:\"Ab, c | d\"",
+          "keyword case folded, text kept (case, comma, bar): %s", err.c_str());
+    CHECK(parseMacroStep("paste:\"\xE2\x82\xAC \xC3\xB6\"", &st, &err) && st.text == "\xE2\x82\xAC \xC3\xB6", "non-ASCII is fine");
+    CHECK(!parseMacroStep("paste:abc", &st, &err) && err.find("double quotes") != std::string::npos, "needs quotes: %s", err.c_str());
+    CHECK(!parseMacroStep("paste:\"abc", &st, &err), "unterminated");
+    CHECK(!parseMacroStep("paste:\"\"", &st, &err) && err.find("needs a text") != std::string::npos, "empty: %s", err.c_str());
+    // refused characters, with the position of the first one
+    struct { const char *text; const char *pos; } bad[] = {
+        {"ab\x1b[31m", "position 3"},          // ESC sequence
+        {"a\tb", "position 2"},                // tab
+        {"a\nb", "position 2"},                // line break
+        {"ab\\n", "position 3"},               // backslash
+        {"a#b", "position 2"},                  // comment start
+        {"ab\x7f", "position 3"},              // DEL
+        {"a\xC2\x85", "position 2"},           // C1 control
+        {"ab\xE2\x80\xAE", "position 3"},      // right-to-left override
+        {"ab\xE2\x80\xA8", "position 3"},      // line separator
+        {"a\xFF", "position 2"},               // invalid UTF-8
+    };
+    for (const auto &b : bad) {
+        const std::string t = std::string("paste:\"") + b.text + "\"";
+        CHECK(!parseMacroStep(t, &st, &err) && err.find(b.pos) != std::string::npos, "refused %s: %s", b.pos, err.c_str());
+    }
+    CHECK(macroPasteTextProblem(std::string(kMaxMacroPasteBytes, 'a')).empty() && !macroPasteTextProblem(std::string(kMaxMacroPasteBytes + 1, 'a')).empty(), "length limit");
+    CHECK(!macroPasteTextProblem("a\"b").empty(), "a double quote in the text (a step built in memory)");
+    // lists: blanks inside the quotes do not split, case is kept
+    MacroSteps steps;
+    CHECK(parseMacroSteps("+ctrl paste:\"Hello  World\" -ctrl PASTE:\"X y\"", &steps, &err) && steps.size() == 4 && steps[1].text == "Hello  World" && steps[3].text == "X y",
+          "list: %s", err.c_str());
+    CHECK(macroStepsText(steps) == "+ctrl paste:\"Hello  World\" -ctrl paste:\"X y\"", "canonical: %s", macroStepsText(steps).c_str());
+    CHECK(macroExpandedSize(steps) == 4, "one paste is one step");
+    MacroSteps bigText = {MacroStep::paste("a#b")};
+    CHECK(!macroStepsProblem(bigText).empty() && macroStepsProblem(bigText).find("step 1") != std::string::npos, "a bad text in a list built in memory");
+    // sides and motions: ',' '|' inside the quotes are not separators
+    MacroSide side;
+    CHECK(parseMacroSide("paste:\"a|b, c\" | +a -a", &side, &err) && side.press.size() == 1 && side.press[0].text == "a|b, c" && side.release.size() == 2, "side: %s", err.c_str());
+    CHECK(parseMacroSide("WHILE_HELD paste:\"Mixed Case\"", &side, &err) && side.whileHeld && side.press[0].text == "Mixed Case", "while_held keeps the text: %s", err.c_str());
+    MacroAction act;
+    CHECK(parseMacroAction("paste:\"a,b\", paste:\"c|d\"", &act, &err) && act.neg.press[0].text == "a,b" && act.pos.press[0].text == "c|d", "action: %s", err.c_str());
+    CHECK(macroActionText(act) == "paste:\"a,b\",paste:\"c|d\"", "canonical action: %s", macroActionText(act).c_str());
+    // inside the config and the action parsers: the value is not case folded and the comma check ignores quotes
+    ButtonActionType t = ButtonActionType::Unbound;
+    Key k = Key::Space;
+    MacroSide bs;
+    CHECK(parseButtonAction("macro:paste:\"Hi, You\"", &t, &k, &err, nullptr, nullptr, &bs) && bs.press[0].text == "Hi, You", "button macro: %s", err.c_str());
+    CHECK(!parseButtonAction("macro:paste:\"a\",+a", &t, &k, &err) && err.find("without ','") != std::string::npos, "a comma outside the quotes: %s", err.c_str());
+    ChannelAction ca;
+    CHECK(parseChannelAction("macro:paste:\"Up\",paste:\"Down\"", &ca, &err) && ca.type == ChannelActionType::Macro && ca.macro->pos.press[0].text == "Down", "channel: %s", err.c_str());
+    // risk text names the pasted text (tier B)
+    CHECK(macroRiskText(MacroSteps{MacroStep::paste("rm -rf")}) == "paste \"rm -rf\"", "risk: %s", macroRiskText(MacroSteps{MacroStep::paste("rm -rf")}).c_str());
+    CHECK(macroRiskText(MacroSteps{MacroStep::paste("0123456789012345678901234")}) == "paste \"01234567890123456789...\"", "risk is cut");
+    // a config line keeps the text
+    Settings se;
+    std::string e2;
+    CHECK(applyKey(se, "BUTTON_4", "macro:paste:\"Hello World\"", &e2), "config: %s", e2.c_str());
+}
+
 int main() {
     testMacroSteps();
     testMacroStepLists();
@@ -322,6 +384,7 @@ int main() {
     testMacroInSettings();
     testMacroInProfileText();
     testMacroInModeText();
+    testPasteStep();
     if (failures) {
         std::fprintf(stderr, "%d failure(s)\n", failures);
         return 1;

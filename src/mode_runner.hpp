@@ -162,7 +162,9 @@ private:
         bool while_held = false;  // the press part of a while_held side
         int owner = -1;           // what ends it when released (a button 1..32, a motion 100 + index), -1 none
         bool active = false;
+        bool clip_pending = false;  // a paste: step replaced the clipboard text; it is put back after the pause that follows
     } macro_;
+    bool paste_warned_ = false;     // the failure of a paste: step is logged once
     SharedSteps macro_pending_;               // a trigger of this tick, started by runMacro()
     bool macro_pending_while_held_ = false;
     int macro_pending_owner_ = -1;

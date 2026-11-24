@@ -46,6 +46,16 @@ struct MacroRec : Output {
     }
     void releaseAll() override { keys.clear(); mouse.clear(); ++releaseAlls; }
     void flush() override {}
+    bool clipFails = false;
+    bool setClipboardText(const std::string &t, std::string *why) override {
+        if (clipFails) {
+            if (why) *why = "no clipboard";
+            return false;
+        }
+        add("clip:" + t);
+        return true;
+    }
+    void restoreClipboard() override { add("clip:restore"); }
     void add(const std::string &e) {
         log.push_back(e);
         at.push_back(tick ? *tick : 0);
@@ -487,6 +497,46 @@ static void testMacroMixedWithHold() {
     CHECK(g.out.keys.empty(), "released with the hold");
 }
 
+// ---------------------------------------------------------------- paste: step
+static void testPaste() {
+    {
+        MacroRig g;
+        g.apply("BUTTON_3", "macro:paste:\"Hello World\" +a -a");
+        g.tap(3);
+        // the text goes to the clipboard, Ctrl+V is tapped, then the clipboard is put back after the pause, then the next step runs
+        CHECK(g.out.text().find("clip:Hello World +ctrl tap:v -ctrl") == 0, "set, chord: %s", g.out.text().c_str());
+        CHECK(g.out.count("clip:restore") == 0 && g.out.count("+a") == 0, "the clipboard is held during the pause: %s", g.out.text().c_str());
+        g.step(60);
+        CHECK(g.out.text() == "clip:Hello World +ctrl tap:v -ctrl clip:restore +a -a", "restore after the pause, then the next step: %s", g.out.text().c_str());
+        const int pause = g.out.tickOf("clip:restore") - g.out.tickOf("clip:Hello World");
+        CHECK(pause >= 36 && pause <= 40, "about 150 ms between paste and restore, got %d ticks", pause);
+    }
+    {
+        MacroRig g;  // an output that cannot paste: the step does nothing, the rest of the macro runs, one message
+        g.out.clipFails = true;
+        g.apply("BUTTON_3", "macro:paste:\"x\" +a -a");
+        g.tap(3);
+        g.step(5);
+        CHECK(g.out.text() == "+a -a", "failed paste is skipped: %s", g.out.text().c_str());
+    }
+    {
+        MacroRig g;  // an abort during the pause puts the clipboard back at once
+        g.apply("BUTTON_3", "macro:paste:\"abc\" wait:5000");
+        g.tap(3);
+        CHECK(g.out.count("clip:restore") == 0, "still waiting");
+        g.runner.releaseAll();
+        CHECK(g.out.count("clip:restore") == 1, "restored on abort: %s", g.out.text().c_str());
+        g.step(100);
+        CHECK(g.out.count("clip:restore") == 1, "only once: %s", g.out.text().c_str());
+    }
+    {
+        MacroRig g;  // the macro text keeps case and blanks
+        g.apply("BUTTON_3", "macro:paste:\"Ab  C, d\"");
+        g.tap(3);
+        CHECK(g.out.count("clip:Ab  C, d") == 1, "text as written: %s", g.out.text().c_str());
+    }
+}
+
 int main() {
     testButtonOrderAndTiming();
     testExactPauseTiming();
@@ -508,6 +558,7 @@ int main() {
     testMotionTriggerIgnoredWhileRunning();
     testMotionAbort();
     testMacroMixedWithHold();
+    testPaste();
     if (failures) {
         std::fprintf(stderr, "%d failure(s)\n", failures);
         return 1;
