@@ -3984,19 +3984,19 @@ msgid "Add a step that presses and lets go of a key in one go, after the chosen 
 msgstr ""
 
 #: src/ui/qt/macro_editor.cpp
-msgid "Add key tap"
+msgid "Add tap"
 msgstr ""
 
 #: src/ui/qt/macro_editor.cpp
-msgid "Add mouse click"
+msgid "Add click"
 msgstr ""
 
 #: src/ui/qt/macro_editor.cpp
-msgid "Add pasted text"
+msgid "Add paste"
 msgstr ""
 
 #: src/ui/qt/macro_editor.cpp
-msgid "Add repeat block"
+msgid "Add repeat"
 msgstr ""
 
 #: src/ui/qt/macro_editor.cpp
@@ -4108,7 +4108,7 @@ msgid "Repeat until released:"
 msgstr ""
 
 #: src/ui/qt/macro_editor.cpp
-msgid "Run only while the trigger is held"
+msgid "Only while held"
 msgstr ""
 
 #: src/ui/qt/macro_editor.cpp

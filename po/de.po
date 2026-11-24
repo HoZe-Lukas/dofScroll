@@ -7457,20 +7457,20 @@ msgid "Add a step that presses and lets go of a key in one go, after the chosen 
 msgstr "Einen Schritt hinzufügen, der eine Taste in einem Zug drückt und loslässt, nach dem gewählten Schritt"
 
 #: src/ui/qt/macro_editor.cpp
-msgid "Add key tap"
-msgstr "Tastentipp hinzufügen"
+msgid "Add tap"
+msgstr "Tipp hinzufügen"
 
 #: src/ui/qt/macro_editor.cpp
-msgid "Add mouse click"
-msgstr "Mausklick hinzufügen"
+msgid "Add click"
+msgstr "Klick hinzufügen"
 
 #: src/ui/qt/macro_editor.cpp
-msgid "Add pasted text"
-msgstr "Eingefügten Text hinzufügen"
+msgid "Add paste"
+msgstr "Einfügen hinzufügen"
 
 #: src/ui/qt/macro_editor.cpp
-msgid "Add repeat block"
-msgstr "Wiederholungsblock hinzufügen"
+msgid "Add repeat"
+msgstr "Wiederholen hinzufügen"
 
 #: src/ui/qt/macro_editor.cpp
 msgid "Click %1 button"
@@ -7581,8 +7581,8 @@ msgid "Repeat until released:"
 msgstr "Wiederholen, bis losgelassen wird:"
 
 #: src/ui/qt/macro_editor.cpp
-msgid "Run only while the trigger is held"
-msgstr "Nur ausführen, solange der Auslöser gehalten wird"
+msgid "Only while held"
+msgstr "Nur solange gehalten"
 
 #: src/ui/qt/macro_editor.cpp
 msgid "Run the press part only while the trigger is held"

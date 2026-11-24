@@ -186,7 +186,7 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     problem_ = wrapLabel(QString(), this, "macroProblem");
     problem_->hide();
     v->addWidget(problem_);
-    whileHeldBox_ = new QCheckBox(T("Run only while the trigger is held"), this);
+    whileHeldBox_ = new QCheckBox(T("Only while held"), this);
     whileHeldBox_->setObjectName(QStringLiteral("macroWhileHeld"));
     whileHeldBox_->setProperty("look", QStringLiteral("box"));
     whileHeldBox_->setAccessibleName(T("Run the press part only while the trigger is held"));
@@ -200,10 +200,10 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     addDown_ = smallButton(T("Add key press"), "macroAddDown", T("Add a step that presses a key, after the chosen step"), this);
     addUp_ = smallButton(T("Add key release"), "macroAddUp", T("Add a step that lets go of a key, after the chosen step"), this);
     addWait_ = smallButton(T("Add pause"), "macroAddWait", T("Add a pause, after the chosen step"), this);
-    addTap_ = smallButton(T("Add key tap"), "macroAddTap", T("Add a step that presses and lets go of a key in one go, after the chosen step"), this);
-    addMouse_ = smallButton(T("Add mouse click"), "macroAddMouse", T("Add a click of a mouse button, after the chosen step"), this);
-    addRepeat_ = smallButton(T("Add repeat block"), "macroAddRepeat", T("Add a block of steps that runs several times, after the chosen step"), this);
-    addPaste_ = smallButton(T("Add pasted text"), "macroAddPaste", T("Add a step that pastes a text through the clipboard, after the chosen step"), this);
+    addTap_ = smallButton(T("Add tap"), "macroAddTap", T("Add a step that presses and lets go of a key in one go, after the chosen step"), this);
+    addMouse_ = smallButton(T("Add click"), "macroAddMouse", T("Add a click of a mouse button, after the chosen step"), this);
+    addRepeat_ = smallButton(T("Add repeat"), "macroAddRepeat", T("Add a block of steps that runs several times, after the chosen step"), this);
+    addPaste_ = smallButton(T("Add paste"), "macroAddPaste", T("Add a step that pastes a text through the clipboard, after the chosen step"), this);
     del_ = smallButton(T("Delete"), "macroDelete", T("Delete the chosen step"), this);
     up_ = smallButton(T("Move up"), "macroMoveUp", T("Move the chosen step one place up"), this);
     down_ = smallButton(T("Move down"), "macroMoveDown", T("Move the chosen step one place down"), this);
@@ -305,9 +305,9 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     QWidget::setTabOrder(list_, whileHeldBox_);  // on the screen the check box sits under the list, above the buttons
     QWidget::setTabOrder(whileHeldBox_, addDown_);
     QWidget::setTabOrder(addDown_, addUp_);
-    QWidget::setTabOrder(addUp_, addWait_);
-    QWidget::setTabOrder(addWait_, addTap_);
-    QWidget::setTabOrder(addTap_, addMouse_);
+    QWidget::setTabOrder(addUp_, addTap_);
+    QWidget::setTabOrder(addTap_, addWait_);
+    QWidget::setTabOrder(addWait_, addMouse_);
     QWidget::setTabOrder(addMouse_, addRepeat_);
     QWidget::setTabOrder(addRepeat_, addPaste_);
     QWidget::setTabOrder(addPaste_, del_);
