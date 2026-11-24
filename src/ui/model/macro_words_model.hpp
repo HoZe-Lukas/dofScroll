@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "macro.hpp"
+#include "utf8.hpp"
 #include "ui/model/key_tree_model.hpp"
 #include "ui/model/macro_model.hpp"
 #include "ui/model/strings.hpp"
@@ -21,9 +22,10 @@ namespace spn::ui {
 
 namespace macro_words_detail {
 struct Tok {
-    enum class K { Tap, Down, Up, Wait } k = K::Wait;
-    std::string chord;  // Tap, Down, Up: "ctrl+c"
-    int ms = 0;         // Wait
+    enum class K { Tap, Down, Up, Wait, MouseTap, MouseDown, MouseUp, RepeatBegin, RepeatEnd, Paste } k = K::Wait;
+    std::string chord;  // Tap, Down, Up: "ctrl+c"; Paste: the text
+    int ms = 0;         // Wait; RepeatBegin: the count (0 = until released)
+    int mouse = 1;      // MouseTap, MouseDown, MouseUp: 1 left, 2 middle, 3 right
 };
 
 // The steps as words: a Down directly followed by the Up of the same chord is a tap, and a held modifier around one tap is part
@@ -36,6 +38,20 @@ inline std::vector<Tok> tokens(const MacroSteps &steps) {
         if (s.kind == MacroStep::Kind::Wait) {
             k.k = Tok::K::Wait;
             k.ms = s.waitMs;
+        } else if (s.kind == MacroStep::Kind::Tap) {
+            k.k = Tok::K::Tap;
+            k.chord = macroStepChord(s);
+        } else if (s.kind == MacroStep::Kind::MouseTap || s.kind == MacroStep::Kind::MouseDown || s.kind == MacroStep::Kind::MouseUp) {
+            k.k = s.kind == MacroStep::Kind::MouseTap ? Tok::K::MouseTap : s.kind == MacroStep::Kind::MouseDown ? Tok::K::MouseDown : Tok::K::MouseUp;
+            k.mouse = s.mouse;
+        } else if (s.kind == MacroStep::Kind::RepeatBegin) {
+            k.k = Tok::K::RepeatBegin;
+            k.ms = s.count;
+        } else if (s.kind == MacroStep::Kind::RepeatEnd) {
+            k.k = Tok::K::RepeatEnd;
+        } else if (s.kind == MacroStep::Kind::Paste) {
+            k.k = Tok::K::Paste;
+            k.chord = s.text;
         } else if (s.kind == MacroStep::Kind::Down && i + 1 < steps.size() && steps[i + 1].kind == MacroStep::Kind::Up &&
                    macroStepChord(steps[i + 1]) == macroStepChord(s)) {
             k.k = Tok::K::Tap;
@@ -68,6 +84,16 @@ inline std::vector<Tok> tokens(const MacroSteps &steps) {
 inline std::string chordWords(const std::string &chord, const StringProvider &s) {
     return chordDisplay(chord, s, [](const std::string &part) { return keyTreeLabel(part); });
 }
+
+// The name of a mouse button as it is used in the words ("left", "middle", "right"); the buttons of macro steps are 1, 2 and 3.
+inline std::string mouseButtonWord(int button, const StringProvider &s) {
+    return button == 3 ? s.tr("right") : button == 2 ? s.tr("middle") : s.tr("left");
+}
+// The text of a pasted step for a chip or a list row: the first 20 characters, then "...".
+inline std::string pasteWords(const std::string &text) {
+    const std::string cut = utf8::truncate(text, 20);
+    return cut.size() < text.size() ? cut + "..." : cut;
+}
 }  // namespace macro_words_detail
 
 // The steps in words, at most `maxWords` of them, then ", ...". "" for no steps.
@@ -87,6 +113,14 @@ inline std::string macroStepsWords(const MacroSteps &steps, const StringProvider
             case K::Down: w = format(s.tr("Press %1"), {macro_words_detail::chordWords(t.chord, s)}); break;
             case K::Up: w = format(s.tr("Release %1"), {macro_words_detail::chordWords(t.chord, s)}); break;
             case K::Wait: w = format(s.tr("%1 ms"), {std::to_string(t.ms)}); break;
+            case K::MouseTap: w = format(s.tr("Click %1 button"), {macro_words_detail::mouseButtonWord(t.mouse, s)}); break;
+            case K::MouseDown: w = format(s.tr("Hold %1 button"), {macro_words_detail::mouseButtonWord(t.mouse, s)}); break;
+            case K::MouseUp: w = format(s.tr("Release %1 button"), {macro_words_detail::mouseButtonWord(t.mouse, s)}); break;
+            case K::RepeatBegin:
+                w = t.ms > 0 ? format(s.tr("Repeat %1 times:"), {std::to_string(t.ms)}) : s.tr("Repeat until released:");
+                break;
+            case K::RepeatEnd: w = s.tr("end of repeat"); break;
+            case K::Paste: w = format(s.tr("Paste \"%1\""), {macro_words_detail::pasteWords(t.chord)}); break;
         }
         if (i) out += ", ";
         out += w;
@@ -97,6 +131,7 @@ inline std::string macroStepsWords(const MacroSteps &steps, const StringProvider
 // One side: the press part, and after " | " the release part when there is one.
 inline std::string macroSideWords(const MacroSide &side, const StringProvider &s, size_t maxWords = 4) {
     std::string out = macroStepsWords(side.press, s, maxWords);
+    if (side.whileHeld && !out.empty()) out = format(s.tr("while held: %1"), {out});
     if (!side.release.empty()) out += (out.empty() ? "" : " | ") + format(s.tr("on release: %1"), {macroStepsWords(side.release, s, maxWords)});
     return out;
 }

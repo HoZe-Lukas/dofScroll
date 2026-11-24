@@ -179,6 +179,50 @@ int main() {
         assert(!esc3.recording() && esc3.endedByEscape() && esc3.steps().text() == "+esc -esc +a wait:10 -a +x");
     }
 
+    // ---- the other step kinds: tap, mouse, repeat block, pasted text ----
+    assert(macroStepText(macroTap("ctrl+c")) == "tap:ctrl+c" && macroStepChord(macroTap("ctrl+c")) == "ctrl+c" && macroStepChord(macroDown("a")) == "a");
+    assert(macroStepChord(MacroStep::wait(5)).empty() && macroStepChord(macroMouse(MacroStep::Kind::MouseTap, 1)).empty() && macroStepChord(macroPaste("x")).empty());
+    assert(macroStepValid(macroTap("a")) && !macroStepValid(macroTap("nosuchkey")));
+    assert(macroStepText(macroMouse(MacroStep::Kind::MouseTap, 3)) == "rightclick" && macroStepText(macroMouse(MacroStep::Kind::MouseDown, 1)) == "+click");
+    assert(!macroStepValid(macroMouse(MacroStep::Kind::MouseTap, 4)) && !macroStepValid(macroMouse(MacroStep::Kind::MouseTap, 0)));
+    assert(macroStepText(macroRepeat(3)) == "repeat:3" && macroStepText(macroRepeat(0)) == "repeat" && !macroStepValid(macroRepeat(1001)) && !macroStepValid(macroRepeat(-1)));
+    assert(macroStepValid(macroPaste("Hello, World")) && !macroStepValid(macroPaste("a#b")) && !macroStepValid(macroPaste("")) && !macroStepValid(MacroStep::paste("a\\b")));
+    assert(macroStepText(macroPaste("Hi there")) == "paste:\"Hi there\"");
+    {
+        MacroList l;
+        assert(l.add(macroRepeat(3)) && l.add(macroTap("a")) && l.add(MacroStep::repeatEnd()) && l.add(macroPaste("Ab, c")) && l.add(macroMouse(MacroStep::Kind::MouseTap, 1)));
+        assert(l.text() == "repeat:3 tap:a end paste:\"Ab, c\" click" && l.problem().empty());
+        assert(!l.add(MacroStep::paste("a\"b")) && l.size() == 5);  // a text the core refuses is never added
+        MacroList open;
+        assert(open.add(macroRepeat(3)) && open.add(macroTap("a")) && !open.problem().empty());  // the block is not closed: the dialog says so
+        MacroList inf;
+        assert(inf.add(macroRepeat(0)) && inf.add(macroTap("a")) && inf.add(MacroStep::repeatEnd()));
+        assert(!inf.problem().empty() && inf.problem(true).empty());  // until released needs while_held
+        std::string perr;
+        MacroList back;
+        assert(back.parse("repeat tap:down end", &perr, true) && back.text() == "repeat tap:down end" && !back.parse("repeat tap:down end", &perr));
+        assert(l.parse("paste:\"Hello  World, 1|2\" tap:ctrl+v", &perr) && l.at(0).text == "Hello  World, 1|2" && l.size() == 2);
+    }
+    // ---- the recorder writes a quick press and release as one tap (when asked to) ----
+    {
+        MacroRecorder m(true);
+        assert(!m.mergeTaps());
+        m.setMergeTaps(true);
+        m.start();
+        assert(m.press("ctrl", 0) == MacroRecorder::Recorded && m.press("c", 100) == MacroRecorder::Recorded);
+        assert(m.release("c", 160) == MacroRecorder::Recorded && m.release("ctrl", 300) == MacroRecorder::Recorded);
+        assert(m.steps().text() == "+ctrl wait:100 tap:c wait:140 -ctrl");
+        assert(m.press("a", 400) == MacroRecorder::Recorded && m.release("a", 800) == MacroRecorder::Recorded);  // held 400 ms: not a tap
+        assert(m.steps().text() == "+ctrl wait:100 tap:c wait:140 -ctrl wait:100 +a wait:400 -a");
+        assert(m.press("b", 900) == MacroRecorder::Recorded && m.press("d", 920) == MacroRecorder::Recorded);
+        assert(m.release("b", 950) == MacroRecorder::Recorded);  // another key went down in between: no tap
+        assert(m.steps().text().find("+b wait:20 +d wait:30 -b") != std::string::npos);
+        MacroRecorder noTimes(false);
+        noTimes.setMergeTaps(true);
+        noTimes.start();
+        assert(noTimes.press("a", 0) == MacroRecorder::Recorded && noTimes.release("a", 5000) == MacroRecorder::Recorded && noTimes.steps().text() == "tap:a");  // without times: always a tap
+    }
+
     std::puts("test_ui_macro: ok");
     return 0;
 }

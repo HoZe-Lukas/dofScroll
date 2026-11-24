@@ -20,6 +20,7 @@ inline MacroSide macroDraftSide(const FunctionDraft &d, bool pos) {
     MacroSide side;
     side.press = (pos ? d.macroPos : d.macroNeg).steps();
     side.release = (pos ? d.macroPosRelease : d.macroNegRelease).steps();
+    side.whileHeld = (pos ? d.macroPosWhileHeld : d.macroNegWhileHeld) && !side.press.empty();
     return side;
 }
 
@@ -52,7 +53,7 @@ inline std::string macroSimplerHint(const FunctionTarget &t, const FunctionDraft
     for (int pos = 0; pos < (t.isMotion() ? 2 : 1); ++pos) {
         const MacroSide side = macroDraftSide(d, pos == 1);
         if (side.empty()) continue;
-        if (!side.release.empty() || !macro_words_detail::singleTap(side.press)) return std::string();
+        if (side.whileHeld || !side.release.empty() || !macro_words_detail::singleTap(side.press)) return std::string();
         any = true;
     }
     if (!any) return std::string();

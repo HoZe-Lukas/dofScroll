@@ -19,6 +19,7 @@ class QCheckBox;
 class QComboBox;
 class QGridLayout;
 class QLabel;
+class QLineEdit;
 class QListWidget;
 class QPushButton;
 class QSpinBox;
@@ -56,6 +57,9 @@ public:
     const spn::ui::MacroList &steps() const { return parts_[0]; }
     const spn::ui::MacroList &releaseSteps() const { return parts_[1]; }
     void setSteps(const spn::ui::MacroList &steps, const spn::ui::MacroList &release = spn::ui::MacroList());  // does not emit stepsChanged()
+    // "Run only while the trigger is held" (the while_held prefix of the side): it ends the press part when the trigger is released.
+    bool whileHeld() const { return whileHeld_; }
+    void setWhileHeld(bool on);  // does not emit stepsChanged()
     int shownPart() const { return part_; }  // 0 press, 1 release
     void showPart(int part);
     // The recording goes in behind the chosen step (at the end when none is chosen).
@@ -81,6 +85,8 @@ private:
     spn::ui::MacroList &cur() { return parts_[part_]; }
     const spn::ui::MacroList &cur() const { return parts_[part_]; }
     void pauseTyped(const QString &text);
+    void pasteTyped(const QString &text);
+    void refreshProblem();
     void refreshPartNames();
     void startRecording();
     void stopRecording(const QString &why);
@@ -94,7 +100,13 @@ private:
     QListWidget *list_ = nullptr;
     QComboBox *type_ = nullptr;
     ChordField *chord_ = nullptr;
-    QSpinBox *wait_ = nullptr;
+    QSpinBox *wait_ = nullptr, *repeat_ = nullptr;
+    QComboBox *mouse_ = nullptr;
+    QLineEdit *paste_ = nullptr;
+    QCheckBox *whileHeldBox_ = nullptr;
+    QLabel *mouseLabel_ = nullptr, *repeatLabel_ = nullptr, *pasteLabel_ = nullptr, *problem_ = nullptr, *whileHeldWords_ = nullptr;
+    QPushButton *addTap_ = nullptr, *addMouse_ = nullptr, *addRepeat_ = nullptr, *addPaste_ = nullptr;
+    bool whileHeld_ = false;
     QLabel *waitLabel_ = nullptr, *chordLabel_ = nullptr, *count_ = nullptr, *recordNote_ = nullptr, *pauseNote_ = nullptr, *partWords_ = nullptr;
     QComboBox *part_box_ = nullptr;
     QPushButton *del_ = nullptr, *up_ = nullptr, *down_ = nullptr, *clear_ = nullptr, *addDown_ = nullptr, *addUp_ = nullptr, *addWait_ = nullptr;

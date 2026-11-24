@@ -4446,9 +4446,9 @@ static bool newFunctionSelfTest() {
         const QString n = le->objectName();
         if (n.startsWith(QStringLiteral("qt_"))) continue;
         ++freeFields;
-        check(n == QStringLiteral("newFunctionRateMin") || n == QStringLiteral("newFunctionRateMax") || n == QStringLiteral("newFunctionTrigger") || n.isEmpty(), "no free text field for a key");
+        check(n == QStringLiteral("newFunctionRateMin") || n == QStringLiteral("newFunctionRateMax") || n == QStringLiteral("newFunctionTrigger") || n == QStringLiteral("macroPaste") || n.isEmpty(), "no free text field for a key");
     }
-    check(freeFields <= 3, "the only text fields are the rate and trigger fields");
+    check(freeFields <= 5, "the only text fields are the rate, trigger and (one per direction) paste fields");
     neg->setModifier(QStringLiteral("ctrl"), true);
     settle();
     check(dlg->writes() == 0 && !stored("H_TILT_ACTION"), "a modifier without a key writes nothing");
@@ -4634,8 +4634,8 @@ static bool newFunctionSelfTest() {
                 sendKeyTo(mneg->pad(), Qt::Key_A);
                 for (int i = 0; i < 3; ++i) sendKeyTo(mneg->pad(), Qt::Key_Escape);
                 settle();
-                check(!mneg->recording() && mneg->steps().text() == "+a wait:30 -a", "recorded with the keyboard alone, left with Esc three times");
-                check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("macro:+a wait:30 -a,none"), "the macro of the negative direction is stored");
+                check(!mneg->recording() && mneg->steps().text() == "tap:a", "recorded with the keyboard alone (a quick press and release is one tap), left with Esc three times");
+                check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("macro:tap:a,none"), "the macro of the negative direction is stored");
                 mdir->setCurrentIndex(1);
                 Q_EMIT mdir->activated(1);
                 settle();
@@ -4644,7 +4644,7 @@ static bool newFunctionSelfTest() {
                 addDown->setFocus();
                 sendKeyTo(addDown, Qt::Key_Space);
                 settle();
-                check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("macro:+a wait:30 -a,+space") && dlg->previewText() == QStringLiteral("macro:+a wait:30 -a,+space"),
+                check(rig.waitSaved() && stored("H_TILT_ACTION") == std::optional<std::string>("macro:tap:a,+space") && dlg->previewText() == QStringLiteral("macro:tap:a,+space"),
                       "a step added by hand to the other direction: both macros in one action text");
                 const QString mp = dialogControlProblem(dlg);
                 if (!mp.isEmpty()) std::fprintf(stderr, "  %s\n", qPrintable(mp));
@@ -5035,7 +5035,7 @@ static bool macroEditorSelfTest() {
     settle();
     {
         const QString t = QString::fromStdString(ed->steps().text());
-        check(t.startsWith(QStringLiteral("+ctrl wait:")) && t.contains(QStringLiteral(" +c wait:")) && t.contains(QStringLiteral(" -c")) && t.endsWith(QStringLiteral("-ctrl")), "the keys become steps with the measured pauses");
+        check(t.startsWith(QStringLiteral("+ctrl wait:")) && t.contains(QStringLiteral(" tap:c")) && t.endsWith(QStringLiteral("-ctrl")), "the keys become steps with the measured pauses");
         check(!t.contains(QStringLiteral("+c +c")), "the keyboard repeat is not recorded");
     }
     stop->click();
@@ -5051,7 +5051,7 @@ static bool macroEditorSelfTest() {
     sendKeyTo(pad, Qt::Key_A);
     stop->click();
     settle();
-    check(ed->steps().text() == "+a wait:30 -a", "without the times: a pause of 30 ms between the steps");
+    check(ed->steps().text() == "tap:a", "without the times: a key pressed and let go again is one tap step");
     // the focus leaving the area ends the recording (another window, a click elsewhere)
     ed->setSteps(spn::ui::MacroList());
     rec->click();
@@ -5067,7 +5067,7 @@ static bool macroEditorSelfTest() {
     sendKeyTo(pad, Qt::Key_A);
     for (int i = 0; i < 3; ++i) sendKeyTo(pad, Qt::Key_Escape);
     settle();
-    check(!ed->recording() && ed->steps().text().find("esc") == std::string::npos && ed->steps().text().find("+a") == 0, "Esc three times in a row ends the recording and is not part of the macro");
+    check(!ed->recording() && ed->steps().text().find("esc") == std::string::npos && ed->steps().text().find("tap:a") == 0, "Esc three times in a row ends the recording and is not part of the macro");
     // edit afterwards: change, delete, move, add; key fields are the shared chord field
     ed->setSteps(spn::ui::MacroList());
     {
@@ -5147,8 +5147,8 @@ static bool macroEditorSelfTest() {
         sendKeyTo(pad, Qt::Key_X);
         stop->click();
         settle();
-        check(ed->steps().text() == "+a +x wait:30 -x +b", "the recording is inserted behind the chosen step");
-        check(list->currentRow() == 3, "and the last recorded step is chosen");
+        check(ed->steps().text() == "+a tap:x +b", "the recording is inserted behind the chosen step");
+        check(list->currentRow() == 1, "and the last recorded step is chosen");
     }
     // a typed pause outside 1 to 60000 ms is explained, the step keeps its value
     {
@@ -5169,6 +5169,61 @@ static bool macroEditorSelfTest() {
             Q_EMIT le->textEdited(QStringLiteral("45"));
             check(note->isHidden(), "a valid pause clears the message");
         }
+    }
+    // the other kinds of step: tap, mouse, repeat block, pasted text, and the while_held check box
+    {
+        ed->setSteps(spn::ui::MacroList());
+        ed->setWhileHeld(false);
+        settle();
+        QLineEdit *pasteField = ed->findChild<QLineEdit *>(QStringLiteral("macroPaste"));
+        QSpinBox *repeatBox = ed->findChild<QSpinBox *>(QStringLiteral("macroRepeat"));
+        QComboBox *mouseBox = ed->findChild<QComboBox *>(QStringLiteral("macroMouse"));
+        QCheckBox *heldBox = ed->findChild<QCheckBox *>(QStringLiteral("macroWhileHeld"));
+        QLabel *problem = ed->findChild<QLabel *>(QStringLiteral("macroProblem"));
+        check(pasteField && repeatBox && mouseBox && heldBox && problem, "the editor has the fields of the new steps and the while_held box");
+        if (pasteField && repeatBox && mouseBox && heldBox && problem) {
+            ed->findChild<QPushButton *>(QStringLiteral("macroAddTap"))->click();
+            settle();
+            check(ed->steps().text() == "tap:space", "adding a tap step");
+            ed->findChild<QPushButton *>(QStringLiteral("macroAddMouse"))->click();
+            settle();
+            check(ed->steps().text() == "tap:space click" && mouseBox->isVisibleTo(ed), "adding a mouse click shows the mouse button field");
+            mouseBox->setCurrentIndex(mouseBox->findData(3));
+            Q_EMIT mouseBox->activated(mouseBox->currentIndex());
+            settle();
+            check(ed->steps().text() == "tap:space rightclick", "choosing the right button");
+            ed->findChild<QPushButton *>(QStringLiteral("macroAddPaste"))->click();
+            settle();
+            check(ed->steps().text() == "tap:space rightclick paste:\"Text\"" && pasteField->isVisibleTo(ed) && pasteField->text() == QStringLiteral("Text"),
+                  "adding a pasted text shows the text field");
+            pasteField->setText(QStringLiteral("Hello, World"));
+            Q_EMIT pasteField->textEdited(pasteField->text());
+            settle();
+            check(ed->steps().text() == "tap:space rightclick paste:\"Hello, World\"", "typing the text to paste (a comma is fine)");
+            pasteField->setText(QStringLiteral("a#b"));
+            Q_EMIT pasteField->textEdited(pasteField->text());
+            settle();
+            check(ed->steps().text() == "tap:space rightclick paste:\"Hello, World\"", "a text with a character the daemon refuses is not taken over");
+            ed->findChild<QPushButton *>(QStringLiteral("macroAddRepeat"))->click();
+            settle();
+            check(ed->steps().text() == "tap:space rightclick paste:\"Hello, World\" repeat:3 wait:30 end" && repeatBox->isVisibleTo(ed) && repeatBox->value() == 3 && problem->isHidden(),
+                  "adding a repeat block adds start, a pause and end");
+            repeatBox->setValue(0);
+            settle();
+            check(!problem->isHidden(), "a repeat without a count says that it needs while_held");
+            heldBox->setChecked(true);
+            settle();
+            check(ed->whileHeld() && problem->isHidden(), "with while_held on the repeat until released is valid");
+            heldBox->setChecked(false);
+            settle();
+            check(!ed->whileHeld() && !problem->isHidden(), "switching it off again shows the problem again");
+            repeatBox->setValue(2);
+            settle();
+            check(problem->isHidden() && ed->steps().text().find("repeat:2") != std::string::npos, "a count makes the block valid without while_held");
+        }
+        ed->setSteps(spn::ui::MacroList());
+        ed->setWhileHeld(false);
+        settle();
     }
     // 256 steps at most
     {

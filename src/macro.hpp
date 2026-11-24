@@ -146,6 +146,8 @@ struct MacroAction {
 std::string macroPasteTextProblem(const std::string &text);
 // true if the action text has a ',' outside of double quotes (a button macro is one side, without a comma).
 bool macroTextHasTopLevelComma(const std::string &text);
+// Position of the first ',' outside of double quotes, or std::string::npos (the two sides of a motion's macro).
+size_t macroTextTopLevelComma(const std::string &text);
 
 // ---- one step -------------------------------------------------------------------------------------------------------
 // Parses "+ctrl+c", "-a", "wait:30", "tap:ctrl+c", "click", "+rightclick", "repeat:3", "repeat", "end" (ASCII case folded) or paste:"text" (text kept as written). false + *err (a message for the user) otherwise.

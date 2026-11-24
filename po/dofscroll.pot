@@ -3962,3 +3962,191 @@ msgstr ""
 #: src/ui/model/setup_guide_model.hpp
 msgid "Open the driver assistant..."
 msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "1 to 1000 passes; 0 repeats until the trigger is released"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Add a block of steps that runs several times, after the chosen step"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Add a click of a mouse button, after the chosen step"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Add a step that pastes a text through the clipboard, after the chosen step"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Add a step that presses and lets go of a key in one go, after the chosen step"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Add tap"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Add click"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Add paste"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Add repeat"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Click %1 button"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Click a mouse button"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "End of a repeat block"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "end of repeat"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "End of repeat"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Hold %1 button"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Hold a mouse button"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "left"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "middle"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "right"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Left"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Middle"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Right"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Left, middle or right button"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Mouse button:"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Mouse button of the chosen step"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Not valid yet: "
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Number of passes of the repeat block"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "On: the press part stops as soon as you let go. Off: it always runs to its end."
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "On: the press part stops as soon as you let go of the button (or ease a push back to half of the trigger level), and what it holds is released. Off: the whole press part always runs. With it on, a repeat block may repeat until you let go."
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Paste \"%1\""
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Paste a text"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Release %1 button"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Release a mouse button"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Repeat %1 times:"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Repeat how many times (0: until the trigger is released, only with \"Run only while the trigger is held\"):"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Repeat until released:"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Only while held"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Run the press part only while the trigger is held"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Start of a repeat block"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Tap %1"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Tap a key"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Text to paste"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "Text to paste (it goes through the clipboard; the old clipboard text is put back):"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "The kind of the chosen step: a key, a pause, the mouse, a repeat block or a pasted text"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "The step keeps its last valid text."
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "The text this step pastes; no control characters, backslash, double quote or number sign"
+msgstr ""
+
+#: src/ui/qt/macro_editor.cpp
+msgid "while held: %1"
+msgstr ""

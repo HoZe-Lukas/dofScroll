@@ -29,14 +29,40 @@ inline bool makeMacroKeyStep(bool down, const std::string &chord, MacroStep *out
     std::string e;
     return parseMacroStep((down ? "+" : "-") + chord, out, err ? err : &e);
 }
-// The chord text of a Down or Up step ("ctrl+c"); "" for a pause.
-inline std::string macroStepChord(const MacroStep &s) { return s.kind == MacroStep::Kind::Wait ? std::string() : macroStepText(s).substr(1); }
-inline bool macroStepValid(const MacroStep &s) {
-    return s.kind == MacroStep::Kind::Wait ? (s.waitMs >= kMinMacroWaitMs && s.waitMs <= kMaxMacroWaitMs) : true;
+// The chord text of a Down, Up or Tap step ("ctrl+c"); "" for every other step.
+inline std::string macroStepChord(const MacroStep &s) {
+    switch (s.kind) {
+        case MacroStep::Kind::Down:
+        case MacroStep::Kind::Up: return macroStepText(s).substr(1);
+        case MacroStep::Kind::Tap: return macroStepText(s).substr(4);  // "tap:"
+        default: return std::string();
+    }
 }
-// Down/up step of a chord text, or an invalid pause (0 ms) when the chord is not valid: add() and set() reject it.
+// The steps that press or release keys (they have a chord).
+inline bool macroStepHasChord(const MacroStep &s) {
+    return s.kind == MacroStep::Kind::Down || s.kind == MacroStep::Kind::Up || s.kind == MacroStep::Kind::Tap;
+}
+// A step as the dialog may hold it: a pause in range, a text the core accepts for paste:, a repeat count in range, a real mouse button.
+inline bool macroStepValid(const MacroStep &s) {
+    switch (s.kind) {
+        case MacroStep::Kind::Wait: return s.waitMs >= kMinMacroWaitMs && s.waitMs <= kMaxMacroWaitMs;
+        case MacroStep::Kind::Paste: return macroPasteTextProblem(s.text).empty();
+        case MacroStep::Kind::RepeatBegin: return s.count >= 0 && s.count <= kMaxMacroRepeat;
+        case MacroStep::Kind::MouseDown:
+        case MacroStep::Kind::MouseUp:
+        case MacroStep::Kind::MouseTap: return s.mouse >= 1 && s.mouse <= 3;
+        default: return true;
+    }
+}
+// Down/up/tap step of a chord text, or an invalid pause (0 ms) when the chord is not valid: add() and set() reject it.
 inline MacroStep macroDown(const std::string &chord) { MacroStep s = MacroStep::wait(0); makeMacroKeyStep(true, chord, &s); return s; }
 inline MacroStep macroUp(const std::string &chord) { MacroStep s = MacroStep::wait(0); makeMacroKeyStep(false, chord, &s); return s; }
+inline MacroStep macroTap(const std::string &chord) { MacroStep s = MacroStep::wait(0); parseMacroStep("tap:" + chord, &s, nullptr); return s; }
+// A mouse step (kind MouseTap, MouseDown or MouseUp; button 1 left, 2 middle, 3 right), a repeat block start (count 0 = until the
+// trigger is released) and a pasted text; an invalid pause (0 ms) when the text is not valid.
+inline MacroStep macroMouse(MacroStep::Kind kind, int button) { return MacroStep::mouseStep(kind, button); }
+inline MacroStep macroRepeat(int count) { return MacroStep::repeatBegin(count); }
+inline MacroStep macroPaste(const std::string &text) { return macroPasteTextProblem(text).empty() ? MacroStep::paste(text) : MacroStep::wait(0); }
 
 class MacroList {
 public:
@@ -44,6 +70,9 @@ public:
     size_t size() const { return steps_.size(); }
     bool empty() const { return steps_.empty(); }
     bool full() const { return steps_.size() >= kMaxMacroSteps; }
+    // "" if the list is a valid macro part (repeat blocks closed and not nested, at most 256 steps after they are expanded, texts and
+    // pauses in range); else the core's message. allowInfinite: a "repeat" without a count (the press part of a while_held side).
+    std::string problem(bool allowInfinite = false) const { return macroStepsProblem(steps_, allowInfinite); }
     const MacroStep &at(size_t i) const { return steps_[i]; }
 
     // false when the list is full (nothing added) or the step is not valid (a pause outside 1..60000 ms).
@@ -78,10 +107,10 @@ public:
     // The side as action text (macroStepsText of the core); "" for an empty list (the core writes "none").
     std::string text() const { return steps_.empty() ? std::string() : macroStepsText(steps_); }
     // Reads the text of one side with the core's parser. false + *err for a step that is not valid or more than 256 steps.
-    bool parse(const std::string &text, std::string *err) {
+    bool parse(const std::string &text, std::string *err, bool allowInfinite = false) {
         MacroSteps out;
         std::string e;
-        if (!parseMacroSteps(text, &out, err ? err : &e)) return false;
+        if (!parseMacroSteps(text, &out, err ? err : &e, allowInfinite)) return false;
         steps_ = out;
         return true;
     }
@@ -100,6 +129,11 @@ public:
     explicit MacroRecorder(bool recordTimes = true) : times_(recordTimes) {}
     void setRecordTimes(bool on) { times_ = on; }
     bool recordTimes() const { return times_; }
+    // A key pressed and let go again at once (within kTapMergeMs, or always without times) is recorded as one tap: step
+    // instead of "+key wait -key". Off by default here (the editor turns it on).
+    void setMergeTaps(bool on) { merge_ = on; }
+    bool mergeTaps() const { return merge_; }
+    static constexpr long long kTapMergeMs = 150;
 
     // Starts a recording. The earlier steps stay; the new ones go in at `insertAt` (a position 0..size, behind the step the
     // cursor is on), by default at the end. A position past the end means the end.
@@ -151,6 +185,13 @@ public:
     }
     Result release(const std::string &key, long long nowMs) {
         if (!recording_ || !held_.count(key)) return Ignored;
+        if (merge_ && !rec_.empty() && rec_.at(rec_.size() - 1) == macroDown(key) && (!times_ || nowMs - lastMs_ <= kTapMergeMs)) {
+            rec_.set(rec_.size() - 1, macroTap(key));  // the press right before: one tap
+            compose();
+            lastMs_ = nowMs;
+            held_.erase(key);
+            return Recorded;
+        }
         const Result r = append(macroUp(key), nowMs);
         held_.erase(key);
         return r;
@@ -202,7 +243,7 @@ private:
         compose();
     }
 
-    bool times_ = true, recording_ = false, full_ = false, any_ = false, endedByEscape_ = false;
+    bool merge_ = false, times_ = true, recording_ = false, full_ = false, any_ = false, endedByEscape_ = false;
     long long lastMs_ = 0;
     int escRun_ = 0;
     MacroList before_, rec_, after_, all_;

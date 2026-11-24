@@ -898,6 +898,23 @@ is stored as `none | <release>`. A macro from the configuration file with a rele
 only a text this version of dofscroll refuses (for example a key it does not know) is not shown, and then nothing is written
 over it unless you choose another kind.
 
+The list offers every kind of step of the macro grammar (`docs/modes.md`, "Macros"): **Press a key**, **Release a key**, **Tap a
+key** (`tap:<chord>`), **Pause**, **Click a mouse button**, **Hold a mouse button**, **Release a mouse button**, **Start of a repeat
+block** and **End of a repeat block** (`repeat:<n>` ... `end`), and **Paste a text** (`paste:"<text>"`). The buttons below the list
+add a step after the chosen one; **Add repeat block** adds the start, a short pause and the end together, to be changed. The
+fields under the list follow the kind of the chosen step: the key, the pause in milliseconds, the mouse button (left, middle,
+right), the number of passes (0 means "until the trigger is released" and is only valid with the check box below) or the text.
+A text with a character the daemon refuses (a control character, the backslash, the double quote, `#`, an invisible character)
+is explained next to the field with the position of the first one, and the step keeps its last valid text. Under the list a red line
+says why a part is not valid yet (a repeat block that is not closed, more than 256 steps after the repeats are expanded); the
+window does not write such a macro.
+
+The check box **Run only while the trigger is held** is the `while_held` prefix of the side (one per direction of a motion). On: the
+press part ends as soon as you let go of the button, or ease the push back to half of the trigger level, and what it holds is
+released; the release part, if there is one, then runs. Off (the default): the whole press part always runs. A repeat block with
+the count 0 is only valid with it on. The recorder writes a key that is pressed and let go again within 150 ms as one **Tap**
+step (with "Record the times" off, a key pressed and let go again with no other key in between is always one Tap step).
+
 Under the **Action text** line the window says in one line what you get, naming the stored form in words ("Stored as a macro:
 press part 4 steps, release part none. ..."), and where a simpler kind does the same it says so: "A single key or combination
 does not need a macro: choose Key or combination here, or Press key in the list of the button." The window also says what a
