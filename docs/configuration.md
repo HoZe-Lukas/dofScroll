@@ -545,7 +545,7 @@ All are validated by `cmake --build build --target check-config`. Copy a single 
 
 | File | Content |
 |---|---|
-| `examples/default/linux/`, `windows/`, `macos/` (`dofscroll.conf`) | Initial config that the interface seeds on first start, one per operating system (macOS: experimental, untested). It has no device profile: the first attached device gets its own profile once (button 1 = navigation). |
+| `examples/default/linux/`, `windows/`, `macos/` (`dofscroll.conf`) | Initial config that the interface seeds on first start, one per operating system (macOS: experimental, untested). It has no device profile: the first attached device gets its own profile once (button 1 = navigation; the wired SpaceMouse Pro also starts with a lower scroll and zoom sensitivity, see [installation.md](installation.md#first-start-seeding)). |
 | `examples/dofscroll-pro.conf` | SpaceMouse Pro, buttons off. |
 | `examples/dofscroll-compact.conf` | SpaceMouse Compact, left button as nav button. |
 | `examples/dofscroll-multi-device.conf` | Both device profiles in one file (legacy single-file format). |
