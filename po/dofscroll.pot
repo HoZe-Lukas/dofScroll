@@ -3955,6 +3955,10 @@ msgstr ""
 msgid "If the driver has axes switched on for a program, that program receives every movement twice. The assistant lists those programs, switches off what you tick, and can create empty profiles for your 3D and CAD programs. You can also do this later on the Settings page."
 msgstr ""
 
+#: src/ui/model/profile_import.hpp
+msgid "%1 runs a macro that presses or clicks %2"
+msgstr ""
+
 #: src/ui/model/setup_guide_model.hpp
 msgid "Open the driver assistant..."
 msgstr ""
