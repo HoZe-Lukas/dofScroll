@@ -3,12 +3,9 @@
 // The first device profile of a new installation (ui/model/first_device.hpp) and its progress flag.
 #undef NDEBUG
 #include <cassert>
-#include <cstdlib>
-#include <fstream>
-#include <sstream>
+#include <chrono>
+#include <filesystem>
 #include <string>
-
-#include <unistd.h>
 
 #include "ui/model/first_device.hpp"
 #include "ui/model/ui_progress.hpp"
@@ -58,11 +55,14 @@ int main() {
         assert(firstDeviceTuning("SpaceMouse Pro Wireless").empty() && firstDeviceTuning("SpaceMouse Enterprise").empty() && firstDeviceTuning("").empty());
     }
     {   // the split layout writes the same keys into devices/<name>.conf
-        char dirTemplate[] = "/tmp/dofscroll-first-device-XXXXXX";
-        const char *dir = mkdtemp(dirTemplate);
-        assert(dir != nullptr);
+        namespace stdfs = std::filesystem;
+        const stdfs::path root = stdfs::temp_directory_path() /
+                                 ("dofscroll-first-device-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        std::error_code ec;
+        stdfs::create_directories(root, ec);
+        assert(!ec);
+        const std::string dir = root.string();
         assert(writeFirstDeviceProfileFile(dir, "SpaceMouse Pro", &err));
-        std::string text;
         {
             std::string found;
             ProfileSet back;
@@ -76,8 +76,7 @@ int main() {
             assert(found.find("BUTTON_1=nav;") != std::string::npos && found.find("SCROLL_V_SENS=3;") != std::string::npos &&
                    found.find("ZOOM_SENS=1;") != std::string::npos && found.find("SCROLL_H_CURVE=2;") != std::string::npos);
         }
-        const std::string cleanup = std::string("rm -rf '") + dir + "'";
-        assert(std::system(cleanup.c_str()) == 0);
+        stdfs::remove_all(root, ec);
     }
     {   // the flag survives a round trip and is off by default
         UiProgress p;
