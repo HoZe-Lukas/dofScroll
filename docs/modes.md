@@ -467,9 +467,10 @@ the paste shortcut is pressed, so the keyboard layout does not matter and every 
 - To paste into a terminal that wants Ctrl+Shift+V, hold Shift around it: `+shift paste:"text" -shift`.
 - The text that was on the clipboard is offered again after about 150 ms (text only: an image or a file list on the
   clipboard is not restored). If another program takes the clipboard meanwhile, nothing is restored.
-- **Support:** Linux with the X11 output (the daemon owns the clipboard until the target has taken the text). With the
-  uinput output (Wayland) the step is skipped and the log says `macro: paste: ...`; the rest of the macro runs.
-  Windows and macOS follow in the same release line.
+- **Support:** Linux with the X11 output (the daemon owns the clipboard until the target has taken the text), Windows
+  (`CF_UNICODETEXT`, Ctrl+V) and macOS (`NSPasteboard`, Cmd+V). With the uinput output (Wayland) the step is skipped and the
+  log says `macro: paste: ...`; the rest of the macro runs. The Windows and macOS daemons are built by CI and not run on hardware.
+  If another program changed the clipboard in the meantime, Windows and macOS leave it as it is.
 - A pasted text is tier B like a key press: the load warning names it (`paste "first 20 characters..."`).
 
 How macros behave in real programs (timing, recording, release at the end) is not verified on a real device.

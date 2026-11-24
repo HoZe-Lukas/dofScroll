@@ -25,6 +25,7 @@
 
 #include <vector>
 
+#include "mac_clipboard.hpp"
 #include "mac_key_tables.hpp"
 #include "mouse_move_math.hpp"
 
@@ -90,6 +91,36 @@ public:
         }
         return true;
     }
+
+    // Paste: step: the text goes to the general pasteboard; the text that was there is kept (text only) and written back by
+    // restoreClipboard(), unless another program changed the clipboard in between (change count). The paste shortcut is Cmd+V.
+    bool setClipboardText(const std::string &utf8, std::string *why) override {
+        std::lock_guard<std::mutex> lk(m_);
+        if (!replaced_) {  // a paste that is still pending keeps the text saved by the first one
+            saved_.clear();
+            hadSaved_ = macClipboardGetText(&saved_);
+        }
+        const long c = macClipboardSetText(utf8);
+        if (c < 0) {
+            if (why) *why = "macos: could not write to the clipboard";
+            return false;
+        }
+        replaced_ = true;
+        count_ = c;
+        return true;
+    }
+    void restoreClipboard() override {
+        std::lock_guard<std::mutex> lk(m_);
+        if (!replaced_) return;
+        replaced_ = false;
+        if (macClipboardChangeCount() == count_) {  // otherwise another program took the clipboard: leave it alone
+            if (hadSaved_) macClipboardSetText(saved_);
+            else macClipboardClear();
+        }
+        saved_.clear();
+        hadSaved_ = false;
+    }
+    Key pasteModifier() const override { return Key::Super; }
 
     // The public methods are serialized: releaseAll() is also called from the sleep watcher and the
     // exit handlers (other threads).
@@ -269,6 +300,10 @@ private:
     }
 
     std::mutex m_;
+    bool replaced_ = false;  // a paste: step replaced the clipboard text and it has not been restored yet
+    bool hadSaved_ = false;  // saved_ holds the text that was there before
+    std::string saved_;
+    long count_ = 0;         // the pasteboard change count right after our write
     CGEventSourceRef src_ = nullptr;
     std::array<bool, kKeyCount> keysDown_{};
     std::array<bool, 4> buttonsDown_{};  // index 1..3
