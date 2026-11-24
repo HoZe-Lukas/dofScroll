@@ -71,7 +71,7 @@ editor is **not** changed (that is #387); check that it shows a `paste:` step as
 ## What only a human can verify
 
 The paste really arrives in a text editor, a terminal (Ctrl+Shift+V case) and a browser field on X11, Windows and macOS; the
-previous clipboard text is back afterwards; a text with `€ ö` pastes correctly on every layout; the macro refuses a text with
+previous clipboard text is back afterwards; a text with the euro sign and an o-umlaut pastes correctly on every layout; the macro refuses a text with
 `\`, `"` or ESC at load with a position. Nothing of this is claimed as tested by the unit tests.
 
 ## Open decisions
