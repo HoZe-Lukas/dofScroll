@@ -183,17 +183,33 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     v->addWidget(list_);
     count_ = wrapLabel(QString(), this, "macroCount");
     v->addWidget(count_);
+    problem_ = wrapLabel(QString(), this, "macroProblem");
+    problem_->hide();
+    v->addWidget(problem_);
+    whileHeldBox_ = new QCheckBox(T("Run only while the trigger is held"), this);
+    whileHeldBox_->setObjectName(QStringLiteral("macroWhileHeld"));
+    whileHeldBox_->setProperty("look", QStringLiteral("box"));
+    whileHeldBox_->setAccessibleName(T("Run the press part only while the trigger is held"));
+    whileHeldBox_->setAccessibleDescription(T("On: the press part stops as soon as you let go. Off: it always runs to its end."));
+    whileHeldBox_->setMinimumHeight(24);
+    v->addWidget(whileHeldBox_);
+    whileHeldWords_ = wrapLabel(T("On: the press part stops as soon as you let go of the button (or ease a push back to half of the trigger level), and what it holds is released. Off: the whole press part always runs. With it on, a repeat block may repeat until you let go."), this, "macroWhileHeldWords");
+    v->addWidget(whileHeldWords_);
 
     auto *buttons = new QGridLayout;
     addDown_ = smallButton(T("Add key press"), "macroAddDown", T("Add a step that presses a key, after the chosen step"), this);
     addUp_ = smallButton(T("Add key release"), "macroAddUp", T("Add a step that lets go of a key, after the chosen step"), this);
     addWait_ = smallButton(T("Add pause"), "macroAddWait", T("Add a pause, after the chosen step"), this);
+    addTap_ = smallButton(T("Add key tap"), "macroAddTap", T("Add a step that presses and lets go of a key in one go, after the chosen step"), this);
+    addMouse_ = smallButton(T("Add mouse click"), "macroAddMouse", T("Add a click of a mouse button, after the chosen step"), this);
+    addRepeat_ = smallButton(T("Add repeat block"), "macroAddRepeat", T("Add a block of steps that runs several times, after the chosen step"), this);
+    addPaste_ = smallButton(T("Add pasted text"), "macroAddPaste", T("Add a step that pastes a text through the clipboard, after the chosen step"), this);
     del_ = smallButton(T("Delete"), "macroDelete", T("Delete the chosen step"), this);
     up_ = smallButton(T("Move up"), "macroMoveUp", T("Move the chosen step one place up"), this);
     down_ = smallButton(T("Move down"), "macroMoveDown", T("Move the chosen step one place down"), this);
     clear_ = smallButton(T("Clear all"), "macroClear", T("Delete all steps of this macro"), this);
     buttonGrid_ = buttons;
-    stepButtons_ = {addDown_, addUp_, addWait_, del_, up_, down_, clear_};
+    stepButtons_ = {addDown_, addUp_, addTap_, addWait_, addMouse_, addRepeat_, addPaste_, del_, up_, down_, clear_};
     v->addLayout(buttons);
     arrangeButtons(true);
 
@@ -204,9 +220,16 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     type_->setObjectName(QStringLiteral("macroStepType"));
     type_->addItem(T("Press a key"), int(MacroStep::Kind::Down));
     type_->addItem(T("Release a key"), int(MacroStep::Kind::Up));
+    type_->addItem(T("Tap a key"), int(MacroStep::Kind::Tap));
     type_->addItem(T("Pause"), int(MacroStep::Kind::Wait));
+    type_->addItem(T("Click a mouse button"), int(MacroStep::Kind::MouseTap));
+    type_->addItem(T("Hold a mouse button"), int(MacroStep::Kind::MouseDown));
+    type_->addItem(T("Release a mouse button"), int(MacroStep::Kind::MouseUp));
+    type_->addItem(T("Start of a repeat block"), int(MacroStep::Kind::RepeatBegin));
+    type_->addItem(T("End of a repeat block"), int(MacroStep::Kind::RepeatEnd));
+    type_->addItem(T("Paste a text"), int(MacroStep::Kind::Paste));
     type_->setAccessibleName(T("Kind of the chosen step"));
-    type_->setAccessibleDescription(T("Press a key, release a key or pause, for the chosen step"));
+    type_->setAccessibleDescription(T("The kind of the chosen step: a key, a pause, the mouse, a repeat block or a pasted text"));
     type_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     type_->setMinimumContentsLength(10);
     type_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
@@ -232,6 +255,44 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     wait_->setMinimumWidth(100);
     waitLabel_->setBuddy(wait_);
     v->addWidget(wait_);
+    mouseLabel_ = wrapLabel(T("Mouse button:"), this);
+    v->addWidget(mouseLabel_);
+    mouse_ = new QComboBox(this);
+    mouse_->setObjectName(QStringLiteral("macroMouse"));
+    mouse_->addItem(T("Left"), 1);
+    mouse_->addItem(T("Middle"), 2);
+    mouse_->addItem(T("Right"), 3);
+    mouse_->setAccessibleName(T("Mouse button of the chosen step"));
+    mouse_->setAccessibleDescription(T("Left, middle or right button"));
+    mouse_->setMinimumHeight(24);
+    mouse_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+    mouse_->setMinimumWidth(100);
+    mouseLabel_->setBuddy(mouse_);
+    v->addWidget(mouse_);
+    repeatLabel_ = wrapLabel(T("Repeat how many times (0: until the trigger is released, only with \"Run only while the trigger is held\"):"), this);
+    v->addWidget(repeatLabel_);
+    repeat_ = new QSpinBox(this);
+    repeat_->setObjectName(QStringLiteral("macroRepeat"));
+    repeat_->setRange(0, spn::kMaxMacroRepeat);
+    repeat_->setValue(3);
+    repeat_->setAccessibleName(T("Number of passes of the repeat block"));
+    repeat_->setAccessibleDescription(T("1 to 1000 passes; 0 repeats until the trigger is released"));
+    repeat_->setMinimumHeight(24);
+    repeat_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+    repeat_->setMinimumWidth(100);
+    repeatLabel_->setBuddy(repeat_);
+    v->addWidget(repeat_);
+    pasteLabel_ = wrapLabel(T("Text to paste (it goes through the clipboard; the old clipboard text is put back):"), this);
+    v->addWidget(pasteLabel_);
+    paste_ = new QLineEdit(this);
+    paste_->setObjectName(QStringLiteral("macroPaste"));
+    paste_->setMaxLength(int(spn::kMaxMacroPasteBytes));
+    paste_->setAccessibleName(T("Text to paste"));
+    paste_->setAccessibleDescription(T("The text this step pastes; no control characters, backslash, double quote or number sign"));
+    paste_->setMinimumHeight(24);
+    paste_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+    pasteLabel_->setBuddy(paste_);
+    v->addWidget(paste_);
     pauseNote_ = wrapLabel(QString(), this, "macroPauseNote");
     pauseNote_->hide();
     v->addWidget(pauseNote_);
@@ -241,16 +302,24 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     QWidget::setTabOrder(record_, stop_);
     QWidget::setTabOrder(stop_, times_);
     QWidget::setTabOrder(times_, list_);
-    QWidget::setTabOrder(list_, addDown_);
+    QWidget::setTabOrder(list_, whileHeldBox_);  // on the screen the check box sits under the list, above the buttons
+    QWidget::setTabOrder(whileHeldBox_, addDown_);
     QWidget::setTabOrder(addDown_, addUp_);
     QWidget::setTabOrder(addUp_, addWait_);
-    QWidget::setTabOrder(addWait_, del_);
+    QWidget::setTabOrder(addWait_, addTap_);
+    QWidget::setTabOrder(addTap_, addMouse_);
+    QWidget::setTabOrder(addMouse_, addRepeat_);
+    QWidget::setTabOrder(addRepeat_, addPaste_);
+    QWidget::setTabOrder(addPaste_, del_);
     QWidget::setTabOrder(del_, up_);
     QWidget::setTabOrder(up_, down_);
     QWidget::setTabOrder(down_, clear_);
     QWidget::setTabOrder(clear_, type_);
     QWidget::setTabOrder(type_, chord_->firstControl());  // the key field's own controls follow each other from there
     QWidget::setTabOrder(chord_->captureButton(), wait_);
+    QWidget::setTabOrder(wait_, mouse_);
+    QWidget::setTabOrder(mouse_, repeat_);
+    QWidget::setTabOrder(repeat_, paste_);
 
     connect(part_box_, &QComboBox::activated, this, [this](int idx) {
         if (quiet_) return;
@@ -282,6 +351,19 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     connect(addDown_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Kind::Down); });
     connect(addUp_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Kind::Up); });
     connect(addWait_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Kind::Wait); });
+    connect(addTap_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Kind::Tap); });
+    connect(addMouse_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Kind::MouseTap); });
+    connect(addRepeat_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Kind::RepeatBegin); });
+    connect(addPaste_, &QPushButton::clicked, this, [this] { addStep(MacroStep::Kind::Paste); });
+    connect(whileHeldBox_, &QCheckBox::toggled, this, [this](bool on) {
+        if (quiet_) return;
+        whileHeld_ = on;
+        refreshProblem();
+        emit stepsChanged();
+    });
+    connect(mouse_, &QComboBox::activated, this, [this](int) { stepEdited(); });
+    connect(repeat_, &QSpinBox::valueChanged, this, [this](int) { if (!quiet_) stepEdited(); });
+    connect(paste_, &QLineEdit::textEdited, this, [this](const QString &t) { pasteTyped(t); });
     connect(del_, &QPushButton::clicked, this, [this] {
         const int row = list_->currentRow();
         if (row < 0 || !cur().remove(size_t(row))) return;
@@ -314,11 +396,12 @@ MacroEditor::MacroEditor(const QString &accessible, QWidget *parent) : QWidget(p
     for (QWidget *c : findChildren<QWidget *>()) {
         if (chord_->isAncestorOf(c) || c == chord_) continue;
         const bool button = qobject_cast<QPushButton *>(c) != nullptr;
-        const bool field = c == list_ || c == type_ || c == wait_ || c == times_ || c == part_box_;
+        const bool field = c == list_ || c == type_ || c == wait_ || c == times_ || c == part_box_ || c == mouse_ || c == repeat_ || c == paste_ || c == whileHeldBox_;
         if (!button && !field) continue;
         if (button) c->setAccessibleName(c->accessibleName() + QStringLiteral(", ") + accessible);
         c->setAccessibleDescription(accessible + QStringLiteral(": ") + c->accessibleDescription());
     }
+    recorder_.setMergeTaps(true);  // a key pressed and let go at once is recorded as one tap: step
     refreshList(-1);
 }
 
@@ -328,6 +411,13 @@ QString MacroEditor::stepWords(const MacroStep &s) const {
         case MacroStep::Kind::Down: return T("Press %1").arg(qs8(spn::ui::chordDisplay(spn::ui::macroStepChord(s), strings)));
         case MacroStep::Kind::Up: return T("Release %1").arg(qs8(spn::ui::chordDisplay(spn::ui::macroStepChord(s), strings)));
         case MacroStep::Kind::Wait: return T("Wait %1 ms").arg(s.waitMs);
+        case MacroStep::Kind::Tap: return T("Tap %1").arg(qs8(spn::ui::chordDisplay(spn::ui::macroStepChord(s), strings)));
+        case MacroStep::Kind::MouseTap: return T("Click %1 button").arg(qs8(spn::ui::macro_words_detail::mouseButtonWord(s.mouse, strings)));
+        case MacroStep::Kind::MouseDown: return T("Hold %1 button").arg(qs8(spn::ui::macro_words_detail::mouseButtonWord(s.mouse, strings)));
+        case MacroStep::Kind::MouseUp: return T("Release %1 button").arg(qs8(spn::ui::macro_words_detail::mouseButtonWord(s.mouse, strings)));
+        case MacroStep::Kind::RepeatBegin: return s.count > 0 ? T("Repeat %1 times:").arg(s.count) : T("Repeat until released:");
+        case MacroStep::Kind::RepeatEnd: return T("End of repeat");
+        case MacroStep::Kind::Paste: return T("Paste \"%1\"").arg(qs8(spn::ui::macro_words_detail::pasteWords(s.text)));
     }
     return QString();
 }
@@ -337,6 +427,27 @@ void MacroEditor::setSteps(const MacroList &steps, const MacroList &release) {
     parts_[1] = release;
     refreshPartNames();
     refreshList(cur().empty() ? -1 : 0);
+}
+
+void MacroEditor::setWhileHeld(bool on) {
+    whileHeld_ = on;
+    quiet_ = true;
+    whileHeldBox_->setChecked(on);
+    quiet_ = false;
+    refreshProblem();
+}
+
+// The core's verdict on the shown part (a repeat block that is not closed, more than 256 steps after the repeats are expanded):
+// the dialog would refuse to write it, so the window says why next to the list.
+void MacroEditor::refreshProblem() {
+    const std::string p = cur().problem(part_ == 0 && whileHeld_);
+    if (p.empty()) {
+        problem_->hide();
+        return;
+    }
+    static const QtStrings strings;
+    problem_->setText(mark(StatusKind::Error, T("Not valid yet: ") + qs8(strings.tr(p.c_str()))));
+    problem_->show();
 }
 
 void MacroEditor::showPart(int part) {
@@ -389,6 +500,7 @@ void MacroEditor::refreshList(int select) {
     count_->setText(cur().full() ? T("%1 of %2 steps: the macro is full.").arg(cur().size()).arg(spn::kMaxMacroSteps)
                                   : T("%1 of %2 steps.").arg(cur().size()).arg(spn::kMaxMacroSteps));
     refreshPartNames();
+    refreshProblem();
     refreshEditor();
     refreshButtons();
 }
@@ -397,23 +509,32 @@ void MacroEditor::refreshEditor() {
     const int row = list_->currentRow();
     const bool have = row >= 0 && size_t(row) < cur().size();
     type_->setEnabled(have);
+    auto showFields = [this](bool chord, bool wait, bool mouse, bool repeat, bool paste) {
+        chord_->setVisible(chord);
+        chordLabel_->setVisible(chord);
+        waitLabel_->setVisible(wait);
+        wait_->setVisible(wait);
+        mouseLabel_->setVisible(mouse);
+        mouse_->setVisible(mouse);
+        repeatLabel_->setVisible(repeat);
+        repeat_->setVisible(repeat);
+        pasteLabel_->setVisible(paste);
+        paste_->setVisible(paste);
+    };
     if (!have) {
-        chord_->hide();
-        chordLabel_->hide();
-        waitLabel_->hide();
-        wait_->hide();
+        showFields(false, false, false, false, false);
         return;
     }
     const MacroStep &s = cur().at(size_t(row));
     quiet_ = true;
     type_->setCurrentIndex(type_->findData(int(s.kind)));
-    const bool wait = s.kind == MacroStep::Kind::Wait;
-    chord_->setVisible(!wait);
-    chordLabel_->setVisible(!wait);
-    waitLabel_->setVisible(wait);
-    wait_->setVisible(wait);
-    if (wait) wait_->setValue(s.waitMs);
-    else chord_->setValue(spn::ui::macroStepChord(s));
+    const bool mouse = s.kind == MacroStep::Kind::MouseTap || s.kind == MacroStep::Kind::MouseDown || s.kind == MacroStep::Kind::MouseUp;
+    showFields(spn::ui::macroStepHasChord(s), s.kind == MacroStep::Kind::Wait, mouse, s.kind == MacroStep::Kind::RepeatBegin, s.kind == MacroStep::Kind::Paste);
+    if (s.kind == MacroStep::Kind::Wait) wait_->setValue(s.waitMs);
+    else if (spn::ui::macroStepHasChord(s)) chord_->setValue(spn::ui::macroStepChord(s));
+    else if (mouse) mouse_->setCurrentIndex(mouse_->findData(int(s.mouse)));
+    else if (s.kind == MacroStep::Kind::RepeatBegin) repeat_->setValue(s.count);
+    else if (s.kind == MacroStep::Kind::Paste) paste_->setText(qs8(s.text));
     quiet_ = false;
 }
 
@@ -421,7 +542,7 @@ void MacroEditor::refreshButtons() {
     const int row = list_->currentRow();
     const bool have = row >= 0 && size_t(row) < cur().size();
     const bool rec = recorder_.recording();
-    for (QPushButton *b : {addDown_, addUp_, addWait_}) b->setEnabled(!cur().full() && !rec);
+    for (QPushButton *b : {addDown_, addUp_, addTap_, addWait_, addMouse_, addRepeat_, addPaste_}) b->setEnabled(!cur().full() && !rec);
     del_->setEnabled(have && !rec);
     up_->setEnabled(have && row > 0 && !rec);
     down_->setEnabled(have && size_t(row) + 1 < cur().size() && !rec);
@@ -432,6 +553,10 @@ void MacroEditor::refreshButtons() {
     part_box_->setEnabled(!rec);
     chord_->setEnabled(!rec);
     wait_->setEnabled(!rec);
+    mouse_->setEnabled(!rec);
+    repeat_->setEnabled(!rec);
+    paste_->setEnabled(!rec);
+    whileHeldBox_->setEnabled(!rec);
 }
 
 // The chosen step was changed in the editor below the list.
@@ -440,14 +565,36 @@ void MacroEditor::stepEdited() {
     const int row = list_->currentRow();
     if (row < 0 || size_t(row) >= cur().size()) return;
     const MacroStep::Kind t = MacroStep::Kind(type_->currentData().toInt());
-    const MacroStep &old = cur().at(size_t(row));
+    const MacroStep old = cur().at(size_t(row));
     MacroStep s;
-    if (t == MacroStep::Kind::Wait) {
-        s = MacroStep::wait(old.kind == MacroStep::Kind::Wait ? wait_->value() : spn::kDefaultMacroWaitMs);
-    } else {
-        std::string chord = old.kind == MacroStep::Kind::Wait ? std::string("space") : spn::ui::macroStepChord(old);
-        if (old.kind != MacroStep::Kind::Wait && !chord_->value().empty()) chord = chord_->value();
-        s = t == MacroStep::Kind::Down ? spn::ui::macroDown(chord) : spn::ui::macroUp(chord);
+    const bool oldChord = spn::ui::macroStepHasChord(old);
+    const bool oldMouse = old.kind == MacroStep::Kind::MouseTap || old.kind == MacroStep::Kind::MouseDown || old.kind == MacroStep::Kind::MouseUp;
+    switch (t) {
+        case MacroStep::Kind::Wait:
+            s = MacroStep::wait(old.kind == MacroStep::Kind::Wait ? wait_->value() : spn::kDefaultMacroWaitMs);
+            break;
+        case MacroStep::Kind::Down:
+        case MacroStep::Kind::Up:
+        case MacroStep::Kind::Tap: {
+            std::string chord = oldChord ? spn::ui::macroStepChord(old) : std::string("space");
+            if (oldChord && !chord_->value().empty()) chord = chord_->value();
+            s = t == MacroStep::Kind::Down ? spn::ui::macroDown(chord) : t == MacroStep::Kind::Up ? spn::ui::macroUp(chord) : spn::ui::macroTap(chord);
+            break;
+        }
+        case MacroStep::Kind::MouseTap:
+        case MacroStep::Kind::MouseDown:
+        case MacroStep::Kind::MouseUp:
+            s = spn::ui::macroMouse(t, oldMouse ? mouse_->currentData().toInt() : 1);
+            break;
+        case MacroStep::Kind::RepeatBegin:
+            s = spn::ui::macroRepeat(old.kind == MacroStep::Kind::RepeatBegin ? repeat_->value() : 3);
+            break;
+        case MacroStep::Kind::RepeatEnd:
+            s = MacroStep::repeatEnd();
+            break;
+        case MacroStep::Kind::Paste:
+            s = spn::ui::macroPaste(old.kind == MacroStep::Kind::Paste ? paste_->text().toStdString() : std::string("Text"));
+            break;
     }
     if (!cur().set(size_t(row), s)) {  // never silently: the step stays as it was and the window says why
         pauseNote_->setText(mark(StatusKind::Error, T("Invalid value: ") + T("the step was not changed, the key or the pause is not valid")));
@@ -457,6 +604,27 @@ void MacroEditor::stepEdited() {
     pauseNote_->hide();
     if (QListWidgetItem *it = list_->item(row)) it->setText(stepWords(s));
     if (s.kind != old.kind) refreshEditor();  // the fields of the other kind
+    refreshProblem();
+    emit stepsChanged();
+}
+
+// The text typed into the paste field: a text the core refuses is explained next to the field (with the position of the first
+// character that is not allowed) and the step keeps its last valid text.
+void MacroEditor::pasteTyped(const QString &text) {
+    const int row = list_->currentRow();
+    if (quiet_ || row < 0 || size_t(row) >= cur().size() || cur().at(size_t(row)).kind != MacroStep::Kind::Paste) return;
+    const std::string p = spn::macroPasteTextProblem(text.toStdString());
+    if (!p.empty()) {
+        static const QtStrings strings;
+        pauseNote_->setText(mark(StatusKind::Error, T("Invalid value: ") + qs8(strings.tr(p.c_str())) + QLatin1Char(' ') + T("The step keeps its last valid text.")));
+        pauseNote_->show();
+        return;
+    }
+    pauseNote_->hide();
+    MacroStep s = spn::MacroStep::paste(text.toStdString());
+    if (!cur().set(size_t(row), s)) return;
+    if (QListWidgetItem *it = list_->item(row)) it->setText(stepWords(s));
+    refreshProblem();
     emit stepsChanged();
 }
 
@@ -476,8 +644,27 @@ void MacroEditor::pauseTyped(const QString &text) {
 void MacroEditor::addStep(MacroStep::Kind type) {
     if (cur().full()) return;
     const int row = list_->currentRow();
-    const size_t at = row < 0 ? cur().size() : size_t(row) + 1;
-    const MacroStep s = type == MacroStep::Kind::Wait ? MacroStep::wait(spn::kDefaultMacroWaitMs) : type == MacroStep::Kind::Down ? spn::ui::macroDown("space") : spn::ui::macroUp("space");
+    size_t at = row < 0 ? cur().size() : size_t(row) + 1;
+    MacroStep s;
+    switch (type) {
+        case MacroStep::Kind::Wait: s = MacroStep::wait(spn::kDefaultMacroWaitMs); break;
+        case MacroStep::Kind::Down: s = spn::ui::macroDown("space"); break;
+        case MacroStep::Kind::Up: s = spn::ui::macroUp("space"); break;
+        case MacroStep::Kind::Tap: s = spn::ui::macroTap("space"); break;
+        case MacroStep::Kind::MouseTap: s = spn::ui::macroMouse(MacroStep::Kind::MouseTap, 1); break;
+        case MacroStep::Kind::Paste: s = spn::ui::macroPaste("Text"); break;
+        case MacroStep::Kind::RepeatBegin: {
+            // a block needs a step inside: the start, a short pause and the end, to be changed by the user
+            if (cur().size() + 3 > spn::kMaxMacroSteps) return;
+            if (!cur().insert(at, spn::ui::macroRepeat(3)) || !cur().insert(at + 1, MacroStep::wait(spn::kDefaultMacroWaitMs)) ||
+                !cur().insert(at + 2, MacroStep::repeatEnd()))
+                return;
+            refreshList(int(at));
+            emit stepsChanged();
+            return;
+        }
+        default: return;
+    }
     if (!cur().insert(at, s)) return;
     refreshList(int(at));
     emit stepsChanged();

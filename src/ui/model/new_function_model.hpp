@@ -124,6 +124,7 @@ struct FunctionDraft {
     // Set by draftFromText for a stored macro that the core's parser refuses (a text from a newer version or a hand edit): the
     // draft would be a lossy copy, so checkFunction refuses it and nothing is written over the file's text.
     bool macroNotEditable = false;
+    bool macroNegWhileHeld = false, macroPosWhileHeld = false;  // Macro: the press part of that side ends when the trigger is released
     std::string rateMin, rateMax, trigger;     // the tuning keys of the motion, "" = not set
 };
 
@@ -182,9 +183,11 @@ inline std::string macroSidesText(const FunctionTarget &t, const FunctionDraft &
     MacroSide neg, pos;
     neg.press = d.macroNeg.steps();
     neg.release = d.macroNegRelease.steps();
+    neg.whileHeld = d.macroNegWhileHeld && !neg.press.empty();  // the core needs steps in the press part for while_held
     if (!t.isMotion()) return macroSideText(neg);
     pos.press = d.macroPos.steps();
     pos.release = d.macroPosRelease.steps();
+    pos.whileHeld = d.macroPosWhileHeld && !pos.press.empty();
     return macroSideText(neg) + "," + macroSideText(pos);
 }
 
@@ -399,6 +402,7 @@ inline FunctionDraft draftFromText(const FunctionTarget &t, const std::string &t
     std::string text = textIn;
     while (!text.empty() && (text.back() == ' ' || text.back() == '\t')) text.pop_back();
     while (!text.empty() && (text.front() == ' ' || text.front() == '\t')) text.erase(text.begin());
+    const std::string original = text;  // a macro keeps the case of its text (paste:"Hello")
     text = utf8::lowerAscii(text);
     if (t.isMotion() && tuning) {
         d.rateMin = tuning(keyEngineKey(tuningMotion, KeyField::RateMin));
@@ -407,10 +411,10 @@ inline FunctionDraft draftFromText(const FunctionTarget &t, const std::string &t
     }
     if (text.compare(0, 6, "macro:") == 0) {
         d.kind = FunctionKind::Macro;
-        const std::string body = text.substr(6);
+        const std::string body = original.substr(6);  // not case folded
         if (fresh) *fresh = false;
-        auto load = [&](const std::string &side, MacroList *press, MacroList *release) {
-            if (side == "none") return;
+        auto load = [&](const std::string &side, MacroList *press, MacroList *release, bool *whileHeld) {
+            if (utf8::lowerAscii(utf8::trim(side)) == "none") return;
             MacroSide ms;
             if (!parseMacroSide(side, &ms, nullptr)) {
                 d.macroNotEditable = true;
@@ -418,13 +422,14 @@ inline FunctionDraft draftFromText(const FunctionTarget &t, const std::string &t
             }
             for (const MacroStep &st : ms.press) press->add(st);
             for (const MacroStep &st : ms.release) release->add(st);
+            *whileHeld = ms.whileHeld;
         };
         if (t.isMotion()) {
-            const size_t comma = body.find(',');
-            load(body.substr(0, comma), &d.macroNeg, &d.macroNegRelease);
-            load(comma == std::string::npos ? std::string("none") : body.substr(comma + 1), &d.macroPos, &d.macroPosRelease);
+            const size_t comma = macroTextTopLevelComma(body);  // a comma inside paste:"..." is no separator
+            load(body.substr(0, comma), &d.macroNeg, &d.macroNegRelease, &d.macroNegWhileHeld);
+            load(comma == std::string::npos ? std::string("none") : body.substr(comma + 1), &d.macroPos, &d.macroPosRelease, &d.macroPosWhileHeld);
         } else {
-            load(body, &d.macroNeg, &d.macroNegRelease);
+            load(body, &d.macroNeg, &d.macroNegRelease, &d.macroNegWhileHeld);
         }
         return d;
     }

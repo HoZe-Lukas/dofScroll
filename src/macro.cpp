@@ -144,6 +144,7 @@ std::string macroPasteTextProblem(const std::string &text) {
 }
 
 bool macroTextHasTopLevelComma(const std::string &text) { return findOutsideQuotes(text, ',') != std::string::npos; }
+size_t macroTextTopLevelComma(const std::string &text) { return findOutsideQuotes(text, ','); }
 
 bool parseMacroStep(const std::string &text, MacroStep *out, std::string *err) {
     const std::string raw = utf8::trim(text);

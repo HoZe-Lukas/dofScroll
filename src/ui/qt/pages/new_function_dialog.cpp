@@ -437,7 +437,11 @@ void NewFunctionDialog::syncWidgets() {
     }
     if (draft_.kind == FunctionKind::Macro) {
         macroNeg_->setSteps(draft_.macroNeg, draft_.macroNegRelease);
-        if (macroPos_ && motion) macroPos_->setSteps(draft_.macroPos, draft_.macroPosRelease);
+        macroNeg_->setWhileHeld(draft_.macroNegWhileHeld);
+        if (macroPos_ && motion) {
+            macroPos_->setSteps(draft_.macroPos, draft_.macroPosRelease);
+            macroPos_->setWhileHeld(draft_.macroPosWhileHeld);
+        }
     }
     rateMin_->setText(qs8(draft_.rateMin));
     rateMax_->setText(qs8(draft_.rateMax));
@@ -535,9 +539,11 @@ void NewFunctionDialog::edited() {
         case FunctionKind::Macro:
             draft_.macroNeg = macroNeg_->steps();
             draft_.macroNegRelease = macroNeg_->releaseSteps();
+            draft_.macroNegWhileHeld = macroNeg_->whileHeld();
             if (motion) {
                 draft_.macroPos = macroPos_->steps();
                 draft_.macroPosRelease = macroPos_->releaseSteps();
+                draft_.macroPosWhileHeld = macroPos_->whileHeld();
             }
             break;
     }

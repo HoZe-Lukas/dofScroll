@@ -147,6 +147,19 @@ int main() {
         }
     }
 
+    // ---- the other step kinds in words: tap, mouse, repeat block, pasted text, while held ----
+    assert(macroStepsWords(steps("tap:ctrl+c"), s, 10) == "Ctrl+C" && macroStepsWords(steps("tap:down"), s, 10) == "Down arrow");
+    assert(macroStepsWords(steps("click rightclick middleclick"), s, 10) == "Click left button, Click right button, Click middle button");
+    assert(macroStepsWords(steps("+click wait:30 -click"), s, 10) == "Hold left button, 30 ms, Release left button");
+    assert(macroStepsWords(steps("repeat:3 tap:a end"), s, 10) == "Repeat 3 times:, A, end of repeat");
+    assert(macroStepsWords(steps("paste:\"Hello, World\""), s, 10) == "Paste \"Hello, World\"");
+    assert(macroStepsWords(steps("paste:\"0123456789012345678901234\""), s, 10) == "Paste \"01234567890123456789...\"");
+    {
+        MacroSide heldSide;
+        std::string perr;
+        assert(parseMacroSide("while_held repeat tap:down wait:50 end | tap:esc", &heldSide, &perr));
+        assert(macroSideWords(heldSide, s, 10) == "while held: Repeat until released:, Down arrow, 50 ms, end of repeat | on release: Escape");
+    }
     std::puts("test_ui_macro_words: ok");
     return 0;
 }

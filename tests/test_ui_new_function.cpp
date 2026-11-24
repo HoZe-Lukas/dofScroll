@@ -195,6 +195,27 @@ int main() {
             std::string text, err;
             assert(composeFunction(btn, d, &text, &err) && text == "macro:+ctrl | -ctrl");
         }
+        // the whole text stays as it is when the dialog opens and saves it: case of a pasted text, a comma inside it, while_held
+        d = draftFromText(btn, "macro:paste:\"Hello, World\" | +a -a", "", none, &fresh);
+        assert(!fresh && !d.macroNotEditable && d.macroNeg.size() == 1 && d.macroNeg.at(0).text == "Hello, World" && d.macroNegRelease.text() == "+a -a");
+        {
+            std::string text, err;
+            assert(composeFunction(btn, d, &text, &err) && text == "macro:paste:\"Hello, World\" | +a -a");
+        }
+        d = draftFromText(btn, "MACRO:While_Held repeat tap:pagedown wait:100 end", "", none, &fresh);
+        assert(!d.macroNotEditable && d.macroNegWhileHeld && d.macroNeg.size() == 4);
+        {
+            std::string text, err;
+            assert(composeFunction(btn, d, &text, &err) && text == "macro:while_held repeat tap:pagedown wait:100 end" && checkFunction(btn, d).empty());
+            d.macroNegWhileHeld = false;  // switched off: the repeat without a count is no longer valid, the dialog says so
+            assert(composeFunction(btn, d, &text, &err) && !checkFunction(btn, d).empty());
+        }
+        d = draftFromText(tilt, "macro:paste:\"A,b\" | tap:x,while_held repeat tap:down wait:50 end", "h_push", none, &fresh);
+        assert(!d.macroNotEditable && !d.macroNegWhileHeld && d.macroPosWhileHeld && d.macroNeg.at(0).text == "A,b" && d.macroPos.size() == 4);
+        {
+            std::string text, err;
+            assert(composeFunction(tilt, d, &text, &err) && text == "macro:paste:\"A,b\" | tap:x,while_held repeat tap:down wait:50 end");
+        }
         d = draftFromText(tilt, "macro:+a -a | -b,wait:30 +a", "h_push", none, &fresh);
         assert(!d.macroNotEditable && d.macroNeg.text() == "+a -a" && d.macroNegRelease.text() == "-b" && d.macroPos.text() == "wait:30 +a" && d.macroPosRelease.empty());
         {
